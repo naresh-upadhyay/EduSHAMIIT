@@ -2923,7 +2923,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                 final drvCode = drv['driver_code'] ?? '';
                 final isSelected = _selectedDriver != null && _selectedDriver['id'] == drv['id'];
 
-                final veh = drv['bus_routes'] ?? drv['vehicle'] ?? {};
+                final veh = perf['bus_routes'] ?? perf['transport_routes'] ?? drv['bus_routes'] ?? drv['transport_routes'] ?? drv['vehicle'] ?? {};
                 final String vehNo = veh['registration_no'] ?? veh['bus_number'] ?? '—';
 
                 final double att = double.parse((perf['attendance_score'] ?? 5.0).toString());
@@ -5071,7 +5071,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
               rows: paginated.map((viol) {
                 final isSelected = _selectedViolation != null && _selectedViolation['id'] == viol['id'];
                 final drv = viol['drivers'] ?? {};
-                final veh = viol['bus_routes'] ?? {};
+                final veh = viol['bus_routes'] ?? viol['transport_routes'] ?? drv['bus_routes'] ?? drv['transport_routes'] ?? drv['vehicle'] ?? {};
                 final vehicleText = veh['registration_no'] ?? veh['bus_number'] ?? '—';
                 final vehicleType = veh['vehicle_type'] ?? 'Bus';
                 final status = viol['status'] ?? 'Pending';
@@ -5253,7 +5253,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
   Widget _buildViolDetailsPanelSection(dynamic viol) {
     if (viol == null) return Container();
     final drv = viol['drivers'] ?? {};
-    final veh = viol['bus_routes'] ?? {};
+    final veh = viol['bus_routes'] ?? viol['transport_routes'] ?? drv['bus_routes'] ?? drv['transport_routes'] ?? drv['vehicle'] ?? {};
     final String status = viol['status'] ?? 'Pending';
     final String severity = viol['severity'] ?? 'Medium';
     final double fine = double.parse((viol['fine_amount'] ?? 0.0).toString());
@@ -5557,7 +5557,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
       selectedDriverId = null;
     }
 
-    String? selectedVehicleId = existing?['vehicle_id']?.toString();
+    String? selectedVehicleId = existing?['vehicle_id']?.toString() ?? existing?['drivers']?['assigned_vehicle_id']?.toString() ?? existing?['drivers']?['vehicle_id']?.toString();
     if (selectedVehicleId != null && !uniqueVehicles.containsKey(selectedVehicleId)) {
       selectedVehicleId = null;
     }
@@ -5910,7 +5910,6 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
     final totalStopsController = TextEditingController(text: (existing?['total_stops'] ?? 10).toString());
     final distanceController = TextEditingController(text: (existing?['distance'] ?? 15.0).toString());
     final durationController = TextEditingController(text: existing?['estimated_duration'] ?? '45 mins');
-    final createdByController = TextEditingController(text: existing?['created_by'] ?? 'Transport Manager');
     final notesController = TextEditingController(text: existing?['notes'] ?? '');
 
     final allDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -6125,12 +6124,6 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                         ],
                       ),
                       const SizedBox(height: 12),
-                      // Created By & Notes
-                      TextFormField(
-                        controller: createdByController,
-                        decoration: const InputDecoration(labelText: 'Created By / Manager', border: OutlineInputBorder()),
-                      ),
-                      const SizedBox(height: 12),
                       TextFormField(
                         controller: notesController,
                         maxLines: 2,
@@ -6161,10 +6154,11 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                         "total_stops": int.tryParse(totalStopsController.text) ?? 10,
                         "distance": double.tryParse(distanceController.text) ?? 15.0,
                         "estimated_duration": durationController.text.isNotEmpty ? durationController.text : '45 mins',
-                        "created_by": createdByController.text.isNotEmpty ? createdByController.text : 'Transport Manager',
+                        "created_by": existing?['created_by'] ?? 'Transport Manager',
                         "notes": notesController.text.isNotEmpty ? notesController.text : null,
                       };
                       try {
+                        final messenger = ScaffoldMessenger.of(context);
                         if (isEdit) {
                           await ApiService().put('/transport/drivers/assignments/${existing['id']}', data);
                         } else {
@@ -6172,7 +6166,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                         }
                         Navigator.pop(ctx);
                         _loadData();
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        messenger.showSnackBar(
                           SnackBar(content: Text(isEdit ? 'Assignment updated successfully' : 'Assignment created successfully'), backgroundColor: _green),
                         );
                       } catch (e) {
@@ -6686,7 +6680,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
       selectedDriverId = null;
     }
 
-    String? selectedVehicleId = existing?['vehicle_id']?.toString();
+    String? selectedVehicleId = existing?['vehicle_id']?.toString() ?? existing?['drivers']?['assigned_vehicle_id']?.toString() ?? existing?['drivers']?['vehicle_id']?.toString();
     if (selectedVehicleId != null && !uniqueVehicles.containsKey(selectedVehicleId)) {
       selectedVehicleId = null;
     }
@@ -6817,6 +6811,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                         "remarks": remarksController.text.isNotEmpty ? remarksController.text : null,
                       };
                       try {
+                        final messenger = ScaffoldMessenger.of(context);
                         if (isEdit) {
                           await ApiService().put('/transport/drivers/performance/${existing['id']}', data);
                         } else {
@@ -6824,7 +6819,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                         }
                         Navigator.pop(ctx);
                         _loadData();
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        messenger.showSnackBar(
                           SnackBar(content: Text(isEdit ? 'Performance score updated successfully' : 'Performance record added successfully'), backgroundColor: _green),
                         );
                       } catch (e) {

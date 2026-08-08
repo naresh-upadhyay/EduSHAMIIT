@@ -1050,6 +1050,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           _buildSubTile('Live Tracking', '/admin/route-management', 3, isRouteRoute && activeTab == 3, isDark),
           _buildSubTile('Route Reports', '/admin/route-management', 4, isRouteRoute && activeTab == 4, isDark),
           _buildSubTile('Stops', '/admin/route-management', 5, isRouteRoute && activeTab == 5, isDark),
+          _buildSubTile('Passenger Assignment', '/admin/route-management', 6, isRouteRoute && activeTab == 6, isDark),
         ],
       ],
     );

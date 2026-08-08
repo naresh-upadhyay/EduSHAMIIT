@@ -3712,10 +3712,20 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     );
   }
 
+  String _parseIsoUtc(dynamic dtStr) {
+    if (dtStr == null || dtStr.toString().isEmpty) return '';
+    String s = dtStr.toString().trim();
+    if (!s.endsWith('Z') && !s.contains('+') && !s.contains('-', 10)) {
+      s = '${s}Z';
+    }
+    return s;
+  }
+
   String _formatDateTime(dynamic dtStr) {
     if (dtStr == null || dtStr.toString().isEmpty) return '—';
     try {
-      final dt = DateTime.parse(dtStr.toString()).toLocal();
+      final s = _parseIsoUtc(dtStr);
+      final dt = DateTime.parse(s).toLocal();
       final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       final day = dt.day.toString().padLeft(2, '0');
       final month = months[dt.month - 1];
@@ -3733,9 +3743,12 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
   String _formatRelativeTime(dynamic dtStr) {
     if (dtStr == null || dtStr.toString().isEmpty) return '—';
     try {
-      final dt = DateTime.parse(dtStr.toString()).toLocal();
+      final s = _parseIsoUtc(dtStr);
+      final dt = DateTime.parse(s).toLocal();
       final now = DateTime.now();
       final diff = now.difference(dt);
+
+      if (diff.isNegative || diff.inSeconds < 45) return 'Just now';
       if (diff.inSeconds < 60) return '${diff.inSeconds}s ago';
       if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
       if (diff.inHours < 24) return '${diff.inHours}h ago';
@@ -4129,6 +4142,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
           child: ConstrainedBox(
             constraints: const BoxConstraints(minWidth: 1100),
             child: DataTable(
+              columnSpacing: 16,
+              horizontalMargin: 12,
               showCheckboxColumn: false,
               headingRowHeight: 44,
               dataRowMinHeight: 64,
@@ -4194,13 +4209,13 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              doc['bus_routes']?['registration_no'] ?? doc['bus_routes']?['bus_number'] ?? '—', 
+                              doc['transport_routes']?['registration_no'] ?? doc['transport_routes']?['bus_number'] ?? doc['bus_routes']?['registration_no'] ?? doc['bus_routes']?['bus_number'] ?? '—', 
                               style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: _textPrimary),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
-                              doc['bus_routes']?['vehicle_type'] ?? 'AC Bus', 
+                              doc['transport_routes']?['vehicle_type'] ?? doc['bus_routes']?['vehicle_type'] ?? 'AC Bus', 
                               style: GoogleFonts.inter(fontSize: 10, color: _textSecondary),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -4460,8 +4475,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
           const SizedBox(height: 20),
           
           _buildDocDetailRow('Document Type', doc['document_type'] ?? '—'),
-          _buildDocDetailRow('Vehicle Number', doc['bus_routes']?['registration_no'] ?? doc['bus_routes']?['bus_number'] ?? '—'),
-          _buildDocDetailRow('Vehicle', doc['bus_routes']?['vehicle_type'] ?? 'AC Bus'),
+          _buildDocDetailRow('Vehicle Number', doc['transport_routes']?['registration_no'] ?? doc['transport_routes']?['bus_number'] ?? doc['bus_routes']?['registration_no'] ?? doc['bus_routes']?['bus_number'] ?? '—'),
+          _buildDocDetailRow('Vehicle', doc['transport_routes']?['vehicle_type'] ?? doc['bus_routes']?['vehicle_type'] ?? 'AC Bus'),
           _buildDocDetailRow('Issue Date', _formatDate(doc['issued_date'])),
           _buildDocDetailRow(
             'Expiry Date', 
@@ -4686,7 +4701,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _buildMockTextColumn("DOC NO", doc['document_no'] ?? "RC-UP16-99218"),
-                    _buildMockTextColumn("VEHICLE NO", doc['bus_routes']?['registration_no'] ?? doc['bus_routes']?['bus_number'] ?? "UP16 ET 1234"),
+                    _buildMockTextColumn("VEHICLE NO", doc['transport_routes']?['registration_no'] ?? doc['transport_routes']?['bus_number'] ?? doc['bus_routes']?['registration_no'] ?? doc['bus_routes']?['bus_number'] ?? "UP16 ET 1234"),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -5072,6 +5087,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                 ElevatedButton(
                   onPressed: () async {
                     if (formKey.currentState!.validate()) {
+                      final messenger = ScaffoldMessenger.of(context);
                       Navigator.pop(ctx);
                       try {
                         String? fileUrl;
@@ -5113,7 +5129,14 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           }
                         } catch (_) {}
                         _loadAll();
-                      } catch (_) {}
+                        messenger.showSnackBar(
+                          const SnackBar(content: Text('Document uploaded successfully'), backgroundColor: Colors.green),
+                        );
+                      } catch (e) {
+                        messenger.showSnackBar(
+                          SnackBar(content: Text('Failed to upload document: $e'), backgroundColor: Colors.red),
+                        );
+                      }
                     }
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),

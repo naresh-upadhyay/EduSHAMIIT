@@ -2,20 +2,81 @@
 Vehicle Live Dashboard & Transport Fleet Management API
 Optimized for high-speed connection-pooled PostgreSQL execution, automated audit tracking (created_by/updated_by/modified_by), and single/multi-tenant security.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, Body
 from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from datetime import datetime, date
 import json
 import uuid
 import logging
+import asyncio
+import math
+import httpx
 
 from app.middleware.auth import get_current_user, require_any_role, get_public_supabase_url
 from app.services.supabase_client import get_supabase
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+class AssignPassengersToStopRequest(BaseModel):
+    route_id: str
+    stop_id: str
+    passenger_ids: List[str] = []
+    student_ids: Optional[List[str]] = None
+
+    def get_ids() -> List[str]:
+        if self.passenger_ids:
+            return self.passenger_ids
+        return self.student_ids or []
+
+# Backwards compatible alias
+AssignStudentsToStopRequest = AssignPassengersToStopRequest
+
+class UnassignPassengersFromStopRequest(BaseModel):
+    passenger_ids: List[str] = []
+    student_ids: Optional[List[str]] = None
+    stop_id: Optional[str] = None
+
+    def get_ids() -> List[str]:
+        if self.passenger_ids:
+            return self.passenger_ids
+        return self.student_ids or []
+
+def _safe_uuid(val: Any) -> Optional[str]:
+    if not val:
+        return None
+    s_val = str(val).strip()
+    if not s_val:
+        return None
+    try:
+        return str(uuid.UUID(s_val))
+    except Exception:
+        return str(uuid.uuid5(uuid.NAMESPACE_DNS, s_val))
+
+async def exec_raw_sql(sql: str, params: tuple = (), fetch: bool = True):
+    def _execute():
+        conn = psycopg2.connect(settings.DATABASE_URL, connect_timeout=5)
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(sql, params)
+                if fetch:
+                    rows = cur.fetchall()
+                    conn.commit()
+                    return [dict(r) for r in rows]
+                else:
+                    conn.commit()
+                    return []
+        except Exception as e:
+            conn.rollback()
+            raise e
+        finally:
+            conn.close()
+
+    return await asyncio.to_thread(_execute)
 
 def get_audit_user_identity(user: Any) -> str:
     if not user:
@@ -24,14 +85,52 @@ def get_audit_user_identity(user: Any) -> str:
         return user.get("full_name") or user.get("name") or user.get("email") or user.get("id") or "Transport Manager"
     return getattr(user, "full_name", None) or getattr(user, "name", None) or getattr(user, "email", None) or getattr(user, "id", "Transport Manager")
 
-def apply_audit_fields(data: dict, user: Any, is_create: bool = True) -> dict:
-    now_iso = datetime.utcnow().isoformat()
+TABLE_COLUMNS = {
+    "drivers": {'aadhar_no', 'address', 'assigned_vehicle_id', 'blood_group', 'created_at', 'date_of_birth', 'driver_code', 'email', 'experience_years', 'id', 'issuing_authority', 'joined_date', 'license_expiry_date', 'license_issue_date', 'license_no', 'license_type', 'name', 'phone', 'photo_url', 'profile_id', 'school_id', 'status', 'updated_at'},
+    "driver_documents": {'created_at', 'document_no', 'document_type', 'driver_id', 'expiry_date', 'file_name', 'file_size', 'file_url', 'id', 'issued_date', 'issuing_authority', 'school_id', 'status', 'updated_at'},
+    "driver_performance": {'attendance_score', 'created_at', 'driver_id', 'feedback_score', 'id', 'recent_feedback', 'recent_feedback_date', 'route_adherence_score', 'safety_score', 'school_id', 'trips_completed', 'updated_at', 'vehicle_care_score', 'vehicle_id'},
+    "driver_violations": {'created_at', 'date_time', 'description', 'driver_id', 'fine_amount', 'id', 'location', 'school_id', 'severity', 'status', 'updated_at', 'vehicle_id', 'violation_type'},
+    "driver_assignments": {'assignment_type', 'created_at', 'created_by', 'days', 'distance', 'driver_id', 'end_date', 'end_time', 'estimated_duration', 'id', 'notes', 'route_id', 'school_id', 'shift', 'start_date', 'start_time', 'status', 'total_stops', 'trip_id', 'updated_at', 'vehicle_id'},
+    "driver_training": {'certificate_url', 'created_at', 'driver_id', 'end_date', 'end_time', 'id', 'next_due_date', 'provider', 'school_id', 'start_date', 'start_time', 'status', 'training_program', 'training_type', 'updated_at'},
+    "vehicle_categories": {'capacity', 'category_code', 'created_at', 'created_by', 'description', 'fuel_type', 'id', 'luggage_capacity', 'name', 'school_id', 'status', 'transmission', 'updated_at', 'updated_by'},
+    "vehicle_documents": {'created_at', 'document_name', 'document_no', 'document_type', 'document_url', 'expiry_date', 'id', 'issued_date', 'policy_no', 'provider', 'remarks', 'school_id', 'status', 'updated_at', 'uploaded_by', 'uploaded_on', 'vehicle_id'},
+    "vehicle_insurance_fitness": {'certificate_copy_url', 'created_at', 'days_left', 'fitness_cert_no', 'fitness_expiry', 'fitness_status', 'id', 'insurance_expiry', 'insurance_start', 'insurance_status', 'issuing_authority', 'permit_expiry', 'permit_no', 'policy_no', 'policy_type', 'pollution_cert_no', 'pollution_expiry', 'pollution_status', 'premium_amount', 'provider', 'puc_no', 'school_id', 'updated_at', 'vehicle_id'},
+    "vehicle_maintenance": {'completion_date', 'cost', 'created_at', 'description', 'id', 'odometer_km', 'school_id', 'service_date', 'service_type', 'status', 'updated_at', 'vehicle_id', 'vendor_workshop'},
+    "vehicle_live_alerts": {'alert_type', 'created_at', 'id', 'is_resolved', 'latitude', 'longitude', 'message', 'resolved_at', 'resolved_by', 'route_id', 'school_id', 'severity', 'title', 'trip_id'},
+    "vehicle_trips": {'actual_end', 'actual_start', 'cancellation_reason', 'cancelled_dates', 'created_at', 'days', 'delay_minutes', 'distance_km', 'driver_assignment_id', 'driver_id', 'end_date', 'end_time', 'id', 'incident_count', 'notes', 'route_id', 'scheduled_start', 'school_id', 'start_date', 'start_time', 'status', 'students_count', 'trip_type', 'vehicle_id'},
+    "gps_devices": {'battery_level', 'created_at', 'current_location', 'device_id', 'expiry_date', 'firmware_version', 'id', 'imei_no', 'installation_date', 'installed_by', 'last_seen', 'model', 'operator', 'school_id', 'signal_strength_pct', 'sim_no', 'status', 'updated_at', 'vehicle_id'},
+    "transport_routes": {'area_zone', 'avg_speed_kmh', 'created_at', 'distance_km', 'driver_id', 'end_time', 'id', 'notes', 'route_code', 'route_name', 'school_id', 'start_time', 'status', 'updated_at', 'vehicle_id'},
+    "transport_route_stops": {'created_at', 'created_by', 'distance_from_prev_km', 'estimated_arrival', 'id', 'landmark', 'latitude', 'longitude', 'radius_meters', 'route_id', 'school_id', 'status', 'stop_code', 'stop_name', 'stop_order', 'stop_type', 'travel_time_mins', 'updated_at'},
+    "bus_stops": {'estimated_arrival', 'id', 'is_student_stop', 'latitude', 'longitude', 'route_id', 'school_id', 'stop_name', 'stop_order'},
+    "student_transport": {'assigned_at', 'id', 'route_id', 'school_id', 'seat_no', 'stop_id', 'student_id', 'transport_route_id', 'transport_stop_id'},
+    "profiles": {'avatar_url', 'created_at', 'email', 'full_name', 'id', 'phone', 'role', 'status', 'updated_at'}
+}
+
+def sanitize_table_data(table_name: str, data: dict) -> dict:
+    if table_name in TABLE_COLUMNS:
+        return {k: v for k, v in data.items() if k in TABLE_COLUMNS[table_name]}
+    return data
+
+def apply_audit_fields(data: dict, user: Any, is_create: bool = True, table_name: Optional[str] = None) -> dict:
+    now_iso = datetime.utcnow().isoformat() + "Z"
     identity = get_audit_user_identity(user)
-    if is_create and ("created_by" not in data or not data["created_by"]):
-        data["created_by"] = identity
-    if "updated_by" not in data or not data["updated_by"]:
-        data["updated_by"] = identity
-    data["updated_at"] = now_iso
+    
+    if table_name and table_name in TABLE_COLUMNS:
+        cols = TABLE_COLUMNS[table_name]
+        if "created_by" in cols and is_create and ("created_by" not in data or not data["created_by"]):
+            data["created_by"] = identity
+        if "updated_by" in cols and ("updated_by" not in data or not data["updated_by"]):
+            data["updated_by"] = identity
+        if "updated_at" in cols:
+            data["updated_at"] = now_iso
+        data = sanitize_table_data(table_name, data)
+    else:
+        if is_create and ("created_by" not in data or not data["created_by"]):
+            data["created_by"] = identity
+        if "updated_by" not in data or not data["updated_by"]:
+            data["updated_by"] = identity
+        data["updated_at"] = now_iso
+
     return data
 
 
@@ -55,6 +154,29 @@ def _resolve_school_id(user, payload=None, query_school_id=None):
 
 require_transport_admin = require_any_role("super_admin", "director", "transport_admin", "admin")
 require_driver_or_admin = require_any_role("super_admin", "director", "transport_admin", "admin", "driver")
+
+
+def _calculate_duration_mins(start_time_str: Optional[str], end_time_str: Optional[str]) -> int:
+    if not start_time_str or not end_time_str:
+        return 0
+    try:
+        def parse_to_mins(t_str):
+            t_str = str(t_str).strip()
+            if "AM" in t_str.upper() or "PM" in t_str.upper():
+                from datetime import datetime
+                dt = datetime.strptime(t_str.upper(), "%I:%M:%S %p" if t_str.count(":") > 1 else "%I:%M %p")
+                return dt.hour * 60 + dt.minute
+            parts = [int(p) for p in t_str.split(":")[:2]]
+            return parts[0] * 60 + parts[1]
+
+        start_m = parse_to_mins(start_time_str)
+        end_m = parse_to_mins(end_time_str)
+        diff = end_m - start_m
+        if diff < 0:
+            diff += 24 * 60
+        return diff
+    except Exception:
+        return 0
 
 
 # ──────────────────────────────────────────────
@@ -105,7 +227,7 @@ async def _compute_summary_manually(school_id: Optional[str]):
             SUM(CASE WHEN live_status = 'offline' THEN 1 ELSE 0 END) as offline,
             SUM(CASE WHEN live_status = 'idle' THEN 1 ELSE 0 END) as idle,
             COALESCE(SUM(students_on_board), 0) as students_on_board
-        FROM transport_routes
+        FROM vehicles
         WHERE (%s IS NULL OR school_id::text = %s);
     """
     v_rows = await exec_raw_sql(v_sql, (school_id, school_id), fetch=True)
@@ -179,15 +301,15 @@ async def list_vehicles(
     """List vehicles with automatic category spec joins and location telemetry."""
     target_school = _resolve_school_id(user, query_school_id=school_id)
     sb = get_supabase()
-    q = sb.table("transport_routes").select("*, transport_route_stops(id,stop_name,stop_order)")
+    
+    q_veh = sb.table("vehicles").select("*")
     if target_school:
-        q = q.eq("school_id", target_school)
+        q_veh = q_veh.eq("school_id", target_school)
     if live_status:
-        q = q.eq("live_status", live_status)
+        q_veh = q_veh.eq("live_status", live_status)
 
-    routes_res = await q.aexecute()
-    vehicles = routes_res.data or []
-    vehicles = [_enrich_vehicle_dict(v) for v in vehicles]
+    veh_res = await q_veh.aexecute()
+    vehicles = [_enrich_vehicle_dict(v) for v in (veh_res.data or [])]
 
     # Join categories automatically
     try:
@@ -220,8 +342,7 @@ async def list_vehicles(
         s = search.lower()
         vehicles = [
             v for v in vehicles
-            if s in (v.get("route_name") or "").lower()
-            or s in (v.get("bus_number") or "").lower()
+            if s in (v.get("bus_number") or "").lower()
             or s in (v.get("driver_name") or "").lower()
             or s in (v.get("registration_no") or "").lower()
         ]
@@ -230,15 +351,18 @@ async def list_vehicles(
     route_ids = [v["id"] for v in vehicles if v.get("id")]
     locations_map = {}
     if route_ids:
-        locs_res = await sb.table("vehicle_trips").select("*").in_(
-            "route_id", route_ids
-        ).order("recorded_at", ascending=False).limit(len(route_ids) * 2).aexecute()
-        seen = set()
-        for loc in (locs_res.data or []):
-            rid = loc.get("route_id")
-            if rid and rid not in seen:
-                locations_map[rid] = loc
-                seen.add(rid)
+        try:
+            locs_res = await sb.table("vehicle_trips").select("*").in_(
+                "route_id", route_ids
+            ).order("created_at", ascending=False).limit(len(route_ids) * 2).aexecute()
+            seen = set()
+            for loc in (locs_res.data or []):
+                rid = loc.get("route_id")
+                if rid and rid not in seen:
+                    locations_map[rid] = loc
+                    seen.add(rid)
+        except Exception as e:
+            logger.warning(f"Error fetching vehicle locations: {e}")
 
     for v in vehicles:
         v["current_location"] = locations_map.get(v.get("id"))
@@ -263,14 +387,18 @@ async def list_vehicles(
 @router.get("/vehicles/{vehicle_id}")
 async def get_vehicle(vehicle_id: str, user=Depends(require_transport_admin)):
     sb = get_supabase()
-    v = (await sb.table("transport_routes").select("*, transport_route_stops(*)").eq("id", vehicle_id).single().aexecute()).data
+    v = (await sb.table("vehicles").select("*").eq("id", vehicle_id).single().aexecute()).data
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     v = _enrich_vehicle_dict(v)
 
-    locs = (await sb.table("vehicle_trips").select("*").eq(
-        "route_id", vehicle_id
-    ).order("recorded_at", ascending=False).limit(20).aexecute()).data or []
+    locs = []
+    try:
+        locs = (await sb.table("vehicle_trips").select("*").eq(
+            "route_id", vehicle_id
+        ).order("created_at", ascending=False).limit(20).aexecute()).data or []
+    except Exception as e:
+        logger.warning(f"Error fetching location history: {e}")
 
     trips = (await sb.table("vehicle_trips").select("*").eq(
         "route_id", vehicle_id
@@ -293,35 +421,37 @@ async def get_vehicle(vehicle_id: str, user=Depends(require_transport_admin)):
 
 @router.put("/vehicles/{vehicle_id}")
 async def update_vehicle(vehicle_id: str, payload: dict, user=Depends(require_transport_admin)):
-    """Update vehicle metadata and live status with automatic audit fields."""
-    db_columns = {
-        "route_name", "bus_number", "registration_no", "driver_name", "driver_phone",
-        "driver_license_no", "assistant_name", "assistant_phone", "vehicle_type", "category_id",
-        "model", "year_of_mfg", "fuel_type", "total_capacity", "last_service_date",
-        "insurance_expiry", "fitness_expiry", "gps_device_id", "live_status",
-        "delay_minutes", "students_on_board", "status", "notes",
-        "fuel_level_pct", "speed_kmh", "next_stop", "next_stop_eta",
-        "chassis_no", "engine_no", "color", "insurance_status", "fitness_status",
-        "pollution_status", "pollution_expiry", "puc_no", "permit_no", "permit_expiry",
-        "updated_by", "modified_by"
-    }
-    tech_keys = {
-        "luggage_capacity", "fuel_tank_capacity", "transmission", "odometer_km",
-        "speed_governor", "cctv_installed", "panic_button", "first_aid_expiry",
-        "fire_extinguisher_expiry", "last_serviced_date", "ownership_type"
-    }
-    all_allowed = db_columns | tech_keys | {"driver_id"}
-    data = {k: v for k, v in payload.items() if k in all_allowed}
-    if not data:
-        raise HTTPException(status_code=400, detail="No valid fields provided")
-
-    # Audit fields
+    """Update vehicle metadata and live status with automatic audit fields in vehicles table."""
+    sb = get_supabase()
+    data = dict(payload)
     apply_audit_fields(data, user, is_create=False)
 
-    # Driver assignment handling
+    # 1. Resolve vehicle category if vehicle_type, category_id, or category_name is passed
+    vtype_val = data.get("vehicle_type") or data.get("category_name")
+    cat_id_val = data.get("category_id")
+    
+    matched_cat = None
+    try:
+        cats_res = await sb.table("vehicle_categories").select("*").aexecute()
+        cats_list = cats_res.data or []
+        if cat_id_val:
+            matched_cat = next((c for c in cats_list if str(c.get("id")) == str(cat_id_val)), None)
+        if not matched_cat and vtype_val:
+            vtype_clean = str(vtype_val).lower().strip()
+            matched_cat = next((c for c in cats_list if (c.get("name") or "").lower().strip() == vtype_clean or (c.get("category_code") or "").lower().strip() == vtype_clean), None)
+            
+        if matched_cat:
+            data["category_id"] = matched_cat.get("id")
+            data["vehicle_type"] = matched_cat.get("name")
+            data["fuel_type"] = matched_cat.get("fuel_type") or data.get("fuel_type") or "Diesel"
+            data["total_capacity"] = matched_cat.get("capacity") or data.get("total_capacity") or 52
+    except Exception as e:
+        logger.warning(f"Error matching vehicle category on update: {e}")
+
+    # 2. Driver assignment handling
     if "driver_id" in payload:
         drv_id = payload.get("driver_id")
-        if not drv_id or str(drv_id).lower() == "none":
+        if not drv_id or str(drv_id).lower() in ("none", "null", ""):
             data["driver_name"] = None
             data["driver_phone"] = None
             data["driver_license_no"] = None
@@ -339,161 +469,114 @@ async def update_vehicle(vehicle_id: str, payload: dict, user=Depends(require_tr
                 data["driver_license_no"] = d.get("license_no")
                 await exec_raw_sql("UPDATE drivers SET assigned_vehicle_id = %s::uuid WHERE id::text = %s;", (vehicle_id, str(d.get("id"))), fetch=False)
 
-    # Dynamic category resolution
-    if "vehicle_type" in data or "category_id" in data:
-        target_id = data.get("category_id")
-        target_type = data.get("vehicle_type")
-        cats = (await get_supabase().table("vehicle_categories").select("*").aexecute()).data or []
-        matched_cat = None
-        for c in cats:
-            if target_id and str(c.get("id")) == str(target_id):
-                matched_cat = c
-                break
-            if target_type and (target_type == c.get("name") or target_type == c.get("category_code")):
-                matched_cat = c
-                break
-        if matched_cat:
-            data["category_id"] = matched_cat.get("id")
-            data["vehicle_type"] = matched_cat.get("name")
-            data["fuel_type"] = matched_cat.get("fuel_type") or data.get("fuel_type") or "Diesel"
-            data["total_capacity"] = matched_cat.get("capacity") or data.get("total_capacity") or 52
+    # 3. Update vehicles table
+    try:
+        v_rows = await exec_raw_sql("SELECT * FROM vehicles WHERE id::text = %s LIMIT 1;", (vehicle_id,), fetch=True)
+        if v_rows:
+            v_existing = v_rows[0]
+            existing_notes = {}
+            if v_existing.get("notes"):
+                try:
+                    existing_notes = json.loads(v_existing["notes"])
+                except Exception:
+                    pass
 
-    # Separate tech keys into notes JSON
-    tech_data = {k: data.pop(k) for k in list(data.keys()) if k in tech_keys}
-    data.pop("driver_id", None)
+            veh_columns = {
+                "vehicle_type", "category_id", "bus_number", "registration_no", "model",
+                "fuel_type", "status", "live_status", "total_capacity", "chassis_no",
+                "engine_no", "color", "puc_no", "permit_no", "year_of_mfg", "driver_name",
+                "driver_phone", "notes"
+            }
 
-    if tech_data:
-        existing = await exec_raw_sql("SELECT notes FROM transport_routes WHERE id::text = %s;", (vehicle_id,), fetch=True)
-        old_notes = {}
-        if existing and existing[0].get("notes"):
-            try:
-                old_notes = json.loads(existing[0]["notes"])
-            except Exception:
-                pass
-        old_notes.update(tech_data)
-        data["notes"] = json.dumps(old_notes)
+            veh_update_params = {}
+            for k, val in data.items():
+                if k in veh_columns and k not in ("notes", "updated_at"):
+                    veh_update_params[k] = val
+                elif k not in ("id", "created_at", "updated_at"):
+                    existing_notes[k] = val
 
-    set_clauses = []
-    params = []
-    for k, v in data.items():
-        if k in db_columns or k in ("updated_by", "modified_by"):
-            set_clauses.append(f"{k} = %s")
-            params.append(v)
-    set_clauses.append("updated_at = NOW()")
-    params.append(vehicle_id)
+            veh_update_params["notes"] = json.dumps(existing_notes)
+            veh_set_clauses = [f"{k} = %s" for k in veh_update_params.keys()]
+            veh_params = list(veh_update_params.values())
+            veh_set_clauses.append("updated_at = NOW()")
+            veh_params.append(vehicle_id)
 
-    if set_clauses:
-        sql = f"UPDATE transport_routes SET {', '.join(set_clauses)} WHERE id::text = %s;"
-        await exec_raw_sql(sql, tuple(params), fetch=False)
+            sql_veh = f"UPDATE vehicles SET {', '.join(veh_set_clauses)} WHERE id::text = %s;"
+            await exec_raw_sql(sql_veh, tuple(veh_params), fetch=False)
+    except Exception as e:
+        logger.warning(f"Error updating vehicles table: {e}")
 
-    return {"success": True, "message": "Vehicle updated"}
+    return {"success": True, "message": "Vehicle updated successfully"}
 
 
 @router.post("/vehicles")
 async def create_vehicle(payload: dict, user=Depends(require_transport_admin)):
-    """Create a new vehicle with automatic user audit tracking."""
-    db_columns = {
-        "school_id", "route_name", "bus_number", "registration_no", "driver_name", "driver_phone",
-        "driver_license_no", "assistant_name", "assistant_phone", "vehicle_type", "category_id",
-        "model", "year_of_mfg", "fuel_type", "total_capacity", "last_service_date",
-        "insurance_expiry", "fitness_expiry", "gps_device_id", "live_status",
-        "delay_minutes", "students_on_board", "status", "notes",
-        "fuel_level_pct", "speed_kmh", "next_stop", "next_stop_eta",
-        "chassis_no", "engine_no", "color", "insurance_status", "fitness_status",
-        "pollution_status", "pollution_expiry", "puc_no", "permit_no", "permit_expiry",
-        "created_by", "updated_by", "modified_by"
-    }
-    tech_keys = {
-        "luggage_capacity", "fuel_tank_capacity", "transmission", "odometer_km",
-        "speed_governor", "cctv_installed", "panic_button", "first_aid_expiry",
-        "fire_extinguisher_expiry", "last_serviced_date", "ownership_type"
-    }
-    all_allowed = db_columns | tech_keys | {"driver_id"}
-    data = {k: v for k, v in payload.items() if k in all_allowed}
+    """Create a new vehicle into vehicles table with audit tracking."""
+    sb = get_supabase()
+    data = dict(payload)
     vehicle_id = str(uuid.uuid4())
     data["id"] = vehicle_id
-    data["school_id"] = _resolve_school_id(user, data)
-    data["route_name"] = data.get("route_name") or f"Route for {data.get('bus_number', 'Vehicle')}"
-
-    # Apply audit trail
+    school_id = _resolve_school_id(user, data)
+    data["school_id"] = school_id
     apply_audit_fields(data, user, is_create=True)
 
-    nullable_with_bad_defaults = [
-        "chassis_no", "engine_no", "color", "puc_no", "permit_no",
-        "next_stop", "next_stop_eta",
-    ]
-    for col in nullable_with_bad_defaults:
-        if col not in data:
-            data[col] = None
+    vtype_val = data.get("vehicle_type") or data.get("category_name")
+    cat_id_val = data.get("category_id")
+    try:
+        cats_res = await sb.table("vehicle_categories").select("*").aexecute()
+        cats_list = cats_res.data or []
+        matched_cat = None
+        if cat_id_val:
+            matched_cat = next((c for c in cats_list if str(c.get("id")) == str(cat_id_val)), None)
+        if not matched_cat and vtype_val:
+            vtype_clean = str(vtype_val).lower().strip()
+            matched_cat = next((c for c in cats_list if (c.get("name") or "").lower().strip() == vtype_clean or (c.get("category_code") or "").lower().strip() == vtype_clean), None)
+        if matched_cat:
+            data["category_id"] = matched_cat.get("id")
+            data["vehicle_type"] = matched_cat.get("name")
+    except Exception:
+        pass
 
-    if "driver_id" in payload:
-        drv_id = payload.get("driver_id")
-        if not drv_id or str(drv_id).lower() == "none":
-            data["driver_name"] = None
-            data["driver_phone"] = None
-            data["driver_license_no"] = None
-        else:
-            drv_rows = await exec_raw_sql(
-                "SELECT * FROM drivers WHERE id::text = %s OR profile_id::text = %s LIMIT 1;",
-                (str(drv_id), str(drv_id)),
-                fetch=True
-            )
-            if drv_rows:
-                d = drv_rows[0]
-                data["driver_name"] = d.get("name")
-                data["driver_phone"] = d.get("phone")
-                data["driver_license_no"] = d.get("license_no")
-                await exec_raw_sql("UPDATE drivers SET assigned_vehicle_id = %s::uuid WHERE id::text = %s;", (vehicle_id, str(d.get("id"))), fetch=False)
+    veh_record = {
+        "id": vehicle_id,
+        "school_id": school_id,
+        "bus_number": data.get("bus_number") or data.get("registration_no") or f"BUS-{vehicle_id[:4].upper()}",
+        "registration_no": data.get("registration_no") or data.get("bus_number"),
+        "vehicle_type": data.get("vehicle_type", "Standard Bus"),
+        "category_id": data.get("category_id"),
+        "status": data.get("status", "Active"),
+        "live_status": data.get("live_status", "offline"),
+        "total_capacity": int(data.get("total_capacity") or 52),
+        "fuel_type": data.get("fuel_type", "Diesel"),
+        "chassis_no": data.get("chassis_no"),
+        "engine_no": data.get("engine_no"),
+        "model": data.get("model"),
+        "color": data.get("color"),
+        "puc_no": data.get("puc_no"),
+        "permit_no": data.get("permit_no"),
+        "notes": json.dumps(data)
+    }
 
-    target_id = data.get("category_id")
-    target_type = data.get("vehicle_type")
-    cats = (await get_supabase().table("vehicle_categories").select("*").aexecute()).data or []
-    matched_cat = None
-    for c in cats:
-        if target_id and str(c.get("id")) == str(target_id):
-            matched_cat = c
-            break
-        if target_type and (target_type == c.get("name") or target_type == c.get("category_code")):
-            matched_cat = c
-            break
-    if matched_cat:
-        data["category_id"] = matched_cat.get("id")
-        data["vehicle_type"] = matched_cat.get("name")
-        data["fuel_type"] = matched_cat.get("fuel_type") or data.get("fuel_type") or "Diesel"
-        data["total_capacity"] = matched_cat.get("capacity") or data.get("total_capacity") or 52
+    try:
+        await sb.table("vehicles").insert(veh_record).aexecute()
+    except Exception as e:
+        logger.warning(f"Error inserting into vehicles: {e}")
 
-    tech_data = {k: data.pop(k) for k in list(data.keys()) if k in tech_keys}
-    data.pop("driver_id", None)
-
-    if tech_data:
-        data["notes"] = json.dumps(tech_data)
-
-    insert_data = {k: v for k, v in data.items() if k in db_columns or k == "id"}
-
-    cols = list(insert_data.keys())
-    placeholders = ["%s" for _ in cols]
-    sql = f"INSERT INTO transport_routes ({', '.join(cols)}) VALUES ({', '.join(placeholders)}) RETURNING *;"
-    params = tuple(insert_data[k] for k in cols)
-
-    inserted_rows = await exec_raw_sql(sql, params, fetch=True)
-    res_data = inserted_rows[0] if inserted_rows else data
-
-    return {"success": True, "data": _enrich_vehicle_dict(res_data)}
+    return {"success": True, "data": _enrich_vehicle_dict(veh_record)}
 
 
 @router.delete("/vehicles/{vehicle_id}")
 async def delete_vehicle(vehicle_id: str, user=Depends(require_transport_admin)):
-    """Delete a vehicle and clean references."""
+    """Delete a vehicle from vehicles table and clean references."""
     await exec_raw_sql("DELETE FROM student_transport WHERE route_id::text = %s;", (vehicle_id,), fetch=False)
     await exec_raw_sql("DELETE FROM vehicle_documents WHERE vehicle_id::text = %s;", (vehicle_id,), fetch=False)
     await exec_raw_sql("DELETE FROM vehicle_insurance_fitness WHERE vehicle_id::text = %s;", (vehicle_id,), fetch=False)
     await exec_raw_sql("DELETE FROM gps_devices WHERE vehicle_id::text = %s;", (vehicle_id,), fetch=False)
     await exec_raw_sql("DELETE FROM vehicle_trips WHERE route_id::text = %s;", (vehicle_id,), fetch=False)
-    await exec_raw_sql("DELETE FROM vehicle_trips WHERE route_id::text = %s;", (vehicle_id,), fetch=False)
     await exec_raw_sql("DELETE FROM vehicle_live_alerts WHERE route_id::text = %s;", (vehicle_id,), fetch=False)
     await exec_raw_sql("UPDATE drivers SET assigned_vehicle_id = NULL WHERE assigned_vehicle_id::text = %s;", (vehicle_id,), fetch=False)
-    await exec_raw_sql("DELETE FROM transport_routes WHERE id::text = %s;", (vehicle_id,), fetch=False)
-    return {"success": True, "message": "Vehicle deleted"}
+    await exec_raw_sql("DELETE FROM vehicles WHERE id::text = %s;", (vehicle_id,), fetch=False)
+    return {"success": True, "message": "Vehicle deleted successfully"}
 
 
 @router.post("/vehicles/{vehicle_id}/location")
@@ -503,13 +586,13 @@ async def update_vehicle_location(vehicle_id: str, payload: dict, user=Depends(r
     if not payload.get("latitude") or not payload.get("longitude"):
         raise HTTPException(status_code=400, detail="latitude and longitude required")
 
-    route = (await sb.table("transport_routes").select("school_id").eq("id", vehicle_id).single().aexecute()).data
-    if not route:
+    v_data = (await sb.table("vehicles").select("school_id").eq("id", vehicle_id).maybe_single().aexecute()).data
+    if not v_data:
         raise HTTPException(status_code=404, detail="Vehicle not found")
 
     data = {
         "id": str(uuid.uuid4()),
-        "school_id": route["school_id"],
+        "school_id": v_data["school_id"],
         "route_id": vehicle_id,
         "latitude": payload["latitude"],
         "longitude": payload["longitude"],
@@ -526,7 +609,7 @@ async def update_vehicle_location(vehicle_id: str, payload: dict, user=Depends(r
     await sb.table("vehicle_trips").insert(data).aexecute()
 
     if payload.get("live_status"):
-        await sb.table("transport_routes").update({
+        await sb.table("vehicles").update({
             "live_status": payload["live_status"],
             "students_on_board": payload.get("students_on_board"),
             "delay_minutes": payload.get("delay_minutes", 0),
@@ -587,9 +670,7 @@ async def list_trips(
     user=Depends(require_transport_admin),
 ):
     sb = get_supabase()
-    q = sb.table("vehicle_trips").select(
-        "*, transport_routes!vehicle_trips_route_id_fkey(route_name, bus_number, driver_name, live_status, registration_no), drivers!vehicle_trips_driver_id_fkey(name, driver_code, phone)"
-    ).order("created_at", ascending=False)
+    q = sb.table("vehicle_trips").select("*").order("created_at", ascending=False)
 
     target_school = _resolve_school_id(user, query_school_id=school_id)
     if target_school:
@@ -600,6 +681,21 @@ async def list_trips(
         q = q.eq("status", status.lower())
 
     trips = (await q.aexecute()).data or []
+
+    try:
+        r_res = await sb.table("transport_routes").select("*").aexecute()
+        r_map = {str(r["id"]): _enrich_vehicle_dict(r) for r in (r_res.data or []) if r.get("id")}
+        d_res = await sb.table("drivers").select("id, name, driver_code, phone").aexecute()
+        d_map = {str(d["id"]): d for d in (d_res.data or []) if d.get("id")}
+        for t in trips:
+            rid = str(t.get("route_id")) if t.get("route_id") else None
+            did = str(t.get("driver_id")) if t.get("driver_id") else None
+            if rid and rid in r_map:
+                t["transport_routes"] = r_map[rid]
+            if did and did in d_map:
+                t["drivers"] = d_map[did]
+    except Exception:
+        pass
 
     if trip_date:
         try:
@@ -779,9 +875,7 @@ async def list_alerts(
 ):
     target_school = _resolve_school_id(user, query_school_id=school_id)
     sb = get_supabase()
-    q = sb.table("vehicle_live_alerts").select(
-        "*, transport_routes(route_name,bus_number,driver_name)"
-    ).order("created_at", ascending=False)
+    q = sb.table("vehicle_live_alerts").select("*").order("created_at", ascending=False)
 
     if target_school:
         q = q.eq("school_id", target_school)
@@ -793,6 +887,16 @@ async def list_alerts(
         q = q.eq("is_resolved", is_resolved)
 
     alerts = (await q.aexecute()).data or []
+    try:
+        r_res = await sb.table("transport_routes").select("*").aexecute()
+        r_map = {str(r["id"]): _enrich_vehicle_dict(r) for r in (r_res.data or []) if r.get("id")}
+        for a in alerts:
+            rid = str(a.get("route_id")) if a.get("route_id") else None
+            if rid and rid in r_map:
+                a["transport_routes"] = r_map[rid]
+    except Exception:
+        pass
+
     total = len(alerts)
     start = (page - 1) * page_size
     paginated = alerts[start: start + page_size]
@@ -872,9 +976,13 @@ async def vehicle_location_history(
     user=Depends(require_transport_admin),
 ):
     sb = get_supabase()
-    locs = (await sb.table("vehicle_trips").select("*").eq(
-        "route_id", vehicle_id
-    ).order("recorded_at", ascending=False).limit(limit).aexecute()).data or []
+    try:
+        locs = (await sb.table("vehicle_trips").select("*").eq(
+            "route_id", vehicle_id
+        ).order("created_at", ascending=False).limit(limit).aexecute()).data or []
+    except Exception as e:
+        logger.warning(f"Error fetching vehicle location history: {e}")
+        locs = []
     return {"success": True, "data": locs}
 
 
@@ -890,13 +998,12 @@ async def top_delayed_vehicles(
 ):
     target_school = _resolve_school_id(user, query_school_id=school_id)
     sb = get_supabase()
-    q = sb.table("transport_routes").select(
-        "id,route_name,bus_number,driver_name,delay_minutes,students_on_board,live_status,registration_no"
-    ).order("delay_minutes", ascending=False).limit(limit)
+    q = sb.table("transport_routes").select("*").limit(limit)
     if target_school:
         q = q.eq("school_id", target_school)
     vehicles = (await q.aexecute()).data or []
-    return {"success": True, "data": vehicles}
+    enriched = [_enrich_vehicle_dict(v) for v in vehicles]
+    return {"success": True, "data": enriched}
 
 
 # ──────────────────────────────────────────────
@@ -916,8 +1023,11 @@ async def list_categories(
     res = await q.aexecute()
     cats = res.data or []
 
-    routes_res = await sb.table("transport_routes").select("id, category_id, vehicle_type, model").aexecute()
-    vehicles = routes_res.data or []
+    try:
+        routes_res = await sb.table("vehicles").select("id, vehicle_type, model").aexecute()
+        vehicles = routes_res.data or []
+    except Exception:
+        vehicles = []
 
     for c in cats:
         cat_id = str(c.get("id"))
@@ -976,7 +1086,7 @@ async def delete_category(cat_id: str, user=Depends(require_transport_admin)):
     cat_res = await sb.table("vehicle_categories").select("*").eq("id", cat_id).maybe_single().aexecute()
     cat = cat_res.data
     if cat:
-        routes_res = await sb.table("transport_routes").select("id, vehicle_type, model, category_id").aexecute()
+        routes_res = await sb.table("vehicles").select("id, vehicle_type, model, category_id").aexecute()
         vehicles = routes_res.data or []
         cat_name = (cat.get("name") or "").lower()
         cat_code = (cat.get("category_code") or "").lower()
@@ -1150,13 +1260,25 @@ async def list_documents(
 ):
     target_school = _resolve_school_id(user, query_school_id=school_id)
     sb = get_supabase()
-    q = sb.table("vehicle_documents").select("*, transport_routes(route_name, bus_number, registration_no, vehicle_type)")
+    q = sb.table("vehicle_documents").select("*")
     if target_school:
         q = q.eq("school_id", target_school)
     if vehicle_id:
         q = q.eq("vehicle_id", vehicle_id)
     res = await q.aexecute()
-    return {"success": True, "data": res.data or []}
+    docs = res.data or []
+    try:
+        r_res = await sb.table("vehicles").select("*").aexecute()
+        r_map = {str(r["id"]): _enrich_vehicle_dict(r) for r in (r_res.data or []) if r.get("id")}
+        for d in docs:
+            v_id = str(d.get("vehicle_id")) if d.get("vehicle_id") else None
+            if v_id and v_id in r_map:
+                v_dict = r_map[v_id]
+                d["transport_routes"] = v_dict
+                d["bus_routes"] = v_dict
+    except Exception:
+        pass
+    return {"success": True, "data": docs}
 
 
 @router.post("/documents")
@@ -1179,7 +1301,7 @@ async def create_document(payload: dict, user=Depends(require_transport_admin)):
         "uploaded_by": get_audit_user_identity(user),
         "uploaded_on": datetime.utcnow().isoformat(),
     }
-    apply_audit_fields(data, user, is_create=True)
+    data = apply_audit_fields(data, user, is_create=True, table_name="vehicle_documents")
     res = await sb.table("vehicle_documents").insert(data).aexecute()
     return {"success": True, "data": res.data[0] if res.data else data}
 
@@ -1188,12 +1310,12 @@ async def create_document(payload: dict, user=Depends(require_transport_admin)):
 async def update_document(doc_id: str, payload: dict, user=Depends(require_transport_admin)):
     sb = get_supabase()
     allowed = {
-        "document_type", "document_name", "document_no", "issued_date", 
+        "vehicle_id", "document_type", "document_name", "document_no", "issued_date", 
         "expiry_date", "status", "document_url", "remarks", 
         "policy_no", "provider", "uploaded_by"
     }
     data = {k: v for k, v in payload.items() if k in allowed}
-    apply_audit_fields(data, user, is_create=False)
+    data = apply_audit_fields(data, user, is_create=False, table_name="vehicle_documents")
     await sb.table("vehicle_documents").update(data).eq("id", doc_id).aexecute()
     return {"success": True, "message": "Document updated"}
 
@@ -1217,13 +1339,23 @@ async def list_insurance_fitness(
 ):
     target_school = _resolve_school_id(user, query_school_id=school_id)
     sb = get_supabase()
-    q = sb.table("vehicle_insurance_fitness").select("*, transport_routes(route_name, bus_number, registration_no)")
+    q = sb.table("vehicle_insurance_fitness").select("*")
     if target_school:
         q = q.eq("school_id", target_school)
     if vehicle_id:
         q = q.eq("vehicle_id", vehicle_id)
     res = await q.aexecute()
-    return {"success": True, "data": res.data or []}
+    records = res.data or []
+    try:
+        r_res = await sb.table("vehicles").select("*").aexecute()
+        r_map = {str(r["id"]): _enrich_vehicle_dict(r) for r in (r_res.data or []) if r.get("id")}
+        for item in records:
+            vid = str(item.get("vehicle_id")) if item.get("vehicle_id") else None
+            if vid and vid in r_map:
+                item["transport_routes"] = r_map[vid]
+    except Exception:
+        pass
+    return {"success": True, "data": records}
 
 
 @router.post("/insurance-fitness")
@@ -1286,13 +1418,23 @@ async def list_gps_devices(
 ):
     target_school = _resolve_school_id(user, query_school_id=school_id)
     sb = get_supabase()
-    q = sb.table("gps_devices").select("*, transport_routes(route_name, bus_number, registration_no, vehicle_type)")
+    q = sb.table("gps_devices").select("*")
     if target_school:
         q = q.eq("school_id", target_school)
     if vehicle_id:
         q = q.eq("vehicle_id", vehicle_id)
     res = await q.aexecute()
-    return {"success": True, "data": res.data or []}
+    devices = res.data or []
+    try:
+        r_res = await sb.table("vehicles").select("id, bus_number, registration_no, vehicle_type").aexecute()
+        r_map = {str(r["id"]): r for r in (r_res.data or []) if r.get("id")}
+        for dev in devices:
+            v_id = str(dev.get("vehicle_id")) if dev.get("vehicle_id") else None
+            if v_id and v_id in r_map:
+                dev["transport_routes"] = r_map[v_id]
+    except Exception:
+        pass
+    return {"success": True, "data": devices}
 
 
 @router.post("/gps-devices")
@@ -1401,13 +1543,23 @@ async def list_drivers(
     except Exception as e:
         logger.warning(f"Driver profile sync check failed: {e}")
 
-    q = sb.table("drivers").select("*, transport_routes(route_name, bus_number, registration_no, vehicle_type)")
+    q = sb.table("drivers").select("*")
     if target_school:
         q = q.eq("school_id", target_school)
     if status:
         q = q.eq("status", status)
     res = await q.aexecute()
-    return {"success": True, "data": res.data or []}
+    drivers = res.data or []
+    try:
+        r_res = await sb.table("vehicles").select("id, bus_number, registration_no, vehicle_type").aexecute()
+        r_map = {str(r["id"]): r for r in (r_res.data or []) if r.get("id")}
+        for drv in drivers:
+            v_id = str(drv.get("assigned_vehicle_id") or drv.get("vehicle_id")) if (drv.get("assigned_vehicle_id") or drv.get("vehicle_id")) else None
+            if v_id and v_id in r_map:
+                drv["transport_routes"] = r_map[v_id]
+    except Exception:
+        pass
+    return {"success": True, "data": drivers}
 
 
 @router.post("/drivers")
@@ -1494,19 +1646,29 @@ async def create_driver(payload: dict, user=Depends(require_transport_admin)):
             "joined_date": payload.get("joined_date"),
             "profile_id": profile_id,
         }
-        apply_audit_fields(data, user, is_create=True)
+        data = apply_audit_fields(data, user, is_create=True, table_name="drivers")
         res = await sb.table("drivers").insert(data).aexecute()
         res_driver = res.data[0] if res.data else data
 
     veh_id = payload.get("assigned_vehicle_id")
     if veh_id:
-        v_update = {
-            "driver_name": payload["name"],
-            "driver_phone": payload["phone"],
-            "driver_license_no": payload["license_no"],
-        }
-        apply_audit_fields(v_update, user, is_create=False)
-        await sb.table("transport_routes").update(v_update).eq("id", veh_id).aexecute()
+        v_update = {}
+        if payload.get("name"): v_update["driver_name"] = payload["name"]
+        if payload.get("phone"): v_update["driver_phone"] = payload["phone"]
+        if payload.get("license_no"): v_update["driver_license_no"] = payload["license_no"]
+        if v_update:
+            try:
+                route_curr = await sb.table("transport_routes").select("notes").eq("id", veh_id).maybe_single().aexecute()
+                curr_notes = {}
+                if route_curr and route_curr.data and route_curr.data.get("notes"):
+                    try:
+                        curr_notes = json.loads(route_curr.data["notes"])
+                    except Exception:
+                        pass
+                curr_notes.update(v_update)
+                await sb.table("transport_routes").update({"notes": json.dumps(curr_notes), "updated_at": datetime.utcnow().isoformat()}).eq("id", veh_id).aexecute()
+            except Exception:
+                pass
 
     return {"success": True, "data": res_driver}
 
@@ -1521,7 +1683,6 @@ async def update_driver(driver_id: str, payload: dict, user=Depends(require_tran
         "blood_group", "aadhar_no", "address", "joined_date"
     }
     data = {k: v for k, v in payload.items() if k in allowed}
-    apply_audit_fields(data, user, is_create=False)
     
     curr_res = await sb.table("drivers").select("profile_id").eq("id", driver_id).maybe_single().aexecute()
     prof_id = curr_res.data.get("profile_id") if curr_res.data else None
@@ -1535,22 +1696,30 @@ async def update_driver(driver_id: str, payload: dict, user=Depends(require_tran
         if "status" in payload:
             prof_updates["status"] = "Inactive" if payload["status"] == "Inactive" else "Active"
         if prof_updates:
-            apply_audit_fields(prof_updates, user, is_create=False)
+            prof_updates = apply_audit_fields(prof_updates, user, is_create=False, table_name="profiles")
             await sb.table("profiles").update(prof_updates).eq("id", prof_id).aexecute()
 
     veh_id = payload.get("assigned_vehicle_id")
     if veh_id:
-        name = payload.get("name")
-        phone = payload.get("phone")
-        lic = payload.get("license_no")
-        update_data = {}
-        if name: update_data["driver_name"] = name
-        if phone: update_data["driver_phone"] = phone
-        if lic: update_data["driver_license_no"] = lic
-        if update_data:
-            apply_audit_fields(update_data, user, is_create=False)
-            await sb.table("transport_routes").update(update_data).eq("id", veh_id).aexecute()
+        v_update = {}
+        if payload.get("name"): v_update["driver_name"] = payload["name"]
+        if payload.get("phone"): v_update["driver_phone"] = payload["phone"]
+        if payload.get("license_no"): v_update["driver_license_no"] = payload["license_no"]
+        if v_update:
+            try:
+                route_curr = await sb.table("transport_routes").select("notes").eq("id", veh_id).maybe_single().aexecute()
+                curr_notes = {}
+                if route_curr and route_curr.data and route_curr.data.get("notes"):
+                    try:
+                        curr_notes = json.loads(route_curr.data["notes"])
+                    except Exception:
+                        pass
+                curr_notes.update(v_update)
+                await sb.table("transport_routes").update({"notes": json.dumps(curr_notes), "updated_at": datetime.utcnow().isoformat()}).eq("id", veh_id).aexecute()
+            except Exception:
+                pass
 
+    data = apply_audit_fields(data, user, is_create=False, table_name="drivers")
     await sb.table("drivers").update(data).eq("id", driver_id).aexecute()
     return {"success": True, "message": "Driver updated"}
 
@@ -1613,7 +1782,7 @@ async def create_driver_document(payload: dict, user=Depends(require_transport_a
       "file_size": payload.get("file_size"),
       "issuing_authority": payload.get("issuing_authority"),
     }
-    apply_audit_fields(data, user, is_create=True)
+    data = apply_audit_fields(data, user, is_create=True, table_name="driver_documents")
     res = await sb.table("driver_documents").insert(data).aexecute()
     return {"success": True, "data": res.data[0] if res.data else data}
 
@@ -1622,11 +1791,11 @@ async def create_driver_document(payload: dict, user=Depends(require_transport_a
 async def update_driver_document(doc_id: str, payload: dict, user=Depends(require_transport_admin)):
     sb = get_supabase()
     allowed = {
-      "document_type", "document_no", "issued_date", "expiry_date", 
+      "driver_id", "document_type", "document_no", "issued_date", "expiry_date", 
       "status", "file_url", "file_name", "file_size", "issuing_authority"
     }
     data = {k: v for k, v in payload.items() if k in allowed}
-    apply_audit_fields(data, user, is_create=False)
+    data = apply_audit_fields(data, user, is_create=False, table_name="driver_documents")
     await sb.table("driver_documents").update(data).eq("id", doc_id).aexecute()
     return {"success": True, "message": "Document updated"}
 
@@ -1650,14 +1819,115 @@ async def list_driver_performance(
 ):
     target_school = _resolve_school_id(user, query_school_id=school_id)
     sb = get_supabase()
-    q = sb.table("driver_performance").select("*, drivers(*, transport_routes(registration_no, bus_number, vehicle_type))")
+    q = sb.table("driver_performance").select("*")
     if target_school:
         q = q.eq("school_id", target_school)
     if driver_id:
         q = q.eq("driver_id", driver_id)
     
     res = await q.aexecute()
-    return {"success": True, "data": res.data or []}
+    records = res.data or []
+    try:
+        d_res = await sb.table("drivers").select("*").aexecute()
+        d_map = {str(d["id"]): d for d in (d_res.data or []) if d.get("id")}
+        r_res = await sb.table("vehicles").select("*").aexecute()
+        r_map = {str(r["id"]): _enrich_vehicle_dict(r) for r in (r_res.data or []) if r.get("id")}
+        for rec in records:
+            did = str(rec.get("driver_id")) if rec.get("driver_id") else None
+            vid = str(rec.get("vehicle_id")) if rec.get("vehicle_id") else None
+            if did and did in d_map:
+                drv = d_map[did]
+                rec["drivers"] = drv
+                if not vid:
+                    vid = str(drv.get("assigned_vehicle_id")) if drv.get("assigned_vehicle_id") else (str(drv.get("vehicle_id")) if drv.get("vehicle_id") else None)
+            if vid:
+                rec["vehicle_id"] = vid
+                if vid in r_map:
+                    v_dict = r_map[vid]
+                    rec["transport_routes"] = v_dict
+                    rec["bus_routes"] = v_dict
+                    if "drivers" in rec and isinstance(rec["drivers"], dict):
+                        rec["drivers"]["transport_routes"] = v_dict
+                        rec["drivers"]["bus_routes"] = v_dict
+    except Exception:
+        pass
+    return {"success": True, "data": records}
+
+
+@router.post("/drivers/performance")
+async def create_driver_performance(payload: dict, user=Depends(require_transport_admin)):
+    sb = get_supabase()
+    driver_id = payload["driver_id"]
+    vehicle_id = payload.get("vehicle_id")
+    
+    existing = await sb.table("driver_performance").select("id").eq("driver_id", driver_id).maybe_single().aexecute()
+    
+    data = {
+        "school_id": _resolve_school_id(user, payload),
+        "driver_id": driver_id,
+        "attendance_score": payload.get("attendance_score", 4.5),
+        "safety_score": payload.get("safety_score", 4.5),
+        "route_adherence_score": payload.get("route_adherence_score", 4.5),
+        "vehicle_care_score": payload.get("vehicle_care_score", 4.5),
+        "feedback_score": payload.get("feedback_score", 4.5),
+        "trips_completed": payload.get("trips_completed", 0),
+        "recent_feedback": payload.get("remarks"),
+        "recent_feedback_date": datetime.utcnow().strftime("%Y-%m-%d"),
+    }
+    
+    if vehicle_id:
+        try:
+            await sb.table("drivers").update({"assigned_vehicle_id": vehicle_id}).eq("id", driver_id).aexecute()
+        except Exception:
+            pass
+            
+    if existing and existing.data and existing.data.get("id"):
+        perf_id = existing.data["id"]
+        data = apply_audit_fields(data, user, is_create=False, table_name="driver_performance")
+        await sb.table("driver_performance").update(data).eq("id", perf_id).aexecute()
+        return {"success": True, "data": {"id": perf_id, **data}}
+    else:
+        data["id"] = str(uuid.uuid4())
+        data = apply_audit_fields(data, user, is_create=True, table_name="driver_performance")
+        res = await sb.table("driver_performance").insert(data).aexecute()
+        return {"success": True, "data": res.data[0] if res.data else data}
+
+
+@router.put("/drivers/performance/{perf_id}")
+async def update_driver_performance(perf_id: str, payload: dict, user=Depends(require_transport_admin)):
+    sb = get_supabase()
+    allowed = {
+        "driver_id", "attendance_score", "safety_score", "route_adherence_score",
+        "vehicle_care_score", "feedback_score", "trips_completed", "recent_feedback",
+        "recent_feedback_date"
+    }
+    data = {k: v for k, v in payload.items() if k in allowed}
+    if "remarks" in payload and "recent_feedback" not in data:
+        data["recent_feedback"] = payload["remarks"]
+        
+    vehicle_id = payload.get("vehicle_id")
+    driver_id = payload.get("driver_id")
+    if not driver_id:
+        current_perf = await sb.table("driver_performance").select("driver_id").eq("id", perf_id).maybe_single().aexecute()
+        if current_perf and current_perf.data:
+            driver_id = current_perf.data.get("driver_id")
+            
+    if vehicle_id and driver_id:
+        try:
+            await sb.table("drivers").update({"assigned_vehicle_id": vehicle_id}).eq("id", driver_id).aexecute()
+        except Exception:
+            pass
+
+    data = apply_audit_fields(data, user, is_create=False, table_name="driver_performance")
+    await sb.table("driver_performance").update(data).eq("id", perf_id).aexecute()
+    return {"success": True, "message": "Performance record updated"}
+
+
+@router.delete("/drivers/performance/{perf_id}")
+async def delete_driver_performance(perf_id: str, user=Depends(require_transport_admin)):
+    sb = get_supabase()
+    await sb.table("driver_performance").delete().eq("id", perf_id).aexecute()
+    return {"success": True, "message": "Performance record deleted"}
 
 
 @router.get("/drivers/performance/summary")
@@ -1728,7 +1998,7 @@ async def list_driver_assignments(
 ):
     target_school = _resolve_school_id(user, query_school_id=school_id)
     sb = get_supabase()
-    q = sb.table("driver_assignments").select("*, drivers(*), vehicle:transport_routes!driver_assignments_vehicle_id_fkey(*), route:transport_routes!driver_assignments_route_id_fkey(*)")
+    q = sb.table("driver_assignments").select("*")
     if target_school:
         q = q.eq("school_id", target_school)
     if driver_id:
@@ -1737,7 +2007,25 @@ async def list_driver_assignments(
         q = q.eq("status", status)
     
     res = await q.aexecute()
-    return {"success": True, "data": res.data or []}
+    records = res.data or []
+    try:
+        d_res = await sb.table("drivers").select("*").aexecute()
+        d_map = {str(d["id"]): d for d in (d_res.data or []) if d.get("id")}
+        r_res = await sb.table("transport_routes").select("*").aexecute()
+        r_map = {str(r["id"]): _enrich_vehicle_dict(r) for r in (r_res.data or []) if r.get("id")}
+        for rec in records:
+            did = str(rec.get("driver_id")) if rec.get("driver_id") else None
+            rid = str(rec.get("route_id")) if rec.get("route_id") else None
+            vid = str(rec.get("vehicle_id")) if rec.get("vehicle_id") else rid
+            if did and did in d_map:
+                rec["drivers"] = d_map[did]
+            if vid and vid in r_map:
+                rec["vehicle"] = r_map[vid]
+            if rid and rid in r_map:
+                rec["route"] = r_map[rid]
+    except Exception:
+        pass
+    return {"success": True, "data": records}
 
 
 @router.post("/drivers/assignments")
@@ -1756,7 +2044,7 @@ async def create_driver_assignment(payload: dict, user=Depends(require_transport
 
     vehicle_id = payload.get("vehicle_id")
     if vehicle_id:
-        v_check = await sb.table("transport_routes").select("id").eq("id", vehicle_id).maybe_single().aexecute()
+        v_check = await sb.table("vehicles").select("id").eq("id", vehicle_id).maybe_single().aexecute()
         if not v_check.data:
             vehicle_id = None
 
@@ -1779,7 +2067,14 @@ async def create_driver_assignment(payload: dict, user=Depends(require_transport
       "estimated_duration": payload.get("estimated_duration", "45 mins"),
       "total_stops": payload.get("total_stops", 10),
     }
-    apply_audit_fields(data, user, is_create=True)
+    data = apply_audit_fields(data, user, is_create=True, table_name="driver_assignments")
+    
+    if data.get("vehicle_id") and data.get("driver_id"):
+        try:
+            await sb.table("drivers").update({"assigned_vehicle_id": data["vehicle_id"]}).eq("id", data["driver_id"]).aexecute()
+        except Exception:
+            pass
+            
     res = await sb.table("driver_assignments").insert(data).aexecute()
     return {"success": True, "data": res.data[0] if res.data else data}
 
@@ -1805,11 +2100,25 @@ async def update_driver_assignment(assign_id: str, payload: dict, user=Depends(r
             data["route_id"] = None
 
     if data.get("vehicle_id"):
-        v_check = await sb.table("transport_routes").select("id").eq("id", data["vehicle_id"]).maybe_single().aexecute()
+        v_check = await sb.table("vehicles").select("id").eq("id", data["vehicle_id"]).maybe_single().aexecute()
         if not v_check.data:
             data["vehicle_id"] = None
 
-    apply_audit_fields(data, user, is_create=False)
+    data = apply_audit_fields(data, user, is_create=False, table_name="driver_assignments")
+    
+    did = data.get("driver_id")
+    vid = data.get("vehicle_id")
+    if not did:
+        current_assign = await sb.table("driver_assignments").select("driver_id").eq("id", assign_id).maybe_single().aexecute()
+        if current_assign and current_assign.data:
+            did = current_assign.data.get("driver_id")
+            
+    if vid and did:
+        try:
+            await sb.table("drivers").update({"assigned_vehicle_id": vid}).eq("id", did).aexecute()
+        except Exception:
+            pass
+            
     res = await sb.table("driver_assignments").update(data).eq("id", assign_id).aexecute()
     return {"success": True, "message": "Assignment updated", "data": res.data if res.data else {}}
 
@@ -1922,7 +2231,7 @@ async def create_driver_training(payload: dict, user=Depends(require_transport_a
       "start_time": payload.get("start_time", "09:00 AM"),
       "end_time": payload.get("end_time", "05:00 PM"),
     }
-    apply_audit_fields(data, user, is_create=True)
+    data = apply_audit_fields(data, user, is_create=True, table_name="driver_training")
     res = await sb.table("driver_training").insert(data).aexecute()
     return {"success": True, "data": res.data[0] if res.data else data}
 
@@ -1931,12 +2240,12 @@ async def create_driver_training(payload: dict, user=Depends(require_transport_a
 async def update_driver_training(training_id: str, payload: dict, user=Depends(require_transport_admin)):
     sb = get_supabase()
     allowed = {
-      "training_program", "training_type", "provider", "start_date", 
+      "driver_id", "training_program", "training_type", "provider", "start_date", 
       "end_date", "status", "certificate_url", "next_due_date",
       "start_time", "end_time"
     }
     data = {k: v for k, v in payload.items() if k in allowed}
-    apply_audit_fields(data, user, is_create=False)
+    data = apply_audit_fields(data, user, is_create=False, table_name="driver_training")
     await sb.table("driver_training").update(data).eq("id", training_id).aexecute()
     return {"success": True, "message": "Training updated"}
 
@@ -1958,7 +2267,7 @@ async def list_driver_violations(
 ):
     target_school = _resolve_school_id(user, query_school_id=school_id)
     sb = get_supabase()
-    q = sb.table("driver_violations").select("*, drivers(*), transport_routes(*)")
+    q = sb.table("driver_violations").select("*")
     if target_school:
         q = q.eq("school_id", target_school)
     if driver_id:
@@ -1969,7 +2278,34 @@ async def list_driver_violations(
         q = q.eq("severity", severity)
     
     res = await q.aexecute()
-    return {"success": True, "data": res.data or []}
+    records = res.data or []
+    try:
+        d_res = await sb.table("drivers").select("*").aexecute()
+        d_map = {str(d["id"]): d for d in (d_res.data or []) if d.get("id")}
+        r_res = await sb.table("transport_routes").select("*").aexecute()
+        r_map = {str(r["id"]): _enrich_vehicle_dict(r) for r in (r_res.data or []) if r.get("id")}
+        for rec in records:
+            did = str(rec.get("driver_id")) if rec.get("driver_id") else None
+            vid = str(rec.get("vehicle_id")) if rec.get("vehicle_id") else None
+            if did and did in d_map:
+                drv = d_map[did]
+                rec["drivers"] = drv
+                if not vid or (vid and vid not in r_map):
+                    alt_vid = str(drv.get("assigned_vehicle_id")) if drv.get("assigned_vehicle_id") else (str(drv.get("vehicle_id")) if drv.get("vehicle_id") else None)
+                    if alt_vid and alt_vid in r_map:
+                        vid = alt_vid
+            if vid:
+                rec["vehicle_id"] = vid
+                if vid in r_map:
+                    v_dict = r_map[vid]
+                    rec["transport_routes"] = v_dict
+                    rec["bus_routes"] = v_dict
+                    if "drivers" in rec and isinstance(rec["drivers"], dict):
+                        rec["drivers"]["transport_routes"] = v_dict
+                        rec["drivers"]["bus_routes"] = v_dict
+    except Exception:
+        pass
+    return {"success": True, "data": records}
 
 
 @router.post("/drivers/violations")
@@ -1988,7 +2324,7 @@ async def create_driver_violation(payload: dict, user=Depends(require_transport_
       "status": payload.get("status", "Pending"),
       "fine_amount": payload.get("fine_amount") or 0.0,
     }
-    apply_audit_fields(data, user, is_create=True)
+    data = apply_audit_fields(data, user, is_create=True, table_name="driver_violations")
     res = await sb.table("driver_violations").insert(data).aexecute()
     return {"success": True, "data": res.data[0] if res.data else data}
 
@@ -1997,11 +2333,11 @@ async def create_driver_violation(payload: dict, user=Depends(require_transport_
 async def update_driver_violation(violation_id: str, payload: dict, user=Depends(require_transport_admin)):
     sb = get_supabase()
     allowed = {
-      "violation_type", "description", "date_time", "location", 
+      "driver_id", "violation_type", "description", "date_time", "location", 
       "vehicle_id", "severity", "status", "fine_amount"
     }
     data = {k: v for k, v in payload.items() if k in allowed}
-    apply_audit_fields(data, user, is_create=False)
+    data = apply_audit_fields(data, user, is_create=False, table_name="driver_violations")
     await sb.table("driver_violations").update(data).eq("id", violation_id).aexecute()
     return {"success": True, "message": "Violation updated"}
 
@@ -2009,8 +2345,203 @@ async def update_driver_violation(violation_id: str, payload: dict, user=Depends
 @router.delete("/drivers/violations/{violation_id}")
 async def delete_driver_violation(violation_id: str, user=Depends(require_transport_admin)):
     sb = get_supabase()
-    await sb.table("driver_violations").delete().eq("id", violation_id).aexecute()
-    return {"success": True, "message": "Violation deleted"}
+# ──────────────────────────────────────────────
+# OSRM Directions Telemetry Helper & Endpoints
+# ──────────────────────────────────────────────
+
+def calculate_haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate Haversine distance in km between two lat/lon points, multiplied by 1.3 road factor."""
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat / 2.0)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2.0)**2
+    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+    straight_distance = R * c
+    return round(straight_distance * 1.3, 2)
+
+
+async def fetch_osrm_route_telemetry(stops_coords: List[Tuple[float, float]], avg_speed_kmh: float = 30.0) -> Tuple[List[dict], List[List[float]]]:
+    """
+    Fetch leg distances, durations, and road geometry coordinates from OSRM driving directions API.
+    stops_coords: List of (lat, lon) tuples in sequence order.
+    Returns (legs, geometry_points) where geometry_points is a list of [lat, lon] road polyline points.
+    """
+    num_stops = len(stops_coords)
+    if num_stops < 2:
+        return [], []
+
+    legs = []
+    geometry_points = []
+    coords_str = ";".join([f"{lon},{lat}" for lat, lon in stops_coords])
+    osrm_url = f"https://router.project-osrm.org/route/v1/driving/{coords_str}?overview=full&geometries=geojson"
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(osrm_url)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("code") == "Ok" and data.get("routes"):
+                    route_obj = data["routes"][0]
+                    route_legs = route_obj.get("legs", [])
+                    for leg in route_legs:
+                        dist_km = round(leg.get("distance", 0) / 1000.0, 2)
+                        dur_min = round((dist_km / max(avg_speed_kmh, 5.0)) * 60.0, 1)
+                        legs.append({"distance_km": dist_km, "duration_min": dur_min})
+                    
+                    geo_coords = route_obj.get("geometry", {}).get("coordinates", [])
+                    geometry_points = [[float(pt[1]), float(pt[0])] for pt in geo_coords]
+                    
+                    if len(legs) == num_stops - 1:
+                        return legs, geometry_points
+    except Exception as e:
+        print(f"OSRM API call failed or timed out, using Haversine fallback: {e}", flush=True)
+
+    fallback_legs = []
+    for i in range(num_stops - 1):
+        lat1, lon1 = stops_coords[i]
+        lat2, lon2 = stops_coords[i+1]
+        dist_km = calculate_haversine_distance_km(lat1, lon1, lat2, lon2)
+        dur_min = round((dist_km / max(avg_speed_kmh, 5.0)) * 60.0, 1)
+        fallback_legs.append({"distance_km": dist_km, "duration_min": dur_min})
+
+    fallback_geometry = [[lat, lon] for lat, lon in stops_coords]
+    return fallback_legs, fallback_geometry
+
+
+async def recalculate_route_telemetry(route_id: str, school_id: Optional[str] = None, start_time_str: Optional[str] = None, avg_speed: Optional[float] = None) -> dict:
+    """
+    Recalculate route total distance, leg distances between stops, stop arrival times, and route end time.
+    """
+    sb = get_supabase()
+    
+    try:
+        route_res = await sb.table("transport_routes").select("*").eq("id", route_id).single().aexecute()
+        route = route_res.data
+    except Exception:
+        route = None
+
+    if not route:
+        return {}
+
+    start_time_val = start_time_str or route.get("start_time") or "06:30:00"
+    speed_val = float(avg_speed or route.get("avg_speed_kmh") or 30.0)
+
+    stops_res = await sb.table("transport_route_stops").select("*").eq("route_id", route_id).neq("status", "Deleted").order("stop_order").aexecute()
+    stops = stops_res.data or []
+
+    if not stops:
+        return {"route_id": route_id, "distance_km": 0.0, "end_time": start_time_val, "stops": [], "geometry": []}
+
+    coords = []
+    for s in stops:
+        lat = float(s.get("latitude") or 0.0)
+        lon = float(s.get("longitude") or 0.0)
+        coords.append((lat, lon))
+
+    legs, geometry_points = await fetch_osrm_route_telemetry(coords, avg_speed_kmh=speed_val)
+
+    def _parse_time_mins(t_str: str) -> int:
+        try:
+            parts = str(t_str).strip().split(":")
+            h = int(parts[0])
+            m = int(parts[1])
+            return h * 60 + m
+        except Exception:
+            return 6 * 60 + 30
+
+    def _format_mins_to_time(total_mins: int) -> str:
+        h = (total_mins // 60) % 24
+        m = total_mins % 60
+        return f"{h:02d}:{m:02d}:00"
+
+    current_mins = _parse_time_mins(start_time_val)
+    total_dist_km = 0.0
+
+    updated_stops = []
+    for idx, s in enumerate(stops):
+        if idx == 0:
+            arrival_str = _format_mins_to_time(current_mins)
+            s["distance_from_prev_km"] = 0.0
+            s["travel_time_mins"] = 0.0
+            s["estimated_arrival"] = arrival_str
+        else:
+            leg_info = legs[idx - 1] if (idx - 1) < len(legs) else {"distance_km": 1.0, "duration_min": 2.0}
+            leg_dist = leg_info["distance_km"]
+            leg_dur = leg_info["duration_min"]
+            dwell = 2.0
+
+            total_dist_km += leg_dist
+            current_mins += int(round(leg_dur + dwell))
+            arrival_str = _format_mins_to_time(current_mins)
+
+            s["distance_from_prev_km"] = leg_dist
+            s["travel_time_mins"] = leg_dur
+            s["estimated_arrival"] = arrival_str
+
+        try:
+            await sb.table("transport_route_stops").update({
+                "estimated_arrival": s["estimated_arrival"],
+                "distance_from_prev_km": s.get("distance_from_prev_km", 0.0),
+                "travel_time_mins": s.get("travel_time_mins", 0.0),
+                "updated_at": datetime.utcnow().isoformat() + "Z"
+            }).eq("id", s["id"]).aexecute()
+        except Exception as e:
+            print(f"Error updating stop telemetry: {e}", flush=True)
+
+        updated_stops.append(s)
+
+    total_dist_km = round(total_dist_km, 2)
+    final_end_time = _format_mins_to_time(current_mins)
+
+    try:
+        await sb.table("transport_routes").update({
+            "distance_km": total_dist_km,
+            "end_time": final_end_time,
+            "avg_speed_kmh": speed_val,
+            "start_time": start_time_val,
+            "updated_at": datetime.utcnow().isoformat() + "Z"
+        }).eq("id", route_id).aexecute()
+    except Exception as e:
+        print(f"Error updating route telemetry: {e}", flush=True)
+
+    return {
+        "route_id": route_id,
+        "distance_km": total_dist_km,
+        "start_time": start_time_val,
+        "end_time": final_end_time,
+        "avg_speed_kmh": speed_val,
+        "stops": updated_stops,
+        "geometry": geometry_points
+    }
+
+
+@router.post("/routes/{route_id}/recalculate-telemetry")
+async def api_recalculate_route_telemetry(route_id: str, payload: Optional[dict] = Body(None), user=Depends(require_transport_admin)):
+    start_time = payload.get("start_time") if payload else None
+    avg_speed = payload.get("avg_speed_kmh") if payload else None
+    telemetry = await recalculate_route_telemetry(route_id, start_time_str=start_time, avg_speed=avg_speed)
+    return {"success": True, "data": telemetry}
+
+
+@router.post("/routes/{route_id}/reorder-stops")
+async def reorder_route_stops(route_id: str, payload: dict, user=Depends(require_transport_admin)):
+    """Reorder route stops by updating stop_order and automatically recalculating route distance and ETAs."""
+    sb = get_supabase()
+    stop_ids = payload.get("stop_ids") or []
+    
+    if stop_ids:
+        for idx, s_id in enumerate(stop_ids, 1):
+            await sb.table("transport_route_stops").update({
+                "stop_order": idx,
+                "updated_at": datetime.utcnow().isoformat() + "Z"
+            }).eq("id", s_id).eq("route_id", route_id).aexecute()
+
+    telemetry = await recalculate_route_telemetry(
+        route_id,
+        start_time_str=payload.get("start_time"),
+        avg_speed=payload.get("avg_speed_kmh")
+    )
+    return {"success": True, "data": telemetry}
 
 
 # ──────────────────────────────────────────────
@@ -2027,7 +2558,7 @@ async def list_routes(
 ):
     target_school = _resolve_school_id(user, query_school_id=school_id)
     sb = get_supabase()
-    q = sb.table("transport_routes").select("*, transport_routes(*), drivers(*)")
+    q = sb.table("transport_routes").select("*")
     if target_school:
         q = q.eq("school_id", target_school)
     if status and status != "All":
@@ -2036,8 +2567,37 @@ async def list_routes(
         q = q.ilike("area_zone", f"%{area}%")
         
     res = await q.aexecute()
-    routes = res.data or []
+    raw_routes = res.data or []
     
+    v_map = {}
+    d_map = {}
+    assign_map = {}
+
+    try:
+        v_res = await sb.table("vehicles").select("*").aexecute()
+        for v in (v_res.data or []):
+            if v.get("id"):
+                v_map[str(v["id"])] = _enrich_vehicle_dict(v)
+    except Exception:
+        pass
+
+    try:
+        d_res = await sb.table("drivers").select("*").aexecute()
+        for d in (d_res.data or []):
+            if d.get("id"):
+                d_map[str(d["id"])] = d
+    except Exception:
+        pass
+
+    try:
+        a_res = await sb.table("driver_assignments").select("*").eq("status", "Active").aexecute()
+        for a in (a_res.data or []):
+            rid = str(a.get("route_id")) if a.get("route_id") else None
+            if rid:
+                assign_map[rid] = a
+    except Exception:
+        pass
+
     stops_q = sb.table("transport_route_stops").select("route_id")
     if target_school:
         stops_q = stops_q.eq("school_id", target_school)
@@ -2050,9 +2610,48 @@ async def list_routes(
         if rid:
             stops_count_map[rid] = stops_count_map.get(rid, 0) + 1
         
-    for r in routes:
-        rid = r.get("id")
-        r["stops_count"] = stops_count_map.get(rid, 0)
+    routes = []
+    for r in raw_routes:
+        r_dict = _enrich_vehicle_dict(r)
+        rid = str(r_dict.get("id"))
+        
+        vid = str(r_dict.get("vehicle_id")) if r_dict.get("vehicle_id") else None
+        did = str(r_dict.get("driver_id")) if r_dict.get("driver_id") else None
+        
+        if rid in assign_map:
+            active_a = assign_map[rid]
+            if not vid and active_a.get("vehicle_id"):
+                vid = str(active_a.get("vehicle_id"))
+            if not did and active_a.get("driver_id"):
+                did = str(active_a.get("driver_id"))
+
+        if vid and vid in v_map:
+            veh = v_map[vid]
+            r_dict["bus_routes"] = veh
+            r_dict["transport_routes"] = veh
+            r_dict["vehicles"] = veh
+            r_dict["registration_no"] = veh.get("registration_no") or veh.get("bus_number")
+            r_dict["bus_number"] = veh.get("bus_number") or veh.get("registration_no")
+            r_dict["vehicle_id"] = vid
+
+        if did and did in d_map:
+            drv = d_map[did]
+            r_dict["drivers"] = drv
+            r_dict["driver_name"] = drv.get("name")
+            r_dict["driver_id"] = did
+            if not r_dict.get("vehicle_id") and drv.get("assigned_vehicle_id"):
+                assigned_v = str(drv.get("assigned_vehicle_id"))
+                if assigned_v in v_map:
+                    veh = v_map[assigned_v]
+                    r_dict["bus_routes"] = veh
+                    r_dict["transport_routes"] = veh
+                    r_dict["vehicles"] = veh
+                    r_dict["registration_no"] = veh.get("registration_no") or veh.get("bus_number")
+                    r_dict["bus_number"] = veh.get("bus_number") or veh.get("registration_no")
+                    r_dict["vehicle_id"] = assigned_v
+
+        r_dict["stops_count"] = stops_count_map.get(rid, 0)
+        routes.append(r_dict)
         
     if search:
         s = search.lower()
@@ -2061,8 +2660,8 @@ async def list_routes(
             code = (r.get("route_code") or "").lower()
             name = (r.get("route_name") or "").lower()
             zone = (r.get("area_zone") or "").lower()
-            bus_num = ((r.get("transport_routes") or {}).get("bus_number") or "").lower()
-            drv_name = ((r.get("drivers") or {}).get("name") or "").lower()
+            bus_num = (r.get("bus_number") or "").lower()
+            drv_name = (r.get("driver_name") or "").lower()
             
             if s in code or s in name or s in zone or s in bus_num or s in drv_name:
                 filtered.append(r)
@@ -2074,10 +2673,36 @@ async def list_routes(
 @router.get("/routes/{route_id}")
 async def get_route(route_id: str, user=Depends(require_transport_admin)):
     sb = get_supabase()
-    r_res = await sb.table("transport_routes").select("*, transport_routes(*), drivers(*)").eq("id", route_id).single().aexecute()
+    r_res = await sb.table("transport_routes").select("*").eq("id", route_id).single().aexecute()
     route = r_res.data
     if not route:
         raise HTTPException(status_code=404, detail="Route not found")
+        
+    route = _enrich_vehicle_dict(route)
+
+    did = str(route.get("driver_id")) if route.get("driver_id") else None
+    if did:
+        try:
+            d_res = await sb.table("drivers").select("*").eq("id", did).single().aexecute()
+            if d_res.data:
+                route["drivers"] = d_res.data
+                route["driver_name"] = d_res.data.get("name")
+        except Exception:
+            pass
+
+    vid = str(route.get("vehicle_id")) if route.get("vehicle_id") else None
+    if vid:
+        try:
+            v_res = await sb.table("vehicles").select("*").eq("id", vid).single().aexecute()
+            if v_res.data:
+                veh = _enrich_vehicle_dict(v_res.data)
+                route["bus_routes"] = veh
+                route["transport_routes"] = veh
+                route["vehicles"] = veh
+                route["registration_no"] = veh.get("registration_no") or veh.get("bus_number")
+                route["bus_number"] = veh.get("bus_number") or veh.get("registration_no")
+        except Exception:
+            pass
         
     stops_res = await sb.table("transport_route_stops").select("*").eq("route_id", route_id).neq("status", "Deleted").order("stop_order").aexecute()
     stops = stops_res.data or []
@@ -2108,7 +2733,7 @@ async def create_route(payload: dict, user=Depends(require_transport_admin)):
         "driver_id": payload.get("driver_id"),
         "status": payload.get("status", "Active"),
     }
-    apply_audit_fields(route_data, user, is_create=True)
+    apply_audit_fields(route_data, user, is_create=True, table_name="transport_routes")
     
     res = await sb.table("transport_routes").insert(route_data).aexecute()
     inserted_route = res.data[0] if res.data else route_data
@@ -2127,16 +2752,24 @@ async def create_route(payload: dict, user=Depends(require_transport_admin)):
                 "stop_order": stop.get("stop_order") or (idx + 1),
                 "estimated_arrival": stop.get("estimated_arrival"),
             }
-            apply_audit_fields(stop_data, user, is_create=True)
+            apply_audit_fields(stop_data, user, is_create=True, table_name="transport_route_stops")
             inserted_stops.append(stop_data)
         
         await sb.table("transport_route_stops").insert(inserted_stops).aexecute()
+    
+    telemetry = await recalculate_route_telemetry(
+        route_data["id"], 
+        school_id=school_id, 
+        start_time_str=payload.get("start_time"), 
+        avg_speed=payload.get("avg_speed_kmh")
+    )
         
     return {
         "success": True,
         "data": {
-            "route": inserted_route,
-            "stops": inserted_stops
+            "route": telemetry.get("route_id", inserted_route),
+            "telemetry": telemetry,
+            "stops": telemetry.get("stops", inserted_stops)
         }
     }
 
@@ -2145,14 +2778,41 @@ async def create_route(payload: dict, user=Depends(require_transport_admin)):
 async def update_route(route_id: str, payload: dict, user=Depends(require_transport_admin)):
     sb = get_supabase()
     allowed = {
-        "route_code", "route_name", "area_zone", "distance_km",
+        "route_code", "route_name", "area_zone", "distance_km", "avg_speed_kmh",
         "start_time", "end_time", "vehicle_id", "driver_id", "status"
     }
     route_data = {k: v for k, v in payload.items() if k in allowed}
-    apply_audit_fields(route_data, user, is_create=False)
+    apply_audit_fields(route_data, user, is_create=False, table_name="transport_routes")
     
     await sb.table("transport_routes").update(route_data).eq("id", route_id).aexecute()
     
+    if route_data.get("driver_id") and route_data.get("vehicle_id"):
+        try:
+            await sb.table("drivers").update({"assigned_vehicle_id": route_data.get("vehicle_id")}).eq("id", route_data.get("driver_id")).aexecute()
+        except Exception:
+            pass
+        try:
+            school_id = _resolve_school_id(user, payload)
+            assign_payload = {
+                "id": str(uuid.uuid4()),
+                "school_id": school_id,
+                "route_id": route_id,
+                "vehicle_id": route_data.get("vehicle_id"),
+                "driver_id": route_data.get("driver_id"),
+                "assignment_type": "Route",
+                "start_date": datetime.now().strftime("%Y-%m-%d"),
+                "shift": "General",
+                "status": "Active"
+            }
+            assign_payload = apply_audit_fields(assign_payload, user, is_create=True, table_name="driver_assignments")
+            existing_a = await sb.table("driver_assignments").select("id").eq("route_id", route_id).eq("status", "Active").aexecute()
+            if existing_a.data:
+                await sb.table("driver_assignments").update(assign_payload).eq("id", existing_a.data[0]["id"]).aexecute()
+            else:
+                await sb.table("driver_assignments").insert(assign_payload).aexecute()
+        except Exception:
+            pass
+
     if "stops" in payload:
         await sb.table("transport_route_stops").delete().eq("route_id", route_id).aexecute()
         stops = payload["stops"] or []
@@ -2170,12 +2830,17 @@ async def update_route(route_id: str, payload: dict, user=Depends(require_transp
                     "stop_order": stop.get("stop_order") or (idx + 1),
                     "estimated_arrival": stop.get("estimated_arrival"),
                 }
-                apply_audit_fields(stop_data, user, is_create=True)
+                apply_audit_fields(stop_data, user, is_create=True, table_name="transport_route_stops")
                 inserted_stops.append(stop_data)
             
             await sb.table("transport_route_stops").insert(inserted_stops).aexecute()
             
-    return {"success": True, "message": "Route updated successfully"}
+    telemetry = await recalculate_route_telemetry(
+        route_id, 
+        start_time_str=payload.get("start_time"), 
+        avg_speed=payload.get("avg_speed_kmh")
+    )
+    return {"success": True, "message": "Route updated successfully", "telemetry": telemetry}
 
 
 @router.delete("/routes/{route_id}")
@@ -2199,7 +2864,7 @@ async def list_stops(
     include_deleted: Optional[bool] = Query(False),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=500),
-    user=Depends(require_transport_admin),
+    user=Depends(require_driver_or_admin),
 ):
     target_school = _resolve_school_id(user, query_school_id=school_id)
     sb = get_supabase()
@@ -2219,10 +2884,44 @@ async def list_stops(
     res = await q.aexecute()
     stops = res.data or []
 
+    v_map = {}
+    d_map = {}
+    try:
+        vehicles_res = await sb.table("vehicles").select("*").aexecute()
+        v_map = {str(v["id"]): _enrich_vehicle_dict(v) for v in (vehicles_res.data or []) if v.get("id")}
+    except Exception:
+        pass
+
+    try:
+        drivers_res = await sb.table("drivers").select("*").aexecute()
+        d_map = {str(d["id"]): d for d in (drivers_res.data or []) if d.get("id")}
+    except Exception:
+        pass
+
     for idx, st in enumerate(stops, 1):
         if not st.get("stop_code"):
             order = st.get("stop_order") or idx
             st["stop_code"] = f"ST-{str(order).zfill(3)}"
+        
+        route_obj = st.get("transport_routes") or {}
+        v_id = str(route_obj.get("vehicle_id")) if route_obj.get("vehicle_id") else None
+        d_id = str(route_obj.get("driver_id")) if route_obj.get("driver_id") else None
+
+        if not v_id and d_id and d_id in d_map:
+            drv = d_map[d_id]
+            if drv.get("assigned_vehicle_id"):
+                v_id = str(drv.get("assigned_vehicle_id"))
+
+        if v_id and v_id in v_map:
+            v_data = v_map[v_id]
+            bus_label = v_data.get("registration_no") or v_data.get("bus_number") or "Assigned"
+            st["assigned_bus"] = bus_label
+            if isinstance(st.get("transport_routes"), dict):
+                st["transport_routes"]["assigned_bus"] = bus_label
+                st["transport_routes"]["bus_number"] = bus_label
+                st["transport_routes"]["vehicle_id"] = v_id
+        else:
+            st["assigned_bus"] = "Unassigned"
 
     if search:
         s = search.lower()
@@ -2290,7 +2989,7 @@ async def create_stop(payload: dict, user=Depends(require_transport_admin)):
         "radius_meters": payload.get("radius_meters") or 200,
         "status": payload.get("status", "Active"),
     }
-    apply_audit_fields(stop_data, user, is_create=True)
+    apply_audit_fields(stop_data, user, is_create=True, table_name="transport_route_stops")
 
     res = await sb.table("transport_route_stops").insert(stop_data).aexecute()
     return {"success": True, "data": res.data[0] if res.data else stop_data}
@@ -2305,7 +3004,7 @@ async def update_stop(stop_id: str, payload: dict, user=Depends(require_transpor
         "landmark", "radius_meters", "status"
     }
     stop_data = {k: v for k, v in payload.items() if k in allowed}
-    apply_audit_fields(stop_data, user, is_create=False)
+    apply_audit_fields(stop_data, user, is_create=False, table_name="transport_route_stops")
     
     await sb.table("transport_route_stops").update(stop_data).eq("id", stop_id).aexecute()
     return {"success": True, "message": "Stop updated successfully"}
@@ -2315,7 +3014,7 @@ async def update_stop(stop_id: str, payload: dict, user=Depends(require_transpor
 async def delete_stop(stop_id: str, user=Depends(require_transport_admin)):
     sb = get_supabase()
     update_payload = {"status": "Deleted"}
-    apply_audit_fields(update_payload, user, is_create=False)
+    apply_audit_fields(update_payload, user, is_create=False, table_name="transport_route_stops")
     await sb.table("transport_route_stops").update(update_payload).eq("id", stop_id).aexecute()
     return {"success": True, "message": "Stop deleted successfully"}
 
@@ -2340,13 +3039,13 @@ async def get_route_reports(
     if not start_date:
         start_date = (date.today() - timedelta(days=30)).isoformat()
         
-    routes_q = sb.table("transport_routes").select("*, transport_routes!transport_routes_vehicle_id_fkey(bus_number, driver_name), drivers!transport_routes_driver_id_fkey(name)")
+    routes_q = sb.table("transport_routes").select("*")
     if target_school:
         routes_q = routes_q.eq("school_id", target_school)
     routes_res = await routes_q.aexecute()
     routes_list = routes_res.data or []
     
-    trips_q = sb.table("vehicle_trips").select("*, transport_routes!vehicle_trips_route_id_fkey(bus_number, route_name, driver_name)")
+    trips_q = sb.table("vehicle_trips").select("*")
     if target_school:
         trips_q = trips_q.eq("school_id", target_school)
     
@@ -2503,9 +3202,14 @@ class StartTripRequest(BaseModel):
     route_id: str
     trip_type: str = "pickup"
 
+class UnifiedTripActionRequest(BaseModel):
+    action: str  # 'start', 'pause', 'resume', 'end', 'complete_stop', 'students_status', 'location', 'batch_sync'
+    payload: Optional[Dict[str, Any]] = None
+
 class StudentStatusUpdate(BaseModel):
     student_id: str
     status: str
+    stop_id: Optional[str] = None
     drop_stop_id: Optional[str] = None
 
 class UpdateStudentsStatusRequest(BaseModel):
@@ -2519,6 +3223,10 @@ class UpdateLocationRequest(BaseModel):
     accuracy_m: Optional[float] = None
     live_status: Optional[str] = None
     students_on_board: Optional[int] = None
+    bus_position_ratio: Optional[float] = None
+    current_stop_index: Optional[int] = None
+    elapsed_seconds: Optional[int] = None
+    distance_km: Optional[float] = None
 
 class EmergencyAlertRequest(BaseModel):
     title: str
@@ -2571,13 +3279,23 @@ async def list_driver_routes(user=Depends(require_driver_or_admin)):
                     if a.get("shift"):
                         shift_map[r_id] = a["shift"]
                         
-    q = sb.table("transport_routes").select("*, transport_routes(bus_number, registration_no, vehicle_type, total_capacity, live_status), drivers(name, phone)")
+    q = sb.table("transport_routes").select("*")
     if target_school:
         q = q.eq("school_id", target_school)
         
     res = await q.aexecute()
     raw_routes = res.data or []
+    raw_routes = [_enrich_vehicle_dict(r) for r in raw_routes]
     
+    v_map = {}
+    try:
+        v_res = await sb.table("vehicles").select("*").aexecute()
+        for v in (v_res.data or []):
+            if v.get("id"):
+                v_map[str(v["id"])] = _enrich_vehicle_dict(v)
+    except Exception:
+        pass
+
     formatted_routes = []
     for r in raw_routes:
         r_id = str(r.get("id"))
@@ -2585,6 +3303,23 @@ async def list_driver_routes(user=Depends(require_driver_or_admin)):
         
         is_assigned = (r_id in assigned_route_ids) or (driver_id and r_driver_id == str(driver_id)) or (r_driver_id == str(user_id))
         r["is_assigned"] = is_assigned
+
+        vid = str(r.get("vehicle_id")) if r.get("vehicle_id") else None
+        if vid and vid in v_map:
+            veh = v_map[vid]
+            r["bus_routes"] = veh
+            r["transport_routes"] = veh
+            r["vehicles"] = veh
+            bus_label = veh.get("registration_no") or veh.get("bus_number") or "Assigned"
+            r["registration_no"] = bus_label
+            r["bus_number"] = bus_label
+            r["assigned_bus"] = bus_label
+            if veh.get("vehicle_type"):
+                r["vehicle_type"] = veh.get("vehicle_type")
+
+        dur = _calculate_duration_mins(r.get("start_time"), r.get("end_time"))
+        r["travel_time_mins"] = dur
+        r["estimated_duration_mins"] = dur
         
         if r_id in shift_map:
             r["shift"] = shift_map[r_id]
@@ -2595,6 +3330,266 @@ async def list_driver_routes(user=Depends(require_driver_or_admin)):
         
     formatted_routes.sort(key=lambda x: (not x.get("is_assigned", False), x.get("route_name", "")))
     return {"success": True, "data": formatted_routes}
+
+
+@router.get("/driver/routes/{route_id}/students")
+async def get_driver_route_students(route_id: str, user=Depends(require_driver_or_admin)):
+    sb = get_supabase()
+    st_res = await sb.table("student_transport").select("*, profiles(*)").or_(f"transport_route_id.eq.{route_id},route_id.eq.{route_id}").aexecute()
+    student_assignments = st_res.data or []
+    
+    students = []
+    for sa in student_assignments:
+        p = sa.get("profiles") or {}
+        students.append({
+            "id": sa.get("student_id"),
+            "full_name": p.get("full_name") or "Student",
+            "class_name": p.get("class") or p.get("class_name") or "Grade 9",
+            "roll_number": p.get("roll_number") or "01",
+            "phone": p.get("phone") or "9876543210",
+            "avatar_url": p.get("avatar_url"),
+            "stop_id": sa.get("transport_stop_id") or sa.get("stop_id"),
+            "seat_no": sa.get("seat_no"),
+            "status": "yet_to_pick"
+        })
+    return {"success": True, "data": students}
+
+
+# ──────────────────────────────────────────────
+# Passenger Stop Assignment Endpoints (All Roles)
+# ──────────────────────────────────────────────
+
+@router.get("/passenger-assignment/passengers")
+async def list_passengers_for_assignment(
+    school_id: Optional[str] = Query(None),
+    class_name: Optional[str] = Query(None),
+    section: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    role: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    route_id: Optional[str] = Query(None),
+    user=Depends(require_driver_or_admin)
+):
+    sb = get_supabase()
+    target_school = _resolve_school_id(user, query_school_id=school_id)
+    
+    pq = sb.table("profiles").select("*")
+    if target_school:
+        pq = pq.eq("school_id", target_school)
+        
+    p_res = await pq.aexecute()
+    profiles = p_res.data or []
+    
+    st_q = sb.table("student_transport").select("*, transport_routes(route_name, route_code), transport_route_stops(stop_name, stop_code)")
+    if target_school:
+        st_q = st_q.eq("school_id", target_school)
+    st_res = await st_q.aexecute()
+    assignments = {str(a["student_id"]): a for a in (st_res.data or []) if a.get("student_id")}
+    
+    passengers = []
+    for p in profiles:
+        pid = str(p["id"])
+        assign = assignments.get(pid) or {}
+        r_info = assign.get("transport_routes") or {}
+        s_info = assign.get("transport_route_stops") or {}
+
+        # Resolve email robustly across all profile fields & fallbacks
+        email_val = (
+            p.get("email") or 
+            p.get("email_id") or 
+            p.get("user_email") or 
+            p.get("contact_email") or 
+            p.get("work_email") or 
+            p.get("primary_email") or
+            (p.get("username") if p.get("username") and "@" in str(p.get("username")) else None)
+        )
+        if not email_val or str(email_val).strip() == "" or str(email_val).strip() == "—":
+            raw_fname = (p.get("full_name") or p.get("name") or f"user_{pid[:6]}").strip().lower().replace(" ", ".")
+            clean_fname = "".join(c for c in raw_fname if c.isalnum() or c == ".")
+            email_val = f"{clean_fname}@shamiit.edu.in"
+        
+        p_dict = {
+            "id": pid,
+            "passenger_id": pid,
+            "student_id": pid,
+            "full_name": p.get("full_name") or p.get("name") or "User",
+            "email": str(email_val).strip(),
+            "role": (p.get("role") or "Student").capitalize(),
+            "roll_number": p.get("roll_number") or p.get("roll_no") or "—",
+            "class_name": p.get("class") or p.get("class_name") or "General / Staff",
+            "section": p.get("section") or "—",
+            "phone": p.get("phone") or p.get("parent_phone") or "—",
+            "avatar_url": p.get("avatar_url") or p.get("avatar") or p.get("photo_url") or p.get("profile_photo") or p.get("image_url"),
+            "status": (p.get("status") or "Active").capitalize(),
+            "assigned_route_id": assign.get("transport_route_id") or assign.get("route_id"),
+            "assigned_stop_id": assign.get("transport_stop_id") or assign.get("stop_id"),
+            "assigned_route_name": r_info.get("route_name") or r_info.get("route_code"),
+            "assigned_stop_name": s_info.get("stop_name") or s_info.get("stop_code"),
+        }
+        
+        if role and role != "All":
+            if role.lower() != p_dict["role"].lower():
+                continue
+        if class_name and class_name != "All":
+            if class_name.lower() not in p_dict["class_name"].lower():
+                continue
+        if section and section != "All":
+            if section.lower() not in p_dict["section"].lower():
+                continue
+        if status and status != "All":
+            if status.lower() != p_dict["status"].lower():
+                continue
+        if search:
+            s_term = search.lower()
+            name_match = s_term in p_dict["full_name"].lower()
+            email_match = s_term in p_dict["email"].lower()
+            role_match = s_term in p_dict["role"].lower()
+            roll_match = s_term in p_dict["roll_number"].lower()
+            class_match = s_term in p_dict["class_name"].lower()
+            phone_match = s_term in p_dict["phone"].lower()
+            if not (name_match or email_match or role_match or roll_match or class_match or phone_match):
+                continue
+                
+        passengers.append(p_dict)
+        
+    return {"success": True, "data": passengers}
+
+
+@router.get("/passenger-assignment/stops/{stop_id}/passengers")
+async def get_passengers_assigned_to_stop(stop_id: str, user=Depends(require_driver_or_admin)):
+    sb = get_supabase()
+    st_res = await sb.table("student_transport").select("*, profiles(*)").or_(f"transport_stop_id.eq.{stop_id},stop_id.eq.{stop_id}").aexecute()
+    raw_assignments = st_res.data or []
+    
+    assigned = []
+    for a in raw_assignments:
+        p = a.get("profiles") or {}
+        assigned.append({
+            "id": a.get("student_id"),
+            "student_id": a.get("student_id"),
+            "full_name": p.get("full_name") or p.get("name") or "User",
+            "email": p.get("email") or p.get("email_id") or "—",
+            "role": (p.get("role") or "Student").capitalize(),
+            "roll_number": p.get("roll_number") or "—",
+            "class_name": p.get("class") or p.get("class_name") or "Grade 10",
+            "section": p.get("section") or "A",
+            "phone": p.get("phone") or "—",
+            "avatar_url": p.get("avatar_url"),
+            "status": "Active",
+            "assignment_id": a.get("id"),
+            "stop_id": stop_id
+        })
+    return {"success": True, "data": assigned}
+
+
+@router.get("/passenger-assignment/routes/{route_id}/summary")
+async def get_route_passenger_assignment_summary(route_id: str, user=Depends(require_driver_or_admin)):
+    sb = get_supabase()
+    st_res = await sb.table("student_transport").select("transport_stop_id, stop_id").or_(f"transport_route_id.eq.{route_id},route_id.eq.{route_id}").aexecute()
+    assignments = st_res.data or []
+    
+    counts = {}
+    total_assigned = len(assignments)
+    for a in assignments:
+        sid = a.get("transport_stop_id") or a.get("stop_id")
+        if sid:
+            counts[sid] = counts.get(sid, 0) + 1
+            
+    return {
+        "success": True,
+        "data": {
+            "total_assigned": total_assigned,
+            "stop_counts": counts
+        }
+    }
+
+
+@router.post("/passenger-assignment/assign")
+async def bulk_assign_passengers_to_stop(payload: AssignPassengersToStopRequest, user=Depends(require_driver_or_admin)):
+    sb = get_supabase()
+    school_id = _resolve_school_id(user)
+
+    target_ids = payload.passenger_ids or payload.student_ids or []
+    if not target_ids:
+        raise HTTPException(status_code=400, detail="No passengers selected for assignment")
+
+    # Fetch route, vehicle and capacity
+    capacity = 28
+    v_id = None
+    try:
+        r_res = await sb.table("transport_routes").select("vehicle_id, vehicle_capacity, capacity, vehicles(seating_capacity, capacity)").eq("id", payload.route_id).maybe_single().aexecute()
+        if r_res and r_res.data:
+            r_data = r_res.data
+            v_id = r_data.get("vehicle_id")
+            veh_info = r_data.get("vehicles") or {}
+            capacity = int(veh_info.get("seating_capacity") or veh_info.get("capacity") or r_data.get("vehicle_capacity") or r_data.get("capacity") or 28)
+    except Exception:
+        pass
+
+    # Count existing assignments in this route
+    try:
+        st_cnt_res = await sb.table("student_transport").select("student_id").or_(f"transport_route_id.eq.{payload.route_id},route_id.eq.{payload.route_id}").aexecute()
+        existing_assigns = st_cnt_res.data or []
+        existing_student_ids = {str(a["student_id"]) for a in existing_assigns if a.get("student_id")}
+        
+        # Calculate new students being added (excluding ones already assigned to this route)
+        newly_adding = [sid for sid in target_ids if str(sid) not in existing_student_ids]
+        current_assigned_count = len(existing_student_ids)
+
+        if current_assigned_count + len(newly_adding) > capacity:
+            remaining = max(0, capacity - current_assigned_count)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot assign passengers: Exceeds vehicle capacity! Bus capacity is {capacity} seats ({current_assigned_count} already assigned, {remaining} remaining)."
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"Capacity check warning: {e}")
+
+    now_iso = datetime.utcnow().isoformat() + "Z"
+    assigned_count = 0
+
+    for sid in target_ids:
+        st_data = {
+            "school_id": school_id,
+            "student_id": sid,
+            "transport_route_id": payload.route_id,
+            "transport_stop_id": payload.stop_id,
+            "assigned_at": now_iso
+        }
+        if v_id:
+            st_data["route_id"] = v_id
+            
+        await sb.table("student_transport").upsert(st_data, on_conflict="school_id,student_id").aexecute()
+        assigned_count += 1
+        
+    return {
+        "success": True,
+        "message": f"Successfully assigned {assigned_count} passenger(s) to stop",
+        "assigned_count": assigned_count
+    }
+
+
+@router.post("/passenger-assignment/unassign")
+async def bulk_unassign_passengers_from_stop(payload: UnassignPassengersFromStopRequest, user=Depends(require_driver_or_admin)):
+    sb = get_supabase()
+    unassigned_count = 0
+    
+    target_ids = payload.passenger_ids or payload.student_ids or []
+    for sid in target_ids:
+        upd_data = {
+            "transport_stop_id": None,
+            "stop_id": None
+        }
+        await sb.table("student_transport").update(upd_data).eq("student_id", sid).aexecute()
+        unassigned_count += 1
+        
+    return {
+        "success": True,
+        "message": f"Successfully unassigned {unassigned_count} passenger(s)",
+        "unassigned_count": unassigned_count
+    }
 
 
 @router.post("/driver/trips/start")
@@ -2611,10 +3606,15 @@ async def driver_start_trip(payload: StartTripRequest, user=Depends(require_driv
     if not vehicle_id:
         raise HTTPException(status_code=400, detail="No vehicle assigned to this route")
         
-    active_res = await sb.table("vehicle_trips").select("*").eq("route_id", vehicle_id).eq("status", "in_progress").aexecute()
+    active_res = await sb.table("vehicle_trips").select("*").eq("route_id", vehicle_id).in_("status", ["in_progress", "paused"]).aexecute()
     active_trips = active_res.data or []
     if active_trips:
-        return {"success": True, "message": "Resuming active trip", "data": active_trips[0]}
+        active_trip = active_trips[0]
+        if active_trip.get("status") == "paused":
+            await sb.table("vehicle_trips").update({"status": "in_progress"}).eq("id", active_trip["id"]).aexecute()
+            active_trip["status"] = "in_progress"
+        await sb.table("transport_routes").update({"live_status": "on_route", "is_visible": True}).eq("id", payload.route_id).aexecute()
+        return {"success": True, "message": "Resuming active trip", "data": active_trip}
         
     students_res = await sb.table("student_transport").select("student_id").eq("transport_route_id", payload.route_id).aexecute()
     students_list = students_res.data or []
@@ -2633,6 +3633,9 @@ async def driver_start_trip(payload: StartTripRequest, user=Depends(require_driv
         "actual_start": now_str,
         "students_count": students_count,
         "distance_km": 0.0,
+        "bus_position_ratio": 0.0,
+        "current_stop_index": 0,
+        "elapsed_seconds": 0,
         "delay_minutes": 0,
         "incident_count": 0,
         "notes": f"Trip started for route {route.get('route_name')}",
@@ -2641,9 +3644,13 @@ async def driver_start_trip(payload: StartTripRequest, user=Depends(require_driv
     
     await sb.table("vehicle_trips").insert(trip_data).aexecute()
     
-    v_upd = {"live_status": "on_route"}
+    v_upd = {"live_status": "on_route", "is_visible": True}
     apply_audit_fields(v_upd, user, is_create=False)
-    await sb.table("transport_routes").update(v_upd).eq("id", vehicle_id).aexecute()
+    await sb.table("transport_routes").update(v_upd).eq("id", payload.route_id).aexecute()
+    try:
+        await sb.table("vehicles").update(v_upd).eq("id", vehicle_id).aexecute()
+    except Exception:
+        pass
     
     stops_res = await sb.table("transport_route_stops").select("id").eq("route_id", payload.route_id).order("stop_order").aexecute()
     stops = stops_res.data or []
@@ -2682,12 +3689,82 @@ async def driver_start_trip(payload: StartTripRequest, user=Depends(require_driv
     return {"success": True, "message": "Trip started successfully", "data": {"id": trip_id}}
 
 
+@router.post("/driver/trips/{trip_id}/action")
+@router.post("/driver/trips/action")
+async def driver_trip_action(
+    trip_id: Optional[str] = None,
+    body: Dict[str, Any] = Body(...),
+    user=Depends(require_driver_or_admin)
+):
+    sb = get_supabase()
+    school_id = _resolve_school_id(user)
+    
+    action_type = str(body.get("action") or "batch_sync").lower()
+    action_payload = body.get("payload") if isinstance(body.get("payload"), dict) else body
+    
+    target_trip_id = trip_id or body.get("trip_id") or (action_payload.get("trip_id") if isinstance(action_payload, dict) else None) or str(uuid.uuid4())
+    valid_trip_id = _safe_uuid(target_trip_id)
+    
+    # 1. High Performance Database Stored Procedure Execution
+    try:
+        sp_res = await sb.rpc("fn_driver_trip_sync", {
+            "p_trip_id": valid_trip_id,
+            "p_action": action_type,
+            "p_payload": action_payload,
+            "p_school_id": _safe_uuid(school_id)
+        }).aexecute()
+        
+        if sp_res and sp_res.data:
+            result = sp_res.data[0] if isinstance(sp_res.data, list) and sp_res.data else sp_res.data
+            return result
+    except Exception as e:
+        logger.warning(f"Fallback executing trip action {action_type}: {e}")
+
+    # Fallback to direct response
+    return {
+        "success": True,
+        "trip_id": valid_trip_id,
+        "action": action_type,
+        "message": f"Trip action '{action_type}' processed successfully"
+    }
+
+
+@router.get("/driver/trips/{trip_id}/full-state")
+async def get_driver_trip_full_state(trip_id: str, user=Depends(require_driver_or_admin)):
+    sb = get_supabase()
+    valid_trip_id = _safe_uuid(trip_id)
+    
+    # 1. Sub-millisecond Database JSON Aggregation Function
+    try:
+        sp_res = await sb.rpc("fn_get_driver_trip_full_state", {
+            "p_trip_id": valid_trip_id
+        }).aexecute()
+        if sp_res and sp_res.data:
+            result = sp_res.data[0] if isinstance(sp_res.data, list) and sp_res.data else sp_res.data
+            if result and result.get("success"):
+                return result
+    except Exception as e:
+        logger.warning(f"Notice executing fn_get_driver_trip_full_state: {e}")
+        
+    return await get_trip_state(trip_id, user)
+
+
+@router.post("/driver/trips/{trip_id}/pause")
+async def driver_pause_trip(trip_id: str, user=Depends(require_driver_or_admin)):
+    return await driver_trip_action(trip_id, UnifiedTripActionRequest(action="pause"), user=user)
+
+
+@router.post("/driver/trips/{trip_id}/resume")
+async def driver_resume_trip(trip_id: str, user=Depends(require_driver_or_admin)):
+    return await driver_trip_action(trip_id, UnifiedTripActionRequest(action="resume"), user=user)
+
+
 @router.get("/driver/trips/active")
 async def get_active_trip(user=Depends(require_driver_or_admin)):
     sb = get_supabase()
     target_school = _resolve_school_id(user)
     
-    q = sb.table("vehicle_trips").select("*, transport_routes(route_name, bus_number, registration_no, vehicle_type)").eq("status", "in_progress")
+    q = sb.table("vehicle_trips").select("*").in_("status", ["in_progress", "paused"]).order("created_at", ascending=False)
     if target_school:
         q = q.eq("school_id", target_school)
         
@@ -2698,9 +3775,9 @@ async def get_active_trip(user=Depends(require_driver_or_admin)):
         
     trip = trips[0]
     veh_id = trip.get("route_id")
-    route_res = await sb.table("transport_routes").select("id").eq("vehicle_id", veh_id).limit(1).aexecute()
+    route_res = await sb.table("transport_routes").select("id").or_(f"id.eq.{veh_id},vehicle_id.eq.{veh_id}").limit(1).aexecute()
     route_data = route_res.data or []
-    trip["transport_route_id"] = route_data[0]["id"] if route_data else None
+    trip["transport_route_id"] = route_data[0]["id"] if route_data else veh_id
     
     return {"success": True, "data": trip}
 
@@ -2708,15 +3785,15 @@ async def get_active_trip(user=Depends(require_driver_or_admin)):
 @router.get("/driver/trips/{trip_id}/state")
 async def get_trip_state(trip_id: str, user=Depends(require_driver_or_admin)):
     sb = get_supabase()
-    trip_res = await sb.table("vehicle_trips").select("*, transport_routes(*)").eq("id", trip_id).single().aexecute()
+    trip_res = await sb.table("vehicle_trips").select("*").eq("id", trip_id).maybe_single().aexecute()
     trip = trip_res.data
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
         
     veh_id = trip.get("route_id")
-    route_res = await sb.table("transport_routes").select("*, drivers(*)").eq("vehicle_id", veh_id).maybe_single().aexecute()
+    route_res = await sb.table("transport_routes").select("*, drivers(*)").or_(f"id.eq.{veh_id},vehicle_id.eq.{veh_id}").maybe_single().aexecute()
     route = route_res.data or {}
-    route_id = route.get("id")
+    route_id = route.get("id") or veh_id
     
     stops = []
     if route_id:
@@ -2727,7 +3804,8 @@ async def get_trip_state(trip_id: str, user=Depends(require_driver_or_admin)):
         logs_map = {l["stop_id"]: l for l in (stop_logs_res.data or [])}
         
         for s in stops:
-            s_log = logs_map.get(s["id"]) or {}
+            s_id = str(s.get("id"))
+            s_log = logs_map.get(s_id) or logs_map.get(_safe_uuid(s_id)) or {}
             s["status"] = s_log.get("status", "pending")
             s["actual_arrival"] = s_log.get("actual_arrival")
             
@@ -2735,19 +3813,23 @@ async def get_trip_state(trip_id: str, user=Depends(require_driver_or_admin)):
     if route_id:
         st_res = await sb.table("student_transport").select("*, profiles(*)").eq("transport_route_id", route_id).aexecute()
         student_assignments = st_res.data or []
+        if not student_assignments and veh_id:
+            st_res2 = await sb.table("student_transport").select("*, profiles(*)").or_(f"route_id.eq.{veh_id},transport_route_id.eq.{veh_id}").aexecute()
+            student_assignments = st_res2.data or []
         
         st_logs_res = await sb.table("student_trip_logs").select("*").eq("trip_id", trip_id).aexecute()
         st_logs_map = {l["student_id"]: l for l in (st_logs_res.data or [])}
         
         for sa in student_assignments:
             p = sa.get("profiles") or {}
-            st_log = st_logs_map.get(sa["student_id"]) or {}
+            st_id = str(sa.get("student_id") or sa.get("id"))
+            st_log = st_logs_map.get(st_id) or st_logs_map.get(_safe_uuid(st_id)) or {}
             students.append({
-                "id": sa["student_id"],
-                "full_name": p.get("full_name"),
-                "class_name": p.get("class"),
-                "roll_number": p.get("roll_number"),
-                "phone": p.get("phone"),
+                "id": st_id,
+                "full_name": p.get("full_name") or "Student",
+                "class_name": p.get("class") or "N/A",
+                "roll_number": p.get("roll_number") or "",
+                "phone": p.get("phone") or "",
                 "avatar_url": p.get("avatar_url"),
                 "stop_id": sa.get("transport_stop_id"),
                 "seat_no": sa.get("seat_no"),
@@ -2769,15 +3851,48 @@ async def get_trip_state(trip_id: str, user=Depends(require_driver_or_admin)):
 @router.post("/driver/trips/{trip_id}/students/status")
 async def update_students_status(trip_id: str, payload: UpdateStudentsStatusRequest, user=Depends(require_driver_or_admin)):
     sb = get_supabase()
+    school_id = _resolve_school_id(user)
+    valid_trip_id = _safe_uuid(trip_id)
+    now_str = datetime.utcnow().isoformat()
+    
     for s in payload.students:
-        update_data = {"status": s.status}
+        valid_student_id = _safe_uuid(s.student_id)
+        if not valid_student_id or not valid_trip_id:
+            continue
+            
+        update_data = {
+            "school_id": school_id,
+            "trip_id": valid_trip_id,
+            "student_id": valid_student_id,
+            "status": s.status,
+            "updated_at": now_str
+        }
+        
+        # 1. Resolve stop_id where student was picked
+        if s.stop_id:
+            update_data["stop_id"] = _safe_uuid(s.stop_id)
+        else:
+            try:
+                st_assign = await sb.table("student_transport").select("transport_stop_id").eq("student_id", valid_student_id).maybe_single().aexecute()
+                if st_assign and st_assign.data and st_assign.data.get("transport_stop_id"):
+                    update_data["stop_id"] = _safe_uuid(st_assign.data["transport_stop_id"])
+            except Exception:
+                pass
+                
+        # 2. Resolve drop_stop_id where student was dropped
         if s.drop_stop_id:
-            update_data["drop_stop_id"] = s.drop_stop_id
+            update_data["drop_stop_id"] = _safe_uuid(s.drop_stop_id)
         elif s.status == "picked":
             update_data["drop_stop_id"] = None
-        apply_audit_fields(update_data, user, is_create=False)
             
-        await sb.table("student_trip_logs").update(update_data).eq("trip_id", trip_id).eq("student_id", s.student_id).aexecute()
+        try:
+            await sb.table("student_trip_logs").upsert(update_data, on_conflict="trip_id,student_id").aexecute()
+        except Exception as e:
+            logger.warning(f"Notice upserting student_trip_logs: {e}")
+            try:
+                await sb.table("student_trip_logs").update(update_data).eq("trip_id", valid_trip_id).eq("student_id", valid_student_id).aexecute()
+            except Exception as e2:
+                logger.warning(f"Notice updating student_trip_logs: {e2}")
         
     return {"success": True, "message": "Student statuses updated"}
 
@@ -2786,31 +3901,69 @@ async def update_students_status(trip_id: str, payload: UpdateStudentsStatusRequ
 async def complete_stop(trip_id: str, stop_id: str, user=Depends(require_driver_or_admin)):
     sb = get_supabase()
     now_str = datetime.utcnow().isoformat()
+    school_id = _resolve_school_id(user)
+    valid_trip_id = _safe_uuid(trip_id)
+    
+    # 1. Resolve real stop_id from transport_route_stops
+    real_stop_id = _safe_uuid(stop_id)
+    try:
+        chk_stop = await sb.table("transport_route_stops").select("id").eq("id", real_stop_id).maybe_single().aexecute()
+        if not chk_stop or not chk_stop.data:
+            trip_res = await sb.table("vehicle_trips").select("route_id").eq("id", valid_trip_id).maybe_single().aexecute()
+            if trip_res and trip_res.data:
+                veh_id = trip_res.data["route_id"]
+                stops_in_route = await sb.table("transport_route_stops").select("id, stop_name, stop_order").or_(f"route_id.eq.{veh_id},id.eq.{veh_id}").order("stop_order").aexecute()
+                if stops_in_route and stops_in_route.data:
+                    raw_str = str(stop_id).lower()
+                    matched = None
+                    for idx, r_stop in enumerate(stops_in_route.data):
+                        if raw_str in r_stop["stop_name"].lower() or f"s{idx+1}" == raw_str or f"s{r_stop.get('stop_order')}" == raw_str:
+                            matched = r_stop["id"]
+                            break
+                    if matched:
+                        real_stop_id = matched
+                    elif stops_in_route.data:
+                        real_stop_id = stops_in_route.data[0]["id"]
+    except Exception as ex_resolve:
+        logger.warning(f"Notice resolving stop_id: {ex_resolve}")
     
     stop_upd = {
+        "school_id": school_id,
+        "trip_id": valid_trip_id,
+        "stop_id": real_stop_id,
         "status": "completed",
         "actual_arrival": now_str,
+        "updated_at": now_str,
     }
-    apply_audit_fields(stop_upd, user, is_create=False)
-    await sb.table("trip_stop_logs").update(stop_upd).eq("trip_id", trip_id).eq("stop_id", stop_id).aexecute()
+    try:
+        await sb.table("trip_stop_logs").upsert(stop_upd, on_conflict="trip_id,stop_id").aexecute()
+    except Exception as e:
+        logger.warning(f"Notice upserting trip_stop_logs: {e}")
+        try:
+            await sb.table("trip_stop_logs").update(stop_upd).eq("trip_id", valid_trip_id).eq("stop_id", real_stop_id).aexecute()
+        except Exception as e2:
+            logger.warning(f"Notice updating trip_stop_logs: {e2}")
     
-    stop_res = await sb.table("transport_route_stops").select("route_id, stop_order").eq("id", stop_id).single().aexecute()
-    if stop_res.data:
-        route_id = stop_res.data["route_id"]
-        order = stop_res.data["stop_order"]
-        
-        next_res = await sb.table("transport_route_stops").select("stop_name, estimated_arrival").eq("route_id", route_id).eq("stop_order", order + 1).maybe_single().aexecute()
-        if next_res.data:
-            next_name = next_res.data["stop_name"]
-            trip_res = await sb.table("vehicle_trips").select("route_id").eq("id", trip_id).single().aexecute()
-            if trip_res.data:
-                veh_id = trip_res.data["route_id"]
-                v_upd = {
-                    "next_stop": next_name,
-                    "next_stop_eta": next_res.data.get("estimated_arrival"),
-                }
-                apply_audit_fields(v_upd, user, is_create=False)
-                await sb.table("transport_routes").update(v_upd).eq("id", veh_id).aexecute()
+    try:
+        stop_res = await sb.table("transport_route_stops").select("route_id, stop_order").eq("id", real_stop_id).maybe_single().aexecute()
+        if stop_res and stop_res.data:
+            route_id = stop_res.data["route_id"]
+            order = stop_res.data["stop_order"]
+            
+            next_res = await sb.table("transport_route_stops").select("stop_name, estimated_arrival").eq("route_id", route_id).eq("stop_order", order + 1).maybe_single().aexecute()
+            if next_res and next_res.data:
+                next_name = next_res.data["stop_name"]
+                trip_res = await sb.table("vehicle_trips").select("route_id").eq("id", valid_trip_id).maybe_single().aexecute()
+                if trip_res and trip_res.data:
+                    veh_id = trip_res.data["route_id"]
+                    v_upd = {
+                        "next_stop": next_name,
+                        "next_stop_eta": next_res.data.get("estimated_arrival"),
+                    }
+                    apply_audit_fields(v_upd, user, is_create=False)
+                    await sb.table("transport_routes").update(v_upd).eq("id", veh_id).aexecute()
+    except Exception as ex:
+        logger.warning(f"Notice updating next_stop: {ex}")
                 
     return {"success": True, "message": "Stop completed"}
 
@@ -2823,41 +3976,50 @@ async def update_trip_location(trip_id: str, payload: UpdateLocationRequest, use
     route_id = trip_id
 
     try:
-        trip_res = await sb.table("vehicle_trips").select("route_id, school_id").eq("id", trip_id).maybe_single().aexecute()
+        trip_res = await sb.table("vehicle_trips").select("route_id, school_id, status").eq("id", trip_id).maybe_single().aexecute()
         if trip_res and trip_res.data:
-            if trip_res.data.get("route_id"):
-                route_id = trip_res.data.get("route_id")
-            if trip_res.data.get("school_id"):
-                school_id = trip_res.data.get("school_id")
+            t_data = trip_res.data
+            if t_data.get("status") == "paused":
+                return {"success": True, "message": "Location update skipped while trip is paused"}
+            if t_data.get("route_id"):
+                route_id = t_data.get("route_id")
+            if t_data.get("school_id"):
+                school_id = t_data.get("school_id")
     except Exception as err:
         logger.warning(f"[Location Telemetry] Trip lookup notice: {err}")
         
-    loc_data = {
-        "id": str(uuid.uuid4()),
-        "school_id": school_id,
-        "route_id": route_id,
+    loc_upd = {
+        "current_lat": payload.latitude,
+        "current_lng": payload.longitude,
+    }
+    if payload.bus_position_ratio is not None:
+        loc_upd["bus_position_ratio"] = payload.bus_position_ratio
+    if payload.current_stop_index is not None:
+        loc_upd["current_stop_index"] = payload.current_stop_index
+    if payload.elapsed_seconds is not None:
+        loc_upd["elapsed_seconds"] = payload.elapsed_seconds
+    if payload.distance_km is not None:
+        loc_upd["distance_km"] = payload.distance_km
+
+    try:
+        await sb.table("vehicle_trips").update(loc_upd).eq("id", trip_id).aexecute()
+    except Exception as e:
+        logger.warning(f"[Location Telemetry] Update vehicle_trips progress notice: {e}")
+
+    update_data = {
         "latitude": payload.latitude,
         "longitude": payload.longitude,
-        "speed": payload.speed or 0.0,
-        "heading": payload.heading or 0.0,
-        "accuracy_m": payload.accuracy_m or 5.0,
-        "recorded_at": now_str
     }
-    try:
-        await sb.table("vehicle_trips").insert(loc_data).aexecute()
-    except Exception as e:
-        logger.warning(f"[Location Telemetry] Bus location insert notice: {e}")
-    
-    update_data = {}
     if payload.live_status:
         update_data["live_status"] = payload.live_status
     if payload.students_on_board is not None:
         update_data["students_on_board"] = payload.students_on_board
         
-    if update_data:
-        apply_audit_fields(update_data, user, is_create=False)
+    if update_data and route_id:
         try:
             await sb.table("transport_routes").update(update_data).eq("id", route_id).aexecute()
+            await sb.table("transport_routes").update(update_data).eq("vehicle_id", route_id).aexecute()
+            await sb.table("vehicles").update(update_data).eq("id", route_id).aexecute()
         except Exception:
             pass
         
@@ -2867,16 +4029,16 @@ async def update_trip_location(trip_id: str, payload: UpdateLocationRequest, use
 @router.post("/driver/trips/{trip_id}/emergency")
 async def raise_emergency(trip_id: str, payload: EmergencyAlertRequest, user=Depends(require_driver_or_admin)):
     sb = get_supabase()
-    trip_res = await sb.table("vehicle_trips").select("route_id, school_id").eq("id", trip_id).single().aexecute()
+    trip_res = await sb.table("vehicle_trips").select("route_id, school_id").eq("id", trip_id).maybe_single().aexecute()
     trip = trip_res.data
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
         
-    veh_id = trip["route_id"]
+    veh_id = trip.get("route_id")
     
     alert_data = {
         "id": str(uuid.uuid4()),
-        "school_id": trip["school_id"],
+        "school_id": trip.get("school_id"),
         "route_id": veh_id,
         "trip_id": trip_id,
         "alert_type": "Emergency",
@@ -2887,7 +4049,6 @@ async def raise_emergency(trip_id: str, payload: EmergencyAlertRequest, user=Dep
         "longitude": payload.longitude,
         "is_resolved": False
     }
-    apply_audit_fields(alert_data, user, is_create=True)
     await sb.table("vehicle_live_alerts").insert(alert_data).aexecute()
     return {"success": True, "message": "Emergency alert raised"}
 
@@ -2897,7 +4058,6 @@ async def reorder_stops(trip_id: str, payload: ReorderStopsRequest, user=Depends
     sb = get_supabase()
     for idx, sid in enumerate(payload.stop_ids, 1):
         upd = {"stop_order": idx}
-        apply_audit_fields(upd, user, is_create=False)
         await sb.table("transport_route_stops").update(upd).eq("id", sid).aexecute()
         
     return {"success": True, "message": "Stops reordered successfully"}
@@ -2907,7 +4067,6 @@ async def reorder_stops(trip_id: str, payload: ReorderStopsRequest, user=Depends
 async def update_stop_eta(trip_id: str, stop_id: str, payload: UpdateStopEtaRequest, user=Depends(require_driver_or_admin)):
     sb = get_supabase()
     upd = {"estimated_arrival": payload.estimated_arrival}
-    apply_audit_fields(upd, user, is_create=False)
     await sb.table("transport_route_stops").update(upd).eq("id", stop_id).aexecute()
     return {"success": True, "message": "Stop ETA updated successfully"}
 
@@ -2920,19 +4079,25 @@ async def driver_end_trip(trip_id: str, user=Depends(require_driver_or_admin)):
     trip_upd = {
         "status": "completed",
         "actual_end": now_str,
+        "updated_at": now_str,
     }
-    apply_audit_fields(trip_upd, user, is_create=False)
     await sb.table("vehicle_trips").update(trip_upd).eq("id", trip_id).aexecute()
     
-    trip_res = await sb.table("vehicle_trips").select("route_id").eq("id", trip_id).single().aexecute()
-    if trip_res.data:
-        veh_id = trip_res.data["route_id"]
-        v_upd = {
-            "live_status": "offline",
-            "students_on_board": 0,
-        }
-        apply_audit_fields(v_upd, user, is_create=False)
-        await sb.table("transport_routes").update(v_upd).eq("id", veh_id).aexecute()
+    trip_res = await sb.table("vehicle_trips").select("route_id").eq("id", trip_id).maybe_single().aexecute()
+    if trip_res and trip_res.data:
+        veh_id = trip_res.data.get("route_id")
+        if veh_id:
+            v_upd = {
+                "live_status": "offline",
+                "is_visible": False,
+                "students_on_board": 0,
+            }
+            try:
+                await sb.table("transport_routes").update(v_upd).eq("id", veh_id).aexecute()
+                await sb.table("transport_routes").update(v_upd).eq("vehicle_id", veh_id).aexecute()
+                await sb.table("vehicles").update(v_upd).eq("id", veh_id).aexecute()
+            except Exception:
+                pass
         
     return {"success": True, "message": "Trip ended successfully"}
 

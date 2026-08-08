@@ -1123,9 +1123,11 @@ async def student_fees(status: Optional[str] = None, user=Depends(get_current_us
 async def student_transport(user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
     transport = (await sb.table("student_transport").select("*, transport_routes(*), transport_route_stops(stop_name)").eq("school_id", school_id).eq("student_id", user["id"]).maybe_single().aexecute()).data
-    if not transport:
-        return {"success": False, "message": "Not assigned to any bus route"}
-    bus_location = (await sb.table("vehicle_trips").select("*").eq("school_id", school_id).eq("route_id", transport["route_id"]).order("recorded_at", ascending=False).limit(1).maybe_single().aexecute()).data
+    bus_location = None
+    try:
+        bus_location = (await sb.table("vehicle_trips").select("*").eq("school_id", school_id).eq("route_id", transport["route_id"]).order("created_at", ascending=False).limit(1).maybe_single().aexecute()).data
+    except Exception:
+        pass
     return {"success": True, "school_id": school_id, "data": {"route": transport.get("transport_routes"), "your_stop": transport.get("transport_route_stops", {}).get("stop_name"), "live_location": bus_location}}
 
 
@@ -1157,8 +1159,12 @@ async def get_student_transport_route(user=Depends(get_current_user), school_id=
         stops = stops_res.data or []
         
     # 4. Fetch live location
-    loc_res = await sb.table("vehicle_trips").select("*").eq("school_id", school_id).eq("route_id", vehicle_id).order("recorded_at", ascending=False).limit(1).maybe_single().aexecute()
-    live_location = loc_res.data
+    live_location = None
+    try:
+        loc_res = await sb.table("vehicle_trips").select("*").eq("school_id", school_id).eq("route_id", vehicle_id).order("created_at", ascending=False).limit(1).maybe_single().aexecute()
+        live_location = loc_res.data
+    except Exception:
+        pass
     
     # 5. Fetch live alerts / updates
     alerts_res = await sb.table("vehicle_live_alerts").select("*").eq("school_id", school_id).eq("route_id", vehicle_id).order("created_at", ascending=False).limit(5).aexecute()

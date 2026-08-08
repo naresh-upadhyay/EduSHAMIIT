@@ -262,18 +262,18 @@ def get_student_tools(school_id: str) -> list:
         sb = get_supabase()
         user_id = get_current_user_id()
 
-        transport = sb.table("student_transport").select("*, bus_routes(*), bus_stops(stop_name)").eq("school_id", school_id).eq("student_id", user_id).maybe_single().execute().data
+        transport = sb.table("student_transport").select("*, vehicles(*), transport_route_stops(stop_name)").eq("school_id", school_id).eq("student_id", user_id).maybe_single().execute().data
 
         if not transport:
             return "You are not assigned to any bus route. Contact the transport office."
 
-        bus_location = sb.table("bus_locations").select("*").eq("school_id", school_id).eq("route_id", transport.get("route_id")).order("recorded_at", ascending=False).limit(1).maybe_single().execute().data
+        bus_location = sb.table("vehicle_trips").select("*").eq("school_id", school_id).eq("route_id", transport.get("route_id")).order("created_at", ascending=False).limit(1).maybe_single().execute().data
 
-        route = transport.get("bus_routes") or {}
-        stop = transport.get("bus_stops") or {}
+        route = transport.get("vehicles") or {}
+        stop = transport.get("transport_route_stops") or {}
 
         buf = [f"🚌 Bus Tracking:"]
-        buf.append(f"  Route: {route.get('route_name', 'N/A')}")
+        buf.append(f"  Bus: {route.get('bus_number', 'N/A')}")
         buf.append(f"  Bus: {route.get('bus_number', 'N/A')}")
         buf.append(f"  Your Stop: {stop.get('stop_name', 'N/A')}")
 

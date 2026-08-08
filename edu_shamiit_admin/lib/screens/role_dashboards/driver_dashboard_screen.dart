@@ -39,16 +39,17 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   bool _emergencyAlertActive = false;
   bool _deviationAlertActive = false;
 
-  final String _registrationNo = "UP16 ET 1234";
-  final String _busNumber = "UP16 ET 1234";
-  final String _startTime = "06:20";
-  String _currentLocationName = "Sector 63 Bus Stop";
-  String _nextStopName = "Sector 71 Crossing";
+  Map<String, dynamic>? _selectedRoute;
+  String _registrationNo = "UP18181";
+  String _busNumber = "UP18181";
+  String _startTime = "03:30 PM";
+  String _currentLocationName = "Stop 1";
+  String _nextStopName = "Stop 2";
 
-  final double _totalDistanceKm = 12.6;
-  final double _coveredDistanceKm = 7.4;
-  final int _elapsedMinutes = 18;
-  final int _totalTimeMinutes = 35;
+  double _totalDistanceKm = 55.13;
+  double _coveredDistanceKm = 0.0;
+  int _elapsedMinutes = 0;
+  int _totalTimeMinutes = 52;
 
   // Selected stop index for checklist updating (Right side card)
   int _selectedStopIndexForChecklist = 4;
@@ -89,225 +90,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   // Bulk selection maps
   final Map<String, bool> _selectedStudents = {};
 
-  // ─── RICH DEFAULT SAMPLE DATA ──────────────────────────────────────────
-
-  final List<Map<String, dynamic>> _sampleStops = [
-    {
-      "id": "s0",
-      "stop_name": "Sector 62 Community Center",
-      "latitude": 28.6298,
-      "longitude": 77.3705,
-      "stop_order": 1,
-      "estimated_arrival": "06:45 AM",
-      "status": "completed",
-      "actual_arrival": "06:44 AM"
-    },
-    {
-      "id": "s1",
-      "stop_name": "Fortune Residency",
-      "latitude": 28.6275,
-      "longitude": 77.3735,
-      "stop_order": 2,
-      "estimated_arrival": "06:52 AM",
-      "status": "completed",
-      "actual_arrival": "06:51 AM"
-    },
-    {
-      "id": "s2",
-      "stop_name": "Sector 63 Bus Stop",
-      "latitude": 28.6250,
-      "longitude": 77.3760,
-      "stop_order": 3,
-      "estimated_arrival": "06:58 AM",
-      "status": "completed",
-      "actual_arrival": "06:57 AM"
-    },
-    {
-      "id": "s3",
-      "stop_name": "Sunrise Apartments",
-      "latitude": 28.6225,
-      "longitude": 77.3785,
-      "stop_order": 4,
-      "estimated_arrival": "07:03 AM",
-      "status": "completed",
-      "actual_arrival": "07:04 AM"
-    },
-    {
-      "id": "s4",
-      "stop_name": "Sector 71 Crossing",
-      "latitude": 28.6200,
-      "longitude": 77.3810,
-      "stop_order": 5,
-      "estimated_arrival": "07:07 AM",
-      "status": "pending",
-      "actual_arrival": null
-    },
-    {
-      "id": "s5",
-      "stop_name": "Sector 72 Metro Station",
-      "latitude": 28.6175,
-      "longitude": 77.3835,
-      "stop_order": 6,
-      "estimated_arrival": "07:13 AM",
-      "status": "pending",
-      "actual_arrival": null
-    },
-    {
-      "id": "s6",
-      "stop_name": "Greenfield International School",
-      "latitude": 28.6150,
-      "longitude": 77.3860,
-      "stop_order": 7,
-      "estimated_arrival": "07:20 AM",
-      "status": "pending",
-      "actual_arrival": null
-    },
-    {
-      "id": "s7",
-      "stop_name": "ATS Village",
-      "latitude": 28.6125,
-      "longitude": 77.3885,
-      "stop_order": 8,
-      "estimated_arrival": "07:28 AM",
-      "status": "pending",
-      "actual_arrival": null
-    },
-    {
-      "id": "s8",
-      "stop_name": "Amrapali Silicon City",
-      "latitude": 28.6100,
-      "longitude": 77.3910,
-      "stop_order": 9,
-      "estimated_arrival": "07:34 AM",
-      "status": "pending",
-      "actual_arrival": null
-    },
-    {
-      "id": "s9",
-      "stop_name": "Greenfield School",
-      "latitude": 28.6075,
-      "longitude": 77.3935,
-      "stop_order": 10,
-      "estimated_arrival": "07:45 AM",
-      "status": "pending",
-      "actual_arrival": null
-    },
-  ];
-
-  final List<Map<String, dynamic>> _sampleStudents = [
-    {
-      "id": "tp1",
-      "full_name": "Asrav Sharma",
-      "class_name": "9-A",
-      "roll_number": "12",
-      "phone": "9876543210",
-      "avatar_url": "https://randomuser.me/api/portraits/men/32.jpg",
-      "stop_id": "s4",
-      "status": "yet_to_pick"
-    },
-    {
-      "id": "tp2",
-      "full_name": "Diya Singh",
-      "class_name": "9-B",
-      "roll_number": "25",
-      "phone": "9876543211",
-      "avatar_url": "https://randomuser.me/api/portraits/women/44.jpg",
-      "stop_id": "s4",
-      "status": "yet_to_pick"
-    },
-    {
-      "id": "tp3",
-      "full_name": "Rohan Verma",
-      "class_name": "9-A",
-      "roll_number": "31",
-      "phone": "9876543212",
-      "avatar_url": "https://randomuser.me/api/portraits/men/85.jpg",
-      "stop_id": "s4",
-      "status": "yet_to_pick"
-    },
-    {
-      "id": "tp4",
-      "full_name": "Sneha Gupta",
-      "class_name": "8-C",
-      "roll_number": "18",
-      "phone": "9876543213",
-      "avatar_url": "https://randomuser.me/api/portraits/women/12.jpg",
-      "stop_id": "s4",
-      "status": "yet_to_pick"
-    },
-    {
-      "id": "tp5",
-      "full_name": "Karan Yadav",
-      "class_name": "9-B",
-      "roll_number": "07",
-      "phone": "9876543214",
-      "avatar_url": "https://randomuser.me/api/portraits/men/22.jpg",
-      "stop_id": "s4",
-      "status": "yet_to_pick"
-    },
-    // On Board students
-    {
-      "id": "ob1",
-      "full_name": "Aarav Patel",
-      "class_name": "8-A",
-      "roll_number": "05",
-      "phone": "9876543220",
-      "avatar_url": "https://randomuser.me/api/portraits/men/33.jpg",
-      "stop_id": "s1",
-      "status": "picked"
-    },
-    {
-      "id": "ob2",
-      "full_name": "Myra Kapoor",
-      "class_name": "7-B",
-      "roll_number": "14",
-      "phone": "9876543221",
-      "avatar_url": "https://randomuser.me/api/portraits/women/45.jpg",
-      "stop_id": "s2",
-      "status": "picked"
-    },
-    {
-      "id": "ob3",
-      "full_name": "Ananya Goel",
-      "class_name": "9-C",
-      "roll_number": "02",
-      "phone": "9876543222",
-      "avatar_url": "https://randomuser.me/api/portraits/women/46.jpg",
-      "stop_id": "s2",
-      "status": "picked"
-    },
-    {
-      "id": "ob4",
-      "full_name": "Vivaan Sen",
-      "class_name": "8-B",
-      "roll_number": "11",
-      "phone": "9876543223",
-      "avatar_url": "https://randomuser.me/api/portraits/men/34.jpg",
-      "stop_id": "s3",
-      "status": "picked"
-    },
-    // Dropped students
-    {
-      "id": "dr1",
-      "full_name": "Aryan Gupta",
-      "class_name": "10-A",
-      "roll_number": "08",
-      "phone": "9876543230",
-      "avatar_url": "https://randomuser.me/api/portraits/men/37.jpg",
-      "stop_id": "s0",
-      "status": "dropped"
-    },
-    {
-      "id": "dr2",
-      "full_name": "Shanaya Kapoor",
-      "class_name": "9-A",
-      "roll_number": "22",
-      "phone": "9876543231",
-      "avatar_url": "https://randomuser.me/api/portraits/women/48.jpg",
-      "stop_id": "s0",
-      "status": "dropped"
-    },
-  ];
+  // ─── DASHBOARD STATE ───────────────────────────────────────────────────
 
   @override
   void initState() {
@@ -349,7 +132,10 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   Future<void> _initializeDashboard() async {
     debugPrint("[DRIVER_DASH] _initializeDashboard: Starting...");
 
-    // Fetch routes
+    // 1. First check if an active or paused trip already exists in DB!
+    await _checkActiveTrip();
+
+    // 2. Fetch routes if active trip wasn't found or to populate route selector
     try {
       final routesRes =
           await ApiService().get('/transport/driver/routes', useCache: false);
@@ -358,57 +144,30 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         if (_routes.isNotEmpty) {
           final assigned = _routes.where((r) => r['is_assigned'] == true).toList();
           final selected = assigned.isNotEmpty ? assigned[0] : _routes[0];
-          _selectedRouteId = selected['id'];
-          _generateStopsAndStudentsForRoute(selected);
+          
+          if (_stops.isEmpty) {
+            _selectedRouteId = selected['id'];
+            await _selectRoute(selected);
+          }
         }
       }
     } catch (e) {
       debugPrint("[DRIVER_DASH] Routes fetch failed: $e");
     }
 
-    // Fetch active trip + state (critical — retry up to 3 times)
-    const maxRetries = 3;
-    for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        debugPrint(
-            "[DRIVER_DASH] _checkActiveTrip attempt $attempt/$maxRetries");
-        await _checkActiveTrip();
-        if (_stops.isNotEmpty) {
-          debugPrint(
-              "[DRIVER_DASH] Data loaded successfully on attempt $attempt");
-          break;
-        }
-      } catch (e) {
-        debugPrint("[DRIVER_DASH] Attempt $attempt failed: $e");
-      }
-
-      if (_stops.isEmpty && attempt < maxRetries) {
-        debugPrint("[DRIVER_DASH] Waiting 1.5s before retry...");
-        await Future.delayed(const Duration(milliseconds: 1500));
-        if (!mounted) return;
-      }
-    }
-
     // Final state update
     if (!mounted) return;
-    if (_stops.isEmpty) {
-      debugPrint(
-          "[DRIVER_DASH] All retries exhausted. Falling back to sample data.");
-      setState(() {
-        _stops = List.from(_sampleStops);
-        _students = List.from(_sampleStudents);
-        _routePoints =
-            _stops.map((s) => LatLng(s['latitude'], s['longitude'])).toList();
-        _syncCurrentStopIndex();
-        _syncSelectedMap();
-        _isInitialLoading = false;
-      });
-      _loadOSRMRouteForStops();
-    } else {
-      setState(() {
-        _isInitialLoading = false;
-      });
-    }
+    setState(() {
+      _isInitialLoading = false;
+    });
+  }
+
+  Future<Map<String, dynamic>?> _ensureActiveTrip() async {
+    if (_activeTrip != null) return _activeTrip;
+
+    debugPrint("[DRIVER_DASH] _ensureActiveTrip: _activeTrip is null. Starting/Creating trip automatically...");
+    await _startTrip();
+    return _activeTrip;
   }
 
   Future<void> _checkActiveTrip() async {
@@ -422,15 +181,17 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         _activeTrip = activeRes['data'];
         _isTripActive = true;
         _isTripPaused = _activeTrip!['status'] == 'paused';
-        _selectedRouteId = _activeTrip!['transport_route_id'];
+        _selectedRouteId = _activeTrip!['transport_route_id'] ?? _activeTrip!['route_id'];
         debugPrint(
             "[DRIVER_DASH] _checkActiveTrip: Active trip ID = ${_activeTrip!['id']}, transport_route_id = $_selectedRouteId");
 
         await _loadTripState(_activeTrip!['id']);
-        _startTelemetryBroadcasting();
+        if (!_isTripPaused) {
+          _startTelemetryBroadcasting();
+        }
       } else {
         debugPrint(
-            "[DRIVER_DASH] _checkActiveTrip: No active trip found, using hardcoded sample data");
+            "[DRIVER_DASH] _checkActiveTrip: No active trip found");
       }
     } catch (e, st) {
       debugPrint("[DRIVER_DASH] Error checking active trip: $e");
@@ -464,10 +225,39 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         setState(() {
           _tripState = data;
           _activeTrip = data['trip'];
-          // Restore transport_route_id which is NOT in the state endpoint response
-          if (_activeTrip != null && preservedTransportRouteId != null) {
-            _activeTrip!['transport_route_id'] = preservedTransportRouteId;
+          int? savedStopIdx;
+
+          if (_activeTrip != null) {
+            final tripStatus = (_activeTrip!['status'] as String?) ?? 'in_progress';
+            _isTripActive = (tripStatus == 'in_progress' || tripStatus == 'paused');
+            _isTripPaused = (tripStatus == 'paused');
+
+            final savedRatio = (_activeTrip!['bus_position_ratio'] as num?)?.toDouble();
+            savedStopIdx = (_activeTrip!['current_stop_index'] as num?)?.toInt();
+            final savedElapsedSecs = (_activeTrip!['elapsed_seconds'] as num?)?.toInt();
+            final savedDist = (_activeTrip!['distance_km'] as num?)?.toDouble();
+
+            if (savedRatio != null && savedRatio > 0) {
+              _busPositionRatio = savedRatio;
+            }
+            if (savedStopIdx != null && savedStopIdx >= 0 && savedStopIdx < stopsFromDb.length) {
+              _currentStopIndex = savedStopIdx;
+              _selectedStopIndexForChecklist = savedStopIdx;
+              _expandedStopIndex = savedStopIdx;
+            }
+            if (savedElapsedSecs != null && savedElapsedSecs > 0) {
+              _elapsedMinutes = (savedElapsedSecs / 60).round();
+            }
+            if (savedDist != null && savedDist > 0) {
+              _coveredDistanceKm = savedDist;
+            }
+
+            if (preservedTransportRouteId != null) {
+              _activeTrip!['transport_route_id'] = preservedTransportRouteId;
+            }
           }
+
+          final bool hasSavedStopIndex = (savedStopIdx != null && savedStopIdx >= 0);
 
           if (stopsFromDb.isNotEmpty) {
             _stops =
@@ -489,6 +279,17 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                 "[DRIVER_DASH] _loadTripState: WARNING - studentsFromDb is EMPTY, keeping hardcoded students!");
           }
 
+          // Ensure every student has a valid stop_id in _stops
+          if (_stops.isNotEmpty && _students.isNotEmpty) {
+            for (int i = 0; i < _students.length; i++) {
+              final st = _students[i];
+              final bool hasValidStop = _stops.any((sp) => sp['id'] == st['stop_id']);
+              if (!hasValidStop) {
+                st['stop_id'] = _stops[i % _stops.length]['id'];
+              }
+            }
+          }
+
           final stopCoords = _stops.map((s) {
             final lat = (s['latitude'] as num?)?.toDouble() ?? 28.6280;
             final lng = (s['longitude'] as num?)?.toDouble() ?? 77.3780;
@@ -496,7 +297,18 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           }).toList();
 
           _routePoints = stopCoords;
-          _syncCurrentStopIndex();
+          if (!hasSavedStopIndex) {
+            _syncCurrentStopIndex();
+          } else {
+            if (_stops.isNotEmpty && _currentStopIndex < _stops.length) {
+              _currentLocationName = _stops[_currentStopIndex]['stop_name'] ?? "";
+              if (_currentStopIndex + 1 < _stops.length) {
+                _nextStopName = _stops[_currentStopIndex + 1]['stop_name'] ?? "";
+              } else {
+                _nextStopName = "School Depot";
+              }
+            }
+          }
           _syncSelectedMap();
         });
 
@@ -672,7 +484,37 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     }
   }
 
-  // ─── TELEMETRY AND MAPPING ──────────────────────────────────────────────
+  Future<void> _persistTripProgress() async {
+    if (_activeTrip == null) return;
+    try {
+      final busLoc = _getBusLocation();
+      final totalStopsCount = _stops.isNotEmpty ? _stops.length : 1;
+      final calcRatio = (_currentStopIndex / totalStopsCount).clamp(0.0, 1.0);
+      _busPositionRatio = calcRatio;
+
+      final payload = {
+        "latitude": busLoc.latitude,
+        "longitude": busLoc.longitude,
+        "speed": _currentSpeedKmh > 0 ? _currentSpeedKmh : 35.5,
+        "heading": _vehicleHeading,
+        "accuracy_m": 5.0,
+        "live_status": _isTripPaused ? "paused" : "on_route",
+        "students_on_board": _getOnBoardCount(),
+        "bus_position_ratio": _busPositionRatio,
+        "current_stop_index": _currentStopIndex,
+        "elapsed_seconds": _elapsedMinutes * 60,
+        "distance_km": _coveredDistanceKm,
+      };
+
+      await ApiService().post(
+          '/transport/driver/trips/${_activeTrip!['id']}/location',
+          payload);
+      debugPrint(
+          "[DRIVER_DASH] _persistTripProgress: Persisted progress to DB (stop_index=$_currentStopIndex, ratio=$_busPositionRatio)");
+    } catch (e) {
+      debugPrint("[DRIVER_DASH] Error persisting trip progress: $e");
+    }
+  }
 
   void _startTelemetryBroadcasting() {
     _telemetryTimer?.cancel();
@@ -688,11 +530,15 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         final payload = {
           "latitude": busLoc.latitude,
           "longitude": busLoc.longitude,
-          "speed": 35.5,
-          "heading": 90.0,
+          "speed": _currentSpeedKmh > 0 ? _currentSpeedKmh : 35.5,
+          "heading": _vehicleHeading,
           "accuracy_m": 5.0,
-          "live_status": "on_route",
-          "students_on_board": _getOnBoardCount()
+          "live_status": _isTripPaused ? "paused" : "on_route",
+          "students_on_board": _getOnBoardCount(),
+          "bus_position_ratio": _busPositionRatio,
+          "current_stop_index": _currentStopIndex,
+          "elapsed_seconds": _elapsedMinutes * 60,
+          "distance_km": _coveredDistanceKm,
         };
 
         if (_activeTrip != null) {
@@ -702,7 +548,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         }
 
         setState(() {
-          _busPositionRatio = (_currentStopIndex / _routePoints.length) + 0.03;
+          _busPositionRatio = (_currentStopIndex / (_routePoints.isNotEmpty ? _routePoints.length : 1)) + 0.03;
           if (_busPositionRatio > 1.0) _busPositionRatio = 0.0;
         });
       } catch (e) {
@@ -2582,35 +2428,95 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     }
 
     _startTelemetryBroadcasting();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-          content: Text("🚌 Noida Route 101 live simulation started!"),
-          backgroundColor: Colors.green),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text("🚌 Route trip started! Live tracking active."),
+            backgroundColor: Colors.green),
+      );
+    }
   }
 
-  Future<void> _togglePauseTrip() async {
+  Future<void> _executeTripAction(String action, [Map<String, dynamic>? payload]) async {
+    final trip = await _ensureActiveTrip();
+    if (trip == null) return;
+    final tripId = trip['id'];
+    try {
+      debugPrint("[DRIVER_DASH] Executing unified action: '$action'");
+      await ApiService().post('/transport/driver/trips/$tripId/action', {
+        'action': action,
+        'payload': payload ?? {},
+      });
+    } catch (e) {
+      debugPrint("[DRIVER_DASH] Unified action '$action' notice: $e");
+    }
+  }
+
+  Future<void> _batchSyncStopAndStudents({
+    String? stopId,
+    List<Map<String, dynamic>>? students,
+    int? currentStopIndex,
+  }) async {
+    final trip = await _ensureActiveTrip();
+    if (trip == null) return;
+    final tripId = trip['id'];
+    final busLoc = _getBusLocation();
+
+    final payload = <String, dynamic>{
+      if (stopId != null) "stop_id": stopId,
+      if (students != null) "students": students,
+      if (currentStopIndex != null) "current_stop_index": currentStopIndex,
+      "latitude": busLoc.latitude,
+      "longitude": busLoc.longitude,
+      "bus_position_ratio": _busPositionRatio,
+      "elapsed_seconds": _elapsedMinutes * 60,
+      "distance_km": _totalDistanceKm,
+      "live_status": _isTripPaused ? "paused" : "on_route",
+      "students_on_board": _getOnBoardCount(),
+    };
+
+    try {
+      debugPrint("[DRIVER_DASH] Unified Atomic batch_sync for trip $tripId");
+      await ApiService().post('/transport/driver/trips/$tripId/action', {
+        "action": "batch_sync",
+        "payload": payload,
+      });
+      debugPrint("[DRIVER_DASH] Unified Atomic batch_sync SUCCESS");
+    } catch (e) {
+      debugPrint("[DRIVER_DASH] Batch sync notice: $e");
+    }
+  }
+
+  Future<void> _togglePauseTrip() => _togglePauseResume();
+
+  Future<void> _togglePauseResume() async {
     setState(() {
       _isTripPaused = !_isTripPaused;
-      if (_isTripPaused) {
-        _telemetryTimer?.cancel();
-      } else {
-        _startTelemetryBroadcasting();
-      }
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(_isTripPaused ? "⏸ Route Paused." : "▶ Route Resumed."),
-          backgroundColor: Colors.amber),
-    );
+    await _executeTripAction(_isTripPaused ? 'pause' : 'resume');
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(_isTripPaused
+                ? "⏸ Route Paused. Live location updates frozen."
+                : "▶ Route Resumed. Live tracking active."),
+            backgroundColor: Colors.amber),
+      );
+    }
   }
 
   Future<void> _endTrip() async {
+    _telemetryTimer?.cancel();
+
+    await _executeTripAction('end');
+
     setState(() {
       _isTripActive = false;
+      _isTripPaused = false;
       _activeTrip = null;
-      _telemetryTimer?.cancel();
+      _busPositionRatio = 0.0;
       for (var s in _stops) {
         s['status'] = 'pending';
       }
@@ -2620,11 +2526,13 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       _syncCurrentStopIndex();
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-          content: Text("🏁 Trip completed and ended successfully!"),
-          backgroundColor: Colors.indigo),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text("🏁 Route trip ended! Vehicle is now offline and invisible on map."),
+            backgroundColor: Colors.indigo),
+      );
+    }
   }
 
   Future<void> _completeStopAtIndex(int index) async {
@@ -2636,22 +2544,8 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       _syncCurrentStopIndex();
     });
 
-    try {
-      if (_activeTrip != null) {
-        final stopId = _stops[index]['id'];
-        debugPrint(
-            "[DRIVER_DASH] _completeStopAtIndex: POST /stops/$stopId/complete");
-        await ApiService().post(
-            '/transport/driver/trips/${_activeTrip!['id']}/stops/$stopId/complete',
-            {});
-        debugPrint("[DRIVER_DASH] _completeStopAtIndex: SUCCESS");
-      } else {
-        debugPrint(
-            "[DRIVER_DASH] _completeStopAtIndex: WARNING - _activeTrip is NULL, not persisting!");
-      }
-    } catch (e) {
-      debugPrint("[DRIVER_DASH] Error completing stop: $e");
-    }
+    final stopId = _stops[index]['id'];
+    await _batchSyncStopAndStudents(stopId: stopId, currentStopIndex: _currentStopIndex);
   }
 
   Future<void> _updateStudentStatusBulk(String status) async {
@@ -2669,8 +2563,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       return;
     }
 
-    debugPrint(
-        "[DRIVER_DASH] _updateStudentStatusBulk: Updating ${targetIds.length} students to '$status'");
     final String selectedStopId = _stops[_selectedStopIndexForChecklist]['id'];
     setState(() {
       for (var st in _students) {
@@ -2688,30 +2580,16 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       await _autoCompletePreviousStoppages(_selectedStopIndexForChecklist);
     }
 
-    try {
-      if (_activeTrip != null) {
-        final payload = {
-          "students": targetIds
-              .map((id) => {
-                    "student_id": id,
-                    "status": status,
-                    if (status == 'dropped') "drop_stop_id": selectedStopId
-                  })
-              .toList()
-        };
-        debugPrint(
-            "[DRIVER_DASH] _updateStudentStatusBulk: POST /students/status with ${(payload['students'] as List).length} entries");
-        await ApiService().post(
-            '/transport/driver/trips/${_activeTrip!['id']}/students/status',
-            payload);
-        debugPrint("[DRIVER_DASH] _updateStudentStatusBulk: SUCCESS");
-      } else {
-        debugPrint(
-            "[DRIVER_DASH] _updateStudentStatusBulk: WARNING - _activeTrip is NULL, not persisting!");
-      }
-    } catch (e) {
-      debugPrint("[DRIVER_DASH] Error updating students: $e");
-    }
+    final studentPayload = targetIds
+        .map((id) => {
+              "student_id": id,
+              "status": status,
+              "stop_id": selectedStopId,
+              if (status == 'dropped') "drop_stop_id": selectedStopId
+            })
+        .toList();
+
+    await _batchSyncStopAndStudents(students: studentPayload, currentStopIndex: _currentStopIndex);
   }
 
   Future<void> _autoCompletePreviousStoppages(int targetStopIndex) async {
@@ -2724,8 +2602,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
 
     if (uncompletedIndices.isEmpty) return;
 
-    debugPrint(
-        "[DRIVER_DASH] Auto-completing previous uncompleted stops up to index $targetStopIndex: $uncompletedIndices");
     setState(() {
       for (int i in uncompletedIndices) {
         _stops[i]['status'] = 'completed';
@@ -2733,26 +2609,17 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       _syncCurrentStopIndex();
     });
 
-    if (_activeTrip != null) {
-      for (int i in uncompletedIndices) {
-        try {
-          final stopId = _stops[i]['id'];
-          debugPrint(
-              "[DRIVER_DASH] Syncing auto-completed stop $i ($stopId) to DB");
-          await ApiService().post(
-              '/transport/driver/trips/${_activeTrip!['id']}/stops/$stopId/complete',
-              {});
-        } catch (e) {
-          debugPrint("[DRIVER_DASH] Error auto-completing stop $i: $e");
-        }
-      }
+    for (int i in uncompletedIndices) {
+      final stopId = _stops[i]['id'];
+      await _batchSyncStopAndStudents(stopId: stopId);
     }
   }
 
   Future<void> _markAllStudentsStatusAtCurrentStop(String status) async {
     final currentStudents = _getStudentsAtSelectedStop();
+    final currentStopId = _stops[_selectedStopIndexForChecklist]['id'];
     debugPrint(
-        "[DRIVER_DASH] _markAllStudentsStatusAtCurrentStop: Marking ${currentStudents.length} students as '$status' at stop $_selectedStopIndexForChecklist");
+        "[DRIVER_DASH] _markAllStudentsStatusAtCurrentStop: Marking ${currentStudents.length} students as '$status' at stop $_selectedStopIndexForChecklist ($currentStopId)");
     setState(() {
       for (var st in _students) {
         if (currentStudents.any((cs) => cs['id'] == st['id'])) {
@@ -2768,30 +2635,21 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       await _autoCompletePreviousStoppages(_selectedStopIndexForChecklist);
     }
 
-    try {
-      if (_activeTrip != null) {
-        final payload = {
-          "students": currentStudents
-              .map((s) => {"student_id": s['id'], "status": status})
-              .toList()
-        };
-        debugPrint(
-            "[DRIVER_DASH] _markAllStudentsStatusAtCurrentStop: POST /students/status + /stops/complete");
-        await ApiService().post(
-            '/transport/driver/trips/${_activeTrip!['id']}/students/status',
-            payload);
-        await ApiService().post(
-            '/transport/driver/trips/${_activeTrip!['id']}/stops/${_stops[_selectedStopIndexForChecklist]['id']}/complete',
-            {});
-        debugPrint(
-            "[DRIVER_DASH] _markAllStudentsStatusAtCurrentStop: SUCCESS");
-      } else {
-        debugPrint(
-            "[DRIVER_DASH] _markAllStudentsStatusAtCurrentStop: WARNING - _activeTrip is NULL!");
-      }
-    } catch (e) {
-      debugPrint("[DRIVER_DASH] Error performing batch stop complete: $e");
-    }
+    final studentPayload = currentStudents
+        .map((s) => {
+              "student_id": s['id'],
+              "status": status,
+              "stop_id": currentStopId,
+              if (status == 'dropped') "drop_stop_id": currentStopId
+            })
+        .toList();
+
+    // 1 single atomic batch sync call completes the stop, updates students, and syncs location!
+    await _batchSyncStopAndStudents(
+      stopId: currentStopId,
+      students: studentPayload,
+      currentStopIndex: _currentStopIndex,
+    );
   }
 
   Future<void> _triggerEmergency() async {
@@ -3024,10 +2882,11 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     });
 
     try {
-      if (_activeTrip != null) {
-        final stopId = _stops[index]['id'];
+      final trip = await _ensureActiveTrip();
+      final stopId = _stops[index]['id'];
+      if (trip != null && stopId != null) {
         await ApiService().post(
-            '/transport/driver/trips/${_activeTrip!['id']}/stops/$stopId/eta',
+            '/transport/driver/trips/${trip['id']}/stops/$stopId/eta',
             {"estimated_arrival": newETA});
       }
       ScaffoldMessenger.of(context).showSnackBar(
@@ -3049,12 +2908,19 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   }
 
   List<dynamic> _getStudentsAtSelectedStop() {
-    if (_stops.isEmpty || _selectedStopIndexForChecklist >= _stops.length)
+    if (_stops.isEmpty || _selectedStopIndexForChecklist >= _stops.length) {
       return [];
-    final selectedStopId = _stops[_selectedStopIndexForChecklist]['id'];
+    }
+    final selectedStop = _stops[_selectedStopIndexForChecklist];
+    final selectedStopId = selectedStop['id'];
+
+    final matchYetToPick = _students
+        .where((s) => s['stop_id'] == selectedStopId && s['status'] == 'yet_to_pick')
+        .toList();
+    if (matchYetToPick.isNotEmpty) return matchYetToPick;
+
     return _students
-        .where((s) =>
-            s['stop_id'] == selectedStopId && s['status'] == 'yet_to_pick')
+        .where((s) => s['stop_id'] == selectedStopId)
         .toList();
   }
 
@@ -3273,133 +3139,35 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     });
   }
 
-  void _generateStopsAndStudentsForRoute(Map<String, dynamic> route) {
-    final routeId = route['id']?.toString() ?? '';
-    final routeName = (route['route_name'] ?? 'Route').toString();
-    final shift = (route['shift'] ?? 'Morning Pickup').toString();
-    final isEvening = shift.toLowerCase().contains('evening') || shift.toLowerCase().contains('drop');
 
-    if (routeName.contains('109')) {
-      _stops = [
-        {
-          "id": "s0_$routeId",
-          "stop_name": "Pari Chowk Bus Terminal",
-          "latitude": 28.4670,
-          "longitude": 77.5140,
-          "stop_order": 1,
-          "estimated_arrival": isEvening ? "02:15 PM" : "06:40 AM",
-          "status": "completed",
-          "actual_arrival": isEvening ? "02:14 PM" : "06:39 AM"
-        },
-        {
-          "id": "s1_$routeId",
-          "stop_name": "Knowledge Park II Station",
-          "latitude": 28.4610,
-          "longitude": 77.4980,
-          "stop_order": 2,
-          "estimated_arrival": isEvening ? "02:25 PM" : "06:50 AM",
-          "status": "completed",
-          "actual_arrival": isEvening ? "02:24 PM" : "06:51 AM"
-        },
-        {
-          "id": "s2_$routeId",
-          "stop_name": "Alpha 1 Commercial Belt",
-          "latitude": 28.4720,
-          "longitude": 77.5090,
-          "stop_order": 3,
-          "estimated_arrival": isEvening ? "02:35 PM" : "07:02 AM",
-          "status": "pending",
-          "actual_arrival": null
-        },
-        {
-          "id": "s3_$routeId",
-          "stop_name": "Delta 1 Crossing",
-          "latitude": 28.4830,
-          "longitude": 77.5250,
-          "stop_order": 4,
-          "estimated_arrival": isEvening ? "02:45 PM" : "07:15 AM",
-          "status": "pending",
-          "actual_arrival": null
-        },
-        {
-          "id": "s4_$routeId",
-          "stop_name": "Greenfield School Campus",
-          "latitude": 28.4900,
-          "longitude": 77.5350,
-          "stop_order": 5,
-          "estimated_arrival": isEvening ? "03:00 PM" : "07:30 AM",
-          "status": "pending",
-          "actual_arrival": null
-        },
-      ];
-      _students = [
-        {"id": "st109_1", "full_name": "Divya Sharma", "class_name": "8-B", "roll_number": "12", "phone": "9876500101", "avatar_url": null, "stop_id": "s0_$routeId", "status": "dropped"},
-        {"id": "st109_2", "full_name": "Rahul Verma", "class_name": "9-A", "roll_number": "18", "phone": "9876500102", "avatar_url": null, "stop_id": "s1_$routeId", "status": "dropped"},
-        {"id": "st109_3", "full_name": "Tanya Malik", "class_name": "10-C", "roll_number": "05", "phone": "9876500103", "avatar_url": null, "stop_id": "s2_$routeId", "status": "yet_to_pick"},
-        {"id": "st109_4", "full_name": "Kabir Singh", "class_name": "11-B", "roll_number": "14", "phone": "9876500104", "avatar_url": null, "stop_id": "s3_$routeId", "status": "yet_to_pick"},
-      ];
-    } else if (routeName.contains('112')) {
-      _stops = [
-        {
-          "id": "s0_$routeId",
-          "stop_name": "Habitat Centre Indirapuram",
-          "latitude": 28.6420,
-          "longitude": 77.3710,
-          "stop_order": 1,
-          "estimated_arrival": "06:35 AM",
-          "status": "completed",
-          "actual_arrival": "06:34 AM"
-        },
-        {
-          "id": "s1_$routeId",
-          "stop_name": "Swarn Jayanti Park Gate 2",
-          "latitude": 28.6470,
-          "longitude": 77.3650,
-          "stop_order": 2,
-          "estimated_arrival": "06:45 AM",
-          "status": "completed",
-          "actual_arrival": "06:46 AM"
-        },
-        {
-          "id": "s2_$routeId",
-          "stop_name": "Vasundhara Sector 15 Hub",
-          "latitude": 28.6550,
-          "longitude": 77.3600,
-          "stop_order": 3,
-          "estimated_arrival": "06:58 AM",
-          "status": "pending",
-          "actual_arrival": null
-        },
-        {
-          "id": "s3_$routeId",
-          "stop_name": "Vaishali Metro Station",
-          "latitude": 28.6490,
-          "longitude": 77.3400,
-          "stop_order": 4,
-          "estimated_arrival": "07:12 AM",
-          "status": "pending",
-          "actual_arrival": null
-        },
-        {
-          "id": "s4_$routeId",
-          "stop_name": "Greenfield Senior Secondary School",
-          "latitude": 28.6150,
-          "longitude": 77.3860,
-          "stop_order": 5,
-          "estimated_arrival": "07:35 AM",
-          "status": "pending",
-          "actual_arrival": null
-        },
-      ];
-      _students = [
-        {"id": "st112_1", "full_name": "Ishaan Roy", "class_name": "7-A", "roll_number": "08", "phone": "9811122334", "avatar_url": null, "stop_id": "s0_$routeId", "status": "dropped"},
-        {"id": "st112_2", "full_name": "Riya Malhotra", "class_name": "10-A", "roll_number": "21", "phone": "9811122335", "avatar_url": null, "stop_id": "s1_$routeId", "status": "dropped"},
-        {"id": "st112_3", "full_name": "Vivaan Gupta", "class_name": "6-C", "roll_number": "15", "phone": "9811122336", "avatar_url": null, "stop_id": "s2_$routeId", "status": "yet_to_pick"},
-        {"id": "st112_4", "full_name": "Sara Khan", "class_name": "12-B", "roll_number": "03", "phone": "9811122337", "avatar_url": null, "stop_id": "s3_$routeId", "status": "yet_to_pick"},
-      ];
-    } else {
-      _stops = List.from(_sampleStops);
-      _students = List.from(_sampleStudents);
+
+  int _calculateDurationMins(dynamic startTime, dynamic endTime) {
+    if (startTime == null || endTime == null) return 0;
+    try {
+      int parseMins(String tStr) {
+        tStr = tStr.trim();
+        if (tStr.toUpperCase().contains('AM') || tStr.toUpperCase().contains('PM')) {
+          final parts = tStr.split(' ');
+          final timeParts = parts[0].split(':');
+          int h = int.parse(timeParts[0]);
+          final m = int.parse(timeParts[1]);
+          if (parts[1].toUpperCase() == 'PM' && h < 12) h += 12;
+          if (parts[1].toUpperCase() == 'AM' && h == 12) h = 0;
+          return h * 60 + m;
+        }
+        final parts = tStr.split(':');
+        final h = int.parse(parts[0]);
+        final m = int.parse(parts[1]);
+        return h * 60 + m;
+      }
+
+      final startM = parseMins(startTime.toString());
+      final endM = parseMins(endTime.toString());
+      int diff = endM - startM;
+      if (diff < 0) diff += 24 * 60;
+      return diff;
+    } catch (_) {
+      return 0;
     }
   }
 
@@ -3408,38 +3176,55 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     final routeName = route['route_name'] ?? 'Route';
     final shift = route['shift'] ?? 'Morning';
 
+    final busLabel = route['registration_no'] ?? route['bus_number'] ?? route['assigned_bus'] ?? 'UP18181';
+    final stTime = route['start_time'] != null ? route['start_time'].toString() : '03:30 PM';
+    final dist = (route['distance_km'] as num?)?.toDouble() ?? 55.13;
+    
+    final calcDuration = _calculateDurationMins(route['start_time'], route['end_time']);
+    final duration = calcDuration > 0
+        ? calcDuration
+        : ((route['travel_time_mins'] as num?)?.toInt() ?? 52);
+
     setState(() {
       _selectedRouteId = routeId;
+      _selectedRoute = route;
+      _registrationNo = busLabel.toString();
+      _busNumber = busLabel.toString();
+      _startTime = stTime;
+      _totalDistanceKm = dist;
+      _totalTimeMinutes = duration;
     });
 
     try {
-      final stopsRes = await ApiService().get('/transport/routes/$routeId/stops', useCache: false);
-      if (stopsRes['success'] == true && stopsRes['data'] != null && (stopsRes['data'] as List).isNotEmpty) {
-        final List<dynamic> fetchedStops = stopsRes['data'];
-        setState(() {
-          _stops = fetchedStops.map<Map<String, dynamic>>((s) => {
-            'id': s['id']?.toString() ?? '',
-            'stop_name': s['stop_name'] ?? 'Stoppage',
-            'latitude': (s['latitude'] as num?)?.toDouble() ?? 28.62,
-            'longitude': (s['longitude'] as num?)?.toDouble() ?? 77.37,
-            'stop_order': s['stop_order'] ?? 1,
-            'estimated_arrival': s['estimated_arrival'] ?? '07:00 AM',
-            'status': 'pending',
-          }).toList();
-        });
-      } else {
-        setState(() {
-          _generateStopsAndStudentsForRoute(route);
-        });
+      final stopsRes = await ApiService().get('/transport/stops', query: {'route_id': routeId}, useCache: false);
+      if (stopsRes['success'] == true && stopsRes['data'] != null) {
+        final rawStops = (stopsRes['data'] is Map ? stopsRes['data']['stops'] : stopsRes['data']) as List<dynamic>? ?? [];
+        if (rawStops.isNotEmpty) {
+          setState(() {
+            _stops = rawStops.map<Map<String, dynamic>>((s) => {
+              'id': s['id']?.toString() ?? '',
+              'stop_name': s['stop_name'] ?? 'Stoppage',
+              'latitude': (s['latitude'] as num?)?.toDouble() ?? 28.62,
+              'longitude': (s['longitude'] as num?)?.toDouble() ?? 77.37,
+              'stop_order': s['stop_order'] ?? 1,
+              'estimated_arrival': s['estimated_arrival'] ?? '03:30 PM',
+              'status': 'pending',
+              'landmark': s['landmark'],
+              'stop_code': s['stop_code'],
+            }).toList();
+          });
+        }
       }
 
       try {
-        final studentsRes = await ApiService().get('/transport/routes/$routeId/students', useCache: false);
-        if (studentsRes['success'] == true && studentsRes['data'] != null && (studentsRes['data'] as List).isNotEmpty) {
+        final studentsRes = await ApiService().get('/transport/driver/routes/$routeId/students', useCache: false);
+        if (studentsRes['success'] == true && studentsRes['data'] != null) {
           final List<dynamic> fetchedStudents = studentsRes['data'];
-          setState(() {
-            _students = fetchedStudents.map<Map<String, dynamic>>((st) => Map<String, dynamic>.from(st)).toList();
-          });
+          if (fetchedStudents.isNotEmpty) {
+            setState(() {
+              _students = fetchedStudents.map<Map<String, dynamic>>((st) => Map<String, dynamic>.from(st)).toList();
+            });
+          }
         }
       } catch (_) {}
 
@@ -3847,9 +3632,10 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       );
     }
 
-    // Real-Vehicle Marker with Radar Aura
-    markers.add(
-      Marker(
+    // Real-Vehicle Marker with Radar Aura (Only visible when trip is active)
+    if (_isTripActive) {
+      markers.add(
+        Marker(
         point: busLoc,
         width: 72,
         height: 72,
@@ -3931,6 +3717,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         ),
       ),
     );
+    }
 
     for (final poi in _poiMarkersData) {
       final lat = (poi['lat'] as num).toDouble();
@@ -5198,28 +4985,25 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     final isCurrent = index == _currentStopIndex;
     final isSelected = index == _selectedStopIndexForChecklist;
 
-    // Pick / Drop Count Logic
-    // FUTURE STOPS SHOW 0/0 PICK/DROP COUNT
-    String pickDropStr = "0 / 0";
-    if (index <= _currentStopIndex) {
-      final pickedAtStop = _students
-          .where((st) =>
-              st['stop_id'] == s['id'] &&
-              (st['status'] == 'picked' || st['status'] == 'dropped'))
-          .length;
-      final droppedAtStop = _students
-          .where((st) =>
-              st['status'] == 'dropped' &&
-              (st['drop_stop_id'] == s['id'] ||
-                  (st['drop_stop_id'] == null && st['stop_id'] == s['id'])))
-          .length;
-      pickDropStr = "$pickedAtStop / $droppedAtStop";
-    }
-
-    // Number of students belonging to this stoppage
-    final studentsAtStopCount =
+    // 100% Real Student Count from Database / State for this stop
+    final int studentsAtStopCount =
         _students.where((st) => st['stop_id'] == s['id']).length;
     final String studentsCountStr = "$studentsAtStopCount";
+
+    // 100% Real Pick / Drop Count Logic
+    int pickedAtStop = _students
+        .where((st) =>
+            st['stop_id'] == s['id'] &&
+            (st['status'] == 'picked' || st['status'] == 'dropped'))
+        .length;
+    int droppedAtStop = _students
+        .where((st) =>
+            st['status'] == 'dropped' &&
+            (st['drop_stop_id'] == s['id'] ||
+                (st['drop_stop_id'] == null && st['stop_id'] == s['id'])))
+        .length;
+
+    final String pickDropStr = "$pickedAtStop / $droppedAtStop";
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
@@ -5759,17 +5543,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         ? (initials.length > 2 ? initials.substring(0, 2) : initials)
         : "?";
 
-    if (url != null && url.isNotEmpty && !url.contains("randomuser.me")) {
+    final hasUrl = url != null && url.trim().isNotEmpty && url.trim() != "null" && url.trim() != "—";
+
+    if (hasUrl) {
       return CircleAvatar(
         radius: radius,
-        backgroundImage: NetworkImage(url),
-        child: Text(
-          displayText,
-          style: TextStyle(
-              fontSize: radius * 0.7,
-              color: Colors.white,
-              fontWeight: FontWeight.bold),
-        ),
+        backgroundImage: NetworkImage(url.trim()),
       );
     }
 

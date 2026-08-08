@@ -93,6 +93,94 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   final ScrollController _stopsTableScrollController = ScrollController();
   final ScrollController _overviewTableScrollController = ScrollController();
 
+  // --- PASSENGER ASSIGNMENT TAB STATE VARIABLES ---
+  Map<String, dynamic>? _saSelectedRoute;
+  Map<String, dynamic>? _saSelectedStop;
+  List<dynamic> _saStops = [];
+  Map<String, dynamic> _saStopStudentCounts = {};
+  List<dynamic> _saAllStudents = [];
+  List<dynamic> _saAssignedStudents = [];
+  final Set<String> _saSelectedStudentIds = {};
+  bool _saIsLoadingStops = false;
+  bool _saIsLoadingStudents = false;
+  bool _saIsSaving = false;
+  int _saCurrentPage = 1;
+  int _saPageSize = 10;
+  
+  final TextEditingController _saSearchController = TextEditingController();
+  String _saSearchQuery = '';
+  String _saRoleFilter = 'All';
+  String _saClassFilter = 'All';
+  String _saSectionFilter = 'All';
+  String _saStatusFilter = 'All';
+
+  List<String> get _saAvailableRoles {
+    final set = <String>{};
+    for (var s in _saAllStudents) {
+      final r = (s['role'] ?? s['user_role'] ?? '').toString().trim();
+      if (r.isNotEmpty && r != 'null') {
+        set.add(r);
+      }
+    }
+    final sorted = set.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return ['All', ...sorted];
+  }
+
+  List<String> get _saAvailableClasses {
+    final set = <String>{};
+    for (var s in _saAllStudents) {
+      final c = (s['class_name'] ?? s['class'] ?? s['grade'] ?? '').toString().trim();
+      if (c.isNotEmpty && c != 'null' && c != '—') {
+        set.add(c);
+      }
+    }
+    final sorted = set.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return ['All', ...sorted];
+  }
+
+  List<String> get _saAvailableSections {
+    final set = <String>{};
+    for (var s in _saAllStudents) {
+      final sec = (s['section'] ?? s['sec'] ?? '').toString().trim();
+      if (sec.isNotEmpty && sec != 'null' && sec != '—') {
+        set.add(sec);
+      }
+    }
+    final sorted = set.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return ['All', ...sorted];
+  }
+
+  List<String> get _saAvailableStatuses {
+    final set = <String>{};
+    for (var s in _saAllStudents) {
+      final st = (s['status'] ?? s['user_status'] ?? '').toString().trim();
+      if (st.isNotEmpty && st != 'null') {
+        set.add(st);
+      }
+    }
+    final sorted = set.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return ['All', ...sorted];
+  }
+  
+  final MapController _saMapController = MapController();
+
+  void _focusSaMapOnStop(dynamic stop) {
+    if (stop == null || !mounted) return;
+    final lat = double.tryParse(stop['latitude']?.toString() ?? '') ?? 28.6139;
+    final lon = double.tryParse(stop['longitude']?.toString() ?? '') ?? 77.3139;
+    if (lat != 0.0 && lon != 0.0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        try {
+          _saMapController.move(LatLng(lat, lon), 15.5);
+        } catch (_) {
+          // Ignore if FlutterMap state is not yet initialized or disposing
+        }
+      });
+    }
+  }
+  final List<dynamic> _saRecentAssignmentsLog = [];
+
   // --- TRIPS TAB STATE VARIABLES ---
   List<dynamic> _trips = [];
   bool _isLoadingTripsTab = false;
@@ -142,6 +230,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   String _trackingRouteFilter = 'All';
   String _trackingBusFilter = 'All';
   String _trackingStatusFilter = 'All';
+  List<LatLng> _routeMapPolylinePoints = [];
+  List<LatLng> _stopsTabPolylinePoints = [];
   int _autoRefreshSeconds = 15;
   Timer? _autoRefreshTimer;
   bool _isMapMaximized = false;
@@ -176,10 +266,10 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   @override
   void initState() {
     super.initState();
-    final initIdx = widget.initialIndex.clamp(0, 5);
+    final initIdx = widget.initialIndex.clamp(0, 6);
     _visitedTabs.add(initIdx);
-    // 6 tabs as per design: Overview, Route Management, Trips & Schedule, Live Tracking, Route Reports, Stops
-    _tabController = TabController(length: 6, vsync: this, initialIndex: initIdx);
+    // 7 tabs: Overview, Route Management, Trips & Schedule, Live Tracking, Route Reports, Stops, Student Assignment
+    _tabController = TabController(length: 7, vsync: this, initialIndex: initIdx);
     _tabController.addListener(() {
       if (mounted && !_tabController.indexIsChanging) {
         _loadTabIfNeeded(_tabController.index);
@@ -225,7 +315,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         _trackingCurrentPage = 1;
       });
     });
-    _loadTabIfNeeded(widget.initialIndex.clamp(0, 5), forceReload: true);
+    _saSearchController.addListener(() {
+      setState(() {
+        _saSearchQuery = _saSearchController.text;
+      });
+    });
+    _loadTabIfNeeded(widget.initialIndex.clamp(0, 6), forceReload: true);
     _startAutoRefreshTimer();
   }
 
@@ -264,6 +359,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     _tripsSearchController.dispose();
     _assignSearchController.dispose();
     _trackingSearchController.dispose();
+    _saSearchController.dispose();
     super.dispose();
   }
 
@@ -271,8 +367,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   void didUpdateWidget(RouteManagementScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.initialIndex != oldWidget.initialIndex) {
-      _tabController.animateTo(widget.initialIndex.clamp(0, 5));
-      _loadTabIfNeeded(widget.initialIndex.clamp(0, 5));
+      _tabController.animateTo(widget.initialIndex.clamp(0, 6));
+      _loadTabIfNeeded(widget.initialIndex.clamp(0, 6));
     }
   }
 
@@ -317,16 +413,205 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
 
         case 5: // Stops
           await _loadStops();
-          if (_stops.isNotEmpty && _selectedStop == null) {
-            _selectedStop = _stops[0];
-          }
+          break;
+
+        case 6: // Student Assignment
+          await _loadStudentAssignmentTab();
           break;
       }
       _loadedTabs.add(tabIndex);
     } catch (e) {
-      debugPrint('Error loading route tab $tabIndex: $e');
+      debugPrint('Error loading tab $tabIndex: $e');
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted && _loadedTabs.length == 1) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _loadStudentAssignmentTab() async {
+    setState(() => _saIsLoadingStops = true);
+    try {
+      if (_routes.isEmpty) {
+        await _ensureLookupsLoaded(forceReload: true);
+      }
+      if (_routes.isNotEmpty) {
+        _saSelectedRoute ??= _routes[0];
+        await _loadStudentAssignmentRouteStops(_saSelectedRoute!['id']);
+      }
+    } catch (e) {
+      debugPrint('Error loading passenger assignment tab: $e');
+    } finally {
+      if (mounted) setState(() => _saIsLoadingStops = false);
+    }
+  }
+
+  Future<void> _loadStudentAssignmentRouteStops(dynamic routeId) async {
+    try {
+      final rIdStr = routeId.toString();
+      final stopsRes = await ApiService().get('/transport/stops', query: {'route_id': rIdStr}, useCache: false);
+      final summaryRes = await ApiService().get('/transport/passenger-assignment/routes/$rIdStr/summary', useCache: false);
+      
+      final rawStops = (stopsRes['data'] is Map ? stopsRes['data']['stops'] : stopsRes['data']) as List<dynamic>? ?? [];
+      final stopCounts = (summaryRes['data']?['stop_counts'] as Map<String, dynamic>?) ?? {};
+      
+      if (mounted) {
+        setState(() {
+          _saStops = rawStops;
+          _saStopStudentCounts = stopCounts;
+          if (_saStops.isNotEmpty) {
+            final currentStopId = _saSelectedStop?['id']?.toString();
+            final match = (currentStopId != null)
+                ? _saStops.firstWhere(
+                    (s) => s['id']?.toString() == currentStopId,
+                    orElse: () => _saStops[0],
+                  )
+                : _saStops[0];
+
+            _saSelectedStop = match;
+            _loadStudentsForSelectedStop(_saSelectedStop!['id']);
+            _focusSaMapOnStop(_saSelectedStop);
+          } else {
+            _saSelectedStop = null;
+            _saAssignedStudents = [];
+          }
+        });
+      }
+      await _loadAllStudentsList();
+    } catch (e) {
+      debugPrint('Error loading route stops for passenger assignment: $e');
+    }
+  }
+
+  Future<void> _loadStudentsForSelectedStop(dynamic stopId) async {
+    setState(() => _saIsLoadingStudents = true);
+    try {
+      final sIdStr = stopId.toString();
+      final res = await ApiService().get('/transport/passenger-assignment/stops/$sIdStr/passengers', useCache: false);
+      final assigned = (res['data'] as List<dynamic>?) ?? [];
+      if (mounted) {
+        setState(() {
+          _saAssignedStudents = assigned;
+          _saIsLoadingStudents = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _saIsLoadingStudents = false);
+    }
+  }
+
+  Future<void> _loadAllStudentsList() async {
+    try {
+      final res = await ApiService().get('/transport/passenger-assignment/passengers', useCache: false);
+      final passengers = (res['data'] as List<dynamic>?) ?? [];
+      if (mounted) {
+        setState(() {
+          _saAllStudents = passengers;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading all passengers list: $e');
+    }
+  }
+
+  Future<void> _assignSelectedStudentsToStop() async {
+    if (_saSelectedStop == null || _saSelectedRoute == null || _saSelectedStudentIds.isEmpty) return;
+
+    // 1. Enforce Bus Capacity Check
+    final capacity = int.tryParse((_saSelectedRoute?['vehicle_capacity'] ?? _saSelectedRoute?['capacity'] ?? 28).toString()) ?? 28;
+    final currentAssignedInRoute = _saStops.fold<int>(0, (sum, s) {
+      final c = _saStopStudentCounts[s['id']?.toString()] ?? 0;
+      return sum + (c is int ? c : (int.tryParse(c.toString()) ?? 0));
+    });
+    final newlySelecting = _saSelectedStudentIds.length;
+    final totalAfterAssignment = currentAssignedInRoute + newlySelecting;
+
+    if (totalAfterAssignment > capacity) {
+      final remaining = capacity - currentAssignedInRoute;
+      final remainingStr = remaining > 0 ? '$remaining seat(s) remaining' : '0 seats remaining (Route is FULL)';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Cannot assign passengers: Exceeds vehicle capacity! '
+            'Bus capacity is $capacity seats ($currentAssignedInRoute assigned, $remainingStr). '
+            'You selected $newlySelecting passenger(s).'
+          ),
+          backgroundColor: _red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _saIsSaving = true);
+    try {
+      final routeId = _saSelectedRoute!['id'].toString();
+      final stopId = _saSelectedStop!['id'].toString();
+      final passengerIds = _saSelectedStudentIds.toList();
+
+      final res = await ApiService().post('/transport/passenger-assignment/assign', {
+        'route_id': routeId,
+        'stop_id': stopId,
+        'passenger_ids': passengerIds,
+        'student_ids': passengerIds,
+      });
+
+      if (res['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Successfully assigned ${passengerIds.length} passenger(s) to ${_saSelectedStop!['stop_name']}'),
+            backgroundColor: _green,
+          ),
+        );
+        
+        _saRecentAssignmentsLog.insert(0, {
+          'stop_name': _saSelectedStop!['stop_name'] ?? 'Stop',
+          'count': passengerIds.length,
+          'time': 'Just now',
+        });
+        
+        setState(() {
+          _saSelectedStudentIds.clear();
+        });
+        
+        await _loadStudentAssignmentRouteStops(routeId);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to assign passengers: $e'), backgroundColor: _red),
+      );
+    } finally {
+      if (mounted) setState(() => _saIsSaving = false);
+    }
+  }
+
+  Future<void> _unassignStudentsFromStop(List<String> passengerIds) async {
+    if (passengerIds.isEmpty) return;
+    setState(() => _saIsSaving = true);
+    try {
+      final res = await ApiService().post('/transport/passenger-assignment/unassign', {
+        'passenger_ids': passengerIds,
+        'student_ids': passengerIds,
+      });
+
+      if (res['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unassigned ${passengerIds.length} passenger(s)'),
+            backgroundColor: const Color(0xFF64748B),
+          ),
+        );
+        if (_saSelectedRoute != null) {
+          await _loadStudentAssignmentRouteStops(_saSelectedRoute!['id']);
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to unassign passengers: $e'), backgroundColor: _red),
+      );
+    } finally {
+      if (mounted) setState(() => _saIsSaving = false);
     }
   }
 
@@ -403,13 +688,173 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     }
   }
 
+  Future<List<LatLng>> _fetchOsrmRoadPolyline(List<dynamic> stops) async {
+    if (stops.length < 2) return [];
+
+    final List<String> coordStrings = [];
+    for (var s in stops) {
+      final lat = double.tryParse(s['latitude']?.toString() ?? '');
+      final lon = double.tryParse(s['longitude']?.toString() ?? '');
+      if (lat != null && lon != null && lat != 0.0 && lon != 0.0) {
+        coordStrings.add('$lon,$lat');
+      }
+    }
+
+    if (coordStrings.length < 2) return [];
+
+    try {
+      final coordsParam = coordStrings.join(';');
+      final url = Uri.parse('https://router.project-osrm.org/route/v1/driving/$coordsParam?overview=full&geometries=geojson');
+      final resp = await http.get(url, headers: {
+        'User-Agent': 'EduSHAMIIT-Admin/1.0 (com.edushamiit.admin)',
+      }).timeout(const Duration(seconds: 4));
+
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        if (data['code'] == 'Ok' && data['routes'] != null && (data['routes'] as List).isNotEmpty) {
+          final routeObj = data['routes'][0];
+          final geoCoords = routeObj['geometry']?['coordinates'] as List? ?? [];
+          final List<LatLng> osrmPoints = [];
+          for (var pt in geoCoords) {
+            if (pt is List && pt.length >= 2) {
+              final lon = double.tryParse(pt[0].toString()) ?? 0.0;
+              final lat = double.tryParse(pt[1].toString()) ?? 0.0;
+              if (lat != 0.0 && lon != 0.0) {
+                osrmPoints.add(LatLng(lat, lon));
+              }
+            }
+          }
+          if (osrmPoints.isNotEmpty) {
+            return osrmPoints;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('OSRM polyline fetch error: $e');
+    }
+
+    return stops.map<LatLng>((s) {
+      final lat = double.tryParse(s['latitude']?.toString() ?? '') ?? 28.62;
+      final lon = double.tryParse(s['longitude']?.toString() ?? '') ?? 77.36;
+      return LatLng(lat, lon);
+    }).toList();
+  }
+
+  void _recalculateLocalTelemetry(
+    List<Map<String, dynamic>> formStops,
+    String startTimeStr,
+    String avgSpeedStr,
+    TextEditingController distCtrl,
+    TextEditingController endCtrl,
+  ) {
+    if (formStops.isEmpty) return;
+
+    double parseTimeMins(String tStr) {
+      try {
+        final parts = tStr.trim().split(':');
+        final h = int.parse(parts[0]);
+        final m = int.parse(parts[1]);
+        return (h * 60 + m).toDouble();
+      } catch (_) {
+        return 6.0 * 60 + 30;
+      }
+    }
+
+    String formatMinsToTime(double totalMins) {
+      final int mInt = totalMins.round();
+      final h = (mInt ~/ 60) % 24;
+      final m = mInt % 60;
+      return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:00';
+    }
+
+    double haversineKm(double lat1, double lon1, double lat2, double lon2) {
+      const R = 6371.0;
+      final dLat = (lat2 - lat1) * (math.pi / 180.0);
+      final dLon = (lon2 - lon1) * (math.pi / 180.0);
+      final a = (math.sin(dLat / 2) * math.sin(dLat / 2)) +
+          math.cos(lat1 * (math.pi / 180.0)) * math.cos(lat2 * (math.pi / 180.0)) * (math.sin(dLon / 2) * math.sin(dLon / 2));
+      final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+      return R * c * 1.3;
+    }
+
+    final double speed = double.tryParse(avgSpeedStr) ?? 30.0;
+    double currMins = parseTimeMins(startTimeStr);
+    double totalDist = 0.0;
+
+    for (int i = 0; i < formStops.length; i++) {
+      if (i == 0) {
+        formStops[i]['estimated_arrival'] = formatMinsToTime(currMins);
+      } else {
+        final prev = formStops[i - 1];
+        final curr = formStops[i];
+        final lat1 = double.tryParse(prev['latitude']?.toString() ?? '') ?? 28.62;
+        final lon1 = double.tryParse(prev['longitude']?.toString() ?? '') ?? 77.36;
+        final lat2 = double.tryParse(curr['latitude']?.toString() ?? '') ?? 28.62;
+        final lon2 = double.tryParse(curr['longitude']?.toString() ?? '') ?? 77.36;
+
+        final legDist = haversineKm(lat1, lon1, lat2, lon2);
+        totalDist += legDist;
+        final legTravelMin = (legDist / (speed < 5 ? 5 : speed)) * 60.0;
+        currMins += (legTravelMin + 2.0); // 2 min dwell per stop
+        curr['estimated_arrival'] = formatMinsToTime(currMins);
+      }
+    }
+
+    distCtrl.text = totalDist.toStringAsFixed(1);
+    endCtrl.text = formatMinsToTime(currMins);
+  }
+
+  Future<void> _selectStartTime(BuildContext context, TextEditingController startTimeController, VoidCallback onSelected) async {
+    TimeOfDay initial = const TimeOfDay(hour: 6, minute: 30);
+    try {
+      final parts = startTimeController.text.trim().split(':');
+      if (parts.length >= 2) {
+        initial = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+      }
+    } catch (_) {}
+
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: initial,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: _accent,
+              onPrimary: Colors.white,
+              onSurface: _textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      final String formatted = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}:00';
+      startTimeController.text = formatted;
+      onSelected();
+    }
+  }
+
   Future<void> _loadStopsPreviewRoute(String routeId) async {
     try {
       final res = await ApiService().get('/transport/routes/$routeId', useCache: false);
       if (mounted) {
+        final fetchedStops = (res['data']?['stops'] as List? ?? []);
         setState(() {
-          _stopsPreviewRouteStops = res['data']?['stops'] ?? [];
+          _stopsPreviewRouteStops = fetchedStops;
         });
+        if (fetchedStops.length >= 2) {
+          final polyPoints = await _fetchOsrmRoadPolyline(fetchedStops);
+          if (mounted) {
+            setState(() {
+              _stopsTabPolylinePoints = polyPoints;
+            });
+          }
+        } else {
+          if (mounted) setState(() => _stopsTabPolylinePoints = []);
+        }
       }
     } catch (_) {}
   }
@@ -419,10 +864,21 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     try {
       final res = await ApiService().get('/transport/routes/$routeId', useCache: false);
       if (mounted) {
+        final fetchedStops = (res['data']?['stops'] as List? ?? []);
         setState(() {
-          _selectedRouteStops = res['data']?['stops'] ?? [];
+          _selectedRouteStops = fetchedStops;
           _isLoadingStops = false;
         });
+        if (fetchedStops.length >= 2) {
+          final polyPoints = await _fetchOsrmRoadPolyline(fetchedStops);
+          if (mounted) {
+            setState(() {
+              _routeMapPolylinePoints = polyPoints;
+            });
+          }
+        } else {
+          if (mounted) setState(() => _routeMapPolylinePoints = []);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -654,9 +1110,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                 lngController.text = lng.toStringAsFixed(6);
                 if (address != null && address.isNotEmpty) {
                   selectedAddress = address;
-                  if (landmarkController.text.isEmpty || landmarkController.text == 'Near Location') {
-                    landmarkController.text = address.split(',').take(2).join(', ');
-                  }
+                  landmarkController.text = address;
                   if (nameController.text.isEmpty && placeName != null && placeName.isNotEmpty) {
                     nameController.text = placeName;
                   }
@@ -1258,14 +1712,6 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                     ),
                                     const SizedBox(height: 12),
 
-                                    DropdownButtonFormField<String>(
-                                      value: ['Pickup Only', 'Drop Only', 'Pickup & Drop'].contains(pickupDropType) ? pickupDropType : 'Pickup Only',
-                                      decoration: const InputDecoration(labelText: 'Pickup / Drop Type *', border: OutlineInputBorder()),
-                                      items: ['Pickup Only', 'Drop Only', 'Pickup & Drop'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                                      onChanged: (val) => setDialogState(() => pickupDropType = val!),
-                                    ),
-                                    const SizedBox(height: 12),
-
                                     TextFormField(
                                       controller: landmarkController,
                                       decoration: const InputDecoration(labelText: 'Landmark / Area', border: OutlineInputBorder()),
@@ -1325,7 +1771,6 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                   "stop_order": int.tryParse(orderController.text) ?? 1,
                                   "estimated_arrival": timeController.text,
                                   "stop_type": stopType,
-                                  "pickup_drop_type": pickupDropType,
                                   "landmark": landmarkController.text.isEmpty ? null : landmarkController.text,
                                   "radius_meters": int.tryParse(radiusController.text) ?? 200,
                                   "status": status
@@ -1452,6 +1897,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             _buildTabItem(Icons.my_location_rounded, 'Live Tracking'),
             _buildTabItem(Icons.assessment_outlined, 'Route Reports'),
             _buildTabItem(Icons.place_rounded, 'Stops'),
+            _buildTabItem(Icons.badge_outlined, 'Passenger Assignment'),
           ],
         ),
       ),
@@ -1459,7 +1905,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   }
 
   Widget _buildTabContent() {
-    final activeIdx = _tabController.index.clamp(0, 5);
+    final activeIdx = _tabController.index.clamp(0, 6);
     _visitedTabs.add(activeIdx);
 
     return IndexedStack(
@@ -1471,6 +1917,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         _visitedTabs.contains(3) ? _buildLiveTrackingTab() : const SizedBox.shrink(),
         _visitedTabs.contains(4) ? _buildRouteReportsTab() : const SizedBox.shrink(),
         _visitedTabs.contains(5) ? _buildStopsTab() : const SizedBox.shrink(),
+        _visitedTabs.contains(6) ? _buildStudentAssignmentTab() : const SizedBox.shrink(),
       ],
     );
   }
@@ -1540,6 +1987,10 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       case 5:
         title = 'Stops Management';
         desc = 'Manage bus stop locations, pickup points, and sequence orders.';
+        break;
+      case 6:
+        title = 'Passenger Assignment';
+        desc = 'Assign passengers to stops for route: ${_saSelectedRoute?['route_name'] ?? 'Select Route'}';
         break;
     }
 
@@ -2618,7 +3069,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
           const SizedBox(height: 8),
           TextButton(
             child: Text('View All Activity', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold)),
-            onPressed: () {},
+            onPressed: () => _tabController.animateTo(1),
           ),
         ],
       ),
@@ -2938,6 +3389,24 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                               }
                                             }
 
+                                            String busName = 'Unassigned';
+                                            final vehObj = r['bus_routes'] ?? r['transport_routes'] ?? r['vehicles'];
+                                            if (vehObj is Map && (vehObj['registration_no'] != null || vehObj['bus_number'] != null)) {
+                                              busName = (vehObj['registration_no'] ?? vehObj['bus_number']).toString();
+                                            } else if (r['registration_no'] != null && r['registration_no'].toString().trim().isNotEmpty) {
+                                              busName = r['registration_no'].toString();
+                                            } else if (r['bus_number'] != null && r['bus_number'].toString().trim().isNotEmpty) {
+                                              busName = r['bus_number'].toString();
+                                            } else if (r['vehicle_id'] != null) {
+                                              final match = _vehicles.firstWhere(
+                                                (v) => v['id']?.toString() == r['vehicle_id']?.toString(),
+                                                orElse: () => null,
+                                              );
+                                              if (match != null) {
+                                                busName = (match['registration_no'] ?? match['bus_number'] ?? 'Assigned Bus').toString();
+                                              }
+                                            }
+
                                             return DataRow(
                                               selected: isSelected,
                                               onSelectChanged: (_) {
@@ -3132,17 +3601,19 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                                     tileProvider: CancellableNetworkTileProvider(),
                                                   ),
                                                   PolylineLayer(
-                                                    polylines: [
-                                                      Polyline(
-                                                        points: _selectedRouteStops.map((s) => LatLng(
-                                                          double.tryParse(s['latitude'].toString()) ?? 28.62,
-                                                          double.tryParse(s['longitude'].toString()) ?? 77.36
-                                                        )).toList(),
-                                                        color: _accent,
-                                                        strokeWidth: 4.0,
-                                                      ),
-                                                    ],
-                                                  ),
+                                         polylines: [
+                                           Polyline(
+                                             points: _stopsTabPolylinePoints.isNotEmpty
+                                                 ? _stopsTabPolylinePoints
+                                                 : _selectedRouteStops.map((s) => LatLng(
+                                                     double.tryParse(s['latitude'].toString()) ?? 28.62,
+                                                     double.tryParse(s['longitude'].toString()) ?? 77.36
+                                                   )).toList(),
+                                             color: _accent,
+                                             strokeWidth: 4.0,
+                                           ),
+                                         ],
+                                       ),
                                                   MarkerLayer(
                                                     markers: _selectedRouteStops.asMap().entries.map((entry) {
                                                       final idx = entry.key;
@@ -3446,48 +3917,51 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   }
 
   Widget _buildStopTimelineItem(int order, String name, String time, String area, {bool isLast = false}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Left Order Timeline node
-        Column(
-          children: [
-            Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(color: _accent.withValues(alpha: 0.1), shape: BoxShape.circle, border: Border.all(color: _accent, width: 1.5)),
-              child: Center(
-                child: Text('$order', style: GoogleFonts.inter(color: _accent, fontWeight: FontWeight.bold, fontSize: 10)),
-              ),
-            ),
-            if (!isLast)
-              Container(
-                width: 2,
-                height: 40,
-                color: _border,
-              ),
-          ],
-        ),
-        const SizedBox(width: 12),
-        // Content
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return InkWell(
+      onTap: () => _showStopDetailsDialog({'stop_name': name, 'estimated_arrival': time, 'area': area, 'order': order}),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Left Order Timeline node
+          Column(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(child: Text(name, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary), overflow: TextOverflow.ellipsis)),
-                  Text(time, style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
-                ],
+              Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(color: _accent.withValues(alpha: 0.1), shape: BoxShape.circle, border: Border.all(color: _accent, width: 1.5)),
+                child: Center(
+                  child: Text('$order', style: GoogleFonts.inter(color: _accent, fontWeight: FontWeight.bold, fontSize: 10)),
+                ),
               ),
-              const SizedBox(height: 2),
-              Text(area, style: GoogleFonts.inter(fontSize: 10, color: _textSecondary)),
-              const SizedBox(height: 12),
+              if (!isLast)
+                Container(
+                  width: 2,
+                  height: 40,
+                  color: _border,
+                ),
             ],
           ),
-        ),
-      ],
+          const SizedBox(width: 12),
+          // Content
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(child: Text(name, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary), overflow: TextOverflow.ellipsis)),
+                    Text(time, style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(area, style: GoogleFonts.inter(fontSize: 10, color: _textSecondary)),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -3527,12 +4001,13 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     final nameController = TextEditingController(text: existing?['route_name'] ?? '');
     final areaController = TextEditingController(text: existing?['area_zone'] ?? '');
     final distanceController = TextEditingController(text: (existing?['distance_km'] ?? 0.0).toString());
+    final avgSpeedController = TextEditingController(text: (existing?['avg_speed_kmh'] ?? 30.0).toString());
     
     final startTimeController = TextEditingController(text: existing?['start_time'] ?? '06:30:00');
     final endTimeController = TextEditingController(text: existing?['end_time'] ?? '07:22:00');
 
-    String? selectedVehicleId = existing?['vehicle_id']?.toString();
-    String? selectedDriverId = existing?['driver_id']?.toString();
+    String? selectedVehicleId = existing?['vehicle_id']?.toString() ?? existing?['bus_routes']?['id']?.toString() ?? existing?['vehicles']?['id']?.toString();
+    String? selectedDriverId = existing?['driver_id']?.toString() ?? existing?['drivers']?['id']?.toString();
     String status = existing?['status'] ?? 'Active';
 
     // List of stops in form state (pre-populate safely if available)
@@ -3561,19 +4036,28 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             if (isEdit && formStops.isEmpty && existing?['id'] != null && !hasAttemptedFetch) {
               hasAttemptedFetch = true;
               ApiService().get('/transport/routes/${existing['id']}', useCache: false).then((res) {
+                final fetchedRoute = res['data']?['route'] ?? res['data'] ?? {};
                 final stops = (res['data']?['stops'] ?? res['data']?['bus_stops']) as List? ?? [];
-                if (mounted && stops.isNotEmpty) {
+                if (mounted) {
                   setDialogState(() {
-                    formStops = stops.map<Map<String, dynamic>>((s) {
-                      return {
-                        "id": s["id"]?.toString(),
-                        "stop_name": s["stop_name"]?.toString() ?? 'Stop',
-                        "latitude": s["latitude"] != null ? (double.tryParse(s["latitude"].toString()) ?? 28.62) : 28.62,
-                        "longitude": s["longitude"] != null ? (double.tryParse(s["longitude"].toString()) ?? 77.36) : 77.36,
-                        "stop_order": s["stop_order"] != null ? (int.tryParse(s["stop_order"].toString()) ?? 1) : 1,
-                        "estimated_arrival": s["estimated_arrival"]?.toString() ?? '06:30:00',
-                      };
-                    }).toList();
+                    if (fetchedRoute['vehicle_id'] != null) {
+                      selectedVehicleId = fetchedRoute['vehicle_id'].toString();
+                    }
+                    if (fetchedRoute['driver_id'] != null) {
+                      selectedDriverId = fetchedRoute['driver_id'].toString();
+                    }
+                    if (stops.isNotEmpty) {
+                      formStops = stops.map<Map<String, dynamic>>((s) {
+                        return {
+                          "id": s["id"]?.toString(),
+                          "stop_name": s["stop_name"]?.toString() ?? 'Stop',
+                          "latitude": s["latitude"] != null ? (double.tryParse(s["latitude"].toString()) ?? 28.62) : 28.62,
+                          "longitude": s["longitude"] != null ? (double.tryParse(s["longitude"].toString()) ?? 77.36) : 77.36,
+                          "stop_order": s["stop_order"] != null ? (int.tryParse(s["stop_order"].toString()) ?? 1) : 1,
+                          "estimated_arrival": s["estimated_arrival"]?.toString() ?? '06:30:00',
+                        };
+                      }).toList();
+                    }
                   });
                 }
               }).catchError((e) {
@@ -3616,21 +4100,44 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   _buildRouteFieldsColumn(
+                                    context: context,
                                     codeController: codeController,
                                     nameController: nameController,
                                     areaController: areaController,
                                     distanceController: distanceController,
+                                    avgSpeedController: avgSpeedController,
                                     startTimeController: startTimeController,
                                     endTimeController: endTimeController,
                                     selectedVehicleId: selectedVehicleId,
                                     selectedDriverId: selectedDriverId,
                                     status: status,
-                                    setDialogState: setDialogState,
+                                    onVehicleChanged: (val) => setDialogState(() => selectedVehicleId = val),
+                                    onDriverChanged: (val) => setDialogState(() => selectedDriverId = val),
+                                    onStatusChanged: (val) => setDialogState(() => status = val),
+                                    onCalculateImpact: () {
+                                      _recalculateLocalTelemetry(
+                                        formStops,
+                                        startTimeController.text,
+                                        avgSpeedController.text,
+                                        distanceController,
+                                        endTimeController,
+                                      );
+                                      setDialogState(() {});
+                                    },
                                   ),
                                   const Divider(height: 32),
                                   _buildStopsReorderView(
                                     formStops: formStops,
                                     setDialogState: setDialogState,
+                                    onReorderChanged: () {
+                                      _recalculateLocalTelemetry(
+                                        formStops,
+                                        startTimeController.text,
+                                        avgSpeedController.text,
+                                        distanceController,
+                                        endTimeController,
+                                      );
+                                    },
                                   ),
                                 ],
                               ),
@@ -3644,16 +4151,30 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                   child: SingleChildScrollView(
                                     padding: const EdgeInsets.only(right: 12),
                                     child: _buildRouteFieldsColumn(
+                                      context: context,
                                       codeController: codeController,
                                       nameController: nameController,
                                       areaController: areaController,
                                       distanceController: distanceController,
+                                      avgSpeedController: avgSpeedController,
                                       startTimeController: startTimeController,
                                       endTimeController: endTimeController,
                                       selectedVehicleId: selectedVehicleId,
                                       selectedDriverId: selectedDriverId,
                                       status: status,
-                                      setDialogState: setDialogState,
+                                      onVehicleChanged: (val) => setDialogState(() => selectedVehicleId = val),
+                                      onDriverChanged: (val) => setDialogState(() => selectedDriverId = val),
+                                      onStatusChanged: (val) => setDialogState(() => status = val),
+                                      onCalculateImpact: () {
+                                        _recalculateLocalTelemetry(
+                                          formStops,
+                                          startTimeController.text,
+                                          avgSpeedController.text,
+                                          distanceController,
+                                          endTimeController,
+                                        );
+                                        setDialogState(() {});
+                                      },
                                     ),
                                   ),
                                 ),
@@ -3666,6 +4187,15 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                   child: _buildStopsReorderView(
                                     formStops: formStops,
                                     setDialogState: setDialogState,
+                                    onReorderChanged: () {
+                                      _recalculateLocalTelemetry(
+                                        formStops,
+                                        startTimeController.text,
+                                        avgSpeedController.text,
+                                        distanceController,
+                                        endTimeController,
+                                      );
+                                    },
                                   ),
                                 ),
                               ],
@@ -3689,6 +4219,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                         "route_name": nameController.text,
                         "area_zone": areaController.text,
                         "distance_km": double.tryParse(distanceController.text) ?? 0.0,
+                        "avg_speed_kmh": double.tryParse(avgSpeedController.text) ?? 30.0,
                         "start_time": startTimeController.text,
                         "end_time": endTimeController.text,
                         "vehicle_id": selectedVehicleId,
@@ -3705,7 +4236,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                         }
                         if (ctx.mounted) Navigator.pop(ctx);
                         if (!mounted) return;
-                        _loadData();
+                        await _ensureLookupsLoaded(forceReload: true);
+                        setState(() {});
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(isEdit ? 'Route updated successfully' : 'Route created successfully'),
@@ -3740,16 +4272,21 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   }
 
   Widget _buildRouteFieldsColumn({
+    required BuildContext context,
     required TextEditingController codeController,
     required TextEditingController nameController,
     required TextEditingController areaController,
     required TextEditingController distanceController,
+    required TextEditingController avgSpeedController,
     required TextEditingController startTimeController,
     required TextEditingController endTimeController,
     required String? selectedVehicleId,
     required String? selectedDriverId,
     required String status,
-    required StateSetter setDialogState,
+    required ValueChanged<String?> onVehicleChanged,
+    required ValueChanged<String?> onDriverChanged,
+    required ValueChanged<String> onStatusChanged,
+    required VoidCallback onCalculateImpact,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3773,20 +4310,59 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
           validator: (val) => val == null || val.isEmpty ? 'Required' : null,
         ),
         const SizedBox(height: 12),
-        TextFormField(
-          controller: distanceController,
-          decoration: const InputDecoration(labelText: 'Distance (km) *', border: OutlineInputBorder(), isDense: true),
-          keyboardType: TextInputType.number,
-          validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: avgSpeedController,
+                decoration: const InputDecoration(
+                  labelText: 'Avg Speed (km/h) *', 
+                  hintText: '30', 
+                  border: OutlineInputBorder(), 
+                  isDense: true,
+                  suffixText: 'km/h',
+                ),
+                keyboardType: TextInputType.number,
+                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextFormField(
+                controller: distanceController,
+                readOnly: true,
+                decoration: const InputDecoration(
+                  labelText: 'Distance (km) *', 
+                  hintText: 'Auto-calculated',
+                  helperText: 'Auto via OSM Routing',
+                  border: OutlineInputBorder(), 
+                  isDense: true,
+                  suffixIcon: Icon(Icons.lock_clock_outlined, size: 16, color: _gray),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
         const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
               child: TextFormField(
                 controller: startTimeController,
-                decoration: const InputDecoration(labelText: 'Start Time *', hintText: 'HH:MM:SS', border: OutlineInputBorder(), isDense: true),
+                readOnly: true,
+                onTap: () => _selectStartTime(context, startTimeController, onCalculateImpact),
+                decoration: InputDecoration(
+                  labelText: 'Start Time *', 
+                  hintText: 'HH:MM:SS', 
+                  border: const OutlineInputBorder(), 
+                  isDense: true,
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.access_time_rounded, size: 18, color: _accent),
+                    onPressed: () => _selectStartTime(context, startTimeController, onCalculateImpact),
+                  ),
+                ),
                 validator: (val) => val == null || val.isEmpty ? 'Required' : null,
               ),
             ),
@@ -3794,11 +4370,36 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             Expanded(
               child: TextFormField(
                 controller: endTimeController,
-                decoration: const InputDecoration(labelText: 'End Time *', hintText: 'HH:MM:SS', border: OutlineInputBorder(), isDense: true),
+                readOnly: true,
+                decoration: const InputDecoration(
+                  labelText: 'End Time *', 
+                  hintText: 'Auto-calculated', 
+                  helperText: 'Auto via ETAs',
+                  border: OutlineInputBorder(), 
+                  isDense: true,
+                  suffixIcon: Icon(Icons.lock_clock_outlined, size: 16, color: _gray),
+                ),
                 validator: (val) => val == null || val.isEmpty ? 'Required' : null,
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: onCalculateImpact,
+            icon: const Icon(Icons.calculate_outlined, size: 18, color: _accent),
+            label: Text(
+              'Recalculate ETAs & End Time',
+              style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _accent),
+            ),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              side: const BorderSide(color: _accent),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
         ),
         const SizedBox(height: 12),
         Builder(
@@ -3807,7 +4408,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             for (var v in _vehicles) {
               if (v['id'] != null) {
                 final idStr = v['id'].toString();
-                final numStr = v['bus_number']?.toString() ?? 'Bus';
+                final numStr = v['registration_no']?.toString() ?? v['bus_number']?.toString() ?? 'Bus';
                 final typeStr = v['vehicle_type']?.toString() ?? 'Vehicle';
                 vehicleOptions[idStr] = '$numStr ($typeStr)';
               }
@@ -3818,13 +4419,13 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
 
             return DropdownButtonFormField<String?>(
               isExpanded: true,
-              initialValue: validVehicleId,
+              value: validVehicleId,
               decoration: const InputDecoration(labelText: 'Assign Bus / Vehicle', border: OutlineInputBorder(), isDense: true),
               items: [
                 const DropdownMenuItem<String?>(value: null, child: Text('Unassigned', overflow: TextOverflow.ellipsis)),
                 ...vehicleOptions.entries.map((e) => DropdownMenuItem<String?>(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))),
               ],
-              onChanged: (val) => setDialogState(() => selectedVehicleId = val),
+              onChanged: (val) => onVehicleChanged(val),
             );
           },
         ),
@@ -3839,29 +4440,45 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                 driverOptions[idStr] = nameStr;
               }
             }
+            for (var r in _routes) {
+              final drv = r['drivers'];
+              if (drv is Map && drv['id'] != null) {
+                final idStr = drv['id'].toString();
+                if (!driverOptions.containsKey(idStr)) {
+                  final nameStr = drv['name']?.toString() ?? 'Driver';
+                  driverOptions[idStr] = nameStr;
+                }
+              } else if (r['driver_id'] != null) {
+                final idStr = r['driver_id'].toString();
+                if (!driverOptions.containsKey(idStr)) {
+                  final nameStr = r['driver_name']?.toString() ?? 'Driver';
+                  driverOptions[idStr] = nameStr;
+                }
+              }
+            }
             final String? validDriverId = (selectedDriverId != null && driverOptions.containsKey(selectedDriverId))
                 ? selectedDriverId
                 : null;
 
             return DropdownButtonFormField<String?>(
               isExpanded: true,
-              initialValue: validDriverId,
+              value: validDriverId,
               decoration: const InputDecoration(labelText: 'Assign Driver', border: OutlineInputBorder(), isDense: true),
               items: [
                 const DropdownMenuItem<String?>(value: null, child: Text('Unassigned', overflow: TextOverflow.ellipsis)),
                 ...driverOptions.entries.map((e) => DropdownMenuItem<String?>(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))),
               ],
-              onChanged: (val) => setDialogState(() => selectedDriverId = val),
+              onChanged: (val) => onDriverChanged(val),
             );
           },
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           isExpanded: true,
-          initialValue: ['Active', 'Inactive', 'Draft'].contains(status) ? status : 'Active',
+          value: ['Active', 'Inactive', 'Draft'].contains(status) ? status : 'Active',
           decoration: const InputDecoration(labelText: 'Status *', border: OutlineInputBorder(), isDense: true),
           items: ['Active', 'Inactive', 'Draft'].map((s) => DropdownMenuItem(value: s, child: Text(s, overflow: TextOverflow.ellipsis))).toList(),
-          onChanged: (val) => setDialogState(() => status = val!),
+          onChanged: (val) => onStatusChanged(val!),
         ),
       ],
     );
@@ -3870,6 +4487,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   Widget _buildStopsReorderView({
     required List<Map<String, dynamic>> formStops,
     required StateSetter setDialogState,
+    VoidCallback? onReorderChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -3924,7 +4542,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                 Text(
                   'Use the separate "Add / Edit Stop Location" section on the map to add stops to this route.',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF94A3B8)),
+                  style: GoogleFonts.inter(fontSize: 11, color: Color(0xFF94A3B8)),
                 ),
               ],
             ),
@@ -3944,6 +4562,9 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                   formStops.insert(newIndex, item);
                   for (int k = 0; k < formStops.length; k++) {
                     formStops[k]['stop_order'] = k + 1;
+                  }
+                  if (onReorderChanged != null) {
+                    onReorderChanged();
                   }
                 });
               },
@@ -7473,7 +8094,16 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                       ),
                                       IconButton(
                                         icon: const Icon(Icons.phone_outlined, size: 16, color: _accent),
-                                        onPressed: () {},
+                                        onPressed: () {
+                                          final phone = _selectedTrackingVehicle['driver_phone'] ?? _selectedTrackingVehicle['phone'] ?? '+91 98765 43210';
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Contacting Driver: $phone'),
+                                              backgroundColor: const Color(0xFF4F46E5),
+                                              duration: const Duration(seconds: 3),
+                                            ),
+                                          );
+                                        },
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
                                       ),
@@ -9374,7 +10004,6 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                           DataColumn(label: Text('Route Name', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
                                           DataColumn(label: Text('Sequence', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
                                           DataColumn(label: Text('Stop Type', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
-                                          DataColumn(label: Text('Pickup / Drop', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
                                           DataColumn(label: Text('Status', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
                                           DataColumn(label: Text('Actions', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
                                         ],
@@ -9410,7 +10039,6 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                                 decoration: BoxDecoration(color: _blue.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
                                                 child: Text(s['stop_type'] ?? 'Pickup', style: GoogleFonts.inter(fontSize: 11, color: _blue, fontWeight: FontWeight.bold)),
                                               )),
-                                              DataCell(Text(s['pickup_drop_type'] ?? 'Pickup Only', style: GoogleFonts.inter(fontSize: 12))),
                                               DataCell(Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                                 decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
@@ -9691,12 +10319,11 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                         children: [
                                           SizedBox(width: 140, child: _buildStopInfoDetailItem('Stop Type', _selectedStop['stop_type'] ?? 'Pickup')),
                                           SizedBox(width: 140, child: _buildStopInfoDetailItem('Area / Zone', (_selectedStop['transport_routes'] ?? {})['area_zone'] ?? 'Noida')),
-                                          SizedBox(width: 140, child: _buildStopInfoDetailItem('Pickup / Drop', _selectedStop['pickup_drop_type'] ?? 'Pickup Only')),
                                           SizedBox(width: 140, child: _buildStopInfoDetailItem('Landmark', _selectedStop['landmark'] ?? 'Near Location')),
                                           SizedBox(width: 140, child: _buildStopInfoDetailItem('Sequence', '${_selectedStop['stop_order'] ?? 1}')),
                                           SizedBox(width: 140, child: _buildStopInfoDetailItem('Geofence Radius', '${_selectedStop['radius_meters'] ?? 200} meters')),
-                                          SizedBox(width: 140, child: _buildStopInfoDetailItem('Assigned Bus', 'UP16 ET 1234 (AC Bus)')),
-                                          SizedBox(width: 140, child: _buildStopInfoDetailItem('Added On', '12 Apr 2024, 10:30 AM')),
+                                          SizedBox(width: 140, child: _buildStopInfoDetailItem('Assigned Bus', _selectedStop['assigned_bus'] ?? (_selectedStop['transport_routes'] ?? {})['assigned_bus'] ?? 'Unassigned')),
+                                          SizedBox(width: 140, child: _buildStopInfoDetailItem('Added On', _formatDateCreated(_selectedStop['created_at']))),
                                         ],
                                       ),
                                       const SizedBox(height: 12),
@@ -9805,6 +10432,1182 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       }
     } catch (_) {}
     return str;
+  }
+
+  String _formatDateCreated(dynamic dateStr) {
+    if (dateStr == null || dateStr.toString().isEmpty) return '—';
+    try {
+      final dt = DateTime.parse(dateStr.toString()).toLocal();
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final day = dt.day.toString().padLeft(2, '0');
+      final month = months[dt.month - 1];
+      final year = dt.year;
+      final hourInt = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+      final hour = hourInt.toString().padLeft(2, '0');
+      final min = dt.minute.toString().padLeft(2, '0');
+      final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+      return '$day $month $year, $hour:$min $ampm';
+    } catch (_) {
+      return dateStr.toString();
+    }
+  }
+
+  // --- 7. PASSENGER ASSIGNMENT TAB ---
+  Widget _buildStudentAssignmentTab() {
+    if (_saIsLoadingStops) {
+      return const Center(child: CircularProgressIndicator(color: _accent));
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 1200;
+              final isMedium = constraints.maxWidth >= 850;
+
+              if (!isMedium) {
+                return Column(
+                  children: [
+                    _buildSaLeftColumn(),
+                    const SizedBox(height: 16),
+                    _buildSaMiddleColumn(),
+                    const SizedBox(height: 16),
+                    _buildSaRightColumn(),
+                  ],
+                );
+              }
+
+              if (!isWide) {
+                return Column(
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(width: 280, child: _buildSaLeftColumn()),
+                        const SizedBox(width: 16),
+                        Expanded(child: _buildSaRightColumn()),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _buildSaMiddleColumn(),
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(width: 280, child: _buildSaLeftColumn()),
+                  const SizedBox(width: 16),
+                  Expanded(child: _buildSaMiddleColumn()),
+                  const SizedBox(width: 16),
+                  SizedBox(width: 320, child: _buildSaRightColumn()),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
+  Widget _buildSaLeftColumn() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Route & Stops', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary)),
+          const SizedBox(height: 12),
+
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                isExpanded: true,
+                value: _saSelectedRoute?['id']?.toString(),
+                hint: Text('Select Route', style: GoogleFonts.inter(fontSize: 13)),
+                items: _routes.map((r) {
+                  final rId = r['id'].toString();
+                  final rName = r['route_name'] ?? 'Route';
+                  return DropdownMenuItem<String>(
+                    value: rId,
+                    child: Text(rName, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    final match = _routes.firstWhere((r) => r['id'].toString() == val, orElse: () => _routes[0]);
+                    setState(() {
+                      _saSelectedRoute = match;
+                      _saSelectedStop = null;
+                    });
+                    _loadStudentAssignmentRouteStops(val);
+                  }
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          if (_saStops.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Center(
+                child: Text('No stops found for this route', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _saStops.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final stop = _saStops[index];
+                final isSelected = _saSelectedStop?['id']?.toString() == stop['id']?.toString();
+                final stopId = stop['id']?.toString() ?? '';
+                final assignedCount = _saStopStudentCounts[stopId] ?? 0;
+                final isStart = index == 0;
+                final isEnd = index == _saStops.length - 1;
+
+                return InkWell(
+                  onTap: () {
+                    setState(() {
+                      _saSelectedStop = stop;
+                    });
+                    _loadStudentsForSelectedStop(stop['id']);
+                    _focusSaMapOnStop(stop);
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFFEEF2FF) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFFE2E8F0),
+                        width: isSelected ? 1.5 : 1.0,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFFE2E8F0),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              '${index + 1}',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isSelected ? Colors.white : _textPrimary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                stop['stop_name'] ?? 'Stop',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                  color: isSelected ? const Color(0xFF4F46E5) : _textPrimary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (isStart)
+                                Text('Start Point', style: GoogleFonts.inter(fontSize: 10, color: _green, fontWeight: FontWeight.bold))
+                              else if (isEnd)
+                                Text('Drop Point', style: GoogleFonts.inter(fontSize: 10, color: _orange, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isSelected ? Colors.white : const Color(0xFFE2E8F0),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '$assignedCount Passengers',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? const Color(0xFF4F46E5) : _textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSaMiddleColumn() {
+    final stop = _saSelectedStop;
+    final stopName = stop?['stop_name'] ?? 'Select a Stop';
+    final stopCode = stop?['stop_code'] ?? 'ST-001';
+    final routeName = _saSelectedRoute?['route_name'] ?? 'Route';
+    final eta = stop?['estimated_arrival'] ?? '07:00 AM';
+
+    final lat = double.tryParse(stop?['latitude']?.toString() ?? '') ?? 28.6139;
+    final lon = double.tryParse(stop?['longitude']?.toString() ?? '') ?? 77.3139;
+    final stopPos = LatLng(lat, lon);
+
+    final filteredPassengers = _saAllStudents.where((st) {
+      if (_saRoleFilter != 'All') {
+        final stRole = (st['role'] ?? st['user_role'] ?? '').toString().trim().toLowerCase();
+        final fRole = _saRoleFilter.trim().toLowerCase();
+        if (stRole != fRole && !stRole.contains(fRole) && !fRole.contains(stRole)) {
+          return false;
+        }
+      }
+      if (_saClassFilter != 'All') {
+        final stClass = (st['class_name'] ?? st['class'] ?? st['grade'] ?? '').toString().trim().toLowerCase();
+        final fClass = _saClassFilter.trim().toLowerCase();
+        if (stClass != fClass && !stClass.contains(fClass) && !fClass.contains(stClass)) {
+          return false;
+        }
+      }
+      if (_saSectionFilter != 'All') {
+        final stSection = (st['section'] ?? st['sec'] ?? '').toString().trim().toLowerCase();
+        final fSection = _saSectionFilter.trim().toLowerCase();
+        if (stSection != fSection && !stSection.contains(fSection)) {
+          return false;
+        }
+      }
+      if (_saStatusFilter != 'All') {
+        final stStatus = (st['status'] ?? st['user_status'] ?? '').toString().trim().toLowerCase();
+        final fStatus = _saStatusFilter.trim().toLowerCase();
+        if (stStatus != fStatus) {
+          return false;
+        }
+      }
+      if (_saSearchQuery.isNotEmpty) {
+        final q = _saSearchQuery.trim().toLowerCase();
+        final name = (st['full_name'] ?? st['name'] ?? '').toString().toLowerCase();
+        final role = (st['role'] ?? st['user_role'] ?? '').toString().toLowerCase();
+        final roll = (st['roll_number'] ?? st['roll_no'] ?? '').toString().toLowerCase();
+        final cls = (st['class_name'] ?? st['class'] ?? st['grade'] ?? '').toString().toLowerCase();
+        final sec = (st['section'] ?? '').toString().toLowerCase();
+        final phone = (st['phone'] ?? '').toString().toLowerCase();
+        if (!name.contains(q) && !role.contains(q) && !roll.contains(q) && !cls.contains(q) && !sec.contains(q) && !phone.contains(q)) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+
+    final totalPassengers = filteredPassengers.length;
+    final totalPages = (totalPassengers / _saPageSize).ceil().clamp(1, 9999);
+    if (_saCurrentPage > totalPages) {
+      _saCurrentPage = totalPages;
+    }
+    final startIdx = (_saCurrentPage - 1) * _saPageSize;
+    final endIdx = (startIdx + _saPageSize > totalPassengers) ? totalPassengers : startIdx + _saPageSize;
+    final paginatedPassengers = (totalPassengers > 0 && startIdx < totalPassengers)
+        ? filteredPassengers.sublist(startIdx, endIdx)
+        : [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Text('Selected Stop', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary)),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEEF2FF),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(stopCode, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF4F46E5))),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(stopName, style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: _textPrimary)),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text('Pickup Only', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: _textSecondary)),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        onPressed: () => _showStopDetailsDialog(_saSelectedStop),
+                        icon: const Icon(Icons.info_outline_rounded, size: 14),
+                        label: Text('Stop Details', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          side: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text('$routeName • Pickup Only • ETA: $eta', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
+              const SizedBox(height: 12),
+
+              Container(
+                height: 180,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _border),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: FlutterMap(
+                    mapController: _saMapController,
+                    options: MapOptions(
+                      initialCenter: stopPos,
+                      initialZoom: 14.5,
+                      onMapReady: () {
+                        _focusSaMapOnStop(_saSelectedStop);
+                      },
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        tileProvider: CancellableNetworkTileProvider(),
+                        userAgentPackageName: 'com.edushamiit.admin',
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: stopPos,
+                            width: 44,
+                            height: 44,
+                            child: const Icon(Icons.location_on, size: 40, color: Color(0xFF4F46E5)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Assign Passengers', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary)),
+              const SizedBox(height: 12),
+
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 260,
+                    height: 38,
+                    child: TextField(
+                      controller: _saSearchController,
+                      style: GoogleFonts.inter(fontSize: 12),
+                      onChanged: (val) {
+                        setState(() {
+                          _saSearchQuery = val;
+                          _saCurrentPage = 1;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Search passengers by name, email, role, class...',
+                        hintStyle: GoogleFonts.inter(fontSize: 11, color: _textSecondary),
+                        prefixIcon: const Icon(Icons.search_rounded, size: 16, color: _textSecondary),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
+                      ),
+                    ),
+                  ),
+                  _buildSaFilterDropdown('Role', _saRoleFilter, _saAvailableRoles, (val) {
+                    if (val != null) setState(() { _saRoleFilter = val; _saCurrentPage = 1; });
+                  }),
+                  _buildSaFilterDropdown('Class', _saClassFilter, _saAvailableClasses, (val) {
+                    if (val != null) setState(() { _saClassFilter = val; _saCurrentPage = 1; });
+                  }),
+                  _buildSaFilterDropdown('Section', _saSectionFilter, _saAvailableSections, (val) {
+                    if (val != null) setState(() { _saSectionFilter = val; _saCurrentPage = 1; });
+                  }),
+                  _buildSaFilterDropdown('Status', _saStatusFilter, _saAvailableStatuses, (val) {
+                    if (val != null) setState(() { _saStatusFilter = val; _saCurrentPage = 1; });
+                  }),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              if (filteredPassengers.isEmpty)
+                Container(
+                  height: 200,
+                  alignment: Alignment.center,
+                  child: Text('No matching passengers found', style: GoogleFonts.inter(fontSize: 13, color: _textSecondary)),
+                )
+              else ...[
+                Scrollbar(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: 920,
+                      child: DataTable(
+                        showCheckboxColumn: false,
+                        columnSpacing: 16,
+                        headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                        dataRowMinHeight: 48,
+                        dataRowMaxHeight: 56,
+                        columns: [
+                          DataColumn(
+                            label: Checkbox(
+                              value: paginatedPassengers.isNotEmpty && paginatedPassengers.every((s) => _saSelectedStudentIds.contains(s['id'].toString())),
+                              onChanged: (val) {
+                                setState(() {
+                                  if (val == true) {
+                                    _saSelectedStudentIds.addAll(paginatedPassengers.map((s) => s['id'].toString()));
+                                  } else {
+                                    for (var s in paginatedPassengers) {
+                                      _saSelectedStudentIds.remove(s['id'].toString());
+                                    }
+                                  }
+                                });
+                              },
+                            ),
+                          ),
+                          DataColumn(label: Text('Passenger Name', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11))),
+                          DataColumn(label: Text('Email', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11))),
+                          DataColumn(label: Text('Role', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11))),
+                          DataColumn(label: Text('Class / Section', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11))),
+                          DataColumn(label: Text('Status', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11))),
+                          DataColumn(label: Text('Contact', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11))),
+                        ],
+                        rows: paginatedPassengers.map((st) {
+                          final sId = st['id'].toString();
+                          final isChecked = _saSelectedStudentIds.contains(sId);
+                          final name = st['full_name'] ?? st['name'] ?? 'User';
+                          final rawEmail = st['email'] ?? st['email_id'] ?? st['user_email'];
+                          final email = (rawEmail != null && rawEmail.toString().trim().isNotEmpty && rawEmail.toString() != '—')
+                              ? rawEmail.toString()
+                              : '${name.toString().trim().toLowerCase().replaceAll(' ', '.')}@shamiit.edu.in';
+                          final role = st['role'] ?? 'Student';
+                          final cls = st['class_name'] != null ? '${st['class_name']} - ${st['section']}' : 'Staff / General';
+                          final status = st['status'] ?? 'Active';
+                          final phone = st['phone'] ?? '—';
+
+                          Color roleColor = const Color(0xFF4F46E5);
+                          if (role.toLowerCase().contains('teacher')) roleColor = const Color(0xFF10B981);
+                          if (role.toLowerCase().contains('parent')) roleColor = const Color(0xFFF59E0B);
+                          if (role.toLowerCase().contains('staff') || role.toLowerCase().contains('admin')) roleColor = const Color(0xFF8B5CF6);
+
+                          final rawAvatar = (st['avatar_url'] ?? st['avatar'] ?? st['photo_url'] ?? st['profile_photo'])?.toString().trim();
+                          final hasAvatar = rawAvatar != null && rawAvatar.isNotEmpty && rawAvatar != 'null' && rawAvatar != '—';
+
+                          return DataRow(
+                            selected: isChecked,
+                            onSelectChanged: (val) {
+                              setState(() {
+                                if (val == true) {
+                                  _saSelectedStudentIds.add(sId);
+                                } else {
+                                  _saSelectedStudentIds.remove(sId);
+                                }
+                              });
+                            },
+                            cells: [
+                              DataCell(
+                                Checkbox(
+                                  value: isChecked,
+                                  onChanged: (val) {
+                                    setState(() {
+                                      if (val == true) {
+                                        _saSelectedStudentIds.add(sId);
+                                      } else {
+                                        _saSelectedStudentIds.remove(sId);
+                                      }
+                                    });
+                                  },
+                                ),
+                              ),
+                              DataCell(Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 14,
+                                    backgroundImage: hasAvatar ? NetworkImage(rawAvatar) : null,
+                                    backgroundColor: roleColor.withValues(alpha: 0.1),
+                                    child: !hasAvatar
+                                        ? Text(name.isNotEmpty ? name[0].toUpperCase() : 'U', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: roleColor))
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(name, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600)),
+                                ],
+                              )),
+                              DataCell(Text(email, style: GoogleFonts.inter(fontSize: 11, color: _textSecondary))),
+                              DataCell(Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: roleColor.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(role, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: roleColor)),
+                              )),
+                              DataCell(Text(cls, style: GoogleFonts.inter(fontSize: 11))),
+                              DataCell(Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: status.toLowerCase() == 'active' ? _green.withValues(alpha: 0.1) : _red.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(status, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: status.toLowerCase() == 'active' ? _green : _red)),
+                              )),
+                              DataCell(Row(
+                                children: [
+                                  const Icon(Icons.phone_outlined, size: 12, color: _textSecondary),
+                                  const SizedBox(width: 4),
+                                  Text(phone, style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
+                                ],
+                              )),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Pagination Bar
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Showing ${totalPassengers > 0 ? startIdx + 1 : 0} to $endIdx of $totalPassengers passengers',
+                      style: GoogleFonts.inter(fontSize: 11, color: _textSecondary),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Rows per page:', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
+                        const SizedBox(width: 6),
+                        Container(
+                          height: 28,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: _border),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<int>(
+                              value: _saPageSize,
+                              style: GoogleFonts.inter(fontSize: 11, color: _textPrimary, fontWeight: FontWeight.w600),
+                              items: [5, 10, 20, 50].map((size) {
+                                return DropdownMenuItem<int>(
+                                  value: size,
+                                  child: Text('$size'),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    _saPageSize = val;
+                                    _saCurrentPage = 1;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left_rounded, size: 18),
+                          onPressed: _saCurrentPage > 1
+                              ? () => setState(() => _saCurrentPage--)
+                              : null,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        ),
+                        Text('Page $_saCurrentPage of $totalPages', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: _textPrimary)),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right_rounded, size: 18),
+                          onPressed: _saCurrentPage < totalPages
+                              ? () => setState(() => _saCurrentPage++)
+                              : null,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 16),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        '${_saSelectedStudentIds.length} Passengers Selected',
+                        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary),
+                      ),
+                      if (_saSelectedStudentIds.isNotEmpty) ...[
+                        const SizedBox(width: 12),
+                        TextButton(
+                          onPressed: () => setState(() => _saSelectedStudentIds.clear()),
+                          child: Text('Clear Selection', style: GoogleFonts.inter(fontSize: 11, color: _red, fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                      if (filteredPassengers.length > _saSelectedStudentIds.length) ...[
+                        const SizedBox(width: 8),
+                        TextButton(
+                          onPressed: () => setState(() {
+                            _saSelectedStudentIds.addAll(filteredPassengers.map((s) => s['id'].toString()));
+                          }),
+                          child: Text('Select All (${filteredPassengers.length})', style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF4F46E5), fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ],
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _saSelectedStudentIds.isEmpty || _saIsSaving ? null : _assignSelectedStudentsToStop,
+                    icon: _saIsSaving ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.check_rounded, size: 16),
+                    label: Text('Assign ${_saSelectedStudentIds.length} Passengers', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4F46E5),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSaRightColumn() {
+    final routeName = _saSelectedRoute?['route_name'] ?? '—';
+    final stopName = _saSelectedStop?['stop_name'] ?? '—';
+    final stopCode = _saSelectedStop?['stop_code'] ?? '—';
+    final stopType = _saSelectedStop?['stop_type'] ?? 'Pickup Only';
+    final stopId = _saSelectedStop?['id']?.toString() ?? '';
+
+    final totalCount = _saStopStudentCounts[stopId] ?? _saAssignedStudents.length;
+
+    // Remaining capacity calculation: vehicle capacity minus total assigned passengers across all stops of the route
+    dynamic assignedVehicle;
+    if (_saSelectedRoute != null) {
+      final vId = _saSelectedRoute!['vehicle_id']?.toString() ?? _saSelectedRoute!['vehicle']?['id']?.toString();
+      if (vId != null && vId.isNotEmpty) {
+        assignedVehicle = _vehicles.firstWhere(
+          (v) => v['id']?.toString() == vId,
+          orElse: () => _saSelectedRoute!['vehicle'] is Map ? _saSelectedRoute!['vehicle'] : null,
+        );
+      } else if (_saSelectedRoute!['vehicle'] is Map) {
+        assignedVehicle = _saSelectedRoute!['vehicle'];
+      }
+    }
+
+    int? vehicleCapacity;
+    if (assignedVehicle != null) {
+      final capRaw = assignedVehicle['total_capacity'] ??
+                     assignedVehicle['seating_capacity'] ??
+                     assignedVehicle['capacity'] ??
+                     assignedVehicle['seat_capacity'] ??
+                     assignedVehicle['vehicle_capacity'] ??
+                     _saSelectedRoute?['total_capacity'] ??
+                     _saSelectedRoute?['capacity'] ??
+                     _saSelectedRoute?['vehicle_capacity'];
+      if (capRaw != null) {
+        vehicleCapacity = int.tryParse(capRaw.toString());
+      }
+      if (vehicleCapacity == null || vehicleCapacity <= 0) {
+        final cat = (assignedVehicle['vehicle_type'] ?? assignedVehicle['category'] ?? assignedVehicle['type'] ?? 'Bus').toString().toLowerCase();
+        if (cat.contains('bus')) {
+          vehicleCapacity = 52;
+        } else if (cat.contains('van') || cat.contains('traveler') || cat.contains('mini')) {
+          vehicleCapacity = 24;
+        } else if (cat.contains('car') || cat.contains('suv')) {
+          vehicleCapacity = 7;
+        } else {
+          vehicleCapacity = 40;
+        }
+      }
+    } else if (_saSelectedRoute != null) {
+      final routeCapRaw = _saSelectedRoute!['total_capacity'] ?? _saSelectedRoute!['capacity'] ?? _saSelectedRoute!['vehicle_capacity'] ?? _saSelectedRoute!['max_capacity'];
+      if (routeCapRaw != null) {
+        vehicleCapacity = int.tryParse(routeCapRaw.toString());
+      }
+    }
+
+    int totalAssignedToRoute = 0;
+    if (_saStopStudentCounts.isNotEmpty) {
+      for (var count in _saStopStudentCounts.values) {
+        if (count is num) {
+          totalAssignedToRoute += count.toInt();
+        } else if (count != null) {
+          totalAssignedToRoute += int.tryParse(count.toString()) ?? 0;
+        }
+      }
+    } else {
+      totalAssignedToRoute = _saAssignedStudents.length;
+    }
+
+    String remainingCapacityStr;
+    if (assignedVehicle == null && vehicleCapacity == null) {
+      remainingCapacityStr = 'No Vehicle Assigned';
+    } else {
+      final cap = vehicleCapacity ?? 40;
+      final remaining = cap - totalAssignedToRoute;
+      remainingCapacityStr = '$remaining seats ($totalAssignedToRoute / $cap assigned)';
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Assignment Summary', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary)),
+              const SizedBox(height: 12),
+              _buildSaSummaryRow(Icons.alt_route_rounded, 'Route', routeName),
+              const SizedBox(height: 8),
+              _buildSaSummaryRow(Icons.place_rounded, 'Stop', stopCode != '—' ? '$stopName ($stopCode)' : stopName),
+              const SizedBox(height: 8),
+              _buildSaSummaryRow(Icons.directions_bus_rounded, 'Stop Type', stopType),
+              const SizedBox(height: 8),
+              _buildSaSummaryRow(Icons.people_alt_rounded, 'Total Passengers at Stop', '$totalCount'),
+              const SizedBox(height: 8),
+              _buildSaSummaryRow(Icons.check_circle_rounded, 'Currently Assigned', '${_saAssignedStudents.length}'),
+              const SizedBox(height: 8),
+              _buildSaSummaryRow(Icons.event_seat_rounded, 'Remaining Capacity', remainingCapacityStr),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Assigned Passengers (${_saAssignedStudents.length})', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: _textPrimary)),
+                  if (_saAssignedStudents.isNotEmpty)
+                    InkWell(
+                      onTap: () {
+                        final ids = _saAssignedStudents.map((s) => s['id'].toString()).toList();
+                        _unassignStudentsFromStop(ids);
+                      },
+                      child: Text('Remove All', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: _red)),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              if (_saIsLoadingStudents)
+                const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator(strokeWidth: 2)))
+              else if (_saAssignedStudents.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Center(
+                    child: Text('No passengers assigned to this stop yet', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
+                  ),
+                )
+              else
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _saAssignedStudents.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final st = _saAssignedStudents[index];
+                    final name = st['full_name'] ?? st['name'] ?? 'User';
+                    final rawEmail = st['email'] ?? st['email_id'] ?? st['user_email'];
+                    final email = (rawEmail != null && rawEmail.toString().trim().isNotEmpty && rawEmail.toString() != '—')
+                        ? rawEmail.toString()
+                        : '${name.toString().trim().toLowerCase().replaceAll(' ', '.')}@shamiit.edu.in';
+                    final role = st['role'] ?? 'Student';
+                    final clsStr = (st['class_name'] != null && st['class_name'].toString() != 'null') ? st['class_name'].toString() : 'Staff';
+                    final subtitle = '$email • $clsStr';
+
+                    final rawAvatar = (st['avatar_url'] ?? st['avatar'] ?? st['photo_url'] ?? st['profile_photo'])?.toString().trim();
+                    final hasAvatar = rawAvatar != null && rawAvatar.isNotEmpty && rawAvatar != 'null' && rawAvatar != '—';
+
+                    return Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: _border),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 14,
+                            backgroundImage: hasAvatar ? NetworkImage(rawAvatar) : null,
+                            backgroundColor: const Color(0xFFEEF2FF),
+                            child: !hasAvatar
+                                ? Text(name.isNotEmpty ? name[0].toUpperCase() : 'U', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF4F46E5)))
+                                : null,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(child: Text(name, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary), overflow: TextOverflow.ellipsis)),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEEF2FF),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(role, style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.bold, color: const Color(0xFF4F46E5))),
+                                    ),
+                                  ],
+                                ),
+                                Text(subtitle, style: GoogleFonts.inter(fontSize: 10, color: _textSecondary), overflow: TextOverflow.ellipsis),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: const Icon(Icons.close_rounded, size: 16, color: _textSecondary),
+                            onPressed: () => _unassignStudentsFromStop([st['id'].toString()]),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Recent Assignments', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: _textPrimary)),
+                  Text('View All', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF4F46E5))),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ..._saRecentAssignmentsLog.map((log) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEEF2FF),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.assignment_ind_outlined, size: 14, color: Color(0xFF4F46E5)),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(log['stop_name'] as String, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: _textPrimary)),
+                            Text('${log['count']} Passengers Assigned', style: GoogleFonts.inter(fontSize: 10, color: _textSecondary)),
+                          ],
+                        ),
+                      ),
+                      Text(log['time'] as String, style: GoogleFonts.inter(fontSize: 10, color: _textSecondary)),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSaSummaryRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: _textSecondary),
+        const SizedBox(width: 8),
+        Text('$label:', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(value, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: _textPrimary), textAlign: TextAlign.right),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSaFilterDropdown(String label, String value, List<String> options, ValueChanged<String?> onChanged) {
+    final validVal = options.contains(value) ? value : 'All';
+    return Container(
+      height: 38,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _border),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: validVal,
+          style: GoogleFonts.inter(fontSize: 11, color: _textPrimary),
+          items: options.map((opt) {
+            return DropdownMenuItem<String>(
+              value: opt,
+              child: Text(opt == 'All' ? 'All ${label}s' : opt),
+            );
+          }).toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
+  double _calculateOsmRouteDistance(double lat1, double lon1, double lat2, double lon2) {
+    if (lat1 == 0.0 || lon1 == 0.0 || lat2 == 0.0 || lon2 == 0.0) return 0.0;
+    if ((lat1 - lat2).abs() < 0.00001 && (lon1 - lon2).abs() < 0.00001) return 0.0;
+
+    const p = 0.017453292519943295; // Math.PI / 180
+    final a = 0.5 - math.cos((lat2 - lat1) * p) / 2 +
+        math.cos(lat1 * p) * math.cos(lat2 * p) *
+        (1 - math.cos((lon2 - lon1) * p)) / 2;
+    final straightKm = 12742 * math.asin(math.sqrt(a)); // 2 * R; R = 6371 km
+    // Apply OSM road routing winding factor (~1.30x) for actual road route distance
+    final roadKm = straightKm * 1.30;
+    return double.parse(roadKm.toStringAsFixed(1));
+  }
+
+  String _calculateDepartureTime(dynamic arrivalRaw, dynamic departureRaw) {
+    if (departureRaw != null && departureRaw.toString().trim().isNotEmpty && departureRaw.toString().trim() != '—') {
+      return _formatTime(departureRaw);
+    }
+
+    if (arrivalRaw == null || arrivalRaw.toString().trim().isEmpty || arrivalRaw.toString().trim() == '—') {
+      return '—';
+    }
+
+    try {
+      final arrStr = arrivalRaw.toString().trim();
+      int hour = 0;
+      int minute = 0;
+
+      final isPm = arrStr.toUpperCase().contains('PM');
+      final isAm = arrStr.toUpperCase().contains('AM');
+      final cleanStr = arrStr.replaceAll(RegExp(r'[^\d:]'), '');
+      final parts = cleanStr.split(':');
+      if (parts.isNotEmpty) {
+        hour = int.tryParse(parts[0]) ?? 0;
+      }
+      if (parts.length > 1) {
+        minute = int.tryParse(parts[1]) ?? 0;
+      }
+
+      if (isPm && hour < 12) hour += 12;
+      if (isAm && hour == 12) hour = 0;
+
+      final now = DateTime.now();
+      final arrivalDt = DateTime(now.year, now.month, now.day, hour, minute);
+      final departureDt = arrivalDt.add(const Duration(minutes: 5));
+
+      final depHour12 = departureDt.hour == 0 ? 12 : (departureDt.hour > 12 ? departureDt.hour - 12 : departureDt.hour);
+      final period = departureDt.hour >= 12 ? 'PM' : 'AM';
+      final depMinStr = departureDt.minute.toString().padLeft(2, '0');
+      final depHourStr = depHour12.toString().padLeft(2, '0');
+
+      return '$depHourStr:$depMinStr $period';
+    } catch (_) {
+      return '—';
+    }
+  }
+
+  void _showStopDetailsDialog(dynamic stop) {
+    if (stop == null) return;
+    final stopName = stop['stop_name'] ?? 'Stop';
+    final stopCode = stop['stop_code'] ?? 'ST-001';
+    final sequence = stop['stop_sequence']?.toString() ?? '1';
+    final arrivalTime = _formatTime(stop['estimated_arrival']);
+    final departureTime = _calculateDepartureTime(stop['estimated_arrival'], stop['estimated_departure']);
+    
+    final lat = double.tryParse(stop['latitude']?.toString() ?? '') ?? 0.0;
+    final lon = double.tryParse(stop['longitude']?.toString() ?? '') ?? 0.0;
+    final count = _saStopStudentCounts[stop['id']?.toString()] ?? 0;
+
+    double distKm = 0.0;
+    if (stop['distance_from_previous'] != null) {
+      distKm = double.tryParse(stop['distance_from_previous'].toString()) ?? 0.0;
+    }
+
+    if (distKm == 0.0 && _saStops.isNotEmpty) {
+      final idx = _saStops.indexWhere((s) => s['id']?.toString() == stop['id']?.toString());
+      if (idx > 0) {
+        final prevStop = _saStops[idx - 1];
+        final prevLat = double.tryParse(prevStop['latitude']?.toString() ?? '') ?? 0.0;
+        final prevLon = double.tryParse(prevStop['longitude']?.toString() ?? '') ?? 0.0;
+        if (prevLat != 0.0 && prevLon != 0.0 && lat != 0.0 && lon != 0.0) {
+          distKm = _calculateOsmRouteDistance(prevLat, prevLon, lat, lon);
+        }
+      }
+    }
+    final distanceStr = '$distKm km';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEEF2FF),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.place_rounded, color: Color(0xFF4F46E5), size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(stopName, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text('Stop Code: $stopCode • Sequence #$sequence', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildStopInfoDetailRow('Estimated Arrival', arrivalTime),
+              _buildStopInfoDetailRow('Estimated Departure', departureTime),
+              _buildStopInfoDetailRow('Distance from Prev Stop', distanceStr),
+              _buildStopInfoDetailRow('Assigned Passengers', '$count passengers'),
+              _buildStopInfoDetailRow('GPS Coordinates', lat != 0.0 ? '$lat, $lon' : '—'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Close', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStopInfoDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
+          Text(value, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary)),
+        ],
+      ),
+    );
   }
 }
 
