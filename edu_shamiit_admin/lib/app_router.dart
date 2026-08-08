@@ -8,6 +8,7 @@ import 'package:edu_shamiit_admin/screens/role_dashboards/driver_dashboard_scree
 import 'package:edu_shamiit_admin/screens/role_dashboards/driver_timetable_screen.dart';
 import 'package:edu_shamiit_admin/screens/role_dashboards/my_profile_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/schools/schools_screen.dart';
+import 'package:edu_shamiit_admin/screens/modules/calendar/universal_calendar_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/users/users_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/infra/infra_monitor_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/config/system_config_screen.dart';
@@ -248,7 +249,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/driver/timetable',
-            pageBuilder: (_, __) => const NoTransitionPage(child: DriverTimetableScreen()),
+            pageBuilder: (_, __) => const NoTransitionPage(child: UniversalCalendarScreen()),
+          ),
+          GoRoute(
+            path: '/admin/calendar',
+            pageBuilder: (_, __) => const NoTransitionPage(child: UniversalCalendarScreen()),
+          ),
+          GoRoute(
+            path: '/calendar',
+            pageBuilder: (_, __) => const NoTransitionPage(child: UniversalCalendarScreen()),
           ),
           GoRoute(
             path: '/admin/dashboard',

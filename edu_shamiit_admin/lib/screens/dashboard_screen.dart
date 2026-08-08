@@ -57,6 +57,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         route: '/admin/dashboard',
         section: NavSection.overview),
     _NavItem(
+        icon: Icons.calendar_month_rounded,
+        label: 'Calendar',
+        route: '/admin/calendar',
+        section: NavSection.overview),
+    _NavItem(
         icon: Icons.calendar_today_rounded,
         label: 'Timetable',
         route: '/driver/timetable',
@@ -312,6 +317,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       // Role based permissions
       if (role == 'super_admin') {
         return item.route == '/admin/dashboard' ||
+               item.route == '/admin/calendar' ||
                item.route == '/admin/schools' ||
                item.route == '/admin/users' ||
                item.route == '/admin/infra' ||
@@ -337,6 +343,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/stops';
       } else if (role == 'director') {
         return item.route == '/admin/dashboard' ||
+               item.route == '/admin/calendar' ||
                item.route == '/admin/users' ||
                item.route == '/admin/roles' ||
                item.route == '/admin/finance' ||
@@ -358,6 +365,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/stops';
       } else if (role == 'transport') {
         return item.route == '/admin/dashboard' ||
+               item.route == '/admin/calendar' ||
                item.route == '/admin/alerts-notifications' ||
                item.route == '/admin/emergency' ||
                item.route == '/admin/my-profile' ||
@@ -370,12 +378,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       } else if (role == 'driver') {
         return item.route == '/admin/dashboard' ||
                item.route == '/driver/dashboard' ||
+               item.route == '/admin/calendar' ||
                item.route == '/driver/timetable' ||
                item.route == '/admin/alerts-notifications' ||
                item.route == '/admin/emergency' ||
                item.route == '/admin/my-profile';
       }
-      return item.route == '/admin/dashboard' || item.route == '/admin/alerts-notifications' || item.route == '/admin/emergency' || item.route == '/admin/my-profile';
+      return item.route == '/admin/dashboard' || item.route == '/admin/calendar' || item.route == '/admin/alerts-notifications' || item.route == '/admin/emergency' || item.route == '/admin/my-profile';
     }).toList();
 
     if (isDesktop) {
@@ -1002,9 +1011,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           _buildSubTile('Driver List', '/admin/driver-management', 0, isDriverRoute && activeTab == 0, isDark),
           _buildSubTile('License & Documents', '/admin/driver-management', 1, isDriverRoute && activeTab == 1, isDark),
           _buildSubTile('Performance', '/admin/driver-management', 2, isDriverRoute && activeTab == 2, isDark),
-          _buildSubTile('Assignments', '/admin/driver-management', 3, isDriverRoute && activeTab == 3, isDark),
-          _buildSubTile('Training', '/admin/driver-management', 4, isDriverRoute && activeTab == 4, isDark),
-          _buildSubTile('Violations', '/admin/driver-management', 5, isDriverRoute && activeTab == 5, isDark),
+          _buildSubTile('Training', '/admin/driver-management', 3, isDriverRoute && activeTab == 3, isDark),
+          _buildSubTile('Violations', '/admin/driver-management', 4, isDriverRoute && activeTab == 4, isDark),
         ],
       ],
     );

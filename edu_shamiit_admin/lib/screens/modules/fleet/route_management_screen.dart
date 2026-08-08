@@ -6585,21 +6585,6 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         "driver_id": _assignSelectedDriverId,
       });
 
-      // 2. Post to the driver_assignments table to log the assignment
-      final payload = {
-        "school_id": ref.read(authProvider).userData?['school_id']?.toString() ?? "11111111-1111-1111-1111-111111111111",
-        "route_id": _assignSelectedRouteId,
-        "vehicle_id": _assignSelectedVehicleId,
-        "driver_id": _assignSelectedDriverId,
-        "assignment_type": "Route",
-        "start_date": dateStr,
-        "shift": "General",
-        "status": "Active",
-        "notes": _assignNotesController.text,
-        "created_by": "Transport Manager"
-      };
-      await ApiService().post('/transport/drivers/assignments', payload);
-
       // Reset form
       setState(() {
         _assignSelectedRouteId = null;

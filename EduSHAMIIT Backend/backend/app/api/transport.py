@@ -90,14 +90,13 @@ TABLE_COLUMNS = {
     "driver_documents": {'created_at', 'document_no', 'document_type', 'driver_id', 'expiry_date', 'file_name', 'file_size', 'file_url', 'id', 'issued_date', 'issuing_authority', 'school_id', 'status', 'updated_at'},
     "driver_performance": {'attendance_score', 'created_at', 'driver_id', 'feedback_score', 'id', 'recent_feedback', 'recent_feedback_date', 'route_adherence_score', 'safety_score', 'school_id', 'trips_completed', 'updated_at', 'vehicle_care_score', 'vehicle_id'},
     "driver_violations": {'created_at', 'date_time', 'description', 'driver_id', 'fine_amount', 'id', 'location', 'school_id', 'severity', 'status', 'updated_at', 'vehicle_id', 'violation_type'},
-    "driver_assignments": {'assignment_type', 'created_at', 'created_by', 'days', 'distance', 'driver_id', 'end_date', 'end_time', 'estimated_duration', 'id', 'notes', 'route_id', 'school_id', 'shift', 'start_date', 'start_time', 'status', 'total_stops', 'trip_id', 'updated_at', 'vehicle_id'},
     "driver_training": {'certificate_url', 'created_at', 'driver_id', 'end_date', 'end_time', 'id', 'next_due_date', 'provider', 'school_id', 'start_date', 'start_time', 'status', 'training_program', 'training_type', 'updated_at'},
     "vehicle_categories": {'capacity', 'category_code', 'created_at', 'created_by', 'description', 'fuel_type', 'id', 'luggage_capacity', 'name', 'school_id', 'status', 'transmission', 'updated_at', 'updated_by'},
     "vehicle_documents": {'created_at', 'document_name', 'document_no', 'document_type', 'document_url', 'expiry_date', 'id', 'issued_date', 'policy_no', 'provider', 'remarks', 'school_id', 'status', 'updated_at', 'uploaded_by', 'uploaded_on', 'vehicle_id'},
     "vehicle_insurance_fitness": {'certificate_copy_url', 'created_at', 'days_left', 'fitness_cert_no', 'fitness_expiry', 'fitness_status', 'id', 'insurance_expiry', 'insurance_start', 'insurance_status', 'issuing_authority', 'permit_expiry', 'permit_no', 'policy_no', 'policy_type', 'pollution_cert_no', 'pollution_expiry', 'pollution_status', 'premium_amount', 'provider', 'puc_no', 'school_id', 'updated_at', 'vehicle_id'},
     "vehicle_maintenance": {'completion_date', 'cost', 'created_at', 'description', 'id', 'odometer_km', 'school_id', 'service_date', 'service_type', 'status', 'updated_at', 'vehicle_id', 'vendor_workshop'},
     "vehicle_live_alerts": {'alert_type', 'created_at', 'id', 'is_resolved', 'latitude', 'longitude', 'message', 'resolved_at', 'resolved_by', 'route_id', 'school_id', 'severity', 'title', 'trip_id'},
-    "vehicle_trips": {'actual_end', 'actual_start', 'cancellation_reason', 'cancelled_dates', 'created_at', 'days', 'delay_minutes', 'distance_km', 'driver_assignment_id', 'driver_id', 'end_date', 'end_time', 'id', 'incident_count', 'notes', 'route_id', 'scheduled_start', 'school_id', 'start_date', 'start_time', 'status', 'students_count', 'trip_type', 'vehicle_id'},
+    "vehicle_trips": {'actual_end', 'actual_start', 'cancellation_reason', 'cancelled_dates', 'created_at', 'days', 'delay_minutes', 'distance_km', 'driver_id', 'end_date', 'end_time', 'id', 'incident_count', 'notes', 'route_id', 'scheduled_start', 'school_id', 'start_date', 'start_time', 'status', 'students_count', 'trip_type', 'vehicle_id'},
     "gps_devices": {'battery_level', 'created_at', 'current_location', 'device_id', 'expiry_date', 'firmware_version', 'id', 'imei_no', 'installation_date', 'installed_by', 'last_seen', 'model', 'operator', 'school_id', 'signal_strength_pct', 'sim_no', 'status', 'updated_at', 'vehicle_id'},
     "transport_routes": {'area_zone', 'avg_speed_kmh', 'created_at', 'distance_km', 'driver_id', 'end_time', 'id', 'notes', 'route_code', 'route_name', 'school_id', 'start_time', 'status', 'updated_at', 'vehicle_id'},
     "transport_route_stops": {'created_at', 'created_by', 'distance_from_prev_km', 'estimated_arrival', 'id', 'landmark', 'latitude', 'longitude', 'radius_meters', 'route_id', 'school_id', 'status', 'stop_code', 'stop_name', 'stop_order', 'stop_type', 'travel_time_mins', 'updated_at'},
@@ -773,26 +772,6 @@ async def create_trip(payload: dict, user=Depends(require_transport_admin)):
         res = await sb.table("vehicle_trips").insert(data).aexecute()
         ret_data = res.data[0] if res.data else data
 
-    if driver_id:
-        try:
-            assign_data = {
-                "id": str(uuid.uuid4()),
-                "school_id": school_id,
-                "driver_id": driver_id,
-                "vehicle_id": vehicle_id,
-                "route_id": route_id,
-                "trip_id": trip_id,
-                "assignment_type": "Trip",
-                "start_date": payload.get("start_date") or datetime.utcnow().isoformat()[:10],
-                "shift": payload.get("trip_type", "Pickup").title(),
-                "status": "Active" if payload.get("status") in ["in_progress", "ongoing", "active"] else "Upcoming",
-                "notes": payload.get("notes"),
-            }
-            apply_audit_fields(assign_data, user, is_create=True)
-            await sb.table("driver_assignments").insert(assign_data).aexecute()
-        except Exception as e:
-            logger.warning(f"[CREATE_TRIP] Assignment warning: {e}")
-
     return {"success": True, "data": ret_data}
 
 
@@ -837,24 +816,6 @@ async def update_trip(trip_id: str, payload: dict, user=Depends(require_transpor
             await sb.table("vehicle_trips").update(data).eq("id", trip_id).aexecute()
         except Exception as e2:
             logger.error(f"[UPDATE_TRIP] Error: {e2}")
-    
-    assign_updates = {}
-    if "driver_id" in data:
-        assign_updates["driver_id"] = data["driver_id"]
-    if "vehicle_id" in data:
-        assign_updates["vehicle_id"] = data["vehicle_id"]
-    if "status" in data:
-        status_map = {"in_progress": "Active", "scheduled": "Upcoming", "completed": "Completed", "cancelled": "Ended"}
-        assign_updates["status"] = status_map.get(data["status"], "Active")
-    if "notes" in data:
-        assign_updates["notes"] = data["notes"]
-        
-    if assign_updates:
-        apply_audit_fields(assign_updates, user, is_create=False)
-        try:
-            await sb.table("driver_assignments").update(assign_updates).eq("trip_id", trip_id).aexecute()
-        except Exception:
-            pass
 
     return {"success": True, "message": "Trip updated"}
 
@@ -1985,152 +1946,6 @@ async def get_driver_performance_summary(
     }
 
 
-# ──────────────────────────────────────────────
-# Driver Assignments
-# ──────────────────────────────────────────────
-
-@router.get("/drivers/assignments")
-async def list_driver_assignments(
-    school_id: Optional[str] = Query(None),
-    driver_id: Optional[str] = Query(None),
-    status: Optional[str] = Query(None),
-    user=Depends(require_transport_admin),
-):
-    target_school = _resolve_school_id(user, query_school_id=school_id)
-    sb = get_supabase()
-    q = sb.table("driver_assignments").select("*")
-    if target_school:
-        q = q.eq("school_id", target_school)
-    if driver_id:
-        q = q.eq("driver_id", driver_id)
-    if status:
-        q = q.eq("status", status)
-    
-    res = await q.aexecute()
-    records = res.data or []
-    try:
-        d_res = await sb.table("drivers").select("*").aexecute()
-        d_map = {str(d["id"]): d for d in (d_res.data or []) if d.get("id")}
-        r_res = await sb.table("transport_routes").select("*").aexecute()
-        r_map = {str(r["id"]): _enrich_vehicle_dict(r) for r in (r_res.data or []) if r.get("id")}
-        for rec in records:
-            did = str(rec.get("driver_id")) if rec.get("driver_id") else None
-            rid = str(rec.get("route_id")) if rec.get("route_id") else None
-            vid = str(rec.get("vehicle_id")) if rec.get("vehicle_id") else rid
-            if did and did in d_map:
-                rec["drivers"] = d_map[did]
-            if vid and vid in r_map:
-                rec["vehicle"] = r_map[vid]
-            if rid and rid in r_map:
-                rec["route"] = r_map[rid]
-    except Exception:
-        pass
-    return {"success": True, "data": records}
-
-
-@router.post("/drivers/assignments")
-async def create_driver_assignment(payload: dict, user=Depends(require_transport_admin)):
-    sb = get_supabase()
-    start_date = (payload.get("start_date") or datetime.utcnow().strftime("%Y-%m-%d"))[:10]
-    end_date = payload.get("end_date")
-    if end_date and isinstance(end_date, str):
-        end_date = end_date[:10]
-
-    route_id = payload.get("route_id")
-    if route_id:
-        r_check = await sb.table("transport_routes").select("id").eq("id", route_id).maybe_single().aexecute()
-        if not r_check.data:
-            route_id = None
-
-    vehicle_id = payload.get("vehicle_id")
-    if vehicle_id:
-        v_check = await sb.table("vehicles").select("id").eq("id", vehicle_id).maybe_single().aexecute()
-        if not v_check.data:
-            vehicle_id = None
-
-    data = {
-      "id": str(uuid.uuid4()),
-      "school_id": _resolve_school_id(user, payload),
-      "driver_id": payload["driver_id"],
-      "vehicle_id": vehicle_id,
-      "route_id": route_id,
-      "assignment_type": payload.get("assignment_type", "Route"),
-      "start_date": start_date,
-      "end_date": end_date,
-      "shift": payload.get("shift", "General"),
-      "status": payload.get("status", "Active"),
-      "notes": payload.get("notes"),
-      "start_time": payload.get("start_time", "06:30 AM"),
-      "end_time": payload.get("end_time", "09:30 AM"),
-      "days": payload.get("days", "Mon,Tue,Wed,Thu,Fri"),
-      "distance": payload.get("distance", 15.0),
-      "estimated_duration": payload.get("estimated_duration", "45 mins"),
-      "total_stops": payload.get("total_stops", 10),
-    }
-    data = apply_audit_fields(data, user, is_create=True, table_name="driver_assignments")
-    
-    if data.get("vehicle_id") and data.get("driver_id"):
-        try:
-            await sb.table("drivers").update({"assigned_vehicle_id": data["vehicle_id"]}).eq("id", data["driver_id"]).aexecute()
-        except Exception:
-            pass
-            
-    res = await sb.table("driver_assignments").insert(data).aexecute()
-    return {"success": True, "data": res.data[0] if res.data else data}
-
-
-@router.put("/drivers/assignments/{assign_id}")
-async def update_driver_assignment(assign_id: str, payload: dict, user=Depends(require_transport_admin)):
-    sb = get_supabase()
-    allowed = {
-      "driver_id", "vehicle_id", "route_id", "assignment_type", "start_date", 
-      "end_date", "shift", "status", "notes", "start_time", 
-      "end_time", "days", "distance", "estimated_duration", "total_stops"
-    }
-    data = {k: v for k, v in payload.items() if k in allowed}
-
-    if "start_date" in data and isinstance(data["start_date"], str):
-        data["start_date"] = data["start_date"][:10]
-    if "end_date" in data and isinstance(data["end_date"], str):
-        data["end_date"] = data["end_date"][:10]
-
-    if data.get("route_id"):
-        r_check = await sb.table("transport_routes").select("id").eq("id", data["route_id"]).maybe_single().aexecute()
-        if not r_check.data:
-            data["route_id"] = None
-
-    if data.get("vehicle_id"):
-        v_check = await sb.table("vehicles").select("id").eq("id", data["vehicle_id"]).maybe_single().aexecute()
-        if not v_check.data:
-            data["vehicle_id"] = None
-
-    data = apply_audit_fields(data, user, is_create=False, table_name="driver_assignments")
-    
-    did = data.get("driver_id")
-    vid = data.get("vehicle_id")
-    if not did:
-        current_assign = await sb.table("driver_assignments").select("driver_id").eq("id", assign_id).maybe_single().aexecute()
-        if current_assign and current_assign.data:
-            did = current_assign.data.get("driver_id")
-            
-    if vid and did:
-        try:
-            await sb.table("drivers").update({"assigned_vehicle_id": vid}).eq("id", did).aexecute()
-        except Exception:
-            pass
-            
-    res = await sb.table("driver_assignments").update(data).eq("id", assign_id).aexecute()
-    return {"success": True, "message": "Assignment updated", "data": res.data if res.data else {}}
-
-
-@router.delete("/drivers/assignments/{assign_id}")
-async def delete_driver_assignment(assign_id: str, user=Depends(require_transport_admin)):
-    sb = get_supabase()
-    await sb.table("vehicle_trips").delete().eq("driver_assignment_id", assign_id).aexecute()
-    await sb.table("driver_assignments").delete().eq("id", assign_id).aexecute()
-    return {"success": True, "message": "Assignment deleted"}
-
-
 @router.delete("/trips/{trip_id}")
 async def delete_trip(
     trip_id: str,
@@ -2143,12 +1958,6 @@ async def delete_trip(
     
     trip_res = await sb.table("vehicle_trips").select("*").eq("id", trip_id).maybe_single().aexecute()
     trip = trip_res.data or {}
-    
-    assign_id = trip.get("driver_assignment_id")
-    if not assign_id and trip_id:
-        assign_res = await sb.table("driver_assignments").select("id").eq("trip_id", trip_id).maybe_single().aexecute()
-        if assign_res.data:
-            assign_id = assign_res.data.get("id")
 
     existing_notes = trip.get("notes") or ""
     cancellation_note = f"Cancelled ({target_date}): {cancel_reason}" if target_date else f"Cancelled: {cancel_reason}"
@@ -2589,15 +2398,6 @@ async def list_routes(
     except Exception:
         pass
 
-    try:
-        a_res = await sb.table("driver_assignments").select("*").eq("status", "Active").aexecute()
-        for a in (a_res.data or []):
-            rid = str(a.get("route_id")) if a.get("route_id") else None
-            if rid:
-                assign_map[rid] = a
-    except Exception:
-        pass
-
     stops_q = sb.table("transport_route_stops").select("route_id")
     if target_school:
         stops_q = stops_q.eq("school_id", target_school)
@@ -2617,13 +2417,6 @@ async def list_routes(
         
         vid = str(r_dict.get("vehicle_id")) if r_dict.get("vehicle_id") else None
         did = str(r_dict.get("driver_id")) if r_dict.get("driver_id") else None
-        
-        if rid in assign_map:
-            active_a = assign_map[rid]
-            if not vid and active_a.get("vehicle_id"):
-                vid = str(active_a.get("vehicle_id"))
-            if not did and active_a.get("driver_id"):
-                did = str(active_a.get("driver_id"))
 
         if vid and vid in v_map:
             veh = v_map[vid]
@@ -2789,27 +2582,6 @@ async def update_route(route_id: str, payload: dict, user=Depends(require_transp
     if route_data.get("driver_id") and route_data.get("vehicle_id"):
         try:
             await sb.table("drivers").update({"assigned_vehicle_id": route_data.get("vehicle_id")}).eq("id", route_data.get("driver_id")).aexecute()
-        except Exception:
-            pass
-        try:
-            school_id = _resolve_school_id(user, payload)
-            assign_payload = {
-                "id": str(uuid.uuid4()),
-                "school_id": school_id,
-                "route_id": route_id,
-                "vehicle_id": route_data.get("vehicle_id"),
-                "driver_id": route_data.get("driver_id"),
-                "assignment_type": "Route",
-                "start_date": datetime.now().strftime("%Y-%m-%d"),
-                "shift": "General",
-                "status": "Active"
-            }
-            assign_payload = apply_audit_fields(assign_payload, user, is_create=True, table_name="driver_assignments")
-            existing_a = await sb.table("driver_assignments").select("id").eq("route_id", route_id).eq("status", "Active").aexecute()
-            if existing_a.data:
-                await sb.table("driver_assignments").update(assign_payload).eq("id", existing_a.data[0]["id"]).aexecute()
-            else:
-                await sb.table("driver_assignments").insert(assign_payload).aexecute()
         except Exception:
             pass
 
@@ -3265,20 +3037,6 @@ async def list_driver_routes(user=Depends(require_driver_or_admin)):
                 
     assigned_route_ids = set()
     shift_map = {}
-    if driver_id or user_id:
-        filter_str = f"driver_id.eq.{driver_id}" if driver_id else f"driver_id.eq.{user_id}"
-        if driver_id and user_id and driver_id != user_id:
-            filter_str = f"driver_id.eq.{driver_id},driver_id.eq.{user_id}"
-            
-        assignments_res = await sb.table("driver_assignments").select("route_id, shift, status").or_(filter_str).aexecute()
-        if assignments_res.data:
-            for a in assignments_res.data:
-                if a.get("route_id") and (a.get("status") or "active").lower() == "active":
-                    r_id = str(a["route_id"])
-                    assigned_route_ids.add(r_id)
-                    if a.get("shift"):
-                        shift_map[r_id] = a["shift"]
-                        
     q = sb.table("transport_routes").select("*")
     if target_school:
         q = q.eq("school_id", target_school)

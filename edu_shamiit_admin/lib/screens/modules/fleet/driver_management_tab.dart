@@ -27,7 +27,6 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
   List<dynamic> _routes = [];
   List<dynamic> _driverDocuments = [];
   List<dynamic> _driverPerformance = [];
-  List<dynamic> _driverAssignments = [];
   List<dynamic> _driverTrainings = [];
   List<dynamic> _driverViolations = [];
   bool _isLoading = true;
@@ -35,7 +34,6 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
   // Selected items for details panes
   dynamic _selectedDriver;
   dynamic _selectedDocument;
-  dynamic _selectedAssignment;
   dynamic _selectedTraining;
   dynamic _selectedViolation;
 
@@ -63,14 +61,6 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
   String _perfTimePeriod = 'This Month';
   int _perfCurrentPage = 1;
   int _perfPageSize = 10;
-
-  // Assignments state & filters
-  final TextEditingController _assignSearchController = TextEditingController();
-  String _assignSearchQuery = '';
-  String _assignStatusFilter = 'All';
-  String _assignTypeFilter = 'All';
-  int _assignCurrentPage = 1;
-  int _assignPageSize = 10;
 
   // Training state & filters
   final TextEditingController _trainSearchController = TextEditingController();
@@ -107,9 +97,9 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
   @override
   void initState() {
     super.initState();
-    final initIdx = widget.initialTab.clamp(0, 5);
+    final initIdx = widget.initialTab.clamp(0, 4);
     _visitedTabs.add(initIdx);
-    _tabController = TabController(length: 6, vsync: this, initialIndex: initIdx);
+    _tabController = TabController(length: 5, vsync: this, initialIndex: initIdx);
     _tabController.addListener(() {
       if (mounted && !_tabController.indexIsChanging) {
         _loadTabIfNeeded(_tabController.index);
@@ -124,7 +114,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
         setState(() {});
       }
     });
-    _loadTabIfNeeded(widget.initialTab.clamp(0, 5));
+    _loadTabIfNeeded(widget.initialTab.clamp(0, 4));
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text;
@@ -135,12 +125,6 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
       setState(() {
         _docSearchQuery = _docSearchController.text;
         _docCurrentPage = 1;
-      });
-    });
-    _assignSearchController.addListener(() {
-      setState(() {
-        _assignSearchQuery = _assignSearchController.text;
-        _assignCurrentPage = 1;
       });
     });
     _trainSearchController.addListener(() {
@@ -171,7 +155,6 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     _tabController.dispose();
     _searchController.dispose();
     _docSearchController.dispose();
-    _assignSearchController.dispose();
     _trainSearchController.dispose();
     _violSearchController.dispose();
     super.dispose();
@@ -216,19 +199,13 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
           final rawPerf = perfRes['data'];
           _driverPerformance = (rawPerf is List) ? rawPerf : [];
           break;
-        case 3: // Assignments
-          final assignEndpoint = schoolId != null ? '/transport/drivers/assignments?school_id=$schoolId' : '/transport/drivers/assignments';
-          final assignRes = await ApiService().get(assignEndpoint, useCache: false);
-          final rawAssign = assignRes['data'];
-          _driverAssignments = (rawAssign is List) ? rawAssign : [];
-          break;
-        case 4: // Training
+        case 3: // Training
           final trainEndpoint = schoolId != null ? '/transport/drivers/training?school_id=$schoolId' : '/transport/drivers/training';
           final trainRes = await ApiService().get(trainEndpoint, useCache: false);
           final rawTrain = trainRes['data'];
           _driverTrainings = (rawTrain is List) ? rawTrain : [];
           break;
-        case 5: // Violations
+        case 4: // Violations
           final violEndpoint = schoolId != null ? '/transport/drivers/violations?school_id=$schoolId' : '/transport/drivers/violations';
           final violRes = await ApiService().get(violEndpoint, useCache: false);
           final rawViol = violRes['data'];
@@ -435,38 +412,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
     }).toList();
   }
 
-  List<dynamic> get _filteredAssignments {
-    return _driverAssignments.where((assign) {
-      // 1. Search Query
-      if (_assignSearchQuery.isNotEmpty) {
-        final query = _assignSearchQuery.toLowerCase();
-        final drv = assign['drivers'] ?? {};
-        final name = (drv['name'] ?? '').toLowerCase();
-        final code = (drv['driver_code'] ?? '').toLowerCase();
-        final route = (assign['bus_routes']?['route_name'] ?? '').toLowerCase();
-        final bus = (assign['bus_routes']?['bus_number'] ?? '').toLowerCase();
-        if (!name.contains(query) && !code.contains(query) && !route.contains(query) && !bus.contains(query)) {
-          return false;
-        }
-      }
 
-      // 2. Status Filter
-      if (_assignStatusFilter != 'All') {
-        if (assign['status'] != _assignStatusFilter) {
-          return false;
-        }
-      }
-
-      // 3. Type Filter
-      if (_assignTypeFilter != 'All') {
-        if (assign['assignment_type'] != _assignTypeFilter) {
-          return false;
-        }
-      }
-
-      return true;
-    }).toList();
-  }
 
   List<dynamic> get _filteredTrainings {
     return _driverTrainings.where((train) {
@@ -555,14 +501,10 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
         desc = 'Monitor driver behavior, safety ratings, and performance metrics.';
         break;
       case 3:
-        title = 'Route Assignments';
-        desc = 'Assign drivers to vehicles and designated transit routes.';
-        break;
-      case 4:
         title = 'Training & Certifications';
         desc = 'Manage driver training programs, safety certifications, and retrainings.';
         break;
-      case 5:
+      case 4:
         title = 'Violations & Incidents';
         desc = 'Log, review, and track traffic violations and incident reports.';
         break;
@@ -702,7 +644,6 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
             _buildTabItem(Icons.person_outline_rounded, 'Driver List'),
             _buildTabItem(Icons.description_outlined, 'License & Documents'),
             _buildTabItem(Icons.speed_rounded, 'Performance'),
-            _buildTabItem(Icons.assignment_ind_outlined, 'Assignments'),
             _buildTabItem(Icons.school_outlined, 'Training'),
             _buildTabItem(Icons.warning_amber_rounded, 'Violations'),
           ],
@@ -725,7 +666,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
   }
 
   Widget _buildTabContent(bool isDesktop, double availableWidth) {
-    final activeIdx = _tabController.index.clamp(0, 5);
+    final activeIdx = _tabController.index.clamp(0, 4);
     _visitedTabs.add(activeIdx);
 
     return IndexedStack(
@@ -734,9 +675,8 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
         _visitedTabs.contains(0) ? _buildDriverListTab(isDesktop, availableWidth) : const SizedBox.shrink(),
         _visitedTabs.contains(1) ? _buildLicenseDocumentsTab(availableWidth) : const SizedBox.shrink(),
         _visitedTabs.contains(2) ? _buildPerformanceTab(availableWidth) : const SizedBox.shrink(),
-        _visitedTabs.contains(3) ? _buildAssignmentsTab(availableWidth) : const SizedBox.shrink(),
-        _visitedTabs.contains(4) ? _buildTrainingTab(availableWidth) : const SizedBox.shrink(),
-        _visitedTabs.contains(5) ? _buildViolationsTab(availableWidth) : const SizedBox.shrink(),
+        _visitedTabs.contains(3) ? _buildTrainingTab(availableWidth) : const SizedBox.shrink(),
+        _visitedTabs.contains(4) ? _buildViolationsTab(availableWidth) : const SizedBox.shrink(),
       ],
     );
   }
@@ -3270,6 +3210,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
   }
 
   Widget _buildScoreBreakdownProgressBar(String label, double val) {
+    // ─────── Tab 3: Training view ───────
     final double pct = val / 5.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3301,625 +3242,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
     );
   }
 
-  // ─────── Tab 3: Assignments view ───────
-  Widget _buildAssignmentsTab(double availableWidth) {
-    final filtered = _filteredAssignments;
-    final totalCount = filtered.length;
-    final startIndex = (_assignCurrentPage - 1) * _assignPageSize;
-    final paginated = filtered.skip(startIndex).take(_assignPageSize).toList();
-
-    // Stats
-    final totalAssign = _driverAssignments.length;
-    final activeAssign = _driverAssignments.where((a) => a['status'] == 'Active').length;
-    final upcomingAssign = _driverAssignments.where((a) => a['status'] == 'Upcoming').length;
-    final endedAssign = _driverAssignments.where((a) => ['Ended', 'Completed'].contains(a['status'])).length;
-    
-    // Expiring soon in <= 3 days
-    int expiringSoonCount = 0;
-    final now = DateTime.now();
-    for (final a in _driverAssignments) {
-      if (a['status'] == 'Active' && a['end_date'] != null) {
-        final expDate = DateTime.tryParse(a['end_date']);
-        if (expDate != null) {
-          final diff = expDate.difference(now).inDays;
-          if (diff >= 0 && diff <= 3) {
-            expiringSoonCount++;
-          }
-        }
-      }
-    }
-
-    final double activePct = totalAssign > 0 ? (activeAssign / totalAssign * 100) : 0.0;
-    final double upcomingPct = totalAssign > 0 ? (upcomingAssign / totalAssign * 100) : 0.0;
-    final double endedPct = totalAssign > 0 ? (endedAssign / totalAssign * 100) : 0.0;
-    final double expiringPct = totalAssign > 0 ? (expiringSoonCount / totalAssign * 100) : 0.0;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildKpiSection([
-            _buildKpiCard('Total Assignments', '$totalAssign', 'All time', const Color(0xFF8B5CF6), Icons.assignment_turned_in_outlined),
-            _buildKpiCard('Active Assignments', '$activeAssign', '${activePct.toStringAsFixed(2)}%', const Color(0xFF10B981), Icons.check_circle_outline, _green),
-            _buildKpiCard('Upcoming', '$upcomingAssign', '${upcomingPct.toStringAsFixed(2)}%', const Color(0xFF3B82F6), Icons.calendar_today_outlined, _blue),
-            _buildKpiCard('Ended / Completed', '$endedAssign', '${endedPct.toStringAsFixed(2)}%', const Color(0xFF94A3B8), Icons.history, _gray),
-            _buildKpiCard('Expiring Soon (3 Days)', '$expiringSoonCount', '${expiringPct.toStringAsFixed(2)}%', const Color(0xFFEF4444), Icons.hourglass_empty_rounded, _red),
-          ]),
-          const SizedBox(height: 20),
-
-          if (availableWidth > 1100) ...[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: _selectedAssignment != null ? 65 : 100,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: _cardBg,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _border),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildAssignFiltersSection(availableWidth),
-                        _buildAssignTableSection(paginated, totalCount, startIndex, availableWidth),
-                      ],
-                    ),
-                  ),
-                ),
-                if (_selectedAssignment != null) ...[
-                  const SizedBox(width: 16),
-                  Expanded(
-                    flex: 35,
-                    child: _buildAssignDetailsPanelSection(_selectedAssignment),
-                  ),
-                ],
-              ],
-            ),
-          ] else ...[
-            Container(
-              decoration: BoxDecoration(
-                color: _cardBg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildAssignFiltersSection(availableWidth),
-                  _buildAssignTableSection(paginated, totalCount, startIndex, availableWidth),
-                ],
-              ),
-            ),
-            if (_selectedAssignment != null) ...[
-              const SizedBox(height: 16),
-              _buildAssignDetailsPanelSection(_selectedAssignment),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAssignFiltersSection(double availableWidth) {
-    final searchField = _uSearch(controller: _assignSearchController, hint: 'Search driver, route...');
-    final statusFilter = _uDropdown(
-      value: _assignStatusFilter,
-      items: ['All', 'Active', 'Upcoming', 'Ended', 'Completed'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Status' : s, overflow: TextOverflow.ellipsis))).toList(),
-      onChanged: (val) => setState(() { _assignStatusFilter = val!; _assignCurrentPage = 1; }),
-    );
-    final typeFilter = _uDropdown(
-      value: _assignTypeFilter,
-      items: ['All', 'Route', 'Trip'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Types' : s, overflow: TextOverflow.ellipsis))).toList(),
-      onChanged: (val) => setState(() { _assignTypeFilter = val!; _assignCurrentPage = 1; }),
-    );
-    final resetButton = _uResetBtn(() {
-      setState(() { _assignSearchController.clear(); _assignSearchQuery = ''; _assignStatusFilter = 'All'; _assignTypeFilter = 'All'; _assignCurrentPage = 1; });
-    });
-    final refreshButton = _uRefreshBtn(_loadData, 'Refresh Assignments');
-    final addBtn = _uBtn(label: 'Add Assignment', icon: Icons.add_rounded, onPressed: () => _showAssignmentFormDialog(null));
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final w = constraints.maxWidth;
-          if (w >= 860) {
-            return Row(
-              children: [
-                Expanded(child: searchField),
-                const SizedBox(width: 8),
-                SizedBox(width: 140, child: statusFilter),
-                const SizedBox(width: 8),
-                SizedBox(width: 120, child: typeFilter),
-                const SizedBox(width: 8),
-                resetButton,
-                const SizedBox(width: 6),
-                refreshButton,
-                const Spacer(),
-                addBtn,
-              ],
-            );
-          }
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              searchField,
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8, runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [SizedBox(width: 140, child: statusFilter), SizedBox(width: 120, child: typeFilter), resetButton, refreshButton, addBtn],
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildAssignTableSection(List<dynamic> paginated, int totalCount, int startIndex, double availableWidth) {
-    if (paginated.isEmpty) {
-      return SizedBox(
-        height: 200,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.assignment_ind_outlined, color: _textSecondary, size: 36),
-              const SizedBox(height: 12),
-              Text('No assignments found', style: GoogleFonts.inter(color: _textSecondary, fontSize: 14)),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: math.max(availableWidth, 1000)),
-            child: DataTable(
-              showCheckboxColumn: false,
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-              columnSpacing: 20,
-              dataRowMinHeight: 52,
-              dataRowMaxHeight: 56,
-              columns: [
-                _dataCol('Driver'),
-                _dataCol('Vehicle'),
-                _dataCol('Route'),
-                _dataCol('Type'),
-                _dataCol('Start'),
-                _dataCol('End'),
-                _dataCol('Status'),
-                _dataCol('Created By'),
-                _dataCol('Actions'),
-              ],
-              rows: paginated.map((assign) {
-                final isSelected = _selectedAssignment != null && _selectedAssignment['id'] == assign['id'];
-                final drv = assign['drivers'] ?? {};
-                final veh = assign['bus_routes'] ?? assign['vehicle'] ?? {};
-                final vehicleText = veh['registration_no'] ?? veh['bus_number'] ?? '—';
-                final vehicleType = veh['vehicle_type'] ?? 'Bus';
-                final routeName = veh['route_name'] ?? '—';
-                final status = assign['status'] ?? 'Active';
-                final assignmentType = assign['assignment_type'] ?? 'Route';
-                final shift = assign['shift'] ?? 'General';
-                final startTime = assign['start_time'] ?? '06:30 AM';
-                final endTime = assign['end_time'] ?? '09:30 AM';
-                final createdBy = assign['created_by'] ?? 'Transport Manager';
-                final createdAt = assign['created_at'];
-
-                Color statusColor;
-                Color statusBg;
-                switch (status.toLowerCase()) {
-                  case 'active':
-                    statusColor = _green;
-                    statusBg = _green.withValues(alpha: 0.12);
-                    break;
-                  case 'upcoming':
-                    statusColor = _blue;
-                    statusBg = _blue.withValues(alpha: 0.12);
-                    break;
-                  case 'ended':
-                  case 'completed':
-                    statusColor = _gray;
-                    statusBg = _gray.withValues(alpha: 0.12);
-                    break;
-                  case 'cancelled':
-                    statusColor = _red;
-                    statusBg = _red.withValues(alpha: 0.12);
-                    break;
-                  default:
-                    statusColor = _orange;
-                    statusBg = _orange.withValues(alpha: 0.12);
-                }
-
-                Color typeColor = const Color(0xFF4F46E5);
-                Color typeBg = const Color(0xFFEEF2FF);
-                if (assignmentType.toLowerCase() == 'trip') {
-                  typeColor = const Color(0xFF0284C7);
-                  typeBg = const Color(0xFFF0F9FF);
-                }
-
-                return DataRow(
-                  selected: isSelected,
-                  onSelectChanged: (val) {
-                    setState(() {
-                      _selectedAssignment = assign;
-                    });
-                  },
-                  cells: [
-                    DataCell(
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 16,
-                            backgroundColor: _accent.withValues(alpha: 0.1),
-                            backgroundImage: drv['photo_url'] != null ? NetworkImage(drv['photo_url']) : null,
-                            child: drv['photo_url'] == null
-                                ? Text(drv['name']?.substring(0, 1).toUpperCase() ?? 'D', style: GoogleFonts.inter(color: _accent, fontSize: 12, fontWeight: FontWeight.bold))
-                                : null,
-                          ),
-                          const SizedBox(width: 10),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(drv['name'] ?? '—', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
-                              Text(drv['driver_code'] ?? '—', style: GoogleFonts.inter(color: _textSecondary, fontSize: 10)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    DataCell(
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(vehicleText, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
-                          Text(vehicleType, style: GoogleFonts.inter(color: _textSecondary, fontSize: 10)),
-                        ],
-                      ),
-                    ),
-                    DataCell(
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(routeName, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
-                          Text(shift, style: GoogleFonts.inter(color: _textSecondary, fontSize: 10)),
-                        ],
-                      ),
-                    ),
-                    DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(color: typeBg, borderRadius: BorderRadius.circular(6)),
-                        child: Text(assignmentType, style: GoogleFonts.inter(color: typeColor, fontSize: 11, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                    DataCell(
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(_formatDate(assign['start_date']), style: GoogleFonts.inter(fontSize: 12)),
-                          Text(startTime, style: GoogleFonts.inter(color: _textSecondary, fontSize: 10)),
-                        ],
-                      ),
-                    ),
-                    DataCell(
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            (assign['end_date'] == null || assign['end_date'].toString().isEmpty || assign['end_date'].toString() == '—')
-                                ? 'Ongoing'
-                                : _formatDate(assign['end_date']),
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: (assign['end_date'] == null || assign['end_date'].toString().isEmpty || assign['end_date'].toString() == '—')
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
-                              color: (assign['end_date'] == null || assign['end_date'].toString().isEmpty || assign['end_date'].toString() == '—')
-                                  ? _green
-                                  : _textPrimary,
-                            ),
-                          ),
-                          Text(endTime, style: GoogleFonts.inter(color: _textSecondary, fontSize: 10)),
-                        ],
-                      ),
-                    ),
-                    DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(16)),
-                        child: Text(status, style: GoogleFonts.inter(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                    DataCell(
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(createdBy, style: GoogleFonts.inter(fontSize: 12)),
-                          Text(_formatDate(createdAt), style: GoogleFonts.inter(color: _textSecondary, fontSize: 10)),
-                        ],
-                      ),
-                    ),
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.visibility_outlined, size: 18),
-                            tooltip: 'View Details',
-                            onPressed: () => setState(() => _selectedAssignment = assign),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.edit_outlined, size: 18),
-                            tooltip: 'Edit Assignment',
-                            onPressed: () => _showAssignmentFormDialog(assign),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline, size: 18, color: _red),
-                            tooltip: 'Delete',
-                            onPressed: () => _deleteAssignment(assign),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
-          ),
-        ),
-        _buildPaginationRow(
-          totalCount,
-          startIndex,
-          paginated.length,
-          _assignPageSize,
-          _assignCurrentPage,
-          (newPage) => setState(() => _assignCurrentPage = newPage),
-          (newSize) => setState(() {
-            _assignPageSize = newSize;
-            _assignCurrentPage = 1;
-          }),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAssignDetailsPanelSection(dynamic assign) {
-    if (assign == null) return Container();
-    final drv = assign['drivers'] ?? {};
-    final veh = assign['bus_routes'] ?? assign['vehicle'] ?? {};
-    final String status = assign['status'] ?? 'Active';
-    final assignmentType = assign['assignment_type'] ?? 'Route';
-    final shift = assign['shift'] ?? 'General';
-    final startTime = assign['start_time'] ?? '06:30 AM';
-    final endTime = assign['end_time'] ?? '09:30 AM';
-    final distance = assign['distance'] != null ? '${assign['distance']} km' : '15.0 km';
-    final duration = assign['estimated_duration'] ?? '45 mins';
-    final stops = assign['total_stops'] ?? 10;
-    final createdOn = assign['created_at'];
-
-    final List<String> weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    final List<String> activeDays = (assign['days'] as String? ?? 'Mon,Tue,Wed,Thu,Fri').split(',');
-    
-    Color statusColor;
-    Color statusBg;
-    switch (status.toLowerCase()) {
-      case 'active':
-        statusColor = _green;
-        statusBg = _green.withValues(alpha: 0.12);
-        break;
-      case 'upcoming':
-        statusColor = _blue;
-        statusBg = _blue.withValues(alpha: 0.12);
-        break;
-      case 'ended':
-      case 'completed':
-        statusColor = _gray;
-        statusBg = _gray.withValues(alpha: 0.12);
-        break;
-      case 'cancelled':
-        statusColor = _red;
-        statusBg = _red.withValues(alpha: 0.12);
-        break;
-      default:
-        statusColor = _orange;
-        statusBg = _orange.withValues(alpha: 0.12);
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: _cardBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _border),
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Assignment Details', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: _textPrimary)),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(20)),
-                    child: Text(status, style: GoogleFonts.inter(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold)),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 20, color: _textSecondary),
-                    onPressed: () => setState(() => _selectedAssignment = null),
-                    tooltip: 'Close details panel',
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: _accent.withValues(alpha: 0.1),
-                backgroundImage: drv['photo_url'] != null ? NetworkImage(drv['photo_url']) : null,
-                child: drv['photo_url'] == null
-                    ? Text(drv['name']?.substring(0, 1).toUpperCase() ?? 'D', style: GoogleFonts.inter(color: _accent, fontWeight: FontWeight.bold))
-                    : null,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(drv['name'] ?? 'Driver', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
-                    Text(drv['driver_code'] ?? '—', style: GoogleFonts.inter(color: _textSecondary, fontSize: 11)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(Icons.phone_outlined, size: 14, color: _textSecondary),
-              const SizedBox(width: 8),
-              Text(drv['phone'] ?? '—', style: GoogleFonts.inter(fontSize: 12, color: _textPrimary)),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              const Icon(Icons.email_outlined, size: 14, color: _textSecondary),
-              const SizedBox(width: 8),
-              Text(drv['email'] ?? '—', style: GoogleFonts.inter(fontSize: 12, color: _textPrimary)),
-            ],
-          ),
-          const Divider(height: 24),
-          
-          Text('Assignment Information', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary)),
-          const SizedBox(height: 12),
-          _buildDetailRow('Assignment Type', '$assignmentType Assignment'),
-          _buildDetailRow('Route / Trip', '${veh['route_name'] ?? '—'} ($shift)'),
-          
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Vehicle', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
-                Row(
-                  children: [
-                    const Icon(Icons.directions_bus_outlined, size: 12, color: _textSecondary),
-                    const SizedBox(width: 4),
-                    Text('${veh['registration_no'] ?? veh['bus_number'] ?? '—'} (${veh['vehicle_type'] ?? '—'})', 
-                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _textPrimary)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          
-          _buildDetailRow('Start Date & Time', '${_formatDate(assign['start_date'])}, $startTime'),
-          _buildDetailRow('End Date & Time', (assign['end_date'] == null || assign['end_date'].toString().isEmpty || assign['end_date'].toString() == '—') ? 'Ongoing ($endTime)' : '${_formatDate(assign['end_date'])}, $endTime'),
-          _buildDetailRow('Shift', shift),
-          
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Days', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
-                Row(
-                  children: weekdays.map((day) {
-                    final isActive = activeDays.contains(day);
-                    return Container(
-                      margin: const EdgeInsets.only(left: 3),
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: isActive ? _green : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        day,
-                        style: GoogleFonts.inter(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: isActive ? Colors.white : _textSecondary,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-
-          _buildDetailRow('Created By', assign['created_by'] ?? '—'),
-          _buildDetailRow('Created On', '${_formatDate(createdOn)}, 10:30 AM'),
-          _buildDetailRow('Notes', assign['notes'] ?? '—'),
-          
-          const Divider(height: 24),
-          Text('Route Summary', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary)),
-          const SizedBox(height: 12),
-          _buildDetailRow('Total Stops', '$stops'),
-          _buildDetailRow('Distance', distance),
-          _buildDetailRow('Estimated Duration', duration),
-          
-          const Divider(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _showAssignmentFormDialog(assign),
-                  icon: const Icon(Icons.edit_outlined, size: 14),
-                  label: const Text('Edit', style: TextStyle(fontSize: 11)),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: _border),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _deleteAssignment(assign),
-                  icon: const Icon(Icons.cancel_outlined, size: 14, color: _red),
-                  label: const Text('Cancel', style: TextStyle(color: _red, fontSize: 11)),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: _red),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-
-  // ─────── Tab 4: Training view ───────
+  // ─────── Tab 3: Training view ───────
   Widget _buildTrainingTab(double availableWidth) {
     final filtered = _filteredTrainings;
     final totalCount = filtered.length;
@@ -5839,386 +5162,6 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
       final period = picked.period == DayPeriod.am ? 'AM' : 'PM';
       controller.text = '${hour.toString().padLeft(2, '0')}:$minute $period';
     }
-  }
-
-  // ──────── Assignment CRUD Dialogs ────────
-  Future<void> _showAssignmentFormDialog(dynamic existing) async {
-    await _ensureLookupsLoaded();
-    if (!mounted) return;
-
-    final bool isEdit = existing != null;
-    final formKey = GlobalKey<FormState>();
-
-    // Deduplicate lookup lists by ID to prevent Dropdown assertion errors
-    final Map<String, dynamic> uniqueDrivers = {};
-    for (final d in _drivers) {
-      final id = d['id']?.toString();
-      if (id != null && id.isNotEmpty) uniqueDrivers[id] = d;
-    }
-
-    final Map<String, dynamic> uniqueVehicles = {};
-    for (final v in _vehicles) {
-      final id = v['id']?.toString();
-      if (id != null && id.isNotEmpty) uniqueVehicles[id] = v;
-    }
-
-    final Map<String, dynamic> uniqueRoutes = {};
-    for (final r in _routes) {
-      final id = r['id']?.toString();
-      if (id != null && id.isNotEmpty) uniqueRoutes[id] = r;
-    }
-
-    String? selectedDriverId = existing?['driver_id']?.toString();
-    if (selectedDriverId != null && !uniqueDrivers.containsKey(selectedDriverId)) {
-      selectedDriverId = null;
-    }
-
-    String? selectedVehicleId = existing?['vehicle_id']?.toString();
-    if (selectedVehicleId != null && !uniqueVehicles.containsKey(selectedVehicleId)) {
-      selectedVehicleId = null;
-    }
-
-    String? selectedRouteId = existing?['route_id']?.toString();
-    if (selectedRouteId != null && !uniqueRoutes.containsKey(selectedRouteId)) {
-      selectedRouteId = null;
-    }
-
-    // Normalize shift string
-    String rawShift = (existing?['shift'] ?? 'Morning').toString();
-    String shift = 'Morning';
-    if (rawShift.toLowerCase().contains('evening')) {
-      shift = 'Evening';
-    } else if (rawShift.toLowerCase().contains('night')) {
-      shift = 'Night';
-    } else if (rawShift.toLowerCase().contains('both')) {
-      shift = 'Both';
-    } else if (rawShift.toLowerCase().contains('general')) {
-      shift = 'General';
-    }
-
-    String status = existing?['status'] ?? 'Active';
-    final allowedStatuses = ['Active', 'Upcoming', 'Ended', 'Completed', 'Suspended', 'Inactive'];
-    if (!allowedStatuses.contains(status)) {
-      status = 'Active';
-    }
-    String assignmentType = existing?['assignment_type'] ?? 'Route';
-
-    final startDateController = TextEditingController(text: existing?['start_date'] ?? DateFormat('yyyy-MM-dd').format(DateTime.now()));
-    final endDateController = TextEditingController(text: existing?['end_date'] ?? DateFormat('yyyy-MM-dd').format(DateTime.now().add(const Duration(days: 365))));
-    final startTimeController = TextEditingController(text: existing?['start_time'] ?? '06:30 AM');
-    final endTimeController = TextEditingController(text: existing?['end_time'] ?? '09:30 AM');
-    final totalStopsController = TextEditingController(text: (existing?['total_stops'] ?? 10).toString());
-    final distanceController = TextEditingController(text: (existing?['distance'] ?? 15.0).toString());
-    final durationController = TextEditingController(text: existing?['estimated_duration'] ?? '45 mins');
-    final notesController = TextEditingController(text: existing?['notes'] ?? '');
-
-    final allDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    final rawDaysStr = existing?['days'] as String? ?? 'Mon,Tue,Wed,Thu,Fri';
-    final Set<String> selectedDays = rawDaysStr.split(',').map((d) => d.trim()).where((d) => d.isNotEmpty).toSet();
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text(isEdit ? 'Edit Assignment' : 'Create New Driver Assignment', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-              content: SizedBox(
-                width: 650,
-                child: Form(
-                  key: formKey,
-                  child: ListView(
-                    padding: const EdgeInsets.only(top: 10, bottom: 6),
-                    clipBehavior: Clip.none,
-                    shrinkWrap: true,
-                    children: [
-                      // Driver selection
-                      DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        initialValue: selectedDriverId,
-                        decoration: const InputDecoration(labelText: 'Select Driver *', border: OutlineInputBorder()),
-                        items: uniqueDrivers.values.map((d) => DropdownMenuItem<String>(
-                          value: d['id'].toString(),
-                          child: Text('${d['name'] ?? 'Driver'} (${d['driver_code'] ?? 'DRV'})', overflow: TextOverflow.ellipsis),
-                        )).toList(),
-                        validator: (val) => val == null ? 'Required' : null,
-                        onChanged: (val) => setDialogState(() => selectedDriverId = val),
-                      ),
-                      const SizedBox(height: 12),
-                      // Vehicle and Route selection row
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              isExpanded: true,
-                              initialValue: selectedVehicleId,
-                              decoration: const InputDecoration(labelText: 'Assign Vehicle *', border: OutlineInputBorder()),
-                              items: uniqueVehicles.values.map((v) {
-                                final label = '${v['registration_no'] ?? v['bus_number'] ?? 'Bus'} (${v['vehicle_type'] ?? 'Bus'})';
-                                return DropdownMenuItem<String>(
-                                  value: v['id'].toString(),
-                                  child: Text(label, overflow: TextOverflow.ellipsis),
-                                );
-                              }).toList(),
-                              onChanged: (val) => setDialogState(() => selectedVehicleId = val),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              isExpanded: true,
-                              initialValue: selectedRouteId,
-                              decoration: const InputDecoration(labelText: 'Assign Route / Trip', border: OutlineInputBorder()),
-                              items: uniqueRoutes.values.map((r) {
-                                final label = '${r['route_name'] ?? 'Route'} (${r['shift'] ?? 'General'})';
-                                return DropdownMenuItem<String>(
-                                  value: r['id'].toString(),
-                                  child: Text(label, overflow: TextOverflow.ellipsis),
-                                );
-                              }).toList(),
-                              onChanged: (val) => setDialogState(() => selectedRouteId = val),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      // Assignment Type, Shift, Status
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              isExpanded: true,
-                              initialValue: ['Route', 'Trip', 'Special', 'Backup'].contains(assignmentType) ? assignmentType : 'Route',
-                              decoration: const InputDecoration(labelText: 'Assignment Type *', border: OutlineInputBorder()),
-                              items: ['Route', 'Trip', 'Special', 'Backup'].map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))).toList(),
-                              onChanged: (val) => setDialogState(() => assignmentType = val!),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              isExpanded: true,
-                              initialValue: shift,
-                              decoration: const InputDecoration(labelText: 'Shift *', border: OutlineInputBorder()),
-                              items: ['Morning', 'Evening', 'Both', 'Night', 'General'].map((s) => DropdownMenuItem(value: s, child: Text(s, overflow: TextOverflow.ellipsis))).toList(),
-                              onChanged: (val) => setDialogState(() => shift = val!),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              isExpanded: true,
-                              initialValue: status,
-                              decoration: const InputDecoration(labelText: 'Status *', border: OutlineInputBorder()),
-                              items: ['Active', 'Upcoming', 'Ended', 'Completed', 'Suspended', 'Inactive'].map((s) => DropdownMenuItem(value: s, child: Text(s, overflow: TextOverflow.ellipsis))).toList(),
-                              onChanged: (val) => setDialogState(() => status = val!),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      // Dates row
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: startDateController,
-                              decoration: InputDecoration(
-                                labelText: 'Start Date (YYYY-MM-DD) *',
-                                border: const OutlineInputBorder(),
-                                suffixIcon: IconButton(icon: const Icon(Icons.calendar_today, size: 16), onPressed: () => _selectDate(context, startDateController)),
-                              ),
-                              validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextFormField(
-                              controller: endDateController,
-                              decoration: InputDecoration(
-                                labelText: 'End Date (YYYY-MM-DD)',
-                                border: const OutlineInputBorder(),
-                                suffixIcon: IconButton(icon: const Icon(Icons.calendar_today, size: 16), onPressed: () => _selectDate(context, endDateController)),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      // Times row
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: startTimeController,
-                              decoration: InputDecoration(
-                                labelText: 'Start Time *',
-                                border: const OutlineInputBorder(),
-                                suffixIcon: IconButton(icon: const Icon(Icons.access_time, size: 16), onPressed: () => _selectTime(context, startTimeController)),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextFormField(
-                              controller: endTimeController,
-                              decoration: InputDecoration(
-                                labelText: 'End Time *',
-                                border: const OutlineInputBorder(),
-                                suffixIcon: IconButton(icon: const Icon(Icons.access_time, size: 16), onPressed: () => _selectTime(context, endTimeController)),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      // Days selector
-                      Text('Operating Days', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary)),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 8,
-                        children: allDays.map((day) {
-                          final isSel = selectedDays.contains(day);
-                          return FilterChip(
-                            label: Text(day, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isSel ? Colors.white : _textPrimary)),
-                            selected: isSel,
-                            selectedColor: _accent,
-                            onSelected: (val) {
-                              setDialogState(() {
-                                if (val) {
-                                  selectedDays.add(day);
-                                } else {
-                                  selectedDays.remove(day);
-                                }
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 12),
-                      // Route Summary info metrics
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: totalStopsController,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(labelText: 'Total Stops', border: OutlineInputBorder()),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextFormField(
-                              controller: distanceController,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(labelText: 'Distance (km)', border: OutlineInputBorder()),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextFormField(
-                              controller: durationController,
-                              decoration: const InputDecoration(labelText: 'Est. Duration', border: OutlineInputBorder(), hintText: '45 mins'),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: notesController,
-                        maxLines: 2,
-                        decoration: const InputDecoration(labelText: 'Assignment Notes / Remarks', border: OutlineInputBorder()),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (formKey.currentState!.validate()) {
-                      final data = {
-                        "school_id": widget.schoolId ?? '11111111-1111-1111-1111-111111111111',
-                        "driver_id": selectedDriverId,
-                        "vehicle_id": selectedVehicleId,
-                        "route_id": selectedRouteId,
-                        "shift": shift,
-                        "status": status,
-                        "assignment_type": assignmentType,
-                        "start_date": startDateController.text,
-                        "end_date": endDateController.text.isNotEmpty ? endDateController.text : null,
-                        "start_time": startTimeController.text,
-                        "end_time": endTimeController.text,
-                        "days": selectedDays.join(','),
-                        "total_stops": int.tryParse(totalStopsController.text) ?? 10,
-                        "distance": double.tryParse(distanceController.text) ?? 15.0,
-                        "estimated_duration": durationController.text.isNotEmpty ? durationController.text : '45 mins',
-                        "created_by": existing?['created_by'] ?? 'Transport Manager',
-                        "notes": notesController.text.isNotEmpty ? notesController.text : null,
-                      };
-                      try {
-                        final messenger = ScaffoldMessenger.of(context);
-                        if (isEdit) {
-                          await ApiService().put('/transport/drivers/assignments/${existing['id']}', data);
-                        } else {
-                          await ApiService().post('/transport/drivers/assignments', data);
-                        }
-                        Navigator.pop(ctx);
-                        _loadData();
-                        messenger.showSnackBar(
-                          SnackBar(content: Text(isEdit ? 'Assignment updated successfully' : 'Assignment created successfully'), backgroundColor: _green),
-                        );
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Failed to save assignment: $e'), backgroundColor: _red),
-                        );
-                      }
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),
-                  child: Text(isEdit ? 'Save Changes' : 'Create Assignment'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _deleteAssignment(dynamic assign) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Delete Assignment', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: const Text('Are you sure you want to end and delete this driver assignment? This action cannot be undone.'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  await ApiService().delete('/transport/drivers/assignments/${assign['id']}');
-                  Navigator.pop(ctx);
-                  setState(() => _selectedAssignment = null);
-                  _loadData();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Assignment deleted successfully'), backgroundColor: _green),
-                  );
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to delete assignment: $e'), backgroundColor: _red),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _showAllDocumentsModal({String? filterDriverId}) {
