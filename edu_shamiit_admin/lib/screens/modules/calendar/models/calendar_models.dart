@@ -152,6 +152,7 @@ class ScheduleModel {
   final List<ScheduleResourceBookingModel> resources;
   final List<ScheduleReminderModel> reminders;
   final List<ScheduleCommentModel> comments;
+  final String? cancellationReason;
 
   ScheduleModel({
     required this.id,
@@ -190,6 +191,7 @@ class ScheduleModel {
     this.resources = const [],
     this.reminders = const [],
     this.comments = const [],
+    this.cancellationReason,
   });
 
   factory ScheduleModel.fromJson(Map<String, dynamic> json) {
@@ -291,6 +293,7 @@ class ScheduleModel {
       resources: resList,
       reminders: remList,
       comments: commList,
+      cancellationReason: json['cancellation_reason']?.toString(),
     );
   }
 
@@ -430,6 +433,8 @@ class ScheduleParticipantModel {
   final String? userId;
   final String? fullName;
   final String? role;
+  final String? targetRole;
+  final String? targetClass;
   final String? email;
   final String? avatarUrl;
   final String participantType; // individual, role, department, class_section
@@ -443,6 +448,8 @@ class ScheduleParticipantModel {
     this.userId,
     this.fullName,
     this.role,
+    this.targetRole,
+    this.targetClass,
     this.email,
     this.avatarUrl,
     this.participantType = 'individual',
@@ -457,7 +464,9 @@ class ScheduleParticipantModel {
       id: json['id']?.toString() ?? '',
       userId: json['user_id']?.toString(),
       fullName: json['full_name']?.toString() ?? json['name']?.toString(),
-      role: json['role']?.toString() ?? json['target_role']?.toString(),
+      role: json['role']?.toString(),
+      targetRole: json['target_role']?.toString(),
+      targetClass: json['target_class']?.toString(),
       email: json['email']?.toString(),
       avatarUrl: json['avatar_url']?.toString(),
       participantType: json['participant_type']?.toString() ?? 'individual',

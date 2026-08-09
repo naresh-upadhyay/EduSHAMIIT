@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:edu_shamiit_core/providers/auth_provider.dart';
 import '../models/calendar_models.dart';
 import '../providers/calendar_provider.dart';
 
@@ -206,32 +207,85 @@ class CalendarRightPanelWidget extends ConsumerWidget {
       BuildContext context, WidgetRef ref, CalendarState state, CalendarNotifier notifier) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Compute dynamic count from state.schedules
-    final Map<String, int> counts = {};
-    for (final s in state.schedules) {
-      final key = s.category.isNotEmpty ? s.category : s.scheduleType;
-      counts[key] = (counts[key] ?? 0) + 1;
+    // Filter complete schedule dataset dynamically matched with active CALENDAR VIEW MODE (Day, 3-Day, Week, Month, Year)
+    final dataset = state.rawSchedules.isNotEmpty ? state.rawSchedules : state.schedules;
+    DateTime periodStart;
+    DateTime periodEnd;
+    String periodLabel;
+
+    switch (state.viewMode) {
+      case CalendarViewMode.day:
+        periodStart = DateTime(state.selectedDate.year, state.selectedDate.month, state.selectedDate.day, 0, 0, 0);
+        periodEnd = DateTime(state.selectedDate.year, state.selectedDate.month, state.selectedDate.day, 23, 59, 59);
+        periodLabel = 'This Day';
+        break;
+      case CalendarViewMode.threeDay:
+        periodStart = DateTime(state.selectedDate.year, state.selectedDate.month, state.selectedDate.day, 0, 0, 0);
+        periodEnd = periodStart.add(const Duration(days: 3, microseconds: -1));
+        periodLabel = '3 Days';
+        break;
+      case CalendarViewMode.week:
+      case CalendarViewMode.timeline:
+      case CalendarViewMode.agenda:
+        final monday = state.selectedDate.subtract(Duration(days: state.selectedDate.weekday - 1));
+        periodStart = DateTime(monday.year, monday.month, monday.day, 0, 0, 0);
+        periodEnd = periodStart.add(const Duration(days: 7, microseconds: -1));
+        periodLabel = 'This Week';
+        break;
+      case CalendarViewMode.month:
+        periodStart = DateTime(state.selectedDate.year, state.selectedDate.month, 1, 0, 0, 0);
+        periodEnd = DateTime(state.selectedDate.year, state.selectedDate.month + 1, 0, 23, 59, 59);
+        periodLabel = 'This Month';
+        break;
+      case CalendarViewMode.year:
+        periodStart = DateTime(state.selectedDate.year, 1, 1, 0, 0, 0);
+        periodEnd = DateTime(state.selectedDate.year, 12, 31, 23, 59, 59);
+        periodLabel = 'This Year';
+        break;
     }
 
-    final categories = state.scheduleCategories.isNotEmpty
-        ? state.scheduleCategories.take(6).map((cat) {
-            final name = cat['name']?.toString() ?? '';
-            final label = cat['label']?.toString() ?? name;
-            final hex = cat['color']?.toString() ?? '#4F46E5';
-            final count = counts[name] ?? (name == 'Meeting' ? 8 : (name == 'Task' ? 5 : (name == 'Event' ? 3 : (name == 'Reminder' ? 4 : 2))));
-            return {
-              'name': name,
-              'label': label,
-              'count': count,
-              'color': _parseHexColor(hex),
-            };
-          }).toList()
-        : [
-            {'name': 'Meeting', 'label': 'Meetings', 'count': counts['Meeting'] ?? 8, 'color': const Color(0xFF8B5CF6)},
-            {'name': 'Task', 'label': 'Tasks', 'count': counts['Task'] ?? 5, 'color': const Color(0xFF10B981)},
-            {'name': 'Event', 'label': 'Events', 'count': counts['Event'] ?? 3, 'color': const Color(0xFFEF4444)},
-            {'name': 'Reminder', 'label': 'Reminders', 'count': counts['Reminder'] ?? 4, 'color': const Color(0xFF3B82F6)},
-          ];
+    final activePeriodSchedules = dataset.where((s) {
+      return s.startTime.isBefore(periodEnd) && s.endTime.isAfter(periodStart);
+    }).toList();
+
+    // Build category lookup map from DB
+    final Map<String, Map<String, dynamic>> dbCategoryLookup = {};
+    for (final cat in state.scheduleCategories) {
+      final name = cat['name']?.toString() ?? '';
+      if (name.isNotEmpty) {
+        dbCategoryLookup[name.toLowerCase()] = cat;
+      }
+    }
+
+    // Compute REAL dynamic counts for active view period from complete dataset
+    final Map<String, int> counts = {};
+    for (final s in activePeriodSchedules) {
+      final key = (s.scheduleType.isNotEmpty && s.scheduleType.toLowerCase() != 'general')
+          ? s.scheduleType
+          : (s.category.isNotEmpty ? s.category : s.scheduleType);
+      if (key.isNotEmpty) {
+        counts[key] = (counts[key] ?? 0) + 1;
+      }
+    }
+
+    // Build categories list ONLY for categories that have count > 0
+    final List<Map<String, dynamic>> activeCategories = [];
+    counts.forEach((catName, count) {
+      if (count > 0) {
+        final dbCat = dbCategoryLookup[catName.toLowerCase()];
+        final label = dbCat?['label']?.toString() ?? catName;
+        final hex = dbCat?['color']?.toString();
+        activeCategories.add({
+          'name': catName,
+          'label': label,
+          'count': count,
+          'color': _getCategoryColor(catName, hex),
+        });
+      }
+    });
+
+    // Sort categories by count descending
+    activeCategories.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -239,13 +293,33 @@ class CalendarRightPanelWidget extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'My Schedule',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-              ),
+            Row(
+              children: [
+                Text(
+                  'My Schedule',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    periodLabel,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+              ],
             ),
             InkWell(
               onTap: () {
@@ -264,59 +338,91 @@ class CalendarRightPanelWidget extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 14),
-        ...categories.map((cat) {
-          final isSelected = state.selectedCategory == cat['name'];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  final newCat = isSelected ? 'All' : (cat['name'] as String);
-                  notifier.setCategoryFilter(newCat);
-                },
-                borderRadius: BorderRadius.circular(8),
-                hoverColor: (cat['color'] as Color).withValues(alpha: 0.12),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 9,
-                        height: 9,
-                        decoration: BoxDecoration(
-                          color: cat['color'] as Color,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          cat['label'] as String,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                            color: isSelected
-                                ? (isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5))
-                                : (isDark ? const Color(0xFFF1F5F9) : const Color(0xFF475569)),
+
+        if (activeCategories.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.calendar_today_outlined,
+                  size: 18,
+                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'No schedules for $periodLabel',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          ...activeCategories.map((cat) {
+            final isSelected = state.selectedCategory == cat['name'];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    final newCat = isSelected ? 'All' : (cat['name'] as String);
+                    notifier.setCategoryFilter(newCat);
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  hoverColor: (cat['color'] as Color).withValues(alpha: 0.12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 9,
+                          height: 9,
+                          decoration: BoxDecoration(
+                            color: cat['color'] as Color,
+                            shape: BoxShape.circle,
                           ),
                         ),
-                      ),
-                      Text(
-                        '${cat['count']}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            cat['label'] as String,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                              color: isSelected
+                                  ? (isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5))
+                                  : (isDark ? const Color(0xFFF1F5F9) : const Color(0xFF475569)),
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                        Text(
+                          '${cat['count']}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
       ],
     );
   }
@@ -327,63 +433,19 @@ class CalendarRightPanelWidget extends ConsumerWidget {
   Widget _buildAssignedToMeSection(
       BuildContext context, WidgetRef ref, CalendarState state, CalendarNotifier notifier) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currentUser = ref.watch(authProvider).userData;
+    final currentUserId = currentUser?['id']?.toString();
 
-    // Filter assigned items from state.schedules
-    final assignedSchedules = state.schedules.where((s) {
-      return s.participants.isNotEmpty ||
-          s.scheduleType == 'Task' ||
-          s.category == 'Tasks' ||
-          s.scheduleType == 'Class';
+    // Filter REAL assigned items from complete dataset
+    final dataset = state.rawSchedules.isNotEmpty ? state.rawSchedules : state.schedules;
+    final assignedSchedules = dataset.where((s) {
+      if (currentUserId != null && currentUserId.isNotEmpty) {
+        final isParticipant = s.participants.any((p) => p.userId == currentUserId);
+        final isOrganizer = s.organizerId == currentUserId || s.createdBy == currentUserId;
+        return isParticipant || isOrganizer;
+      }
+      return s.participants.isNotEmpty;
     }).toList();
-
-    final displayItems = assignedSchedules.isNotEmpty
-        ? assignedSchedules
-        : [
-            ScheduleModel(
-              id: 'assigned-1',
-              schoolId: '',
-              calendarId: '',
-              title: 'Review Project Proposal',
-              scheduleType: 'Task',
-              startTime: DateTime.now().add(const Duration(hours: 4)),
-              endTime: DateTime.now().add(const Duration(hours: 5)),
-              organizerName: 'Neha Sharma',
-              color: const Color(0xFF4F46E5),
-            ),
-            ScheduleModel(
-              id: 'assigned-2',
-              schoolId: '',
-              calendarId: '',
-              title: 'Approve Leave Request',
-              scheduleType: 'Task',
-              startTime: DateTime.now().add(const Duration(days: 1, hours: 2)),
-              endTime: DateTime.now().add(const Duration(days: 1, hours: 3)),
-              organizerName: 'Vikram Singh',
-              color: const Color(0xFF10B981),
-            ),
-            ScheduleModel(
-              id: 'assigned-3',
-              schoolId: '',
-              calendarId: '',
-              title: 'Training Feedback',
-              scheduleType: 'Training',
-              startTime: DateTime.now().add(const Duration(days: 2)),
-              endTime: DateTime.now().add(const Duration(days: 2, hours: 1)),
-              organizerName: 'HR Department',
-              color: const Color(0xFFF59E0B),
-            ),
-            ScheduleModel(
-              id: 'assigned-4',
-              schoolId: '',
-              calendarId: '',
-              title: 'Monthly Report Review',
-              scheduleType: 'Finance',
-              startTime: DateTime.now().add(const Duration(days: 3)),
-              endTime: DateTime.now().add(const Duration(days: 3, hours: 1)),
-              organizerName: 'Finance Team',
-              color: const Color(0xFF06B6D4),
-            ),
-          ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -405,7 +467,7 @@ class CalendarRightPanelWidget extends ConsumerWidget {
               },
               borderRadius: BorderRadius.circular(4),
               child: Text(
-                'View All (${displayItems.length})',
+                'View All (${assignedSchedules.length})',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -416,77 +478,109 @@ class CalendarRightPanelWidget extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 14),
-        ...displayItems.take(4).map((item) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => onSelectSchedule(item),
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                    ),
+
+        if (assignedSchedules.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.assignment_outlined,
+                  size: 26,
+                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'No schedules assigned to you',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                   ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        margin: const EdgeInsets.only(top: 4),
-                        decoration: BoxDecoration(
-                          color: item.color,
-                          shape: BoxShape.circle,
-                        ),
+                ),
+              ],
+            ),
+          )
+        else
+          ...assignedSchedules.take(4).map((item) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => onSelectSchedule(item),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.title,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                height: 1.2,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'By ${item.organizerName ?? "Administrator"}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Due ${DateFormat('E, hh:mm a').format(item.startTime)}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF94A3B8),
-                              ),
-                            ),
-                          ],
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          margin: const EdgeInsets.only(top: 4),
+                          decoration: BoxDecoration(
+                            color: item.color,
+                            shape: BoxShape.circle,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.title,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  height: 1.2,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'By ${item.organizerName ?? "Administrator"}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Due ${DateFormat('E, hh:mm a').format(item.startTime)}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF94A3B8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
       ],
     );
   }
@@ -498,40 +592,13 @@ class CalendarRightPanelWidget extends ConsumerWidget {
       BuildContext context, WidgetRef ref, CalendarState state, CalendarNotifier notifier) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final reminderSchedules = state.schedules.where((s) {
-      return s.scheduleType == 'Reminder' || s.category == 'Reminders';
+    // Filter REAL schedules with reminders or type Reminder from complete dataset
+    final dataset = state.rawSchedules.isNotEmpty ? state.rawSchedules : state.schedules;
+    final reminderSchedules = dataset.where((s) {
+      return s.reminders.isNotEmpty ||
+          s.scheduleType.toLowerCase() == 'reminder' ||
+          s.category.toLowerCase() == 'reminders';
     }).toList();
-
-    final reminders = reminderSchedules.isNotEmpty
-        ? reminderSchedules.take(3).map((s) {
-            return {
-              'schedule': s,
-              'title': s.title,
-              'time': DateFormat('E, hh:mm a').format(s.startTime),
-              'icon': Icons.notifications_active_outlined,
-              'color': s.color,
-            };
-          }).toList()
-        : [
-            {
-              'title': 'Team Standup',
-              'time': 'Tomorrow, 09:00 AM',
-              'icon': Icons.notifications_active_outlined,
-              'color': const Color(0xFF10B981),
-            },
-            {
-              'title': 'Submit Timesheet',
-              'time': '30 May, 06:00 PM',
-              'icon': Icons.alarm_rounded,
-              'color': const Color(0xFF8B5CF6),
-            },
-            {
-              'title': 'System Maintenance',
-              'time': '01 Jun, 02:00 AM',
-              'icon': Icons.build_circle_outlined,
-              'color': const Color(0xFFF59E0B),
-            },
-          ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -553,7 +620,7 @@ class CalendarRightPanelWidget extends ConsumerWidget {
               },
               borderRadius: BorderRadius.circular(4),
               child: Text(
-                'View All',
+                'View All (${reminderSchedules.length})',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -564,71 +631,101 @@ class CalendarRightPanelWidget extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 14),
-        ...reminders.map((rem) {
-          final color = rem['color'] as Color;
 
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  if (rem['schedule'] is ScheduleModel) {
-                    onSelectSchedule(rem['schedule'] as ScheduleModel);
-                  }
-                },
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                    ),
+        if (reminderSchedules.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.notifications_none_rounded,
+                  size: 26,
+                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'No upcoming reminders',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                   ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: isDark ? 0.22 : 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(rem['icon'] as IconData, size: 18, color: isDark ? Color.lerp(color, Colors.white, 0.3)! : color),
+                ),
+              ],
+            ),
+          )
+        else
+          ...reminderSchedules.take(4).map((s) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => onSelectSchedule(s),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              rem['title'] as String,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              rem['time'] as String,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                              ),
-                            ),
-                          ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: s.color.withValues(alpha: isDark ? 0.22 : 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.notifications_active_outlined,
+                            size: 18,
+                            color: isDark ? Color.lerp(s.color, Colors.white, 0.3)! : s.color,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                s.title,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                DateFormat('E, hh:mm a').format(s.startTime),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
       ],
     );
   }
@@ -641,5 +738,40 @@ class CalendarRightPanelWidget extends ConsumerWidget {
       }
     } catch (_) {}
     return const Color(0xFF4F46E5);
+  }
+
+  Color _getCategoryColor(String name, String? hex) {
+    if (hex != null && hex.isNotEmpty) {
+      return _parseHexColor(hex);
+    }
+    switch (name.toLowerCase()) {
+      case 'meeting':
+      case 'meetings':
+        return const Color(0xFF8B5CF6);
+      case 'class':
+      case 'classes':
+        return const Color(0xFF10B981);
+      case 'exam':
+      case 'exams':
+        return const Color(0xFFEF4444);
+      case 'event':
+      case 'events':
+      case 'school events':
+        return const Color(0xFFF43F5E);
+      case 'task':
+      case 'tasks':
+        return const Color(0xFFF59E0B);
+      case 'reminder':
+      case 'reminders':
+        return const Color(0xFF3B82F6);
+      case 'training':
+      case 'trainings':
+        return const Color(0xFF06B6D4);
+      case 'holiday':
+      case 'public holidays':
+        return const Color(0xFFEC4899);
+      default:
+        return const Color(0xFF4F46E5);
+    }
   }
 }

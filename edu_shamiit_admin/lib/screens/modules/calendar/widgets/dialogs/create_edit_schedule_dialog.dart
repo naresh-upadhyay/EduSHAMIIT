@@ -1,7 +1,5 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
 import '../../models/calendar_models.dart';
@@ -52,8 +50,212 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
   final String _selectedCategory = 'General';
   late Color _selectedColor;
   late String _selectedPriority;
-  final String _selectedVisibility = 'shared';
+  String _selectedVisibility = 'shared';
   late String _virtualProvider;
+
+  List<Map<String, dynamic>> _dbRoles = [];
+  List<Map<String, dynamic>> _dbClasses = [];
+  bool _isLoadingRoles = false;
+  bool _isLoadingClasses = false;
+
+  Future<void> _fetchAssignableRoles() async {
+    try {
+      setState(() => _isLoadingRoles = true);
+      final res = await ApiService().get('/calendar/assignable-roles', useCache: false);
+      if (res['success'] == true && res['data'] is List) {
+        final List<Map<String, dynamic>> parsedRoles = [];
+        for (final item in (res['data'] as List)) {
+          if (item is Map) {
+            parsedRoles.add(Map<String, dynamic>.from(item));
+          } else if (item != null) {
+            final str = item.toString().trim();
+            if (str.isNotEmpty) parsedRoles.add({'name': str});
+          }
+        }
+        if (parsedRoles.isNotEmpty && mounted) {
+          setState(() {
+            _dbRoles = parsedRoles;
+            _isLoadingRoles = false;
+          });
+          return;
+        }
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() {
+        _dbRoles = [
+          {'name': 'teacher'},
+          {'name': 'driver'},
+          {'name': 'student'},
+          {'name': 'parent'},
+          {'name': 'admin'},
+          {'name': 'staff'},
+          {'name': 'hr'},
+          {'name': 'finance'},
+          {'name': 'transport'},
+          {'name': 'principal'},
+          {'name': 'director'},
+          {'name': 'support'}
+        ];
+        _isLoadingRoles = false;
+      });
+    }
+  }
+
+  Future<void> _fetchAssignableClasses() async {
+    try {
+      setState(() => _isLoadingClasses = true);
+      final res = await ApiService().get('/calendar/assignable-classes', useCache: false);
+      if (res['success'] == true && res['data'] is List) {
+        final List<Map<String, dynamic>> parsedClasses = [];
+        for (final item in (res['data'] as List)) {
+          if (item is Map) {
+            parsedClasses.add(Map<String, dynamic>.from(item));
+          } else if (item != null) {
+            final str = item.toString().trim();
+            if (str.isNotEmpty) parsedClasses.add({'name': str});
+          }
+        }
+        if (parsedClasses.isNotEmpty && mounted) {
+          setState(() {
+            _dbClasses = parsedClasses;
+            _isLoadingClasses = false;
+            if (_isRoleSelected('student')) {
+              _toggleStudentRole(true);
+            }
+          });
+          return;
+        }
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() {
+        _dbClasses = [
+          {'name': '10A'},
+          {'name': 'IX-A'},
+          {'name': 'X-A'},
+          {'name': 'X-B'},
+          {'name': 'Class 1-A'},
+          {'name': 'Class 2-A'},
+          {'name': 'Class 9-A'},
+          {'name': 'Grade 11-Sci'},
+          {'name': 'Grade 12-Sci'}
+        ];
+        _isLoadingClasses = false;
+        if (_isRoleSelected('student')) {
+          _toggleStudentRole(true);
+        }
+      });
+    }
+  }
+
+  bool _isRoleSelected(String roleName) {
+    final target = roleName.trim().toLowerCase();
+    return _assignedPeople.any((p) {
+      final isRoleBroadcast = p['user_id'] == null;
+      if (!isRoleBroadcast) return false;
+      final r = (p['target_role'] ?? p['role'] ?? '').toString().trim().toLowerCase();
+      final n = (p['name'] ?? '').toString().trim().toLowerCase();
+      final targetPlural = '${target}s';
+      final allTargetPlural = 'all ${target}s';
+      return r == target || n == target || n == targetPlural || n == allTargetPlural || n == 'all $target' || (target == 'student' && n.contains('student'));
+    });
+  }
+
+  void _toggleRoleGroup(String roleName, bool enable) {
+    final target = roleName.trim().toLowerCase();
+    if (enable) {
+      if (target == 'student') {
+        _toggleStudentRole(true);
+      } else {
+        if (!_isRoleSelected(target)) {
+          _assignedPeople.add({
+            'user_id': null,
+            'name': 'All ${roleName[0].toUpperCase()}${roleName.substring(1)}s',
+            'role': target,
+            'target_role': target,
+            'participation_role': 'required',
+            'permission': 'can_view',
+          });
+        }
+      }
+    } else {
+      if (target == 'student') {
+        _toggleStudentRole(false);
+      } else {
+        _assignedPeople.removeWhere((p) {
+          if (p['user_id'] != null) return false;
+          final r = (p['target_role'] ?? p['role'] ?? '').toString().trim().toLowerCase();
+          final n = (p['name'] ?? '').toString().trim().toLowerCase();
+          final targetPlural = '${target}s';
+          final allTargetPlural = 'all ${target}s';
+          return r == target || n == target || n == targetPlural || n == allTargetPlural || n == 'all $target';
+        });
+      }
+    }
+  }
+
+  bool _isClassSelected(String className) {
+    final target = className.trim().toLowerCase();
+    return _assignedPeople.any((p) {
+      final isClassBroadcast = p['user_id'] == null;
+      if (!isClassBroadcast) return false;
+      final n = (p['name'] ?? p['target_class'] ?? '').toString().trim().toLowerCase();
+      return n == target;
+    });
+  }
+
+  void _toggleStudentRole(bool enable) {
+    if (enable) {
+      // Remove any individual class group items from _assignedPeople so roster stays clean
+      _assignedPeople.removeWhere((p) => (p['role'] ?? '') == 'Class Group' || _dbClasses.any((c) => (c['name'] ?? '').toString().trim().toLowerCase() == (p['name'] ?? '').toString().trim().toLowerCase()));
+      // Add "All Students" role item if not present
+      if (!_isRoleSelected('student')) {
+        _assignedPeople.add({
+          'user_id': null,
+          'name': 'All Students',
+          'role': 'student',
+          'participation_role': 'required',
+          'permission': 'can_view',
+        });
+      }
+    } else {
+      // Unselect "All Students" role item
+      _assignedPeople.removeWhere((p) {
+        final r = (p['role'] ?? '').toString().trim().toLowerCase();
+        final n = (p['name'] ?? '').toString().trim().toLowerCase();
+        return r == 'student' || n.contains('student');
+      });
+    }
+  }
+
+  void _toggleClassGroup(String className, bool enable) {
+    final target = className.trim();
+    if (enable) {
+      if (!_isClassSelected(target)) {
+        _assignedPeople.add({
+          'user_id': null,
+          'name': target,
+          'role': 'Class Group',
+          'participation_role': 'required',
+          'permission': 'can_view',
+        });
+      }
+      final allClassesSelected = _dbClasses.isNotEmpty && _dbClasses.every((c) => _isClassSelected((c['name'] ?? '').toString()));
+      if (allClassesSelected) {
+        _toggleStudentRole(true);
+      }
+    } else {
+      _assignedPeople.removeWhere((p) => (p['name'] ?? '').toString().trim().toLowerCase() == target.toLowerCase());
+      _assignedPeople.removeWhere((p) {
+        final r = (p['role'] ?? '').toString().trim().toLowerCase();
+        final n = (p['name'] ?? '').toString().trim().toLowerCase();
+        return r == 'student' || n.contains('student');
+      });
+    }
+  }
 
   late DateTime _startDate;
   late TimeOfDay _startTime;
@@ -115,84 +317,19 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
     }
   }
 
-  // Dynamic Recent Participants (Max 5, populated strictly from past selected choices)
-  List<Map<String, dynamic>> _recentParticipants = [];
-
-
-  Future<void> _loadRecentParticipants() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final jsonStr = prefs.getString('recent_calendar_participants');
-      if (jsonStr != null && jsonStr.isNotEmpty) {
-        final List<dynamic> decoded = jsonDecode(jsonStr);
-        if (mounted) {
-          setState(() {
-            _recentParticipants = decoded.whereType<Map<String, dynamic>>().take(5).toList();
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('[CreateEditScheduleDialog] error loading recent participants: $e');
-    }
-  }
-
-  Future<void> _saveRecentParticipants(List<Map<String, dynamic>> assigned) async {
-    try {
-      if (assigned.isEmpty) return;
-      final prefs = await SharedPreferences.getInstance();
-      final jsonStr = prefs.getString('recent_calendar_participants');
-      List<Map<String, dynamic>> existing = [];
-      if (jsonStr != null && jsonStr.isNotEmpty) {
-        final List<dynamic> decoded = jsonDecode(jsonStr);
-        existing = decoded.whereType<Map<String, dynamic>>().toList();
-      }
-
-      final Map<String, Map<String, dynamic>> map = {};
-      // Prioritize currently assigned choices
-      for (final item in assigned) {
-        final String name = (item['name'] ?? '').toString();
-        if (name.isNotEmpty) {
-          map[name] = {
-            'user_id': item['user_id'],
-            'name': name,
-            'role': item['role'] ?? 'Member',
-          };
-        }
-      }
-      // Preserve prior choices up to 5 total
-      for (final item in existing) {
-        final String name = (item['name'] ?? '').toString();
-        if (name.isNotEmpty && !map.containsKey(name)) {
-          map[name] = {
-            'user_id': item['user_id'],
-            'name': name,
-            'role': item['role'] ?? 'Member',
-          };
-        }
-      }
-
-      final updated = map.values.take(5).toList();
-      await prefs.setString('recent_calendar_participants', jsonEncode(updated));
-      if (mounted) {
-        setState(() {
-          _recentParticipants = updated;
-        });
-      }
-    } catch (e) {
-      debugPrint('[CreateEditScheduleDialog] error saving recent participants: $e');
-    }
-  }
-
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 6, vsync: this);
     _fetchCategories();
     _fetchRealProfiles('');
-    _loadRecentParticipants();
-
+    _fetchAssignableRoles();
+    _fetchAssignableClasses();
 
     final init = widget.initialSchedule;
+    if (init != null) {
+      _selectedVisibility = init.visibility;
+    }
     final now = widget.defaultDateTime ?? DateTime.now();
     final defaultHour = widget.defaultHour ?? 10;
 
@@ -233,10 +370,28 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
         _recurrenceFreq = 'none';
       }
       for (final p in init.participants) {
+        final targetRole = (p.targetRole ?? p.role ?? '').trim();
+        final targetClass = (p.targetClass ?? '').trim();
+        final isIndividual = p.userId != null && p.userId!.isNotEmpty;
+        
+        String pName = (p.fullName != null && p.fullName!.isNotEmpty) ? p.fullName! : '';
+        if (pName.isEmpty) {
+          if (targetRole.isNotEmpty) {
+            pName = 'All ${targetRole[0].toUpperCase()}${targetRole.substring(1)}s';
+          } else if (targetClass.isNotEmpty) {
+            pName = targetClass;
+          } else {
+            pName = 'User';
+          }
+        }
+
         _assignedPeople.add({
           'user_id': p.userId,
-          'name': p.fullName ?? 'User',
-          'role': p.role ?? 'Teacher',
+          'name': pName,
+          'role': isIndividual ? (p.role ?? targetRole) : targetRole,
+          'email': p.email,
+          'target_role': targetRole,
+          'target_class': targetClass,
           'participation_role': p.participationRole,
           'permission': p.permission,
         });
@@ -349,12 +504,27 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
       'virtual_meeting_provider': _virtualUrlController.text.trim().isNotEmpty ? _virtualProvider : null,
       'visibility': _selectedVisibility,
       'is_recurring': _recurrenceFreq != 'none',
-      'participants': _assignedPeople.map((p) => {
-        'user_id': p['user_id'],
-        'target_role': p['role'],
-        'participant_type': 'individual',
-        'participation_role': p['participation_role'] ?? 'required',
-        'permission': p['permission'] ?? 'can_view',
+      'participants': _assignedPeople.map((p) {
+        final userId = p['user_id']?.toString();
+        final role = p['role']?.toString();
+        final isClassGroup = role == 'Class Group';
+        final isRoleGroup = userId == null || userId.isEmpty;
+
+        String participantType = 'individual';
+        if (isClassGroup) {
+          participantType = 'class_section';
+        } else if (isRoleGroup) {
+          participantType = 'role';
+        }
+
+        return {
+          'user_id': (userId != null && userId.isNotEmpty) ? userId : null,
+          'target_role': (isRoleGroup && !isClassGroup) ? role : null,
+          'target_class': isClassGroup ? p['name'] : null,
+          'participant_type': participantType,
+          'participation_role': p['participation_role'] ?? 'required',
+          'permission': p['permission'] ?? 'can_view',
+        };
       }).toList(),
       'resources': _selectedResourceIds.map((rid) => {
         'resource_id': rid,
@@ -389,8 +559,6 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
       payload['recurrence'] = null;
     }
 
-    _saveRecentParticipants(_assignedPeople);
-
     final isRecurringEdit = widget.initialSchedule != null &&
         (widget.initialSchedule!.isRecurring ||
             widget.initialSchedule!.recurrenceRule != null ||
@@ -423,86 +591,248 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
   @override
   Widget build(BuildContext context) {
     final isDesktop = Responsive.isDesktop(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      backgroundColor: Colors.transparent,
       child: Container(
         width: isDesktop ? 780 : double.infinity,
         height: isDesktop ? 680 : 700,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
           borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.5 : 0.15),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: Column(
           children: [
-            // Modal Top Header
+            // Ultra-Premium Modal Top Header
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               ),
               child: Row(
                 children: [
+                  // Gradient Icon Badge
                   Container(
-                    width: 36,
-                    height: 36,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
-                      color: _selectedColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
+                      gradient: LinearGradient(
+                        colors: [
+                          _selectedColor,
+                          _selectedColor.withValues(alpha: 0.8),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _selectedColor.withValues(alpha: 0.35),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
-                    child: Icon(Icons.event_note_rounded, color: _selectedColor, size: 20),
+                    child: Icon(
+                      widget.initialSchedule != null ? Icons.edit_calendar_rounded : Icons.add_task_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          widget.initialSchedule != null ? 'Edit Schedule' : 'Add Schedule',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              widget.initialSchedule != null ? 'Edit Schedule' : 'Create New Schedule',
+                              style: TextStyle(
+                                fontSize: 19,
+                                fontWeight: FontWeight.w800,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: _selectedColor.withValues(alpha: isDark ? 0.25 : 0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: _selectedColor.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: BoxDecoration(color: _selectedColor, shape: BoxShape.circle),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _selectedType,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark ? Colors.white : _selectedColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        const Text(
-                          'Configure schedule details, participants, resources, and recurrence',
-                          style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Configure schedule timeline, location, participants, resources, and reminders',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(Icons.close_rounded, size: 18, color: isDark ? Colors.white : const Color(0xFF64748B)),
+                      tooltip: 'Close',
+                    ),
                   ),
                 ],
               ),
             ),
 
-            // Tab Bar
+            // Ultra-Premium Segmented Tab Bar
             Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFFF8FAFC),
-                border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
               ),
               child: TabBar(
                 controller: _tabController,
                 isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                labelPadding: const EdgeInsets.symmetric(horizontal: 3),
+                splashBorderRadius: BorderRadius.circular(10),
+                indicatorSize: TabBarIndicatorSize.tab,
+                indicatorPadding: const EdgeInsets.symmetric(vertical: 2),
+                indicator: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: const Color(0xFF4F46E5).withValues(alpha: 0.5),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF4F46E5).withValues(alpha: isDark ? 0.25 : 0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
                 labelColor: const Color(0xFF4F46E5),
-                unselectedLabelColor: const Color(0xFF64748B),
-                labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
-                unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                indicatorColor: const Color(0xFF4F46E5),
-                indicatorWeight: 3,
+                unselectedLabelColor: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
+                labelStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+                unselectedLabelStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                dividerColor: Colors.transparent,
                 tabs: const [
-                  Tab(text: 'Basic Info'),
-                  Tab(text: 'Date & Time'),
-                  Tab(text: 'Recurrence'),
-                  Tab(text: 'Location & Virtual'),
-                  Tab(text: 'Assign People'),
-                  Tab(text: 'Resources & Reminders'),
+                  Tab(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.info_outline_rounded, size: 16),
+                          SizedBox(width: 6),
+                          Text('Basic Info'),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Tab(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: Row(
+                        children: [
+                          Icon(Icons.access_time_rounded, size: 16),
+                          SizedBox(width: 6),
+                          Text('Date & Time'),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Tab(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: Row(
+                        children: [
+                          Icon(Icons.repeat_rounded, size: 16),
+                          SizedBox(width: 6),
+                          Text('Recurrence'),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Tab(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: Row(
+                        children: [
+                          Icon(Icons.location_on_outlined, size: 16),
+                          SizedBox(width: 6),
+                          Text('Location & Virtual'),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Tab(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: Row(
+                        children: [
+                          Icon(Icons.people_outline_rounded, size: 16),
+                          SizedBox(width: 6),
+                          Text('Assign People'),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Tab(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: Row(
+                        children: [
+                          Icon(Icons.notifications_active_outlined, size: 16),
+                          SizedBox(width: 6),
+                          Text('Resources & Reminders'),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -525,9 +855,10 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
             // Modal Footer Actions
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              decoration: const BoxDecoration(
-                color: Color(0xFFF8FAFC),
-                border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                border: Border(top: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
               ),
               child: Row(
                 children: [
@@ -535,10 +866,17 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                     onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                     ),
-                    child: const Text('Cancel', style: TextStyle(color: Color(0xFF475569), fontWeight: FontWeight.w700)),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                   const Spacer(),
                   ElevatedButton(
@@ -548,7 +886,8 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      elevation: 2,
+                      elevation: 3,
+                      shadowColor: const Color(0xFF4F46E5).withValues(alpha: 0.4),
                     ),
                     child: Text(
                       widget.initialSchedule != null ? 'Update Schedule' : 'Create Schedule',
@@ -587,44 +926,64 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
         Row(
           children: [
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Schedule Type *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedType,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                    ),
-                    items: _dynamicCategories.isNotEmpty
-                        ? _dynamicCategories.map((cat) {
-                            final name = cat['name']?.toString() ?? 'Meeting';
-                            final label = cat['label']?.toString() ?? name;
-                            return DropdownMenuItem<String>(
-                              value: name,
-                              child: Text(label),
-                            );
-                          }).toList()
-                        : const [
-                            DropdownMenuItem(value: 'Meeting', child: Text('Meeting')),
-                            DropdownMenuItem(value: 'Class', child: Text('Class')),
-                            DropdownMenuItem(value: 'Exam', child: Text('Exam')),
-                            DropdownMenuItem(value: 'Task', child: Text('Task')),
-                            DropdownMenuItem(value: 'Reminder', child: Text('Reminder')),
-                            DropdownMenuItem(value: 'Training', child: Text('Training')),
-                            DropdownMenuItem(value: 'Trip', child: Text('Trip (Transport)')),
-                            DropdownMenuItem(value: 'School Event', child: Text('School Event')),
-                            DropdownMenuItem(value: 'Leave', child: Text('Leave')),
-                          ],
+              child: Builder(
+                builder: (context) {
+                  final List<Map<String, dynamic>> rawCatList = _dynamicCategories.isNotEmpty
+                      ? _dynamicCategories
+                      : [
+                          {'name': 'Meeting', 'label': 'Meeting'},
+                          {'name': 'Class', 'label': 'Class'},
+                          {'name': 'Exam', 'label': 'Exam'},
+                          {'name': 'Event', 'label': 'Event'},
+                          {'name': 'Task', 'label': 'Task'},
+                          {'name': 'Reminder', 'label': 'Reminder'},
+                          {'name': 'Training', 'label': 'Training'},
+                          {'name': 'Trip', 'label': 'Trip (Transport)'},
+                          {'name': 'School Event', 'label': 'School Event'},
+                          {'name': 'Leave', 'label': 'Leave'},
+                        ];
 
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedType = val);
-                    },
-                  ),
-                ],
+                  final Map<String, String> dropdownItemsMap = {};
+                  for (final c in rawCatList) {
+                    final name = c['name']?.toString() ?? '';
+                    final label = c['label']?.toString() ?? name;
+                    if (name.isNotEmpty) {
+                      dropdownItemsMap[name] = label;
+                    }
+                  }
+
+                  final currentVal = _selectedType.isNotEmpty ? _selectedType : 'Meeting';
+                  if (!dropdownItemsMap.containsKey(currentVal)) {
+                    dropdownItemsMap[currentVal] = currentVal;
+                  }
+
+                  final dropdownItems = dropdownItemsMap.entries.map((entry) {
+                    return DropdownMenuItem<String>(
+                      value: entry.key,
+                      child: Text(entry.value),
+                    );
+                  }).toList();
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Schedule Type *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        initialValue: currentVal,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                        ),
+                        items: dropdownItems,
+                        onChanged: (val) {
+                          if (val != null) setState(() => _selectedType = val);
+                        },
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
             const SizedBox(width: 16),
@@ -1309,8 +1668,23 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
     );
   }
 
-  // TAB 5: ASSIGN PEOPLE
+  // TAB 5: ASSIGN PEOPLE (PREMIUM CHECKBOX CARD GRID)
   Widget _buildAssignPeopleTab() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final rolesList = _dbRoles;
+    final classesList = _dbClasses;
+
+    final allRolesSelected = rolesList.isNotEmpty && rolesList.every((rObj) {
+      final roleName = (rObj['name'] ?? '').toString();
+      return _isRoleSelected(roleName);
+    });
+
+    final allClassesSelected = classesList.isNotEmpty && classesList.every((cObj) {
+      final className = (cObj['name'] ?? '').toString();
+      return _isClassSelected(className);
+    });
+
     final filteredUsers = _realUsers.where((u) {
       final query = _searchPeopleController.text.trim().toLowerCase();
       if (query.isEmpty) return true;
@@ -1321,45 +1695,447 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
     }).toList();
 
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       children: [
-        const Text('Share With / Assign Users', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-        const SizedBox(height: 4),
-        const Text('Search teachers, drivers, students, HR, or administrators to invite or assign to this schedule', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-        const SizedBox(height: 12),
+        // 1. MASTER INST-WIDE CHECKBOX CARD
+        InkWell(
+          onTap: () {
+            setState(() {
+              if (_selectedVisibility == 'institution_wide' && allRolesSelected) {
+                _selectedVisibility = 'shared';
+                _assignedPeople.clear();
+              } else {
+                _selectedVisibility = 'institution_wide';
+                for (final rObj in rolesList) {
+                  final roleName = (rObj['name'] ?? '').toString();
+                  if (roleName.isNotEmpty) {
+                    if (roleName.toLowerCase() == 'student') {
+                      _toggleStudentRole(true);
+                    } else if (!_isRoleSelected(roleName)) {
+                      _assignedPeople.add({
+                        'user_id': null,
+                        'name': 'All ${roleName.toUpperCase()}s',
+                        'role': roleName,
+                        'participation_role': 'required',
+                        'permission': 'can_view',
+                      });
+                    }
+                  }
+                }
+              }
+            });
+          },
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: _selectedVisibility == 'institution_wide'
+                  ? (isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5))
+                  : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: _selectedVisibility == 'institution_wide' ? const Color(0xFF10B981) : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                width: _selectedVisibility == 'institution_wide' ? 2 : 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Checkbox(
+                  value: _selectedVisibility == 'institution_wide' && allRolesSelected,
+                  activeColor: const Color(0xFF10B981),
+                  onChanged: (val) {
+                    setState(() {
+                      if (val == true) {
+                        _selectedVisibility = 'institution_wide';
+                        for (final rObj in rolesList) {
+                          final roleName = (rObj['name'] ?? '').toString();
+                          if (roleName.isNotEmpty) {
+                            if (roleName.toLowerCase() == 'student') {
+                              _toggleStudentRole(true);
+                            } else if (!_isRoleSelected(roleName)) {
+                              _assignedPeople.add({
+                                'user_id': null,
+                                'name': 'All ${roleName.toUpperCase()}s',
+                                'role': roleName,
+                                'participation_role': 'required',
+                                'permission': 'can_view',
+                              });
+                            }
+                          }
+                        }
+                      } else {
+                        _selectedVisibility = 'shared';
+                        _assignedPeople.clear();
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.public_rounded, size: 20, color: Color(0xFF10B981)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Select All (Institution-Wide Audience)',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          color: _selectedVisibility == 'institution_wide' ? const Color(0xFF10B981) : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                        ),
+                      ),
+                      const Text(
+                        'Globally opens this schedule to all students, teachers, parents, drivers, and staff across the school.',
+                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
 
-        // Search People Input with Real Autocomplete
+        const SizedBox(height: 16),
+        const Divider(height: 1, color: Color(0xFFE2E8F0)),
+        const SizedBox(height: 14),
+
+        // 2. TARGET SYSTEM ROLES CHECKBOX GRID
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.people_alt_rounded, size: 18, color: Color(0xFF4F46E5)),
+                const SizedBox(width: 8),
+                Text('Select Target Roles', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                if (_isLoadingRoles) ...[
+                  const SizedBox(width: 8),
+                  const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)),
+                ],
+              ],
+            ),
+            Row(
+              children: [
+                Checkbox(
+                  value: allRolesSelected,
+                  activeColor: const Color(0xFF4F46E5),
+                  onChanged: (val) {
+                    setState(() {
+                      if (val == true) {
+                        for (final rObj in rolesList) {
+                          final roleName = (rObj['name'] ?? '').toString();
+                          if (roleName.isNotEmpty) {
+                            if (roleName.toLowerCase() == 'student') {
+                              _toggleStudentRole(true);
+                            } else if (!_isRoleSelected(roleName)) {
+                              _assignedPeople.add({
+                                'user_id': null,
+                                'name': 'All ${roleName.toUpperCase()}s',
+                                'role': roleName,
+                                'participation_role': 'required',
+                                'permission': 'can_view',
+                              });
+                            }
+                          }
+                        }
+                      } else {
+                        _assignedPeople.clear();
+                      }
+                    });
+                  },
+                ),
+                Text(
+                  'Select All Roles',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : const Color(0xFF4F46E5)),
+                ),
+              ],
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 8),
+
+        // ROLES CHECKBOX GRID CARDS
+        if (rolesList.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(_isLoadingRoles ? 'Loading system roles...' : 'No system roles available.', style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: rolesList.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              childAspectRatio: 4.5,
+              crossAxisSpacing: 6,
+              mainAxisSpacing: 4,
+            ),
+            itemBuilder: (ctx, idx) {
+              final rObj = rolesList[idx];
+              final roleName = (rObj['name'] ?? '').toString();
+              if (roleName.isEmpty) return const SizedBox();
+
+              final isChecked = _isRoleSelected(roleName);
+
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    _toggleRoleGroup(roleName, !isChecked);
+                  });
+                },
+                borderRadius: BorderRadius.circular(5),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: isChecked
+                        ? (isDark ? const Color(0xFF312E81) : const Color(0xFFEEF2FF))
+                        : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(
+                      color: isChecked ? const Color(0xFF4F46E5) : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      width: isChecked ? 1.5 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Transform.scale(
+                        scale: 0.8,
+                        child: Checkbox(
+                          value: isChecked,
+                          activeColor: const Color(0xFF4F46E5),
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                          onChanged: (val) {
+                            setState(() {
+                              _toggleRoleGroup(roleName, val == true);
+                            });
+                          },
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          'All ${roleName[0].toUpperCase()}${roleName.substring(1)}s',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: isChecked ? FontWeight.w800 : FontWeight.w600,
+                            color: isChecked ? const Color(0xFF4F46E5) : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+
+        const SizedBox(height: 12),
+        const Divider(height: 1, color: Color(0xFFE2E8F0)),
+        const SizedBox(height: 10),
+
+        // 3. TARGET ACADEMIC CLASSES CHECKBOX GRID
+        if (_isRoleSelected('student')) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF10B981)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'All Academic Classes are included automatically because "All Students" role is selected above.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? const Color(0xFFA7F3D0) : const Color(0xFF065F46),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ] else ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.school_rounded, size: 16, color: Color(0xFF10B981)),
+                  const SizedBox(width: 6),
+                  Text('Select Specific Academic Classes', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                  if (_isLoadingClasses) ...[
+                    const SizedBox(width: 6),
+                    const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 2)),
+                  ],
+                ],
+              ),
+              Row(
+                children: [
+                  Transform.scale(
+                    scale: 0.8,
+                    child: Checkbox(
+                      value: allClassesSelected,
+                      activeColor: const Color(0xFF10B981),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                      onChanged: (val) {
+                        setState(() {
+                          if (val == true) {
+                            _toggleStudentRole(true);
+                          } else {
+                            _toggleStudentRole(false);
+                          }
+                        });
+                      },
+                    ),
+                  ),
+                  Text(
+                    'Select All Classes',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : const Color(0xFF10B981)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 6),
+
+          // CLASSES CHECKBOX GRID CARDS
+          if (classesList.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Text(_isLoadingClasses ? 'Loading academic classes...' : 'No academic classes available.', style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic)),
+            )
+          else
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: classesList.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                childAspectRatio: 4.5,
+                crossAxisSpacing: 6,
+                mainAxisSpacing: 4,
+              ),
+              itemBuilder: (ctx, idx) {
+                final cObj = classesList[idx];
+                final className = (cObj['name'] ?? '').toString();
+                if (className.isEmpty) return const SizedBox();
+
+                final isChecked = _isClassSelected(className);
+
+                return InkWell(
+                  onTap: () {
+                    setState(() {
+                      _toggleClassGroup(className, !isChecked);
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(5),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: isChecked
+                          ? (isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5))
+                          : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+                      borderRadius: BorderRadius.circular(5),
+                      border: Border.all(
+                        color: isChecked ? const Color(0xFF10B981) : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                        width: isChecked ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Transform.scale(
+                          scale: 0.8,
+                          child: Checkbox(
+                            value: isChecked,
+                            activeColor: const Color(0xFF10B981),
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                            onChanged: (val) {
+                              setState(() {
+                                _toggleClassGroup(className, val == true);
+                              });
+                            },
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            className,
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: isChecked ? FontWeight.w800 : FontWeight.w600,
+                              color: isChecked ? const Color(0xFF10B981) : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
+
+        const SizedBox(height: 16),
+        const Divider(height: 1, color: Color(0xFFE2E8F0)),
+        const SizedBox(height: 14),
+
+        // 4. UNIVERSAL INSTITUTE SEARCH BAR
+        Row(
+          children: [
+            const Icon(Icons.person_search_rounded, size: 18, color: Color(0xFF3B82F6)),
+            const SizedBox(width: 8),
+            Text('Search & Add Individual Person Across Institute', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+          ],
+        ),
+        const SizedBox(height: 8),
+
         TextField(
           controller: _searchPeopleController,
           decoration: InputDecoration(
-            hintText: 'Search people by name, email, role, or department...',
-            prefixIcon: const Icon(Icons.person_search_rounded, size: 18, color: Color(0xFF64748B)),
+            hintText: 'Search any person by name, email, role, or department...',
+            prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF64748B)),
             suffixIcon: _isLoadingUsers
                 ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)))
-                : null,
+                : (_searchPeopleController.text.isNotEmpty
+                    ? IconButton(icon: const Icon(Icons.clear_rounded, size: 16), onPressed: () => setState(() => _searchPeopleController.clear()))
+                    : null),
             filled: true,
-            fillColor: const Color(0xFFF8FAFC),
+            fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
           ),
+          onChanged: (_) => setState(() {}),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
 
-        // Live Real User Search Results Dropdown
-        if (_realUsers.isNotEmpty) ...[
+        // Live Database Search Dropdown Results
+        if (_realUsers.isNotEmpty && _searchPeopleController.text.trim().isNotEmpty) ...[
           Container(
-            constraints: const BoxConstraints(maxHeight: 180),
+            constraints: const BoxConstraints(maxHeight: 200),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
               boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2)),
+                BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 3)),
               ],
             ),
             child: ListView.separated(
               shrinkWrap: true,
               itemCount: filteredUsers.take(6).length,
-              separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              separatorBuilder: (_, __) => Divider(height: 1, color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
               itemBuilder: (ctx, idx) {
                 final u = filteredUsers[idx];
                 final userId = u['id']?.toString();
@@ -1367,23 +2143,35 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                 final role = u['role'] ?? 'Staff';
                 final email = u['email'] ?? '';
                 final avatar = u['avatar_url']?.toString();
-                final isAdded = _assignedPeople.any((p) => p['user_id'] == userId || p['name'] == name);
+                final isAdded = _assignedPeople.any((p) {
+                  final pUserId = p['user_id']?.toString();
+                  final pEmail = (p['email'] ?? '').toString().toLowerCase();
+                  final targetEmail = email.toString().toLowerCase();
+
+                  if (userId != null && userId.isNotEmpty && pUserId != null && pUserId.isNotEmpty) {
+                    return pUserId == userId;
+                  }
+                  if (targetEmail.isNotEmpty && pEmail.isNotEmpty) {
+                    return pEmail == targetEmail;
+                  }
+                  return false;
+                });
 
                 return Material(
                   color: Colors.transparent,
                   child: ListTile(
                     dense: true,
                     leading: CircleAvatar(
-                      radius: 16,
+                      radius: 14,
                       backgroundColor: const Color(0xFF4F46E5),
                       backgroundImage: avatar != null && avatar.isNotEmpty ? NetworkImage(avatar) : null,
                       child: avatar == null || avatar.isEmpty
-                          ? Text(name.isNotEmpty ? name[0].toUpperCase() : 'U', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))
+                          ? Text(name.isNotEmpty ? name[0].toUpperCase() : 'U', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold))
                           : null,
                     ),
-                    title: Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
-                    subtitle: Text('$role • $email', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                    trailing: ElevatedButton(
+                    title: Text(name, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                    subtitle: Text('$role • $email', style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : const Color(0xFF64748B))),
+                    trailing: ElevatedButton.icon(
                       onPressed: isAdded
                           ? null
                           : () {
@@ -1398,14 +2186,15 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                                 });
                               });
                             },
+                      icon: Icon(isAdded ? Icons.check_rounded : Icons.add_rounded, size: 14),
+                      label: Text(isAdded ? 'Added' : 'Add', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: isAdded ? const Color(0xFFE2E8F0) : const Color(0xFF4F46E5),
-                        foregroundColor: isAdded ? const Color(0xFF94A3B8) : Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        minimumSize: const Size(60, 28),
+                        backgroundColor: isAdded ? (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)) : const Color(0xFF4F46E5),
+                        foregroundColor: isAdded ? (isDark ? Colors.white54 : const Color(0xFF94A3B8)) : Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        minimumSize: const Size(56, 28),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                       ),
-                      child: Text(isAdded ? 'Added' : '+ Add', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 );
@@ -1415,97 +2204,138 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
           const SizedBox(height: 12),
         ],
 
-        // Dynamic Recent Suggestion Chips (Strictly past selected choices, max 5, hidden for new users)
-        if (_recentParticipants.isNotEmpty) ...[
-          const Text(
-            'Recent Suggestions',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF64748B)),
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _recentParticipants.take(5).map((person) {
-              final String name = person['name'] ?? 'User';
-              final String role = person['role'] ?? 'Member';
-              final String? pUserId = person['user_id']?.toString();
+        const SizedBox(height: 16),
+        const Divider(height: 1, color: Color(0xFFE2E8F0)),
+        const SizedBox(height: 14),
 
-              final isAdded = _assignedPeople.any((p) =>
-                (pUserId != null && pUserId.isNotEmpty && p['user_id']?.toString() == pUserId) ||
-                (p['name'] == name)
-              );
+        // 5. UNIFIED ASSIGNED ROSTER TABLE
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Current Audience Roster (${_assignedPeople.length})',
+              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+            ),
+            if (_assignedPeople.isNotEmpty)
+              TextButton.icon(
+                onPressed: () => setState(() => _assignedPeople.clear()),
+                icon: const Icon(Icons.delete_sweep_rounded, size: 16, color: Color(0xFFEF4444)),
+                label: const Text('Clear All', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFFEF4444))),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
 
-              return ActionChip(
-                avatar: Icon(
-                  isAdded ? Icons.check : Icons.add,
-                  size: 14,
-                  color: isAdded ? Colors.white : const Color(0xFF4F46E5),
+        if (_assignedPeople.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.assignment_ind_outlined, size: 28, color: isDark ? Colors.white38 : const Color(0xFF94A3B8)),
+                const SizedBox(height: 6),
+                Text(
+                  'No target audience or participants selected yet',
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : const Color(0xFF475569)),
                 ),
-                label: Text('$name ($role)'),
-                backgroundColor: isAdded ? const Color(0xFF4F46E5) : const Color(0xFFF1F5F9),
-                labelStyle: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: isAdded ? Colors.white : const Color(0xFF0F172A),
-                ),
-                onPressed: () {
-                  setState(() {
-                    if (isAdded) {
-                      _assignedPeople.removeWhere((p) =>
-                        (pUserId != null && pUserId.isNotEmpty && p['user_id']?.toString() == pUserId) ||
-                        (p['name'] == name)
-                      );
-                    } else {
-                      _assignedPeople.add({
-                        'user_id': pUserId,
-                        'name': name,
-                        'role': role,
-                        'participation_role': 'required',
-                        'permission': 'can_view',
-                      });
-                    }
-                  });
-                },
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 16),
-        ],
-
-        // Selected Participants Table
-        if (_assignedPeople.isNotEmpty) ...[
-          const Text('Assigned Participants', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-          const SizedBox(height: 8),
+              ],
+            ),
+          )
+        else
           ..._assignedPeople.map((p) {
+            final isClass = p['role'] == 'Class Group';
+            final isRoleGroup = p['user_id'] == null && !isClass;
+
             return Container(
-              margin: const EdgeInsets.only(bottom: 8),
+              margin: const EdgeInsets.only(bottom: 6),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 16),
-                  const SizedBox(width: 8),
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: isRoleGroup
+                          ? const Color(0xFFEEF2FF)
+                          : (isClass ? const Color(0xFFECFDF5) : const Color(0xFFEFF6FF)),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isRoleGroup ? Icons.people_alt_rounded : (isClass ? Icons.school_rounded : Icons.person_rounded),
+                      size: 14,
+                      color: isRoleGroup ? const Color(0xFF4F46E5) : (isClass ? const Color(0xFF10B981) : const Color(0xFF3B82F6)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      '${p['name']} — ${p['role']}',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${p['name']}',
+                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                        ),
+                        Text(
+                          (p['email'] != null && p['email'].toString().isNotEmpty)
+                              ? '${p['email']} • ${p['role']}'
+                              : '${p['role']}',
+                          style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                        ),
+                      ],
                     ),
                   ),
                   DropdownButton<String>(
                     value: p['participation_role'] ?? 'required',
                     underline: const SizedBox(),
-                    items: const [
-                      DropdownMenuItem(value: 'required', child: Text('Required', style: TextStyle(fontSize: 12))),
-                      DropdownMenuItem(value: 'optional', child: Text('Optional', style: TextStyle(fontSize: 12))),
-                      DropdownMenuItem(value: 'fyi', child: Text('FYI', style: TextStyle(fontSize: 12))),
+                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    items: [
+                      DropdownMenuItem(value: 'required', child: Text('Required', style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white70 : Colors.black87))),
+                      DropdownMenuItem(value: 'optional', child: Text('Optional', style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white70 : Colors.black87))),
+                      DropdownMenuItem(value: 'fyi', child: Text('FYI', style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white70 : Colors.black87))),
                     ],
                     onChanged: (val) {
                       setState(() => p['participation_role'] = val);
                     },
+                  ),
+                  const SizedBox(width: 8),
+
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                    ),
+                    child: DropdownButton<String>(
+                      value: (p['permission'] == 'read_write' || p['permission'] == 'can_edit' || p['permission'] == 'can_manage') ? 'can_edit' : 'can_view',
+                      underline: const SizedBox(),
+                      isDense: true,
+                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      items: [
+                        DropdownMenuItem(
+                          value: 'can_view',
+                          child: Text('Read Only', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? Colors.white70 : const Color(0xFF475569))),
+                        ),
+                        DropdownMenuItem(
+                          value: 'can_edit',
+                          child: Text('Can Edit', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5))),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        setState(() {
+                          p['permission'] = val == 'can_edit' ? 'can_edit' : 'can_view';
+                        });
+                      },
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
@@ -1517,7 +2347,6 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
               ),
             );
           }),
-        ],
       ],
     );
   }

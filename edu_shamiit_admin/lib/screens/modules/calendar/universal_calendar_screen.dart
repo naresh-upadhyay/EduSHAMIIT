@@ -146,6 +146,19 @@ class _UniversalCalendarScreenState extends ConsumerState<UniversalCalendarScree
           onDelete: () {
             _handleDeleteSchedule(schedule);
           },
+          onCancel: (reason) async {
+            final ok = await notifier.cancelSchedule(schedule.id, reason: reason);
+            if (!mounted) return;
+            if (ok) {
+              messenger.showSnackBar(
+                const SnackBar(content: Text('Schedule cancelled successfully.')),
+              );
+            } else {
+              messenger.showSnackBar(
+                const SnackBar(content: Text('Failed to cancel schedule or permission denied.')),
+              );
+            }
+          },
           onRSVP: (status, reason) async {
             final notifier = ref.read(calendarProvider.notifier);
             final messenger = ScaffoldMessenger.of(context);
@@ -358,6 +371,7 @@ class _UniversalCalendarScreenState extends ConsumerState<UniversalCalendarScree
       case CalendarViewMode.agenda:
       case CalendarViewMode.year:
         return CalendarAgendaView(
+          selectedDate: state.selectedDate,
           schedules: state.schedules,
           onEventTap: _openEventDetailPopup,
         );

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:edu_shamiit_core/providers/auth_provider.dart';
 import '../../models/calendar_models.dart';
 import '../../utils/calendar_layout_engine.dart';
 
-class CalendarWeekViewWidget extends StatelessWidget {
+class CalendarWeekViewWidget extends ConsumerWidget {
   final DateTime selectedDate;
   final List<ScheduleModel> schedules;
   final Function(ScheduleModel event) onEventTap;
@@ -18,7 +20,9 @@ class CalendarWeekViewWidget extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentUser = ref.watch(authProvider).userData;
+    final currentUserId = currentUser?['id']?.toString();
     final weekDays = _getWeekDays(selectedDate);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -311,7 +315,7 @@ class CalendarWeekViewWidget extends StatelessWidget {
                                 );
 
                                 return Stack(
-                                  children: positioned.map((pe) {
+                                    children: positioned.map((pe) {
                                     final laneW = (colWidth - 2) / pe.totalLanes;
                                     final left = 1.0 + (pe.laneIndex * laneW);
                                     final width = (laneW - 2.0).clamp(10.0, colWidth);
@@ -321,7 +325,7 @@ class CalendarWeekViewWidget extends StatelessWidget {
                                       left: left,
                                       width: width,
                                       height: pe.height,
-                                      child: _buildEventCard(context, pe.event, pe.height, pe.totalLanes),
+                                      child: _buildEventCard(context, pe.event, pe.height, pe.totalLanes, currentUserId),
                                     );
                                   }).toList(),
                                 );
@@ -374,9 +378,21 @@ class CalendarWeekViewWidget extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: Container(
-              height: 2,
-              color: const Color(0xFFEF4444),
+            child: Stack(
+              children: [
+                const Divider(color: Color(0xFFEF4444), height: 1, thickness: 2),
+                Positioned(
+                  left: (todayIndex * (MediaQuery.of(context).size.width - 70) / 7),
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEF4444),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -384,7 +400,7 @@ class CalendarWeekViewWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildEventCard(BuildContext context, ScheduleModel event, double height, int totalLanes) {
+  Widget _buildEventCard(BuildContext context, ScheduleModel event, double height, int totalLanes, String? currentUserId) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final timeSpan = '${DateFormat('hh:mm a').format(event.startTime)} – ${DateFormat('hh:mm a').format(event.endTime)}';
 
@@ -402,10 +418,25 @@ class CalendarWeekViewWidget extends StatelessWidget {
         ? Color.lerp(event.color, Colors.white, 0.55)!
         : _getDarkerAccent(event.color);
 
-    return InkWell(
-      onTap: () => onEventTap(event),
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
+    final tooltipMsg = '${event.title}\n⏰ $timeSpan\n📍 ${event.locationName ?? event.room ?? "General"}\n🏷️ Type: ${event.scheduleType}';
+
+    return Tooltip(
+      message: tooltipMsg,
+      waitDuration: const Duration(milliseconds: 250),
+      showDuration: const Duration(seconds: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: const [
+          BoxShadow(color: Colors.black38, blurRadius: 8, offset: Offset(0, 4)),
+        ],
+      ),
+      textStyle: const TextStyle(fontSize: 12, color: Colors.white, height: 1.4, fontWeight: FontWeight.w600),
+      child: InkWell(
+        onTap: () => onEventTap(event),
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
         margin: const EdgeInsets.only(bottom: 2, right: 1),
         decoration: BoxDecoration(
           color: cardBg,
@@ -443,7 +474,8 @@ class CalendarWeekViewWidget extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: totalLanes > 2 ? 8.5 : 9.5,
                                 fontWeight: FontWeight.w800,
-                                color: titleColor,
+                                color: event.status == 'cancelled' ? const Color(0xFFEF4444) : titleColor,
+                                decoration: event.status == 'cancelled' ? TextDecoration.lineThrough : null,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -473,7 +505,8 @@ class CalendarWeekViewWidget extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: totalLanes > 2 ? 9.5 : 11.5,
                                 fontWeight: FontWeight.w800,
-                                color: titleColor,
+                                color: event.status == 'cancelled' ? const Color(0xFFEF4444) : titleColor,
+                                decoration: event.status == 'cancelled' ? TextDecoration.lineThrough : null,
                                 letterSpacing: -0.2,
                                 height: 1.15,
                               ),
@@ -502,8 +535,38 @@ class CalendarWeekViewWidget extends StatelessWidget {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                if (event.participants.isNotEmpty)
+                                if (event.participants.isNotEmpty) ...[
+                                  Builder(
+                                    builder: (_) {
+                                      ScheduleParticipantModel? myP;
+                                      if (currentUserId != null && currentUserId.isNotEmpty) {
+                                        try {
+                                          myP = event.participants.firstWhere((p) => p.userId == currentUserId);
+                                        } catch (_) {}
+                                      }
+                                      final pRole = myP != null
+                                          ? myP.participationRole.toLowerCase()
+                                          : event.participants.first.participationRole.toLowerCase();
+                                      final isReq = pRole == 'required' || pRole == 'mandatory';
+                                      final isOpt = pRole == 'optional';
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                        decoration: BoxDecoration(
+                                          color: isReq
+                                              ? const Color(0xFFEF4444)
+                                              : (isOpt ? const Color(0xFF3B82F6) : const Color(0xFF8B5CF6)),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          isReq ? 'REQ' : (isOpt ? 'OPT' : 'FYI'),
+                                          style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Colors.white),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(width: 4),
                                   Icon(Icons.people_alt_rounded, size: 11, color: textTint),
+                                ],
                               ],
                             ),
                           ],
@@ -514,8 +577,9 @@ class CalendarWeekViewWidget extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Color _getLightSolidCardBg(Color c) {
     final argb = c.toARGB32();

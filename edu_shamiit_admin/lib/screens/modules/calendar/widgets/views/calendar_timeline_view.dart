@@ -124,7 +124,11 @@ class CalendarTimelineView extends StatelessWidget {
                         children: [
                           Text(
                             res.name,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -134,18 +138,25 @@ class CalendarTimelineView extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                                  color: const Color(0xFF4F46E5).withValues(alpha: isDark ? 0.22 : 0.1),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
                                   res.code,
-                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 6),
                               Text(
                                 res.type,
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                ),
                               ),
                             ],
                           ),
@@ -180,43 +191,74 @@ class CalendarTimelineView extends StatelessWidget {
                                 final startMin = event.startTime.hour * 60 + event.startTime.minute;
                                 final endMin = event.endTime.hour * 60 + event.endTime.minute;
                                 final durationMin = (endMin - startMin).clamp(30, 24 * 60);
-
                                 final left = (startMin / 60.0) * 80.0;
                                 final width = (durationMin / 60.0) * 80.0;
+                                final tooltipMsg = '${event.title}\n⏰ ${DateFormat('hh:mm a').format(event.startTime)} – ${DateFormat('hh:mm a').format(event.endTime)}\n📍 ${event.locationName ?? event.room ?? "General"}\n🏷️ Type: ${event.scheduleType}';
 
                                 return Positioned(
                                   left: left,
                                   top: 8,
                                   bottom: 8,
-                                  width: width,
-                                  child: InkWell(
-                                    onTap: () => onEventTap(event),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: event.color.withValues(alpha: 0.2),
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: event.color, width: 1.5),
-                                      ),
+                                  width: width.clamp(16.0, 24 * 80.0),
+                                  child: Tooltip(
+                                    message: tooltipMsg,
+                                    waitDuration: const Duration(milliseconds: 250),
+                                    showDuration: const Duration(seconds: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF0F172A),
+                                      borderRadius: BorderRadius.circular(8),
+                                      boxShadow: const [
+                                        BoxShadow(color: Colors.black38, blurRadius: 8, offset: Offset(0, 4)),
+                                      ],
+                                    ),
+                                    textStyle: const TextStyle(fontSize: 12, color: Colors.white, height: 1.4, fontWeight: FontWeight.w600),
+                                    child: InkWell(
+                                      onTap: () => onEventTap(event),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: event.color.withValues(alpha: isDark ? 0.25 : 0.15),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: event.color, width: 1.5),
+                                        ),
+                                        clipBehavior: Clip.antiAlias,
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Text(
                                             event.title,
-                                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                            style: TextStyle(
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.w800,
+                                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                            ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
+                                            softWrap: false,
                                           ),
-                                          Text(
-                                            '${DateFormat('hh:mm a').format(event.startTime)} – ${DateFormat('hh:mm a').format(event.endTime)}',
-                                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: event.color),
-                                          ),
+                                          if (width > 55) ...[
+                                            const SizedBox(height: 1),
+                                            Text(
+                                              '${DateFormat('hh:mm a').format(event.startTime)} – ${DateFormat('hh:mm a').format(event.endTime)}',
+                                              style: TextStyle(
+                                                fontSize: 8.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: isDark ? Color.lerp(event.color, Colors.white, 0.4)! : event.color,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              softWrap: false,
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),
                                   ),
-                                );
+                                ),
+                              );
                               }),
                             ],
                           ),

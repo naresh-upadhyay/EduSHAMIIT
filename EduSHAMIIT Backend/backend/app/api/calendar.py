@@ -256,6 +256,12 @@ class ScheduleUpdateRequest(BaseModel):
     reminders: Optional[List[ReminderSchema]] = None
     metadata: Optional[Dict[str, Any]] = None
     force_override_conflicts: Optional[bool] = False
+    cancellation_reason: Optional[str] = None
+
+class ScheduleCancelRequest(BaseModel):
+    cancellation_reason: str
+    recurrence_scope: Optional[str] = "entire_series"
+    target_instance_date: Optional[str] = None
 
 class ScheduleRSVPRequest(BaseModel):
     status: str # accepted, declined, tentative
@@ -1061,6 +1067,72 @@ async def delete_calendar(calendar_id: str, user=Depends(get_current_user)):
     return {"success": True, "message": "Calendar deleted successfully"}
 
 
+@router.get("/calendar/assignable-roles")
+@router.get("/assignable-roles")
+async def get_assignable_roles(user=Depends(get_current_user)):
+    """Fetch distinct system roles from public.app_roles and public.profiles for schedule assignment."""
+    try:
+        roles_sql = """
+            SELECT DISTINCT name, description FROM (
+                SELECT name, COALESCE(description, name) AS description FROM public.app_roles WHERE name IS NOT NULL AND name != ''
+                UNION
+                SELECT role AS name, role AS description FROM public.profiles WHERE role IS NOT NULL AND role != ''
+            ) combined_roles
+            ORDER BY name
+        """
+        rows = await exec_sql(roles_sql)
+        roles_set = {r["name"].lower(): r for r in rows if r.get("name")}
+        
+        default_roles = ["teacher", "driver", "student", "parent", "admin", "staff", "hr", "finance", "transport", "principal", "director", "support"]
+        for dr in default_roles:
+            if dr.lower() not in roles_set:
+                rows.append({"name": dr, "description": f"Standard {dr} role"})
+
+        formatted_roles = []
+        seen = set()
+        for r in rows:
+            r_name = str(r.get("name") or "").strip()
+            if r_name and r_name.lower() not in seen:
+                seen.add(r_name.lower())
+                formatted_roles.append({
+                    "name": r_name,
+                    "description": r.get("description") or r_name
+                })
+
+        return {"success": True, "data": sorted(formatted_roles, key=lambda x: x["name"].lower())}
+    except Exception as e:
+        logger.error(f"[Assignable Roles Error]: {e}")
+        fallback = ["teacher", "driver", "student", "parent", "admin", "staff", "hr", "finance", "transport", "principal", "director", "support"]
+        return {"success": True, "data": [{"name": r, "description": f"Standard {r} role"} for r in fallback]}
+
+
+@router.get("/calendar/assignable-classes")
+@router.get("/assignable-classes")
+async def get_assignable_classes(user=Depends(get_current_user)):
+    """Fetch distinct academic classes directly from public.profiles(class column) table dynamically."""
+    try:
+        classes_sql = """
+            SELECT DISTINCT "class" AS class_name 
+            FROM public.profiles 
+            WHERE "class" IS NOT NULL AND "class" != ''
+            ORDER BY class_name
+        """
+        rows = await exec_sql(classes_sql)
+        found_classes = [str(r["class_name"]).strip() for r in rows if r.get("class_name")]
+
+        default_classes = ["10A", "IX-A", "X-A", "X-B", "Class 1-A", "Class 2-A", "Class 9-A", "Grade 11-Sci", "Grade 12-Sci"]
+        for dc in default_classes:
+            if dc not in found_classes:
+                found_classes.append(dc)
+
+        formatted_classes = [{"name": c} for c in sorted(list(set(found_classes)))]
+        return {"success": True, "data": formatted_classes}
+    except Exception as e:
+        logger.error(f"[Assignable Classes Error]: {e}")
+        fallback = ["10A", "IX-A", "X-A", "X-B", "Class 9-A", "Grade 11-Sci", "Grade 12-Sci"]
+        return {"success": True, "data": [{"name": c} for c in fallback]}
+
+
 # ============================================================================
 # 2. UNIVERSAL SCHEDULE CRUD & FILTERING APIS
 # ============================================================================
@@ -1156,18 +1228,24 @@ async def get_schedules(
         """)
         params.extend([kw, kw, kw, kw, kw])
 
-    # Role-based visibility check for non-admins
-    if role not in ("super_admin", "director", "principal", "admin"):
-        # Users see public/shared events, events on calendars they have access to, or events they are participants in
-        conditions.append("""
-            (
-                s.visibility IN ('institution_wide', 'public', 'shared')
-                OR s.created_by = %s
-                OR s.organizer_id = %s
-                OR s.id IN (SELECT schedule_id FROM public.schedule_participants WHERE user_id = %s OR target_role ILIKE %s)
+    # Universal strict privacy check: ALL users see ONLY institution_wide global schedules,
+    # events they created/organized, or events they are explicitly assigned to as participants (by user_id, role, or academic class).
+    conditions.append("""
+        (
+            s.visibility = 'institution_wide'
+            OR s.created_by = %s
+            OR s.organizer_id = %s
+            OR s.id IN (
+                SELECT sp.schedule_id 
+                FROM public.schedule_participants sp
+                LEFT JOIN public.profiles prof ON prof.id = %s
+                WHERE sp.user_id = %s 
+                   OR (sp.user_id IS NULL AND sp.target_role IS NOT NULL AND sp.target_role ILIKE %s)
+                   OR (sp.user_id IS NULL AND sp.target_class IS NOT NULL AND prof.class IS NOT NULL AND sp.target_class ILIKE prof.class)
             )
-        """)
-        params.extend([user_id, user_id, user_id, f"%{role}%"])
+        )
+    """)
+    params.extend([user_id, user_id, user_id, user_id, f"%{role}%"])
 
     where_clause = " AND ".join(conditions)
     sql = f"""
@@ -1181,12 +1259,15 @@ async def get_schedules(
                    SELECT json_agg(json_build_object(
                        'id', sp.id,
                        'user_id', sp.user_id,
+                       'target_role', sp.target_role,
+                       'target_class', sp.target_class,
                        'participant_type', sp.participant_type,
                        'participation_role', sp.participation_role,
                        'permission', sp.permission,
                        'rsvp_status', sp.rsvp_status,
-                       'full_name', prof.full_name,
+                       'full_name', COALESCE(prof.full_name, sp.target_role, sp.target_class),
                        'role', prof.role,
+                       'email', prof.email,
                        'avatar_url', prof.avatar_url
                    ))
                    FROM public.schedule_participants sp
@@ -1277,6 +1358,16 @@ async def get_schedules(
             if status and status != "All":
                 rec_conds.append("s.status = %s")
                 rec_params.append(status)
+
+            rec_conds.append("""
+                (
+                    s.visibility = 'institution_wide'
+                    OR s.created_by = %s
+                    OR s.organizer_id = %s
+                    OR s.id IN (SELECT schedule_id FROM public.schedule_participants WHERE user_id = %s OR target_role ILIKE %s)
+                )
+            """)
+            rec_params.extend([user_id, user_id, user_id, f"%{role}%"])
 
             rec_where = " AND ".join(rec_conds)
 
@@ -1623,7 +1714,29 @@ async def create_schedule(req: ScheduleCreateRequest, user=Depends(get_current_u
                 }
             }
 
-    # 3. Insert Schedule
+    # 3. Derive audience scope & Insert Schedule
+    target_roles = []
+    target_classes = []
+    target_user_ids = []
+    if req.participants:
+        for p in req.participants:
+            if p.user_id:
+                target_user_ids.append(p.user_id)
+            if p.target_role:
+                target_roles.append(p.target_role)
+            if p.target_class:
+                target_classes.append(p.target_class)
+
+    audience_type = "individual"
+    if req.visibility == "institution_wide":
+        audience_type = "institution_wide"
+    elif target_roles:
+        audience_type = "role"
+    elif target_classes:
+        audience_type = "class"
+    elif target_user_ids:
+        audience_type = "individual"
+
     s_id = str(uuid.uuid4())
     sql = """
         INSERT INTO public.schedules (
@@ -1631,13 +1744,13 @@ async def create_schedule(req: ScheduleCreateRequest, user=Depends(get_current_u
             status, approval_status, start_time, end_time, is_all_day, timezone,
             location_name, location_address, building, room, landmark, latitude, longitude,
             virtual_meeting_url, virtual_meeting_provider, organizer_id, created_by,
-            visibility, is_recurring, metadata, created_at, updated_at
+            visibility, is_recurring, metadata, audience_type, target_roles, target_classes, target_user_ids, created_at, updated_at
         ) VALUES (
             %s, %s, %s, %s, %s, %s, %s, %s, %s,
             'confirmed', 'approved', %s, %s, %s, %s,
             %s, %s, %s, %s, %s, %s, %s,
             %s, %s, %s, %s,
-            %s, %s, %s, NOW(), NOW()
+            %s, %s, %s, %s, %s, %s, %s, NOW(), NOW()
         ) RETURNING *
     """
     rows = await exec_sql(
@@ -1649,7 +1762,7 @@ async def create_schedule(req: ScheduleCreateRequest, user=Depends(get_current_u
             req.location_name, req.location_address, req.building, req.room, req.landmark,
             req.latitude, req.longitude, req.virtual_meeting_url, req.virtual_meeting_provider,
             user_id, user_id, req.visibility or "shared", req.is_recurring or False,
-            json.dumps(req.metadata or {})
+            json.dumps(req.metadata or {}), audience_type, json.dumps(target_roles), json.dumps(target_classes), json.dumps(target_user_ids)
         )
     )
     if not rows:
@@ -1678,6 +1791,10 @@ async def create_schedule(req: ScheduleCreateRequest, user=Depends(get_current_u
     if req.participants:
         for p in req.participants:
             p_id = str(uuid.uuid4())
+            is_ind = bool(p.user_id)
+            t_role = None if is_ind else p.target_role
+            t_class = None if is_ind else p.target_class
+            p_type = "individual" if is_ind else (p.participant_type or ("role" if t_role else "class"))
             await exec_sql(
                 """
                 INSERT INTO public.schedule_participants (
@@ -1688,8 +1805,8 @@ async def create_schedule(req: ScheduleCreateRequest, user=Depends(get_current_u
                 )
                 """,
                 (
-                    p_id, s_id, p.user_id, p.target_role, p.target_department, p.target_class, p.target_section,
-                    p.participant_type or "individual", p.participation_role or "required", p.permission or "can_view"
+                    p_id, s_id, p.user_id, t_role, p.target_department, t_class, p.target_section,
+                    p_type, p.participation_role or "required", p.permission or "can_view"
                 ),
                 fetch=False
             )
@@ -1856,6 +1973,29 @@ async def update_schedule(
     master_parent_id = str(old_record["recurring_parent_id"]) if old_record.get("recurring_parent_id") else schedule_id
     is_already_override = old_record.get("recurring_parent_id") is not None or old_record.get("recurrence_exception_type") == "override"
 
+    # Permission check: owner/creator, super_admin/admin, or read_write/can_edit participant
+    user_role = str(user.get("role", "")).lower()
+    organizer_id = str(old_record.get("organizer_id") or "")
+    created_by = str(old_record.get("created_by") or "")
+
+    is_owner = (user_id == organizer_id) or (user_id == created_by) or (user_role in ["super_admin", "admin", "owner"])
+    has_edit_perm = is_owner
+    if not has_edit_perm:
+        part_check = await exec_sql(
+            "SELECT permission FROM public.schedule_participants WHERE schedule_id = %s AND user_id = %s",
+            (schedule_id, user_id)
+        )
+        if part_check:
+            p_val = str(part_check[0].get("permission") or "").lower()
+            if p_val in ["read_write", "can_edit", "can_manage"]:
+                has_edit_perm = True
+
+    if not has_edit_perm:
+        raise HTTPException(
+            status_code=403,
+            detail="Permission denied: Only the schedule owner or authorized editor can modify or cancel this schedule."
+        )
+
     # If the record is ALREADY an override or standalone instance, update it in place!
     if is_already_override:
         updates = []
@@ -1865,7 +2005,7 @@ async def update_schedule(
             "status", "approval_status", "start_time", "end_time", "is_all_day", "timezone",
             "location_name", "location_address", "building", "room", "landmark",
             "latitude", "longitude", "virtual_meeting_url", "virtual_meeting_provider",
-            "visibility"
+            "visibility", "cancellation_reason"
         ]:
             val = getattr(req, field, None)
             if val is not None:
@@ -2045,7 +2185,7 @@ async def update_schedule(
         "status", "approval_status", "start_time", "end_time", "is_all_day", "timezone",
         "location_name", "location_address", "building", "room", "landmark",
         "latitude", "longitude", "virtual_meeting_url", "virtual_meeting_provider",
-        "visibility"
+        "visibility", "cancellation_reason"
     ]:
         val = getattr(req, field, None)
         if val is not None:
@@ -2287,6 +2427,79 @@ async def delete_schedule(
     )
 
     return {"success": True, "message": "Schedule deleted successfully."}
+
+
+@router.post("/schedules/{schedule_id}/cancel")
+async def cancel_schedule(
+    schedule_id: str,
+    req: ScheduleCancelRequest,
+    user=Depends(get_current_user)
+):
+    """
+    Cancel a schedule with a required cancellation reason.
+    Verifies owner/editor permissions and updates status to 'cancelled'.
+    """
+    school_id = user.get("school_id")
+    user_id = user.get("id")
+    user_role = str(user.get("role", "")).lower()
+
+    if not req.cancellation_reason or not req.cancellation_reason.strip():
+        raise HTTPException(status_code=400, detail="Cancellation reason is required.")
+
+    parent_id = schedule_id
+    if "_inst_" in schedule_id:
+        parent_id, _, _ = schedule_id.partition("_inst_")
+        schedule_id = parent_id
+
+    curr = await exec_sql("SELECT * FROM public.schedules WHERE id = %s AND school_id = %s", (schedule_id, school_id))
+    if not curr:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+
+    old_record = curr[0]
+    organizer_id = str(old_record.get("organizer_id") or "")
+    created_by = str(old_record.get("created_by") or "")
+
+    is_owner = (user_id == organizer_id) or (user_id == created_by) or (user_role in ["super_admin", "admin", "owner"])
+    has_edit_perm = is_owner
+    if not has_edit_perm:
+        part_check = await exec_sql(
+            "SELECT permission FROM public.schedule_participants WHERE schedule_id = %s AND user_id = %s",
+            (schedule_id, user_id)
+        )
+        if part_check:
+            p_val = str(part_check[0].get("permission") or "").lower()
+            if p_val in ["read_write", "can_edit", "can_manage"]:
+                has_edit_perm = True
+
+    if not has_edit_perm:
+        raise HTTPException(
+            status_code=403,
+            detail="Permission denied: Only the schedule owner or authorized editor can cancel this schedule."
+        )
+
+    # Cancel schedule
+    sql = """
+        UPDATE public.schedules
+        SET status = 'cancelled', cancellation_reason = %s, updated_at = NOW()
+        WHERE id = %s AND school_id = %s
+        RETURNING *
+    """
+    rows = await exec_sql(sql, (req.cancellation_reason.strip(), schedule_id, school_id))
+
+    # Release resource bookings
+    await exec_sql(
+        "UPDATE public.resource_bookings SET status = 'cancelled' WHERE schedule_id = %s",
+        (schedule_id,),
+        fetch=False
+    )
+
+    updated_record = rows[0] if rows else old_record
+    return {
+        "success": True,
+        "message": "Schedule cancelled successfully.",
+        "data": _serialize_datetime(updated_record)
+    }
+
 
 
 @router.post("/schedules/{schedule_id}/restore")

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:edu_shamiit_core/providers/auth_provider.dart';
 import '../../models/calendar_models.dart';
 import '../../utils/calendar_layout_engine.dart';
 
-class CalendarDayView extends StatelessWidget {
+class CalendarDayView extends ConsumerWidget {
   final DateTime selectedDate;
   final List<ScheduleModel> schedules;
   final Function(ScheduleModel event) onEventTap;
@@ -18,7 +20,9 @@ class CalendarDayView extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentUser = ref.watch(authProvider).userData;
+    final currentUserId = currentUser?['id']?.toString();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final startOfDay = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
@@ -237,45 +241,60 @@ class CalendarDayView extends StatelessWidget {
                                   ? Color.lerp(event.color, Colors.white, 0.55)!
                                   : _getDarkerAccent(event.color);
 
-                              return Positioned(
-                                top: pe.top,
-                                left: left,
-                                width: width,
-                                height: height,
-                                child: InkWell(
-                                  onTap: () => onEventTap(event),
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Container(
-                                    margin: const EdgeInsets.only(bottom: 2, right: 1),
-                                    decoration: BoxDecoration(
-                                      color: cardBg,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: borderColor, width: 1),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    clipBehavior: Clip.antiAlias,
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 4,
-                                          height: double.infinity,
-                                          color: event.color,
-                                        ),
-                                        Expanded(
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(8),
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Row(
-                                                  children: [
+                              final tooltipMsg = '${event.title}\n⏰ ${DateFormat('hh:mm a').format(event.startTime)} – ${DateFormat('hh:mm a').format(event.endTime)}\n📍 ${event.locationName ?? event.room ?? "General"}\n🏷️ Type: ${event.scheduleType}';
+
+                               return Positioned(
+                                 top: pe.top,
+                                 left: left,
+                                 width: width,
+                                 height: height,
+                                 child: Tooltip(
+                                   message: tooltipMsg,
+                                   waitDuration: const Duration(milliseconds: 250),
+                                   showDuration: const Duration(seconds: 4),
+                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                   decoration: BoxDecoration(
+                                     color: const Color(0xFF0F172A),
+                                     borderRadius: BorderRadius.circular(8),
+                                     boxShadow: const [
+                                       BoxShadow(color: Colors.black38, blurRadius: 8, offset: Offset(0, 4)),
+                                     ],
+                                   ),
+                                   textStyle: const TextStyle(fontSize: 12, color: Colors.white, height: 1.4, fontWeight: FontWeight.w600),
+                                   child: InkWell(
+                                     onTap: () => onEventTap(event),
+                                     borderRadius: BorderRadius.circular(8),
+                                     child: Container(
+                                       margin: const EdgeInsets.only(bottom: 2, right: 1),
+                                       decoration: BoxDecoration(
+                                         color: cardBg,
+                                         borderRadius: BorderRadius.circular(8),
+                                         border: Border.all(color: borderColor, width: 1),
+                                         boxShadow: [
+                                           BoxShadow(
+                                             color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+                                             blurRadius: 4,
+                                             offset: const Offset(0, 2),
+                                           ),
+                                         ],
+                                       ),
+                                       clipBehavior: Clip.antiAlias,
+                                       child: Row(
+                                         children: [
+                                           Container(
+                                             width: 4,
+                                             height: double.infinity,
+                                             color: event.color,
+                                           ),
+                                           Expanded(
+                                             child: Padding(
+                                               padding: const EdgeInsets.all(8),
+                                               child: Column(
+                                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                                 mainAxisSize: MainAxisSize.min,
+                                                 children: [
+                                                   Row(
+                                                     children: [
                                                     Expanded(
                                                       child: Text(
                                                         event.title,
@@ -283,13 +302,48 @@ class CalendarDayView extends StatelessWidget {
                                                           fontSize: totalLanes > 2 ? 11 : 13,
                                                           fontWeight: FontWeight.w800,
                                                           color: titleColor,
-                                                        ),
+),
                                                         maxLines: 1,
                                                         overflow: TextOverflow.ellipsis,
                                                       ),
                                                     ),
                                                     if (totalLanes <= 2) ...[
                                                       const SizedBox(width: 8),
+                                                      if (event.participants.isNotEmpty) ...[
+                                                        Builder(
+                                                          builder: (_) {
+                                                            ScheduleParticipantModel? myP;
+                                                            if (currentUserId != null && currentUserId.isNotEmpty) {
+                                                              try {
+                                                                myP = event.participants.firstWhere((p) => p.userId == currentUserId);
+                                                              } catch (_) {}
+                                                            }
+                                                            final pRole = myP != null
+                                                                ? myP.participationRole.toLowerCase()
+                                                                : event.participants.first.participationRole.toLowerCase();
+                                                            final isReq = pRole == 'required' || pRole == 'mandatory';
+                                                            final isOpt = pRole == 'optional';
+                                                            return Container(
+                                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                              decoration: BoxDecoration(
+                                                                color: isReq
+                                                                    ? const Color(0xFFEF4444)
+                                                                    : (isOpt ? const Color(0xFF3B82F6) : const Color(0xFF8B5CF6)),
+                                                                borderRadius: BorderRadius.circular(10),
+                                                              ),
+                                                              child: Text(
+                                                                isReq ? 'REQUIRED' : (isOpt ? 'OPTIONAL' : 'FYI'),
+                                                                style: const TextStyle(
+                                                                  fontSize: 9,
+                                                                  fontWeight: FontWeight.w900,
+                                                                  color: Colors.white,
+                                                                ),
+                                                              ),
+                                                            );
+                                                          },
+                                                        ),
+                                                        const SizedBox(width: 4),
+                                                      ],
                                                       Container(
                                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                                         decoration: BoxDecoration(
@@ -339,8 +393,9 @@ class CalendarDayView extends StatelessWidget {
                                     ),
                                   ),
                                 ),
-                              );
-                            }).toList(),
+                              ),
+                            );
+                          }).toList(),
                           );
                         },
                       ),

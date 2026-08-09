@@ -10,6 +10,7 @@ class CalendarState {
   final CalendarViewMode viewMode;
   final DateTime selectedDate;
   final List<CalendarModel> calendars;
+  final List<ScheduleModel> rawSchedules;
   final List<ScheduleModel> schedules;
   final List<CalendarResourceModel> resources;
   final CalendarSummaryModel summary;
@@ -29,6 +30,7 @@ class CalendarState {
     this.viewMode = CalendarViewMode.week,
     required this.selectedDate,
     this.calendars = const [],
+    this.rawSchedules = const [],
     this.schedules = const [],
     this.resources = const [],
     required this.summary,
@@ -49,6 +51,7 @@ class CalendarState {
     CalendarViewMode? viewMode,
     DateTime? selectedDate,
     List<CalendarModel>? calendars,
+    List<ScheduleModel>? rawSchedules,
     List<ScheduleModel>? schedules,
     List<CalendarResourceModel>? resources,
     CalendarSummaryModel? summary,
@@ -69,6 +72,7 @@ class CalendarState {
       viewMode: viewMode ?? this.viewMode,
       selectedDate: selectedDate ?? this.selectedDate,
       calendars: calendars ?? this.calendars,
+      rawSchedules: rawSchedules ?? this.rawSchedules,
       schedules: schedules ?? this.schedules,
       resources: resources ?? this.resources,
       summary: summary ?? this.summary,
@@ -134,7 +138,9 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
 
   /// Initial full sync
   Future<void> loadAll() async {
-    state = state.copyWith(isLoading: true, error: null);
+    _api.clearCache();
+    _rawSchedules = [];
+    state = state.copyWith(isLoading: true, error: null, rawSchedules: [], schedules: []);
     await Future.wait([
       fetchCalendars(),
       fetchScheduleCategories(),
@@ -144,7 +150,6 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
     ]);
     state = state.copyWith(isLoading: false);
   }
-
 
   /// Apply local filters over raw schedules for 0ms instantaneous UI updates
   List<ScheduleModel> _filterSchedules(List<ScheduleModel> raw) {
@@ -186,60 +191,12 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
       // 6. Header Filter Pills:
       if (state.activeFilterPills.isEmpty) return false;
 
-      // Strict calendar ID filtering: if a schedule has a calendarId, enforce activeFilterPills state
+      // Enforce activeFilterPills state if calendarId is mapped
       if (s.calendarId.isNotEmpty) {
         return state.activeFilterPills.contains(s.calendarId);
       }
 
-      bool matchesPill = false;
-
-      if (state.activeFilterPills.contains('my_schedule')) {
-        if (s.scheduleType == 'Event' ||
-            s.scheduleType == 'Meeting' ||
-            s.category == 'Meetings' ||
-            s.category == 'General') {
-          matchesPill = true;
-        }
-      }
-
-      if (!matchesPill && state.activeFilterPills.contains('assigned_to_me')) {
-        if (s.participants.isNotEmpty || s.scheduleType == 'Task' || s.category == 'Tasks') {
-          matchesPill = true;
-        }
-      }
-
-      if (!matchesPill && state.activeFilterPills.contains('team_schedule')) {
-        if (s.scheduleType == 'Class' ||
-            s.scheduleType == 'Exam' ||
-            s.scheduleType == 'Training' ||
-            s.category == 'Classes' ||
-            s.category == 'Training' ||
-            s.category == 'Exams') {
-          matchesPill = true;
-        }
-      }
-
-      if (!matchesPill && state.activeFilterPills.contains('department')) {
-        if (s.category == 'HR' ||
-            s.category == 'Transport' ||
-            s.scheduleType == 'Trip' ||
-            s.scheduleType == 'Bus Route') {
-          matchesPill = true;
-        }
-      }
-
-      if (!matchesPill && state.activeFilterPills.contains('public_holidays')) {
-        if (s.category == 'School Events' ||
-            s.category == 'Holidays' ||
-            s.title.toLowerCase().contains('holiday') ||
-            s.title.toLowerCase().contains('yoga') ||
-            s.title.toLowerCase().contains('vacation') ||
-            s.title.toLowerCase().contains('day')) {
-          matchesPill = true;
-        }
-      }
-
-      return matchesPill;
+      return true;
     }).toList();
   }
 
@@ -361,7 +318,6 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
   void setCategoryFilter(String category) {
     state = state.copyWith(selectedCategory: category);
     state = state.copyWith(schedules: _filterSchedules(_rawSchedules));
-    fetchSchedules();
   }
 
   void setStatusFilter(String status) {
@@ -476,9 +432,6 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
       if (state.searchQuery.isNotEmpty) {
         queryParams['search'] = state.searchQuery;
       }
-      if (state.selectedCategory != 'All') {
-        queryParams['category'] = state.selectedCategory;
-      }
       if (state.selectedPriority != 'All') {
         queryParams['priority'] = state.selectedPriority;
       }
@@ -496,7 +449,10 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
             .map((s) => ScheduleModel.fromJson(s))
             .toList();
         _rawSchedules = list;
-        state = state.copyWith(schedules: _filterSchedules(_rawSchedules));
+        state = state.copyWith(
+          rawSchedules: list,
+          schedules: _filterSchedules(_rawSchedules),
+        );
       }
     } catch (e) {
       debugPrint('[CalendarProvider] fetchSchedules error: $e');
@@ -588,6 +544,46 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
       return false;
     } catch (e) {
       debugPrint('[CalendarProvider] deleteSchedule error: $e');
+      return false;
+    }
+  }
+
+  /// Cancel schedule with a required reason
+  Future<bool> cancelSchedule(
+    String scheduleId, {
+    required String reason,
+    String recurrenceScope = 'entire_series',
+    String? targetInstanceDate,
+  }) async {
+    try {
+      String query = '?recurrence_scope=$recurrenceScope';
+      if (targetInstanceDate != null && targetInstanceDate.isNotEmpty) {
+        query += '&target_instance_date=$targetInstanceDate';
+      }
+
+      Map<String, dynamic> res;
+      try {
+        res = await _api.post('/schedules/$scheduleId/cancel', {
+          'cancellation_reason': reason,
+          'recurrence_scope': recurrenceScope,
+          if (targetInstanceDate != null && targetInstanceDate.isNotEmpty)
+            'target_instance_date': targetInstanceDate,
+        });
+      } catch (_) {
+        // Fallback to PATCH endpoint if POST sub-route is not exposed on gateway
+        res = await _api.patch('/schedules/$scheduleId$query', {
+          'status': 'cancelled',
+          'cancellation_reason': reason,
+        });
+      }
+
+      if (res['success'] == true) {
+        await Future.wait([fetchSchedules(), fetchSummary()]);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('[CalendarProvider] cancelSchedule error: $e');
       return false;
     }
   }
