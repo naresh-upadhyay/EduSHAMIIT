@@ -46,11 +46,17 @@ class CalendarWeekViewWidget extends ConsumerWidget {
           s.endTime.difference(s.startTime).inHours < 24;
     }).toList();
 
+    return LayoutBuilder(
+      builder: (context, outerConstraints) {
+    final isMobile = outerConstraints.maxWidth < 500;
+    final double ts = (outerConstraints.maxWidth / 700).clamp(0.78, 1.0);
+    final timeColWidth = isMobile ? 40.0 : 70.0;
+
     return Column(
       children: [
         // 1. Week Header Row (Mon..Sun)
         Container(
-          height: 56,
+          height: isMobile ? 42 : 56,
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
             border: Border(
@@ -62,12 +68,12 @@ class CalendarWeekViewWidget extends ConsumerWidget {
           ),
           child: Row(
             children: [
-              const SizedBox(
-                width: 70,
+              SizedBox(
+                width: timeColWidth,
                 child: Center(
                   child: Text(
-                    'GMT+5:30',
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)),
+                    isMobile ? '' : 'GMT+5:30',
+                    style: TextStyle(fontSize: (10 * ts).roundToDouble(), fontWeight: FontWeight.bold, color: const Color(0xFF94A3B8)),
                   ),
                 ),
               ),
@@ -95,17 +101,17 @@ class CalendarWeekViewWidget extends ConsumerWidget {
                         Text(
                           DateFormat('EEE').format(day),
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: (11 * ts).roundToDouble(),
                             fontWeight: FontWeight.w700,
                             color: isToday
                                 ? const Color(0xFF4F46E5)
                                 : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B)),
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: isMobile ? 2 : 4),
                         Container(
-                          width: 28,
-                          height: 28,
+                          width: isMobile ? 22 : 28,
+                          height: isMobile ? 22 : 28,
                           decoration: BoxDecoration(
                             color: isToday
                                 ? const Color(0xFF4F46E5)
@@ -116,7 +122,7 @@ class CalendarWeekViewWidget extends ConsumerWidget {
                             child: Text(
                               '${day.day}',
                               style: TextStyle(
-                                fontSize: 13,
+                                fontSize: (13 * ts).roundToDouble(),
                                 fontWeight: FontWeight.w800,
                                 color: isToday
                                     ? Colors.white
@@ -151,13 +157,13 @@ class CalendarWeekViewWidget extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: 70,
+                  width: timeColWidth,
                   child: Padding(
                     padding: const EdgeInsets.only(top: 6, left: 12),
                     child: Text(
                       'All Day',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: (11 * ts).roundToDouble(),
                         fontWeight: FontWeight.w700,
                         color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                       ),
@@ -206,7 +212,7 @@ class CalendarWeekViewWidget extends ConsumerWidget {
                                     child: Text(
                                       '${e.title} ($timeBadge)',
                                       style: TextStyle(
-                                        fontSize: 10,
+                                        fontSize: (10 * ts).roundToDouble(),
                                         fontWeight: FontWeight.bold,
                                         color: isDark ? Colors.white : const Color(0xFF0F172A),
                                       ),
@@ -250,14 +256,14 @@ class CalendarWeekViewWidget extends ConsumerWidget {
                         child: Row(
                           children: [
                             SizedBox(
-                              width: 70,
+                              width: timeColWidth,
                               child: Padding(
                                 padding: const EdgeInsets.only(right: 8, top: 4),
                                 child: Text(
                                   displayHour,
                                   textAlign: TextAlign.right,
                                   style: TextStyle(
-                                    fontSize: 10,
+                                    fontSize: (10 * ts).roundToDouble(),
                                     fontWeight: FontWeight.w600,
                                     color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF94A3B8),
                                   ),
@@ -297,7 +303,7 @@ class CalendarWeekViewWidget extends ConsumerWidget {
                   // Schedules Render Overlay with Side-by-Side Overlap Engine
                   Positioned.fill(
                     child: Padding(
-                      padding: const EdgeInsets.only(left: 70),
+                      padding: EdgeInsets.only(left: timeColWidth),
                       child: Row(
                         children: weekDays.map((day) {
                           // Filter same-day hourly events specifically for this day
@@ -342,6 +348,8 @@ class CalendarWeekViewWidget extends ConsumerWidget {
           ),
         ),
       ],
+    );
+      },
     );
   }
 
@@ -527,7 +535,7 @@ class CalendarWeekViewWidget extends ConsumerWidget {
                                   child: Text(
                                     event.locationName ?? event.room ?? event.organizerName ?? '',
                                     style: TextStyle(
-                                      fontSize: 9.5,
+                                      fontSize: totalLanes > 2 ? 8 : 9.5,
                                       fontWeight: FontWeight.w600,
                                       color: textTint,
                                     ),

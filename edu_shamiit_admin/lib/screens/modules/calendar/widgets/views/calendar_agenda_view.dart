@@ -67,8 +67,13 @@ class CalendarAgendaView extends ConsumerWidget {
     // Sort dates chronologically
     final sortedDates = groupedByDate.keys.toList()..sort((a, b) => a.compareTo(b));
 
+    return LayoutBuilder(
+      builder: (context, outerConstraints) {
+    final isMobile = outerConstraints.maxWidth < 500;
+    final double ts = (outerConstraints.maxWidth / 700).clamp(0.78, 1.0);
+
     return ListView.builder(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 12 : 24),
       itemCount: sortedDates.length,
       itemBuilder: (context, index) {
         final date = sortedDates[index];
@@ -111,7 +116,7 @@ class CalendarAgendaView extends ConsumerWidget {
                 Text(
                   DateFormat('EEEE, d MMMM yyyy').format(date).toUpperCase(),
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: (13 * ts).roundToDouble(),
                     fontWeight: FontWeight.w800,
                     color: headerColor,
                     letterSpacing: 0.5,
@@ -128,7 +133,7 @@ class CalendarAgendaView extends ConsumerWidget {
                     child: Text(
                       badgeText,
                       style: TextStyle(
-                        fontSize: 9,
+                        fontSize: (9 * ts).roundToDouble(),
                         fontWeight: FontWeight.w900,
                         color: headerColor,
                       ),
@@ -139,7 +144,7 @@ class CalendarAgendaView extends ConsumerWidget {
                 Text(
                   '(${dayEvents.length})',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: (12 * ts).roundToDouble(),
                     fontWeight: FontWeight.bold,
                     color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
                   ),
@@ -185,7 +190,7 @@ class CalendarAgendaView extends ConsumerWidget {
                                 Text(
                                   DateFormat('hh:mm a').format(e.startTime),
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: (14 * ts).roundToDouble(),
                                     fontWeight: FontWeight.w800,
                                     color: isDark ? Colors.white : const Color(0xFF0F172A),
                                   ),
@@ -193,7 +198,7 @@ class CalendarAgendaView extends ConsumerWidget {
                                 Text(
                                   'to ${DateFormat('hh:mm a').format(e.endTime)}',
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: (11 * ts).roundToDouble(),
                                     fontWeight: FontWeight.w600,
                                     color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                                   ),
@@ -224,7 +229,7 @@ class CalendarAgendaView extends ConsumerWidget {
                                        child: Text(
                                          e.title,
                                          style: TextStyle(
-                                           fontSize: 14,
+                                           fontSize: (14 * ts).roundToDouble(),
                                            fontWeight: FontWeight.w800,
                                            color: e.status == 'cancelled' ? const Color(0xFFEF4444) : (isDark ? Colors.white : const Color(0xFF0F172A)),
                                            decoration: e.status == 'cancelled' ? TextDecoration.lineThrough : null,
@@ -297,7 +302,7 @@ class CalendarAgendaView extends ConsumerWidget {
                                       child: Text(
                                         e.scheduleType,
                                         style: TextStyle(
-                                          fontSize: 11,
+                                          fontSize: (11 * ts).roundToDouble(),
                                           fontWeight: FontWeight.bold,
                                           color: isDark ? Color.lerp(e.color, Colors.white, 0.4)! : e.color,
                                         ),
@@ -310,7 +315,7 @@ class CalendarAgendaView extends ConsumerWidget {
                                   Text(
                                     e.description!,
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: (12 * ts).roundToDouble(),
                                       color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
                                     ),
                                     maxLines: 2,
@@ -330,7 +335,7 @@ class CalendarAgendaView extends ConsumerWidget {
                                       Text(
                                         e.locationName ?? e.room ?? '',
                                         style: TextStyle(
-                                          fontSize: 12,
+                                          fontSize: (12 * ts).roundToDouble(),
                                           color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                                         ),
                                       ),
@@ -346,7 +351,7 @@ class CalendarAgendaView extends ConsumerWidget {
                                       Text(
                                         e.organizerName!,
                                         style: TextStyle(
-                                          fontSize: 12,
+                                          fontSize: (12 * ts).roundToDouble(),
                                           color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                                         ),
                                       ),
@@ -365,6 +370,8 @@ class CalendarAgendaView extends ConsumerWidget {
             }),
           ],
         );
+      },
+    );
       },
     );
   }

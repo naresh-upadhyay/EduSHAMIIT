@@ -16,8 +16,9 @@ class ConflictWarningDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
-        width: 480,
+        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width < 600 ? MediaQuery.sizeOf(context).width - 32 : 480),
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -84,7 +85,10 @@ class ConflictWarningDialog extends StatelessWidget {
             const SizedBox(height: 24),
 
             // Action options
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.end,
               children: [
                 OutlinedButton(
                   onPressed: () => Navigator.pop(context),
@@ -94,7 +98,6 @@ class ConflictWarningDialog extends StatelessWidget {
                   ),
                   child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w700)),
                 ),
-                const Spacer(),
                 OutlinedButton(
                   onPressed: () {
                     Navigator.pop(context);
@@ -107,7 +110,6 @@ class ConflictWarningDialog extends StatelessWidget {
                   ),
                   child: const Text('Find Available Time', style: TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.w700)),
                 ),
-                const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);

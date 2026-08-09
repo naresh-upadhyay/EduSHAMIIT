@@ -21,8 +21,11 @@ class CalendarHeaderWidget extends ConsumerWidget {
     final isDesktop = Responsive.isDesktop(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final isMobile = !isDesktop && MediaQuery.sizeOf(context).width < 600;
+    final double ts = (MediaQuery.sizeOf(context).width / 700).clamp(0.78, 1.0);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 24, vertical: isMobile ? 8 : 16),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         border: Border(
@@ -41,45 +44,47 @@ class CalendarHeaderWidget extends ConsumerWidget {
               Text(
                 'Calendar',
                 style: TextStyle(
-                  fontSize: 24,
+                fontSize: (24 * ts).roundToDouble(),
                   fontWeight: FontWeight.w800,
                   color: isDark ? Colors.white : const Color(0xFF0F172A),
                   letterSpacing: -0.5,
                 ),
               ),
-              const SizedBox(width: 16),
+              if (!isMobile) ...[
+                const SizedBox(width: 16),
 
-              // Institution / Calendar Quick Dropdown if multiple
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF10B981),
-                        shape: BoxShape.circle,
+                // Institution / Calendar Quick Dropdown if multiple
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF10B981),
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Live Sync Active',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Live Sync Active',
+                        style: TextStyle(
+                          fontSize: (12 * ts).roundToDouble(),
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
 
               const Spacer(),
 
@@ -125,7 +130,7 @@ class CalendarHeaderWidget extends ConsumerWidget {
             ],
           ),
 
-          const SizedBox(height: 14),
+          SizedBox(height: isMobile ? 8 : 14),
 
           // Row 2: Date Navigation Controls & View Modes
           SingleChildScrollView(
@@ -137,13 +142,12 @@ class CalendarHeaderWidget extends ConsumerWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Today Button
                     SizedBox(
-                      height: 38,
+                      height: isMobile ? 30 : 38,
                       child: OutlinedButton(
                         onPressed: notifier.goToToday,
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 16),
                           side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
@@ -151,19 +155,18 @@ class CalendarHeaderWidget extends ConsumerWidget {
                         child: Text(
                           'Today',
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: isMobile ? 11 : 13,
                             fontWeight: FontWeight.w700,
                             color: isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: isMobile ? 4 : 8),
 
-                    // Previous Period Button
                     SizedBox(
-                      width: 38,
-                      height: 38,
+                      width: isMobile ? 30 : 38,
+                      height: isMobile ? 30 : 38,
                       child: IconButton(
                         onPressed: notifier.previousPeriod,
                         icon: Icon(Icons.chevron_left_rounded, size: 20, color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -178,12 +181,11 @@ class CalendarHeaderWidget extends ConsumerWidget {
                         tooltip: 'Previous period',
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    SizedBox(width: isMobile ? 2 : 4),
 
-                    // Next Period Button
                     SizedBox(
-                      width: 38,
-                      height: 38,
+                      width: isMobile ? 30 : 38,
+                      height: isMobile ? 30 : 38,
                       child: IconButton(
                         onPressed: notifier.nextPeriod,
                         icon: Icon(Icons.chevron_right_rounded, size: 20, color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -200,7 +202,6 @@ class CalendarHeaderWidget extends ConsumerWidget {
                     ),
                     const SizedBox(width: 14),
 
-                    // Date Range Picker Dropdown Trigger
                     InkWell(
                       onTap: () async {
                         final picked = await showDatePicker(
@@ -215,8 +216,8 @@ class CalendarHeaderWidget extends ConsumerWidget {
                       },
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
-                        height: 38,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        height: isMobile ? 30 : 38,
+                        padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 12),
                         decoration: BoxDecoration(
                           color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(8),
@@ -228,7 +229,7 @@ class CalendarHeaderWidget extends ConsumerWidget {
                             Text(
                               state.formattedDateRange,
                               style: TextStyle(
-                                fontSize: 13,
+                                fontSize: isMobile ? 11 : 13,
                                 fontWeight: FontWeight.w800,
                                 color: isDark ? Colors.white : const Color(0xFF0F172A),
                               ),
@@ -242,7 +243,7 @@ class CalendarHeaderWidget extends ConsumerWidget {
                   ],
                 ),
 
-                const SizedBox(width: 24),
+                SizedBox(width: isMobile ? 8 : 24),
 
                 // Right Group: View Switcher (Day, Week, Month, Agenda, Timeline) & Filters
                 Row(
@@ -250,8 +251,8 @@ class CalendarHeaderWidget extends ConsumerWidget {
                   children: [
                     // View Switcher Segment
                     Container(
-                      height: 38,
-                      padding: const EdgeInsets.all(3),
+                      height: isMobile ? 30 : 38,
+                      padding: EdgeInsets.all(isMobile ? 2 : 3),
                       decoration: BoxDecoration(
                         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(8),
@@ -260,11 +261,13 @@ class CalendarHeaderWidget extends ConsumerWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _buildViewTab(context, ref, CalendarViewMode.day, 'Day'),
-                          _buildViewTab(context, ref, CalendarViewMode.week, 'Week'),
-                          _buildViewTab(context, ref, CalendarViewMode.month, 'Month'),
-                          _buildViewTab(context, ref, CalendarViewMode.agenda, 'Agenda'),
-                          _buildViewTab(context, ref, CalendarViewMode.timeline, 'Timeline'),
+                          _buildViewTab(context, ref, CalendarViewMode.day, 'Day', isMobile),
+                          _buildViewTab(context, ref, CalendarViewMode.week, 'Week', isMobile),
+                          _buildViewTab(context, ref, CalendarViewMode.month, 'Month', isMobile),
+                          if (!isMobile) ...[
+                            _buildViewTab(context, ref, CalendarViewMode.agenda, 'Agenda', isMobile),
+                            _buildViewTab(context, ref, CalendarViewMode.timeline, 'Timeline', isMobile),
+                          ],
                         ],
                       ),
                     ),
@@ -272,33 +275,57 @@ class CalendarHeaderWidget extends ConsumerWidget {
 
                     // Filters Button
                     SizedBox(
-                      height: 38,
-                      child: OutlinedButton.icon(
-                        onPressed: () => _showFilterDialog(context, ref),
-                        icon: Icon(Icons.filter_list_rounded, size: 16, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
-                        label: Text(
-                          state.selectedCategory != 'All' || state.selectedPriority != 'All' || state.selectedStatus != 'All'
-                              ? 'Filters (Active)'
-                              : 'Filters',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: state.selectedCategory != 'All' || state.selectedPriority != 'All'
-                                ? const Color(0xFF818CF8)
-                                : (isDark ? Colors.white : const Color(0xFF0F172A)),
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          side: BorderSide(
-                            color: state.selectedCategory != 'All' || state.selectedPriority != 'All'
-                                ? const Color(0xFF4F46E5)
-                                : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                          ),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
-                        ),
-                      ),
+                      height: isMobile ? 30 : 38,
+                      child: isMobile
+                          ? IconButton(
+                              onPressed: () => _showFilterDialog(context, ref),
+                              icon: Icon(
+                                Icons.filter_list_rounded,
+                                size: 18,
+                                color: state.selectedCategory != 'All' || state.selectedPriority != 'All'
+                                    ? const Color(0xFF818CF8)
+                                    : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+                              ),
+                              style: IconButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  side: BorderSide(
+                                    color: state.selectedCategory != 'All' || state.selectedPriority != 'All'
+                                        ? const Color(0xFF4F46E5)
+                                        : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                  ),
+                                ),
+                              ),
+                              tooltip: 'Filters',
+                            )
+                          : OutlinedButton.icon(
+                              onPressed: () => _showFilterDialog(context, ref),
+                              icon: Icon(Icons.filter_list_rounded, size: 16, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+                              label: Text(
+                                state.selectedCategory != 'All' || state.selectedPriority != 'All' || state.selectedStatus != 'All'
+                                    ? 'Filters (Active)'
+                                    : 'Filters',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: state.selectedCategory != 'All' || state.selectedPriority != 'All'
+                                      ? const Color(0xFF818CF8)
+                                      : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 14),
+                                side: BorderSide(
+                                  color: state.selectedCategory != 'All' || state.selectedPriority != 'All'
+                                      ? const Color(0xFF4F46E5)
+                                      : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                ),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                              ),
+                            ),
                     ),
                   ],
                 ),
@@ -311,7 +338,7 @@ class CalendarHeaderWidget extends ConsumerWidget {
     );
   }
 
-  Widget _buildViewTab(BuildContext context, WidgetRef ref, CalendarViewMode mode, String label) {
+  Widget _buildViewTab(BuildContext context, WidgetRef ref, CalendarViewMode mode, String label, bool isMobile) {
     final state = ref.watch(calendarProvider);
     final isSelected = state.viewMode == mode;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -321,7 +348,7 @@ class CalendarHeaderWidget extends ConsumerWidget {
       borderRadius: BorderRadius.circular(6),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 14, vertical: isMobile ? 4 : 6),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFF4F46E5) : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
@@ -338,7 +365,7 @@ class CalendarHeaderWidget extends ConsumerWidget {
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 13,
+            fontSize: isMobile ? 11 : 13,
             fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
             color: isSelected
                 ? Colors.white
@@ -394,36 +421,43 @@ class CalendarHeaderWidget extends ConsumerWidget {
         return items;
       },
 
-      child: Container(
-        height: 38,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF4F46E5),
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
+      child: Builder(
+        builder: (context) {
+          final isMobileBtn = MediaQuery.sizeOf(context).width < 600;
+          return Container(
+            height: 38,
+            padding: EdgeInsets.symmetric(horizontal: isMobileBtn ? 10 : 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF4F46E5),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.add_rounded, color: Colors.white, size: 18),
-            SizedBox(width: 6),
-            Text(
-              'Create Schedule',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 13,
-                letterSpacing: 0.2,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.add_rounded, color: Colors.white, size: 18),
+                if (!isMobileBtn) ...[
+                  const SizedBox(width: 6),
+                  const Text(
+                    'Create Schedule',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

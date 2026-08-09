@@ -36,8 +36,9 @@ class _QuickEventCreatePopoverState extends State<QuickEventCreatePopover> {
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
-        width: 360,
+        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width < 600 ? MediaQuery.sizeOf(context).width - 32 : 360),
         padding: const EdgeInsets.all(20),
         child: SingleChildScrollView(
           child: Column(
@@ -82,9 +83,12 @@ class _QuickEventCreatePopoverState extends State<QuickEventCreatePopover> {
               children: [
                 const Icon(Icons.access_time_rounded, size: 16, color: Color(0xFF64748B)),
                 const SizedBox(width: 8),
-                Text(
-                  '${DateFormat('d MMMM').format(start)} • ${DateFormat('hh:mm a').format(start)} – ${DateFormat('hh:mm a').format(end)}',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                Expanded(
+                  child: Text(
+                    '${DateFormat('d MMM').format(start)} • ${DateFormat('hh:mm a').format(start)} – ${DateFormat('hh:mm a').format(end)}',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),

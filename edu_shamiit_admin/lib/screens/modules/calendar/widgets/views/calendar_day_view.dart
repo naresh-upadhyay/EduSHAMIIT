@@ -45,11 +45,18 @@ class CalendarDayView extends ConsumerWidget {
           s.endTime.difference(s.startTime).inHours < 24;
     }).toList();
 
+    return LayoutBuilder(
+      builder: (context, outerConstraints) {
+    final isMobile = outerConstraints.maxWidth < 500;
+    final double ts = (outerConstraints.maxWidth / 550).clamp(0.70, 1.0);
+    final hPad = isMobile ? 8.0 : 24.0;
+    final timeColWidth = isMobile ? 48.0 : 80.0;
+
     return Column(
       children: [
         // Day Header Bar
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: EdgeInsets.symmetric(horizontal: hPad, vertical: isMobile ? 6 : 14),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
             border: Border(
@@ -60,21 +67,36 @@ class CalendarDayView extends ConsumerWidget {
           ),
           child: Row(
             children: [
-              Text(
-                DateFormat('EEEE, d MMMM yyyy').format(selectedDate),
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+              Expanded(
+                child: Text(
+                  isMobile
+                      ? DateFormat('EEE, d MMM').format(selectedDate)
+                      : DateFormat('EEEE, d MMMM yyyy').format(selectedDate),
+                  style: TextStyle(
+                    fontSize: (14.5 * ts).roundToDouble(),
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Spacer(),
-              Text(
-                '${daySchedules.length} Schedules Today',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 6 : 10, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4F46E5).withValues(alpha: isDark ? 0.25 : 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    isMobile ? '${daySchedules.length}' : '${daySchedules.length} Schedules Today',
+                    style: TextStyle(
+                      fontSize: (11 * ts).roundToDouble(),
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
             ],
@@ -84,7 +106,7 @@ class CalendarDayView extends ConsumerWidget {
         // All Day / Multi-Day Banner Row if present
         if (allDayAndMultiDayEvents.isNotEmpty)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 8),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
               border: Border(
@@ -98,11 +120,11 @@ class CalendarDayView extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: 70,
+                  width: timeColWidth,
                   child: Text(
                     'All Day',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: (11 * ts).roundToDouble(),
                       fontWeight: FontWeight.w700,
                       color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                     ),
@@ -181,16 +203,16 @@ class CalendarDayView extends ConsumerWidget {
                               ),
                             ),
                           ),
-                          child: Row(
+                      child: Row(
                             children: [
                               SizedBox(
-                                width: 80,
+                                width: timeColWidth,
                                 child: Padding(
-                                  padding: const EdgeInsets.only(left: 16, top: 8),
+                                  padding: EdgeInsets.only(left: isMobile ? 4 : 16, top: 8),
                                   child: Text(
                                     timeStr,
                                     style: TextStyle(
-                                      fontSize: 11,
+                                      fontSize: (11 * ts).roundToDouble(),
                                       fontWeight: FontWeight.bold,
                                       color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF94A3B8),
                                     ),
@@ -208,7 +230,7 @@ class CalendarDayView extends ConsumerWidget {
                   // Schedules Overlay with Side-by-Side Overlap Engine
                   Positioned.fill(
                     child: Padding(
-                      padding: const EdgeInsets.only(left: 90, right: 20),
+                    padding: EdgeInsets.only(left: timeColWidth + 10, right: isMobile ? 6 : 20),
                       child: LayoutBuilder(
                         builder: (context, constraints) {
                           final availableWidth = constraints.maxWidth;
@@ -299,15 +321,15 @@ class CalendarDayView extends ConsumerWidget {
                                                       child: Text(
                                                         event.title,
                                                         style: TextStyle(
-                                                          fontSize: totalLanes > 2 ? 11 : 13,
+                                                          fontSize: (13 * ts).roundToDouble(),
                                                           fontWeight: FontWeight.w800,
                                                           color: titleColor,
-),
+                                                        ),
                                                         maxLines: 1,
                                                         overflow: TextOverflow.ellipsis,
                                                       ),
                                                     ),
-                                                    if (totalLanes <= 2) ...[
+                                                    if (!isMobile && totalLanes <= 2) ...[
                                                       const SizedBox(width: 8),
                                                       if (event.participants.isNotEmpty) ...[
                                                         Builder(
@@ -364,9 +386,9 @@ class CalendarDayView extends ConsumerWidget {
                                                 ),
                                                 const SizedBox(height: 2),
                                                 Text(
-                                                  '${DateFormat('hh:mm a').format(event.startTime)} – ${DateFormat('hh:mm a').format(event.endTime)}  •  ${event.locationName ?? event.room ?? "General"}',
+                                                  '${DateFormat('hh:mm a').format(event.startTime)} – ${DateFormat('hh:mm a').format(event.endTime)}${isMobile ? '' : '  •  ${event.locationName ?? event.room ?? "General"}'}',
                                                   style: TextStyle(
-                                                    fontSize: totalLanes > 2 ? 9.5 : 11.5,
+                                                     fontSize: (11.5 * ts).roundToDouble(),
                                                     fontWeight: FontWeight.w600,
                                                     color: textTint,
                                                   ),
@@ -407,6 +429,8 @@ class CalendarDayView extends ConsumerWidget {
           ),
         ),
       ],
+    );
+      },
     );
   }
 

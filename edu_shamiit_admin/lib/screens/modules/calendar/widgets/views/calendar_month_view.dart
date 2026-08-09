@@ -33,11 +33,16 @@ class CalendarMonthView extends StatelessWidget {
              (targetDay.isAtSameMomentAs(endDay) || targetDay.isBefore(endDay));
     }
 
+    return LayoutBuilder(
+      builder: (context, outerConstraints) {
+    final isMobile = outerConstraints.maxWidth < 500;
+    final double ts = (outerConstraints.maxWidth / 700).clamp(0.78, 1.0);
+
     return Column(
       children: [
         // Weekday Headers
         Container(
-          height: 40,
+          height: isMobile ? 28 : 40,
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
             border: Border(
@@ -51,7 +56,7 @@ class CalendarMonthView extends StatelessWidget {
                   child: Text(
                     w,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: (12 * ts).roundToDouble(),
                       fontWeight: FontWeight.w700,
                       color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
                     ),
@@ -65,9 +70,9 @@ class CalendarMonthView extends StatelessWidget {
         // 7x5 Month Grid
         Expanded(
           child: GridView.builder(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
-              childAspectRatio: 1.2,
+              childAspectRatio: isMobile ? 0.8 : 1.2,
             ),
             itemCount: 35, // 5 weeks
             itemBuilder: (context, index) {
@@ -87,7 +92,7 @@ class CalendarMonthView extends StatelessWidget {
               return InkWell(
                 onTap: cellDate != null ? () => onSlotTap(cellDate, 9) : null,
                 child: Container(
-                  padding: const EdgeInsets.all(4),
+                  padding: EdgeInsets.all(isMobile ? 2 : 4),
                   decoration: BoxDecoration(
                     color: isValidDay
                         ? (isDark ? const Color(0xFF1E293B) : Colors.white)
@@ -106,8 +111,8 @@ class CalendarMonthView extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Container(
-                              width: 22,
-                              height: 22,
+                              width: isMobile ? 18 : 22,
+                              height: isMobile ? 18 : 22,
                               decoration: BoxDecoration(
                                 color: isToday ? const Color(0xFF4F46E5) : Colors.transparent,
                                 shape: BoxShape.circle,
@@ -116,7 +121,7 @@ class CalendarMonthView extends StatelessWidget {
                                 child: Text(
                                   '$dayNum',
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: (11 * ts).roundToDouble(),
                                     fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
                                     color: isToday
                                         ? Colors.white
@@ -129,7 +134,7 @@ class CalendarMonthView extends StatelessWidget {
                               Text(
                                 '${dayEvents.length}',
                                 style: TextStyle(
-                                  fontSize: 10,
+                                  fontSize: (10 * ts).roundToDouble(),
                                   fontWeight: FontWeight.bold,
                                   color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF94A3B8),
                                 ),
@@ -167,7 +172,7 @@ class CalendarMonthView extends StatelessWidget {
                                   child: Text(
                                     '${DateFormat('hh:mm').format(event.startTime)} ${event.title}',
                                     style: TextStyle(
-                                      fontSize: 10,
+                                      fontSize: (10 * ts).roundToDouble(),
                                       fontWeight: FontWeight.w700,
                                       color: textTint,
                                     ),
@@ -183,7 +188,7 @@ class CalendarMonthView extends StatelessWidget {
                                 child: Text(
                                   '+${dayEvents.length - 2} more',
                                   style: TextStyle(
-                                    fontSize: 9,
+                                    fontSize: (9 * ts).roundToDouble(),
                                     fontWeight: FontWeight.bold,
                                     color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
                                   ),
@@ -200,6 +205,8 @@ class CalendarMonthView extends StatelessWidget {
           ),
         ),
       ],
+    );
+      },
     );
   }
 }

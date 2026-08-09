@@ -38,6 +38,8 @@ class CalendarFilterBarWidget extends ConsumerWidget {
     }
 
     return Container(
+      width: double.infinity,
+      alignment: Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFAFAFC),
@@ -48,10 +50,16 @@ class CalendarFilterBarWidget extends ConsumerWidget {
           ),
         ),
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 500;
+          return Align(
+            alignment: Alignment.centerLeft,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
             // Left-most Select All / Deselect All Toggle Checkbox Chip
             Builder(
               builder: (context) {
@@ -60,7 +68,7 @@ class CalendarFilterBarWidget extends ConsumerWidget {
                     : state.activeFilterPills.isNotEmpty;
 
                 return Padding(
-                  padding: const EdgeInsets.only(right: 18),
+                  padding: EdgeInsets.only(right: isMobile ? 8 : 18),
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
@@ -71,7 +79,7 @@ class CalendarFilterBarWidget extends ConsumerWidget {
                       hoverColor: const Color(0xFF4F46E5).withValues(alpha: 0.08),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: EdgeInsets.symmetric(horizontal: isMobile ? 6 : 10, vertical: isMobile ? 4 : 6),
                         decoration: BoxDecoration(
                           color: allSelected
                               ? const Color(0xFF4F46E5).withValues(alpha: isDark ? 0.25 : 0.12)
@@ -88,8 +96,8 @@ class CalendarFilterBarWidget extends ConsumerWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Container(
-                              width: 16,
-                              height: 16,
+                              width: isMobile ? 12 : 16,
+                              height: isMobile ? 12 : 16,
                               decoration: BoxDecoration(
                                 color: allSelected ? const Color(0xFF4F46E5) : Colors.transparent,
                                 borderRadius: BorderRadius.circular(4),
@@ -99,11 +107,11 @@ class CalendarFilterBarWidget extends ConsumerWidget {
                                   ? const Icon(Icons.check, size: 12, color: Colors.white)
                                   : null,
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: isMobile ? 4 : 8),
                             Text(
                               allSelected ? 'Deselect All' : 'Select All',
                               style: TextStyle(
-                                fontSize: 13,
+                                fontSize: isMobile ? 10 : 13,
                                 fontWeight: FontWeight.w800,
                                 color: allSelected
                                     ? (isDark ? Colors.white : const Color(0xFF0F172A))
@@ -123,7 +131,7 @@ class CalendarFilterBarWidget extends ConsumerWidget {
               final isChecked = state.activeFilterPills.contains(pill.id);
 
               return Padding(
-                padding: const EdgeInsets.only(right: 18),
+                padding: EdgeInsets.only(right: isMobile ? 8 : 18),
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
@@ -134,7 +142,7 @@ class CalendarFilterBarWidget extends ConsumerWidget {
                     hoverColor: pill.color.withValues(alpha: 0.12),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 6 : 10, vertical: isMobile ? 4 : 6),
                       decoration: BoxDecoration(
                         color: isChecked
                             ? pill.color.withValues(alpha: isDark ? 0.28 : 0.12)
@@ -151,8 +159,8 @@ class CalendarFilterBarWidget extends ConsumerWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Container(
-                            width: 16,
-                            height: 16,
+                            width: isMobile ? 12 : 16,
+                            height: isMobile ? 12 : 16,
                             decoration: BoxDecoration(
                               color: isChecked ? pill.color : Colors.transparent,
                               borderRadius: BorderRadius.circular(4),
@@ -162,11 +170,11 @@ class CalendarFilterBarWidget extends ConsumerWidget {
                                 ? const Icon(Icons.check, size: 12, color: Colors.white)
                                 : null,
                           ),
-                          const SizedBox(width: 8),
+                          SizedBox(width: isMobile ? 4 : 8),
                           Text(
                             pill.label,
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: isMobile ? 10 : 13,
                               fontWeight: FontWeight.w700,
                               color: isChecked
                                   ? (isDark ? Colors.white : const Color(0xFF0F172A))
@@ -181,12 +189,11 @@ class CalendarFilterBarWidget extends ConsumerWidget {
               );
             }),
 
-            // Add Calendar Action Button
             InkWell(
               onTap: onAddCalendar,
               borderRadius: BorderRadius.circular(8),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 12, vertical: isMobile ? 4 : 6),
                 decoration: BoxDecoration(
                   color: const Color(0xFF4F46E5).withValues(alpha: isDark ? 0.2 : 0.08),
                   borderRadius: BorderRadius.circular(8),
@@ -195,16 +202,18 @@ class CalendarFilterBarWidget extends ConsumerWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.add_rounded, size: 16, color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5)),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Add Calendar',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                    Icon(Icons.add_rounded, size: isMobile ? 14 : 16, color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5)),
+                    if (!isMobile) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        'Add Calendar',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -213,7 +222,10 @@ class CalendarFilterBarWidget extends ConsumerWidget {
         ),
       ),
     );
-  }
+  },
+),
+);
+}
 }
 
 class _FilterPillData {

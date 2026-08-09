@@ -32,6 +32,10 @@ class CalendarTimelineView extends StatelessWidget {
             CalendarResourceModel(id: '6', name: 'Bus UP16 ET 5678', code: 'BUS-102', type: 'bus'),
           ];
 
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobile = screenWidth < 600;
+    final double ts = (screenWidth / 700).clamp(0.78, 1.0);
+
     return Column(
       children: [
         // Timeline Top Axis Header
@@ -46,7 +50,7 @@ class CalendarTimelineView extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 200,
+                width: isMobile ? 120 : 200,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 alignment: Alignment.centerLeft,
                 decoration: BoxDecoration(
@@ -54,9 +58,9 @@ class CalendarTimelineView extends StatelessWidget {
                     right: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   'Resource / Driver / Room',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF64748B)),
+                  style: TextStyle(fontSize: (12 * ts).roundToDouble(), fontWeight: FontWeight.w800, color: const Color(0xFF64748B)),
                 ),
               ),
               Expanded(
@@ -74,7 +78,7 @@ class CalendarTimelineView extends StatelessWidget {
                         child: Center(
                           child: Text(
                             hStr,
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)),
+                            style: TextStyle(fontSize: (11 * ts).roundToDouble(), fontWeight: FontWeight.bold, color: const Color(0xFF94A3B8)),
                           ),
                         ),
                       );
@@ -110,7 +114,7 @@ class CalendarTimelineView extends StatelessWidget {
                   children: [
                     // Resource Y-axis Label
                     Container(
-                      width: 200,
+                      width: isMobile ? 120 : 200,
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
                         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
@@ -125,7 +129,7 @@ class CalendarTimelineView extends StatelessWidget {
                           Text(
                             res.name,
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: (13 * ts).roundToDouble(),
                               fontWeight: FontWeight.w800,
                               color: isDark ? Colors.white : const Color(0xFF0F172A),
                             ),
@@ -144,7 +148,7 @@ class CalendarTimelineView extends StatelessWidget {
                                 child: Text(
                                   res.code,
                                   style: TextStyle(
-                                    fontSize: 10,
+                                    fontSize: (10 * ts).roundToDouble(),
                                     fontWeight: FontWeight.bold,
                                     color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
                                   ),
@@ -154,7 +158,7 @@ class CalendarTimelineView extends StatelessWidget {
                               Text(
                                 res.type,
                                 style: TextStyle(
-                                  fontSize: 11,
+                                  fontSize: (11 * ts).roundToDouble(),
                                   color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                                 ),
                               ),

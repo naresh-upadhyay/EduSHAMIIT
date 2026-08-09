@@ -307,9 +307,10 @@ class _UniversalCalendarScreenState extends ConsumerState<UniversalCalendarScree
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Center Work Area (Header + Filter Bar + Active View + Legend)
+          // Work Area (Header + Filter Bar + Active View + Legend)
           Expanded(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Top Header
                 CalendarHeaderWidget(

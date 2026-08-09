@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
@@ -593,13 +594,19 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
     final isDesktop = Responsive.isDesktop(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobile = screenWidth < 600;
+    final double ts = (screenWidth / 550).clamp(0.72, 1.0);
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      insetPadding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 20, vertical: isMobile ? 12 : 24),
       backgroundColor: Colors.transparent,
       child: Container(
         width: isDesktop ? 780 : double.infinity,
-        height: isDesktop ? 680 : 700,
+        constraints: BoxConstraints(
+          maxHeight: isDesktop ? 680 : (MediaQuery.sizeOf(context).height * 0.92).clamp(400.0, 700.0),
+        ),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -615,7 +622,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
           children: [
             // Ultra-Premium Modal Top Header
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 20, vertical: isMobile ? 6 : 12),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1E293B) : Colors.white,
                 border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
@@ -624,70 +631,73 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
               child: Row(
                 children: [
                   // Gradient Icon Badge
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          _selectedColor,
-                          _selectedColor.withValues(alpha: 0.8),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: _selectedColor.withValues(alpha: 0.35),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
+                  if (!isMobile)
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            _selectedColor,
+                            _selectedColor.withValues(alpha: 0.8),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                      ],
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _selectedColor.withValues(alpha: 0.35),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        widget.initialSchedule != null ? Icons.edit_calendar_rounded : Icons.add_task_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
                     ),
-                    child: Icon(
-                      widget.initialSchedule != null ? Icons.edit_calendar_rounded : Icons.add_task_rounded,
-                      color: Colors.white,
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
+                  if (!isMobile) const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 2,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text(
-                              widget.initialSchedule != null ? 'Edit Schedule' : 'Create New Schedule',
+                              widget.initialSchedule != null ? 'Edit Schedule' : 'Create Schedule',
                               style: TextStyle(
-                                fontSize: 19,
+                                fontSize: (15 * ts).roundToDouble(),
                                 fontWeight: FontWeight.w800,
                                 color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                letterSpacing: -0.4,
+                                letterSpacing: -0.3,
                               ),
                             ),
-                            const SizedBox(width: 10),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                              padding: EdgeInsets.symmetric(horizontal: isMobile ? 5 : 8, vertical: 1),
                               decoration: BoxDecoration(
                                 color: _selectedColor.withValues(alpha: isDark ? 0.25 : 0.1),
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: _selectedColor.withValues(alpha: 0.3)),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Container(
-                                    width: 6,
-                                    height: 6,
+                                    width: 5,
+                                    height: 5,
                                     decoration: BoxDecoration(color: _selectedColor, shape: BoxShape.circle),
                                   ),
-                                  const SizedBox(width: 6),
+                                  const SizedBox(width: 3),
                                   Text(
                                     _selectedType,
                                     style: TextStyle(
-                                      fontSize: 11,
+                                      fontSize: (10 * ts).roundToDouble(),
                                       fontWeight: FontWeight.w700,
                                       color: isDark ? Colors.white : _selectedColor,
                                     ),
@@ -697,15 +707,17 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                             ),
                           ],
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Configure schedule timeline, location, participants, resources, and reminders',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        if (!isMobile) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'Configure schedule timeline, location, participants, resources, and reminders',
+                            style: TextStyle(
+                              fontSize: (11 * ts).roundToDouble(),
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -716,17 +728,19 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                     ),
                     child: IconButton(
                       onPressed: () => Navigator.pop(context),
-                      icon: Icon(Icons.close_rounded, size: 18, color: isDark ? Colors.white : const Color(0xFF64748B)),
+                      icon: Icon(Icons.close_rounded, size: 16, color: isDark ? Colors.white : const Color(0xFF64748B)),
                       tooltip: 'Close',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                     ),
                   ),
                 ],
               ),
             ),
 
-            // Ultra-Premium Segmented Tab Bar
+            // Ultra-Premium Compact Segmented Tab Bar
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 4 : 8, vertical: isMobile ? 1 : 3),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                 border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
@@ -735,100 +749,111 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                 controller: _tabController,
                 isScrollable: true,
                 tabAlignment: TabAlignment.start,
-                labelPadding: const EdgeInsets.symmetric(horizontal: 3),
-                splashBorderRadius: BorderRadius.circular(10),
+                labelPadding: EdgeInsets.symmetric(horizontal: isMobile ? 1 : 3),
+                splashBorderRadius: BorderRadius.circular(6),
                 indicatorSize: TabBarIndicatorSize.tab,
-                indicatorPadding: const EdgeInsets.symmetric(vertical: 2),
+                indicatorPadding: EdgeInsets.symmetric(vertical: isMobile ? 1 : 2),
                 indicator: BoxDecoration(
                   color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(
                     color: const Color(0xFF4F46E5).withValues(alpha: 0.5),
-                    width: 1.5,
+                    width: 1.2,
                   ),
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFF4F46E5).withValues(alpha: isDark ? 0.25 : 0.08),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
                     ),
                   ],
                 ),
                 labelColor: const Color(0xFF4F46E5),
                 unselectedLabelColor: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
-                labelStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
-                unselectedLabelStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                labelStyle: TextStyle(fontSize: (10.5 * ts).roundToDouble(), fontWeight: FontWeight.w800),
+                unselectedLabelStyle: TextStyle(fontSize: (10.5 * ts).roundToDouble(), fontWeight: FontWeight.w600),
                 dividerColor: Colors.transparent,
-                tabs: const [
+                tabs: [
                   Tab(
+                    height: isMobile ? 26 : 30,
                     child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 5 : 8),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.info_outline_rounded, size: 16),
-                          SizedBox(width: 6),
-                          Text('Basic Info'),
+                          Icon(Icons.info_outline_rounded, size: isMobile ? 11 : 13),
+                          const SizedBox(width: 3),
+                          const Text('Basic Info'),
                         ],
                       ),
                     ),
                   ),
                   Tab(
+                    height: isMobile ? 26 : 30,
                     child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 5 : 8),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.access_time_rounded, size: 16),
-                          SizedBox(width: 6),
-                          Text('Date & Time'),
+                          Icon(Icons.access_time_rounded, size: isMobile ? 11 : 13),
+                          const SizedBox(width: 3),
+                          const Text('Date & Time'),
                         ],
                       ),
                     ),
                   ),
                   Tab(
+                    height: isMobile ? 26 : 30,
                     child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 5 : 8),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.repeat_rounded, size: 16),
-                          SizedBox(width: 6),
-                          Text('Recurrence'),
+                          Icon(Icons.repeat_rounded, size: isMobile ? 11 : 13),
+                          const SizedBox(width: 3),
+                          const Text('Recurrence'),
                         ],
                       ),
                     ),
                   ),
                   Tab(
+                    height: isMobile ? 26 : 30,
                     child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 5 : 8),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.location_on_outlined, size: 16),
-                          SizedBox(width: 6),
-                          Text('Location & Virtual'),
+                          Icon(Icons.location_on_outlined, size: isMobile ? 11 : 13),
+                          const SizedBox(width: 3),
+                          Text(isMobile ? 'Location' : 'Location & Virtual'),
                         ],
                       ),
                     ),
                   ),
                   Tab(
+                    height: isMobile ? 26 : 30,
                     child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 5 : 8),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.people_outline_rounded, size: 16),
-                          SizedBox(width: 6),
-                          Text('Assign People'),
+                          Icon(Icons.people_outline_rounded, size: isMobile ? 11 : 13),
+                          const SizedBox(width: 3),
+                          Text(isMobile ? 'People' : 'Assign People'),
                         ],
                       ),
                     ),
                   ),
                   Tab(
+                    height: isMobile ? 26 : 30,
                     child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 5 : 8),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.notifications_active_outlined, size: 16),
-                          SizedBox(width: 6),
-                          Text('Resources & Reminders'),
+                          Icon(Icons.notifications_active_outlined, size: isMobile ? 11 : 13),
+                          const SizedBox(width: 3),
+                          Text(isMobile ? 'Resources' : 'Resources & Reminders'),
                         ],
                       ),
                     ),
@@ -854,44 +879,49 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
 
             // Modal Footer Actions
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 20, vertical: isMobile ? 8 : 10),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                 border: Border(top: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
                 borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
               ),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   OutlinedButton(
                     onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 18, vertical: isMobile ? 6 : 8),
+                      minimumSize: Size(0, isMobile ? 30 : 36),
                       side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                       backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                     ),
                     child: Text(
                       'Cancel',
                       style: TextStyle(
+                        fontSize: (11.5 * ts).roundToDouble(),
                         color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 10),
                   ElevatedButton(
                     onPressed: _submit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4F46E5),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      elevation: 3,
-                      shadowColor: const Color(0xFF4F46E5).withValues(alpha: 0.4),
+                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 14 : 22, vertical: isMobile ? 6 : 8),
+                      minimumSize: Size(0, isMobile ? 30 : 36),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      elevation: 1.5,
+                      shadowColor: const Color(0xFF4F46E5).withValues(alpha: 0.3),
                     ),
                     child: Text(
-                      widget.initialSchedule != null ? 'Update Schedule' : 'Create Schedule',
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                      widget.initialSchedule != null ? (isMobile ? 'Update' : 'Update Schedule') : (isMobile ? 'Create' : 'Create Schedule'),
+                      style: TextStyle(fontSize: (11.5 * ts).roundToDouble(), fontWeight: FontWeight.w800),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -903,191 +933,245 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
     );
   }
 
+  /// Helper: Two-column Row on desktop, stacked Column on mobile
+  List<Widget> _buildTwoColumnOrStack({required bool isMob, required Widget first, required Widget second}) {
+    if (isMob) {
+      return [first, const SizedBox(height: 12), second];
+    }
+    return [
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: first),
+          const SizedBox(width: 16),
+          Expanded(child: second),
+        ],
+      ),
+    ];
+  }
+
   // TAB 1: BASIC INFO
   Widget _buildBasicInfoTab() {
+    final isMob = MediaQuery.sizeOf(context).width < 600;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final double ts = (MediaQuery.sizeOf(context).width / 550).clamp(0.70, 1.0);
+    final inputPad = EdgeInsets.symmetric(horizontal: isMob ? 8 : 10, vertical: isMob ? 5 : 7);
+    final labelStyle = TextStyle(
+      fontSize: (10.5 * ts).roundToDouble(),
+      fontWeight: FontWeight.w700,
+      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+    );
+    final itemStyle = TextStyle(
+      fontSize: (11 * ts).roundToDouble(),
+      fontWeight: FontWeight.w600,
+      color: isDark ? Colors.white : const Color(0xFF0F172A),
+    );
+    final hintStyle = TextStyle(
+      fontSize: (10.5 * ts).roundToDouble(),
+      color: const Color(0xFF94A3B8),
+    );
+
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMob ? 6 : 14),
       children: [
         // Title
-        const Text('Schedule Title *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-        const SizedBox(height: 8),
+        Text('Schedule Title *', style: labelStyle),
+        const SizedBox(height: 3),
         TextField(
           controller: _titleController,
+          style: itemStyle,
           decoration: InputDecoration(
-            hintText: 'e.g., Team Sprint Review, Mathematics Class 9-A, Route 101 Morning...',
+            isDense: true,
+            hintText: 'e.g., Team Sprint Review, Mathematics Class 9-A...',
+            hintStyle: hintStyle,
             filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            contentPadding: inputPad,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
           ),
         ),
-        const SizedBox(height: 18),
+        SizedBox(height: isMob ? 6 : 10),
 
-        // Type & Calendar Row
-        Row(
-          children: [
-            Expanded(
-              child: Builder(
-                builder: (context) {
-                  final List<Map<String, dynamic>> rawCatList = _dynamicCategories.isNotEmpty
-                      ? _dynamicCategories
-                      : [
-                          {'name': 'Meeting', 'label': 'Meeting'},
-                          {'name': 'Class', 'label': 'Class'},
-                          {'name': 'Exam', 'label': 'Exam'},
-                          {'name': 'Event', 'label': 'Event'},
-                          {'name': 'Task', 'label': 'Task'},
-                          {'name': 'Reminder', 'label': 'Reminder'},
-                          {'name': 'Training', 'label': 'Training'},
-                          {'name': 'Trip', 'label': 'Trip (Transport)'},
-                          {'name': 'School Event', 'label': 'School Event'},
-                          {'name': 'Leave', 'label': 'Leave'},
-                        ];
+        // Type & Calendar — stack vertically on mobile
+        ..._buildTwoColumnOrStack(
+          isMob: isMob,
+          first: Builder(
+            builder: (context) {
+              final List<Map<String, dynamic>> rawCatList = _dynamicCategories.isNotEmpty
+                  ? _dynamicCategories
+                  : [
+                      {'name': 'Meeting', 'label': 'Meeting'},
+                      {'name': 'Class', 'label': 'Class'},
+                      {'name': 'Exam', 'label': 'Exam'},
+                      {'name': 'Event', 'label': 'Event'},
+                      {'name': 'Task', 'label': 'Task'},
+                      {'name': 'Reminder', 'label': 'Reminder'},
+                      {'name': 'Training', 'label': 'Training'},
+                      {'name': 'Trip', 'label': 'Trip (Transport)'},
+                      {'name': 'School Event', 'label': 'School Event'},
+                      {'name': 'Leave', 'label': 'Leave'},
+                    ];
 
-                  final Map<String, String> dropdownItemsMap = {};
-                  for (final c in rawCatList) {
-                    final name = c['name']?.toString() ?? '';
-                    final label = c['label']?.toString() ?? name;
-                    if (name.isNotEmpty) {
-                      dropdownItemsMap[name] = label;
-                    }
-                  }
+              final Map<String, String> dropdownItemsMap = {};
+              for (final c in rawCatList) {
+                final name = c['name']?.toString() ?? '';
+                final label = c['label']?.toString() ?? name;
+                if (name.isNotEmpty) {
+                  dropdownItemsMap[name] = label;
+                }
+              }
 
-                  final currentVal = _selectedType.isNotEmpty ? _selectedType : 'Meeting';
-                  if (!dropdownItemsMap.containsKey(currentVal)) {
-                    dropdownItemsMap[currentVal] = currentVal;
-                  }
+              final currentVal = _selectedType.isNotEmpty ? _selectedType : 'Meeting';
+              if (!dropdownItemsMap.containsKey(currentVal)) {
+                dropdownItemsMap[currentVal] = currentVal;
+              }
 
-                  final dropdownItems = dropdownItemsMap.entries.map((entry) {
-                    return DropdownMenuItem<String>(
-                      value: entry.key,
-                      child: Text(entry.value),
-                    );
-                  }).toList();
+              final dropdownItems = dropdownItemsMap.entries.map((entry) {
+                return DropdownMenuItem<String>(
+                  value: entry.key,
+                  child: Text(entry.value, overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle),
+                );
+              }).toList();
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Schedule Type *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        initialValue: currentVal,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: const Color(0xFFF8FAFC),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        ),
-                        items: dropdownItems,
-                        onChanged: (val) {
-                          if (val != null) setState(() => _selectedType = val);
-                        },
-                      ),
-                    ],
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Type *', style: labelStyle),
+                  const SizedBox(height: 3),
+                  DropdownButtonFormField<String>(
+                    initialValue: currentVal,
+                    isExpanded: true,
+                    isDense: true,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      contentPadding: inputPad,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                    ),
+                    items: dropdownItems,
+                    onChanged: (val) {
+                      if (val != null) setState(() => _selectedType = val);
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+          second: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Calendar', style: labelStyle),
+              const SizedBox(height: 3),
+              DropdownButtonFormField<String>(
+                initialValue: _selectedCalendarId.isNotEmpty ? _selectedCalendarId : null,
+                isExpanded: true,
+                isDense: true,
+                decoration: InputDecoration(
+                  isDense: true,
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  contentPadding: inputPad,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                ),
+                items: widget.calendars.map((c) {
+                  return DropdownMenuItem(
+                    value: c.id,
+                    child: Text(c.name, overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle),
                   );
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) setState(() => _selectedCalendarId = val);
                 },
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Calendar', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedCalendarId.isNotEmpty ? _selectedCalendarId : null,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                    ),
-                    items: widget.calendars.map((c) {
-                      return DropdownMenuItem(value: c.id, child: Text(c.name));
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedCalendarId = val);
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-
-        // Description
-        const Text('Description', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _descController,
-          maxLines: 3,
-          decoration: InputDecoration(
-            hintText: 'Add agenda, meeting instructions, syllabus notes, or trip itinerary...',
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            ],
           ),
         ),
-        const SizedBox(height: 18),
+        SizedBox(height: isMob ? 6 : 10),
+
+        // Description
+        Text('Description', style: labelStyle),
+        const SizedBox(height: 3),
+        TextField(
+          controller: _descController,
+          maxLines: 2,
+          style: itemStyle,
+          decoration: InputDecoration(
+            isDense: true,
+            hintText: 'Add agenda, meeting instructions, syllabus notes...',
+            hintStyle: hintStyle,
+            filled: true,
+            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            contentPadding: inputPad,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+          ),
+        ),
+        SizedBox(height: isMob ? 6 : 10),
 
         // Color & Priority
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Badge Color', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: _colorPalette.map((col) {
-                      final isSel = col == _selectedColor;
-                      return InkWell(
-                        onTap: () => setState(() => _selectedColor = col),
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: col,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: isSel ? Colors.black : Colors.transparent, width: 2),
-                          ),
-                          child: isSel ? const Icon(Icons.check, size: 16, color: Colors.white) : null,
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Priority', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedPriority,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+        ..._buildTwoColumnOrStack(
+          isMob: isMob,
+          first: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Badge Color', style: labelStyle),
+              const SizedBox(height: 3),
+              Wrap(
+                spacing: isMob ? 4 : 6,
+                runSpacing: 4,
+                children: _colorPalette.map((col) {
+                  final isSel = col == _selectedColor;
+                  final size = isMob ? 20.0 : 24.0;
+                  return InkWell(
+                    onTap: () => setState(() => _selectedColor = col),
+                    child: Container(
+                      width: size,
+                      height: size,
+                      decoration: BoxDecoration(
+                        color: col,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: isSel ? Colors.black : Colors.transparent, width: 2),
+                      ),
+                      child: isSel ? Icon(Icons.check, size: isMob ? 12 : 14, color: Colors.white) : null,
                     ),
-                    items: const [
-                      DropdownMenuItem(value: 'low', child: Text('Low Priority')),
-                      DropdownMenuItem(value: 'normal', child: Text('Normal Priority')),
-                      DropdownMenuItem(value: 'high', child: Text('High Priority')),
-                      DropdownMenuItem(value: 'urgent', child: Text('Urgent (Immediate Alert)')),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedPriority = val);
-                    },
-                  ),
-                ],
+                  );
+                }).toList(),
               ),
-            ),
-          ],
+            ],
+          ),
+          second: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Priority', style: labelStyle),
+              const SizedBox(height: 3),
+              DropdownButtonFormField<String>(
+                initialValue: _selectedPriority,
+                isExpanded: true,
+                isDense: true,
+                decoration: InputDecoration(
+                  isDense: true,
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  contentPadding: inputPad,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                ),
+                items: [
+                  DropdownMenuItem(value: 'low', child: Text('Low Priority', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+                  DropdownMenuItem(value: 'normal', child: Text('Normal Priority', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+                  DropdownMenuItem(value: 'high', child: Text('High Priority', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+                  DropdownMenuItem(value: 'urgent', child: Text('Urgent (Alert)', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+                ],
+                onChanged: (val) {
+                  if (val != null) setState(() => _selectedPriority = val);
+                },
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -1095,189 +1179,222 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
 
   // TAB 2: DATE & TIME
   Widget _buildDateTimeTab() {
+    final isMob = MediaQuery.sizeOf(context).width < 600;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final double ts = (MediaQuery.sizeOf(context).width / 550).clamp(0.70, 1.0);
+    final inputPad = EdgeInsets.symmetric(horizontal: isMob ? 8 : 10, vertical: isMob ? 5 : 7);
+    final labelStyle = TextStyle(
+      fontSize: (10.5 * ts).roundToDouble(),
+      fontWeight: FontWeight.w700,
+      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+    );
+    final itemStyle = TextStyle(
+      fontSize: (11 * ts).roundToDouble(),
+      fontWeight: FontWeight.w600,
+      color: isDark ? Colors.white : const Color(0xFF0F172A),
+    );
+
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMob ? 6 : 14),
       children: [
         // All Day Switch
         Material(
           color: Colors.transparent,
           child: SwitchListTile(
-            title: const Text('All-Day Schedule', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-            subtitle: const Text('Spans the full day without specific start/end times', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+            dense: true,
+            title: Text('All-Day Schedule', style: TextStyle(fontSize: (11.5 * ts).roundToDouble(), fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+            subtitle: Text('Spans the full day without start/end times', style: TextStyle(fontSize: (10 * ts).roundToDouble(), color: const Color(0xFF64748B))),
             value: _isAllDay,
             onChanged: (val) => setState(() => _isAllDay = val),
             contentPadding: EdgeInsets.zero,
           ),
         ),
-        const Divider(height: 24, color: Color(0xFFE2E8F0)),
+        const Divider(height: 12, color: Color(0xFFE2E8F0)),
 
         // Start Date & Time
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Start Date', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-                  const SizedBox(height: 8),
-                  InkWell(
-                    onTap: () async {
-                      final picked = await showDatePicker(context: context, initialDate: _startDate, firstDate: DateTime(2020), lastDate: DateTime(2035));
-                      if (picked != null) {
-                        setState(() {
-                          final diff = _endDate.difference(_startDate);
-                          _startDate = picked;
-                          _endDate = _startDate.add(diff.isNegative ? Duration.zero : diff);
-                        });
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF64748B)),
-                          const SizedBox(width: 8),
-                          Text(DateFormat('d MMMM yyyy').format(_startDate), style: const TextStyle(fontWeight: FontWeight.w700)),
-                        ],
-                      ),
-                    ),
+        ..._buildTwoColumnOrStack(
+          isMob: isMob,
+          first: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Start Date', style: labelStyle),
+              const SizedBox(height: 3),
+              InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(context: context, initialDate: _startDate, firstDate: DateTime(2020), lastDate: DateTime(2035));
+                  if (picked != null) {
+                    setState(() {
+                      final diff = _endDate.difference(_startDate);
+                      _startDate = picked;
+                      _endDate = _startDate.add(diff.isNegative ? Duration.zero : diff);
+                    });
+                  }
+                },
+                child: Container(
+                  padding: inputPad,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                   ),
-                ],
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today_rounded, size: isMob ? 13 : 15, color: const Color(0xFF64748B)),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          DateFormat('d MMMM yyyy').format(_startDate),
+                          style: itemStyle,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            if (!_isAllDay) ...[
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
+            ],
+          ),
+          second: _isAllDay
+              ? const SizedBox()
+              : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Start Time', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-                    const SizedBox(height: 8),
+                    Text('Start Time', style: labelStyle),
+                    const SizedBox(height: 3),
                     InkWell(
                       onTap: () async {
                         final picked = await showTimePicker(context: context, initialTime: _startTime);
                         if (picked != null) setState(() => _startTime = picked);
                       },
                       child: Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: inputPad,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.access_time_rounded, size: 16, color: Color(0xFF64748B)),
-                            const SizedBox(width: 8),
-                            Text(_startTime.format(context), style: const TextStyle(fontWeight: FontWeight.w700)),
+                            Icon(Icons.access_time_rounded, size: isMob ? 13 : 15, color: const Color(0xFF64748B)),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                _startTime.format(context),
+                                style: itemStyle,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ],
         ),
-        const SizedBox(height: 18),
+        SizedBox(height: isMob ? 6 : 10),
 
         // End Date & Time
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('End Date', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-                  const SizedBox(height: 8),
-                  InkWell(
-                    onTap: () async {
-                      final picked = await showDatePicker(context: context, initialDate: _endDate, firstDate: _startDate, lastDate: DateTime(2035));
-                      if (picked != null) setState(() => _endDate = picked);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF64748B)),
-                          const SizedBox(width: 8),
-                          Text(DateFormat('d MMMM yyyy').format(_endDate), style: const TextStyle(fontWeight: FontWeight.w700)),
-                        ],
-                      ),
-                    ),
+        ..._buildTwoColumnOrStack(
+          isMob: isMob,
+          first: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('End Date', style: labelStyle),
+              const SizedBox(height: 3),
+              InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(context: context, initialDate: _endDate, firstDate: _startDate, lastDate: DateTime(2035));
+                  if (picked != null) setState(() => _endDate = picked);
+                },
+                child: Container(
+                  padding: inputPad,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                   ),
-                ],
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today_rounded, size: isMob ? 13 : 15, color: const Color(0xFF64748B)),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          DateFormat('d MMMM yyyy').format(_endDate),
+                          style: itemStyle,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            if (!_isAllDay) ...[
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
+            ],
+          ),
+          second: _isAllDay
+              ? const SizedBox()
+              : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('End Time', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-                    const SizedBox(height: 8),
+                    Text('End Time', style: labelStyle),
+                    const SizedBox(height: 3),
                     InkWell(
                       onTap: () async {
                         final picked = await showTimePicker(context: context, initialTime: _endTime);
                         if (picked != null) setState(() => _endTime = picked);
                       },
                       child: Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: inputPad,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.access_time_rounded, size: 16, color: Color(0xFF64748B)),
-                            const SizedBox(width: 8),
-                            Text(_endTime.format(context), style: const TextStyle(fontWeight: FontWeight.w700)),
+                            Icon(Icons.access_time_rounded, size: isMob ? 13 : 15, color: const Color(0xFF64748B)),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                _endTime.format(context),
+                                style: itemStyle,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ],
         ),
-        const SizedBox(height: 6),
-        const Text(
-          'Single session duration for this meeting. For repeating schedule duration, configure "Recurrence Ends" in the Recurrence tab.',
-          style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
+        const SizedBox(height: 4),
+        Text(
+          'Single session duration. To repeat, configure in Recurrence tab.',
+          style: TextStyle(fontSize: (9.5 * ts).roundToDouble(), color: const Color(0xFF64748B), fontStyle: FontStyle.italic),
         ),
-        const SizedBox(height: 18),
+        SizedBox(height: isMob ? 6 : 10),
 
         // Timezone
-        const Text('Time Zone', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-        const SizedBox(height: 8),
+        Text('Time Zone', style: labelStyle),
+        const SizedBox(height: 3),
         DropdownButtonFormField<String>(
           initialValue: _timezone,
+          isExpanded: true,
+          isDense: true,
           decoration: InputDecoration(
+            isDense: true,
             filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            contentPadding: inputPad,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
           ),
-          items: const [
-            DropdownMenuItem(value: 'Asia/Kolkata', child: Text('Asia/Kolkata (IST, GMT+5:30)')),
-            DropdownMenuItem(value: 'UTC', child: Text('UTC (Coordinated Universal Time)')),
-            DropdownMenuItem(value: 'America/New_York', child: Text('America/New_York (EST)')),
-            DropdownMenuItem(value: 'Europe/London', child: Text('Europe/London (GMT)')),
-            DropdownMenuItem(value: 'Asia/Dubai', child: Text('Asia/Dubai (GST)')),
+          items: [
+            DropdownMenuItem(value: 'Asia/Kolkata', child: Text('Asia/Kolkata (IST, GMT+5:30)', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+            DropdownMenuItem(value: 'UTC', child: Text('UTC (Universal Time)', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+            DropdownMenuItem(value: 'America/New_York', child: Text('America/New_York (EST)', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+            DropdownMenuItem(value: 'Europe/London', child: Text('Europe/London (GMT)', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+            DropdownMenuItem(value: 'Asia/Dubai', child: Text('Asia/Dubai (GST)', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
           ],
           onChanged: (val) {
             if (val != null) setState(() => _timezone = val);
@@ -1286,7 +1403,6 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
       ],
     );
   }
-
   // TAB 3: RECURRENCE
   Widget _buildRecurrenceTab() {
     String previewText;
@@ -1324,26 +1440,46 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
       }
     }
 
+    final isMob = MediaQuery.sizeOf(context).width < 600;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final double ts = (MediaQuery.sizeOf(context).width / 550).clamp(0.70, 1.0);
+    final inputPad = EdgeInsets.symmetric(horizontal: isMob ? 8 : 10, vertical: isMob ? 5 : 7);
+    final labelStyle = TextStyle(
+      fontSize: (10.5 * ts).roundToDouble(),
+      fontWeight: FontWeight.w700,
+      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+    );
+    final itemStyle = TextStyle(
+      fontSize: (11 * ts).roundToDouble(),
+      fontWeight: FontWeight.w600,
+      color: isDark ? Colors.white : const Color(0xFF0F172A),
+    );
+
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMob ? 6 : 14),
       children: [
-        const Text('Repeat Frequency', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-        const SizedBox(height: 8),
+        Text('Repeat Frequency', style: labelStyle),
+        const SizedBox(height: 3),
         DropdownButtonFormField<String>(
           initialValue: _recurrenceFreq == 'biweekly' ? 'weekly' : _recurrenceFreq,
+          isExpanded: true,
+          isDense: true,
           decoration: InputDecoration(
+            isDense: true,
             filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            contentPadding: inputPad,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
           ),
-          items: const [
-            DropdownMenuItem(value: 'none', child: Text('Does not repeat (Single Event)')),
-            DropdownMenuItem(value: 'daily', child: Text('Daily (Repeats every day / N days)')),
-            DropdownMenuItem(value: 'weekdays', child: Text('Every Weekday (Monday to Friday)')),
-            DropdownMenuItem(value: 'weekly', child: Text('Weekly (Every week / N weeks on chosen days)')),
-            DropdownMenuItem(value: 'monthly', child: Text('Monthly (Every month / N months)')),
-            DropdownMenuItem(value: 'yearly', child: Text('Annually (Every year / N years)')),
-            DropdownMenuItem(value: 'custom', child: Text('Custom Recurrence Pattern...')),
+          items: [
+            DropdownMenuItem(value: 'none', child: Text('Does not repeat (Single)', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+            DropdownMenuItem(value: 'daily', child: Text('Daily (Every day / N days)', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+            DropdownMenuItem(value: 'weekdays', child: Text('Every Weekday (Mon to Fri)', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+            DropdownMenuItem(value: 'weekly', child: Text('Weekly (Chosen days)', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+            DropdownMenuItem(value: 'monthly', child: Text('Monthly (Every month)', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+            DropdownMenuItem(value: 'yearly', child: Text('Annually (Every year)', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+            DropdownMenuItem(value: 'custom', child: Text('Custom Recurrence...', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
           ],
           onChanged: (val) {
             if (val != null) {
@@ -1365,18 +1501,26 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
 
         // Day of week chips for weekly and custom
         if (_recurrenceFreq == 'weekly' || _recurrenceFreq == 'custom') ...[
-          const SizedBox(height: 18),
-          const Text('Repeat on Days of Week', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-          const SizedBox(height: 8),
+          SizedBox(height: isMob ? 8 : 12),
+          Text('Repeat on Days of Week', style: labelStyle),
+          const SizedBox(height: 4),
           Wrap(
-            spacing: 8,
+            spacing: 4,
+            runSpacing: 4,
             children: ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].map((d) {
               final isSel = _recurrenceDays.contains(d);
               return FilterChip(
                 label: Text(d),
                 selected: isSel,
                 selectedColor: const Color(0xFF4F46E5),
-                labelStyle: TextStyle(fontWeight: FontWeight.bold, color: isSel ? Colors.white : const Color(0xFF0F172A)),
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                labelStyle: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.bold,
+                  color: isSel ? Colors.white : const Color(0xFF0F172A),
+                ),
                 onSelected: (selected) {
                   setState(() {
                     if (selected) {
@@ -1391,17 +1535,21 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
           ),
         ],
 
-        // Repeat Interval Stepper for ALL recurring frequencies (Daily, Weekly, Monthly, Yearly, Custom)
+        // Repeat Interval Stepper for ALL recurring frequencies
         if (_recurrenceFreq != 'none' && _recurrenceFreq != 'weekdays') ...[
-          const SizedBox(height: 18),
-          const Text('Repeat Interval', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-          const SizedBox(height: 8),
-          Row(
+          SizedBox(height: isMob ? 8 : 12),
+          Text('Repeat Interval', style: labelStyle),
+          const SizedBox(height: 4),
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 6,
+            runSpacing: 4,
             children: [
-              const Text('Repeat every: ', style: TextStyle(fontSize: 13, color: Color(0xFF334155), fontWeight: FontWeight.w600)),
-              const SizedBox(width: 8),
+              Text('Repeat every:', style: TextStyle(fontSize: (11.5 * ts).roundToDouble(), color: const Color(0xFF334155), fontWeight: FontWeight.w600)),
               IconButton(
-                icon: const Icon(Icons.remove_circle_outline_rounded, color: Color(0xFF4F46E5), size: 22),
+                icon: const Icon(Icons.remove_circle_outline_rounded, color: Color(0xFF4F46E5), size: 20),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                 onPressed: () {
                   if (_recurrenceInterval > 1) {
                     setState(() => _recurrenceInterval--);
@@ -1409,21 +1557,22 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                 },
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: const Color(0xFFCBD5E1)),
                 ),
-                child: Text('$_recurrenceInterval', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                child: Text('$_recurrenceInterval', style: TextStyle(fontSize: (12 * ts).roundToDouble(), fontWeight: FontWeight.bold, color: const Color(0xFF0F172A))),
               ),
               IconButton(
-                icon: const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF4F46E5), size: 22),
+                icon: const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF4F46E5), size: 20),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                 onPressed: () {
                   setState(() => _recurrenceInterval++);
                 },
               ),
-              const SizedBox(width: 4),
               Text(
                 _recurrenceFreq == 'daily'
                     ? 'day(s)'
@@ -1432,29 +1581,31 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                         : _recurrenceFreq == 'yearly'
                             ? 'year(s)'
                             : 'month(s)',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                style: TextStyle(fontSize: (11.5 * ts).roundToDouble(), fontWeight: FontWeight.w600, color: const Color(0xFF475569)),
               ),
             ],
           ),
         ],
 
         if (_recurrenceFreq != 'none') ...[
-          const SizedBox(height: 18),
-          const Text('Recurrence Ends', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-          const SizedBox(height: 8),
+          SizedBox(height: isMob ? 8 : 12),
+          Text('Recurrence Ends', style: labelStyle),
+          const SizedBox(height: 4),
           InkWell(
             onTap: () => setState(() => _endType = 'never'),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(vertical: 3),
               child: Row(
                 children: [
                   Icon(
                     _endType == 'never' ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-                    size: 18,
+                    size: 16,
                     color: _endType == 'never' ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
                   ),
-                  const SizedBox(width: 8),
-                  const Text('Never (Repeats indefinitely)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text('Never (Repeats indefinitely)', style: TextStyle(fontSize: (11.5 * ts).roundToDouble(), fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
+                  ),
                 ],
               ),
             ),
@@ -1462,31 +1613,46 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
           InkWell(
             onTap: () => setState(() => _endType = 'after_count'),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 6,
+                runSpacing: 2,
                 children: [
-                  Icon(
-                    _endType == 'after_count' ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-                    size: 18,
-                    color: _endType == 'after_count' ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _endType == 'after_count' ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+                        size: 16,
+                        color: _endType == 'after_count' ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
+                      ),
+                      const SizedBox(width: 6),
+                      Text('After $_endCount occurrences', style: TextStyle(fontSize: (11.5 * ts).roundToDouble(), fontWeight: FontWeight.w600)),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Text('After $_endCount occurrences', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                  if (_endType == 'after_count') ...[
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.remove, size: 14),
-                      onPressed: () {
-                        if (_endCount > 1) setState(() => _endCount--);
-                      },
+                  if (_endType == 'after_count')
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.remove, size: 13),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                          onPressed: () {
+                            if (_endCount > 1) setState(() => _endCount--);
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add, size: 13),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                          onPressed: () {
+                            setState(() => _endCount++);
+                          },
+                        ),
+                      ],
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.add, size: 14),
-                      onPressed: () {
-                        setState(() => _endCount++);
-                      },
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -1507,20 +1673,23 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
               }
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(vertical: 3),
               child: Row(
                 children: [
                   Icon(
                     _endType == 'until_date' ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-                    size: 18,
+                    size: 16,
                     color: _endType == 'until_date' ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _recurrenceEndDate != null
-                        ? 'Until ${DateFormat('d MMMM yyyy').format(_recurrenceEndDate!)}'
-                        : 'On specific date...',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      _recurrenceEndDate != null
+                          ? 'Until ${DateFormat('d MMMM yyyy').format(_recurrenceEndDate!)}'
+                          : 'On specific date...',
+                      style: TextStyle(fontSize: (11.5 * ts).roundToDouble(), fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
@@ -1528,22 +1697,22 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
           ),
 
           // Real-time Recurrence Summary Banner
-          const SizedBox(height: 18),
+          SizedBox(height: isMob ? 8 : 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: const Color(0xFFEEF2FF),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
               border: Border.all(color: const Color(0xFFC7D2FE)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.repeat_rounded, size: 18, color: Color(0xFF4F46E5)),
-                const SizedBox(width: 10),
+                const Icon(Icons.repeat_rounded, size: 15, color: Color(0xFF4F46E5)),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     previewText,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF3730A3)),
+                    style: TextStyle(fontSize: (10.5 * ts).roundToDouble(), fontWeight: FontWeight.w600, color: const Color(0xFF3730A3)),
                   ),
                 ),
               ],
@@ -1566,102 +1735,275 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
 
   // TAB 4: LOCATION & VIRTUAL
   Widget _buildLocationVirtualTab() {
+    final isMob = MediaQuery.sizeOf(context).width < 600;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final double ts = (MediaQuery.sizeOf(context).width / 550).clamp(0.70, 1.0);
+    final inputPad = EdgeInsets.symmetric(horizontal: isMob ? 8 : 10, vertical: isMob ? 5 : 7);
+    const iconConstraints = BoxConstraints(minWidth: 26, minHeight: 26);
+    final sectionTitleStyle = TextStyle(
+      fontSize: (11.5 * ts).roundToDouble(),
+      fontWeight: FontWeight.w800,
+      color: isDark ? Colors.white : const Color(0xFF0F172A),
+    );
+    final fieldLabelStyle = TextStyle(
+      fontSize: (10.5 * ts).roundToDouble(),
+      fontWeight: FontWeight.w700,
+      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+    );
+    final itemStyle = TextStyle(
+      fontSize: (11 * ts).roundToDouble(),
+      fontWeight: FontWeight.w600,
+      color: isDark ? Colors.white : const Color(0xFF0F172A),
+    );
+
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMob ? 6 : 14),
       children: [
-        const Text('Physical Location', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _locationController,
-          decoration: InputDecoration(
-            hintText: 'Search campus address, landmark, or venue...',
-            prefixIcon: const Icon(Icons.location_on_outlined, size: 18, color: Color(0xFF64748B)),
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+        // SECTION 1: PHYSICAL CAMPUS VENUE
+        Container(
+          padding: EdgeInsets.all(isMob ? 6 : 10),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Icon(Icons.location_on_rounded, size: 13, color: Color(0xFF4F46E5)),
+                  ),
+                  const SizedBox(width: 5),
+                  Text('Physical Venue / Campus', style: sectionTitleStyle),
+                ],
+              ),
+              const SizedBox(height: 6),
+
+              Text('Venue / Campus Address', style: fieldLabelStyle),
+              const SizedBox(height: 2),
+              TextField(
+                controller: _locationController,
+                style: itemStyle,
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: 'e.g. Main Campus Auditorium / Science Block',
+                  hintStyle: TextStyle(fontSize: (10.5 * ts).roundToDouble(), color: const Color(0xFF94A3B8)),
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                  contentPadding: inputPad,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                ),
+              ),
+              const SizedBox(height: 6),
+
+              if (isMob) ...[
+                Text('Building / Block', style: fieldLabelStyle),
+                const SizedBox(height: 2),
+                TextField(
+                  controller: _buildingController,
+                  style: itemStyle,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: 'e.g. Admin Block A',
+                    hintStyle: TextStyle(fontSize: (10.5 * ts).roundToDouble(), color: const Color(0xFF94A3B8)),
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                    contentPadding: inputPad,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text('Room / Lab / Hall', style: fieldLabelStyle),
+                const SizedBox(height: 2),
+                TextField(
+                  controller: _roomController,
+                  style: itemStyle,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: 'e.g. Conference Room 101 / Lab 2',
+                    hintStyle: TextStyle(fontSize: (10.5 * ts).roundToDouble(), color: const Color(0xFF94A3B8)),
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                    contentPadding: inputPad,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                  ),
+                ),
+              ] else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Building / Block', style: fieldLabelStyle),
+                          const SizedBox(height: 2),
+                          TextField(
+                            controller: _buildingController,
+                            style: itemStyle,
+                            decoration: InputDecoration(
+                              isDense: true,
+                              hintText: 'e.g. Science Block A',
+                              hintStyle: TextStyle(fontSize: (10.5 * ts).roundToDouble(), color: const Color(0xFF94A3B8)),
+                              filled: true,
+                              fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                              contentPadding: inputPad,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Room / Lab / Hall', style: fieldLabelStyle),
+                          const SizedBox(height: 2),
+                          TextField(
+                            controller: _roomController,
+                            style: itemStyle,
+                            decoration: InputDecoration(
+                              isDense: true,
+                              hintText: 'e.g. Physics Lab 204',
+                              hintStyle: TextStyle(fontSize: (10.5 * ts).roundToDouble(), color: const Color(0xFF94A3B8)),
+                              filled: true,
+                              fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                              contentPadding: inputPad,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
           ),
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _buildingController,
-                decoration: InputDecoration(
-                  labelText: 'Building',
-                  hintText: 'e.g. Admin Block',
-                  filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                controller: _roomController,
-                decoration: InputDecoration(
-                  labelText: 'Room / Lab',
-                  hintText: 'e.g. Conference Room A',
-                  filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        const Divider(height: 1, color: Color(0xFFE2E8F0)),
-        const SizedBox(height: 24),
 
-        // Virtual Meeting Section
-        const Text('Virtual Video Meeting', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
+        SizedBox(height: isMob ? 6 : 10),
+
+        // SECTION 2: VIRTUAL VIDEO MEETING
+        Container(
+          padding: EdgeInsets.all(isMob ? 6 : 10),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF06B6D4).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Icon(Icons.videocam_rounded, size: 13, color: Color(0xFF0891B2)),
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text('Video Conference', style: sectionTitleStyle),
+                  ),
+                  InkWell(
+                    onTap: _generateVirtualLink,
+                    borderRadius: BorderRadius.circular(5),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4F46E5),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.auto_awesome_rounded, size: 10, color: Colors.white),
+                          const SizedBox(width: 3),
+                          Text('Auto Link', style: TextStyle(fontSize: (10 * ts).roundToDouble(), fontWeight: FontWeight.bold, color: Colors.white)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+
+              Text('Meeting Provider', style: fieldLabelStyle),
+              const SizedBox(height: 2),
+              DropdownButtonFormField<String>(
                 initialValue: _virtualProvider,
+                isExpanded: true,
+                isDense: true,
                 decoration: InputDecoration(
+                  isDense: true,
                   filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                  fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                  contentPadding: inputPad,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
                 ),
-                items: const [
-                  DropdownMenuItem(value: 'google_meet', child: Text('Google Meet')),
-                  DropdownMenuItem(value: 'zoom', child: Text('Zoom')),
-                  DropdownMenuItem(value: 'teams', child: Text('Microsoft Teams')),
-                  DropdownMenuItem(value: 'custom', child: Text('Custom Video URL')),
+                items: [
+                  DropdownMenuItem(value: 'google_meet', child: Text('Google Meet', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+                  DropdownMenuItem(value: 'zoom', child: Text('Zoom Meetings', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+                  DropdownMenuItem(value: 'teams', child: Text('Microsoft Teams', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+                  DropdownMenuItem(value: 'custom', child: Text('Custom Web URL', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
                 ],
                 onChanged: (val) {
                   if (val != null) setState(() => _virtualProvider = val);
                 },
               ),
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: _generateVirtualLink,
-              icon: const Icon(Icons.videocam_rounded, size: 16),
-              label: const Text('Generate Link'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4F46E5),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              const SizedBox(height: 6),
+
+              Text('Meeting URL / Join Link', style: fieldLabelStyle),
+              const SizedBox(height: 2),
+              TextField(
+                controller: _virtualUrlController,
+                style: TextStyle(fontSize: (10.5 * ts).roundToDouble(), fontWeight: FontWeight.w600, color: const Color(0xFF4F46E5)),
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: 'https://meet.google.com/...',
+                  hintStyle: TextStyle(fontSize: (10.5 * ts).roundToDouble(), color: const Color(0xFF94A3B8)),
+                  suffixIcon: _virtualUrlController.text.trim().isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.copy_rounded, size: 13, color: Color(0xFF4F46E5)),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                          tooltip: 'Copy Link',
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: _virtualUrlController.text.trim()));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Meeting URL copied to clipboard'), duration: Duration(seconds: 2)),
+                            );
+                          },
+                        )
+                      : null,
+                  suffixIconConstraints: iconConstraints,
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                  contentPadding: inputPad,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                ),
+                onChanged: (_) => setState(() {}),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _virtualUrlController,
-          decoration: InputDecoration(
-            labelText: 'Meeting URL',
-            hintText: 'https://meet.google.com/...',
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            ],
           ),
         ),
       ],
@@ -1671,6 +2013,19 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
   // TAB 5: ASSIGN PEOPLE (PREMIUM CHECKBOX CARD GRID)
   Widget _buildAssignPeopleTab() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isMob = MediaQuery.sizeOf(context).width < 600;
+    final double ts = (MediaQuery.sizeOf(context).width / 550).clamp(0.70, 1.0);
+    final inputPad = EdgeInsets.symmetric(horizontal: isMob ? 8 : 10, vertical: isMob ? 5 : 7);
+    final labelStyle = TextStyle(
+      fontSize: (10.5 * ts).roundToDouble(),
+      fontWeight: FontWeight.w700,
+      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+    );
+    final itemStyle = TextStyle(
+      fontSize: (11 * ts).roundToDouble(),
+      fontWeight: FontWeight.w600,
+      color: isDark ? Colors.white : const Color(0xFF0F172A),
+    );
 
     final rolesList = _dbRoles;
     final classesList = _dbClasses;
@@ -1695,9 +2050,9 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
     }).toList();
 
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isMob ? 6 : 14),
       children: [
-        // 1. MASTER INST-WIDE CHECKBOX CARD
+        // 1. MASTER INST-WIDE CHECKBOX CARD - SLEEK & COMPACT
         InkWell(
           onTap: () {
             setState(() {
@@ -1725,69 +2080,75 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
               }
             });
           },
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: EdgeInsets.symmetric(horizontal: isMob ? 8 : 12, vertical: isMob ? 6 : 8),
             decoration: BoxDecoration(
               color: _selectedVisibility == 'institution_wide'
                   ? (isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5))
                   : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: _selectedVisibility == 'institution_wide' ? const Color(0xFF10B981) : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                width: _selectedVisibility == 'institution_wide' ? 2 : 1,
+                width: _selectedVisibility == 'institution_wide' ? 1.5 : 1,
               ),
             ),
             child: Row(
               children: [
-                Checkbox(
-                  value: _selectedVisibility == 'institution_wide' && allRolesSelected,
-                  activeColor: const Color(0xFF10B981),
-                  onChanged: (val) {
-                    setState(() {
-                      if (val == true) {
-                        _selectedVisibility = 'institution_wide';
-                        for (final rObj in rolesList) {
-                          final roleName = (rObj['name'] ?? '').toString();
-                          if (roleName.isNotEmpty) {
-                            if (roleName.toLowerCase() == 'student') {
-                              _toggleStudentRole(true);
-                            } else if (!_isRoleSelected(roleName)) {
-                              _assignedPeople.add({
-                                'user_id': null,
-                                'name': 'All ${roleName.toUpperCase()}s',
-                                'role': roleName,
-                                'participation_role': 'required',
-                                'permission': 'can_view',
-                              });
+                Transform.scale(
+                  scale: isMob ? 0.85 : 1.0,
+                  child: Checkbox(
+                    value: _selectedVisibility == 'institution_wide' && allRolesSelected,
+                    activeColor: const Color(0xFF10B981),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                    onChanged: (val) {
+                      setState(() {
+                        if (val == true) {
+                          _selectedVisibility = 'institution_wide';
+                          for (final rObj in rolesList) {
+                            final roleName = (rObj['name'] ?? '').toString();
+                            if (roleName.isNotEmpty) {
+                              if (roleName.toLowerCase() == 'student') {
+                                _toggleStudentRole(true);
+                              } else if (!_isRoleSelected(roleName)) {
+                                _assignedPeople.add({
+                                  'user_id': null,
+                                  'name': 'All ${roleName.toUpperCase()}s',
+                                  'role': roleName,
+                                  'participation_role': 'required',
+                                  'permission': 'can_view',
+                                });
+                              }
                             }
                           }
+                        } else {
+                          _selectedVisibility = 'shared';
+                          _assignedPeople.clear();
                         }
-                      } else {
-                        _selectedVisibility = 'shared';
-                        _assignedPeople.clear();
-                      }
-                    });
-                  },
+                      });
+                    },
+                  ),
                 ),
-                const SizedBox(width: 8),
-                const Icon(Icons.public_rounded, size: 20, color: Color(0xFF10B981)),
-                const SizedBox(width: 10),
+                const SizedBox(width: 4),
+                Icon(Icons.public_rounded, size: isMob ? 16 : 18, color: const Color(0xFF10B981)),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Select All (Institution-Wide Audience)',
+                        'Institution-Wide (All Audience)',
                         style: TextStyle(
-                          fontSize: 13.5,
+                          fontSize: (11 * ts).roundToDouble(),
                           fontWeight: FontWeight.w800,
                           color: _selectedVisibility == 'institution_wide' ? const Color(0xFF10B981) : (isDark ? Colors.white : const Color(0xFF0F172A)),
                         ),
                       ),
-                      const Text(
-                        'Globally opens this schedule to all students, teachers, parents, drivers, and staff across the school.',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                      Text(
+                        'Auto-invite all staff, faculty, students & parents',
+                        style: TextStyle(fontSize: (9.5 * ts).roundToDouble(), color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                       ),
                     ],
                   ),
@@ -1797,81 +2158,30 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
           ),
         ),
 
-        const SizedBox(height: 16),
-        const Divider(height: 1, color: Color(0xFFE2E8F0)),
-        const SizedBox(height: 14),
+        SizedBox(height: isMob ? 6 : 10),
 
-        // 2. TARGET SYSTEM ROLES CHECKBOX GRID
+        // 2. ROLE-BASED PRESETS
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.people_alt_rounded, size: 18, color: Color(0xFF4F46E5)),
-                const SizedBox(width: 8),
-                Text('Select Target Roles', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A))),
-                if (_isLoadingRoles) ...[
-                  const SizedBox(width: 8),
-                  const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)),
-                ],
-              ],
-            ),
-            Row(
-              children: [
-                Checkbox(
-                  value: allRolesSelected,
-                  activeColor: const Color(0xFF4F46E5),
-                  onChanged: (val) {
-                    setState(() {
-                      if (val == true) {
-                        for (final rObj in rolesList) {
-                          final roleName = (rObj['name'] ?? '').toString();
-                          if (roleName.isNotEmpty) {
-                            if (roleName.toLowerCase() == 'student') {
-                              _toggleStudentRole(true);
-                            } else if (!_isRoleSelected(roleName)) {
-                              _assignedPeople.add({
-                                'user_id': null,
-                                'name': 'All ${roleName.toUpperCase()}s',
-                                'role': roleName,
-                                'participation_role': 'required',
-                                'permission': 'can_view',
-                              });
-                            }
-                          }
-                        }
-                      } else {
-                        _assignedPeople.clear();
-                      }
-                    });
-                  },
-                ),
-                Text(
-                  'Select All Roles',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : const Color(0xFF4F46E5)),
-                ),
-              ],
-            ),
+            Text('Quick Select by Role', style: labelStyle),
+            if (_isLoadingRoles) ...[
+              const SizedBox(width: 6),
+              const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5)),
+            ],
           ],
         ),
-
-        const SizedBox(height: 8),
-
-        // ROLES CHECKBOX GRID CARDS
+        const SizedBox(height: 3),
         if (rolesList.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Text(_isLoadingRoles ? 'Loading system roles...' : 'No system roles available.', style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
-          )
+          Text(_isLoadingRoles ? 'Loading roles...' : 'No roles loaded from database', style: TextStyle(fontSize: 10, color: Colors.grey.shade500))
         else
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: rolesList.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              childAspectRatio: 4.5,
-              crossAxisSpacing: 6,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: isMob ? 2 : 4,
+              childAspectRatio: isMob ? 3.2 : 4.5,
+              crossAxisSpacing: 4,
               mainAxisSpacing: 4,
             ),
             itemBuilder: (ctx, idx) {
@@ -1903,7 +2213,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                   child: Row(
                     children: [
                       Transform.scale(
-                        scale: 0.8,
+                        scale: 0.75,
                         child: Checkbox(
                           value: isChecked,
                           activeColor: const Color(0xFF4F46E5),
@@ -1920,7 +2230,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                         child: Text(
                           'All ${roleName[0].toUpperCase()}${roleName.substring(1)}s',
                           style: TextStyle(
-                            fontSize: 10.5,
+                            fontSize: 10,
                             fontWeight: isChecked ? FontWeight.w800 : FontWeight.w600,
                             color: isChecked ? const Color(0xFF4F46E5) : (isDark ? Colors.white : const Color(0xFF0F172A)),
                           ),
@@ -1934,97 +2244,50 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
             },
           ),
 
-        const SizedBox(height: 12),
-        const Divider(height: 1, color: Color(0xFFE2E8F0)),
-        const SizedBox(height: 10),
-
-        // 3. TARGET ACADEMIC CLASSES CHECKBOX GRID
-        if (_isRoleSelected('student')) ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF10B981)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'All Academic Classes are included automatically because "All Students" role is selected above.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? const Color(0xFFA7F3D0) : const Color(0xFF065F46),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ] else ...[
+        // 3. CLASS-BASED PRESETS
+        if (_isRoleSelected('student') || _assignedPeople.any((p) => (p['role'] ?? '').toString().toLowerCase().contains('class'))) ...[
+          SizedBox(height: isMob ? 6 : 10),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.school_rounded, size: 16, color: Color(0xFF10B981)),
-                  const SizedBox(width: 6),
-                  Text('Select Specific Academic Classes', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A))),
-                  if (_isLoadingClasses) ...[
-                    const SizedBox(width: 6),
-                    const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 2)),
-                  ],
-                ],
-              ),
-              Row(
-                children: [
-                  Transform.scale(
-                    scale: 0.8,
-                    child: Checkbox(
-                      value: allClassesSelected,
-                      activeColor: const Color(0xFF10B981),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
-                      onChanged: (val) {
-                        setState(() {
-                          if (val == true) {
-                            _toggleStudentRole(true);
-                          } else {
-                            _toggleStudentRole(false);
-                          }
-                        });
-                      },
-                    ),
-                  ),
-                  Text(
-                    'Select All Classes',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : const Color(0xFF10B981)),
-                  ),
-                ],
+              Text('Filter by Specific Class / Grade', style: labelStyle),
+              if (_isLoadingClasses) ...[
+                const SizedBox(width: 6),
+                const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5)),
+              ],
+              const Spacer(),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    if (allClassesSelected) {
+                      for (final cObj in classesList) {
+                        final className = (cObj['name'] ?? '').toString();
+                        _toggleClassGroup(className, false);
+                      }
+                    } else {
+                      for (final cObj in classesList) {
+                        final className = (cObj['name'] ?? '').toString();
+                        _toggleClassGroup(className, true);
+                      }
+                    }
+                  });
+                },
+                style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
+                child: Text(allClassesSelected ? 'Deselect All' : 'Select All', style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5))),
               ),
             ],
           ),
-
-          const SizedBox(height: 6),
-
-          // CLASSES CHECKBOX GRID CARDS
+          const SizedBox(height: 2),
           if (classesList.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Text(_isLoadingClasses ? 'Loading academic classes...' : 'No academic classes available.', style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic)),
-            )
+            Text('No classes loaded from database', style: TextStyle(fontSize: 10, color: Colors.grey.shade500))
           else
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: classesList.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                childAspectRatio: 4.5,
-                crossAxisSpacing: 6,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: isMob ? 2 : 4,
+                childAspectRatio: isMob ? 3.2 : 4.5,
+                crossAxisSpacing: 4,
                 mainAxisSpacing: 4,
               ),
               itemBuilder: (ctx, idx) {
@@ -2035,11 +2298,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                 final isChecked = _isClassSelected(className);
 
                 return InkWell(
-                  onTap: () {
-                    setState(() {
-                      _toggleClassGroup(className, !isChecked);
-                    });
-                  },
+                  onTap: () => setState(() => _toggleClassGroup(className, !isChecked)),
                   borderRadius: BorderRadius.circular(5),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
@@ -2056,24 +2315,20 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                     child: Row(
                       children: [
                         Transform.scale(
-                          scale: 0.8,
+                          scale: 0.75,
                           child: Checkbox(
                             value: isChecked,
                             activeColor: const Color(0xFF10B981),
                             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
-                            onChanged: (val) {
-                              setState(() {
-                                _toggleClassGroup(className, val == true);
-                              });
-                            },
+                            onChanged: (val) => setState(() => _toggleClassGroup(className, val == true)),
                           ),
                         ),
                         Expanded(
                           child: Text(
-                            className,
+                            'Class $className',
                             style: TextStyle(
-                              fontSize: 10.5,
+                              fontSize: 10,
                               fontWeight: isChecked ? FontWeight.w800 : FontWeight.w600,
                               color: isChecked ? const Color(0xFF10B981) : (isDark ? Colors.white : const Color(0xFF0F172A)),
                             ),
@@ -2088,260 +2343,238 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
             ),
         ],
 
-        const SizedBox(height: 16),
+        SizedBox(height: isMob ? 6 : 10),
         const Divider(height: 1, color: Color(0xFFE2E8F0)),
-        const SizedBox(height: 14),
+        SizedBox(height: isMob ? 6 : 8),
 
-        // 4. UNIVERSAL INSTITUTE SEARCH BAR
-        Row(
-          children: [
-            const Icon(Icons.person_search_rounded, size: 18, color: Color(0xFF3B82F6)),
-            const SizedBox(width: 8),
-            Text('Search & Add Individual Person Across Institute', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A))),
-          ],
-        ),
-        const SizedBox(height: 8),
-
+        // 4. SEARCH & ADD INDIVIDUAL MEMBERS
+        Text('Add Specific Individual', style: labelStyle),
+        const SizedBox(height: 3),
         TextField(
           controller: _searchPeopleController,
+          style: itemStyle,
           decoration: InputDecoration(
-            hintText: 'Search any person by name, email, role, or department...',
-            prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF64748B)),
+            isDense: true,
+            hintText: 'Search by name, email, or role...',
+            hintStyle: TextStyle(fontSize: (10.5 * ts).roundToDouble(), color: const Color(0xFF94A3B8)),
+            prefixIcon: Icon(Icons.search_rounded, size: isMob ? 14 : 16, color: const Color(0xFF64748B)),
+            prefixIconConstraints: const BoxConstraints(minWidth: 26, minHeight: 26),
             suffixIcon: _isLoadingUsers
-                ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)))
-                : (_searchPeopleController.text.isNotEmpty
-                    ? IconButton(icon: const Icon(Icons.clear_rounded, size: 16), onPressed: () => setState(() => _searchPeopleController.clear()))
-                    : null),
+                ? const Padding(padding: EdgeInsets.all(8), child: SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)))
+                : null,
+            suffixIconConstraints: const BoxConstraints(minWidth: 26, minHeight: 26),
             filled: true,
-            fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            contentPadding: inputPad,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
           ),
-          onChanged: (_) => setState(() {}),
+          onChanged: (val) => setState(() {}),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
 
-        // Live Database Search Dropdown Results
-        if (_realUsers.isNotEmpty && _searchPeopleController.text.trim().isNotEmpty) ...[
+        if (_searchPeopleController.text.trim().isNotEmpty) ...[
           Container(
-            constraints: const BoxConstraints(maxHeight: 200),
+            constraints: const BoxConstraints(maxHeight: 140),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 3)),
-              ],
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
             ),
             child: ListView.separated(
               shrinkWrap: true,
               itemCount: filteredUsers.take(6).length,
-              separatorBuilder: (_, __) => Divider(height: 1, color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
+              separatorBuilder: (c, i) => const Divider(height: 1),
               itemBuilder: (ctx, idx) {
                 final u = filteredUsers[idx];
-                final userId = u['id']?.toString();
-                final name = u['full_name'] ?? 'User';
-                final role = u['role'] ?? 'Staff';
-                final email = u['email'] ?? '';
-                final avatar = u['avatar_url']?.toString();
-                final isAdded = _assignedPeople.any((p) {
-                  final pUserId = p['user_id']?.toString();
-                  final pEmail = (p['email'] ?? '').toString().toLowerCase();
-                  final targetEmail = email.toString().toLowerCase();
+                final isAdded = _assignedPeople.any((p) => p['user_id'] == u['id']);
 
-                  if (userId != null && userId.isNotEmpty && pUserId != null && pUserId.isNotEmpty) {
-                    return pUserId == userId;
-                  }
-                  if (targetEmail.isNotEmpty && pEmail.isNotEmpty) {
-                    return pEmail == targetEmail;
-                  }
-                  return false;
-                });
-
-                return Material(
-                  color: Colors.transparent,
-                  child: ListTile(
-                    dense: true,
-                    leading: CircleAvatar(
-                      radius: 14,
-                      backgroundColor: const Color(0xFF4F46E5),
-                      backgroundImage: avatar != null && avatar.isNotEmpty ? NetworkImage(avatar) : null,
-                      child: avatar == null || avatar.isEmpty
-                          ? Text(name.isNotEmpty ? name[0].toUpperCase() : 'U', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold))
-                          : null,
-                    ),
-                    title: Text(name, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
-                    subtitle: Text('$role • $email', style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : const Color(0xFF64748B))),
-                    trailing: ElevatedButton.icon(
-                      onPressed: isAdded
-                          ? null
-                          : () {
-                              setState(() {
-                                _assignedPeople.add({
-                                  'user_id': userId,
-                                  'name': name,
-                                  'role': role,
-                                  'email': email,
-                                  'participation_role': 'required',
-                                  'permission': 'can_view',
-                                });
-                              });
-                            },
-                      icon: Icon(isAdded ? Icons.check_rounded : Icons.add_rounded, size: 14),
-                      label: Text(isAdded ? 'Added' : 'Add', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isAdded ? (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)) : const Color(0xFF4F46E5),
-                        foregroundColor: isAdded ? (isDark ? Colors.white54 : const Color(0xFF94A3B8)) : Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        minimumSize: const Size(56, 28),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                      ),
+                return ListTile(
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                  leading: CircleAvatar(
+                    radius: 12,
+                    backgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                    child: Text(
+                      (u['full_name'] != null && u['full_name'].toString().isNotEmpty) ? u['full_name'][0].toUpperCase() : 'U',
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)),
                     ),
                   ),
+                  title: Text(u['full_name'] ?? 'Unknown', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                  subtitle: Text('${u['role'] ?? ""} • ${u['email'] ?? ""}', style: TextStyle(fontSize: 9.5, color: isDark ? Colors.white60 : const Color(0xFF64748B))),
+                  trailing: isAdded
+                      ? const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF10B981))
+                      : IconButton(
+                          icon: const Icon(Icons.person_add_alt_1_rounded, size: 16, color: Color(0xFF4F46E5)),
+                          onPressed: () {
+                            setState(() {
+                              _assignedPeople.add({
+                                'user_id': u['id'],
+                                'name': u['full_name'] ?? 'User',
+                                'role': u['role'] ?? 'Member',
+                                'email': u['email'],
+                                'participation_role': 'required',
+                                'permission': 'can_view',
+                              });
+                            });
+                          },
+                        ),
                 );
               },
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
         ],
 
-        const SizedBox(height: 16),
-        const Divider(height: 1, color: Color(0xFFE2E8F0)),
-        const SizedBox(height: 14),
-
-        // 5. UNIFIED ASSIGNED ROSTER TABLE
+        // 5. CURRENT AUDIENCE ROSTER
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Current Audience Roster (${_assignedPeople.length})',
-              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A)),
-            ),
+            Text('Audience Roster (${_assignedPeople.length})', style: labelStyle),
             if (_assignedPeople.isNotEmpty)
-              TextButton.icon(
+              TextButton(
                 onPressed: () => setState(() => _assignedPeople.clear()),
-                icon: const Icon(Icons.delete_sweep_rounded, size: 16, color: Color(0xFFEF4444)),
-                label: const Text('Clear All', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFFEF4444))),
+                style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
+                child: const Text('Clear All', style: TextStyle(fontSize: 10, color: Color(0xFFEF4444))),
               ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
 
         if (_assignedPeople.isEmpty)
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
               border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
             ),
-            child: Column(
-              children: [
-                Icon(Icons.assignment_ind_outlined, size: 28, color: isDark ? Colors.white38 : const Color(0xFF94A3B8)),
-                const SizedBox(height: 6),
-                Text(
-                  'No target audience or participants selected yet',
-                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : const Color(0xFF475569)),
-                ),
-              ],
+            child: Center(
+              child: Text(
+                'No participants assigned yet. Check presets above or search members.',
+                style: TextStyle(fontSize: 10.5, color: Colors.grey.shade500),
+                textAlign: TextAlign.center,
+              ),
             ),
           )
         else
           ..._assignedPeople.map((p) {
-            final isClass = p['role'] == 'Class Group';
-            final isRoleGroup = p['user_id'] == null && !isClass;
-
             return Container(
               margin: const EdgeInsets.only(bottom: 6),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(8),
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: isRoleGroup
-                          ? const Color(0xFFEEF2FF)
-                          : (isClass ? const Color(0xFFECFDF5) : const Color(0xFFEFF6FF)),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isRoleGroup ? Icons.people_alt_rounded : (isClass ? Icons.school_rounded : Icons.person_rounded),
-                      size: 14,
-                      color: isRoleGroup ? const Color(0xFF4F46E5) : (isClass ? const Color(0xFF10B981) : const Color(0xFF3B82F6)),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${p['name']}',
-                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                  Row(
+                    children: [
+                      Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
                         ),
-                        Text(
-                          (p['email'] != null && p['email'].toString().isNotEmpty)
-                              ? '${p['email']} • ${p['role']}'
-                              : '${p['role']}',
-                          style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                        alignment: Alignment.center,
+                        child: Text(
+                          (p['name'] != null && p['name'].toString().isNotEmpty) ? p['name'][0].toUpperCase() : 'P',
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)),
                         ),
-                      ],
-                    ),
-                  ),
-                  DropdownButton<String>(
-                    value: p['participation_role'] ?? 'required',
-                    underline: const SizedBox(),
-                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    items: [
-                      DropdownMenuItem(value: 'required', child: Text('Required', style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white70 : Colors.black87))),
-                      DropdownMenuItem(value: 'optional', child: Text('Optional', style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white70 : Colors.black87))),
-                      DropdownMenuItem(value: 'fyi', child: Text('FYI', style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white70 : Colors.black87))),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              p['name'] ?? 'Participant',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              (p['email'] != null && p['email'].toString().isNotEmpty)
+                                  ? '${p['email']} • ${p['role']}'
+                                  : '${p['role']}',
+                              style: TextStyle(fontSize: 9.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded, size: 15, color: Color(0xFFEF4444)),
+                        onPressed: () {
+                          setState(() => _assignedPeople.remove(p));
+                        },
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                      ),
                     ],
-                    onChanged: (val) {
-                      setState(() => p['participation_role'] = val);
-                    },
                   ),
-                  const SizedBox(width: 8),
-
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                    ),
-                    child: DropdownButton<String>(
-                      value: (p['permission'] == 'read_write' || p['permission'] == 'can_edit' || p['permission'] == 'can_manage') ? 'can_edit' : 'can_view',
-                      underline: const SizedBox(),
-                      isDense: true,
-                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                      items: [
-                        DropdownMenuItem(
-                          value: 'can_view',
-                          child: Text('Read Only', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? Colors.white70 : const Color(0xFF475569))),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                         ),
-                        DropdownMenuItem(
-                          value: 'can_edit',
-                          child: Text('Can Edit', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5))),
+                        child: DropdownButton<String>(
+                          value: p['participation_role'] ?? 'required',
+                          underline: const SizedBox(),
+                          isDense: true,
+                          iconSize: 14,
+                          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          items: [
+                            DropdownMenuItem(value: 'required', child: Text('Required', style: TextStyle(fontSize: 10, color: isDark ? Colors.white70 : Colors.black87))),
+                            DropdownMenuItem(value: 'optional', child: Text('Optional', style: TextStyle(fontSize: 10, color: isDark ? Colors.white70 : Colors.black87))),
+                            DropdownMenuItem(value: 'fyi', child: Text('FYI', style: TextStyle(fontSize: 10, color: isDark ? Colors.white70 : Colors.black87))),
+                          ],
+                          onChanged: (val) {
+                            setState(() => p['participation_role'] = val);
+                          },
                         ),
-                      ],
-                      onChanged: (val) {
-                        setState(() {
-                          p['permission'] = val == 'can_edit' ? 'can_edit' : 'can_view';
-                        });
-                      },
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
-                    onPressed: () {
-                      setState(() => _assignedPeople.remove(p));
-                    },
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                        ),
+                        child: DropdownButton<String>(
+                          value: (p['permission'] == 'read_write' || p['permission'] == 'can_edit' || p['permission'] == 'can_manage') ? 'can_edit' : 'can_view',
+                          underline: const SizedBox(),
+                          isDense: true,
+                          iconSize: 14,
+                          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          items: [
+                            DropdownMenuItem(
+                              value: 'can_view',
+                              child: Text('Read Only', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF475569))),
+                            ),
+                            DropdownMenuItem(
+                              value: 'can_edit',
+                              child: Text('Can Edit', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5))),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            setState(() {
+                              p['permission'] = val == 'can_edit' ? 'can_edit' : 'can_view';
+                            });
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -2351,25 +2584,41 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
     );
   }
 
-
   // TAB 6: RESOURCES & REMINDERS
   Widget _buildResourcesRemindersTab() {
+    final isMob = MediaQuery.sizeOf(context).width < 600;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final double ts = (MediaQuery.sizeOf(context).width / 550).clamp(0.70, 1.0);
+    final inputPad = EdgeInsets.symmetric(horizontal: isMob ? 8 : 10, vertical: isMob ? 5 : 7);
+    final labelStyle = TextStyle(
+      fontSize: (10.5 * ts).roundToDouble(),
+      fontWeight: FontWeight.w700,
+      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+    );
+    final itemStyle = TextStyle(
+      fontSize: (11 * ts).roundToDouble(),
+      fontWeight: FontWeight.w600,
+      color: isDark ? Colors.white : const Color(0xFF0F172A),
+    );
+
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMob ? 6 : 14),
       children: [
-        const Text('Book Physical Resources', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-        const SizedBox(height: 4),
-        const Text('Reserve classrooms, labs, auditorium, or transport buses with conflict detection', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-        const SizedBox(height: 12),
+        Text('Book Physical Resources', style: labelStyle),
+        const SizedBox(height: 3),
+        Text('Reserve classrooms, labs, auditorium, or transport buses with conflict detection', style: TextStyle(fontSize: (10 * ts).roundToDouble(), color: const Color(0xFF64748B))),
+        const SizedBox(height: 6),
 
         ...widget.resources.map((res) {
           final isBooked = _selectedResourceIds.contains(res.id);
           return Material(
             color: Colors.transparent,
             child: CheckboxListTile(
-              title: Text(res.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
-              subtitle: Text('${res.type.toUpperCase()} • Code: ${res.code} • Capacity: ${res.capacity}', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+              title: Text(res.name, style: TextStyle(fontSize: (11 * ts).roundToDouble(), fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+              subtitle: Text('${res.type.toUpperCase()} • Code: ${res.code} • Capacity: ${res.capacity}', style: TextStyle(fontSize: (9.5 * ts).roundToDouble(), color: const Color(0xFF64748B))),
               value: isBooked,
+              dense: true,
+              visualDensity: VisualDensity.compact,
               onChanged: (val) {
                 setState(() {
                   if (val == true) {
@@ -2384,49 +2633,59 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
           );
         }),
 
-        const SizedBox(height: 24),
+        SizedBox(height: isMob ? 6 : 10),
         const Divider(height: 1, color: Color(0xFFE2E8F0)),
-        const SizedBox(height: 24),
+        SizedBox(height: isMob ? 6 : 10),
 
         // Reminder Configuration
-        const Text('Reminder Notification Timing', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-        const SizedBox(height: 8),
+        Text('Reminder Notification Timing', style: labelStyle),
+        const SizedBox(height: 3),
         DropdownButtonFormField<int>(
           initialValue: _reminderMinutes,
+          isExpanded: true,
+          isDense: true,
           decoration: InputDecoration(
+            isDense: true,
             filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            contentPadding: inputPad,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
           ),
-          items: const [
-            DropdownMenuItem(value: 0, child: Text('At time of event')),
-            DropdownMenuItem(value: 5, child: Text('5 minutes before')),
-            DropdownMenuItem(value: 10, child: Text('10 minutes before')),
-            DropdownMenuItem(value: 15, child: Text('15 minutes before (Default)')),
-            DropdownMenuItem(value: 30, child: Text('30 minutes before')),
-            DropdownMenuItem(value: 60, child: Text('1 hour before')),
-            DropdownMenuItem(value: 1440, child: Text('1 day before')),
+          items: [
+            DropdownMenuItem(value: 0, child: Text('At time of event', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+            DropdownMenuItem(value: 5, child: Text('5 minutes before', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+            DropdownMenuItem(value: 10, child: Text('10 minutes before', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+            DropdownMenuItem(value: 15, child: Text('15 minutes before (Default)', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+            DropdownMenuItem(value: 30, child: Text('30 minutes before', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+            DropdownMenuItem(value: 60, child: Text('1 hour before', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+            DropdownMenuItem(value: 1440, child: Text('1 day before', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
           ],
           onChanged: (val) {
             if (val != null) setState(() => _reminderMinutes = val);
           },
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: isMob ? 6 : 8),
 
-        const Text('Notification Channel', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-        const SizedBox(height: 8),
+        Text('Notification Channel', style: labelStyle),
+        const SizedBox(height: 3),
         DropdownButtonFormField<String>(
           initialValue: _reminderChannel,
+          isExpanded: true,
+          isDense: true,
           decoration: InputDecoration(
+            isDense: true,
             filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            contentPadding: inputPad,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
           ),
-          items: const [
-            DropdownMenuItem(value: 'in_app', child: Text('In-App Notification & Sound')),
-            DropdownMenuItem(value: 'push', child: Text('Mobile & Web Push Notification')),
-            DropdownMenuItem(value: 'email', child: Text('Email Alert')),
-            DropdownMenuItem(value: 'sms_whatsapp', child: Text('SMS / WhatsApp Alert')),
+          items: [
+            DropdownMenuItem(value: 'in_app', child: Text('In-App Notification & Sound', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+            DropdownMenuItem(value: 'push', child: Text('Mobile & Web Push Notification', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+            DropdownMenuItem(value: 'email', child: Text('Email Alert', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
+            DropdownMenuItem(value: 'sms_whatsapp', child: Text('SMS / WhatsApp Alert', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
           ],
           onChanged: (val) {
             if (val != null) setState(() => _reminderChannel = val);
