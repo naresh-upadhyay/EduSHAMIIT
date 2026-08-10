@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:edu_shamiit_core/providers/auth_provider.dart';
@@ -11,7 +12,7 @@ class EventDetailDialog extends ConsumerStatefulWidget {
   final VoidCallback onEdit;
   final VoidCallback onDuplicate;
   final VoidCallback onDelete;
-  final Function(String reason)? onCancel;
+  final Function(String reason, String recurrenceScope, String? targetInstanceDate)? onCancel;
   final Function(String status, String? reason) onRSVP;
   final Function(String commentText) onAddComment;
 
@@ -83,76 +84,124 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
 
   void _showCancelReasonDialog(BuildContext context, ScheduleModel s) {
     final reasonController = TextEditingController();
+    final bool isRecurringOrInst = s.isRecurring || s.id.contains('_inst_');
+    String selectedScope = 'entire_series';
+    String? instanceDate;
+
+    if (s.id.contains('_inst_')) {
+      final parts = s.id.split('_inst_');
+      if (parts.length > 1) {
+        instanceDate = parts[1];
+        selectedScope = 'this_event';
+      }
+    } else {
+      instanceDate = DateFormat('yyyy-MM-dd').format(s.startTime);
+    }
+
     showDialog(
       context: context,
       builder: (dlgCtx) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
-            children: [
-              Icon(Icons.cancel_outlined, color: Color(0xFFEF4444), size: 24),
-              SizedBox(width: 10),
-              Flexible(
-                child: Text(
-                  'Cancel Schedule',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Please provide a reason for cancelling this schedule so all participants are informed.',
-                style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: reasonController,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  hintText: 'Enter cancellation reason...',
-                  hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+        return StatefulBuilder(
+          builder: (context, setDlgState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Row(
+                children: [
+                  Icon(Icons.cancel_outlined, color: Color(0xFFEF4444), size: 24),
+                  SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      'Cancel Schedule',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                    ),
                   ),
+                ],
+              ),
+              content: SizedBox(
+                width: 440,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Please provide a reason for cancelling this schedule so all participants are informed.',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                    ),
+                    if (isRecurringOrInst) ...[
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Cancellation Scope:',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('This event only', style: TextStyle(fontSize: 11)),
+                            selected: selectedScope == 'this_event',
+                            onSelected: (val) {
+                              if (val) setDlgState(() => selectedScope = 'this_event');
+                            },
+                          ),
+                          ChoiceChip(
+                            label: const Text('All events in series', style: TextStyle(fontSize: 11)),
+                            selected: selectedScope == 'entire_series',
+                            onSelected: (val) {
+                              if (val) setDlgState(() => selectedScope = 'entire_series');
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: reasonController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'Enter cancellation reason...',
+                        hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dlgCtx),
-              child: const Text('Keep Schedule', style: TextStyle(color: Color(0xFF64748B))),
-            ),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEF4444),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              icon: const Icon(Icons.block_rounded, size: 16),
-              label: const Text('Confirm'),
-              onPressed: () {
-                final reason = reasonController.text.trim();
-                if (reason.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter a cancellation reason.')),
-                  );
-                  return;
-                }
-                Navigator.pop(dlgCtx);
-                Navigator.pop(context);
-                if (widget.onCancel != null) {
-                  widget.onCancel!(reason);
-                }
-              },
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dlgCtx),
+                  child: const Text('Keep Schedule', style: TextStyle(color: Color(0xFF64748B))),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEF4444),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.block_rounded, size: 16),
+                  label: const Text('Confirm'),
+                  onPressed: () {
+                    final reason = reasonController.text.trim();
+                    if (reason.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter a cancellation reason.')),
+                      );
+                      return;
+                    }
+                    Navigator.pop(dlgCtx);
+                    Navigator.pop(context);
+                    if (widget.onCancel != null) {
+                      widget.onCancel!(reason, selectedScope, instanceDate);
+                    }
+                  },
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -303,6 +352,12 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
 
                   // Attendance Requirement Banner
                   _buildAttendanceRoleBanner(context, s),
+
+                  // Transport Route & Driver Trip Execution Banner
+                  if ((s.routeId != null && s.routeId!.isNotEmpty) || (s.routeName != null && s.routeName!.isNotEmpty)) ...[
+                    _buildTransportRouteCard(context, s, isMobile, ts),
+                    SizedBox(height: isMobile ? 10 : 14),
+                  ],
 
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -614,188 +669,190 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Color dot
-          Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(color: s.color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 8),
-          // Schedule type badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: s.color,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              s.scheduleType,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
-            ),
-          ),
-          // Owner badge - only on non-mobile
-          if (isOwner && !isMobile) ...[
-            const SizedBox(width: 8),
-            Flexible(
-              child: Container(
+          // Left side: Color dot, Type badge, Owner badge
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Color dot
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(color: s.color, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 8),
+              // Schedule type badge
+              Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
+                  color: s.color,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.star_rounded, size: 12, color: Color(0xFFFBBF24)),
-                    SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
+                child: Text(
+                  s.scheduleType,
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ),
+              // Owner badge - only on non-mobile
+              if (isOwner && !isMobile) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E293B),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.star_rounded, size: 12, color: Color(0xFFFBBF24)),
+                      SizedBox(width: 4),
+                      Text(
                         'Owner / Organizer',
                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white),
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ),
-          ],
-          const Spacer(),
-          // Action icons: on mobile use PopupMenuButton, on desktop show individual icons
-          if (canManage) ...[
-            if (isMobile)
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert_rounded, size: 20, color: Colors.grey.shade700),
-                tooltip: 'Actions',
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                onSelected: (action) {
-                  switch (action) {
-                    case 'edit':
+              ],
+            ],
+          ),
+
+          // Right side: Action icons / Read-Only badge + Close Button
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (canManage) ...[
+                if (isMobile)
+                  PopupMenuButton<String>(
+                    icon: Icon(Icons.more_vert_rounded, size: 20, color: Colors.grey.shade700),
+                    tooltip: 'Actions',
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    onSelected: (action) {
+                      switch (action) {
+                        case 'edit':
+                          Navigator.pop(context);
+                          widget.onEdit();
+                          break;
+                        case 'duplicate':
+                          Navigator.pop(context);
+                          widget.onDuplicate();
+                          break;
+                        case 'cancel':
+                          _showCancelReasonDialog(context, s);
+                          break;
+                        case 'delete':
+                          Navigator.pop(context);
+                          widget.onDelete();
+                          break;
+                      }
+                    },
+                    itemBuilder: (ctx) => [
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_outlined, size: 16, color: Color(0xFF475569)),
+                            SizedBox(width: 10),
+                            Text('Edit', style: TextStyle(fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'duplicate',
+                        child: Row(
+                          children: [
+                            Icon(Icons.copy_rounded, size: 16, color: Color(0xFF475569)),
+                            SizedBox(width: 10),
+                            Text('Duplicate', style: TextStyle(fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                      if (s.status != 'cancelled')
+                        const PopupMenuItem(
+                          value: 'cancel',
+                          child: Row(
+                            children: [
+                              Icon(Icons.block_rounded, size: 16, color: Color(0xFFD97706)),
+                              SizedBox(width: 10),
+                              Text('Cancel Schedule', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFFD97706))),
+                            ],
+                          ),
+                        ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
+                            SizedBox(width: 10),
+                            Text('Delete', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFFEF4444))),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                else ...[
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF475569)),
+                    tooltip: 'Edit schedule',
+                    onPressed: () {
                       Navigator.pop(context);
                       widget.onEdit();
-                      break;
-                    case 'duplicate':
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.copy_rounded, size: 18, color: Color(0xFF475569)),
+                    tooltip: 'Duplicate',
+                    onPressed: () {
                       Navigator.pop(context);
                       widget.onDuplicate();
-                      break;
-                    case 'cancel':
-                      _showCancelReasonDialog(context, s);
-                      break;
-                    case 'delete':
-                      Navigator.pop(context);
-                      widget.onDelete();
-                      break;
-                  }
-                },
-                itemBuilder: (ctx) => [
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: Row(
-                      children: [
-                        Icon(Icons.edit_outlined, size: 16, color: Color(0xFF475569)),
-                        SizedBox(width: 10),
-                        Text('Edit', style: TextStyle(fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'duplicate',
-                    child: Row(
-                      children: [
-                        Icon(Icons.copy_rounded, size: 16, color: Color(0xFF475569)),
-                        SizedBox(width: 10),
-                        Text('Duplicate', style: TextStyle(fontWeight: FontWeight.w600)),
-                      ],
-                    ),
+                    },
                   ),
                   if (s.status != 'cancelled')
-                    const PopupMenuItem(
-                      value: 'cancel',
-                      child: Row(
-                        children: [
-                          Icon(Icons.block_rounded, size: 16, color: Color(0xFFD97706)),
-                          SizedBox(width: 10),
-                          Text('Cancel Schedule', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFFD97706))),
-                        ],
-                      ),
+                    IconButton(
+                      icon: const Icon(Icons.block_rounded, size: 18, color: Color(0xFFD97706)),
+                      tooltip: 'Cancel Schedule with Reason',
+                      onPressed: () => _showCancelReasonDialog(context, s),
                     ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
-                        SizedBox(width: 10),
-                        Text('Delete', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFFEF4444))),
-                      ],
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFEF4444)),
+                    tooltip: 'Hard Delete',
+                    onPressed: () {
+                      Navigator.pop(context);
+                      widget.onDelete();
+                    },
                   ),
                 ],
-              )
-            else ...[
-              IconButton(
-                icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF475569)),
-                tooltip: 'Edit schedule',
-                onPressed: () {
-                  Navigator.pop(context);
-                  widget.onEdit();
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.copy_rounded, size: 18, color: Color(0xFF475569)),
-                tooltip: 'Duplicate',
-                onPressed: () {
-                  Navigator.pop(context);
-                  widget.onDuplicate();
-                },
-              ),
-              if (s.status != 'cancelled')
-                IconButton(
-                  icon: const Icon(Icons.block_rounded, size: 18, color: Color(0xFFD97706)),
-                  tooltip: 'Cancel Schedule with Reason',
-                  onPressed: () => _showCancelReasonDialog(context, s),
-                ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFEF4444)),
-                tooltip: 'Hard Delete',
-                onPressed: () {
-                  Navigator.pop(context);
-                  widget.onDelete();
-                },
-              ),
-            ],
-          ] else ...[
-            Flexible(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFCBD5E1)),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.lock_outline_rounded, size: 12, color: Color(0xFF64748B)),
-                    SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
+              ] else ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.lock_outline_rounded, size: 12, color: Color(0xFF64748B)),
+                      SizedBox(width: 4),
+                      Text(
                         'Read Only',
                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 6),
+              ],
+              IconButton(
+                icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
+                onPressed: () => Navigator.pop(context),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
-            ),
-            const SizedBox(width: 4),
-          ],
-          IconButton(
-            icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
-            onPressed: () => Navigator.pop(context),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            ],
           ),
         ],
       ),
@@ -1044,6 +1101,106 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
             child: Text(
               isRequired ? (isMobile ? 'REQ' : 'MANDATORY') : (isOptional ? 'OPT' : 'FYI'),
               style: TextStyle(fontSize: (9 * ts).roundToDouble(), fontWeight: FontWeight.w900, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransportRouteCard(BuildContext context, ScheduleModel s, bool isMobile, double ts) {
+    final routeName = s.routeName ?? (s.routeCode != null ? 'Route ${s.routeCode}' : 'Assigned Transport Route');
+    final busInfo = s.busNumber != null ? 'Bus: ${s.busNumber}' : '';
+    final driverInfo = s.driverName != null ? 'Driver: ${s.driverName}' : '';
+    final detailsList = [busInfo, driverInfo].where((str) => str.isNotEmpty).join(' • ');
+
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 10 : 14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF4F46E5).withValues(alpha: 0.08),
+            const Color(0xFF06B6D4).withValues(alpha: 0.06),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4F46E5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.directions_bus_rounded, color: Colors.white, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      routeName,
+                      style: TextStyle(
+                        fontSize: (13.5 * ts).roundToDouble(),
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF1E1B4B),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (detailsList.isNotEmpty)
+                      Text(
+                        detailsList,
+                        style: TextStyle(
+                          fontSize: (11 * ts).roundToDouble(),
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF475569),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).pop();
+                final queryMap = <String, String>{};
+                final String effectiveTripId = (s.tripId != null && s.tripId!.isNotEmpty) ? s.tripId! : s.id;
+                queryMap['trip_id'] = effectiveTripId;
+                if (s.routeId != null && s.routeId!.isNotEmpty) {
+                  queryMap['route_id'] = s.routeId!;
+                }
+                final uri = Uri(
+                  path: '/driver/dashboard',
+                  queryParameters: queryMap,
+                );
+                context.go(uri.toString());
+              },
+              icon: const Icon(Icons.play_arrow_rounded, size: 18),
+              label: Text(
+                'Start Route Run in Driver Dashboard',
+                style: TextStyle(fontSize: (12 * ts).roundToDouble(), fontWeight: FontWeight.w800),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4F46E5),
+                foregroundColor: Colors.white,
+                elevation: 2,
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
             ),
           ),
         ],

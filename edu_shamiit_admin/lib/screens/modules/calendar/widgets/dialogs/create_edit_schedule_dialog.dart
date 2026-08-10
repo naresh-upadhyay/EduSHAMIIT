@@ -303,6 +303,12 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
   // Dynamic Categories from Database
   List<Map<String, dynamic>> _dynamicCategories = [];
 
+  // Transport Routes from Database
+  List<Map<String, dynamic>> _transportRoutes = [];
+  bool _isLoadingRoutes = false;
+  String? _selectedRouteId;
+  Map<String, dynamic>? _selectedRoute;
+
   Future<void> _fetchCategories() async {
     try {
       final res = await ApiService().get('/calendar/categories', query: {'type': 'schedule'}, useCache: false);
@@ -318,19 +324,75 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
     }
   }
 
+  Future<void> _fetchTransportRoutes() async {
+    try {
+      setState(() => _isLoadingRoutes = true);
+      List<Map<String, dynamic>> routesList = [];
+
+      try {
+        final res = await ApiService().get('/calendar/transport-routes', useCache: false);
+        if (res['success'] == true && res['data'] is List) {
+          routesList = (res['data'] as List).whereType<Map<String, dynamic>>().toList();
+        }
+      } catch (_) {}
+
+      if (routesList.isEmpty) {
+        try {
+          final fallbackRes = await ApiService().get('/transport/routes', useCache: false);
+          if (fallbackRes['success'] == true && fallbackRes['data'] is List) {
+            routesList = (fallbackRes['data'] as List).whereType<Map<String, dynamic>>().toList();
+          }
+        } catch (_) {}
+      }
+
+      // Filter: Show ONLY routes where BOTH bus (vehicle_id/bus_number) AND driver (driver_id/driver_name) are assigned
+      final assignableRoutes = routesList.where((r) {
+        final hasVehicle = (r['vehicle_id'] != null && r['vehicle_id'].toString().isNotEmpty) ||
+            (r['bus_number'] != null && r['bus_number'].toString().isNotEmpty) ||
+            (r['registration_no'] != null && r['registration_no'].toString().isNotEmpty);
+        final hasDriver = (r['driver_id'] != null && r['driver_id'].toString().isNotEmpty) ||
+            (r['driver_name'] != null && r['driver_name'].toString().isNotEmpty);
+        return hasVehicle && hasDriver;
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          _transportRoutes = assignableRoutes;
+          _isLoadingRoutes = false;
+          if (_selectedRouteId != null && _selectedRouteId!.isNotEmpty) {
+            final match = _transportRoutes.where((r) => r['id']?.toString() == _selectedRouteId).toList();
+            if (match.isNotEmpty) {
+              _selectedRoute = match.first;
+            }
+          }
+        });
+      }
+      return;
+    } catch (e) {
+      debugPrint('[CreateEditScheduleDialog] error fetching transport routes: $e');
+    }
+    if (mounted) {
+      setState(() => _isLoadingRoutes = false);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 6, vsync: this);
-    _fetchCategories();
-    _fetchRealProfiles('');
-    _fetchAssignableRoles();
-    _fetchAssignableClasses();
 
     final init = widget.initialSchedule;
     if (init != null) {
       _selectedVisibility = init.visibility;
+      _selectedRouteId = init.routeId;
     }
+
+    _fetchCategories();
+    _fetchRealProfiles('');
+    _fetchAssignableRoles();
+    _fetchAssignableClasses();
+    _fetchTransportRoutes();
+
     final now = widget.defaultDateTime ?? DateTime.now();
     final defaultHour = widget.defaultHour ?? 10;
 
@@ -494,6 +556,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
       'category': _selectedCategory,
       'color': hexColor,
       'priority': _selectedPriority,
+      'route_id': _selectedRouteId,
       'start_time': startDt.toIso8601String(),
       'end_time': endDt.toIso8601String(),
       'is_all_day': _isAllDay,
@@ -2601,43 +2664,242 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
       color: isDark ? Colors.white : const Color(0xFF0F172A),
     );
 
+    final hasMatchingRoute = _selectedRouteId != null && _transportRoutes.any((r) => r['id']?.toString() == _selectedRouteId);
+    final effectiveRouteId = hasMatchingRoute ? _selectedRouteId : null;
+
     return ListView(
       padding: EdgeInsets.all(isMob ? 6 : 14),
       children: [
+        // 1. ASSIGN TRANSPORT ROUTE / FLEET RUN
+        Container(
+          padding: EdgeInsets.all(isMob ? 8 : 12),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: _selectedRouteId != null
+                  ? const Color(0xFF4F46E5).withValues(alpha: 0.6)
+                  : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+              width: _selectedRouteId != null ? 1.5 : 1.0,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4F46E5).withValues(alpha: isDark ? 0.25 : 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.directions_bus_rounded, size: 16, color: Color(0xFF4F46E5)),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Assign Transport Route', style: labelStyle),
+                        Text(
+                          'Creates individual daily trips for driver dashboard execution',
+                          style: TextStyle(fontSize: (9.5 * ts).roundToDouble(), color: const Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_isLoadingRoutes)
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4F46E5)),
+                    )
+                  else if (_selectedRouteId != null)
+                    TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _selectedRouteId = null;
+                          _selectedRoute = null;
+                        });
+                      },
+                      icon: const Icon(Icons.close_rounded, size: 13, color: Color(0xFFEF4444)),
+                      label: Text('Remove', style: TextStyle(fontSize: (10 * ts).roundToDouble(), color: const Color(0xFFEF4444))),
+                      style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Route Dropdown Selector
+              DropdownButtonFormField<String>(
+                key: ValueKey('route_dropdown_${effectiveRouteId ?? "none"}_${_transportRoutes.length}'),
+                initialValue: effectiveRouteId,
+                isExpanded: true,
+                isDense: true,
+                hint: Text(
+                  _isLoadingRoutes
+                      ? 'Loading assigned transport routes...'
+                      : (_transportRoutes.isEmpty ? 'No routes with assigned bus & driver found' : 'Select transport route to schedule...'),
+                  style: TextStyle(fontSize: (11 * ts).roundToDouble(), color: const Color(0xFF94A3B8)),
+                ),
+                decoration: InputDecoration(
+                  isDense: true,
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  contentPadding: inputPad,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1))),
+                ),
+                items: _transportRoutes.map((r) {
+                  final rId = r['id']?.toString() ?? '';
+                  final rName = r['route_name']?.toString() ?? 'Route';
+                  final rCode = r['route_code']?.toString() ?? '';
+                  final busNo = r['bus_number']?.toString() ?? r['registration_no']?.toString() ?? '';
+                  final driver = r['driver_name']?.toString() ?? '';
+                  final timeSpan = '${r['start_time'] ?? ''} - ${r['end_time'] ?? ''}'.trim();
+
+                  return DropdownMenuItem<String>(
+                    value: rId,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '$rName ($rCode)${busNo.isNotEmpty ? ' • Bus: $busNo' : ''}${driver.isNotEmpty ? ' • Driver: $driver' : ''}',
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: itemStyle,
+                          ),
+                        ),
+                        if (timeSpan.length > 3)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(timeSpan, style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: Color(0xFF4F46E5))),
+                          ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  setState(() {
+                    _selectedRouteId = val;
+                    if (val != null) {
+                      final match = _transportRoutes.where((r) => r['id']?.toString() == val).toList();
+                      if (match.isNotEmpty) {
+                        _selectedRoute = match.first;
+                        // Auto-fill title if empty or default
+                        if (_titleController.text.trim().isEmpty || _titleController.text.trim() == 'Untitled Schedule') {
+                          _titleController.text = '${_selectedRoute!['route_name']} (${_selectedRoute!['route_code'] ?? 'Route'})';
+                        }
+                        _selectedType = 'Trip';
+
+                        // Auto-assign Driver as participant if driver profile id exists
+                        final driverProfId = _selectedRoute!['driver_profile_id']?.toString();
+                        final driverName = _selectedRoute!['driver_name']?.toString() ?? 'Driver';
+                        if (driverProfId != null && driverProfId.isNotEmpty) {
+                          final alreadyIn = _assignedPeople.any((p) => p['user_id']?.toString() == driverProfId);
+                          if (!alreadyIn) {
+                            _assignedPeople.add({
+                              'user_id': driverProfId,
+                              'name': driverName,
+                              'role': 'driver',
+                              'participation_role': 'required',
+                              'permission': 'can_view',
+                            });
+                          }
+                        }
+                      }
+                    } else {
+                      _selectedRoute = null;
+                    }
+                  });
+                },
+              ),
+
+              if (_selectedRoute != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4F46E5).withValues(alpha: isDark ? 0.15 : 0.06),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF10B981)),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Route Linked: ${_selectedRoute!['route_name']} • Vehicle: ${_selectedRoute!['bus_number'] ?? _selectedRoute!['registration_no'] ?? 'Unassigned'} • Driver: ${_selectedRoute!['driver_name'] ?? 'Unassigned'}',
+                          style: TextStyle(fontSize: (10 * ts).roundToDouble(), fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF1E293B)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+
+        SizedBox(height: isMob ? 8 : 12),
+        const Divider(height: 1, color: Color(0xFFE2E8F0)),
+        SizedBox(height: isMob ? 8 : 12),
+
+        // 2. BOOK PHYSICAL RESOURCES
         Text('Book Physical Resources', style: labelStyle),
         const SizedBox(height: 3),
-        Text('Reserve classrooms, labs, auditorium, or transport buses with conflict detection', style: TextStyle(fontSize: (10 * ts).roundToDouble(), color: const Color(0xFF64748B))),
+        Text('Reserve classrooms, labs, auditorium, or facilities with conflict detection', style: TextStyle(fontSize: (10 * ts).roundToDouble(), color: const Color(0xFF64748B))),
         const SizedBox(height: 6),
 
-        ...widget.resources.map((res) {
-          final isBooked = _selectedResourceIds.contains(res.id);
-          return Material(
-            color: Colors.transparent,
-            child: CheckboxListTile(
-              title: Text(res.name, style: TextStyle(fontSize: (11 * ts).roundToDouble(), fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
-              subtitle: Text('${res.type.toUpperCase()} • Code: ${res.code} • Capacity: ${res.capacity}', style: TextStyle(fontSize: (9.5 * ts).roundToDouble(), color: const Color(0xFF64748B))),
-              value: isBooked,
-              dense: true,
-              visualDensity: VisualDensity.compact,
-              onChanged: (val) {
-                setState(() {
-                  if (val == true) {
-                    _selectedResourceIds.add(res.id);
-                  } else {
-                    _selectedResourceIds.remove(res.id);
-                  }
-                });
-              },
-              contentPadding: EdgeInsets.zero,
+        if (widget.resources.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
             ),
-          );
-        }),
+            child: Center(
+              child: Text('No physical resources registered in this school.', style: TextStyle(fontSize: 10.5, color: Colors.grey.shade500)),
+            ),
+          )
+        else
+          ...widget.resources.map((res) {
+            final isBooked = _selectedResourceIds.contains(res.id);
+            return Material(
+              color: Colors.transparent,
+              child: CheckboxListTile(
+                title: Text(res.name, style: TextStyle(fontSize: (11 * ts).roundToDouble(), fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                subtitle: Text('${res.type.toUpperCase()} • Code: ${res.code} • Capacity: ${res.capacity}', style: TextStyle(fontSize: (9.5 * ts).roundToDouble(), color: const Color(0xFF64748B))),
+                value: isBooked,
+                dense: true,
+                visualDensity: VisualDensity.compact,
+                onChanged: (val) {
+                  setState(() {
+                    if (val == true) {
+                      _selectedResourceIds.add(res.id);
+                    } else {
+                      _selectedResourceIds.remove(res.id);
+                    }
+                  });
+                },
+                contentPadding: EdgeInsets.zero,
+              ),
+            );
+          }),
 
-        SizedBox(height: isMob ? 6 : 10),
+        SizedBox(height: isMob ? 8 : 12),
         const Divider(height: 1, color: Color(0xFFE2E8F0)),
-        SizedBox(height: isMob ? 6 : 10),
+        SizedBox(height: isMob ? 8 : 12),
 
-        // Reminder Configuration
+        // 3. REMINDER CONFIGURATION
         Text('Reminder Notification Timing', style: labelStyle),
         const SizedBox(height: 3),
         DropdownButtonFormField<int>(

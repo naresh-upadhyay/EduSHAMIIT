@@ -146,8 +146,13 @@ class _UniversalCalendarScreenState extends ConsumerState<UniversalCalendarScree
           onDelete: () {
             _handleDeleteSchedule(schedule);
           },
-          onCancel: (reason) async {
-            final ok = await notifier.cancelSchedule(schedule.id, reason: reason);
+          onCancel: (reason, scope, instanceDate) async {
+            final ok = await notifier.cancelSchedule(
+              schedule.id,
+              reason: reason,
+              recurrenceScope: scope,
+              targetInstanceDate: instanceDate,
+            );
             if (!mounted) return;
             if (ok) {
               messenger.showSnackBar(

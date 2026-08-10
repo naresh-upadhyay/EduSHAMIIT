@@ -153,6 +153,15 @@ class ScheduleModel {
   final List<ScheduleReminderModel> reminders;
   final List<ScheduleCommentModel> comments;
   final String? cancellationReason;
+  final String? routeId;
+  final String? routeName;
+  final String? routeCode;
+  final String? routeStartTime;
+  final String? routeEndTime;
+  final String? busNumber;
+  final String? driverName;
+  final String? tripId;
+  final String? tripStatus;
 
   ScheduleModel({
     required this.id,
@@ -192,6 +201,15 @@ class ScheduleModel {
     this.reminders = const [],
     this.comments = const [],
     this.cancellationReason,
+    this.routeId,
+    this.routeName,
+    this.routeCode,
+    this.routeStartTime,
+    this.routeEndTime,
+    this.busNumber,
+    this.driverName,
+    this.tripId,
+    this.tripStatus,
   });
 
   factory ScheduleModel.fromJson(Map<String, dynamic> json) {
@@ -294,6 +312,15 @@ class ScheduleModel {
       reminders: remList,
       comments: commList,
       cancellationReason: json['cancellation_reason']?.toString(),
+      routeId: json['route_id']?.toString(),
+      routeName: json['route_name']?.toString(),
+      routeCode: json['route_code']?.toString(),
+      routeStartTime: json['route_start_time']?.toString(),
+      routeEndTime: json['route_end_time']?.toString(),
+      busNumber: json['bus_number']?.toString() ?? json['registration_no']?.toString(),
+      driverName: json['driver_name']?.toString(),
+      tripId: json['trip_id']?.toString(),
+      tripStatus: json['trip_status']?.toString(),
     );
   }
 
@@ -334,6 +361,15 @@ class ScheduleModel {
     List<ScheduleResourceBookingModel>? resources,
     List<ScheduleReminderModel>? reminders,
     List<ScheduleCommentModel>? comments,
+    String? routeId,
+    String? routeName,
+    String? routeCode,
+    String? routeStartTime,
+    String? routeEndTime,
+    String? busNumber,
+    String? driverName,
+    String? tripId,
+    String? tripStatus,
   }) {
     return ScheduleModel(
       id: id ?? this.id,
@@ -372,6 +408,16 @@ class ScheduleModel {
       resources: resources ?? this.resources,
       reminders: reminders ?? this.reminders,
       comments: comments ?? this.comments,
+      cancellationReason: cancellationReason,
+      routeId: routeId ?? this.routeId,
+      routeName: routeName ?? this.routeName,
+      routeCode: routeCode ?? this.routeCode,
+      routeStartTime: routeStartTime ?? this.routeStartTime,
+      routeEndTime: routeEndTime ?? this.routeEndTime,
+      busNumber: busNumber ?? this.busNumber,
+      driverName: driverName ?? this.driverName,
+      tripId: tripId ?? this.tripId,
+      tripStatus: tripStatus ?? this.tripStatus,
     );
   }
 }

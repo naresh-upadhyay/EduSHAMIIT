@@ -139,6 +139,174 @@ async def record_schedule_audit_log(
         logger.error(f"[Schedule Audit Log Error]: {e}")
 
 
+async def sync_vehicle_trips_for_schedule(
+    s_id: str,
+    school_id: Optional[str],
+    route_id: Optional[str],
+    start_time_iso: str,
+    end_time_iso: Optional[str],
+    is_recurring: bool = False,
+    recurrence_obj: Optional[Any] = None
+):
+    """
+    Generate or synchronize individual vehicle_trips records for each day of a schedule.
+    Every calendar occurrence gets an individual row in vehicle_trips with its own unique trip_id.
+    """
+    if not route_id:
+        return
+
+    try:
+        r_rows = await exec_sql("SELECT vehicle_id, driver_id, route_name FROM public.transport_routes WHERE id = %s", (route_id,))
+        if not r_rows:
+            return
+        v_id = r_rows[0].get("vehicle_id")
+
+        st_clean = str(start_time_iso).replace("Z", "+00:00")
+        st_dt = datetime.fromisoformat(st_clean)
+        if st_dt.tzinfo:
+            st_dt = st_dt.replace(tzinfo=None)
+
+        end_clean = str(end_time_iso or start_time_iso).replace("Z", "+00:00")
+        end_dt = datetime.fromisoformat(end_clean)
+        if end_dt.tzinfo:
+            end_dt = end_dt.replace(tzinfo=None)
+
+        st_time_str = st_dt.strftime("%I:%M %p")
+        end_time_str = end_dt.strftime("%I:%M %p")
+
+        trip_type = "morning"
+        if st_dt.hour >= 12 and st_dt.hour < 16:
+            trip_type = "afternoon"
+        elif st_dt.hour >= 16:
+            trip_type = "evening"
+
+        if not is_recurring:
+            # Single occurrence trip
+            d_str = st_dt.strftime("%Y-%m-%d")
+            existing = await exec_sql(
+                "SELECT id, status FROM public.vehicle_trips WHERE schedule_id = %s",
+                (s_id,)
+            )
+            if existing:
+                await exec_sql(
+                    """
+                    UPDATE public.vehicle_trips
+                    SET route_id = %s, vehicle_id = %s, trip_type = %s, start_time = %s, end_time = %s,
+                        schedule_instance_date = %s::date, start_date = %s, scheduled_start = %s,
+                        status = CASE WHEN status IN ('in_progress', 'paused') THEN status ELSE 'scheduled' END,
+                        updated_at = NOW()
+                    WHERE schedule_id = %s
+                    """,
+                    (route_id, v_id, trip_type, st_time_str, end_time_str, d_str, d_str, st_dt.isoformat(), s_id),
+                    fetch=False
+                )
+            else:
+                trip_id = str(uuid.uuid4())
+                await exec_sql("""
+                    INSERT INTO public.vehicle_trips (
+                        id, school_id, route_id, vehicle_id, schedule_id,
+                        schedule_instance_date, start_date, start_time, end_date, end_time,
+                        trip_type, status, scheduled_start, created_at, updated_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'scheduled', %s, NOW(), NOW())
+                """, (
+                    trip_id, school_id, route_id, v_id, s_id,
+                    d_str, d_str, st_time_str, d_str, end_time_str,
+                    trip_type, st_dt.isoformat()
+                ), fetch=False)
+        else:
+            # Recurring multi-day trips: generate individual trip per calendar day
+            cur_day = st_dt.date()
+            end_horizon = cur_day + timedelta(days=90)
+            r = recurrence_obj
+            if r and hasattr(r, 'end_date') and r.end_date:
+                try:
+                    ed = datetime.fromisoformat(str(r.end_date).replace("Z", "+00:00")).date()
+                    if ed < end_horizon:
+                        end_horizon = ed
+                except Exception:
+                    pass
+
+            freq = (getattr(r, 'frequency', None) or (r.get('frequency') if isinstance(r, dict) else "daily") or "daily").lower()
+            interval = max((getattr(r, 'interval', None) or (r.get('interval') if isinstance(r, dict) else 1) or 1), 1)
+            days_of_week = getattr(r, 'days_of_week', None) or (r.get('days_of_week') if isinstance(r, dict) else []) or []
+            
+            day_name_to_weekday = {
+                "MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6,
+                "MON": 0, "TUE": 1, "WED": 2, "THU": 3, "FRI": 4, "SAT": 5, "SUN": 6,
+                "MONDAY": 0, "TUESDAY": 1, "WEDNESDAY": 2, "THURSDAY": 3, "FRIDAY": 4, "SATURDAY": 5, "SUNDAY": 6
+            }
+            wk_days = [day_name_to_weekday.get(str(d).strip().upper(), -1) for d in days_of_week] if days_of_week else []
+
+            gen_count = 0
+            max_count = getattr(r, 'end_count', None) or (r.get('end_count') if isinstance(r, dict) else 1000) or 1000
+
+            while cur_day <= end_horizon:
+                should_create = False
+                if freq == "daily":
+                    if (cur_day - st_dt.date()).days % interval == 0:
+                        should_create = True
+                elif freq == "weekdays":
+                    if cur_day.weekday() in (0, 1, 2, 3, 4):
+                        should_create = True
+                elif freq == "weekly":
+                    diff_weeks = (cur_day - st_dt.date()).days // 7
+                    if diff_weeks >= 0 and diff_weeks % interval == 0:
+                        if wk_days:
+                            if cur_day.weekday() in wk_days:
+                                should_create = True
+                        elif cur_day.weekday() == st_dt.weekday():
+                            should_create = True
+                elif freq in ("biweekly", "fortnightly"):
+                    diff_weeks = (cur_day - st_dt.date()).days // 7
+                    if diff_weeks >= 0 and diff_weeks % 2 == 0 and cur_day.weekday() == st_dt.weekday():
+                        should_create = True
+                elif freq == "monthly":
+                    if cur_day.day == st_dt.day:
+                        diff_m = (cur_day.year - st_dt.year) * 12 + (cur_day.month - st_dt.month)
+                        if diff_m >= 0 and diff_m % interval == 0:
+                            should_create = True
+
+                if should_create:
+                    gen_count += 1
+                    if (getattr(r, 'end_type', None) or (r.get('end_type') if isinstance(r, dict) else 'never')) == "after_count" and gen_count > max_count:
+                        break
+
+                    d_str = cur_day.strftime("%Y-%m-%d")
+                    inst_start = datetime.combine(cur_day, st_dt.time())
+
+                    existing = await exec_sql(
+                        "SELECT id FROM public.vehicle_trips WHERE schedule_id = %s AND (schedule_instance_date = %s::date OR start_date = %s)",
+                        (s_id, d_str, d_str)
+                    )
+                    if existing:
+                        await exec_sql(
+                            """
+                            UPDATE public.vehicle_trips
+                            SET route_id = %s, vehicle_id = %s, trip_type = %s, start_time = %s, end_time = %s, updated_at = NOW()
+                            WHERE id = %s
+                            """,
+                            (route_id, v_id, trip_type, st_time_str, end_time_str, existing[0]["id"]),
+                            fetch=False
+                        )
+                    else:
+                        trip_id = str(uuid.uuid4())
+                        await exec_sql("""
+                            INSERT INTO public.vehicle_trips (
+                                id, school_id, route_id, vehicle_id, schedule_id,
+                                schedule_instance_date, start_date, start_time, end_date, end_time,
+                                trip_type, status, scheduled_start, created_at, updated_at
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'scheduled', %s, NOW(), NOW())
+                        """, (
+                            trip_id, school_id, route_id, v_id, s_id,
+                            d_str, d_str, st_time_str, d_str, end_time_str,
+                            trip_type, inst_start.isoformat()
+                        ), fetch=False)
+
+                cur_day += timedelta(days=1)
+    except Exception as e:
+        logger.error(f"[Vehicle Trips Sync Error]: {e}")
+
+
 # ============================================================================
 # PYDANTIC REQUEST & RESPONSE SCHEMAS
 # ============================================================================
@@ -221,11 +389,13 @@ class ScheduleCreateRequest(BaseModel):
     participants: Optional[List[ParticipantAssignmentSchema]] = []
     resources: Optional[List[ResourceBookingSchema]] = []
     reminders: Optional[List[ReminderSchema]] = []
+    route_id: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = {}
     force_override_conflicts: Optional[bool] = False
 
 class ScheduleUpdateRequest(BaseModel):
     calendar_id: Optional[str] = None
+    route_id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
     schedule_type: Optional[str] = None
@@ -1133,6 +1303,34 @@ async def get_assignable_classes(user=Depends(get_current_user)):
         return {"success": True, "data": [{"name": c} for c in fallback]}
 
 
+@router.get("/calendar/transport-routes")
+@router.get("/transport-routes")
+async def get_calendar_transport_routes(user=Depends(get_current_user)):
+    """Fetch active transport routes for assigning to calendar schedules."""
+    school_id = user.get("school_id")
+    if not school_id:
+        raise HTTPException(status_code=400, detail="Tenant school_id is required")
+
+    try:
+        sql = """
+            SELECT tr.id, tr.route_code, tr.route_name, tr.area_zone, tr.distance_km,
+                   tr.start_time, tr.end_time, tr.vehicle_id, tr.driver_id, tr.status,
+                   v.bus_number, v.registration_no, v.capacity,
+                   d.name AS driver_name, d.phone AS driver_phone, d.driver_code, d.profile_id AS driver_profile_id,
+                   (SELECT COUNT(*) FROM public.transport_route_stops WHERE route_id = tr.id) AS stops_count
+            FROM public.transport_routes tr
+            LEFT JOIN public.vehicles v ON v.id = tr.vehicle_id
+            LEFT JOIN public.drivers d ON d.id = tr.driver_id
+            WHERE tr.school_id = %s AND tr.status != 'Inactive'
+            ORDER BY tr.route_name ASC
+        """
+        rows = await exec_sql(sql, (school_id,))
+        return {"success": True, "count": len(rows), "data": _serialize_datetime(rows)}
+    except Exception as e:
+        logger.error(f"[Calendar Transport Routes Error]: {e}")
+        return {"success": True, "count": 0, "data": []}
+
+
 # ============================================================================
 # 2. UNIVERSAL SCHEDULE CRUD & FILTERING APIS
 # ============================================================================
@@ -1255,6 +1453,14 @@ async def get_schedules(
                c.type AS calendar_type,
                p.full_name AS organizer_name,
                p.avatar_url AS organizer_avatar,
+               tr.route_name, tr.route_code, tr.start_time AS route_start_time, tr.end_time AS route_end_time,
+               v.bus_number, v.registration_no,
+               d.name AS driver_name,
+               (
+                   SELECT vt.id FROM public.vehicle_trips vt
+                   WHERE vt.schedule_id = s.id AND (vt.start_date = s.start_time::date::text OR vt.schedule_instance_date = s.start_time::date)
+                   LIMIT 1
+               ) AS trip_id,
                (
                    SELECT json_agg(json_build_object(
                        'id', sp.id,
@@ -1328,6 +1534,9 @@ async def get_schedules(
         FROM public.schedules s
         LEFT JOIN public.calendars c ON c.id = s.calendar_id
         LEFT JOIN public.profiles p ON p.id = s.organizer_id
+        LEFT JOIN public.transport_routes tr ON tr.id = s.route_id
+        LEFT JOIN public.vehicles v ON v.id = tr.vehicle_id
+        LEFT JOIN public.drivers d ON d.id = tr.driver_id
         WHERE {where_clause}
         ORDER BY s.start_time ASC
         LIMIT %s
@@ -1375,6 +1584,9 @@ async def get_schedules(
                 SELECT s.*, sr.frequency, sr.interval, sr.days_of_week, sr.end_type, sr.end_count, sr.end_date as rec_end_date, sr.exceptions,
                        c.name AS calendar_name, c.color AS calendar_color, c.type AS calendar_type,
                        p.full_name AS organizer_name, p.avatar_url AS organizer_avatar,
+                       tr.route_name, tr.route_code, tr.start_time AS route_start_time, tr.end_time AS route_end_time,
+                       v.bus_number, v.registration_no,
+                       d.name AS driver_name,
                        (
                            SELECT json_agg(json_build_object(
                                'id', sp.id, 'user_id', sp.user_id, 'participant_type', sp.participant_type,
@@ -1432,6 +1644,9 @@ async def get_schedules(
                 JOIN public.schedule_recurrence sr ON sr.schedule_id = s.id
                 LEFT JOIN public.calendars c ON c.id = s.calendar_id
                 LEFT JOIN public.profiles p ON p.id = s.organizer_id
+                LEFT JOIN public.transport_routes tr ON tr.id = s.route_id
+                LEFT JOIN public.vehicles v ON v.id = tr.vehicle_id
+                LEFT JOIN public.drivers d ON d.id = tr.driver_id
                 WHERE {rec_where}
             """
             rec_rows = await exec_sql(rec_sql, tuple(rec_params))
@@ -1592,6 +1807,20 @@ async def get_schedules(
                             inst_dict["end_time"] = inst_end
                             inst_dict["is_recurrence_instance"] = True
                             inst_dict["parent_schedule_id"] = str(rec["id"])
+
+                            # If schedule has a transport route, look up this occurrence's specific trip_id
+                            if rec.get("route_id"):
+                                try:
+                                    t_rows = await exec_sql(
+                                        "SELECT id, status FROM public.vehicle_trips WHERE schedule_id = %s AND (start_date = %s OR schedule_instance_date = %s::date) LIMIT 1",
+                                        (str(rec["id"]), cur_str, cur_str)
+                                    )
+                                    if t_rows:
+                                        inst_dict["trip_id"] = str(t_rows[0]["id"])
+                                        inst_dict["trip_status"] = t_rows[0]["status"]
+                                except Exception:
+                                    pass
+
                             rows.append(inst_dict)
 
                     cur_day += timedelta(days=1)
@@ -1738,15 +1967,44 @@ async def create_schedule(req: ScheduleCreateRequest, user=Depends(get_current_u
         audience_type = "individual"
 
     s_id = str(uuid.uuid4())
+    route_id = req.route_id or (req.metadata.get("route_id") if req.metadata else None)
+
+    # If route_id is provided, auto-populate driver as participant if not already present
+    route_obj = {}
+    if route_id:
+        try:
+            r_rows = await exec_sql("SELECT * FROM public.transport_routes WHERE id = %s", (route_id,))
+            if r_rows:
+                route_obj = r_rows[0]
+                d_id = route_obj.get("driver_id")
+                if d_id:
+                    d_rows = await exec_sql("SELECT profile_id, name FROM public.drivers WHERE id = %s", (d_id,))
+                    if d_rows and d_rows[0].get("profile_id"):
+                        d_prof_id = str(d_rows[0]["profile_id"])
+                        has_driver = any(str(p.user_id) == d_prof_id for p in (req.participants or []))
+                        if not has_driver:
+                            if req.participants is None:
+                                req.participants = []
+                            req.participants.append(
+                                ParticipantAssignmentSchema(
+                                    user_id=d_prof_id,
+                                    participant_type="individual",
+                                    participation_role="required",
+                                    permission="can_view"
+                                )
+                            )
+        except Exception as e:
+            logger.error(f"[Calendar Route Driver Auto-Assign Error]: {e}")
+
     sql = """
         INSERT INTO public.schedules (
-            id, school_id, calendar_id, title, description, schedule_type, category, color, priority,
+            id, school_id, calendar_id, route_id, title, description, schedule_type, category, color, priority,
             status, approval_status, start_time, end_time, is_all_day, timezone,
             location_name, location_address, building, room, landmark, latitude, longitude,
             virtual_meeting_url, virtual_meeting_provider, organizer_id, created_by,
             visibility, is_recurring, metadata, audience_type, target_roles, target_classes, target_user_ids, created_at, updated_at
         ) VALUES (
-            %s, %s, %s, %s, %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
             'confirmed', 'approved', %s, %s, %s, %s,
             %s, %s, %s, %s, %s, %s, %s,
             %s, %s, %s, %s,
@@ -1756,7 +2014,7 @@ async def create_schedule(req: ScheduleCreateRequest, user=Depends(get_current_u
     rows = await exec_sql(
         sql,
         (
-            s_id, school_id, cal_id, req.title, req.description, req.schedule_type, req.category or "General",
+            s_id, school_id, cal_id, route_id, req.title, req.description, req.schedule_type, req.category or "General",
             req.color or "#4F46E5", req.priority or "normal",
             req.start_time, req.end_time, req.is_all_day or False, req.timezone or "Asia/Kolkata",
             req.location_name, req.location_address, req.building, req.room, req.landmark,
@@ -1851,6 +2109,18 @@ async def create_schedule(req: ScheduleCreateRequest, user=Depends(get_current_u
                 fetch=False
             )
 
+    # 7.5. Generate Individual Vehicle Trips per Scheduled Day Instance
+    if route_id:
+        await sync_vehicle_trips_for_schedule(
+            s_id=s_id,
+            school_id=school_id,
+            route_id=route_id,
+            start_time_iso=req.start_time,
+            end_time_iso=req.end_time,
+            is_recurring=req.is_recurring or False,
+            recurrence_obj=req.recurrence
+        )
+
     # 8. Record Audit Log
     asyncio.create_task(
         record_schedule_audit_log(
@@ -1869,9 +2139,12 @@ async def create_schedule(req: ScheduleCreateRequest, user=Depends(get_current_u
 @router.get("/schedules/{schedule_id}")
 async def get_schedule_by_id(schedule_id: str, user=Depends(get_current_user)):
     """Fetch complete schedule detail including participants, resources, recurrence, reminders, and comments."""
-    school_id = user.get("school_id")
+    target_date_str = None
     if "_inst_" in schedule_id:
-        schedule_id = schedule_id.split("_inst_")[0]
+        parts = schedule_id.split("_inst_")
+        schedule_id = parts[0]
+        if len(parts) > 1:
+            target_date_str = parts[1]
 
     rows = await exec_sql(
         """
@@ -1880,13 +2153,43 @@ async def get_schedule_by_id(schedule_id: str, user=Depends(get_current_user)):
                c.color AS calendar_color,
                p.full_name AS organizer_name,
                p.email AS organizer_email,
-               p.avatar_url AS organizer_avatar
+               p.avatar_url AS organizer_avatar,
+               tr.route_name, tr.route_code, tr.start_time AS route_start_time, tr.end_time AS route_end_time,
+               v.bus_number, v.registration_no,
+               d.name AS driver_name, d.phone AS driver_phone,
+               (
+                   SELECT vt.id FROM public.vehicle_trips vt
+                   WHERE vt.schedule_id = s.id 
+                     AND (
+                       (%s::text IS NOT NULL AND (vt.schedule_instance_date = %s::date OR vt.start_date = %s OR vt.scheduled_start::date = %s::date))
+                       OR (%s::text IS NULL)
+                     )
+                   ORDER BY vt.scheduled_start ASC
+                   LIMIT 1
+               ) AS trip_id,
+               (
+                   SELECT vt.status FROM public.vehicle_trips vt
+                   WHERE vt.schedule_id = s.id 
+                     AND (
+                       (%s::text IS NOT NULL AND (vt.schedule_instance_date = %s::date OR vt.start_date = %s OR vt.scheduled_start::date = %s::date))
+                       OR (%s::text IS NULL)
+                     )
+                   ORDER BY vt.scheduled_start ASC
+                   LIMIT 1
+               ) AS trip_status
         FROM public.schedules s
         LEFT JOIN public.calendars c ON c.id = s.calendar_id
         LEFT JOIN public.profiles p ON p.id = s.organizer_id
-        WHERE s.id = %s AND s.school_id = %s AND s.deleted_at IS NULL
+        LEFT JOIN public.transport_routes tr ON tr.id = s.route_id
+        LEFT JOIN public.vehicles v ON v.id = tr.vehicle_id
+        LEFT JOIN public.drivers d ON d.id = tr.driver_id
+        WHERE s.id = %s AND (s.school_id = %s OR s.school_id IS NULL) AND s.deleted_at IS NULL
         """,
-        (schedule_id, school_id)
+        (
+            target_date_str, target_date_str, target_date_str, target_date_str, target_date_str,
+            target_date_str, target_date_str, target_date_str, target_date_str, target_date_str,
+            schedule_id, school_id
+        )
     )
     if not rows:
         raise HTTPException(status_code=404, detail="Schedule not found")
@@ -2005,7 +2308,7 @@ async def update_schedule(
             "status", "approval_status", "start_time", "end_time", "is_all_day", "timezone",
             "location_name", "location_address", "building", "room", "landmark",
             "latitude", "longitude", "virtual_meeting_url", "virtual_meeting_provider",
-            "visibility", "cancellation_reason"
+            "visibility", "cancellation_reason", "route_id"
         ]:
             val = getattr(req, field, None)
             if val is not None:
@@ -2023,11 +2326,33 @@ async def update_schedule(
         if updates:
             updates.append("updated_at = NOW()")
             params.extend([schedule_id, school_id])
-            sql = f"UPDATE public.schedules SET {', '.join(updates)} WHERE id = %s AND school_id = %s RETURNING *"
+            sql = f"UPDATE public.schedules SET {', '.join(updates)} WHERE id = %s AND (school_id = %s OR school_id IS NULL) RETURNING *"
             updated_rows = await exec_sql(sql, tuple(params))
             new_record = updated_rows[0] if updated_rows else old_record
         else:
             new_record = old_record
+
+        old_route_id = str(old_record.get("route_id") or "")
+        new_route_id = str(new_record.get("route_id") or "")
+        route_changed = (req.route_id is not None) and (new_route_id != old_route_id)
+
+        if route_changed:
+            if not new_route_id:
+                await exec_sql(
+                    "DELETE FROM public.vehicle_trips WHERE schedule_id = %s",
+                    (schedule_id,),
+                    fetch=False
+                )
+            else:
+                await sync_vehicle_trips_for_schedule(
+                    s_id=schedule_id,
+                    school_id=school_id,
+                    route_id=new_route_id,
+                    start_time_iso=str(new_record.get("start_time")),
+                    end_time_iso=str(new_record.get("end_time")),
+                    is_recurring=new_record.get("is_recurring") or False,
+                    recurrence_obj=req.recurrence
+                )
 
         return {"success": True, "data": _serialize_datetime(new_record), "message": "Schedule updated successfully."}
 
@@ -2055,16 +2380,17 @@ async def update_schedule(
         inst_date = datetime.fromisoformat(target_instance_date).date()
         new_start = req.start_time or datetime.combine(inst_date, old_record["start_time"].time())
         new_end = req.end_time or datetime.combine(inst_date, old_record["end_time"].time())
+        override_route_id = req.route_id if req.route_id is not None else old_record.get("route_id")
 
         sql_override = """
             INSERT INTO public.schedules (
-                id, school_id, calendar_id, title, description, schedule_type, category, color, priority,
+                id, school_id, calendar_id, route_id, title, description, schedule_type, category, color, priority,
                 status, approval_status, start_time, end_time, is_all_day, timezone,
                 location_name, location_address, building, room, virtual_meeting_url, virtual_meeting_provider,
                 organizer_id, created_by, visibility, is_recurring, recurring_parent_id, original_instance_date,
                 recurrence_exception_type, metadata, created_at, updated_at
             ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                 'scheduled', 'approved', %s, %s, %s, %s,
                 %s, %s, %s, %s, %s, %s,
                 %s, %s, %s, FALSE, %s, %s,
@@ -2074,7 +2400,7 @@ async def update_schedule(
         rows = await exec_sql(
             sql_override,
             (
-                override_id, school_id, req.calendar_id or old_record["calendar_id"],
+                override_id, school_id, req.calendar_id or old_record["calendar_id"], override_route_id,
                 req.title or old_record["title"], req.description if req.description is not None else old_record["description"],
                 req.schedule_type or old_record["schedule_type"], req.category or old_record["category"],
                 req.color or old_record["color"], req.priority or old_record["priority"],
@@ -2088,6 +2414,59 @@ async def update_schedule(
             )
         )
         new_record = rows[0]
+
+        # Sync single-day trip if route changed or was specified
+        old_inst_route = str(old_record.get("route_id") or "")
+        new_inst_route = str(override_route_id or "")
+        if req.route_id is not None and new_inst_route != old_inst_route:
+            if not new_inst_route:
+                # Deleted trip for this day
+                await exec_sql(
+                    """
+                    DELETE FROM public.vehicle_trips
+                    WHERE (schedule_id = %s OR schedule_id = %s)
+                      AND (schedule_instance_date = %s::date OR start_date = %s)
+                    """,
+                    (master_parent_id, override_id, target_instance_date, target_instance_date),
+                    fetch=False
+                )
+            else:
+                # Route changed for this day: update existing trip or create new trip
+                r_rows = await exec_sql("SELECT vehicle_id, start_time, end_time FROM public.transport_routes WHERE id = %s", (new_inst_route,))
+                new_v_id = r_rows[0].get("vehicle_id") if r_rows else None
+                new_st = r_rows[0].get("start_time") if r_rows and r_rows[0].get("start_time") else "08:00 AM"
+                new_et = r_rows[0].get("end_time") if r_rows and r_rows[0].get("end_time") else "09:00 AM"
+
+                existing_trip = await exec_sql(
+                    """
+                    SELECT id FROM public.vehicle_trips
+                    WHERE (schedule_id = %s OR schedule_id = %s)
+                      AND (schedule_instance_date = %s::date OR start_date = %s)
+                    """,
+                    (master_parent_id, override_id, target_instance_date, target_instance_date)
+                )
+                if existing_trip:
+                    await exec_sql(
+                        """
+                        UPDATE public.vehicle_trips
+                        SET route_id = %s, vehicle_id = %s, schedule_id = %s, start_time = %s, end_time = %s, updated_at = NOW()
+                        WHERE id = %s
+                        """,
+                        (new_inst_route, new_v_id, override_id, new_st, new_et, existing_trip[0]["id"]),
+                        fetch=False
+                    )
+                else:
+                    await exec_sql("""
+                        INSERT INTO public.vehicle_trips (
+                            id, school_id, route_id, vehicle_id, schedule_id,
+                            schedule_instance_date, start_date, start_time, end_date, end_time,
+                            trip_type, status, scheduled_start, created_at, updated_at
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'morning', 'scheduled', %s, NOW(), NOW())
+                    """, (
+                        str(uuid.uuid4()), school_id, new_inst_route, new_v_id, override_id,
+                        target_instance_date, target_instance_date, new_st, target_instance_date, new_et,
+                        new_start.isoformat() if hasattr(new_start, 'isoformat') else str(new_start)
+                    ), fetch=False)
 
         # Copy/assign participants for override
         if req.participants is not None:
@@ -2123,15 +2502,16 @@ async def update_schedule(
         new_series_id = str(uuid.uuid4())
         new_start = req.start_time or datetime.combine(split_date, old_record["start_time"].time())
         new_end = req.end_time or datetime.combine(split_date, old_record["end_time"].time())
+        split_route_id = req.route_id if req.route_id is not None else old_record.get("route_id")
 
         sql_new_series = """
             INSERT INTO public.schedules (
-                id, school_id, calendar_id, title, description, schedule_type, category, color, priority,
+                id, school_id, calendar_id, route_id, title, description, schedule_type, category, color, priority,
                 status, approval_status, start_time, end_time, is_all_day, timezone,
                 location_name, location_address, building, room, virtual_meeting_url, virtual_meeting_provider,
                 organizer_id, created_by, visibility, is_recurring, metadata, created_at, updated_at
             ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                 'scheduled', 'approved', %s, %s, %s, %s,
                 %s, %s, %s, %s, %s, %s,
                 %s, %s, %s, TRUE, %s, NOW(), NOW()
@@ -2140,7 +2520,7 @@ async def update_schedule(
         rows = await exec_sql(
             sql_new_series,
             (
-                new_series_id, school_id, req.calendar_id or old_record["calendar_id"],
+                new_series_id, school_id, req.calendar_id or old_record["calendar_id"], split_route_id,
                 req.title or old_record["title"], req.description if req.description is not None else old_record["description"],
                 req.schedule_type or old_record["schedule_type"], req.category or old_record["category"],
                 req.color or old_record["color"], req.priority or old_record["priority"],
@@ -2174,6 +2554,17 @@ async def update_schedule(
                 fetch=False
             )
 
+        if split_route_id:
+            await sync_vehicle_trips_for_schedule(
+                s_id=new_series_id,
+                school_id=school_id,
+                route_id=split_route_id,
+                start_time_iso=str(new_record.get("start_time")),
+                end_time_iso=str(new_record.get("end_time")),
+                is_recurring=True,
+                recurrence_obj=req.recurrence
+            )
+
         return {"success": True, "data": _serialize_datetime(new_record), "message": "Updated this and all following events."}
 
     # SCOPE 3: ENTIRE SERIES (Default)
@@ -2185,7 +2576,7 @@ async def update_schedule(
         "status", "approval_status", "start_time", "end_time", "is_all_day", "timezone",
         "location_name", "location_address", "building", "room", "landmark",
         "latitude", "longitude", "virtual_meeting_url", "virtual_meeting_provider",
-        "visibility", "cancellation_reason"
+        "visibility", "cancellation_reason", "route_id"
     ]:
         val = getattr(req, field, None)
         if val is not None:
@@ -2203,11 +2594,35 @@ async def update_schedule(
     if updates:
         updates.append("updated_at = NOW()")
         params.extend([target_update_id, school_id])
-        sql = f"UPDATE public.schedules SET {', '.join(updates)} WHERE id = %s AND school_id = %s RETURNING *"
+        sql = f"UPDATE public.schedules SET {', '.join(updates)} WHERE id = %s AND (school_id = %s OR school_id IS NULL) RETURNING *"
         updated_rows = await exec_sql(sql, tuple(params))
         new_record = updated_rows[0] if updated_rows else old_record
     else:
         new_record = old_record
+
+    old_route_id = str(old_record.get("route_id") or "")
+    new_route_id = str(new_record.get("route_id") or "")
+    route_changed = (req.route_id is not None) and (new_route_id != old_route_id)
+
+    if route_changed:
+        if not new_route_id:
+            # Route removed: delete associated trips
+            await exec_sql(
+                "DELETE FROM public.vehicle_trips WHERE schedule_id = %s",
+                (target_update_id,),
+                fetch=False
+            )
+        else:
+            # Route changed: resync trips with new route
+            await sync_vehicle_trips_for_schedule(
+                s_id=target_update_id,
+                school_id=school_id,
+                route_id=new_route_id,
+                start_time_iso=str(new_record.get("start_time")),
+                end_time_iso=str(new_record.get("end_time")),
+                is_recurring=new_record.get("is_recurring") or False,
+                recurrence_obj=req.recurrence
+            )
 
     # Update Participants if provided
     if req.participants is not None:
@@ -2376,6 +2791,18 @@ async def delete_schedule(
                 (schedule_id,),
                 fetch=False
             )
+
+        # Delete trip for this specific day from vehicle_trips
+        await exec_sql(
+            """
+            DELETE FROM public.vehicle_trips
+            WHERE (schedule_id = %s OR schedule_id = %s)
+              AND (schedule_instance_date = %s::date OR start_date = %s OR scheduled_start::date = %s::date)
+            """,
+            (master_parent_id, schedule_id, target_instance_date, target_instance_date, target_instance_date),
+            fetch=False
+        )
+
         return {"success": True, "message": f"Deleted occurrence for {target_instance_date}."}
 
     elif recurrence_scope == "following_events" and target_instance_date:
@@ -2395,6 +2822,18 @@ async def delete_schedule(
             (master_parent_id, schedule_id, target_instance_date, target_instance_date),
             fetch=False
         )
+
+        # Delete vehicle trips for following events
+        await exec_sql(
+            """
+            DELETE FROM public.vehicle_trips
+            WHERE (schedule_id = %s OR schedule_id = %s)
+              AND (schedule_instance_date >= %s::date OR start_date >= %s OR scheduled_start::date >= %s::date)
+            """,
+            (master_parent_id, schedule_id, target_instance_date, target_instance_date, target_instance_date),
+            fetch=False
+        )
+
         return {"success": True, "message": f"Deleted this and all following events from {target_instance_date}."}
 
     # Default: Entire Series
@@ -2410,6 +2849,12 @@ async def delete_schedule(
     # Release resource bookings
     await exec_sql(
         "UPDATE public.resource_bookings SET status = 'released' WHERE schedule_id = %s OR schedule_id = %s",
+        (schedule_id, master_parent_id),
+        fetch=False
+    )
+    # Delete associated vehicle_trips
+    await exec_sql(
+        "DELETE FROM public.vehicle_trips WHERE schedule_id = %s OR schedule_id = %s",
         (schedule_id, master_parent_id),
         fetch=False
     )
@@ -2441,17 +2886,22 @@ async def cancel_schedule(
     """
     school_id = user.get("school_id")
     user_id = user.get("id")
-    user_role = str(user.get("role", "")).lower()
+    user_role = str(user.get("role", "")).lower().replace("_", "").replace(" ", "")
 
     if not req.cancellation_reason or not req.cancellation_reason.strip():
         raise HTTPException(status_code=400, detail="Cancellation reason is required.")
 
     parent_id = schedule_id
     if "_inst_" in schedule_id:
-        parent_id, _, _ = schedule_id.partition("_inst_")
+        parent_id, _, inst_date_str = schedule_id.partition("_inst_")
+        if not req.target_instance_date:
+            req.target_instance_date = inst_date_str
         schedule_id = parent_id
 
-    curr = await exec_sql("SELECT * FROM public.schedules WHERE id = %s AND school_id = %s", (schedule_id, school_id))
+    curr = await exec_sql(
+        "SELECT * FROM public.schedules WHERE id = %s AND (school_id = %s OR school_id IS NULL)",
+        (schedule_id, school_id)
+    )
     if not curr:
         raise HTTPException(status_code=404, detail="Schedule not found")
 
@@ -2459,7 +2909,7 @@ async def cancel_schedule(
     organizer_id = str(old_record.get("organizer_id") or "")
     created_by = str(old_record.get("created_by") or "")
 
-    is_owner = (user_id == organizer_id) or (user_id == created_by) or (user_role in ["super_admin", "admin", "owner"])
+    is_owner = (user_id == organizer_id) or (user_id == created_by) or (user_role in ["superadmin", "admin", "owner", "principal", "director", "staff"])
     has_edit_perm = is_owner
     if not has_edit_perm:
         part_check = await exec_sql(
@@ -2480,11 +2930,11 @@ async def cancel_schedule(
     # Cancel schedule
     sql = """
         UPDATE public.schedules
-        SET status = 'cancelled', cancellation_reason = %s, updated_at = NOW()
-        WHERE id = %s AND school_id = %s
+        SET status = 'cancelled', cancellation_reason = %s, cancelled_by = %s, cancelled_at = NOW(), updated_at = NOW()
+        WHERE id = %s AND (school_id = %s OR school_id IS NULL)
         RETURNING *
     """
-    rows = await exec_sql(sql, (req.cancellation_reason.strip(), schedule_id, school_id))
+    rows = await exec_sql(sql, (req.cancellation_reason.strip(), user_id, schedule_id, school_id))
 
     # Release resource bookings
     await exec_sql(
@@ -2492,6 +2942,29 @@ async def cancel_schedule(
         (schedule_id,),
         fetch=False
     )
+
+    # Synchronize cancellation to associated vehicle_trips
+    if req.recurrence_scope == "this_event" and req.target_instance_date:
+        await exec_sql(
+            """
+            UPDATE public.vehicle_trips
+            SET status = 'cancelled', cancellation_reason = %s, updated_at = NOW()
+            WHERE (schedule_id = %s OR schedule_id = %s)
+              AND (schedule_instance_date = %s::date OR start_date = %s OR scheduled_start::date = %s::date)
+            """,
+            (req.cancellation_reason.strip(), schedule_id, parent_id, req.target_instance_date, req.target_instance_date, req.target_instance_date),
+            fetch=False
+        )
+    else:
+        await exec_sql(
+            """
+            UPDATE public.vehicle_trips
+            SET status = 'cancelled', cancellation_reason = %s, updated_at = NOW()
+            WHERE schedule_id = %s OR schedule_id = %s
+            """,
+            (req.cancellation_reason.strip(), schedule_id, parent_id),
+            fetch=False
+        )
 
     updated_record = rows[0] if rows else old_record
     return {
@@ -3073,3 +3546,43 @@ async def export_calendar(
             media_type="text/calendar",
             headers={"Content-Disposition": "attachment; filename=edushamiit_calendar.ics"}
         )
+
+
+@router.get("/calendar/transport-routes")
+@router.get("/transport-routes")
+async def get_assignable_transport_routes(user=Depends(get_current_user)):
+    """
+    Fetch active transport routes that have BOTH a vehicle (bus) and a driver assigned.
+    Returns route details, assigned vehicle number, driver profile and stops count.
+    """
+    school_id = user.get("school_id")
+    params = []
+    where_conds = [
+        "tr.vehicle_id IS NOT NULL",
+        "tr.driver_id IS NOT NULL"
+    ]
+    if school_id:
+        where_conds.append("(tr.school_id = %s OR tr.school_id IS NULL)")
+        params.append(school_id)
+
+    where_clause = " AND ".join(where_conds)
+
+    sql = f"""
+        SELECT tr.id, tr.route_name, tr.route_code, tr.start_time, tr.end_time, tr.status,
+               tr.vehicle_id, tr.driver_id, tr.school_id,
+               v.bus_number, v.registration_no,
+               d.name AS driver_name, d.phone AS driver_phone, d.profile_id AS driver_profile_id,
+               (
+                   SELECT COUNT(*) 
+                   FROM public.transport_route_stops trs 
+                   WHERE trs.route_id = tr.id
+               ) AS stops_count
+        FROM public.transport_routes tr
+        INNER JOIN public.vehicles v ON v.id = tr.vehicle_id
+        INNER JOIN public.drivers d ON d.id = tr.driver_id
+        WHERE {where_clause}
+        ORDER BY tr.route_name ASC
+    """
+    rows = await exec_sql(sql, tuple(params))
+    return {"success": True, "count": len(rows), "data": _serialize_datetime(rows)}
+

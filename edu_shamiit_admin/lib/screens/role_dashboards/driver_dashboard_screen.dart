@@ -40,16 +40,16 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   bool _deviationAlertActive = false;
 
   Map<String, dynamic>? _selectedRoute;
-  String _registrationNo = "UP18181";
-  String _busNumber = "UP18181";
-  String _startTime = "03:30 PM";
-  String _currentLocationName = "Stop 1";
-  String _nextStopName = "Stop 2";
+  String _registrationNo = "";
+  String _busNumber = "";
+  String _startTime = "";
+  String _currentLocationName = "Waiting";
+  String _nextStopName = "None Scheduled";
 
-  double _totalDistanceKm = 55.13;
+  double _totalDistanceKm = 0.0;
   double _coveredDistanceKm = 0.0;
   int _elapsedMinutes = 0;
-  int _totalTimeMinutes = 52;
+  int _totalTimeMinutes = 0;
 
   // Selected stop index for checklist updating (Right side card)
   int _selectedStopIndexForChecklist = 4;
@@ -127,32 +127,133 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     super.dispose();
   }
 
+  String? _lastLoadedTripId;
+  String? _lastLoadedRouteId;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    String? currentTripId;
+    String? currentRouteId;
+    try {
+      final baseUri = Uri.base;
+      currentTripId = baseUri.queryParameters['trip_id'];
+      currentRouteId = baseUri.queryParameters['route_id'];
+    } catch (_) {}
+
+    if (currentTripId == null || currentTripId.isEmpty) {
+      try {
+        final uri = GoRouterState.of(context).uri;
+        currentTripId = uri.queryParameters['trip_id'];
+        currentRouteId = uri.queryParameters['route_id'];
+      } catch (_) {}
+    }
+
+    if ((currentTripId != null && currentTripId.isNotEmpty && currentTripId != _lastLoadedTripId) ||
+        (currentRouteId != null && currentRouteId.isNotEmpty && currentRouteId != _lastLoadedRouteId)) {
+      _lastLoadedTripId = currentTripId;
+      _lastLoadedRouteId = currentRouteId;
+      debugPrint("[DRIVER_DASH] URL parameters changed: trip_id=$currentTripId, route_id=$currentRouteId. Triggering _initializeDashboard...");
+      _initializeDashboard();
+    }
+  }
+
   // ─── INITIALIZATION & SYNC ──────────────────────────────────────────────
 
   Future<void> _initializeDashboard() async {
     debugPrint("[DRIVER_DASH] _initializeDashboard: Starting...");
 
-    // 1. First check if an active or paused trip already exists in DB!
-    await _checkActiveTrip();
-
-    // 2. Fetch routes if active trip wasn't found or to populate route selector
+    String? urlTripId;
+    String? urlRouteId;
     try {
-      final routesRes =
-          await ApiService().get('/transport/driver/routes', useCache: false);
-      if (routesRes['success'] == true) {
+      final baseUri = Uri.base;
+      urlTripId = baseUri.queryParameters['trip_id'];
+      urlRouteId = baseUri.queryParameters['route_id'];
+    } catch (_) {}
+
+    if (urlTripId == null || urlTripId.isEmpty) {
+      try {
+        final uri = GoRouterState.of(context).uri;
+        urlTripId = uri.queryParameters['trip_id'];
+        urlRouteId = uri.queryParameters['route_id'];
+      } catch (_) {}
+    }
+
+    _lastLoadedTripId = urlTripId;
+    _lastLoadedRouteId = urlRouteId;
+
+    debugPrint("[DRIVER_DASH] Found URL parameters: trip_id=$urlTripId, route_id=$urlRouteId");
+
+    // 1. Fetch driver routes
+    try {
+      final routesRes = await ApiService().get('/transport/driver/routes', useCache: false);
+      if (routesRes['success'] == true && routesRes['data'] != null) {
         _routes = routesRes['data'] ?? [];
-        if (_routes.isNotEmpty) {
-          final assigned = _routes.where((r) => r['is_assigned'] == true).toList();
-          final selected = assigned.isNotEmpty ? assigned[0] : _routes[0];
-          
-          if (_stops.isEmpty) {
-            _selectedRouteId = selected['id'];
-            await _selectRoute(selected);
-          }
-        }
       }
     } catch (e) {
       debugPrint("[DRIVER_DASH] Routes fetch failed: $e");
+    }
+
+    // 2. Resolve target route if urlRouteId specified
+    Map<String, dynamic>? targetRoute;
+    if (_routes.isNotEmpty) {
+      if (urlRouteId != null && urlRouteId.isNotEmpty) {
+        targetRoute = _routes.firstWhere(
+          (r) => r['id']?.toString() == urlRouteId,
+          orElse: () => _routes[0],
+        );
+      } else {
+        final assigned = _routes.where((r) => r['is_assigned'] == true).toList();
+        targetRoute = assigned.isNotEmpty ? assigned[0] : _routes[0];
+      }
+    }
+
+    final effectiveRouteId = urlRouteId ?? targetRoute?['id']?.toString();
+
+    // 3. Load Trip State
+    if (urlTripId != null && urlTripId.isNotEmpty) {
+      // Direct deep-link from Calendar Scheduled Trip
+      try {
+        debugPrint("[DRIVER_DASH] Direct start trip from URL: trip_id=$urlTripId, route_id=$effectiveRouteId");
+        await _startTrip(tripIdOverride: urlTripId, routeIdOverride: effectiveRouteId);
+      } catch (e) {
+        debugPrint("[DRIVER_DASH] Error loading deep-linked trip: $e");
+        await _loadTripState(urlTripId);
+      }
+    } else {
+      // By default: Fetch next upcoming scheduled trip on calendar for this driver!
+      bool loadedUpcoming = false;
+      try {
+        final upcomingRes = await ApiService().get('/transport/driver/trips/upcoming', useCache: false);
+        if (upcomingRes['success'] == true && upcomingRes['data'] != null) {
+          final data = upcomingRes['data'];
+          if (data['trip'] != null && data['trip']['id'] != null) {
+            await _loadTripState(data['trip']['id'].toString());
+            loadedUpcoming = true;
+          }
+        }
+      } catch (e) {
+        debugPrint("[DRIVER_DASH] Error fetching upcoming trip: $e");
+      }
+
+      if (!loadedUpcoming) {
+        await _checkActiveTrip();
+        if (_activeTrip == null) {
+          // No active trip and no upcoming scheduled trip from DB -> show Waiting state
+          _selectedRoute = null;
+          _selectedRouteId = null;
+          _stops = [];
+          _students = [];
+          _routePoints = [];
+          _registrationNo = "";
+          _busNumber = "";
+          _startTime = "";
+          _currentLocationName = "Waiting";
+          _nextStopName = "None Scheduled";
+          _totalDistanceKm = 0.0;
+          _totalTimeMinutes = 0;
+        }
+      }
     }
 
     // Final state update
@@ -178,16 +279,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       debugPrint(
           "[DRIVER_DASH] _checkActiveTrip: Response = ${'success=${activeRes['success']}, hasData=${activeRes['data'] != null}'}");
       if (activeRes['success'] == true && activeRes['data'] != null) {
-        _activeTrip = activeRes['data'];
-        _isTripActive = true;
-        _isTripPaused = _activeTrip!['status'] == 'paused';
-        _selectedRouteId = _activeTrip!['transport_route_id'] ?? _activeTrip!['route_id'];
-        debugPrint(
-            "[DRIVER_DASH] _checkActiveTrip: Active trip ID = ${_activeTrip!['id']}, transport_route_id = $_selectedRouteId");
-
-        await _loadTripState(_activeTrip!['id']);
-        if (!_isTripPaused) {
-          _startTelemetryBroadcasting();
+        final tripData = activeRes['data']['trip'] ?? activeRes['data'];
+        if (tripData != null && tripData['id'] != null) {
+          await _loadTripState(tripData['id'].toString());
+          if (!_isTripPaused && _isTripActive) {
+            _startTelemetryBroadcasting();
+          }
         }
       } else {
         debugPrint(
@@ -211,24 +308,30 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         final data = stateRes['data'];
         final stopsFromDb = data['stops'] as List<dynamic>? ?? [];
         final studentsFromDb = data['students'] as List<dynamic>? ?? [];
+        final tripData = data['trip'] as Map<String, dynamic>?;
+        final routeData = data['route'] as Map<String, dynamic>?;
 
         debugPrint(
             "[DRIVER_DASH] _loadTripState: Got ${stopsFromDb.length} stops, ${studentsFromDb.length} students from DB");
-        if (stopsFromDb.isNotEmpty) {
-          debugPrint(
-              "[DRIVER_DASH] _loadTripState: First stop = ${stopsFromDb[0]['stop_name']}, status = ${stopsFromDb[0]['status']}");
-        }
-
-        // Preserve transport_route_id from the active trip before overwriting
-        final preservedTransportRouteId = _selectedRouteId;
 
         setState(() {
           _tripState = data;
-          _activeTrip = data['trip'];
+          _activeTrip = tripData;
           int? savedStopIdx;
 
+          if (routeData != null && routeData.isNotEmpty) {
+            _selectedRoute = routeData;
+            _selectedRouteId = routeData['id']?.toString() ?? _selectedRouteId;
+            final busLabel = routeData['registration_no'] ?? routeData['bus_number'] ?? routeData['assigned_bus'] ?? tripData?['registration_no'] ?? 'UP18181';
+            _registrationNo = busLabel.toString();
+            _busNumber = busLabel.toString();
+            _startTime = routeData['start_time']?.toString() ?? '08:00 AM';
+            _totalDistanceKm = (routeData['distance_km'] as num?)?.toDouble() ?? 55.13;
+            _totalTimeMinutes = (routeData['travel_time_mins'] as num?)?.toInt() ?? 52;
+          }
+
           if (_activeTrip != null) {
-            final tripStatus = (_activeTrip!['status'] as String?) ?? 'in_progress';
+            final tripStatus = (_activeTrip!['status'] as String?)?.toLowerCase() ?? 'scheduled';
             _isTripActive = (tripStatus == 'in_progress' || tripStatus == 'paused');
             _isTripPaused = (tripStatus == 'paused');
 
@@ -251,33 +354,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
             if (savedDist != null && savedDist > 0) {
               _coveredDistanceKm = savedDist;
             }
-
-            if (preservedTransportRouteId != null) {
-              _activeTrip!['transport_route_id'] = preservedTransportRouteId;
-            }
           }
 
           final bool hasSavedStopIndex = (savedStopIdx != null && savedStopIdx >= 0);
 
-          if (stopsFromDb.isNotEmpty) {
-            _stops =
-                stopsFromDb.map((s) => Map<String, dynamic>.from(s)).toList();
-            debugPrint(
-                "[DRIVER_DASH] _loadTripState: Replaced _stops with ${_stops.length} DB stops");
-          } else {
-            debugPrint(
-                "[DRIVER_DASH] _loadTripState: WARNING - stopsFromDb is EMPTY, keeping hardcoded stops!");
-          }
-          if (studentsFromDb.isNotEmpty) {
-            _students = studentsFromDb
-                .map((s) => Map<String, dynamic>.from(s))
-                .toList();
-            debugPrint(
-                "[DRIVER_DASH] _loadTripState: Replaced _students with ${_students.length} DB students");
-          } else {
-            debugPrint(
-                "[DRIVER_DASH] _loadTripState: WARNING - studentsFromDb is EMPTY, keeping hardcoded students!");
-          }
+          _stops = stopsFromDb.map((s) => Map<String, dynamic>.from(s)).toList();
+          _students = studentsFromDb.map((s) => Map<String, dynamic>.from(s)).toList();
 
           // Ensure every student has a valid stop_id in _stops
           if (_stops.isNotEmpty && _students.isNotEmpty) {
@@ -313,9 +395,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         });
 
         _loadOSRMRouteForStops();
-      } else {
-        debugPrint(
-            "[DRIVER_DASH] _loadTripState: API returned null/failed, keeping hardcoded data!");
       }
     } catch (e, st) {
       debugPrint("[DRIVER_DASH] Error loading trip state: $e");
@@ -938,7 +1017,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               'label': i == 0 ? '⚡ Fastest Route' : (i == 1 ? '🌿 Shortest Path' : '🛣️ Alt Route $i'),
               'distance_km': distKm,
               'duration_mins': durMins,
-              'summary': route['legs']?[0]?['summary'] ?? (i == 0 ? 'Via Highway' : 'Via Local Corridor'),
+              'summary': (route['legs'] is List && (route['legs'] as List).isNotEmpty) ? (route['legs'][0]['summary'] ?? (i == 0 ? 'Via Highway' : 'Via Local Corridor')) : (i == 0 ? 'Via Highway' : 'Via Local Corridor'),
             });
           }
 
@@ -947,11 +1026,13 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               _navigationRoutePaths = routePaths;
               _navigationRouteInfos = routeInfos;
               _selectedRouteIndex = 0;
-              _navigationPolylinePoints = routePaths[0];
-              _navDistanceKm = routeInfos[0]['distance_km'];
-              _navDurationMins = routeInfos[0]['duration_mins'];
-              _selectedDestinationDistanceKm = routeInfos[0]['distance_km'];
-              _selectedDestinationDurationMins = routeInfos[0]['duration_mins'];
+              if (routePaths.isNotEmpty && routeInfos.isNotEmpty) {
+                _navigationPolylinePoints = routePaths[0];
+                _navDistanceKm = routeInfos[0]['distance_km'];
+                _navDurationMins = routeInfos[0]['duration_mins'];
+                _selectedDestinationDistanceKm = routeInfos[0]['distance_km'];
+                _selectedDestinationDurationMins = routeInfos[0]['duration_mins'];
+              }
             });
           }
           return;
@@ -1539,7 +1620,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               'label': i == 0 ? '⚡ Fastest Route' : (i == 1 ? '🌿 Shortest Path' : '🛣️ Alt Route $i'),
               'distance_km': distKm,
               'duration_mins': durMins,
-              'summary': route['legs']?[0]?['summary'] ?? (i == 0 ? 'Via Highway' : 'Via Local Corridor'),
+              'summary': (route['legs'] is List && (route['legs'] as List).isNotEmpty) ? (route['legs'][0]['summary'] ?? (i == 0 ? 'Via Highway' : 'Via Local Corridor')) : (i == 0 ? 'Via Highway' : 'Via Local Corridor'),
             });
           }
 
@@ -1548,9 +1629,11 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
             _navigationRouteInfos = routeInfos;
             _selectedRouteIndex = 0;
 
-            _navigationPolylinePoints = routePaths[0];
-            _navDistanceKm = routeInfos[0]['distance_km'];
-            _navDurationMins = routeInfos[0]['duration_mins'];
+            if (routePaths.isNotEmpty && routeInfos.isNotEmpty) {
+              _navigationPolylinePoints = routePaths[0];
+              _navDistanceKm = routeInfos[0]['distance_km'];
+              _navDurationMins = routeInfos[0]['duration_mins'];
+            }
 
             _isNavigating = false; // Pre-navigation route selection mode (Google Maps style)
             _isCalculatingRoute = false;
@@ -2407,20 +2490,30 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
 
   // ─── END-TO-END MUTATIONS ────────────────────────────────────────────────
 
-  Future<void> _startTrip() async {
+  Future<void> _startTrip({String? tripIdOverride, String? routeIdOverride}) async {
     setState(() {
       _isTripActive = true;
       _isTripPaused = false;
     });
 
     try {
-      if (_selectedRouteId != null) {
-        final payload = {"route_id": _selectedRouteId!, "trip_type": "pickup"};
-        final res =
-            await ApiService().post('/transport/driver/trips/start', payload);
+      final targetRouteId = routeIdOverride ?? _selectedRouteId ?? _activeTrip?['route_id'] ?? _activeTrip?['transport_route_id'];
+      final effectiveTripId = tripIdOverride ?? _activeTrip?['id']?.toString() ?? _activeTrip?['schedule_id']?.toString();
+
+      if (targetRouteId != null || effectiveTripId != null) {
+        final payload = <String, dynamic>{
+          if (targetRouteId != null) "route_id": targetRouteId.toString(),
+          "trip_type": "pickup",
+          if (effectiveTripId != null) "trip_id": effectiveTripId,
+        };
+        debugPrint("[DRIVER_DASH] Starting trip with payload: $payload");
+        final res = await ApiService().post('/transport/driver/trips/start', payload);
         if (res['success'] == true && res['data'] != null) {
-          _activeTrip = res['data'];
-          await _loadTripState(_activeTrip!['id']);
+          final startedTrip = res['data'];
+          final tripIdToLoad = startedTrip['id'] ?? startedTrip['schedule_id'] ?? effectiveTripId;
+          if (tripIdToLoad != null) {
+            await _loadTripState(tripIdToLoad.toString());
+          }
         }
       }
     } catch (e) {
@@ -2563,6 +2656,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       return;
     }
 
+    if (_stops.isEmpty || _selectedStopIndexForChecklist >= _stops.length) return;
     final String selectedStopId = _stops[_selectedStopIndexForChecklist]['id'];
     setState(() {
       for (var st in _students) {
@@ -2616,6 +2710,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   }
 
   Future<void> _markAllStudentsStatusAtCurrentStop(String status) async {
+    if (_stops.isEmpty || _selectedStopIndexForChecklist >= _stops.length) return;
     final currentStudents = _getStudentsAtSelectedStop();
     final currentStopId = _stops[_selectedStopIndexForChecklist]['id'];
     debugPrint(
@@ -3040,7 +3135,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               ),
               const SizedBox(width: 6),
               Expanded(
-                child: _buildHeaderRouteDropdown(),
+                child: _buildActiveRouteBanner(),
               ),
               const SizedBox(width: 6),
               InkWell(
@@ -3093,7 +3188,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                     ),
                   ),
                   const SizedBox(width: 16),
-                  Flexible(child: _buildHeaderRouteDropdown()),
+                  Flexible(child: _buildActiveRouteBanner()),
                 ],
               ),
             ),
@@ -3260,120 +3355,143 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     }
   }
 
-  Widget _buildHeaderRouteDropdown() {
-    final assignedRoutes = _routes.where((r) => r['is_assigned'] == true).toList();
-    final displayRoutes = assignedRoutes.isNotEmpty ? assignedRoutes : _routes;
-
-    if (displayRoutes.isEmpty) {
+  Widget _buildActiveRouteBanner() {
+    if (_selectedRoute == null && _tripState?['route'] == null && _activeTrip == null) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-        ),
-        child: const Text(
-          "Route: No Routes Assigned",
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-        ),
-      );
-    }
-
-    final selectedRoute = displayRoutes.firstWhere(
-      (r) => r['id']?.toString() == _selectedRouteId,
-      orElse: () => displayRoutes[0],
-    );
-
-    final selectedName = selectedRoute['route_name'] ?? 'Route';
-    final selectedShift = selectedRoute['shift'] ?? 'Morning';
-
-    return PopupMenuButton<String>(
-      offset: const Offset(0, 40),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.3)),
+          border: Border.all(color: const Color(0xFFCBD5E1)),
           boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1))],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.alt_route, size: 14, color: Color(0xFF4F46E5)),
+            const Icon(Icons.hourglass_empty_rounded, size: 14, color: Color(0xFFF59E0B)),
             const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                "Route: $selectedName ($selectedShift)",
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
-                ),
+            const Text(
+              "No Scheduled Route • Waiting",
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF475569),
               ),
             ),
-            const SizedBox(width: 4),
-            const Icon(Icons.keyboard_arrow_down, size: 16, color: Color(0xFF64748B)),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFFDE68A)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.schedule, size: 10, color: Color(0xFFD97706)),
+                  SizedBox(width: 3),
+                  Text(
+                    "Standby",
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFFD97706),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
-      ),
-      itemBuilder: (context) => displayRoutes.map<PopupMenuEntry<String>>((r) {
-        final rId = r['id']?.toString() ?? '';
-        final rName = r['route_name'] ?? 'Route';
-        final rShift = r['shift'] ?? 'Shift';
-        final isSelected = rId == _selectedRouteId;
+      );
+    }
 
-        return PopupMenuItem<String>(
-          value: rId,
-          child: Row(
-            children: [
-              const Icon(
-                Icons.star_rounded,
-                size: 16,
-                color: Color(0xFFF59E0B),
+    final routeName = _selectedRoute?['route_name'] ?? _tripState?['route']?['route_name'] ?? 'Assigned Route';
+    final shift = _selectedRoute?['shift'] ?? _tripState?['route']?['shift'] ?? '';
+    final busLabel = _busNumber.isNotEmpty
+        ? _busNumber
+        : (_selectedRoute?['bus_number'] ?? _selectedRoute?['registration_no'] ?? _selectedRoute?['assigned_bus'] ?? 'Assigned Bus');
+
+    String statusText = "Ready to Start";
+    Color statusColor = const Color(0xFF3B82F6);
+    Color statusBg = const Color(0xFFEFF6FF);
+
+    final tripStatus = (_activeTrip?['status'] as String?)?.toLowerCase();
+    if (_isTripActive && !_isTripPaused) {
+      statusText = "In Progress";
+      statusColor = const Color(0xFF10B981);
+      statusBg = const Color(0xFFECFDF5);
+    } else if (_isTripPaused) {
+      statusText = "Paused";
+      statusColor = const Color(0xFFF59E0B);
+      statusBg = const Color(0xFFFFFBEB);
+    } else if (tripStatus == 'scheduled') {
+      statusText = "Scheduled";
+      statusColor = const Color(0xFF6366F1);
+      statusBg = const Color(0xFFEEF2FF);
+    }
+
+    String displayRouteTitle = routeName;
+    if (shift.isNotEmpty && !displayRouteTitle.toLowerCase().contains(shift.toLowerCase())) {
+      displayRouteTitle = "$displayRouteTitle ($shift)";
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.25)),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1))],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.directions_bus_rounded, size: 14, color: Color(0xFF4F46E5)),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              "$displayRouteTitle • $busLabel",
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1E293B),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      rName,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFF1E293B),
-                      ),
-                    ),
-                    Text(
-                      "$rShift • Assigned to you",
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Color(0xFF10B981),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (isSelected)
-                const Icon(Icons.check_rounded, size: 16, color: Color(0xFF4F46E5)),
-            ],
+            ),
           ),
-        );
-      }).toList(),
-      onSelected: (selectedId) {
-        final chosen = displayRoutes.firstWhere(
-          (r) => r['id']?.toString() == selectedId,
-          orElse: () => {},
-        );
-        if (chosen.isNotEmpty) {
-          _selectRoute(chosen);
-        }
-      },
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: statusBg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 5,
+                  height: 5,
+                  decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  statusText,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    color: statusColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -3445,18 +3563,28 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
 
     return LayoutBuilder(builder: (context, constraints) {
       final double width = constraints.maxWidth;
+      final bool hasRoute = (_selectedRoute != null || _tripState?['route'] != null || _activeTrip != null);
+      final String busVal = _registrationNo.isNotEmpty ? _registrationNo : (hasRoute ? "Assigned Bus" : "No Bus Assigned");
+      final String busSub = hasRoute ? (_selectedRoute?['vehicle_type'] ?? "School Bus") : "Waiting for Schedule";
+      final String startVal = _startTime.isNotEmpty ? _startTime : "--:--";
+      final String startSub = hasRoute ? (_isTripActive ? "In Progress" : "Scheduled") : "No Schedule";
+      final String locVal = _stops.isNotEmpty ? _currentLocationName : "Waiting";
+      final String locSub = _isTripActive ? "Live" : "Standby";
+      final String nextVal = _stops.isNotEmpty ? _nextStopName : "None Scheduled";
+      final String nextSub = _isTripActive ? "ETA: 3 min" : (hasRoute ? "Ready" : "Waiting");
+
       if (width < 950) {
         return Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
-            _buildSingleWrapStat("Bus", _registrationNo, "AC School Bus",
+            _buildSingleWrapStat("Bus", busVal, busSub,
                 Icons.directions_bus, const Color(0xFF4F46E5), width),
-            _buildSingleWrapStat("Start Time", _startTime, "On Time",
+            _buildSingleWrapStat("Start Time", startVal, startSub,
                 Icons.access_time, Colors.amber.shade700, width),
-            _buildSingleWrapStat("Location", _currentLocationName, "Live",
+            _buildSingleWrapStat("Location", locVal, locSub,
                 Icons.my_location, Colors.green, width),
-            _buildSingleWrapStat("Next Stop", _nextStopName, "ETA: 3 min",
+            _buildSingleWrapStat("Next Stop", nextVal, nextSub,
                 Icons.location_on_outlined, Colors.purple, width),
             _buildSingleWrapStat(
                 "Distance",
@@ -3480,26 +3608,26 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         children: [
           buildStatCard(
               label: "Bus",
-              value: _registrationNo,
-              subtitle: "AC School Bus",
+              value: busVal,
+              subtitle: busSub,
               icon: Icons.directions_bus,
               iconColor: const Color(0xFF4F46E5)),
           buildStatCard(
               label: "Start Time",
-              value: _startTime,
-              subtitle: "On Time",
+              value: startVal,
+              subtitle: startSub,
               icon: Icons.access_time,
               iconColor: Colors.amber.shade700),
           buildStatCard(
               label: "Current Location",
-              value: _currentLocationName,
-              subtitle: "Live",
+              value: locVal,
+              subtitle: locSub,
               icon: Icons.my_location,
               iconColor: Colors.green),
           buildStatCard(
               label: "Next Stop",
-              value: _nextStopName,
-              subtitle: "ETA: 3 min",
+              value: nextVal,
+              subtitle: nextSub,
               icon: Icons.location_on_outlined,
               iconColor: Colors.purple),
           buildStatCard(
@@ -4801,25 +4929,62 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           ),
           const SizedBox(height: 16),
 
-          // HORIZONTAL SCROLL ENVELOPE TO PREVENT SYSTEM SCREEN FROM BREAKING
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 830),
+          if (_stops.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Table Header Row
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    padding: const EdgeInsets.all(14),
                     decoration: const BoxDecoration(
-                      border: Border(
-                          bottom:
-                              BorderSide(color: Color(0xFFF1F5F9), width: 1.5)),
+                      color: Color(0xFFF8FAFC),
+                      shape: BoxShape.circle,
                     ),
-                    child: const Row(
-                      children: [
+                    child: const Icon(Icons.schedule_rounded, size: 32, color: Color(0xFF94A3B8)),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    "Waiting for Scheduled Trips",
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF334155),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    "No upcoming route runs are currently scheduled on the calendar.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            // HORIZONTAL SCROLL ENVELOPE TO PREVENT SYSTEM SCREEN FROM BREAKING
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 830),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Table Header Row
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                            bottom:
+                                BorderSide(color: Color(0xFFF1F5F9), width: 1.5)),
+                      ),
+                      child: const Row(
+                        children: [
                         SizedBox(
                             width: 50,
                             child: Text("#",
@@ -4969,15 +5134,14 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                   "${_getOnBoardCount() + _getDroppedCount()}"),
               _buildTableFooterTotal(
                   Icons.archive_outlined, "Dropped", "${_getDroppedCount()}"),
-              _buildTableFooterTotal(Icons.directions_bus_outlined, "On Board",
-                  "${_getOnBoardCount()}"),
               _buildTableFooterTotal(Icons.cancel_presentation_outlined,
                   "Yet to Pick", "${_getYetToPickCount()}"),
             ],
-          )
+          ),
         ],
-      ),
-    );
+      ],
+    ),
+  );
   }
 
   Widget _buildStopRowContainer(int index, Map<String, dynamic> s) {
@@ -5341,6 +5505,49 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   }
 
   Widget _buildStudentsChecklistCard() {
+    if (_stops.isEmpty || _selectedStopIndexForChecklist >= _stops.length) {
+      return Container(
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16.0),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(
+                  color: Color(0xFFF1F5F9), blurRadius: 4, offset: Offset(0, 2))
+            ]),
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Students Checklist",
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B))),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+              child: Column(
+                children: const [
+                  Icon(Icons.schedule_rounded, size: 32, color: Color(0xFF94A3B8)),
+                  SizedBox(height: 8),
+                  Text("Waiting for Scheduled Trips",
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF334155))),
+                  SizedBox(height: 4),
+                  Text("No active route run or stop currently selected.",
+                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final currentStudents = _getStudentsAtSelectedStop();
 
     // Filter On Board and Dropped students specifically assigned to the selected stop
@@ -5909,6 +6116,20 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
             return statusRow;
           }
 
+          final bool hasSched = (_isTripActive || _activeTrip != null || _selectedRoute != null);
+          final String startBtnText = _isTripActive
+              ? "End Route"
+              : (hasSched ? "Start Route" : "Waiting for Schedule");
+          final Color startBtnColor = _isTripActive
+              ? const Color(0xFFEF4444)
+              : (hasSched ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8));
+          final IconData startBtnIcon = _isTripActive
+              ? Icons.stop_circle_rounded
+              : (hasSched ? Icons.play_arrow_rounded : Icons.schedule_rounded);
+          final VoidCallback? startBtnAction = _isTripActive
+              ? _endTrip
+              : (hasSched ? _startTrip : null);
+
           if (isMobile) {
             return Column(
               mainAxisSize: MainAxisSize.min,
@@ -5923,16 +6144,16 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                         height: 32,
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: _isTripActive ? const Color(0xFFEF4444) : const Color(0xFF4F46E5),
+                            backgroundColor: startBtnColor,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 4),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             elevation: 1.5,
                           ),
-                          onPressed: _isTripActive ? _endTrip : _startTrip,
-                          icon: Icon(_isTripActive ? Icons.stop_circle_rounded : Icons.play_arrow_rounded, size: 14),
+                          onPressed: startBtnAction,
+                          icon: Icon(startBtnIcon, size: 14),
                           label: Text(
-                            _isTripActive ? "End Route" : "Start Route",
+                            startBtnText,
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10.5),
                           ),
                         ),
@@ -6000,15 +6221,15 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                     height: 32,
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _isTripActive ? const Color(0xFFEF4444) : const Color(0xFF4F46E5),
+                        backgroundColor: startBtnColor,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         elevation: 1.5,
                       ),
-                      onPressed: _isTripActive ? _endTrip : _startTrip,
-                      icon: Icon(_isTripActive ? Icons.stop_circle_rounded : Icons.play_arrow_rounded, size: 14),
-                      label: Text(_isTripActive ? "End Route" : "Start Route", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10.5)),
+                      onPressed: startBtnAction,
+                      icon: Icon(startBtnIcon, size: 14),
+                      label: Text(startBtnText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10.5)),
                     ),
                   ),
                   if (_isTripActive) ...[
