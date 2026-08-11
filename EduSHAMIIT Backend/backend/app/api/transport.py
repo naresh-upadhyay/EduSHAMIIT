@@ -3265,25 +3265,13 @@ async def get_route_passenger_assignment_summary(route_id: str, user=Depends(req
 
 @router.post("/driver/trips/start")
 async def driver_start_trip(payload: StartTripRequest, user=Depends(require_driver_or_admin)):
-    sb = get_supabase()
     school_id = _resolve_school_id(user)
-    now_str = datetime.utcnow().isoformat()
-    
-    route_res = await sb.table("transport_routes").select("*").eq("id", payload.route_id).single().aexecute()
-    route = route_res.data
-    if not route:
-        raise HTTPException(status_code=404, detail="Route not found")
-        
-    vehicle_id = route.get("vehicle_id")
-    if not vehicle_id:
-        raise HTTPException(status_code=400, detail="No vehicle assigned to this route")
+    user_id = user.get("id")
 
-    # If payload.trip_id is given (from calendar schedule deep link or schedule ID)
     if payload.trip_id:
-        existing_res = await sb.table("vehicle_trips").select("*").or_(f"id.eq.{payload.trip_id},schedule_id.eq.{payload.trip_id}").order("created_at", ascending=False).limit(1).aexecute()
-        existing_trip = existing_res.data[0] if (existing_res.data and len(existing_res.data) > 0) else None
-        
-        if not existing_trip:
+        sb = get_supabase()
+        existing_res = await sb.table("vehicle_trips").select("id").or_(f"id.eq.{payload.trip_id},schedule_id.eq.{payload.trip_id}").limit(1).aexecute()
+        if not existing_res.data:
             sched_res = await sb.table("schedules").select("*").eq("id", payload.trip_id).maybe_single().aexecute()
             sched = sched_res.data
             if sched:
@@ -3296,184 +3284,56 @@ async def driver_start_trip(payload: StartTripRequest, user=Depends(require_driv
                     end_time_iso=str(sched["end_time"]),
                     is_recurring=sched.get("is_recurring", False)
                 )
-                t_res = await sb.table("vehicle_trips").select("*").eq("schedule_id", payload.trip_id).order("created_at", ascending=False).limit(1).aexecute()
-                existing_trip = t_res.data[0] if (t_res.data and len(t_res.data) > 0) else None
 
-        if existing_trip:
-            trip_actual_id = existing_trip["id"]
-            if vehicle_id:
-                await sb.table("vehicle_trips").update({"status": "completed"}).eq("vehicle_id", vehicle_id).in_("status", ["in_progress", "paused"]).neq("id", trip_actual_id).aexecute()
+    rows = await exec_raw_sql(
+        "SELECT public.fn_driver_start_trip(%s, %s, %s, %s, %s) as res;",
+        (school_id, payload.route_id, user_id, payload.trip_id, payload.trip_type or 'pickup')
+    )
+    if rows and rows[0].get("res"):
+        res = rows[0]["res"]
+        if not res.get("success"):
+            raise HTTPException(status_code=400, detail=res.get("message", "Failed to start trip"))
+        return res
 
-            await sb.table("vehicle_trips").update({
-                "status": "in_progress",
-                "actual_start": now_str,
-                "route_id": payload.route_id,
-                "vehicle_id": vehicle_id,
-                "updated_at": now_str
-            }).eq("id", trip_actual_id).aexecute()
-            await sb.table("transport_routes").update({"live_status": "on_route", "is_visible": True}).eq("id", payload.route_id).aexecute()
-            try:
-                await sb.table("vehicles").update({"live_status": "on_route", "is_visible": True}).eq("id", vehicle_id).aexecute()
-            except Exception:
-                pass
-            
-            # Ensure trip stop logs exist
-            stops_res = await sb.table("transport_route_stops").select("id").eq("route_id", payload.route_id).order("stop_order").aexecute()
-            stops = stops_res.data or []
-            existing_stops = await sb.table("trip_stop_logs").select("id").eq("trip_id", trip_actual_id).aexecute()
-            if not existing_stops.data:
-                stop_logs = []
-                for s in stops:
-                    sl = {
-                        "id": str(uuid.uuid4()),
-                        "school_id": school_id,
-                        "trip_id": trip_actual_id,
-                        "stop_id": s["id"],
-                        "status": "pending"
-                    }
-                    stop_logs.append(sl)
-                if stop_logs:
-                    await sb.table("trip_stop_logs").insert(stop_logs).aexecute()
-                    
-            existing_trip["status"] = "in_progress"
-            existing_trip["actual_start"] = now_str
-            return {"success": True, "message": "Scheduled trip started successfully", "data": existing_trip}
-        
-    active_res = await sb.table("vehicle_trips").select("*").eq("route_id", payload.route_id).in_("status", ["in_progress", "paused"]).aexecute()
-    active_trips = active_res.data or []
-
-    if active_trips:
-        active_trip = active_trips[0]
-        if active_trip.get("status") == "paused":
-            await sb.table("vehicle_trips").update({"status": "in_progress"}).eq("id", active_trip["id"]).aexecute()
-            active_trip["status"] = "in_progress"
-        await sb.table("transport_routes").update({"live_status": "on_route", "is_visible": True}).eq("id", payload.route_id).aexecute()
-        return {"success": True, "message": "Resuming active trip", "data": active_trip}
-
-    if vehicle_id:
-        await sb.table("vehicle_trips").update({"status": "completed"}).eq("vehicle_id", vehicle_id).in_("status", ["in_progress", "paused"]).aexecute()
-        
-    students_res = await sb.table("student_transport").select("student_id").eq("transport_route_id", payload.route_id).aexecute()
-    students_list = students_res.data or []
-    students_count = len(students_list)
-    
-    trip_id = str(uuid.uuid4())
-    
-    trip_data = {
-        "id": trip_id,
-        "school_id": school_id,
-        "route_id": payload.route_id,
-        "vehicle_id": vehicle_id,
-        "trip_type": payload.trip_type,
-        "status": "in_progress",
-        "scheduled_start": now_str,
-        "actual_start": now_str,
-        "students_count": students_count,
-        "distance_km": 0.0,
-        "bus_position_ratio": 0.0,
-        "current_stop_index": 0,
-        "elapsed_seconds": 0,
-        "delay_minutes": 0,
-        "incident_count": 0,
-        "notes": f"Trip started for route {route.get('route_name')}",
-    }
-    apply_audit_fields(trip_data, user, is_create=True)
-    
-    await sb.table("vehicle_trips").insert(trip_data).aexecute()
-    
-    v_upd = {"live_status": "on_route", "is_visible": True}
-    apply_audit_fields(v_upd, user, is_create=False)
-    await sb.table("transport_routes").update(v_upd).eq("id", payload.route_id).aexecute()
-    try:
-        await sb.table("vehicles").update(v_upd).eq("id", vehicle_id).aexecute()
-    except Exception:
-        pass
-    
-    stops_res = await sb.table("transport_route_stops").select("id").eq("route_id", payload.route_id).order("stop_order").aexecute()
-    stops = stops_res.data or []
-    stop_logs = []
-    for s in stops:
-        sl = {
-            "id": str(uuid.uuid4()),
-            "school_id": school_id,
-            "trip_id": trip_id,
-            "stop_id": s["id"],
-            "status": "pending"
-        }
-        stop_logs.append(sl)
-    if stop_logs:
-        await sb.table("trip_stop_logs").insert(stop_logs).aexecute()
-        
-    student_logs = []
-    for st in students_list:
-        st_detail_res = await sb.table("student_transport").select("transport_stop_id").eq("transport_route_id", payload.route_id).eq("student_id", st["student_id"]).single().aexecute()
-        stop_id = st_detail_res.data.get("transport_stop_id") if st_detail_res.data else None
-        
-        stl = {
-            "id": str(uuid.uuid4()),
-            "school_id": school_id,
-            "trip_id": trip_id,
-            "student_id": st["student_id"],
-            "stop_id": stop_id,
-            "status": "yet_to_pick"
-        }
-        student_logs.append(stl)
-    if student_logs:
-        await sb.table("student_trip_logs").insert(student_logs).aexecute()
-        
-    return {"success": True, "message": "Trip started successfully", "data": trip_data}
+    raise HTTPException(status_code=500, detail="Error executing driver start trip procedure")
 
 
 @router.post("/driver/trips/{trip_id}/action")
 async def driver_trip_action(trip_id: str, request: UnifiedTripActionRequest, user=Depends(require_driver_or_admin)):
-    sb = get_supabase()
-    school_id = _resolve_school_id(user)
+    user_id = user.get("id")
     action = request.action.lower().strip()
     payload = request.payload or {}
-    now_str = datetime.utcnow().isoformat()
 
     valid_trip_id = _safe_uuid(trip_id)
     if not valid_trip_id:
         raise HTTPException(status_code=400, detail="Invalid trip_id")
 
-    trip_res = await sb.table("vehicle_trips").select("*").eq("id", valid_trip_id).maybe_single().aexecute()
-    trip = trip_res.data
-    if not trip:
-        raise HTTPException(status_code=404, detail="Trip not found")
+    payload_json = json.dumps(payload)
 
-    route_id = trip.get("route_id")
-
-    if action == "pause":
-        await sb.table("vehicle_trips").update({"status": "paused", "updated_at": now_str}).eq("id", valid_trip_id).aexecute()
-        if route_id:
-            await sb.table("transport_routes").update({"live_status": "paused"}).eq("id", route_id).aexecute()
-        return {"success": True, "message": "Trip paused"}
-
-    elif action == "resume":
-        await sb.table("vehicle_trips").update({"status": "in_progress", "updated_at": now_str}).eq("id", valid_trip_id).aexecute()
-        if route_id:
-            await sb.table("transport_routes").update({"live_status": "on_route"}).eq("id", route_id).aexecute()
-        return {"success": True, "message": "Trip resumed"}
-
-    elif action == "end":
-        await sb.table("vehicle_trips").update({
-            "status": "completed",
-            "actual_end": now_str,
-            "updated_at": now_str
-        }).eq("id", valid_trip_id).aexecute()
-        if route_id:
-            await sb.table("transport_routes").update({"live_status": "completed", "is_visible": False}).eq("id", route_id).aexecute()
-        return {"success": True, "message": "Trip ended"}
-
-    elif action == "batch_sync":
-        upd = {"updated_at": now_str}
-        for k in ["latitude", "longitude", "speed", "heading", "bus_position_ratio", "current_stop_index", "elapsed_seconds", "distance_km", "students_on_board"]:
-            if k in payload and payload[k] is not None:
-                upd[k] = payload[k]
-        await sb.table("vehicle_trips").update(upd).eq("id", valid_trip_id).aexecute()
-        return {"success": True, "message": "Batch sync completed"}
+    rows = await exec_raw_sql(
+        "SELECT public.fn_driver_trip_action(%s, %s, %s::jsonb, %s) as res;",
+        (valid_trip_id, action, payload_json, user_id)
+    )
+    if rows and rows[0].get("res"):
+        res = rows[0]["res"]
+        if not res.get("success"):
+            raise HTTPException(status_code=400, detail=res.get("message", f"Failed to execute action {action}"))
+        return res
 
     return {"success": True, "message": f"Action {action} processed"}
+
+
+@router.get("/driver/trips/{trip_id}/state")
+async def get_driver_trip_state(trip_id: str, user=Depends(require_driver_or_admin)):
+    valid_trip_id = _safe_uuid(trip_id)
+    if not valid_trip_id:
+        raise HTTPException(status_code=400, detail="Invalid trip_id")
+
+    rows = await exec_raw_sql("SELECT public.fn_get_full_trip_state(%s) as res;", (valid_trip_id,))
+    if rows and rows[0].get("res"):
+        return rows[0]["res"]
+
+    raise HTTPException(status_code=404, detail="Trip state not found")
 
 
 @router.get("/driver/trips/active")
@@ -3621,12 +3481,13 @@ async def get_trip_state(trip_id: str, user=Depends(require_driver_or_admin)):
     
     actual_route_id = route.get("id") or route_id
     
+    actual_trip_id = trip.get("id") or trip_id
     stops = []
     if actual_route_id:
         stops_res = await sb.table("transport_route_stops").select("*").eq("route_id", actual_route_id).order("stop_order").aexecute()
         stops = stops_res.data or []
         
-        stop_logs_res = await sb.table("trip_stop_logs").select("*").eq("trip_id", trip_id).aexecute()
+        stop_logs_res = await sb.table("trip_stop_logs").select("*").or_(f"trip_id.eq.{actual_trip_id},trip_id.eq.{trip_id}").aexecute()
         logs_map = {l["stop_id"]: l for l in (stop_logs_res.data or [])}
         
         for s in stops:
@@ -3643,7 +3504,7 @@ async def get_trip_state(trip_id: str, user=Depends(require_driver_or_admin)):
             st_res2 = await sb.table("student_transport").select("*, profiles(*)").or_(f"route_id.eq.{route_id},transport_route_id.eq.{route_id}").aexecute()
             student_assignments = st_res2.data or []
         
-        st_logs_res = await sb.table("student_trip_logs").select("*").eq("trip_id", trip_id).aexecute()
+        st_logs_res = await sb.table("student_trip_logs").select("*").or_(f"trip_id.eq.{actual_trip_id},trip_id.eq.{trip_id}").aexecute()
         st_logs_map = {l["student_id"]: l for l in (st_logs_res.data or [])}
         
         for sa in student_assignments:

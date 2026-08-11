@@ -47,6 +47,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 async def log_api_request_to_db(path: str, method: str, status_code: int, response_time_ms: float, ip_address: str, user_id: str = None):
     try:

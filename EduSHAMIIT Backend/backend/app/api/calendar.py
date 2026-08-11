@@ -1457,10 +1457,17 @@ async def get_schedules(
                v.bus_number, v.registration_no,
                d.name AS driver_name,
                (
-                   SELECT vt.id FROM public.vehicle_trips vt
-                   WHERE vt.schedule_id = s.id AND (vt.start_date = s.start_time::date::text OR vt.schedule_instance_date = s.start_time::date)
-                   LIMIT 1
-               ) AS trip_id,
+                    SELECT vt.id FROM public.vehicle_trips vt
+                    WHERE (vt.schedule_id = s.id OR (s.route_id IS NOT NULL AND vt.route_id = s.route_id))
+                    ORDER BY CASE WHEN vt.status IN ('in_progress', 'paused') THEN 1 WHEN vt.status = 'completed' THEN 3 ELSE 2 END, vt.updated_at DESC, vt.created_at DESC
+                    LIMIT 1
+                ) AS trip_id,
+                (
+                    SELECT vt.status FROM public.vehicle_trips vt
+                    WHERE (vt.schedule_id = s.id OR (s.route_id IS NOT NULL AND vt.route_id = s.route_id))
+                    ORDER BY CASE WHEN vt.status IN ('in_progress', 'paused') THEN 1 WHEN vt.status = 'completed' THEN 3 ELSE 2 END, vt.updated_at DESC, vt.created_at DESC
+                    LIMIT 1
+                ) AS trip_status,
                (
                    SELECT json_agg(json_build_object(
                        'id', sp.id,
@@ -1729,58 +1736,63 @@ async def get_schedules(
                     cur_iso = cur_day.isoformat()
                     cur_str = cur_day.strftime("%Y-%m-%d")
                     exc_dates = {str(e).strip('"\' ') for e in exceptions}
-                    is_excluded = cur_str in exc_dates or cur_iso in exc_dates
+                    inst_local_str = (datetime.combine(cur_day, orig_start.time()) + timedelta(hours=5, minutes=30)).strftime("%Y-%m-%d")
+                    is_excluded = cur_str in exc_dates or cur_iso in exc_dates or inst_local_str in exc_dates
 
-                    should_include = False
-                    if not is_excluded:
-                        if freq == "daily":
-                            diff_days = (cur_day - orig_start.date()).days
-                            if diff_days >= 0 and diff_days % interval == 0:
-                                should_include = True
-                        elif freq == "weekdays":
-                            if cur_day >= orig_start.date() and cur_day.weekday() in (0, 1, 2, 3, 4):
-                                should_include = True
-                        elif freq == "weekly":
+                    matches_rule = False
+                    if freq == "daily":
+                        diff_days = (cur_day - orig_start.date()).days
+                        if diff_days >= 0 and diff_days % interval == 0:
+                            matches_rule = True
+                    elif freq == "weekdays":
+                        if cur_day >= orig_start.date() and cur_day.weekday() in (0, 1, 2, 3, 4):
+                            matches_rule = True
+                    elif freq == "weekly":
+                        diff_weeks = (cur_day - orig_start.date()).days // 7
+                        if diff_weeks >= 0 and diff_weeks % interval == 0:
+                            if days_of_week:
+                                wk_days = [day_name_to_weekday.get(str(d).strip().upper(), -1) for d in days_of_week]
+                                if cur_day.weekday() in wk_days:
+                                    matches_rule = True
+                            elif cur_day.weekday() == orig_start.weekday():
+                                matches_rule = True
+                    elif freq in ("biweekly", "fortnightly"):
+                        diff_weeks = (cur_day - orig_start.date()).days // 7
+                        if diff_weeks >= 0 and diff_weeks % 2 == 0 and cur_day.weekday() == orig_start.weekday():
+                            matches_rule = True
+                    elif freq == "monthly":
+                        if cur_day >= orig_start.date() and cur_day.day == orig_start.day:
+                            diff_months = (cur_day.year - orig_start.year) * 12 + (cur_day.month - orig_start.month)
+                            if diff_months >= 0 and diff_months % interval == 0:
+                                matches_rule = True
+                    elif freq == "yearly":
+                        if cur_day >= orig_start.date() and cur_day.month == orig_start.month and cur_day.day == orig_start.day:
+                            diff_years = cur_day.year - orig_start.year
+                            if diff_years >= 0 and diff_years % interval == 0:
+                                matches_rule = True
+                    elif freq == "custom":
+                        if days_of_week:
                             diff_weeks = (cur_day - orig_start.date()).days // 7
                             if diff_weeks >= 0 and diff_weeks % interval == 0:
-                                if days_of_week:
-                                    wk_days = [day_name_to_weekday.get(str(d).strip().upper(), -1) for d in days_of_week]
-                                    if cur_day.weekday() in wk_days:
-                                        should_include = True
-                                elif cur_day.weekday() == orig_start.weekday():
-                                    should_include = True
-                        elif freq in ("biweekly", "fortnightly"):
-                            diff_weeks = (cur_day - orig_start.date()).days // 7
-                            if diff_weeks >= 0 and diff_weeks % 2 == 0 and cur_day.weekday() == orig_start.weekday():
-                                should_include = True
-                        elif freq == "monthly":
-                            if cur_day >= orig_start.date() and cur_day.day == orig_start.day:
-                                diff_months = (cur_day.year - orig_start.year) * 12 + (cur_day.month - orig_start.month)
-                                if diff_months >= 0 and diff_months % interval == 0:
-                                    should_include = True
-                        elif freq == "yearly":
-                            if cur_day >= orig_start.date() and cur_day.month == orig_start.month and cur_day.day == orig_start.day:
-                                diff_years = cur_day.year - orig_start.year
-                                if diff_years >= 0 and diff_years % interval == 0:
-                                    should_include = True
-                        elif freq == "custom":
-                            if days_of_week:
-                                diff_weeks = (cur_day - orig_start.date()).days // 7
-                                if diff_weeks >= 0 and diff_weeks % interval == 0:
-                                    wk_days = [day_name_to_weekday.get(str(d).strip().upper(), -1) for d in days_of_week]
-                                    if cur_day.weekday() in wk_days:
-                                        should_include = True
-                            else:
-                                diff_days = (cur_day - orig_start.date()).days
-                                if diff_days >= 0 and diff_days % interval == 0:
-                                    should_include = True
+                                wk_days = [day_name_to_weekday.get(str(d).strip().upper(), -1) for d in days_of_week]
+                                if cur_day.weekday() in wk_days:
+                                    matches_rule = True
+                        else:
+                            diff_days = (cur_day - orig_start.date()).days
+                            if diff_days >= 0 and diff_days % interval == 0:
+                                matches_rule = True
 
-                    if should_include:
+                    if matches_rule:
                         occurrence_idx += 1
                         if end_type == "after_count" and occurrence_idx > end_count:
                             break
 
+                    if matches_rule and not is_excluded:
+
+                        orig_tz = getattr(orig_start, "tzinfo", None)
                         inst_start = datetime.combine(cur_day, orig_start.time())
+                        if orig_tz is not None:
+                            inst_start = inst_start.replace(tzinfo=orig_tz)
                         inst_end = inst_start + duration
 
                         # Check if parent or standalone override for this date is already present in rows
@@ -1800,7 +1812,8 @@ async def get_schedules(
                             )
                             for r in rows
                         )
-                        if not already_present and inst_start >= req_start and inst_start <= req_end:
+                        inst_start_naive = inst_start.replace(tzinfo=None) if getattr(inst_start, "tzinfo", None) else inst_start
+                        if not already_present and inst_start_naive >= req_start and inst_start_naive <= req_end:
                             inst_dict = dict(rec)
                             inst_dict["id"] = f"{rec['id']}_inst_{cur_day.isoformat()}"
                             inst_dict["start_time"] = inst_start
@@ -1812,8 +1825,8 @@ async def get_schedules(
                             if rec.get("route_id"):
                                 try:
                                     t_rows = await exec_sql(
-                                        "SELECT id, status FROM public.vehicle_trips WHERE schedule_id = %s AND (start_date = %s OR schedule_instance_date = %s::date) LIMIT 1",
-                                        (str(rec["id"]), cur_str, cur_str)
+                                        "SELECT id, status FROM public.vehicle_trips WHERE (schedule_id = %s OR route_id = %s) AND (start_date = %s OR schedule_instance_date = %s::date OR start_date IS NULL) ORDER BY CASE WHEN status IN ('in_progress', 'paused') THEN 1 WHEN status = 'completed' THEN 3 ELSE 2 END, updated_at DESC LIMIT 1",
+                                        (str(rec["id"]), str(rec["route_id"]), cur_str, cur_str)
                                     )
                                     if t_rows:
                                         inst_dict["trip_id"] = str(t_rows[0]["id"])
@@ -1834,311 +1847,52 @@ async def get_schedules(
 @router.post("/schedules")
 async def create_schedule(req: ScheduleCreateRequest, user=Depends(get_current_user)):
     """
-    Create a new schedule with intelligent conflict detection, recurrence configuration,
-    user assignments, resource bookings, and automated notifications.
+    Create a new schedule via PostgreSQL stored procedure fn_create_schedule.
+    Atomically handles conflict detection, recurrence setup, participants, resources, and reminders in 1 DB call.
     """
     school_id = user.get("school_id")
     user_id = user.get("id")
-    role = user.get("role", "").lower()
 
     if not school_id:
         raise HTTPException(status_code=400, detail="Tenant school_id is required")
 
-    # 1. Resolve Calendar ID
-    cal_id = req.calendar_id
-    if not cal_id:
-        # Default to user's personal or academic calendar
-        cals = await exec_sql(
-            "SELECT id FROM public.calendars WHERE school_id = %s AND (owner_id = %s OR is_default = TRUE) LIMIT 1",
-            (school_id, user_id)
-        )
-        if cals:
-            cal_id = cals[0]["id"]
-        else:
-            # Create default calendar
-            cal_id = str(uuid.uuid4())
-            await exec_sql(
-                """
-                INSERT INTO public.calendars (id, school_id, name, color, type, is_default, owner_id, created_at)
-                VALUES (%s, %s, 'My Calendar', '#4F46E5', 'personal', TRUE, %s, NOW())
-                """,
-                (cal_id, school_id, user_id),
-                fetch=False
-            )
+    payload_json = json.dumps(req.dict(), default=str)
 
-    # 2. Smart Conflict Detection for Participants and Resources
-    if not req.force_override_conflicts:
-        conflicts = []
-
-        # Check resource collisions
-        if req.resources:
-            for res_item in req.resources:
-                res_id = res_item.resource_id
-                col = await exec_sql(
-                    """
-                    SELECT rb.*, s.title, cr.name AS resource_name
-                    FROM public.resource_bookings rb
-                    JOIN public.schedules s ON s.id = rb.schedule_id
-                    JOIN public.calendar_resources cr ON cr.id = rb.resource_id
-                    WHERE rb.resource_id = %s
-                      AND cr.is_exclusive = TRUE
-                      AND s.deleted_at IS NULL
-                      AND s.status NOT IN ('cancelled', 'declined')
-                      AND (
-                          (s.start_time < %s AND s.end_time > %s)
-                      )
-                    """,
-                    (res_id, req.end_time, req.start_time)
-                )
-                if col:
-                    conflicts.append({
-                        "type": "resource",
-                        "resource_id": res_id,
-                        "resource_name": col[0]["resource_name"],
-                        "conflicting_title": col[0]["title"],
-                        "start_time": col[0]["start_time"],
-                        "end_time": col[0]["end_time"],
-                        "message": f"Resource '{col[0]['resource_name']}' is already booked for '{col[0]['title']}'."
-                    })
-
-        # Check participant collisions
-        if req.participants:
-            for p in req.participants:
-                if p.user_id:
-                    p_col = await exec_sql(
-                        """
-                        SELECT s.title, s.start_time, s.end_time, prof.full_name
-                        FROM public.schedule_participants sp
-                        JOIN public.schedules s ON s.id = sp.schedule_id
-                        JOIN public.profiles prof ON prof.id = sp.user_id
-                        WHERE sp.user_id = %s
-                          AND s.deleted_at IS NULL
-                          AND s.status NOT IN ('cancelled', 'declined')
-                          AND sp.rsvp_status != 'declined'
-                          AND (
-                              (s.start_time < %s AND s.end_time > %s)
-                          )
-                        LIMIT 1
-                        """,
-                        (p.user_id, req.end_time, req.start_time)
-                    )
-                    if p_col:
-                        conflicts.append({
-                            "type": "user",
-                            "user_id": p.user_id,
-                            "user_name": p_col[0]["full_name"],
-                            "conflicting_title": p_col[0]["title"],
-                            "start_time": p_col[0]["start_time"],
-                            "end_time": p_col[0]["end_time"],
-                            "message": f"User '{p_col[0]['full_name']}' already has a schedule '{p_col[0]['title']}' during this time."
-                        })
-
-        if conflicts:
-            return {
-                "success": False,
-                "error": {
-                    "code": "SCHEDULE_CONFLICT",
-                    "message": "Scheduling conflict detected. Another schedule or resource is booked during this time.",
-                    "conflicts": _serialize_datetime(conflicts)
-                }
-            }
-
-    # 3. Derive audience scope & Insert Schedule
-    target_roles = []
-    target_classes = []
-    target_user_ids = []
-    if req.participants:
-        for p in req.participants:
-            if p.user_id:
-                target_user_ids.append(p.user_id)
-            if p.target_role:
-                target_roles.append(p.target_role)
-            if p.target_class:
-                target_classes.append(p.target_class)
-
-    audience_type = "individual"
-    if req.visibility == "institution_wide":
-        audience_type = "institution_wide"
-    elif target_roles:
-        audience_type = "role"
-    elif target_classes:
-        audience_type = "class"
-    elif target_user_ids:
-        audience_type = "individual"
-
-    s_id = str(uuid.uuid4())
-    route_id = req.route_id or (req.metadata.get("route_id") if req.metadata else None)
-
-    # If route_id is provided, auto-populate driver as participant if not already present
-    route_obj = {}
-    if route_id:
-        try:
-            r_rows = await exec_sql("SELECT * FROM public.transport_routes WHERE id = %s", (route_id,))
-            if r_rows:
-                route_obj = r_rows[0]
-                d_id = route_obj.get("driver_id")
-                if d_id:
-                    d_rows = await exec_sql("SELECT profile_id, name FROM public.drivers WHERE id = %s", (d_id,))
-                    if d_rows and d_rows[0].get("profile_id"):
-                        d_prof_id = str(d_rows[0]["profile_id"])
-                        has_driver = any(str(p.user_id) == d_prof_id for p in (req.participants or []))
-                        if not has_driver:
-                            if req.participants is None:
-                                req.participants = []
-                            req.participants.append(
-                                ParticipantAssignmentSchema(
-                                    user_id=d_prof_id,
-                                    participant_type="individual",
-                                    participation_role="required",
-                                    permission="can_view"
-                                )
-                            )
-        except Exception as e:
-            logger.error(f"[Calendar Route Driver Auto-Assign Error]: {e}")
-
-    sql = """
-        INSERT INTO public.schedules (
-            id, school_id, calendar_id, route_id, title, description, schedule_type, category, color, priority,
-            status, approval_status, start_time, end_time, is_all_day, timezone,
-            location_name, location_address, building, room, landmark, latitude, longitude,
-            virtual_meeting_url, virtual_meeting_provider, organizer_id, created_by,
-            visibility, is_recurring, metadata, audience_type, target_roles, target_classes, target_user_ids, created_at, updated_at
-        ) VALUES (
-            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-            'confirmed', 'approved', %s, %s, %s, %s,
-            %s, %s, %s, %s, %s, %s, %s,
-            %s, %s, %s, %s,
-            %s, %s, %s, %s, %s, %s, %s, NOW(), NOW()
-        ) RETURNING *
-    """
     rows = await exec_sql(
-        sql,
-        (
-            s_id, school_id, cal_id, route_id, req.title, req.description, req.schedule_type, req.category or "General",
-            req.color or "#4F46E5", req.priority or "normal",
-            req.start_time, req.end_time, req.is_all_day or False, req.timezone or "Asia/Kolkata",
-            req.location_name, req.location_address, req.building, req.room, req.landmark,
-            req.latitude, req.longitude, req.virtual_meeting_url, req.virtual_meeting_provider,
-            user_id, user_id, req.visibility or "shared", req.is_recurring or False,
-            json.dumps(req.metadata or {}), audience_type, json.dumps(target_roles), json.dumps(target_classes), json.dumps(target_user_ids)
-        )
+        "SELECT public.fn_create_schedule(%s::uuid, %s::uuid, %s::jsonb) as res",
+        (school_id, user_id, payload_json)
     )
-    if not rows:
-        raise HTTPException(status_code=500, detail="Failed to create schedule")
+    if rows and rows[0].get("res"):
+        res = rows[0]["res"]
+        if res.get("success") is False:
+            err = res.get("error")
+            if isinstance(err, dict) and err.get("code") == "SCHEDULE_CONFLICT":
+                return res
+            raise HTTPException(status_code=400, detail=str(err))
 
-    # 4. Insert Recurrence Rule
-    if req.is_recurring and req.recurrence:
-        r = req.recurrence
-        await exec_sql(
-            """
-            INSERT INTO public.schedule_recurrence (
-                id, schedule_id, frequency, interval, days_of_week, day_of_month, month_of_year,
-                end_type, end_count, end_date, exceptions, created_at
-            ) VALUES (
-                gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, %s, %s, '[]'::jsonb, NOW()
-            )
-            """,
-            (
-                s_id, r.frequency, r.interval or 1, json.dumps(r.days_of_week or []),
-                r.day_of_month, r.month_of_year, r.end_type or "never", r.end_count, r.end_date
-            ),
-            fetch=False
-        )
+        s_data = res.get("data", {})
+        s_id = s_data.get("id")
 
-    # 5. Insert Participants & Send Notifications
-    if req.participants:
-        for p in req.participants:
-            p_id = str(uuid.uuid4())
-            is_ind = bool(p.user_id)
-            t_role = None if is_ind else p.target_role
-            t_class = None if is_ind else p.target_class
-            p_type = "individual" if is_ind else (p.participant_type or ("role" if t_role else "class"))
-            await exec_sql(
-                """
-                INSERT INTO public.schedule_participants (
-                    id, schedule_id, user_id, target_role, target_department, target_class, target_section,
-                    participant_type, participation_role, permission, rsvp_status, created_at
-                ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending', NOW()
-                )
-                """,
-                (
-                    p_id, s_id, p.user_id, t_role, p.target_department, t_class, p.target_section,
-                    p_type, p.participation_role or "required", p.permission or "can_view"
-                ),
-                fetch=False
-            )
-            if p.user_id and p.user_id != user_id:
-                asyncio.create_task(
-                    dispatch_calendar_notification(
-                        school_id=school_id,
-                        user_id=p.user_id,
-                        title=f"New Schedule: {req.title}",
-                        body=f"You have been assigned to '{req.title}' ({req.schedule_type}) starting at {req.start_time}.",
-                        schedule_id=s_id
-                    )
-                )
-
-    # 6. Insert Resource Bookings
-    if req.resources:
-        for res_item in req.resources:
-            await exec_sql(
-                """
-                INSERT INTO public.resource_bookings (
-                    id, schedule_id, resource_id, start_time, end_time, status, created_at
-                ) VALUES (
-                    gen_random_uuid(), %s, %s, %s, %s, 'confirmed', NOW()
-                )
-                """,
-                (s_id, res_item.resource_id, req.start_time, req.end_time),
-                fetch=False
+        route_id = req.route_id or (req.metadata.get("route_id") if req.metadata else None)
+        if route_id and s_id:
+            await sync_vehicle_trips_for_schedule(
+                s_id=s_id,
+                school_id=school_id,
+                route_id=route_id,
+                start_time_iso=req.start_time,
+                end_time_iso=req.end_time,
+                is_recurring=req.is_recurring or False,
+                recurrence_obj=req.recurrence
             )
 
-    # 7. Insert Reminders
-    if req.reminders:
-        for rem in req.reminders:
-            await exec_sql(
-                """
-                INSERT INTO public.schedule_reminders (
-                    id, schedule_id, user_id, minutes_before, channel, is_sent, created_at
-                ) VALUES (
-                    gen_random_uuid(), %s, %s, %s, %s, FALSE, NOW()
-                )
-                """,
-                (s_id, user_id, rem.minutes_before, rem.channel or "in_app"),
-                fetch=False
-            )
+        return res
 
-    # 7.5. Generate Individual Vehicle Trips per Scheduled Day Instance
-    if route_id:
-        await sync_vehicle_trips_for_schedule(
-            s_id=s_id,
-            school_id=school_id,
-            route_id=route_id,
-            start_time_iso=req.start_time,
-            end_time_iso=req.end_time,
-            is_recurring=req.is_recurring or False,
-            recurrence_obj=req.recurrence
-        )
-
-    # 8. Record Audit Log
-    asyncio.create_task(
-        record_schedule_audit_log(
-            schedule_id=s_id,
-            school_id=school_id,
-            user_id=user_id,
-            action="create",
-            new_data=rows[0],
-            summary=f"Created {req.schedule_type} '{req.title}'"
-        )
-    )
-
-    return {"success": True, "data": _serialize_datetime(rows[0]), "message": "Schedule created successfully."}
+    raise HTTPException(status_code=500, detail="Failed to create schedule")
 
 
 @router.get("/schedules/{schedule_id}")
 async def get_schedule_by_id(schedule_id: str, user=Depends(get_current_user)):
-    """Fetch complete schedule detail including participants, resources, recurrence, reminders, and comments."""
+    """Fetch complete schedule detail including real-time trip_status by invoking PostgreSQL stored procedure `fn_get_schedule_details`."""
     target_date_str = None
     if "_inst_" in schedule_id:
         parts = schedule_id.split("_inst_")
@@ -2146,102 +1900,21 @@ async def get_schedule_by_id(schedule_id: str, user=Depends(get_current_user)):
         if len(parts) > 1:
             target_date_str = parts[1]
 
-    rows = await exec_sql(
-        """
-        SELECT s.*,
-               c.name AS calendar_name,
-               c.color AS calendar_color,
-               p.full_name AS organizer_name,
-               p.email AS organizer_email,
-               p.avatar_url AS organizer_avatar,
-               tr.route_name, tr.route_code, tr.start_time AS route_start_time, tr.end_time AS route_end_time,
-               v.bus_number, v.registration_no,
-               d.name AS driver_name, d.phone AS driver_phone,
-               (
-                   SELECT vt.id FROM public.vehicle_trips vt
-                   WHERE vt.schedule_id = s.id 
-                     AND (
-                       (%s::text IS NOT NULL AND (vt.schedule_instance_date = %s::date OR vt.start_date = %s OR vt.scheduled_start::date = %s::date))
-                       OR (%s::text IS NULL)
-                     )
-                   ORDER BY vt.scheduled_start ASC
-                   LIMIT 1
-               ) AS trip_id,
-               (
-                   SELECT vt.status FROM public.vehicle_trips vt
-                   WHERE vt.schedule_id = s.id 
-                     AND (
-                       (%s::text IS NOT NULL AND (vt.schedule_instance_date = %s::date OR vt.start_date = %s OR vt.scheduled_start::date = %s::date))
-                       OR (%s::text IS NULL)
-                     )
-                   ORDER BY vt.scheduled_start ASC
-                   LIMIT 1
-               ) AS trip_status
-        FROM public.schedules s
-        LEFT JOIN public.calendars c ON c.id = s.calendar_id
-        LEFT JOIN public.profiles p ON p.id = s.organizer_id
-        LEFT JOIN public.transport_routes tr ON tr.id = s.route_id
-        LEFT JOIN public.vehicles v ON v.id = tr.vehicle_id
-        LEFT JOIN public.drivers d ON d.id = tr.driver_id
-        WHERE s.id = %s AND (s.school_id = %s OR s.school_id IS NULL) AND s.deleted_at IS NULL
-        """,
-        (
-            target_date_str, target_date_str, target_date_str, target_date_str, target_date_str,
-            target_date_str, target_date_str, target_date_str, target_date_str, target_date_str,
-            schedule_id, school_id
+    school_id = user.get("school_id")
+
+    try:
+        rows = await exec_sql(
+            "SELECT public.fn_get_schedule_details(%s::uuid, %s::uuid, %s::date) as schedule_data;",
+            (schedule_id, school_id if school_id else None, target_date_str if target_date_str else None),
+            fetch=True
         )
-    )
-    if not rows:
-        raise HTTPException(status_code=404, detail="Schedule not found")
+        if rows and rows[0].get("schedule_data"):
+            data = rows[0]["schedule_data"]
+            return {"success": True, "data": _serialize_datetime(data)}
+    except Exception as e:
+        logger.warning(f"Error calling fn_get_schedule_details: {e}")
 
-    data = rows[0]
-
-    # Fetch Participants
-    participants = await exec_sql(
-        """
-        SELECT sp.*, prof.full_name, prof.email, prof.role, prof.avatar_url, prof.department, prof.class
-        FROM public.schedule_participants sp
-        LEFT JOIN public.profiles prof ON prof.id = sp.user_id
-        WHERE sp.schedule_id = %s
-        """,
-        (schedule_id,)
-    )
-    data["participants"] = participants
-
-    # Fetch Resources
-    resources = await exec_sql(
-        """
-        SELECT rb.*, cr.name, cr.code, cr.type, cr.capacity, cr.building, cr.room_number
-        FROM public.resource_bookings rb
-        JOIN public.calendar_resources cr ON cr.id = rb.resource_id
-        WHERE rb.schedule_id = %s
-        """,
-        (schedule_id,)
-    )
-    data["resources"] = resources
-
-    # Fetch Recurrence Rule
-    rec = await exec_sql("SELECT * FROM public.schedule_recurrence WHERE schedule_id = %s", (schedule_id,))
-    data["recurrence"] = rec[0] if rec else None
-
-    # Fetch Reminders
-    reminders = await exec_sql("SELECT * FROM public.schedule_reminders WHERE schedule_id = %s", (schedule_id,))
-    data["reminders"] = reminders
-
-    # Fetch Comments
-    comments = await exec_sql(
-        """
-        SELECT sc.*, prof.full_name, prof.avatar_url, prof.role
-        FROM public.schedule_comments sc
-        JOIN public.profiles prof ON prof.id = sc.user_id
-        WHERE sc.schedule_id = %s
-        ORDER BY sc.created_at ASC
-        """,
-        (schedule_id,)
-    )
-    data["comments"] = comments
-
-    return {"success": True, "data": _serialize_datetime(data)}
+    raise HTTPException(status_code=404, detail="Schedule not found")
 
 
 @router.patch("/schedules/{schedule_id}")
@@ -2253,483 +1926,54 @@ async def update_schedule(
     user=Depends(get_current_user)
 ):
     """
-    Update schedule attributes with Google Calendar-grade recurrence scopes:
-    - this_event: creates a standalone override schedule on target_instance_date & adds exception to parent series.
-    - following_events: truncates previous series before target_instance_date & creates a new recurring series.
-    - entire_series: updates parent schedule and recurring rule directly.
+    Update schedule attributes via PostgreSQL stored procedure fn_update_schedule.
+    Supports recurrence_scope: 'this_event', 'following_events', and 'entire_series'.
+    Guarantees that editing series attributes from an instance view preserves the parent series start date!
     """
     school_id = user.get("school_id")
     user_id = user.get("id")
+    user_role = str(user.get("role", "")).lower()
 
-    parent_id = schedule_id
     if "_inst_" in schedule_id:
         parent_id, _, inst_date_str = schedule_id.partition("_inst_")
         if not target_instance_date:
             target_instance_date = inst_date_str
         schedule_id = parent_id
 
-    curr = await exec_sql("SELECT * FROM public.schedules WHERE id = %s AND school_id = %s", (schedule_id, school_id))
-    if not curr:
-        raise HTTPException(status_code=404, detail="Schedule not found")
+    payload_json = json.dumps(req.dict(exclude_unset=True), default=str)
 
-    old_record = curr[0]
-    master_parent_id = str(old_record["recurring_parent_id"]) if old_record.get("recurring_parent_id") else schedule_id
-    is_already_override = old_record.get("recurring_parent_id") is not None or old_record.get("recurrence_exception_type") == "override"
-
-    # Permission check: owner/creator, super_admin/admin, or read_write/can_edit participant
-    user_role = str(user.get("role", "")).lower()
-    organizer_id = str(old_record.get("organizer_id") or "")
-    created_by = str(old_record.get("created_by") or "")
-
-    is_owner = (user_id == organizer_id) or (user_id == created_by) or (user_role in ["super_admin", "admin", "owner"])
-    has_edit_perm = is_owner
-    if not has_edit_perm:
-        part_check = await exec_sql(
-            "SELECT permission FROM public.schedule_participants WHERE schedule_id = %s AND user_id = %s",
-            (schedule_id, user_id)
-        )
-        if part_check:
-            p_val = str(part_check[0].get("permission") or "").lower()
-            if p_val in ["read_write", "can_edit", "can_manage"]:
-                has_edit_perm = True
-
-    if not has_edit_perm:
-        raise HTTPException(
-            status_code=403,
-            detail="Permission denied: Only the schedule owner or authorized editor can modify or cancel this schedule."
-        )
-
-    # If the record is ALREADY an override or standalone instance, update it in place!
-    if is_already_override:
-        updates = []
-        params = []
-        for field in [
-            "title", "description", "schedule_type", "category", "color", "priority",
-            "status", "approval_status", "start_time", "end_time", "is_all_day", "timezone",
-            "location_name", "location_address", "building", "room", "landmark",
-            "latitude", "longitude", "virtual_meeting_url", "virtual_meeting_provider",
-            "visibility", "cancellation_reason", "route_id"
-        ]:
-            val = getattr(req, field, None)
-            if val is not None:
-                updates.append(f"{field} = %s")
-                params.append(val)
-
-        if req.calendar_id:
-            updates.append("calendar_id = %s")
-            params.append(req.calendar_id)
-
-        if req.metadata is not None:
-            updates.append("metadata = %s")
-            params.append(json.dumps(req.metadata))
-
-        if updates:
-            updates.append("updated_at = NOW()")
-            params.extend([schedule_id, school_id])
-            sql = f"UPDATE public.schedules SET {', '.join(updates)} WHERE id = %s AND (school_id = %s OR school_id IS NULL) RETURNING *"
-            updated_rows = await exec_sql(sql, tuple(params))
-            new_record = updated_rows[0] if updated_rows else old_record
-        else:
-            new_record = old_record
-
-        old_route_id = str(old_record.get("route_id") or "")
-        new_route_id = str(new_record.get("route_id") or "")
-        route_changed = (req.route_id is not None) and (new_route_id != old_route_id)
-
-        if route_changed:
-            if not new_route_id:
-                await exec_sql(
-                    "DELETE FROM public.vehicle_trips WHERE schedule_id = %s",
-                    (schedule_id,),
-                    fetch=False
-                )
-            else:
-                await sync_vehicle_trips_for_schedule(
-                    s_id=schedule_id,
-                    school_id=school_id,
-                    route_id=new_route_id,
-                    start_time_iso=str(new_record.get("start_time")),
-                    end_time_iso=str(new_record.get("end_time")),
-                    is_recurring=new_record.get("is_recurring") or False,
-                    recurrence_obj=req.recurrence
-                )
-
-        return {"success": True, "data": _serialize_datetime(new_record), "message": "Schedule updated successfully."}
-
-    # SCOPE 1: THIS EVENT ONLY (Standalone Occurrence Override)
-    if recurrence_scope == "this_event" and target_instance_date:
-        # Exclude this instance date from parent series recurrence
-        await exec_sql(
-            "SELECT public.exclude_recurring_occurrence(%s::uuid, %s::date)",
-            (master_parent_id, target_instance_date),
-            fetch=False
-        )
-        # Soft delete any existing override for this parent and date to avoid duplicates
-        await exec_sql(
-            """
-            UPDATE public.schedules
-            SET deleted_at = NOW(), status = 'cancelled', updated_at = NOW()
-            WHERE recurring_parent_id = %s
-              AND (original_instance_date = %s::date OR DATE(start_time) = %s::date)
-            """,
-            (master_parent_id, target_instance_date, target_instance_date),
-            fetch=False
-        )
-
-        override_id = str(uuid.uuid4())
-        inst_date = datetime.fromisoformat(target_instance_date).date()
-        new_start = req.start_time or datetime.combine(inst_date, old_record["start_time"].time())
-        new_end = req.end_time or datetime.combine(inst_date, old_record["end_time"].time())
-        override_route_id = req.route_id if req.route_id is not None else old_record.get("route_id")
-
-        sql_override = """
-            INSERT INTO public.schedules (
-                id, school_id, calendar_id, route_id, title, description, schedule_type, category, color, priority,
-                status, approval_status, start_time, end_time, is_all_day, timezone,
-                location_name, location_address, building, room, virtual_meeting_url, virtual_meeting_provider,
-                organizer_id, created_by, visibility, is_recurring, recurring_parent_id, original_instance_date,
-                recurrence_exception_type, metadata, created_at, updated_at
-            ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                'scheduled', 'approved', %s, %s, %s, %s,
-                %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, FALSE, %s, %s,
-                'override', %s, NOW(), NOW()
-            ) RETURNING *
-        """
-        rows = await exec_sql(
-            sql_override,
-            (
-                override_id, school_id, req.calendar_id or old_record["calendar_id"], override_route_id,
-                req.title or old_record["title"], req.description if req.description is not None else old_record["description"],
-                req.schedule_type or old_record["schedule_type"], req.category or old_record["category"],
-                req.color or old_record["color"], req.priority or old_record["priority"],
-                new_start, new_end, req.is_all_day if req.is_all_day is not None else old_record["is_all_day"],
-                req.timezone or old_record["timezone"], req.location_name or old_record["location_name"],
-                req.location_address or old_record["location_address"], req.building or old_record["building"],
-                req.room or old_record["room"], req.virtual_meeting_url or old_record["virtual_meeting_url"],
-                req.virtual_meeting_provider or old_record["virtual_meeting_provider"],
-                old_record["organizer_id"], user_id, req.visibility or old_record["visibility"],
-                master_parent_id, inst_date, json.dumps(req.metadata or old_record.get("metadata") or {})
-            )
-        )
-        new_record = rows[0]
-
-        # Sync single-day trip if route changed or was specified
-        old_inst_route = str(old_record.get("route_id") or "")
-        new_inst_route = str(override_route_id or "")
-        if req.route_id is not None and new_inst_route != old_inst_route:
-            if not new_inst_route:
-                # Deleted trip for this day
-                await exec_sql(
-                    """
-                    DELETE FROM public.vehicle_trips
-                    WHERE (schedule_id = %s OR schedule_id = %s)
-                      AND (schedule_instance_date = %s::date OR start_date = %s)
-                    """,
-                    (master_parent_id, override_id, target_instance_date, target_instance_date),
-                    fetch=False
-                )
-            else:
-                # Route changed for this day: update existing trip or create new trip
-                r_rows = await exec_sql("SELECT vehicle_id, start_time, end_time FROM public.transport_routes WHERE id = %s", (new_inst_route,))
-                new_v_id = r_rows[0].get("vehicle_id") if r_rows else None
-                new_st = r_rows[0].get("start_time") if r_rows and r_rows[0].get("start_time") else "08:00 AM"
-                new_et = r_rows[0].get("end_time") if r_rows and r_rows[0].get("end_time") else "09:00 AM"
-
-                existing_trip = await exec_sql(
-                    """
-                    SELECT id FROM public.vehicle_trips
-                    WHERE (schedule_id = %s OR schedule_id = %s)
-                      AND (schedule_instance_date = %s::date OR start_date = %s)
-                    """,
-                    (master_parent_id, override_id, target_instance_date, target_instance_date)
-                )
-                if existing_trip:
-                    await exec_sql(
-                        """
-                        UPDATE public.vehicle_trips
-                        SET route_id = %s, vehicle_id = %s, schedule_id = %s, start_time = %s, end_time = %s, updated_at = NOW()
-                        WHERE id = %s
-                        """,
-                        (new_inst_route, new_v_id, override_id, new_st, new_et, existing_trip[0]["id"]),
-                        fetch=False
-                    )
-                else:
-                    await exec_sql("""
-                        INSERT INTO public.vehicle_trips (
-                            id, school_id, route_id, vehicle_id, schedule_id,
-                            schedule_instance_date, start_date, start_time, end_date, end_time,
-                            trip_type, status, scheduled_start, created_at, updated_at
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'morning', 'scheduled', %s, NOW(), NOW())
-                    """, (
-                        str(uuid.uuid4()), school_id, new_inst_route, new_v_id, override_id,
-                        target_instance_date, target_instance_date, new_st, target_instance_date, new_et,
-                        new_start.isoformat() if hasattr(new_start, 'isoformat') else str(new_start)
-                    ), fetch=False)
-
-        # Copy/assign participants for override
-        if req.participants is not None:
-            for p in req.participants:
-                p_uid = p.user_id if p.user_id and len(str(p.user_id).strip()) > 0 and str(p.user_id).strip().lower() != 'none' else None
-                await exec_sql(
-                    """
-                    INSERT INTO public.schedule_participants (
-                        id, schedule_id, user_id, target_role, target_department, target_class, target_section,
-                        participant_type, participation_role, permission, rsvp_status, created_at
-                    ) VALUES (
-                        gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending', NOW()
-                    )
-                    """,
-                    (override_id, p_uid, p.target_role, p.target_department, p.target_class, p.target_section,
-                     p.participant_type or "individual", p.participation_role or "required", p.permission or "can_view"),
-                    fetch=False
-                )
-
-        return {"success": True, "data": _serialize_datetime(new_record), "message": "Updated this event occurrence successfully."}
-
-    # SCOPE 2: THIS AND FOLLOWING EVENTS (Series Split)
-    elif recurrence_scope == "following_events" and target_instance_date:
-        split_date = datetime.fromisoformat(target_instance_date).date()
-        # Truncate old series prior to split date
-        await exec_sql(
-            "SELECT public.split_recurring_series(%s::uuid, %s::date)",
-            (master_parent_id, target_instance_date),
-            fetch=False
-        )
-
-        # Create new recurring series starting on split date
-        new_series_id = str(uuid.uuid4())
-        new_start = req.start_time or datetime.combine(split_date, old_record["start_time"].time())
-        new_end = req.end_time or datetime.combine(split_date, old_record["end_time"].time())
-        split_route_id = req.route_id if req.route_id is not None else old_record.get("route_id")
-
-        sql_new_series = """
-            INSERT INTO public.schedules (
-                id, school_id, calendar_id, route_id, title, description, schedule_type, category, color, priority,
-                status, approval_status, start_time, end_time, is_all_day, timezone,
-                location_name, location_address, building, room, virtual_meeting_url, virtual_meeting_provider,
-                organizer_id, created_by, visibility, is_recurring, metadata, created_at, updated_at
-            ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                'scheduled', 'approved', %s, %s, %s, %s,
-                %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, TRUE, %s, NOW(), NOW()
-            ) RETURNING *
-        """
-        rows = await exec_sql(
-            sql_new_series,
-            (
-                new_series_id, school_id, req.calendar_id or old_record["calendar_id"], split_route_id,
-                req.title or old_record["title"], req.description if req.description is not None else old_record["description"],
-                req.schedule_type or old_record["schedule_type"], req.category or old_record["category"],
-                req.color or old_record["color"], req.priority or old_record["priority"],
-                new_start, new_end, req.is_all_day if req.is_all_day is not None else old_record["is_all_day"],
-                req.timezone or old_record["timezone"], req.location_name or old_record["location_name"],
-                req.location_address or old_record["location_address"], req.building or old_record["building"],
-                req.room or old_record["room"], req.virtual_meeting_url or old_record["virtual_meeting_url"],
-                req.virtual_meeting_provider or old_record["virtual_meeting_provider"],
-                old_record["organizer_id"], user_id, req.visibility or old_record["visibility"],
-                json.dumps(req.metadata or old_record.get("metadata") or {})
-            )
-        )
-        new_record = rows[0]
-
-        # Insert recurrence rule for the new series
-        if req.recurrence:
-            r = req.recurrence
-            await exec_sql(
-                """
-                INSERT INTO public.schedule_recurrence (
-                    id, schedule_id, frequency, interval, days_of_week, day_of_month, month_of_year,
-                    end_type, end_count, end_date, exceptions, created_at
-                ) VALUES (
-                    gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, %s, %s, '[]'::jsonb, NOW()
-                )
-                """,
-                (
-                    new_series_id, r.frequency, r.interval or 1, json.dumps(r.days_of_week or []),
-                    r.day_of_month, r.month_of_year, r.end_type or "never", r.end_count, r.end_date
-                ),
-                fetch=False
-            )
-
-        if split_route_id:
-            await sync_vehicle_trips_for_schedule(
-                s_id=new_series_id,
-                school_id=school_id,
-                route_id=split_route_id,
-                start_time_iso=str(new_record.get("start_time")),
-                end_time_iso=str(new_record.get("end_time")),
-                is_recurring=True,
-                recurrence_obj=req.recurrence
-            )
-
-        return {"success": True, "data": _serialize_datetime(new_record), "message": "Updated this and all following events."}
-
-    # SCOPE 3: ENTIRE SERIES (Default)
-    target_update_id = master_parent_id
-    updates = []
-    params = []
-    for field in [
-        "title", "description", "schedule_type", "category", "color", "priority",
-        "status", "approval_status", "start_time", "end_time", "is_all_day", "timezone",
-        "location_name", "location_address", "building", "room", "landmark",
-        "latitude", "longitude", "virtual_meeting_url", "virtual_meeting_provider",
-        "visibility", "cancellation_reason", "route_id"
-    ]:
-        val = getattr(req, field, None)
-        if val is not None:
-            updates.append(f"{field} = %s")
-            params.append(val)
-
-    if req.calendar_id:
-        updates.append("calendar_id = %s")
-        params.append(req.calendar_id)
-
-    if req.metadata is not None:
-        updates.append("metadata = %s")
-        params.append(json.dumps(req.metadata))
-
-    if updates:
-        updates.append("updated_at = NOW()")
-        params.extend([target_update_id, school_id])
-        sql = f"UPDATE public.schedules SET {', '.join(updates)} WHERE id = %s AND (school_id = %s OR school_id IS NULL) RETURNING *"
-        updated_rows = await exec_sql(sql, tuple(params))
-        new_record = updated_rows[0] if updated_rows else old_record
-    else:
-        new_record = old_record
-
-    old_route_id = str(old_record.get("route_id") or "")
-    new_route_id = str(new_record.get("route_id") or "")
-    route_changed = (req.route_id is not None) and (new_route_id != old_route_id)
-
-    if route_changed:
-        if not new_route_id:
-            # Route removed: delete associated trips
-            await exec_sql(
-                "DELETE FROM public.vehicle_trips WHERE schedule_id = %s",
-                (target_update_id,),
-                fetch=False
-            )
-        else:
-            # Route changed: resync trips with new route
-            await sync_vehicle_trips_for_schedule(
-                s_id=target_update_id,
-                school_id=school_id,
-                route_id=new_route_id,
-                start_time_iso=str(new_record.get("start_time")),
-                end_time_iso=str(new_record.get("end_time")),
-                is_recurring=new_record.get("is_recurring") or False,
-                recurrence_obj=req.recurrence
-            )
-
-    # Update Participants if provided
-    if req.participants is not None:
-        await exec_sql("DELETE FROM public.schedule_participants WHERE schedule_id = %s", (schedule_id,), fetch=False)
-        for p in req.participants:
-            p_uid = p.user_id if p.user_id and len(str(p.user_id).strip()) > 0 and str(p.user_id).strip().lower() != 'none' else None
-            p_id = str(uuid.uuid4())
-            await exec_sql(
-                """
-                INSERT INTO public.schedule_participants (
-                    id, schedule_id, user_id, target_role, target_department, target_class, target_section,
-                    participant_type, participation_role, permission, rsvp_status, created_at
-                ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending', NOW()
-                )
-                """,
-                (
-                    p_id, schedule_id, p_uid, p.target_role, p.target_department, p.target_class, p.target_section,
-                    p.participant_type or "individual", p.participation_role or "required", p.permission or "can_view"
-                ),
-                fetch=False
-            )
-
-    # Update Resources if provided
-    if req.resources is not None:
-        await exec_sql("DELETE FROM public.resource_bookings WHERE schedule_id = %s", (schedule_id,), fetch=False)
-        for res_item in req.resources:
-            r_uid = res_item.resource_id if res_item.resource_id and len(str(res_item.resource_id).strip()) > 0 else None
-            if r_uid:
-                await exec_sql(
-                    """
-                    INSERT INTO public.resource_bookings (
-                        id, schedule_id, resource_id, start_time, end_time, status, created_at
-                    ) VALUES (
-                        gen_random_uuid(), %s, %s, %s, %s, 'confirmed', NOW()
-                    )
-                    """,
-                    (schedule_id, r_uid, req.start_time or old_record["start_time"], req.end_time or old_record["end_time"]),
-                    fetch=False
-                )
-
-    # Update Reminders if provided
-    if req.reminders is not None:
-        await exec_sql("DELETE FROM public.schedule_reminders WHERE schedule_id = %s", (schedule_id,), fetch=False)
-        for rem in req.reminders:
-            await exec_sql(
-                """
-                INSERT INTO public.schedule_reminders (
-                    id, schedule_id, user_id, minutes_before, channel, is_sent, created_at
-                ) VALUES (
-                    gen_random_uuid(), %s, %s, %s, %s, FALSE, NOW()
-                )
-                """,
-                (schedule_id, user_id, rem.minutes_before, rem.channel or "in_app"),
-                fetch=False
-            )
-
-    # Update Recurrence if provided
-    if req.is_recurring is not None:
-        await exec_sql("UPDATE public.schedules SET is_recurring = %s WHERE id = %s", (req.is_recurring, schedule_id), fetch=False)
-        if not req.is_recurring:
-            await exec_sql("DELETE FROM public.schedule_recurrence WHERE schedule_id = %s", (schedule_id,), fetch=False)
-
-    if req.recurrence:
-        r = req.recurrence
-        await exec_sql("DELETE FROM public.schedule_recurrence WHERE schedule_id = %s", (schedule_id,), fetch=False)
-        await exec_sql(
-            """
-            INSERT INTO public.schedule_recurrence (
-                id, schedule_id, frequency, interval, days_of_week, day_of_month, month_of_year,
-                end_type, end_count, end_date, exceptions, created_at
-            ) VALUES (
-                gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, %s, %s, '[]'::jsonb, NOW()
-            )
-            """,
-            (
-                schedule_id, r.frequency, r.interval or 1, json.dumps(r.days_of_week or []),
-                r.day_of_month, r.month_of_year, r.end_type or "never", r.end_count, r.end_date
-            ),
-            fetch=False
-        )
-        await exec_sql("UPDATE public.schedules SET is_recurring = TRUE WHERE id = %s", (schedule_id,), fetch=False)
-
-    # Update booked resource time windows if start/end time shifted
-    if req.start_time or req.end_time:
-        new_start = req.start_time or old_record["start_time"]
-        new_end = req.end_time or old_record["end_time"]
-        await exec_sql(
-            "UPDATE public.resource_bookings SET start_time = %s, end_time = %s WHERE schedule_id = %s",
-            (new_start, new_end, schedule_id),
-            fetch=False
-        )
-
-    # Record Audit & Version Diff
-    asyncio.create_task(
-        record_schedule_audit_log(
-            schedule_id=schedule_id,
-            school_id=school_id,
-            user_id=user_id,
-            action="update",
-            old_data=old_record,
-            new_data=new_record,
-            summary=f"Updated schedule '{new_record.get('title')}'"
+    rows = await exec_sql(
+        "SELECT public.fn_update_schedule(%s::uuid, %s::uuid, %s, %s::uuid, %s, %s::date, %s::jsonb) as res",
+        (
+            school_id, user_id, user_role, schedule_id, recurrence_scope,
+            target_instance_date if target_instance_date else None, payload_json
         )
     )
+    if rows and rows[0].get("res"):
+        res = rows[0]["res"]
+        if res.get("success") is False:
+            err = res.get("error", "Failed to update schedule")
+            status_code = 403 if "Permission" in str(err) else (404 if "not found" in str(err) else 400)
+            raise HTTPException(status_code=status_code, detail=str(err))
 
-    return {"success": True, "data": _serialize_datetime(new_record), "message": "Schedule updated successfully."}
+        new_rec = res.get("data", {})
+        new_s_id = new_rec.get("id")
+
+        route_id = req.route_id or (req.metadata.get("route_id") if req.metadata else None)
+        if route_id and new_s_id:
+            await sync_vehicle_trips_for_schedule(
+                s_id=new_s_id,
+                school_id=school_id,
+                route_id=route_id,
+                start_time_iso=str(new_rec.get("start_time")),
+                end_time_iso=str(new_rec.get("end_time")),
+                is_recurring=new_rec.get("is_recurring") or False,
+                recurrence_obj=req.recurrence
+            )
+
+        return res
+
+    raise HTTPException(status_code=500, detail="Failed to update schedule")
 
 
 @router.delete("/schedules/{schedule_id}")
@@ -2749,6 +1993,7 @@ async def delete_schedule(
     user_id = user.get("id")
 
     parent_id = schedule_id
+    inst_date_str = None
     if "_inst_" in schedule_id:
         parent_id, _, inst_date_str = schedule_id.partition("_inst_")
         if not target_instance_date:
@@ -2762,29 +2007,35 @@ async def delete_schedule(
     old_rec = row[0]
     master_parent_id = str(old_rec["recurring_parent_id"]) if old_rec.get("recurring_parent_id") else schedule_id
 
-    if recurrence_scope == "this_event" and target_instance_date:
-        await exec_sql(
-            "SELECT public.exclude_recurring_occurrence(%s::uuid, %s::date)",
-            (master_parent_id, target_instance_date),
-            fetch=False
-        )
-        if master_parent_id != schedule_id:
+    if recurrence_scope == "this_event":
+        dates_to_exclude = set()
+        if target_instance_date:
+            dates_to_exclude.add(target_instance_date)
+        if inst_date_str:
+            dates_to_exclude.add(inst_date_str)
+
+        for d_str in dates_to_exclude:
             await exec_sql(
                 "SELECT public.exclude_recurring_occurrence(%s::uuid, %s::date)",
-                (schedule_id, target_instance_date),
+                (master_parent_id, d_str),
                 fetch=False
             )
-        # Soft delete only child override schedules for this instance date
-        await exec_sql(
-            """
-            UPDATE public.schedules
-            SET deleted_at = NOW(), status = 'cancelled', updated_at = NOW()
-            WHERE recurring_parent_id = %s
-              AND (original_instance_date = %s::date OR DATE(start_time) = %s::date)
-            """,
-            (master_parent_id, target_instance_date, target_instance_date),
-            fetch=False
-        )
+            if master_parent_id != schedule_id:
+                await exec_sql(
+                    "SELECT public.exclude_recurring_occurrence(%s::uuid, %s::date)",
+                    (schedule_id, d_str),
+                    fetch=False
+                )
+            await exec_sql(
+                """
+                UPDATE public.schedules
+                SET deleted_at = NOW(), status = 'cancelled', updated_at = NOW()
+                WHERE recurring_parent_id = %s
+                  AND (original_instance_date = %s::date OR DATE(start_time) = %s::date)
+                """,
+                (master_parent_id, d_str, d_str),
+                fetch=False
+            )
         if schedule_id != master_parent_id:
             await exec_sql(
                 "UPDATE public.schedules SET deleted_at = NOW(), status = 'cancelled', updated_at = NOW() WHERE id = %s",
@@ -2881,98 +2132,39 @@ async def cancel_schedule(
     user=Depends(get_current_user)
 ):
     """
-    Cancel a schedule with a required cancellation reason.
-    Verifies owner/editor permissions and updates status to 'cancelled'.
+    Cancel a schedule via PostgreSQL stored procedure fn_cancel_schedule.
+    Supports recurrence_scope: 'this_event', 'following_events', and 'entire_series'.
     """
     school_id = user.get("school_id")
     user_id = user.get("id")
-    user_role = str(user.get("role", "")).lower().replace("_", "").replace(" ", "")
+    user_role = str(user.get("role", "")).lower()
 
     if not req.cancellation_reason or not req.cancellation_reason.strip():
         raise HTTPException(status_code=400, detail="Cancellation reason is required.")
 
-    parent_id = schedule_id
+    target_date = req.target_instance_date
     if "_inst_" in schedule_id:
-        parent_id, _, inst_date_str = schedule_id.partition("_inst_")
-        if not req.target_instance_date:
-            req.target_instance_date = inst_date_str
-        schedule_id = parent_id
+        parts = schedule_id.split("_inst_")
+        schedule_id = parts[0]
+        if not target_date and len(parts) > 1:
+            target_date = parts[1]
 
-    curr = await exec_sql(
-        "SELECT * FROM public.schedules WHERE id = %s AND (school_id = %s OR school_id IS NULL)",
-        (schedule_id, school_id)
+    rows = await exec_sql(
+        "SELECT public.fn_cancel_schedule(%s::uuid, %s::uuid, %s, %s::uuid, %s, %s, %s::date) as res",
+        (
+            school_id, user_id, user_role, schedule_id, req.cancellation_reason.strip(),
+            req.recurrence_scope or "entire_series", target_date if target_date else None
+        )
     )
-    if not curr:
-        raise HTTPException(status_code=404, detail="Schedule not found")
+    if rows and rows[0].get("res"):
+        res = rows[0]["res"]
+        if res.get("success") is False:
+            err_msg = res.get("error", "Failed to cancel schedule")
+            status_code = 403 if "Permission" in err_msg else 400
+            raise HTTPException(status_code=status_code, detail=err_msg)
+        return res
 
-    old_record = curr[0]
-    organizer_id = str(old_record.get("organizer_id") or "")
-    created_by = str(old_record.get("created_by") or "")
-
-    is_owner = (user_id == organizer_id) or (user_id == created_by) or (user_role in ["superadmin", "admin", "owner", "principal", "director", "staff"])
-    has_edit_perm = is_owner
-    if not has_edit_perm:
-        part_check = await exec_sql(
-            "SELECT permission FROM public.schedule_participants WHERE schedule_id = %s AND user_id = %s",
-            (schedule_id, user_id)
-        )
-        if part_check:
-            p_val = str(part_check[0].get("permission") or "").lower()
-            if p_val in ["read_write", "can_edit", "can_manage"]:
-                has_edit_perm = True
-
-    if not has_edit_perm:
-        raise HTTPException(
-            status_code=403,
-            detail="Permission denied: Only the schedule owner or authorized editor can cancel this schedule."
-        )
-
-    # Cancel schedule
-    sql = """
-        UPDATE public.schedules
-        SET status = 'cancelled', cancellation_reason = %s, cancelled_by = %s, cancelled_at = NOW(), updated_at = NOW()
-        WHERE id = %s AND (school_id = %s OR school_id IS NULL)
-        RETURNING *
-    """
-    rows = await exec_sql(sql, (req.cancellation_reason.strip(), user_id, schedule_id, school_id))
-
-    # Release resource bookings
-    await exec_sql(
-        "UPDATE public.resource_bookings SET status = 'cancelled' WHERE schedule_id = %s",
-        (schedule_id,),
-        fetch=False
-    )
-
-    # Synchronize cancellation to associated vehicle_trips
-    if req.recurrence_scope == "this_event" and req.target_instance_date:
-        await exec_sql(
-            """
-            UPDATE public.vehicle_trips
-            SET status = 'cancelled', cancellation_reason = %s, updated_at = NOW()
-            WHERE (schedule_id = %s OR schedule_id = %s)
-              AND (schedule_instance_date = %s::date OR start_date = %s OR scheduled_start::date = %s::date)
-            """,
-            (req.cancellation_reason.strip(), schedule_id, parent_id, req.target_instance_date, req.target_instance_date, req.target_instance_date),
-            fetch=False
-        )
-    else:
-        await exec_sql(
-            """
-            UPDATE public.vehicle_trips
-            SET status = 'cancelled', cancellation_reason = %s, updated_at = NOW()
-            WHERE schedule_id = %s OR schedule_id = %s
-            """,
-            (req.cancellation_reason.strip(), schedule_id, parent_id),
-            fetch=False
-        )
-
-    updated_record = rows[0] if rows else old_record
-    return {
-        "success": True,
-        "message": "Schedule cancelled successfully.",
-        "data": _serialize_datetime(updated_record)
-    }
-
+    raise HTTPException(status_code=500, detail="Failed to cancel schedule")
 
 
 @router.post("/schedules/{schedule_id}/restore")
@@ -3012,96 +2204,39 @@ async def restore_schedule(schedule_id: str, user=Depends(get_current_user)):
 
 @router.post("/schedules/{schedule_id}/duplicate")
 async def duplicate_schedule(schedule_id: str, user=Depends(get_current_user)):
-    """Duplicate an existing schedule to a new instance."""
+    """Duplicate an existing schedule via PostgreSQL stored procedure fn_duplicate_schedule."""
     school_id = user.get("school_id")
     user_id = user.get("id")
     if "_inst_" in schedule_id:
         schedule_id = schedule_id.split("_inst_")[0]
 
-    rows = await exec_sql("SELECT * FROM public.schedules WHERE id = %s AND school_id = %s", (schedule_id, school_id))
-    if not rows:
-        raise HTTPException(status_code=404, detail="Schedule not found")
-
-    src = rows[0]
-    new_id = str(uuid.uuid4())
-    new_title = f"{src['title']} (Copy)"
-
-    sql = """
-        INSERT INTO public.schedules (
-            id, school_id, calendar_id, title, description, schedule_type, category, color, priority,
-            status, approval_status, start_time, end_time, is_all_day, timezone,
-            location_name, location_address, building, room, virtual_meeting_url, virtual_meeting_provider,
-            organizer_id, created_by, visibility, is_recurring, metadata, created_at, updated_at
-        ) VALUES (
-            %s, %s, %s, %s, %s, %s, %s, %s, %s,
-            'confirmed', 'approved', %s, %s, %s, %s,
-            %s, %s, %s, %s, %s, %s,
-            %s, %s, %s, FALSE, %s, NOW(), NOW()
-        ) RETURNING *
-    """
-    dup = await exec_sql(
-        sql,
-        (
-            new_id, school_id, src["calendar_id"], new_title, src["description"], src["schedule_type"],
-            src["category"], src["color"], src["priority"], src["start_time"], src["end_time"],
-            src["is_all_day"], src["timezone"], src["location_name"], src["location_address"],
-            src["building"], src["room"], src["virtual_meeting_url"], src["virtual_meeting_provider"],
-            user_id, user_id, src["visibility"], json.dumps(src.get("metadata") or {})
-        )
+    rows = await exec_sql(
+        "SELECT public.fn_duplicate_schedule(%s::uuid, %s::uuid, %s::uuid) as res",
+        (school_id, user_id, schedule_id)
     )
+    if rows and rows[0].get("res"):
+        res = rows[0]["res"]
+        if res.get("success") is False:
+            raise HTTPException(status_code=404, detail=res.get("error"))
+        return res
 
-    return {"success": True, "data": _serialize_datetime(dup[0]), "message": "Schedule duplicated successfully."}
+    raise HTTPException(status_code=500, detail="Failed to duplicate schedule")
 
 
 @router.post("/schedules/{schedule_id}/rsvp")
 async def submit_schedule_rsvp(schedule_id: str, req: ScheduleRSVPRequest, user=Depends(get_current_user)):
-    """User response to schedule invitation (Accept, Decline with reason, Tentative)."""
+    """User response to schedule invitation via PostgreSQL stored procedure fn_submit_schedule_rsvp."""
     user_id = user.get("id")
     school_id = user.get("school_id")
     if "_inst_" in schedule_id:
         schedule_id = schedule_id.split("_inst_")[0]
 
-    # Upsert RSVP status
-    sql = """
-        INSERT INTO public.schedule_participants (
-            id, schedule_id, user_id, participant_type, participation_role, permission, rsvp_status, decline_reason, rsvp_at, created_at, updated_at
-        ) VALUES (
-            gen_random_uuid(), %s, %s, 'individual', 'required', 'can_view', %s, %s, NOW(), NOW(), NOW()
-        )
-        ON CONFLICT (id) DO UPDATE SET
-            rsvp_status = EXCLUDED.rsvp_status,
-            decline_reason = EXCLUDED.decline_reason,
-            rsvp_at = NOW(),
-            updated_at = NOW()
-        RETURNING *
-    """
-    # Check if participant already exists
-    existing = await exec_sql(
-        "SELECT id FROM public.schedule_participants WHERE schedule_id = %s AND user_id = %s",
-        (schedule_id, user_id)
+    rows = await exec_sql(
+        "SELECT public.fn_submit_schedule_rsvp(%s::uuid, %s::uuid, %s::uuid, %s, %s) as res",
+        (school_id, user_id, schedule_id, req.status, req.decline_reason)
     )
-    if existing:
-        await exec_sql(
-            """
-            UPDATE public.schedule_participants
-            SET rsvp_status = %s, decline_reason = %s, rsvp_at = NOW(), updated_at = NOW()
-            WHERE schedule_id = %s AND user_id = %s
-            """,
-            (req.status, req.decline_reason, schedule_id, user_id),
-            fetch=False
-        )
-    else:
-        await exec_sql(
-            """
-            INSERT INTO public.schedule_participants (
-                id, schedule_id, user_id, participant_type, participation_role, permission, rsvp_status, decline_reason, rsvp_at, created_at, updated_at
-            ) VALUES (
-                gen_random_uuid(), %s, %s, 'individual', 'required', 'can_view', %s, %s, NOW(), NOW(), NOW()
-            )
-            """,
-            (schedule_id, user_id, req.status, req.decline_reason),
-            fetch=False
-        )
+    if rows and rows[0].get("res"):
+        return rows[0]["res"]
 
     return {"success": True, "status": req.status, "message": f"Invitation {req.status} successfully."}
 
@@ -3112,39 +2247,20 @@ async def add_schedule_comment(
     req: ScheduleCommentRequest,
     user=Depends(get_current_user)
 ):
-    """Add persistent activity discussion comment to a schedule."""
+    """Add persistent discussion comment via PostgreSQL stored procedure fn_add_schedule_comment."""
     user_id = user.get("id")
     school_id = user.get("school_id")
     if "_inst_" in schedule_id:
         schedule_id = schedule_id.split("_inst_")[0]
 
-    c_id = str(uuid.uuid4())
-    sql = """
-        INSERT INTO public.schedule_comments (id, schedule_id, user_id, comment_text, created_at)
-        VALUES (%s, %s, %s, %s, NOW())
-        RETURNING id, schedule_id, user_id, comment_text, created_at
-    """
-    rows = await exec_sql(sql, (c_id, schedule_id, user_id, req.comment_text))
-    if not rows:
-        raise HTTPException(status_code=500, detail="Failed to save comment")
+    rows = await exec_sql(
+        "SELECT public.fn_add_schedule_comment(%s::uuid, %s::uuid, %s::uuid, %s) as res",
+        (school_id, user_id, schedule_id, req.comment_text.strip())
+    )
+    if rows and rows[0].get("res"):
+        return rows[0]["res"]
 
-    prof = await exec_sql("SELECT full_name, avatar_url FROM public.profiles WHERE id = %s", (user_id,))
-    full_name = prof[0]["full_name"] if prof else "You"
-    avatar_url = prof[0]["avatar_url"] if prof else None
-
-    return {
-        "success": True,
-        "data": {
-            "id": c_id,
-            "schedule_id": schedule_id,
-            "user_id": user_id,
-            "comment_text": req.comment_text,
-            "full_name": full_name,
-            "avatar_url": avatar_url,
-            "created_at": _serialize_datetime(rows[0]["created_at"])
-        },
-        "message": "Comment posted successfully."
-    }
+    raise HTTPException(status_code=500, detail="Failed to save comment")
 
 
 @router.get("/schedules/{schedule_id}")
@@ -3327,84 +2443,28 @@ async def check_availability(
 @router.get("/calendar/summary")
 async def get_calendar_summary(user=Depends(get_current_user)):
     """
-    Provide aggregated dashboard intelligence counters for desktop sidebar:
-    - Today's schedules count
-    - This week's schedules count
-    - Category breakdown (Meetings, Tasks, Events, Reminders)
-    - Assigned to me count & Pending invitations count
-    - Scheduling conflicts count
+    Provide aggregated dashboard intelligence counters for desktop sidebar via fn_get_calendar_summary.
     """
     school_id = user.get("school_id")
     user_id = user.get("id")
-    role = user.get("role", "").lower()
 
     await ensure_calendar_seed_data(school_id, user_id)
 
-    today_str = date.today().isoformat()
-    now = datetime.utcnow()
-    monday = now - timedelta(days=now.weekday())
-    sunday = monday + timedelta(days=6)
-
-    # 1. Total counts
-    today_rows = await exec_sql(
-        """
-        SELECT COUNT(*) AS c FROM public.schedules
-        WHERE school_id = %s AND deleted_at IS NULL AND DATE(start_time) = CURRENT_DATE
-        """,
-        (school_id,)
+    rows = await exec_sql(
+        "SELECT public.fn_get_calendar_summary(%s::uuid, %s::uuid) as data",
+        (school_id, user_id)
     )
-    today_count = today_rows[0]["c"] if today_rows else 0
-
-    week_rows = await exec_sql(
-        """
-        SELECT COUNT(*) AS c FROM public.schedules
-        WHERE school_id = %s AND deleted_at IS NULL AND start_time >= %s AND start_time <= %s
-        """,
-        (school_id, monday.isoformat(), sunday.isoformat())
-    )
-    week_count = week_rows[0]["c"] if week_rows else 0
-
-    # 2. Category counts
-    cat_rows = await exec_sql(
-        """
-        SELECT category, COUNT(*) AS count
-        FROM public.schedules
-        WHERE school_id = %s AND deleted_at IS NULL
-        GROUP BY category
-        """,
-        (school_id,)
-    )
-    categories = {r["category"] or "General": r["count"] for r in cat_rows}
-
-    # 3. Assigned to Me & Invitations
-    assigned_rows = await exec_sql(
-        """
-        SELECT s.*, p.full_name AS assigner_name, sp.rsvp_status
-        FROM public.schedule_participants sp
-        JOIN public.schedules s ON s.id = sp.schedule_id
-        LEFT JOIN public.profiles p ON p.id = s.created_by
-        WHERE sp.user_id = %s AND s.deleted_at IS NULL AND s.end_time >= NOW()
-        ORDER BY s.start_time ASC
-        LIMIT 10
-        """,
-        (user_id,)
-    )
-
-    pending_invites = [a for a in assigned_rows if a.get("rsvp_status") == "pending"]
+    if rows and rows[0].get("data"):
+        return {"success": True, "data": rows[0]["data"]}
 
     return {
         "success": True,
         "data": {
-            "today_count": today_count,
-            "week_count": week_count,
-            "categories": {
-                "Meetings": categories.get("Meetings", 8),
-                "Tasks": categories.get("Tasks", 5),
-                "Events": categories.get("Events", 3),
-                "Reminders": categories.get("Reminders", 4),
-            },
-            "assigned_to_me": _serialize_datetime(assigned_rows),
-            "pending_invitations": _serialize_datetime(pending_invites),
+            "today_count": 0,
+            "week_count": 0,
+            "categories": {"Meetings": 0, "Tasks": 0, "Events": 0, "Reminders": 0},
+            "assigned_to_me": [],
+            "pending_invitations": [],
             "timezone": "Asia/Kolkata (IST)"
         }
     }

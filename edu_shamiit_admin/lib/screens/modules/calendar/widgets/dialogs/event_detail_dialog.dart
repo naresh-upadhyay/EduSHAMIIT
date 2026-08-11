@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:edu_shamiit_core/providers/auth_provider.dart';
+import 'package:edu_shamiit_core/services/api_service.dart';
 import '../../models/calendar_models.dart';
 import '../../providers/calendar_provider.dart';
 
@@ -35,6 +36,8 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
   final _commentController = TextEditingController();
   late List<ScheduleCommentModel> _comments;
   String? _myRSVPStatus;
+  String? _freshTripStatus;
+  String? _freshTripId;
 
   @override
   void initState() {
@@ -52,6 +55,27 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
         }
       }
     }
+
+    _fetchFreshTripStatus();
+  }
+
+  Future<void> _fetchFreshTripStatus() async {
+    if (widget.schedule.routeId == null && widget.schedule.tripId == null) return;
+    final String cleanScheduleId = widget.schedule.id.split('_inst_')[0];
+    try {
+      final res = await ApiService().get('/schedules/$cleanScheduleId', useCache: false);
+      if (res['data'] != null) {
+        final freshData = res['data'];
+        final status = freshData['trip_status']?.toString();
+        final tripId = freshData['trip_id']?.toString();
+        if (mounted && status != null) {
+          setState(() {
+            _freshTripStatus = status;
+            _freshTripId = tripId;
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -889,7 +913,7 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
             radius: isMobile ? 10 : 12,
             backgroundColor: const Color(0xFF4F46E5),
             child: Text(
-              (p.fullName ?? "U")[0].toUpperCase(),
+              (displayName.trim().isNotEmpty) ? displayName.trim()[0].toUpperCase() : 'U',
               style: TextStyle(fontSize: (10 * ts).roundToDouble(), color: Colors.white, fontWeight: FontWeight.bold),
             ),
           ),
@@ -1114,6 +1138,33 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
     final driverInfo = s.driverName != null ? 'Driver: ${s.driverName}' : '';
     final detailsList = [busInfo, driverInfo].where((str) => str.isNotEmpty).join(' • ');
 
+    final String tripStatus = (_freshTripStatus ?? s.tripStatus ?? s.status).toLowerCase();
+    String btnLabel = 'Start Route Run in Driver Dashboard';
+    IconData btnIcon = Icons.play_arrow_rounded;
+    Color btnBg = const Color(0xFF4F46E5);
+    String statusBadgeText = 'Ready to Start';
+    Color statusBadgeColor = const Color(0xFF6366F1);
+
+    if (tripStatus == 'completed') {
+      btnLabel = 'View Completed Trip in Driver Dashboard';
+      btnIcon = Icons.check_circle_outline_rounded;
+      btnBg = const Color(0xFF059669);
+      statusBadgeText = 'Completed';
+      statusBadgeColor = const Color(0xFF059669);
+    } else if (tripStatus == 'in_progress') {
+      btnLabel = 'Open Live Route in Driver Dashboard';
+      btnIcon = Icons.play_circle_fill_rounded;
+      btnBg = const Color(0xFF10B981);
+      statusBadgeText = 'In Progress';
+      statusBadgeColor = const Color(0xFF10B981);
+    } else if (tripStatus == 'paused') {
+      btnLabel = 'Open Paused Route in Driver Dashboard';
+      btnIcon = Icons.pause_circle_filled_rounded;
+      btnBg = const Color(0xFFF59E0B);
+      statusBadgeText = 'Paused';
+      statusBadgeColor = const Color(0xFFF59E0B);
+    }
+
     return Container(
       padding: EdgeInsets.all(isMobile ? 10 : 14),
       decoration: BoxDecoration(
@@ -1169,6 +1220,34 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: statusBadgeColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: statusBadgeColor.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(color: statusBadgeColor, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      statusBadgeText,
+                      style: TextStyle(
+                        fontSize: (10 * ts).roundToDouble(),
+                        fontWeight: FontWeight.w800,
+                        color: statusBadgeColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -1178,7 +1257,7 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
               onPressed: () {
                 Navigator.of(context).pop();
                 final queryMap = <String, String>{};
-                final String effectiveTripId = (s.tripId != null && s.tripId!.isNotEmpty) ? s.tripId! : s.id;
+                final String effectiveTripId = _freshTripId ?? ((s.tripId != null && s.tripId!.isNotEmpty) ? s.tripId! : s.id);
                 queryMap['trip_id'] = effectiveTripId;
                 if (s.routeId != null && s.routeId!.isNotEmpty) {
                   queryMap['route_id'] = s.routeId!;
@@ -1189,13 +1268,13 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                 );
                 context.go(uri.toString());
               },
-              icon: const Icon(Icons.play_arrow_rounded, size: 18),
+              icon: Icon(btnIcon, size: 18),
               label: Text(
-                'Start Route Run in Driver Dashboard',
+                btnLabel,
                 style: TextStyle(fontSize: (12 * ts).roundToDouble(), fontWeight: FontWeight.w800),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4F46E5),
+                backgroundColor: btnBg,
                 foregroundColor: Colors.white,
                 elevation: 2,
                 padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),

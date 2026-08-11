@@ -208,17 +208,14 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       }
     }
 
-    final effectiveRouteId = urlRouteId ?? targetRoute?['id']?.toString();
-
     // 3. Load Trip State
     if (urlTripId != null && urlTripId.isNotEmpty) {
       // Direct deep-link from Calendar Scheduled Trip
       try {
-        debugPrint("[DRIVER_DASH] Direct start trip from URL: trip_id=$urlTripId, route_id=$effectiveRouteId");
-        await _startTrip(tripIdOverride: urlTripId, routeIdOverride: effectiveRouteId);
+        debugPrint("[DRIVER_DASH] Loading trip state from URL: trip_id=$urlTripId");
+        await _loadTripState(urlTripId);
       } catch (e) {
         debugPrint("[DRIVER_DASH] Error loading deep-linked trip: $e");
-        await _loadTripState(urlTripId);
       }
     } else {
       // By default: Fetch next upcoming scheduled trip on calendar for this driver!
@@ -332,8 +329,14 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
 
           if (_activeTrip != null) {
             final tripStatus = (_activeTrip!['status'] as String?)?.toLowerCase() ?? 'scheduled';
-            _isTripActive = (tripStatus == 'in_progress' || tripStatus == 'paused');
-            _isTripPaused = (tripStatus == 'paused');
+            final bool allStopsCompleted = stopsFromDb.isNotEmpty && stopsFromDb.every((s) => s['status'] == 'completed');
+            final bool isTripDone = (tripStatus == 'completed') || allStopsCompleted;
+
+            _isTripActive = (tripStatus == 'in_progress' || tripStatus == 'paused') && !isTripDone;
+            _isTripPaused = (tripStatus == 'paused') && !isTripDone;
+            if (isTripDone && _activeTrip != null) {
+              _activeTrip!['status'] = 'completed';
+            }
 
             final savedRatio = (_activeTrip!['bus_position_ratio'] as num?)?.toDouble();
             savedStopIdx = (_activeTrip!['current_stop_index'] as num?)?.toInt();
@@ -2570,11 +2573,24 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
 
     try {
       debugPrint("[DRIVER_DASH] Unified Atomic batch_sync for trip $tripId");
-      await ApiService().post('/transport/driver/trips/$tripId/action', {
+      final res = await ApiService().post('/transport/driver/trips/$tripId/action', {
         "action": "batch_sync",
         "payload": payload,
       });
       debugPrint("[DRIVER_DASH] Unified Atomic batch_sync SUCCESS");
+
+      final bool allStopsCompleted = _stops.isNotEmpty && _stops.every((s) => s['status'] == 'completed');
+      if (allStopsCompleted || res['trip_status'] == 'completed') {
+        if (mounted) {
+          setState(() {
+            _isTripActive = false;
+            _isTripPaused = false;
+            if (_activeTrip != null) {
+              _activeTrip!['status'] = 'completed';
+            }
+          });
+        }
+      }
     } catch (e) {
       debugPrint("[DRIVER_DASH] Batch sync notice: $e");
     }
@@ -2601,6 +2617,20 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   }
 
   Future<void> _endTrip() async {
+    final bool hasUncompletedStops = _stops.any((s) => s['status'] != 'completed');
+    if (hasUncompletedStops) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("⚠️ Cannot end trip: All route stops must be completed first!"),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
+
     _telemetryTimer?.cancel();
 
     await _executeTripAction('end');
@@ -3009,13 +3039,10 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     final selectedStop = _stops[_selectedStopIndexForChecklist];
     final selectedStopId = selectedStop['id'];
 
-    final matchYetToPick = _students
-        .where((s) => s['stop_id'] == selectedStopId && s['status'] == 'yet_to_pick')
-        .toList();
-    if (matchYetToPick.isNotEmpty) return matchYetToPick;
-
+    // Only return students that still need to be picked at this stop.
+    // Students already picked/onboarded should NOT appear in "To Pick".
     return _students
-        .where((s) => s['stop_id'] == selectedStopId)
+        .where((s) => s['stop_id'] == selectedStopId && s['status'] == 'yet_to_pick')
         .toList();
   }
 
@@ -3414,11 +3441,16 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         : (_selectedRoute?['bus_number'] ?? _selectedRoute?['registration_no'] ?? _selectedRoute?['assigned_bus'] ?? 'Assigned Bus');
 
     String statusText = "Ready to Start";
-    Color statusColor = const Color(0xFF3B82F6);
-    Color statusBg = const Color(0xFFEFF6FF);
+    Color statusColor = const Color(0xFF6366F1);
+    Color statusBg = const Color(0xFFEEF2FF);
 
-    final tripStatus = (_activeTrip?['status'] as String?)?.toLowerCase();
-    if (_isTripActive && !_isTripPaused) {
+    final bool isCompleted = _stops.isNotEmpty && _stops.every((s) => s['status'] == 'completed');
+
+    if (isCompleted) {
+      statusText = "Completed";
+      statusColor = const Color(0xFF059669);
+      statusBg = const Color(0xFFECFDF5);
+    } else if (_isTripActive && !_isTripPaused) {
       statusText = "In Progress";
       statusColor = const Color(0xFF10B981);
       statusBg = const Color(0xFFECFDF5);
@@ -3426,10 +3458,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       statusText = "Paused";
       statusColor = const Color(0xFFF59E0B);
       statusBg = const Color(0xFFFFFBEB);
-    } else if (tripStatus == 'scheduled') {
-      statusText = "Scheduled";
-      statusColor = const Color(0xFF6366F1);
-      statusBg = const Color(0xFFEEF2FF);
     }
 
     String displayRouteTitle = routeName;
@@ -3567,11 +3595,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       final String busVal = _registrationNo.isNotEmpty ? _registrationNo : (hasRoute ? "Assigned Bus" : "No Bus Assigned");
       final String busSub = hasRoute ? (_selectedRoute?['vehicle_type'] ?? "School Bus") : "Waiting for Schedule";
       final String startVal = _startTime.isNotEmpty ? _startTime : "--:--";
-      final String startSub = hasRoute ? (_isTripActive ? "In Progress" : "Scheduled") : "No Schedule";
+      final bool isCompleted = (_activeTrip?['status'] == 'completed') || (_stops.isNotEmpty && _stops.every((s) => s['status'] == 'completed'));
+      final String startSub = isCompleted ? "Completed" : (hasRoute ? (_isTripActive ? "In Progress" : "Scheduled") : "No Schedule");
       final String locVal = _stops.isNotEmpty ? _currentLocationName : "Waiting";
-      final String locSub = _isTripActive ? "Live" : "Standby";
-      final String nextVal = _stops.isNotEmpty ? _nextStopName : "None Scheduled";
-      final String nextSub = _isTripActive ? "ETA: 3 min" : (hasRoute ? "Ready" : "Waiting");
+      final String locSub = isCompleted ? "Completed" : (_isTripActive ? "Live" : "Standby");
+      final String nextVal = isCompleted ? "Depot / End" : (_stops.isNotEmpty ? _nextStopName : "None Scheduled");
+      final String nextSub = isCompleted ? "Completed" : (_isTripActive ? "ETA: 3 min" : (hasRoute ? "Ready" : "Waiting"));
 
       if (width < 950) {
         return Wrap(
@@ -6116,19 +6145,29 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
             return statusRow;
           }
 
+          final bool isCompleted = _stops.isNotEmpty && _stops.every((s) => s['status'] == 'completed');
           final bool hasSched = (_isTripActive || _activeTrip != null || _selectedRoute != null);
-          final String startBtnText = _isTripActive
-              ? "End Route"
-              : (hasSched ? "Start Route" : "Waiting for Schedule");
-          final Color startBtnColor = _isTripActive
-              ? const Color(0xFFEF4444)
-              : (hasSched ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8));
-          final IconData startBtnIcon = _isTripActive
-              ? Icons.stop_circle_rounded
-              : (hasSched ? Icons.play_arrow_rounded : Icons.schedule_rounded);
-          final VoidCallback? startBtnAction = _isTripActive
-              ? _endTrip
-              : (hasSched ? _startTrip : null);
+
+          final String startBtnText = isCompleted
+              ? "Trip Completed"
+              : (_isTripActive
+                  ? "End Route"
+                  : (hasSched ? "Start Route" : "Waiting for Schedule"));
+          final Color startBtnColor = isCompleted
+              ? const Color(0xFF059669)
+              : (_isTripActive
+                  ? const Color(0xFFEF4444)
+                  : (hasSched ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8)));
+          final IconData startBtnIcon = isCompleted
+              ? Icons.check_circle_rounded
+              : (_isTripActive
+                  ? Icons.stop_circle_rounded
+                  : (hasSched ? Icons.play_arrow_rounded : Icons.schedule_rounded));
+          final VoidCallback? startBtnAction = isCompleted
+              ? null
+              : (_isTripActive
+                  ? _endTrip
+                  : (hasSched ? () => _startTrip() : null));
 
           if (isMobile) {
             return Column(

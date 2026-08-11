@@ -163,6 +163,9 @@ class ScheduleModel {
   final String? tripId;
   final String? tripStatus;
 
+  final DateTime? startTimeUtc;
+  final DateTime? endTimeUtc;
+
   ScheduleModel({
     required this.id,
     required this.schoolId,
@@ -177,6 +180,8 @@ class ScheduleModel {
     this.approvalStatus = 'not_required',
     required this.startTime,
     required this.endTime,
+    this.startTimeUtc,
+    this.endTimeUtc,
     this.isAllDay = false,
     this.timezone = 'Asia/Kolkata',
     this.locationName,
@@ -223,11 +228,23 @@ class ScheduleModel {
 
     DateTime start = DateTime.now();
     DateTime end = DateTime.now().add(const Duration(hours: 1));
+    DateTime? startUtc;
+    DateTime? endUtc;
     if (json['start_time'] != null) {
-      start = DateTime.tryParse(json['start_time'].toString()) ?? start;
+      final str = json['start_time'].toString();
+      final parsed = DateTime.tryParse(str);
+      if (parsed != null) {
+        startUtc = parsed.toUtc();
+        start = parsed.isUtc ? parsed.toLocal() : (str.contains('Z') || str.contains('+') || str.contains('-') ? parsed.toLocal() : parsed);
+      }
     }
     if (json['end_time'] != null) {
-      end = DateTime.tryParse(json['end_time'].toString()) ?? end;
+      final str = json['end_time'].toString();
+      final parsed = DateTime.tryParse(str);
+      if (parsed != null) {
+        endUtc = parsed.toUtc();
+        end = parsed.isUtc ? parsed.toLocal() : (str.contains('Z') || str.contains('+') || str.contains('-') ? parsed.toLocal() : parsed);
+      }
     }
 
     RecurrenceRuleModel? recRule;
@@ -288,6 +305,8 @@ class ScheduleModel {
       approvalStatus: json['approval_status']?.toString() ?? 'not_required',
       startTime: start,
       endTime: end,
+      startTimeUtc: startUtc,
+      endTimeUtc: endUtc,
       isAllDay: json['is_all_day'] == true,
       timezone: json['timezone']?.toString() ?? 'Asia/Kolkata',
       locationName: json['location_name']?.toString() ?? json['room']?.toString(),

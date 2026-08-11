@@ -376,6 +376,41 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
     }
   }
 
+  Duration _getTimezoneOffset(String tz) {
+    switch (tz) {
+      case 'America/New_York':
+        return const Duration(hours: -4);
+      case 'Europe/London':
+        return const Duration(hours: 1);
+      case 'Asia/Dubai':
+        return const Duration(hours: 4);
+      case 'Asia/Kolkata':
+        return const Duration(hours: 5, minutes: 30);
+      case 'UTC':
+        return Duration.zero;
+      default:
+        return const Duration(hours: 5, minutes: 30);
+    }
+  }
+
+  /// Convert a UTC DateTime into the wall-clock time for [tz].
+  /// Returns a DateTime whose year/month/day/hour/minute represent
+  /// what a clock on the wall in [tz] would show.
+  DateTime _convertUtcToTimezone(DateTime utcTime, String tz) {
+    // Force into UTC space regardless of the incoming flag
+    final utc = DateTime.utc(utcTime.year, utcTime.month, utcTime.day, utcTime.hour, utcTime.minute);
+    final offset = _getTimezoneOffset(tz);
+    return utc.add(offset);
+  }
+
+  /// Convert a naive wall-clock DateTime (representing time in [tz]) into UTC.
+  DateTime _convertTimezoneToUtc(DateTime naiveTzTime, String tz) {
+    // Build in UTC space so Dart never applies the browser's local offset
+    final asUtc = DateTime.utc(naiveTzTime.year, naiveTzTime.month, naiveTzTime.day, naiveTzTime.hour, naiveTzTime.minute);
+    final offset = _getTimezoneOffset(tz);
+    return asUtc.subtract(offset);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -409,12 +444,26 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
     _selectedPriority = init?.priority ?? 'normal';
     _virtualProvider = init?.virtualMeetingProvider ?? 'google_meet';
 
-    _startDate = init?.startTime ?? DateTime(now.year, now.month, now.day, defaultHour);
-    _startTime = TimeOfDay(hour: _startDate.hour, minute: _startDate.minute);
-    _endDate = init?.endTime ?? _startDate.add(const Duration(hours: 1));
-    _endTime = TimeOfDay(hour: _endDate.hour, minute: _endDate.minute);
     _isAllDay = init?.isAllDay ?? false;
     _timezone = init?.timezone ?? 'Asia/Kolkata';
+
+    if (init != null) {
+      final utcStart = init.startTimeUtc ?? init.startTime.toUtc();
+      final utcEnd = init.endTimeUtc ?? init.endTime.toUtc();
+
+      final localStartInTz = _convertUtcToTimezone(utcStart, _timezone);
+      _startDate = DateTime(localStartInTz.year, localStartInTz.month, localStartInTz.day);
+      _startTime = TimeOfDay(hour: localStartInTz.hour, minute: localStartInTz.minute);
+
+      final localEndInTz = _convertUtcToTimezone(utcEnd, _timezone);
+      _endDate = DateTime(localEndInTz.year, localEndInTz.month, localEndInTz.day);
+      _endTime = TimeOfDay(hour: localEndInTz.hour, minute: localEndInTz.minute);
+    } else {
+      _startDate = DateTime(now.year, now.month, now.day, defaultHour);
+      _startTime = TimeOfDay(hour: _startDate.hour, minute: _startDate.minute);
+      _endDate = _startDate.add(const Duration(hours: 1));
+      _endTime = TimeOfDay(hour: _endDate.hour, minute: _endDate.minute);
+    }
 
     if (init != null) {
       if (init.recurrenceRule != null) {
@@ -537,14 +586,8 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
       return;
     }
 
-    final startDt = DateTime(
-      _startDate.year, _startDate.month, _startDate.day,
-      _isAllDay ? 0 : _startTime.hour, _isAllDay ? 0 : _startTime.minute,
-    );
-    final endDt = DateTime(
-      _endDate.year, _endDate.month, _endDate.day,
-      _isAllDay ? 23 : _endTime.hour, _isAllDay ? 59 : _endTime.minute,
-    );
+    final startIso = '${_startDate.year.toString().padLeft(4, '0')}-${_startDate.month.toString().padLeft(2, '0')}-${_startDate.day.toString().padLeft(2, '0')}T${(_isAllDay ? 0 : _startTime.hour).toString().padLeft(2, '0')}:${(_isAllDay ? 0 : _startTime.minute).toString().padLeft(2, '0')}:00.000';
+    final endIso = '${_endDate.year.toString().padLeft(4, '0')}-${_endDate.month.toString().padLeft(2, '0')}-${_endDate.day.toString().padLeft(2, '0')}T${(_isAllDay ? 23 : _endTime.hour).toString().padLeft(2, '0')}:${(_isAllDay ? 59 : _endTime.minute).toString().padLeft(2, '0')}:00.000';
 
     final hexColor = '#${(_selectedColor.r * 255).round().toRadixString(16).padLeft(2, '0')}${(_selectedColor.g * 255).round().toRadixString(16).padLeft(2, '0')}${(_selectedColor.b * 255).round().toRadixString(16).padLeft(2, '0')}'.toUpperCase();
 
@@ -557,8 +600,8 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
       'color': hexColor,
       'priority': _selectedPriority,
       'route_id': _selectedRouteId,
-      'start_time': startDt.toIso8601String(),
-      'end_time': endDt.toIso8601String(),
+      'start_time': startIso,
+      'end_time': endIso,
       'is_all_day': _isAllDay,
       'timezone': _timezone,
       'location_name': _locationController.text.trim().isNotEmpty ? _locationController.text.trim() : null,
@@ -592,8 +635,8 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
       }).toList(),
       'resources': _selectedResourceIds.map((rid) => {
         'resource_id': rid,
-        'start_time': startDt.toIso8601String(),
-        'end_time': endDt.toIso8601String(),
+        'start_time': startIso,
+        'end_time': endIso,
       }).toList(),
       'reminders': [
         {
@@ -1459,8 +1502,25 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
             DropdownMenuItem(value: 'Europe/London', child: Text('Europe/London (GMT)', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
             DropdownMenuItem(value: 'Asia/Dubai', child: Text('Asia/Dubai (GST)', overflow: TextOverflow.ellipsis, maxLines: 1, style: itemStyle)),
           ],
-          onChanged: (val) {
-            if (val != null) setState(() => _timezone = val);
+          onChanged: (newTz) {
+            if (newTz != null && newTz != _timezone) {
+              final oldStartNaive = DateTime(_startDate.year, _startDate.month, _startDate.day, _startTime.hour, _startTime.minute);
+              final oldEndNaive = DateTime(_endDate.year, _endDate.month, _endDate.day, _endTime.hour, _endTime.minute);
+
+              final utcStart = _convertTimezoneToUtc(oldStartNaive, _timezone);
+              final utcEnd = _convertTimezoneToUtc(oldEndNaive, _timezone);
+
+              final newStartInTz = _convertUtcToTimezone(utcStart, newTz);
+              final newEndInTz = _convertUtcToTimezone(utcEnd, newTz);
+
+              setState(() {
+                _timezone = newTz;
+                _startDate = DateTime(newStartInTz.year, newStartInTz.month, newStartInTz.day);
+                _startTime = TimeOfDay(hour: newStartInTz.hour, minute: newStartInTz.minute);
+                _endDate = DateTime(newEndInTz.year, newEndInTz.month, newEndInTz.day);
+                _endTime = TimeOfDay(hour: newEndInTz.hour, minute: newEndInTz.minute);
+              });
+            }
           },
         ),
       ],
@@ -2307,8 +2367,11 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
             },
           ),
 
-        // 3. CLASS-BASED PRESETS
-        if (_isRoleSelected('student') || _assignedPeople.any((p) => (p['role'] ?? '').toString().toLowerCase().contains('class'))) ...[
+        // 3. CLASS-BASED PRESETS — hidden when "All Students" is already selected
+        //    (because all classes are covered); shown otherwise so the user can
+        //    pick individual classes. Selecting all classes auto-promotes to
+        //    "All Students" via _toggleClassGroup, which then hides this section.
+        if (!_isRoleSelected('student') || _assignedPeople.any((p) => (p['role'] ?? '').toString().toLowerCase() == 'class group')) ...[
           SizedBox(height: isMob ? 6 : 10),
           Row(
             children: [
