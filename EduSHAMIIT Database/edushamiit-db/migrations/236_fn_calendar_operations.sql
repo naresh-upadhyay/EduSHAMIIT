@@ -979,21 +979,133 @@ BEGIN
 
         RETURN jsonb_build_object('success', TRUE, 'message', 'Updated this event occurrence successfully.', 'data', to_jsonb(v_updated));
 
-    -- 3. SCOPE: ENTIRE SERIES (DEFAULT)
-    ELSE
-        IF p_target_instance_date IS NOT NULL AND p_data->>'start_time' IS NOT NULL AND p_data->>'start_time' != '' THEN
-            v_start_time := public.parse_tz_timestamp(p_data->>'start_time', v_tz);
-            v_new_start := (((v_old.start_time AT TIME ZONE v_tz)::DATE)::TEXT || ' ' || to_char((v_start_time AT TIME ZONE v_tz)::TIME, 'HH24:MI:SS'))::TIMESTAMP AT TIME ZONE v_tz;
-            IF p_data->>'end_time' IS NOT NULL AND p_data->>'end_time' != '' THEN
-                v_end_time := public.parse_tz_timestamp(p_data->>'end_time', v_tz);
-                v_new_end := (((v_old.end_time AT TIME ZONE v_tz)::DATE)::TEXT || ' ' || to_char((v_end_time AT TIME ZONE v_tz)::TIME, 'HH24:MI:SS'))::TIMESTAMP AT TIME ZONE v_tz;
-            ELSE
-                v_new_end := v_new_start + COALESCE(v_old.end_time - v_old.start_time, INTERVAL '1 hour');
-            END IF;
+    -- 3. SCOPE: THIS AND FOLLOWING EVENTS
+    ELSIF p_recurrence_scope = 'following_events' AND p_target_instance_date IS NOT NULL THEN
+        -- A. Truncate parent recurrence series to end before target instance date
+        UPDATE public.schedule_recurrence
+        SET end_type = 'on_date', end_date = p_target_instance_date - INTERVAL '1 day', updated_at = NOW()
+        WHERE schedule_id = v_master_parent_id;
+
+        -- B. Cancel any existing override records on or after target instance date
+        UPDATE public.schedules
+        SET deleted_at = NOW(), status = 'cancelled', updated_at = NOW()
+        WHERE recurring_parent_id = v_master_parent_id
+          AND (original_instance_date >= p_target_instance_date OR DATE(start_time) >= p_target_instance_date);
+
+        v_duration := COALESCE(v_old.end_time - v_old.start_time, INTERVAL '1 hour');
+
+        IF p_data->>'start_time' IS NOT NULL AND p_data->>'start_time' != '' THEN
+            v_new_start := public.parse_tz_timestamp(p_data->>'start_time', v_tz);
         ELSE
-            v_new_start := CASE WHEN p_data->>'start_time' IS NOT NULL AND p_data->>'start_time' != '' THEN public.parse_tz_timestamp(p_data->>'start_time', v_tz) ELSE v_old.start_time END;
-            v_new_end := CASE WHEN p_data->>'end_time' IS NOT NULL AND p_data->>'end_time' != '' THEN public.parse_tz_timestamp(p_data->>'end_time', v_tz) ELSE v_old.end_time END;
+            v_new_start := (p_target_instance_date::TEXT || ' ' || to_char((v_old.start_time AT TIME ZONE v_tz)::TIME, 'HH24:MI:SS'))::TIMESTAMP AT TIME ZONE v_tz;
         END IF;
+
+        IF p_data->>'end_time' IS NOT NULL AND p_data->>'end_time' != '' THEN
+            v_new_end := public.parse_tz_timestamp(p_data->>'end_time', v_tz);
+        ELSE
+            v_new_end := v_new_start + v_duration;
+        END IF;
+
+        -- C. Create new recurring series starting at target instance date
+        INSERT INTO public.schedules (
+            id, school_id, calendar_id, route_id, title, description, schedule_type, category, color, priority,
+            status, approval_status, start_time, end_time, is_all_day, timezone,
+            location_name, location_address, building, room, virtual_meeting_url, virtual_meeting_provider,
+            organizer_id, created_by, visibility, is_recurring, recurring_parent_id, original_instance_date,
+            recurrence_exception_type, metadata, audience_type, target_roles, target_classes, target_user_ids, created_at, updated_at
+        ) VALUES (
+            v_ov_id, COALESCE(v_old.school_id, p_school_id), COALESCE((p_data->>'calendar_id')::UUID, v_old.calendar_id),
+            CASE WHEN p_data->>'route_id' IS NOT NULL AND p_data->>'route_id' != '' THEN (p_data->>'route_id')::UUID ELSE v_old.route_id END,
+            COALESCE(p_data->>'title', v_old.title), COALESCE(p_data->>'description', v_old.description),
+            COALESCE(p_data->>'schedule_type', v_old.schedule_type), COALESCE(p_data->>'category', v_old.category),
+            COALESCE(p_data->>'color', v_old.color), COALESCE(p_data->>'priority', v_old.priority),
+            'scheduled', 'approved', v_new_start, v_new_end, COALESCE((p_data->>'is_all_day')::BOOLEAN, v_old.is_all_day),
+            v_tz, COALESCE(p_data->>'location_name', v_old.location_name),
+            COALESCE(p_data->>'location_address', v_old.location_address), COALESCE(p_data->>'building', v_old.building),
+            COALESCE(p_data->>'room', v_old.room), COALESCE(p_data->>'virtual_meeting_url', v_old.virtual_meeting_url),
+            COALESCE(p_data->>'virtual_meeting_provider', v_old.virtual_meeting_provider),
+            v_old.organizer_id, p_user_id, COALESCE(p_data->>'visibility', v_old.visibility),
+            TRUE, NULL, NULL, 'none',
+            COALESCE(p_data->'metadata', v_old.metadata), v_aud_type, v_target_roles, v_target_classes, v_target_users, NOW(), NOW()
+        ) RETURNING * INTO v_updated;
+
+        -- D. Create schedule_recurrence entry for new series
+        IF p_data->'recurrence' IS NOT NULL THEN
+            INSERT INTO public.schedule_recurrence (
+                id, schedule_id, frequency, interval, days_of_week, day_of_month, month_of_year,
+                end_type, end_count, end_date, exceptions, created_at
+            ) VALUES (
+                gen_random_uuid(), v_ov_id,
+                COALESCE(p_data->'recurrence'->>'frequency', 'daily'),
+                COALESCE((p_data->'recurrence'->>'interval')::INT, 1),
+                COALESCE(p_data->'recurrence'->'days_of_week', '[]'::jsonb),
+                (p_data->'recurrence'->>'day_of_month')::INT,
+                (p_data->'recurrence'->>'month_of_year')::INT,
+                COALESCE(p_data->'recurrence'->>'end_type', 'never'),
+                (p_data->'recurrence'->>'end_count')::INT,
+                (p_data->'recurrence'->>'end_date')::DATE,
+                '[]'::jsonb, NOW()
+            );
+        ELSE
+            -- Copy recurrence rule from parent (default to never ending for new split series unless specified)
+            INSERT INTO public.schedule_recurrence (
+                id, schedule_id, frequency, interval, days_of_week, day_of_month, month_of_year,
+                end_type, end_count, end_date, exceptions, created_at
+            )
+            SELECT gen_random_uuid(), v_ov_id, frequency, interval, days_of_week, day_of_month, month_of_year,
+                   'never', NULL, NULL, '[]'::jsonb, NOW()
+            FROM public.schedule_recurrence WHERE schedule_id = v_master_parent_id;
+        END IF;
+
+        -- E. Insert participants
+        IF jsonb_array_length(COALESCE(p_data->'participants', '[]'::jsonb)) > 0 THEN
+            FOR v_p_elem IN SELECT * FROM jsonb_array_elements(p_data->'participants') LOOP
+                INSERT INTO public.schedule_participants (
+                    id, schedule_id, user_id, target_role, target_department, target_class, target_section,
+                    participant_type, participation_role, permission, rsvp_status, created_at
+                ) VALUES (
+                    gen_random_uuid(), v_ov_id,
+                    CASE WHEN v_p_elem->>'user_id' IS NOT NULL AND v_p_elem->>'user_id' != '' THEN (v_p_elem->>'user_id')::UUID ELSE NULL END,
+                    v_p_elem->>'target_role', v_p_elem->>'target_department', v_p_elem->>'target_class', v_p_elem->>'target_section',
+                    COALESCE(v_p_elem->>'participant_type', 'individual'),
+                    COALESCE(v_p_elem->>'participation_role', 'required'),
+                    COALESCE(v_p_elem->>'permission', 'can_view'),
+                    'pending', NOW()
+                );
+            END LOOP;
+        END IF;
+
+        -- F. Insert resources
+        IF jsonb_array_length(COALESCE(p_data->'resources', '[]'::jsonb)) > 0 THEN
+            FOR v_r_elem IN SELECT * FROM jsonb_array_elements(p_data->'resources') LOOP
+                IF v_r_elem->>'resource_id' IS NOT NULL AND v_r_elem->>'resource_id' != '' THEN
+                    INSERT INTO public.resource_bookings (
+                        id, schedule_id, resource_id, start_time, end_time, status, created_at
+                    ) VALUES (
+                        gen_random_uuid(), v_ov_id, (v_r_elem->>'resource_id')::UUID, v_new_start, v_new_end, 'confirmed', NOW()
+                    );
+                END IF;
+            END LOOP;
+        END IF;
+
+        -- G. Insert reminders
+        IF jsonb_array_length(COALESCE(p_data->'reminders', '[]'::jsonb)) > 0 THEN
+            FOR v_rem_elem IN SELECT * FROM jsonb_array_elements(p_data->'reminders') LOOP
+                INSERT INTO public.schedule_reminders (
+                    id, schedule_id, user_id, minutes_before, channel, is_sent, created_at
+                ) VALUES (
+                    gen_random_uuid(), v_ov_id, p_user_id, COALESCE((v_rem_elem->>'minutes_before')::INT, 15),
+                    COALESCE(v_rem_elem->>'channel', 'in_app'), FALSE, NOW()
+                );
+            END LOOP;
+        END IF;
+
+        RETURN jsonb_build_object('success', TRUE, 'message', 'Updated this and following events successfully.', 'data', to_jsonb(v_updated));
+
+    -- 4. SCOPE: ENTIRE SERIES (DEFAULT)
+    ELSE
+        v_new_start := CASE WHEN p_data->>'start_time' IS NOT NULL AND p_data->>'start_time' != '' THEN public.parse_tz_timestamp(p_data->>'start_time', v_tz) ELSE v_old.start_time END;
+        v_new_end := CASE WHEN p_data->>'end_time' IS NOT NULL AND p_data->>'end_time' != '' THEN public.parse_tz_timestamp(p_data->>'end_time', v_tz) ELSE v_old.end_time END;
 
         UPDATE public.schedules
         SET calendar_id = CASE WHEN p_data->>'calendar_id' IS NOT NULL AND p_data->>'calendar_id' != '' THEN (p_data->>'calendar_id')::UUID ELSE calendar_id END,

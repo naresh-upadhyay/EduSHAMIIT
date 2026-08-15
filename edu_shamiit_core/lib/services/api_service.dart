@@ -70,8 +70,9 @@ class ApiService {
       }
       return data;
     } catch (e) {
+      if (e is ApiException) rethrow;
       if (_cache.containsKey(cacheKey)) return _cache[cacheKey];
-      throw ApiException('GET request failed: $e');
+      throw ApiException(e.toString().replaceAll(RegExp(r'^(ApiException:|Exception:|\s*Api)+', caseSensitive: false), '').trim());
     }
   }
 
@@ -89,7 +90,8 @@ class ApiService {
           .timeout(AppConfig.apiTimeout);
       return _handleResponse(response);
     } catch (e) {
-      throw ApiException('POST request failed: $e');
+      if (e is ApiException) rethrow;
+      throw ApiException(e.toString().replaceAll(RegExp(r'^(ApiException:|Exception:|\s*Api)+', caseSensitive: false), '').trim());
     }
   }
 
@@ -107,7 +109,8 @@ class ApiService {
           .timeout(AppConfig.apiTimeout);
       return _handleResponse(response);
     } catch (e) {
-      throw ApiException('PUT request failed: $e');
+      if (e is ApiException) rethrow;
+      throw ApiException(e.toString().replaceAll(RegExp(r'^(ApiException:|Exception:|\s*Api)+', caseSensitive: false), '').trim());
     }
   }
 
@@ -125,7 +128,8 @@ class ApiService {
           .timeout(AppConfig.apiTimeout);
       return _handleResponse(response);
     } catch (e) {
-      throw ApiException('PATCH request failed: $e');
+      if (e is ApiException) rethrow;
+      throw ApiException(e.toString().replaceAll(RegExp(r'^(ApiException:|Exception:|\s*Api)+', caseSensitive: false), '').trim());
     }
   }
 
@@ -138,7 +142,8 @@ class ApiService {
           .timeout(AppConfig.apiTimeout);
       return _handleResponse(response);
     } catch (e) {
-      throw ApiException('DELETE request failed: $e');
+      if (e is ApiException) rethrow;
+      throw ApiException(e.toString().replaceAll(RegExp(r'^(ApiException:|Exception:|\s*Api)+', caseSensitive: false), '').trim());
     }
   }
 
@@ -243,7 +248,7 @@ class ApiException implements Exception {
   final String message;
   ApiException(this.message);
   @override
-  String toString() => 'ApiException: $message';
+  String toString() => message;
 }
 
 /// A custom HTTP client that intercepts 401 Unauthorized responses to trigger logout

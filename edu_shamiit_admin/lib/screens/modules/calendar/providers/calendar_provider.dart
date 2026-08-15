@@ -141,8 +141,9 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
     _api.clearCache();
     _rawSchedules = [];
     state = state.copyWith(isLoading: true, error: null, rawSchedules: [], schedules: []);
+    // Fetch calendars FIRST so activeFilterPills contains all active calendar IDs
+    await fetchCalendars();
     await Future.wait([
-      fetchCalendars(),
       fetchScheduleCategories(),
       fetchSchedules(),
       fetchSummary(),
@@ -193,7 +194,10 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
 
       // Enforce activeFilterPills state if calendarId is mapped
       if (s.calendarId.isNotEmpty) {
-        return state.activeFilterPills.contains(s.calendarId);
+        final isKnownCalendar = state.calendars.any((c) => c.id == s.calendarId);
+        if (isKnownCalendar) {
+          return state.activeFilterPills.contains(s.calendarId);
+        }
       }
 
       return true;
@@ -382,6 +386,25 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
     }
   }
 
+  /// Delete custom calendar (only enabled when eventCount == 0)
+  Future<Map<String, dynamic>> deleteCalendar(String calendarId) async {
+    try {
+      final res = await _api.delete('/calendars/$calendarId');
+      if (res['success'] == true) {
+        final newActivePills = Set<String>.from(state.activeFilterPills)..remove(calendarId);
+        state = state.copyWith(activeFilterPills: newActivePills);
+        await fetchCalendars();
+        await fetchSchedules();
+        return {'success': true, 'message': res['message'] ?? 'Calendar deleted successfully.'};
+      } else {
+        return {'success': false, 'error': res['error'] ?? 'Failed to delete calendar.'};
+      }
+    } catch (e) {
+      debugPrint('[CalendarProvider] deleteCalendar error: $e');
+      return {'success': false, 'error': e.toString().replaceAll('Exception: ', '')};
+    }
+  }
+
 
   /// Fetch schedules for current active view and date range
   Future<void> fetchSchedules() async {
@@ -493,7 +516,7 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
     try {
       final res = await _api.post('/schedules', payload);
       if (res['success'] == true) {
-        await Future.wait([fetchSchedules(), fetchSummary()]);
+        await Future.wait([fetchSchedules(), fetchCalendars(), fetchSummary()]);
         return {'success': true, 'message': 'Schedule created successfully'};
       }
       return {'success': false, 'error': res['error'] ?? res['detail'] ?? 'Failed to create schedule'};
@@ -516,7 +539,7 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
       }
       final res = await _api.patch('/schedules/$scheduleId$query', payload);
       if (res['success'] == true) {
-        await Future.wait([fetchSchedules(), fetchSummary()]);
+        await Future.wait([fetchSchedules(), fetchCalendars(), fetchSummary()]);
         return {'success': true, 'message': 'Schedule updated successfully'};
       }
       return {'success': false, 'error': res['error'] ?? res['detail'] ?? 'Failed to update schedule'};
@@ -538,7 +561,7 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
       }
       final res = await _api.delete('/schedules/$scheduleId$query');
       if (res['success'] == true) {
-        await Future.wait([fetchSchedules(), fetchSummary()]);
+        await Future.wait([fetchSchedules(), fetchCalendars(), fetchSummary()]);
         return true;
       }
       return false;
@@ -578,7 +601,7 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
       }
 
       if (res['success'] == true) {
-        await Future.wait([fetchSchedules(), fetchSummary()]);
+        await Future.wait([fetchSchedules(), fetchCalendars(), fetchSummary()]);
         return true;
       }
       return false;
@@ -593,7 +616,7 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
     try {
       final res = await _api.post('/schedules/$scheduleId/duplicate', {});
       if (res['success'] == true) {
-        await Future.wait([fetchSchedules(), fetchSummary()]);
+        await Future.wait([fetchSchedules(), fetchCalendars(), fetchSummary()]);
         return true;
       }
       return false;
@@ -611,7 +634,7 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
         if (declineReason != null) 'decline_reason': declineReason,
       });
       if (res['success'] == true) {
-        await Future.wait([fetchSchedules(), fetchSummary()]);
+        await Future.wait([fetchSchedules(), fetchCalendars(), fetchSummary()]);
         return true;
       }
       return false;

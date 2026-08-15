@@ -3323,17 +3323,6 @@ async def driver_trip_action(trip_id: str, request: UnifiedTripActionRequest, us
     return {"success": True, "message": f"Action {action} processed"}
 
 
-@router.get("/driver/trips/{trip_id}/state")
-async def get_driver_trip_state(trip_id: str, user=Depends(require_driver_or_admin)):
-    valid_trip_id = _safe_uuid(trip_id)
-    if not valid_trip_id:
-        raise HTTPException(status_code=400, detail="Invalid trip_id")
-
-    rows = await exec_raw_sql("SELECT public.fn_get_full_trip_state(%s) as res;", (valid_trip_id,))
-    if rows and rows[0].get("res"):
-        return rows[0]["res"]
-
-    raise HTTPException(status_code=404, detail="Trip state not found")
 
 
 @router.get("/driver/trips/active")
@@ -3413,6 +3402,7 @@ async def get_upcoming_driver_trip(user=Depends(require_driver_or_admin)):
     if not user_id:
         return {"success": True, "data": None}
 
+    # 1. Stored Procedure lookup
     try:
         rows = await exec_sql(
             "SELECT public.fn_get_driver_upcoming_trip(%s::uuid, %s::uuid) as trip_data;",
@@ -3424,20 +3414,95 @@ async def get_upcoming_driver_trip(user=Depends(require_driver_or_admin)):
     except Exception as e:
         logger.warning(f"Error calling fn_get_driver_upcoming_trip: {e}")
 
+    # 2. Calendar schedules engine fallback (including recurring instances assigned to current user)
+    try:
+        from app.api.calendar import get_schedules
+        now_dt = datetime.now(timezone.utc)
+        start_iso = (now_dt - timedelta(minutes=15)).isoformat()
+        end_iso = (now_dt + timedelta(days=14)).isoformat()
+        
+        sched_res = await get_schedules(
+            start_date=start_iso,
+            end_date=end_iso,
+            assigned_to_me=True,
+            user=user
+        )
+        
+        schedules_list = []
+        if isinstance(sched_res, dict) and sched_res.get("data") is not None:
+            schedules_list = sched_res["data"]
+        elif isinstance(sched_res, list):
+            schedules_list = sched_res
+
+        valid_upcoming = []
+        for s in schedules_list:
+            st_str = s.get("start_time")
+            et_str = s.get("end_time") or st_str
+            if not st_str:
+                continue
+            try:
+                st_clean = str(st_str).replace("Z", "+00:00")
+                et_clean = str(et_str).replace("Z", "+00:00")
+                st = datetime.fromisoformat(st_clean)
+                et = datetime.fromisoformat(et_clean)
+                if st.tzinfo is None:
+                    st = st.replace(tzinfo=timezone.utc)
+                if et.tzinfo is None:
+                    et = et.replace(tzinfo=timezone.utc)
+                
+                if et >= (now_dt - timedelta(minutes=15)) or st >= (now_dt - timedelta(minutes=15)):
+                    status = (s.get("status") or "").lower()
+                    if status not in ("cancelled", "completed"):
+                        valid_upcoming.append((st, s))
+            except Exception:
+                continue
+
+        if valid_upcoming:
+            valid_upcoming.sort(key=lambda x: x[0])
+            first_sched = valid_upcoming[0][1]
+            target_id = first_sched.get("trip_id") or first_sched.get("id")
+            if target_id:
+                trip_state_res = await get_trip_state(str(target_id), user)
+                if trip_state_res and trip_state_res.get("success") and trip_state_res.get("data"):
+                    return {"success": True, "data": trip_state_res["data"]}
+    except Exception as e:
+        logger.warning(f"Error in calendar upcoming trip fallback: {e}")
+
     return {"success": True, "data": None}
 
 
 @router.get("/driver/trip/{trip_id}")
 @router.get("/driver/trips/{trip_id}")
+@router.get("/driver/trip/{trip_id}/state")
 @router.get("/driver/trips/{trip_id}/state")
 async def get_trip_state(trip_id: str, user=Depends(require_driver_or_admin)):
     sb = get_supabase()
-    trip_res = await sb.table("vehicle_trips").select("*").or_(f"id.eq.{trip_id},schedule_id.eq.{trip_id}").order("created_at", ascending=False).limit(1).aexecute()
-    trip = trip_res.data[0] if (trip_res.data and len(trip_res.data) > 0) else None
+    clean_trip_id = trip_id.split("_inst_")[0] if "_inst_" in trip_id else trip_id
+    inst_date = trip_id.split("_inst_")[1] if "_inst_" in trip_id else None
+
+    trip = None
+    if inst_date:
+        t_rows = await exec_sql(
+            "SELECT * FROM public.vehicle_trips WHERE schedule_id = %s AND (schedule_instance_date = %s::date OR start_date = %s) ORDER BY created_at DESC LIMIT 1;",
+            (clean_trip_id, inst_date, inst_date)
+        )
+        if t_rows:
+            trip = t_rows[0]
+
+    if not trip:
+        t_rows = await exec_sql(
+            "SELECT * FROM public.vehicle_trips WHERE id::text = %s OR schedule_id::text = %s ORDER BY CASE WHEN status IN ('in_progress', 'paused') THEN 1 WHEN status = 'completed' THEN 2 ELSE 3 END, updated_at DESC LIMIT 1;",
+            (clean_trip_id, clean_trip_id)
+        )
+        if t_rows:
+            trip = t_rows[0]
     
     if not trip:
-        sched_res = await sb.table("schedules").select("*").eq("id", trip_id).maybe_single().aexecute()
-        sched = sched_res.data
+        sched_rows = await exec_sql(
+            "SELECT * FROM public.schedules WHERE id::text = %s LIMIT 1;",
+            (clean_trip_id,)
+        )
+        sched = sched_rows[0] if sched_rows else None
         if sched:
             from app.api.calendar import sync_vehicle_trips_for_schedule
             await sync_vehicle_trips_for_schedule(
@@ -3448,8 +3513,20 @@ async def get_trip_state(trip_id: str, user=Depends(require_driver_or_admin)):
                 end_time_iso=str(sched["end_time"]),
                 is_recurring=sched.get("is_recurring", False)
             )
-            t_res = await sb.table("vehicle_trips").select("*").eq("schedule_id", trip_id).order("created_at", ascending=False).limit(1).aexecute()
-            trip = t_res.data[0] if (t_res.data and len(t_res.data) > 0) else None
+            if inst_date:
+                t_rows = await exec_sql(
+                    "SELECT * FROM public.vehicle_trips WHERE schedule_id = %s AND (schedule_instance_date = %s::date OR start_date = %s) ORDER BY created_at DESC LIMIT 1;",
+                    (clean_trip_id, inst_date, inst_date)
+                )
+                if t_rows:
+                    trip = t_rows[0]
+            if not trip:
+                t_rows = await exec_sql(
+                    "SELECT * FROM public.vehicle_trips WHERE schedule_id::text = %s ORDER BY created_at DESC LIMIT 1;",
+                    (clean_trip_id,)
+                )
+                if t_rows:
+                    trip = t_rows[0]
 
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
@@ -3528,6 +3605,8 @@ async def get_trip_state(trip_id: str, user=Depends(require_driver_or_admin)):
         "success": True,
         "data": {
             "trip": trip,
+            "status": trip.get("status") if trip else "scheduled",
+            "trip_id": trip.get("id") if trip else trip_id,
             "route": route,
             "stops": stops,
             "students": students

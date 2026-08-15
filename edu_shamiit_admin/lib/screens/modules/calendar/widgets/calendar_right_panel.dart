@@ -207,8 +207,8 @@ class CalendarRightPanelWidget extends ConsumerWidget {
       BuildContext context, WidgetRef ref, CalendarState state, CalendarNotifier notifier) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Filter complete schedule dataset dynamically matched with active CALENDAR VIEW MODE (Day, 3-Day, Week, Month, Year)
-    final dataset = state.rawSchedules.isNotEmpty ? state.rawSchedules : state.schedules;
+    // Filter schedule dataset dynamically matched with active visible schedules on the board
+    final dataset = state.schedules.isNotEmpty ? state.schedules : state.rawSchedules;
     DateTime periodStart;
     DateTime periodEnd;
     String periodLabel;
@@ -257,29 +257,37 @@ class CalendarRightPanelWidget extends ConsumerWidget {
       }
     }
 
-    // Compute REAL dynamic counts for active view period from complete dataset
+    // Compute REAL dynamic counts for active view period from complete dataset (case-insensitive & trimmed)
     final Map<String, int> counts = {};
+    final Map<String, String> displayNames = {};
+
     for (final s in activePeriodSchedules) {
-      final key = (s.scheduleType.isNotEmpty && s.scheduleType.toLowerCase() != 'general')
+      final rawKey = (s.scheduleType.isNotEmpty && s.scheduleType.toLowerCase() != 'general')
           ? s.scheduleType
           : (s.category.isNotEmpty ? s.category : s.scheduleType);
+      final key = rawKey.trim();
       if (key.isNotEmpty) {
-        counts[key] = (counts[key] ?? 0) + 1;
+        final lowerKey = key.toLowerCase();
+        counts[lowerKey] = (counts[lowerKey] ?? 0) + 1;
+        if (!displayNames.containsKey(lowerKey) || key[0] == key[0].toUpperCase()) {
+          displayNames[lowerKey] = key;
+        }
       }
     }
 
     // Build categories list ONLY for categories that have count > 0
     final List<Map<String, dynamic>> activeCategories = [];
-    counts.forEach((catName, count) {
+    counts.forEach((lowerKey, count) {
       if (count > 0) {
-        final dbCat = dbCategoryLookup[catName.toLowerCase()];
-        final label = dbCat?['label']?.toString() ?? catName;
+        final dbCat = dbCategoryLookup[lowerKey];
+        final rawName = displayNames[lowerKey] ?? lowerKey;
+        final label = dbCat?['label']?.toString() ?? rawName;
         final hex = dbCat?['color']?.toString();
         activeCategories.add({
-          'name': catName,
+          'name': rawName,
           'label': label,
           'count': count,
-          'color': _getCategoryColor(catName, hex),
+          'color': _getCategoryColor(lowerKey, hex),
         });
       }
     });
@@ -436,16 +444,24 @@ class CalendarRightPanelWidget extends ConsumerWidget {
     final currentUser = ref.watch(authProvider).userData;
     final currentUserId = currentUser?['id']?.toString();
 
-    // Filter REAL assigned items from complete dataset
-    final dataset = state.rawSchedules.isNotEmpty ? state.rawSchedules : state.schedules;
+    final now = DateTime.now();
+    // Filter REAL assigned items from active visible dataset that are IN THE FUTURE from current time
+    final dataset = state.schedules.isNotEmpty ? state.schedules : state.rawSchedules;
     final assignedSchedules = dataset.where((s) {
+      final isFutureOrCurrent = s.endTime.isAfter(now) || s.startTime.isAfter(now);
+      bool isAssigned = false;
       if (currentUserId != null && currentUserId.isNotEmpty) {
         final isParticipant = s.participants.any((p) => p.userId == currentUserId);
         final isOrganizer = s.organizerId == currentUserId || s.createdBy == currentUserId;
-        return isParticipant || isOrganizer;
+        isAssigned = isParticipant || isOrganizer;
+      } else {
+        isAssigned = s.participants.isNotEmpty;
       }
-      return s.participants.isNotEmpty;
+      return isFutureOrCurrent && isAssigned;
     }).toList();
+
+    // Sort ascending by start time so the closest upcoming assignment appears first
+    assignedSchedules.sort((a, b) => a.startTime.compareTo(b.startTime));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -453,28 +469,52 @@ class CalendarRightPanelWidget extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Assigned to Me',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-              ),
+            Row(
+              children: [
+                Text(
+                  'Assigned to Me',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                if (assignedSchedules.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                    ),
+                    child: Text(
+                      '${assignedSchedules.length}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF10B981),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
-            InkWell(
-              onTap: () {
-                notifier.toggleFilterPill('assigned_to_me');
-              },
-              borderRadius: BorderRadius.circular(4),
-              child: Text(
-                'View All (${assignedSchedules.length})',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+            if (assignedSchedules.isNotEmpty)
+              InkWell(
+                onTap: () {
+                  notifier.toggleFilterPill('assigned_to_me');
+                },
+                borderRadius: BorderRadius.circular(4),
+                child: Text(
+                  'View All (${assignedSchedules.length})',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                  ),
                 ),
               ),
-            ),
           ],
         ),
         const SizedBox(height: 14),
@@ -592,13 +632,19 @@ class CalendarRightPanelWidget extends ConsumerWidget {
       BuildContext context, WidgetRef ref, CalendarState state, CalendarNotifier notifier) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Filter REAL schedules with reminders or type Reminder from complete dataset
-    final dataset = state.rawSchedules.isNotEmpty ? state.rawSchedules : state.schedules;
+    final now = DateTime.now();
+    // Filter REAL schedules with reminders or type Reminder from active visible dataset that are IN THE FUTURE from current time
+    final dataset = state.schedules.isNotEmpty ? state.schedules : state.rawSchedules;
     final reminderSchedules = dataset.where((s) {
-      return s.reminders.isNotEmpty ||
+      final isFutureOrCurrent = s.endTime.isAfter(now) || s.startTime.isAfter(now);
+      final isReminder = s.reminders.isNotEmpty ||
           s.scheduleType.toLowerCase() == 'reminder' ||
           s.category.toLowerCase() == 'reminders';
+      return isFutureOrCurrent && isReminder;
     }).toList();
+
+    // Sort ascending by start time so the closest upcoming reminder appears first
+    reminderSchedules.sort((a, b) => a.startTime.compareTo(b.startTime));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

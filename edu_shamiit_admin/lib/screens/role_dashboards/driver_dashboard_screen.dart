@@ -233,6 +233,52 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         debugPrint("[DRIVER_DASH] Error fetching upcoming trip: $e");
       }
 
+      // Robust fallback on frontend matching Calendar "Assigned to Me" criteria:
+      if (!loadedUpcoming) {
+        try {
+          final now = DateTime.now();
+          final schedRes = await ApiService().get('/schedules', query: {
+            'assigned_to_me': 'true',
+            'limit': 50,
+          }, useCache: false);
+
+          if (schedRes['success'] == true && schedRes['data'] is List) {
+            final list = (schedRes['data'] as List).whereType<Map<String, dynamic>>().toList();
+            final assignedUpcoming = list.where((s) {
+              DateTime? st;
+              DateTime? et;
+              if (s['start_time'] != null) st = DateTime.tryParse(s['start_time'].toString());
+              if (s['end_time'] != null) et = DateTime.tryParse(s['end_time'].toString());
+              st = st?.toLocal();
+              et = et?.toLocal();
+
+              final isFutureOrCurrent = (et != null && et.isAfter(now)) || (st != null && st.isAfter(now));
+              final status = s['status']?.toString().toLowerCase();
+              final isNotDone = status != 'completed' && status != 'cancelled';
+              return isFutureOrCurrent && isNotDone;
+            }).toList();
+
+            if (assignedUpcoming.isNotEmpty) {
+              assignedUpcoming.sort((a, b) {
+                final stA = DateTime.tryParse(a['start_time']?.toString() ?? '') ?? DateTime.now();
+                final stB = DateTime.tryParse(b['start_time']?.toString() ?? '') ?? DateTime.now();
+                return stA.compareTo(stB);
+              });
+
+              final firstUpcoming = assignedUpcoming.first;
+              final targetTripId = firstUpcoming['trip_id']?.toString() ?? firstUpcoming['id']?.toString();
+              if (targetTripId != null && targetTripId.isNotEmpty) {
+                debugPrint("[DRIVER_DASH] Loaded default upcoming trip from assigned-to-me calendar schedule: $targetTripId");
+                await _loadTripState(targetTripId);
+                loadedUpcoming = true;
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint("[DRIVER_DASH] Fallback assigned-to-me check notice: $e");
+        }
+      }
+
       if (!loadedUpcoming) {
         await _checkActiveTrip();
         if (_activeTrip == null) {

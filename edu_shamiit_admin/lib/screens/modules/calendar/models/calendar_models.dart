@@ -67,6 +67,9 @@ class CalendarModel {
     this.isSelected = true,
   });
 
+  /// A calendar is deletable ONLY if it is a custom calendar AND has 0 active assigned schedules.
+  bool get isDeletable => !isSystem && !isDefault;
+
   factory CalendarModel.fromJson(Map<String, dynamic> json) {
     Color parsedColor = const Color(0xFF4F46E5);
     if (json['color'] != null) {
@@ -94,21 +97,34 @@ class CalendarModel {
     );
   }
 
-  CalendarModel copyWith({bool? isSelected, Color? color, String? name}) {
+  CalendarModel copyWith({
+    String? name,
+    String? description,
+    Color? color,
+    String? type,
+    bool? isSystem,
+    bool? isDefault,
+    bool? isArchived,
+    String? ownerId,
+    String? visibility,
+    String? userPermission,
+    int? eventCount,
+    bool? isSelected,
+  }) {
     return CalendarModel(
       id: id,
       schoolId: schoolId,
       name: name ?? this.name,
-      description: description,
+      description: description ?? this.description,
       color: color ?? this.color,
-      type: type,
-      isSystem: isSystem,
-      isDefault: isDefault,
-      isArchived: isArchived,
-      ownerId: ownerId,
-      visibility: visibility,
-      userPermission: userPermission,
-      eventCount: eventCount,
+      type: type ?? this.type,
+      isSystem: isSystem ?? this.isSystem,
+      isDefault: isDefault ?? this.isDefault,
+      isArchived: isArchived ?? this.isArchived,
+      ownerId: ownerId ?? this.ownerId,
+      visibility: visibility ?? this.visibility,
+      userPermission: userPermission ?? this.userPermission,
+      eventCount: eventCount ?? this.eventCount,
       isSelected: isSelected ?? this.isSelected,
     );
   }

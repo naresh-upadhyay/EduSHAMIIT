@@ -189,14 +189,16 @@ class _UniversalCalendarScreenState extends ConsumerState<UniversalCalendarScree
     final notifier = ref.read(calendarProvider.notifier);
     final messenger = ScaffoldMessenger.of(context);
 
-    if (schedule.isRecurring || schedule.recurringParentId != null) {
+    if (schedule.isRecurring || schedule.recurringParentId != null || schedule.id.contains('_inst_')) {
       showDialog(
         context: context,
         builder: (ctx) {
           return RecurrenceScopeDialog(
             actionTitle: 'Delete Recurring Schedule',
             onScopeSelected: (scope) async {
-              final instanceDate = schedule.startTime.toIso8601String().split('T')[0];
+              final instanceDate = schedule.id.contains('_inst_')
+                  ? schedule.id.split('_inst_')[1]
+                  : schedule.startTime.toLocal().toIso8601String().split('T')[0];
               await notifier.deleteSchedule(
                 schedule.id,
                 recurrenceScope: scope,
@@ -204,7 +206,7 @@ class _UniversalCalendarScreenState extends ConsumerState<UniversalCalendarScree
               );
               if (!mounted) return;
               messenger.showSnackBar(
-                const SnackBar(content: Text('Recurring schedule deleted.')),
+                const SnackBar(content: Text('Recurring schedule updated.')),
               );
             },
           );

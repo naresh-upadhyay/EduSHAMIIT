@@ -105,14 +105,16 @@ BEGIN
             SELECT COALESCE(jsonb_agg(jsonb_build_object(
                 'id', sp.id,
                 'user_id', sp.user_id,
+                'target_role', sp.target_role,
+                'target_class', sp.target_class,
                 'participant_type', sp.participant_type,
                 'participation_role', sp.participation_role,
                 'permission', sp.permission,
                 'rsvp_status', sp.rsvp_status,
                 'decline_reason', sp.decline_reason,
                 'rsvp_at', sp.rsvp_at,
-                'full_name', COALESCE(prof.full_name, sp.target_role, sp.target_class),
-                'role', prof.role,
+                'full_name', COALESCE(prof.full_name, CASE WHEN sp.target_role IS NOT NULL AND sp.target_role != '' AND sp.target_role != 'group' THEN 'All ' || UPPER(SUBSTRING(sp.target_role FROM 1 FOR 1)) || SUBSTRING(sp.target_role FROM 2) || 's' ELSE sp.target_class END),
+                'role', COALESCE(prof.role, sp.target_role),
                 'email', prof.email,
                 'avatar_url', prof.avatar_url
             )), '[]'::jsonb)

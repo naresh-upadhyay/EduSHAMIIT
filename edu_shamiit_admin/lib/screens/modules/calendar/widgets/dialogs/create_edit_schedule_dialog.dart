@@ -154,14 +154,20 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
 
   bool _isRoleSelected(String roleName) {
     final target = roleName.trim().toLowerCase();
+    final targetPlural = target.endsWith('s') ? target : '${target}s';
     return _assignedPeople.any((p) {
       final isRoleBroadcast = p['user_id'] == null;
       if (!isRoleBroadcast) return false;
       final r = (p['target_role'] ?? p['role'] ?? '').toString().trim().toLowerCase();
       final n = (p['name'] ?? '').toString().trim().toLowerCase();
-      final targetPlural = '${target}s';
-      final allTargetPlural = 'all ${target}s';
-      return r == target || n == target || n == targetPlural || n == allTargetPlural || n == 'all $target' || (target == 'student' && n.contains('student'));
+      return r == target ||
+          r == targetPlural ||
+          n == target ||
+          n == targetPlural ||
+          n == 'all $targetPlural' ||
+          n == 'all $target' ||
+          (target == 'student' && (n.contains('student') || r.contains('student'))) ||
+          (target == 'driver' && (n.contains('driver') || r.contains('driver')));
     });
   }
 
@@ -172,9 +178,11 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
         _toggleStudentRole(true);
       } else {
         if (!_isRoleSelected(target)) {
+          final capRole = roleName[0].toUpperCase() + roleName.substring(1);
+          final displayName = 'All ${capRole.endsWith('s') ? capRole : '${capRole}s'}';
           _assignedPeople.add({
             'user_id': null,
-            'name': 'All ${roleName[0].toUpperCase()}${roleName.substring(1)}s',
+            'name': displayName,
             'role': target,
             'target_role': target,
             'participation_role': 'required',
@@ -190,9 +198,8 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
           if (p['user_id'] != null) return false;
           final r = (p['target_role'] ?? p['role'] ?? '').toString().trim().toLowerCase();
           final n = (p['name'] ?? '').toString().trim().toLowerCase();
-          final targetPlural = '${target}s';
-          final allTargetPlural = 'all ${target}s';
-          return r == target || n == target || n == targetPlural || n == allTargetPlural || n == 'all $target';
+          final targetPlural = target.endsWith('s') ? target : '${target}s';
+          return r == target || r == targetPlural || n == target || n == targetPlural || n == 'all $targetPlural' || n == 'all $target';
         });
       }
     }
@@ -204,28 +211,27 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
       final isClassBroadcast = p['user_id'] == null;
       if (!isClassBroadcast) return false;
       final n = (p['name'] ?? p['target_class'] ?? '').toString().trim().toLowerCase();
-      return n == target;
+      final tc = (p['target_class'] ?? '').toString().trim().toLowerCase();
+      return n == target || tc == target || n == 'class $target';
     });
   }
 
   void _toggleStudentRole(bool enable) {
     if (enable) {
-      // Remove any individual class group items from _assignedPeople so roster stays clean
       _assignedPeople.removeWhere((p) => (p['role'] ?? '') == 'Class Group' || _dbClasses.any((c) => (c['name'] ?? '').toString().trim().toLowerCase() == (p['name'] ?? '').toString().trim().toLowerCase()));
-      // Add "All Students" role item if not present
       if (!_isRoleSelected('student')) {
         _assignedPeople.add({
           'user_id': null,
           'name': 'All Students',
           'role': 'student',
+          'target_role': 'student',
           'participation_role': 'required',
           'permission': 'can_view',
         });
       }
     } else {
-      // Unselect "All Students" role item
       _assignedPeople.removeWhere((p) {
-        final r = (p['role'] ?? '').toString().trim().toLowerCase();
+        final r = (p['target_role'] ?? p['role'] ?? '').toString().trim().toLowerCase();
         final n = (p['name'] ?? '').toString().trim().toLowerCase();
         return r == 'student' || n.contains('student');
       });
@@ -238,8 +244,9 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
       if (!_isClassSelected(target)) {
         _assignedPeople.add({
           'user_id': null,
-          'name': target,
+          'name': target.startsWith('Class') ? target : 'Class $target',
           'role': 'Class Group',
+          'target_class': target,
           'participation_role': 'required',
           'permission': 'can_view',
         });
@@ -249,9 +256,13 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
         _toggleStudentRole(true);
       }
     } else {
-      _assignedPeople.removeWhere((p) => (p['name'] ?? '').toString().trim().toLowerCase() == target.toLowerCase());
       _assignedPeople.removeWhere((p) {
-        final r = (p['role'] ?? '').toString().trim().toLowerCase();
+        final n = (p['name'] ?? '').toString().trim().toLowerCase();
+        final tc = (p['target_class'] ?? '').toString().trim().toLowerCase();
+        return n == target.toLowerCase() || tc == target.toLowerCase() || n == 'class ${target.toLowerCase()}';
+      });
+      _assignedPeople.removeWhere((p) {
+        final r = (p['target_role'] ?? p['role'] ?? '').toString().trim().toLowerCase();
         final n = (p['name'] ?? '').toString().trim().toLowerCase();
         return r == 'student' || n.contains('student');
       });
@@ -264,6 +275,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
   late TimeOfDay _endTime;
   bool _isAllDay = false;
   String _timezone = 'Asia/Kolkata';
+  String? _originalInstanceDate;
 
   // Recurrence
   String _recurrenceFreq = 'none'; // none, daily, weekly, monthly, yearly, custom
@@ -448,6 +460,15 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
     _timezone = init?.timezone ?? 'Asia/Kolkata';
 
     if (init != null) {
+      if (init.id.contains('_inst_')) {
+        final parts = init.id.split('_inst_');
+        if (parts.length > 1) {
+          _originalInstanceDate = parts[1];
+        }
+      } else {
+        _originalInstanceDate = DateFormat('yyyy-MM-dd').format(init.startTime.toLocal());
+      }
+
       final utcStart = init.startTimeUtc ?? init.startTime.toUtc();
       final utcEnd = init.endTimeUtc ?? init.endTime.toUtc();
 
@@ -482,28 +503,36 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
         _recurrenceFreq = 'none';
       }
       for (final p in init.participants) {
-        final targetRole = (p.targetRole ?? p.role ?? '').trim();
+        final rawRole = (p.targetRole ?? (p.role != 'Class Group' && p.role != 'group' ? p.role : null) ?? '').trim();
+        final targetRole = (rawRole != 'group' && rawRole != 'Class Group') ? rawRole : '';
         final targetClass = (p.targetClass ?? '').trim();
         final isIndividual = p.userId != null && p.userId!.isNotEmpty;
-        
-        String pName = (p.fullName != null && p.fullName!.isNotEmpty) ? p.fullName! : '';
-        if (pName.isEmpty) {
-          if (targetRole.isNotEmpty) {
-            pName = 'All ${targetRole[0].toUpperCase()}${targetRole.substring(1)}s';
+
+        String pName = '';
+        if (isIndividual) {
+          pName = (p.fullName != null && p.fullName!.isNotEmpty && p.fullName != 'User' && p.fullName != 'Audience Group') ? p.fullName! : 'Individual User';
+        } else {
+          if (p.fullName != null && p.fullName!.isNotEmpty && p.fullName != 'User' && p.fullName != 'Audience Group' && p.fullName != 'User Group') {
+            pName = p.fullName!;
+          } else if (targetRole.isNotEmpty) {
+            final capRole = '${targetRole[0].toUpperCase()}${targetRole.substring(1)}';
+            pName = 'All ${capRole.endsWith('s') ? capRole : '${capRole}s'}';
           } else if (targetClass.isNotEmpty) {
-            pName = targetClass;
+            pName = targetClass.startsWith('Class') ? targetClass : 'Class $targetClass';
           } else {
-            pName = 'User';
+            pName = 'User Group';
           }
         }
 
         _assignedPeople.add({
           'user_id': p.userId,
           'name': pName,
-          'role': isIndividual ? (p.role ?? targetRole) : targetRole,
+          'role': isIndividual
+              ? (p.role ?? targetRole)
+              : (targetRole.isNotEmpty ? targetRole : (targetClass.isNotEmpty ? 'Class Group' : 'group')),
           'email': p.email,
-          'target_role': targetRole,
-          'target_class': targetClass,
+          'target_role': targetRole.isNotEmpty ? targetRole : null,
+          'target_class': targetClass.isNotEmpty ? targetClass : null,
           'participation_role': p.participationRole,
           'permission': p.permission,
         });
@@ -613,8 +642,8 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
       'is_recurring': _recurrenceFreq != 'none',
       'participants': _assignedPeople.map((p) {
         final userId = p['user_id']?.toString();
-        final role = p['role']?.toString();
-        final isClassGroup = role == 'Class Group';
+        final rawTargetRole = (p['target_role'] ?? (p['role'] != 'Class Group' && p['role'] != 'group' ? p['role'] : null))?.toString();
+        final isClassGroup = (p['role'] == 'Class Group' || p['target_class'] != null);
         final isRoleGroup = userId == null || userId.isEmpty;
 
         String participantType = 'individual';
@@ -624,10 +653,15 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
           participantType = 'role';
         }
 
+        final targetRole = (isRoleGroup && !isClassGroup && rawTargetRole != null && rawTargetRole.isNotEmpty && rawTargetRole != 'group' && rawTargetRole != 'Class Group')
+            ? rawTargetRole
+            : null;
+        final targetClass = isClassGroup ? (p['target_class'] ?? p['name']) : null;
+
         return {
           'user_id': (userId != null && userId.isNotEmpty) ? userId : null,
-          'target_role': (isRoleGroup && !isClassGroup) ? role : null,
-          'target_class': isClassGroup ? p['name'] : null,
+          'target_role': targetRole,
+          'target_class': targetClass,
           'participant_type': participantType,
           'participation_role': p['participation_role'] ?? 'required',
           'permission': p['permission'] ?? 'can_view',
@@ -648,28 +682,41 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
 
     if (_recurrenceFreq != 'none') {
       List<String> days = List.from(_recurrenceDays);
-      if (_recurrenceFreq == 'weekly' && days.isEmpty) {
+      if (_recurrenceFreq == 'weekdays') {
+        days = ['MO', 'TU', 'WE', 'TH', 'FR'];
+      } else if ((_recurrenceFreq == 'weekly' || _recurrenceFreq == 'custom') && days.isEmpty) {
         final dayNames = {1: 'MO', 2: 'TU', 3: 'WE', 4: 'TH', 5: 'FR', 6: 'SA', 7: 'SU'};
         days = [dayNames[_startDate.weekday] ?? 'MO'];
       }
+      final endCountVal = _endType == 'after_count' ? _endCount : null;
+      final endDateVal = _endType == 'until_date' ? _recurrenceEndDate?.toIso8601String() : null;
+
       payload['is_recurring'] = true;
+      payload['frequency'] = _recurrenceFreq;
+      payload['interval'] = _recurrenceInterval;
+      payload['days_of_week'] = days;
+      payload['end_type'] = _endType;
+      payload['end_count'] = endCountVal;
+      payload['end_date'] = endDateVal;
       payload['recurrence'] = {
         'frequency': _recurrenceFreq,
         'interval': _recurrenceInterval,
         'days_of_week': days,
         'end_type': _endType,
-        'end_count': _endCount,
-        'end_date': _recurrenceEndDate?.toIso8601String(),
+        'end_count': endCountVal,
+        'end_date': endDateVal,
       };
     } else {
       payload['is_recurring'] = false;
+      payload['frequency'] = 'none';
       payload['recurrence'] = null;
     }
 
     final isRecurringEdit = widget.initialSchedule != null &&
         (widget.initialSchedule!.isRecurring ||
             widget.initialSchedule!.recurrenceRule != null ||
-            widget.initialSchedule!.recurringParentId != null);
+            widget.initialSchedule!.recurringParentId != null ||
+            widget.initialSchedule!.id.contains('_inst_'));
 
     if (isRecurringEdit) {
       showDialog(
@@ -679,7 +726,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
             actionTitle: 'Edit Recurring Schedule',
             onScopeSelected: (scope) {
               Navigator.of(context).pop(); // Closes CreateEditScheduleDialog (RecurrenceScopeDialog already popped itself)
-              final instanceDateStr = _startDate.toIso8601String().split('T')[0];
+              final instanceDateStr = _originalInstanceDate ?? _startDate.toIso8601String().split('T')[0];
               widget.onSave(
                 payload,
                 recurrenceScope: scope,
@@ -1740,7 +1787,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
               child: Wrap(
                 crossAxisAlignment: WrapCrossAlignment.center,
                 spacing: 6,
-                runSpacing: 2,
+                runSpacing: 4,
                 children: [
                   Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1751,31 +1798,46 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                         color: _endType == 'after_count' ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
                       ),
                       const SizedBox(width: 6),
-                      Text('After $_endCount occurrences', style: TextStyle(fontSize: (11.5 * ts).roundToDouble(), fontWeight: FontWeight.w600)),
+                      Text('After:', style: TextStyle(fontSize: (11.5 * ts).roundToDouble(), fontWeight: FontWeight.w600, color: const Color(0xFF334155))),
                     ],
                   ),
-                  if (_endType == 'after_count')
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.remove, size: 13),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
-                          onPressed: () {
-                            if (_endCount > 1) setState(() => _endCount--);
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.add, size: 13),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
-                          onPressed: () {
-                            setState(() => _endCount++);
-                          },
-                        ),
-                      ],
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_outline_rounded, color: Color(0xFF4F46E5), size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                    onPressed: () {
+                      setState(() {
+                        _endType = 'after_count';
+                        if (_endCount > 1) {
+                          _endCount--;
+                        }
+                      });
+                    },
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: _endType == 'after_count' ? const Color(0xFFEEF2FF) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: _endType == 'after_count' ? const Color(0xFF6366F1) : const Color(0xFFCBD5E1)),
                     ),
+                    child: Text('$_endCount', style: TextStyle(fontSize: (12 * ts).roundToDouble(), fontWeight: FontWeight.bold, color: _endType == 'after_count' ? const Color(0xFF4338CA) : const Color(0xFF0F172A))),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF4F46E5), size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                    onPressed: () {
+                      setState(() {
+                        _endType = 'after_count';
+                        _endCount++;
+                      });
+                    },
+                  ),
+                  Text(
+                    'occurrences',
+                    style: TextStyle(fontSize: (11.5 * ts).roundToDouble(), fontWeight: FontWeight.w600, color: const Color(0xFF475569)),
+                  ),
                 ],
               ),
             ),
@@ -2190,10 +2252,12 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                     if (roleName.toLowerCase() == 'student') {
                       _toggleStudentRole(true);
                     } else if (!_isRoleSelected(roleName)) {
+                      final capRole = roleName[0].toUpperCase() + roleName.substring(1);
                       _assignedPeople.add({
                         'user_id': null,
-                        'name': 'All ${roleName.toUpperCase()}s',
-                        'role': roleName,
+                        'name': 'All ${capRole.endsWith('s') ? capRole : '${capRole}s'}',
+                        'role': roleName.toLowerCase(),
+                        'target_role': roleName.toLowerCase(),
                         'participation_role': 'required',
                         'permission': 'can_view',
                       });
@@ -2235,10 +2299,12 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                               if (roleName.toLowerCase() == 'student') {
                                 _toggleStudentRole(true);
                               } else if (!_isRoleSelected(roleName)) {
+                                final capRole = roleName[0].toUpperCase() + roleName.substring(1);
                                 _assignedPeople.add({
                                   'user_id': null,
-                                  'name': 'All ${roleName.toUpperCase()}s',
-                                  'role': roleName,
+                                  'name': 'All ${capRole.endsWith('s') ? capRole : '${capRole}s'}',
+                                  'role': roleName.toLowerCase(),
+                                  'target_role': roleName.toLowerCase(),
                                   'participation_role': 'required',
                                   'permission': 'can_view',
                                 });

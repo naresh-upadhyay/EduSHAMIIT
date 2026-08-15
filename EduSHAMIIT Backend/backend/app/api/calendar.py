@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any, Union
 from datetime import datetime, date, time, timedelta
+from zoneinfo import ZoneInfo
 import json
 import uuid
 import logging
@@ -116,7 +117,7 @@ async def record_schedule_audit_log(
                 gen_random_uuid(), %s, %s, %s, %s, %s, NOW()
             )
             """,
-            (schedule_id, next_version, user_id, summary or f"{action.capitalize()} schedule", json.dumps(diff_payload)),
+            (schedule_id, next_version, user_id, summary or f"{action.capitalize()} schedule", json.dumps(diff_payload, default=str)),
             fetch=False
         )
 
@@ -141,10 +142,10 @@ async def record_schedule_audit_log(
 
 async def sync_vehicle_trips_for_schedule(
     s_id: str,
-    school_id: Optional[str],
-    route_id: Optional[str],
-    start_time_iso: str,
-    end_time_iso: Optional[str],
+    school_id: Optional[str] = None,
+    route_id: Optional[str] = None,
+    start_time_iso: Optional[str] = None,
+    end_time_iso: Optional[str] = None,
     is_recurring: bool = False,
     recurrence_obj: Optional[Any] = None
 ):
@@ -152,157 +153,11 @@ async def sync_vehicle_trips_for_schedule(
     Generate or synchronize individual vehicle_trips records for each day of a schedule.
     Every calendar occurrence gets an individual row in vehicle_trips with its own unique trip_id.
     """
-    if not route_id:
+    if not s_id:
         return
 
     try:
-        r_rows = await exec_sql("SELECT vehicle_id, driver_id, route_name FROM public.transport_routes WHERE id = %s", (route_id,))
-        if not r_rows:
-            return
-        v_id = r_rows[0].get("vehicle_id")
-
-        st_clean = str(start_time_iso).replace("Z", "+00:00")
-        st_dt = datetime.fromisoformat(st_clean)
-        if st_dt.tzinfo:
-            st_dt = st_dt.replace(tzinfo=None)
-
-        end_clean = str(end_time_iso or start_time_iso).replace("Z", "+00:00")
-        end_dt = datetime.fromisoformat(end_clean)
-        if end_dt.tzinfo:
-            end_dt = end_dt.replace(tzinfo=None)
-
-        st_time_str = st_dt.strftime("%I:%M %p")
-        end_time_str = end_dt.strftime("%I:%M %p")
-
-        trip_type = "morning"
-        if st_dt.hour >= 12 and st_dt.hour < 16:
-            trip_type = "afternoon"
-        elif st_dt.hour >= 16:
-            trip_type = "evening"
-
-        if not is_recurring:
-            # Single occurrence trip
-            d_str = st_dt.strftime("%Y-%m-%d")
-            existing = await exec_sql(
-                "SELECT id, status FROM public.vehicle_trips WHERE schedule_id = %s",
-                (s_id,)
-            )
-            if existing:
-                await exec_sql(
-                    """
-                    UPDATE public.vehicle_trips
-                    SET route_id = %s, vehicle_id = %s, trip_type = %s, start_time = %s, end_time = %s,
-                        schedule_instance_date = %s::date, start_date = %s, scheduled_start = %s,
-                        status = CASE WHEN status IN ('in_progress', 'paused') THEN status ELSE 'scheduled' END,
-                        updated_at = NOW()
-                    WHERE schedule_id = %s
-                    """,
-                    (route_id, v_id, trip_type, st_time_str, end_time_str, d_str, d_str, st_dt.isoformat(), s_id),
-                    fetch=False
-                )
-            else:
-                trip_id = str(uuid.uuid4())
-                await exec_sql("""
-                    INSERT INTO public.vehicle_trips (
-                        id, school_id, route_id, vehicle_id, schedule_id,
-                        schedule_instance_date, start_date, start_time, end_date, end_time,
-                        trip_type, status, scheduled_start, created_at, updated_at
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'scheduled', %s, NOW(), NOW())
-                """, (
-                    trip_id, school_id, route_id, v_id, s_id,
-                    d_str, d_str, st_time_str, d_str, end_time_str,
-                    trip_type, st_dt.isoformat()
-                ), fetch=False)
-        else:
-            # Recurring multi-day trips: generate individual trip per calendar day
-            cur_day = st_dt.date()
-            end_horizon = cur_day + timedelta(days=90)
-            r = recurrence_obj
-            if r and hasattr(r, 'end_date') and r.end_date:
-                try:
-                    ed = datetime.fromisoformat(str(r.end_date).replace("Z", "+00:00")).date()
-                    if ed < end_horizon:
-                        end_horizon = ed
-                except Exception:
-                    pass
-
-            freq = (getattr(r, 'frequency', None) or (r.get('frequency') if isinstance(r, dict) else "daily") or "daily").lower()
-            interval = max((getattr(r, 'interval', None) or (r.get('interval') if isinstance(r, dict) else 1) or 1), 1)
-            days_of_week = getattr(r, 'days_of_week', None) or (r.get('days_of_week') if isinstance(r, dict) else []) or []
-            
-            day_name_to_weekday = {
-                "MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6,
-                "MON": 0, "TUE": 1, "WED": 2, "THU": 3, "FRI": 4, "SAT": 5, "SUN": 6,
-                "MONDAY": 0, "TUESDAY": 1, "WEDNESDAY": 2, "THURSDAY": 3, "FRIDAY": 4, "SATURDAY": 5, "SUNDAY": 6
-            }
-            wk_days = [day_name_to_weekday.get(str(d).strip().upper(), -1) for d in days_of_week] if days_of_week else []
-
-            gen_count = 0
-            max_count = getattr(r, 'end_count', None) or (r.get('end_count') if isinstance(r, dict) else 1000) or 1000
-
-            while cur_day <= end_horizon:
-                should_create = False
-                if freq == "daily":
-                    if (cur_day - st_dt.date()).days % interval == 0:
-                        should_create = True
-                elif freq == "weekdays":
-                    if cur_day.weekday() in (0, 1, 2, 3, 4):
-                        should_create = True
-                elif freq == "weekly":
-                    diff_weeks = (cur_day - st_dt.date()).days // 7
-                    if diff_weeks >= 0 and diff_weeks % interval == 0:
-                        if wk_days:
-                            if cur_day.weekday() in wk_days:
-                                should_create = True
-                        elif cur_day.weekday() == st_dt.weekday():
-                            should_create = True
-                elif freq in ("biweekly", "fortnightly"):
-                    diff_weeks = (cur_day - st_dt.date()).days // 7
-                    if diff_weeks >= 0 and diff_weeks % 2 == 0 and cur_day.weekday() == st_dt.weekday():
-                        should_create = True
-                elif freq == "monthly":
-                    if cur_day.day == st_dt.day:
-                        diff_m = (cur_day.year - st_dt.year) * 12 + (cur_day.month - st_dt.month)
-                        if diff_m >= 0 and diff_m % interval == 0:
-                            should_create = True
-
-                if should_create:
-                    gen_count += 1
-                    if (getattr(r, 'end_type', None) or (r.get('end_type') if isinstance(r, dict) else 'never')) == "after_count" and gen_count > max_count:
-                        break
-
-                    d_str = cur_day.strftime("%Y-%m-%d")
-                    inst_start = datetime.combine(cur_day, st_dt.time())
-
-                    existing = await exec_sql(
-                        "SELECT id FROM public.vehicle_trips WHERE schedule_id = %s AND (schedule_instance_date = %s::date OR start_date = %s)",
-                        (s_id, d_str, d_str)
-                    )
-                    if existing:
-                        await exec_sql(
-                            """
-                            UPDATE public.vehicle_trips
-                            SET route_id = %s, vehicle_id = %s, trip_type = %s, start_time = %s, end_time = %s, updated_at = NOW()
-                            WHERE id = %s
-                            """,
-                            (route_id, v_id, trip_type, st_time_str, end_time_str, existing[0]["id"]),
-                            fetch=False
-                        )
-                    else:
-                        trip_id = str(uuid.uuid4())
-                        await exec_sql("""
-                            INSERT INTO public.vehicle_trips (
-                                id, school_id, route_id, vehicle_id, schedule_id,
-                                schedule_instance_date, start_date, start_time, end_date, end_time,
-                                trip_type, status, scheduled_start, created_at, updated_at
-                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'scheduled', %s, NOW(), NOW())
-                        """, (
-                            trip_id, school_id, route_id, v_id, s_id,
-                            d_str, d_str, st_time_str, d_str, end_time_str,
-                            trip_type, inst_start.isoformat()
-                        ), fetch=False)
-
-                cur_day += timedelta(days=1)
+        await exec_sql("SELECT public.fn_sync_schedule_vehicle_trips(%s::uuid)", (s_id,), fetch=False)
     except Exception as e:
         logger.error(f"[Vehicle Trips Sync Error]: {e}")
 
@@ -1066,7 +921,7 @@ async def list_calendars(user=Depends(get_current_user)):
     sql = """
         SELECT c.*,
                COALESCE(cm.permission, CASE WHEN c.owner_id = %s OR %s = 'super_admin' THEN 'manage_calendar' ELSE 'view_details' END) AS user_permission,
-               (SELECT COUNT(*) FROM public.schedules s WHERE s.calendar_id = c.id AND s.deleted_at IS NULL) AS event_count
+               (SELECT COUNT(DISTINCT COALESCE(s.recurring_parent_id, s.id)) FROM public.schedules s WHERE s.calendar_id = c.id AND s.deleted_at IS NULL AND s.status NOT IN ('cancelled', 'declined')) AS event_count
         FROM public.calendars c
         LEFT JOIN public.calendar_members cm ON cm.calendar_id = c.id AND cm.user_id = %s
         WHERE c.school_id = %s
@@ -1208,33 +1063,29 @@ async def update_calendar(calendar_id: str, req: CalendarUpdateRequest, user=Dep
 
 @router.delete("/calendars/{calendar_id}")
 async def delete_calendar(calendar_id: str, user=Depends(get_current_user)):
-    """Soft delete a custom calendar and all contained non-system schedules."""
+    """Soft delete a custom calendar if no active schedules are assigned to it."""
     school_id = user.get("school_id")
     user_id = user.get("id")
-    role = user.get("role", "").lower()
+    role = str(user.get("role", "")).lower()
 
-    cal = await exec_sql("SELECT * FROM public.calendars WHERE id = %s AND school_id = %s", (calendar_id, school_id))
-    if not cal:
-        raise HTTPException(status_code=404, detail="Calendar not found")
+    if not school_id:
+        raise HTTPException(status_code=400, detail="Tenant school_id is required")
 
-    if cal[0]["is_system"]:
-        raise HTTPException(status_code=400, detail="Cannot delete core system calendars")
-
-    if cal[0]["owner_id"] != user_id and role not in ("super_admin", "director", "principal"):
-        raise HTTPException(status_code=403, detail="Forbidden: You do not have permission to delete this calendar")
-
-    await exec_sql(
-        "UPDATE public.calendars SET deleted_at = NOW(), updated_at = NOW() WHERE id = %s",
-        (calendar_id,),
-        fetch=False
+    rows = await exec_sql(
+        "SELECT public.fn_delete_calendar(%s::uuid, %s::uuid, %s::uuid, %s) as res",
+        (calendar_id, school_id, user_id, role)
     )
-    await exec_sql(
-        "UPDATE public.schedules SET deleted_at = NOW(), updated_at = NOW() WHERE calendar_id = %s",
-        (calendar_id,),
-        fetch=False
-    )
+    if rows and rows[0].get("res"):
+        res = rows[0]["res"]
+        if res.get("success") is False:
+            err_msg = res.get("error", "Failed to delete calendar")
+            err_code = res.get("code", "")
+            status_code = 403 if err_code == "PERMISSION_DENIED" else (404 if err_code == "CALENDAR_NOT_FOUND" else 400)
+            raise HTTPException(status_code=status_code, detail=str(err_msg))
 
-    return {"success": True, "message": "Calendar deleted successfully"}
+        return res
+
+    raise HTTPException(status_code=500, detail="Failed to delete calendar")
 
 
 @router.get("/calendar/assignable-roles")
@@ -1378,17 +1229,44 @@ async def get_schedules(
 
     await ensure_calendar_seed_data(school_id, user_id)
 
+    def _normalize_range_bound(bound_str: Optional[str], tz_name: str = "Asia/Kolkata") -> Optional[str]:
+        if not bound_str or not isinstance(bound_str, str) or not bound_str.strip():
+            return None
+        clean_str = bound_str.strip()
+        if "Z" in clean_str or "+" in clean_str[10:] or "-" in clean_str[10:]:
+            try:
+                dt = datetime.fromisoformat(clean_str.replace("Z", "+00:00"))
+                return dt.astimezone(ZoneInfo("UTC")).isoformat()
+            except Exception:
+                return clean_str
+        else:
+            try:
+                local_tz = ZoneInfo(tz_name)
+                naive_dt = datetime.fromisoformat(clean_str)
+                aware_dt = naive_dt.replace(tzinfo=local_tz)
+                return aware_dt.astimezone(ZoneInfo("UTC")).isoformat()
+            except Exception:
+                return clean_str
+
+    norm_start_date = _normalize_range_bound(start_date)
+    norm_end_date = _normalize_range_bound(end_date)
+
     # Base query: fetches non-recurring standalone and override schedule records
-    conditions = ["s.school_id = %s", "s.deleted_at IS NULL", "s.is_recurring = FALSE"]
+    conditions = [
+        "s.school_id = %s",
+        "s.deleted_at IS NULL",
+        "(s.is_recurring = FALSE OR s.is_recurring IS NULL)",
+        "(s.calendar_id IS NULL OR s.calendar_id IN (SELECT id FROM public.calendars WHERE deleted_at IS NULL))"
+    ]
     params: List[Any] = [school_id]
 
     # Date range filters
-    if start_date:
+    if norm_start_date:
         conditions.append("s.end_time >= %s")
-        params.append(start_date)
-    if end_date:
+        params.append(norm_start_date)
+    if norm_end_date:
         conditions.append("s.start_time <= %s")
-        params.append(end_date)
+        params.append(norm_end_date)
 
     # Specific calendar filter
     if calendar_id:
@@ -1426,24 +1304,24 @@ async def get_schedules(
         """)
         params.extend([kw, kw, kw, kw, kw])
 
-    # Universal strict privacy check: ALL users see ONLY institution_wide global schedules,
-    # events they created/organized, or events they are explicitly assigned to as participants (by user_id, role, or academic class).
-    conditions.append("""
-        (
-            s.visibility = 'institution_wide'
-            OR s.created_by = %s
-            OR s.organizer_id = %s
-            OR s.id IN (
-                SELECT sp.schedule_id 
-                FROM public.schedule_participants sp
-                LEFT JOIN public.profiles prof ON prof.id = %s
-                WHERE sp.user_id = %s 
-                   OR (sp.user_id IS NULL AND sp.target_role IS NOT NULL AND sp.target_role ILIKE %s)
-                   OR (sp.user_id IS NULL AND sp.target_class IS NOT NULL AND prof.class IS NOT NULL AND sp.target_class ILIKE prof.class)
+    is_admin = (role or "").lower() in ("super_admin", "admin", "principal", "director")
+    if not is_admin:
+        conditions.append("""
+            (
+                s.visibility = 'institution_wide'
+                OR s.created_by = %s
+                OR s.organizer_id = %s
+                OR s.id IN (
+                    SELECT sp.schedule_id 
+                    FROM public.schedule_participants sp
+                    LEFT JOIN public.profiles prof ON prof.id = %s
+                    WHERE sp.user_id = %s 
+                       OR (sp.user_id IS NULL AND sp.target_role IS NOT NULL AND sp.target_role ILIKE %s)
+                       OR (sp.user_id IS NULL AND sp.target_class IS NOT NULL AND prof.class IS NOT NULL AND sp.target_class ILIKE prof.class)
+                )
             )
-        )
-    """)
-    params.extend([user_id, user_id, user_id, user_id, f"%{role}%"])
+        """)
+        params.extend([user_id, user_id, user_id, user_id, f"%{role}%"])
 
     where_clause = " AND ".join(conditions)
     sql = f"""
@@ -1458,16 +1336,28 @@ async def get_schedules(
                d.name AS driver_name,
                (
                     SELECT vt.id FROM public.vehicle_trips vt
-                    WHERE (vt.schedule_id = s.id OR (s.route_id IS NOT NULL AND vt.route_id = s.route_id))
-                    ORDER BY CASE WHEN vt.status IN ('in_progress', 'paused') THEN 1 WHEN vt.status = 'completed' THEN 3 ELSE 2 END, vt.updated_at DESC, vt.created_at DESC
-                    LIMIT 1
-                ) AS trip_id,
-                (
+                    WHERE vt.schedule_id = s.id
+                       OR (
+                           (vt.schedule_id = s.recurring_parent_id OR vt.route_id = s.route_id)
+                           AND (
+                               vt.schedule_instance_date = COALESCE(s.original_instance_date, (s.start_time AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'Asia/Kolkata'))::date)
+                               OR vt.start_date = COALESCE(s.original_instance_date, (s.start_time AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'Asia/Kolkata'))::date)::text
+                           )
+                       )
+                    ORDER BY CASE WHEN vt.schedule_id = s.id THEN 1 ELSE 2 END, vt.created_at DESC LIMIT 1
+               ) AS trip_id,
+               (
                     SELECT vt.status FROM public.vehicle_trips vt
-                    WHERE (vt.schedule_id = s.id OR (s.route_id IS NOT NULL AND vt.route_id = s.route_id))
-                    ORDER BY CASE WHEN vt.status IN ('in_progress', 'paused') THEN 1 WHEN vt.status = 'completed' THEN 3 ELSE 2 END, vt.updated_at DESC, vt.created_at DESC
-                    LIMIT 1
-                ) AS trip_status,
+                    WHERE vt.schedule_id = s.id
+                       OR (
+                           (vt.schedule_id = s.recurring_parent_id OR vt.route_id = s.route_id)
+                           AND (
+                               vt.schedule_instance_date = COALESCE(s.original_instance_date, (s.start_time AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'Asia/Kolkata'))::date)
+                               OR vt.start_date = COALESCE(s.original_instance_date, (s.start_time AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'Asia/Kolkata'))::date)::text
+                           )
+                       )
+                    ORDER BY CASE WHEN vt.schedule_id = s.id THEN 1 ELSE 2 END, vt.created_at DESC LIMIT 1
+               ) AS live_trip_status,
                (
                    SELECT json_agg(json_build_object(
                        'id', sp.id,
@@ -1478,8 +1368,10 @@ async def get_schedules(
                        'participation_role', sp.participation_role,
                        'permission', sp.permission,
                        'rsvp_status', sp.rsvp_status,
-                       'full_name', COALESCE(prof.full_name, sp.target_role, sp.target_class),
-                       'role', prof.role,
+                       'decline_reason', sp.decline_reason,
+                       'rsvp_at', sp.rsvp_at,
+                       'full_name', COALESCE(prof.full_name, CASE WHEN sp.target_role IS NOT NULL AND sp.target_role != '' AND sp.target_role != 'group' THEN 'All ' || UPPER(SUBSTRING(sp.target_role FROM 1 FOR 1)) || SUBSTRING(sp.target_role FROM 2) || 's' ELSE sp.target_class END),
+                       'role', COALESCE(prof.role, sp.target_role),
                        'email', prof.email,
                        'avatar_url', prof.avatar_url
                    ))
@@ -1488,56 +1380,76 @@ async def get_schedules(
                    WHERE sp.schedule_id = s.id
                ) AS participants,
                (
-                   SELECT json_agg(json_build_object(
-                       'id', rb.id,
-                       'resource_id', rb.resource_id,
-                       'resource_name', cr.name,
-                       'resource_type', cr.type,
-                       'room_number', cr.room_number,
-                       'status', rb.status
-                   ))
-                   FROM public.resource_bookings rb
-                   LEFT JOIN public.calendar_resources cr ON cr.id = rb.resource_id
-                   WHERE rb.schedule_id = s.id
-               ) AS booked_resources,
-               (
-                   SELECT json_agg(json_build_object(
-                       'id', sc.id,
-                       'user_id', sc.user_id,
-                       'comment_text', sc.comment_text,
-                       'full_name', p2.full_name,
-                       'avatar_url', p2.avatar_url,
-                       'created_at', sc.created_at
-                   ))
-                   FROM public.schedule_comments sc
-                   LEFT JOIN public.profiles p2 ON p2.id = sc.user_id
-                   WHERE sc.schedule_id = s.id
-               ) AS comments,
-               (
-                   SELECT json_agg(json_build_object(
-                       'id', rem.id,
-                       'minutes_before', rem.minutes_before,
-                       'channel', rem.channel
-                   ))
-                   FROM public.schedule_reminders rem
-                   WHERE rem.schedule_id = s.id
-               ) AS reminders,
-               (
-                   SELECT json_build_object(
-                       'id', sr.id,
-                       'frequency', sr.frequency,
-                       'interval', sr.interval,
-                       'days_of_week', sr.days_of_week,
-                       'day_of_month', sr.day_of_month,
-                       'month_of_year', sr.month_of_year,
-                       'end_type', sr.end_type,
-                       'end_count', sr.end_count,
-                       'end_date', sr.end_date
-                   )
-                   FROM public.schedule_recurrence sr
-                   WHERE sr.schedule_id = s.id
-                   LIMIT 1
-               ) AS recurrence
+                    SELECT json_agg(json_build_object(
+                        'id', rb.id,
+                        'resource_id', rb.resource_id,
+                        'resource_name', cr.name,
+                        'resource_type', cr.type,
+                        'room_number', cr.room_number,
+                        'status', rb.status
+                    ))
+                    FROM public.resource_bookings rb
+                    LEFT JOIN public.calendar_resources cr ON cr.id = rb.resource_id
+                    WHERE rb.schedule_id = s.id
+                ) AS booked_resources,
+                (
+                    SELECT json_agg(json_build_object(
+                        'id', sc.id,
+                        'user_id', sc.user_id,
+                        'comment_text', sc.comment_text,
+                        'full_name', p2.full_name,
+                        'avatar_url', p2.avatar_url,
+                        'created_at', sc.created_at
+                    ))
+                    FROM public.schedule_comments sc
+                    LEFT JOIN public.profiles p2 ON p2.id = sc.user_id
+                    WHERE sc.schedule_id = s.id
+                ) AS comments,
+                (
+                    SELECT json_agg(json_build_object(
+                        'id', rem.id,
+                        'minutes_before', rem.minutes_before,
+                        'channel', rem.channel
+                    ))
+                    FROM public.schedule_reminders rem
+                    WHERE rem.schedule_id = s.id
+                ) AS reminders,
+                (
+                    SELECT json_build_object(
+                        'id', sr.id,
+                        'frequency', sr.frequency,
+                        'interval', sr.interval,
+                        'days_of_week', sr.days_of_week,
+                        'day_of_month', sr.day_of_month,
+                        'month_of_year', sr.month_of_year,
+                        'end_type', sr.end_type,
+                        'end_count', sr.end_count,
+                        'end_date', sr.end_date
+                    )
+                    FROM public.schedule_recurrence sr
+                    WHERE sr.schedule_id = s.id
+                    LIMIT 1
+                ) AS recurrence,
+                (
+                    SELECT vt.id FROM public.vehicle_trips vt
+                    WHERE (vt.schedule_id = s.id OR (s.recurring_parent_id IS NOT NULL AND vt.schedule_id = s.recurring_parent_id))
+                      AND (
+                          vt.schedule_instance_date = COALESCE(s.original_instance_date, (s.start_time AT TIME ZONE COALESCE(s.timezone, 'Asia/Kolkata'))::DATE)
+                          OR vt.start_date = COALESCE(s.original_instance_date, (s.start_time AT TIME ZONE COALESCE(s.timezone, 'Asia/Kolkata'))::DATE)::TEXT
+                      )
+                    ORDER BY CASE WHEN vt.status IN ('in_progress', 'paused') THEN 1 WHEN vt.status = 'completed' THEN 2 ELSE 3 END, vt.updated_at DESC
+                    LIMIT 1
+                ) AS trip_id,
+                (
+                    SELECT vt.status FROM public.vehicle_trips vt
+                    WHERE (vt.schedule_id = s.id OR (s.recurring_parent_id IS NOT NULL AND vt.schedule_id = s.recurring_parent_id))
+                      AND (
+                          vt.schedule_instance_date = COALESCE(s.original_instance_date, (s.start_time AT TIME ZONE COALESCE(s.timezone, 'Asia/Kolkata'))::DATE)
+                          OR vt.start_date = COALESCE(s.original_instance_date, (s.start_time AT TIME ZONE COALESCE(s.timezone, 'Asia/Kolkata'))::DATE)::TEXT
+                      )
+                    ORDER BY CASE WHEN vt.status IN ('in_progress', 'paused') THEN 1 WHEN vt.status = 'completed' THEN 2 ELSE 3 END, vt.updated_at DESC
+                    LIMIT 1
+                ) AS trip_status
         FROM public.schedules s
         LEFT JOIN public.calendars c ON c.id = s.calendar_id
         LEFT JOIN public.profiles p ON p.id = s.organizer_id
@@ -1559,7 +1471,13 @@ async def get_schedules(
             req_start = datetime.fromisoformat(start_date.replace("Z", "+00:00")).replace(tzinfo=None)
             req_end = datetime.fromisoformat(end_date.replace("Z", "+00:00")).replace(tzinfo=None)
 
-            rec_conds = ["s.school_id = %s", "s.deleted_at IS NULL", "s.is_recurring = TRUE"]
+            rec_conds = [
+                "s.school_id = %s",
+                "s.deleted_at IS NULL",
+                "(s.is_recurring = TRUE OR s.id IN (SELECT schedule_id FROM public.schedule_recurrence))",
+                "(s.recurring_parent_id IS NULL OR (s.is_recurring = TRUE AND COALESCE(s.recurrence_exception_type, '') != 'override'))",
+                "(s.calendar_id IS NULL OR s.calendar_id IN (SELECT id FROM public.calendars WHERE deleted_at IS NULL))"
+            ]
             rec_params: List[Any] = [school_id]
 
             if calendar_id and calendar_id not in ("All", "all", "null", ""):
@@ -1575,15 +1493,16 @@ async def get_schedules(
                 rec_conds.append("s.status = %s")
                 rec_params.append(status)
 
-            rec_conds.append("""
-                (
-                    s.visibility = 'institution_wide'
-                    OR s.created_by = %s
-                    OR s.organizer_id = %s
-                    OR s.id IN (SELECT schedule_id FROM public.schedule_participants WHERE user_id = %s OR target_role ILIKE %s)
-                )
-            """)
-            rec_params.extend([user_id, user_id, user_id, f"%{role}%"])
+            if not is_admin:
+                rec_conds.append("""
+                    (
+                        s.visibility = 'institution_wide'
+                        OR s.created_by = %s
+                        OR s.organizer_id = %s
+                        OR s.id IN (SELECT schedule_id FROM public.schedule_participants WHERE user_id = %s OR target_role ILIKE %s)
+                    )
+                """)
+                rec_params.extend([user_id, user_id, user_id, f"%{role}%"])
 
             rec_where = " AND ".join(rec_conds)
 
@@ -1596,10 +1515,19 @@ async def get_schedules(
                        d.name AS driver_name,
                        (
                            SELECT json_agg(json_build_object(
-                               'id', sp.id, 'user_id', sp.user_id, 'participant_type', sp.participant_type,
-                               'participation_role', sp.participation_role, 'permission', sp.permission,
-                               'rsvp_status', sp.rsvp_status, 'decline_reason', sp.decline_reason, 'rsvp_at', sp.rsvp_at,
-                               'full_name', prof.full_name, 'role', prof.role,
+                               'id', sp.id,
+                               'user_id', sp.user_id,
+                               'target_role', sp.target_role,
+                               'target_class', sp.target_class,
+                               'participant_type', sp.participant_type,
+                               'participation_role', sp.participation_role,
+                               'permission', sp.permission,
+                               'rsvp_status', sp.rsvp_status,
+                               'decline_reason', sp.decline_reason,
+                               'rsvp_at', sp.rsvp_at,
+                               'full_name', COALESCE(prof.full_name, CASE WHEN sp.target_role IS NOT NULL AND sp.target_role != '' AND sp.target_role != 'group' THEN 'All ' || UPPER(SUBSTRING(sp.target_role FROM 1 FOR 1)) || SUBSTRING(sp.target_role FROM 2) || 's' ELSE sp.target_class END),
+                               'role', COALESCE(prof.role, sp.target_role),
+                               'email', prof.email,
                                'avatar_url', prof.avatar_url
                            ))
                            FROM public.schedule_participants sp
@@ -1661,8 +1589,18 @@ async def get_schedules(
             day_name_to_weekday = {
                 "MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6,
                 "MON": 0, "TUE": 1, "WED": 2, "THU": 3, "FRI": 4, "SAT": 5, "SUN": 6,
-                "MONDAY": 0, "TUESDAY": 1, "WEDNESDAY": 2, "THURSDAY": 3, "FRIDAY": 4, "SATURDAY": 5, "SUNDAY": 6
+                "MONDAY": 0, "TUESDAY": 1, "WEDNESDAY": 2, "THURSDAY": 3, "FRIDAY": 4, "SATURDAY": 5, "SUNDAY": 6,
+                "0": 0, "1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6
             }
+
+            def _get_wk_day(d):
+                if isinstance(d, int):
+                    return (d - 1) if 1 <= d <= 7 else (d if 0 <= d <= 6 else -1)
+                s = str(d).strip().upper()
+                if s.isdigit():
+                    v = int(s)
+                    return (v - 1) if 1 <= v <= 7 else (v if 0 <= v <= 6 else -1)
+                return day_name_to_weekday.get(s, -1)
 
             for rec in rec_rows:
                 orig_start = rec["start_time"]
@@ -1686,6 +1624,15 @@ async def get_schedules(
                         exceptions = []
                 if not isinstance(exceptions, list):
                     exceptions = []
+
+                tz_str = rec.get("timezone") or "Asia/Kolkata"
+                del_rows = await exec_sql(
+                    "SELECT DISTINCT COALESCE(original_instance_date, DATE(start_time AT TIME ZONE %s)) as del_d FROM public.schedules WHERE (recurring_parent_id = %s OR id = %s) AND deleted_at IS NOT NULL",
+                    (tz_str, rec["id"], rec["id"])
+                )
+                for dr in del_rows:
+                    if dr.get("del_d"):
+                        exceptions.append(str(dr["del_d"]))
 
                 end_type = rec.get("end_type") or "never"
                 end_count = rec.get("end_count") or 1000
@@ -1718,7 +1665,7 @@ async def get_schedules(
                             diff_weeks = (count_day - orig_start.date()).days // 7
                             if diff_weeks >= 0 and diff_weeks % interval == 0:
                                 if days_of_week:
-                                    wk_days = [day_name_to_weekday.get(str(d).strip().upper(), -1) for d in days_of_week]
+                                    wk_days = [_get_wk_day(d) for d in days_of_week]
                                     if count_day.weekday() in wk_days:
                                         occurrence_idx += 1
                                 elif count_day.weekday() == orig_start.weekday():
@@ -1730,55 +1677,59 @@ async def get_schedules(
                         count_day += timedelta(days=1)
 
                 while cur_day <= end_projection_day:
-                    if end_type == "until_date" and rec_limit and cur_day > rec_limit:
+                    tz_str = rec.get("timezone") or "Asia/Kolkata"
+                    tz_offset = timedelta(hours=5, minutes=30) if ("Kolkata" in tz_str or "IST" in tz_str or "5:30" in tz_str) else timedelta(0)
+                    orig_local_date = (orig_start + tz_offset).date()
+                    inst_local_dt = datetime.combine(cur_day, orig_start.time()) + tz_offset
+                    inst_local_date = inst_local_dt.date()
+                    inst_local_str = inst_local_date.strftime("%Y-%m-%d")
+
+                    if (end_type in ("until_date", "on_date", "until") or rec_limit) and rec_limit and inst_local_date > rec_limit:
                         break
 
-                    cur_iso = cur_day.isoformat()
-                    cur_str = cur_day.strftime("%Y-%m-%d")
                     exc_dates = {str(e).strip('"\' ') for e in exceptions}
-                    inst_local_str = (datetime.combine(cur_day, orig_start.time()) + timedelta(hours=5, minutes=30)).strftime("%Y-%m-%d")
-                    is_excluded = cur_str in exc_dates or cur_iso in exc_dates or inst_local_str in exc_dates
+                    is_excluded = inst_local_str in exc_dates
 
                     matches_rule = False
                     if freq == "daily":
-                        diff_days = (cur_day - orig_start.date()).days
+                        diff_days = (inst_local_date - orig_local_date).days
                         if diff_days >= 0 and diff_days % interval == 0:
                             matches_rule = True
                     elif freq == "weekdays":
-                        if cur_day >= orig_start.date() and cur_day.weekday() in (0, 1, 2, 3, 4):
+                        if inst_local_date >= orig_local_date and inst_local_date.weekday() in (0, 1, 2, 3, 4):
                             matches_rule = True
                     elif freq == "weekly":
-                        diff_weeks = (cur_day - orig_start.date()).days // 7
+                        diff_weeks = (inst_local_date - orig_local_date).days // 7
                         if diff_weeks >= 0 and diff_weeks % interval == 0:
                             if days_of_week:
-                                wk_days = [day_name_to_weekday.get(str(d).strip().upper(), -1) for d in days_of_week]
-                                if cur_day.weekday() in wk_days:
+                                wk_days = [_get_wk_day(d) for d in days_of_week]
+                                if inst_local_date.weekday() in wk_days:
                                     matches_rule = True
-                            elif cur_day.weekday() == orig_start.weekday():
+                            elif inst_local_date.weekday() == orig_local_date.weekday():
                                 matches_rule = True
                     elif freq in ("biweekly", "fortnightly"):
-                        diff_weeks = (cur_day - orig_start.date()).days // 7
-                        if diff_weeks >= 0 and diff_weeks % 2 == 0 and cur_day.weekday() == orig_start.weekday():
+                        diff_weeks = (inst_local_date - orig_local_date).days // 7
+                        if diff_weeks >= 0 and diff_weeks % 2 == 0 and inst_local_date.weekday() == orig_local_date.weekday():
                             matches_rule = True
                     elif freq == "monthly":
-                        if cur_day >= orig_start.date() and cur_day.day == orig_start.day:
-                            diff_months = (cur_day.year - orig_start.year) * 12 + (cur_day.month - orig_start.month)
+                        if inst_local_date >= orig_local_date and inst_local_date.day == orig_local_date.day:
+                            diff_months = (inst_local_date.year - orig_local_date.year) * 12 + (inst_local_date.month - orig_local_date.month)
                             if diff_months >= 0 and diff_months % interval == 0:
                                 matches_rule = True
                     elif freq == "yearly":
-                        if cur_day >= orig_start.date() and cur_day.month == orig_start.month and cur_day.day == orig_start.day:
-                            diff_years = cur_day.year - orig_start.year
+                        if inst_local_date >= orig_local_date and inst_local_date.month == orig_local_date.month and inst_local_date.day == orig_local_date.day:
+                            diff_years = inst_local_date.year - orig_local_date.year
                             if diff_years >= 0 and diff_years % interval == 0:
                                 matches_rule = True
                     elif freq == "custom":
                         if days_of_week:
-                            diff_weeks = (cur_day - orig_start.date()).days // 7
+                            diff_weeks = (inst_local_date - orig_local_date).days // 7
                             if diff_weeks >= 0 and diff_weeks % interval == 0:
-                                wk_days = [day_name_to_weekday.get(str(d).strip().upper(), -1) for d in days_of_week]
-                                if cur_day.weekday() in wk_days:
+                                wk_days = [_get_wk_day(d) for d in days_of_week]
+                                if inst_local_date.weekday() in wk_days:
                                     matches_rule = True
                         else:
-                            diff_days = (cur_day - orig_start.date()).days
+                            diff_days = (inst_local_date - orig_local_date).days
                             if diff_days >= 0 and diff_days % interval == 0:
                                 matches_rule = True
 
@@ -1804,29 +1755,33 @@ async def get_schedules(
                                 or str(r.get("parent_schedule_id")) == parent_rec_id
                             )
                             and (
-                                (r.get("original_instance_date") and str(r["original_instance_date"]) == cur_str)
-                                or (r.get("start_time") and (
-                                    (isinstance(r["start_time"], datetime) and r["start_time"].date() == cur_day)
-                                    or (isinstance(r["start_time"], str) and r["start_time"].startswith(cur_str))
-                                ))
+                                (r.get("original_instance_date") and str(r["original_instance_date"]) == inst_local_str)
+                                or (
+                                    r.get("recurrence_exception_type") == "override"
+                                    and (
+                                        (isinstance(r.get("start_time"), datetime) and (r["start_time"].astimezone(ZoneInfo(rec.get("timezone") or "Asia/Kolkata")).date().isoformat() if r["start_time"].tzinfo else r["start_time"].date().isoformat()) == inst_local_str)
+                                        or (isinstance(r.get("start_time"), str) and str(r["start_time"])[:10] == inst_local_str)
+                                    )
+                                )
                             )
                             for r in rows
                         )
-                        inst_start_naive = inst_start.replace(tzinfo=None) if getattr(inst_start, "tzinfo", None) else inst_start
+                        inst_start_naive = inst_local_dt.replace(tzinfo=None) if getattr(inst_local_dt, "tzinfo", None) else inst_local_dt
                         if not already_present and inst_start_naive >= req_start and inst_start_naive <= req_end:
                             inst_dict = dict(rec)
-                            inst_dict["id"] = f"{rec['id']}_inst_{cur_day.isoformat()}"
+                            inst_dict["id"] = f"{rec['id']}_inst_{inst_local_str}"
                             inst_dict["start_time"] = inst_start
                             inst_dict["end_time"] = inst_end
                             inst_dict["is_recurrence_instance"] = True
                             inst_dict["parent_schedule_id"] = str(rec["id"])
+                            inst_dict["original_instance_date"] = inst_local_str
 
                             # If schedule has a transport route, look up this occurrence's specific trip_id
                             if rec.get("route_id"):
                                 try:
                                     t_rows = await exec_sql(
-                                        "SELECT id, status FROM public.vehicle_trips WHERE (schedule_id = %s OR route_id = %s) AND (start_date = %s OR schedule_instance_date = %s::date OR start_date IS NULL) ORDER BY CASE WHEN status IN ('in_progress', 'paused') THEN 1 WHEN status = 'completed' THEN 3 ELSE 2 END, updated_at DESC LIMIT 1",
-                                        (str(rec["id"]), str(rec["route_id"]), cur_str, cur_str)
+                                        "SELECT id, status FROM public.vehicle_trips WHERE (schedule_id = %s OR (schedule_id IN (SELECT id FROM public.schedules WHERE recurring_parent_id = %s))) AND (schedule_instance_date = %s::date OR start_date = %s) ORDER BY CASE WHEN status IN ('in_progress', 'paused') THEN 1 WHEN status = 'completed' THEN 2 ELSE 3 END, updated_at DESC LIMIT 1",
+                                        (str(rec["id"]), str(rec["id"]), inst_local_str, inst_local_str)
                                     )
                                     if t_rows:
                                         inst_dict["trip_id"] = str(t_rows[0]["id"])
@@ -1841,7 +1796,72 @@ async def get_schedules(
         except Exception as e:
             logger.error(f"[Recurrence Expansion Error]: {e}")
 
-    return {"success": True, "count": len(rows), "data": _serialize_datetime(rows)}
+    # Safety Deduplication: Ensure only 1 item per series/instance date is returned (overrides take priority)
+    unique_map = {}
+    for r in rows:
+        pid = str(r.get("recurring_parent_id") or r.get("parent_schedule_id") or r.get("id"))
+        dt_str = None
+        if r.get("original_instance_date"):
+            dt_str = str(r["original_instance_date"])[:10]
+        else:
+            st = r.get("start_time")
+            if isinstance(st, str):
+                try:
+                    st = datetime.fromisoformat(st.replace("Z", "+00:00"))
+                except Exception:
+                    pass
+            if isinstance(st, datetime):
+                tz_name = r.get("timezone") or "Asia/Kolkata"
+                try:
+                    local_tz = ZoneInfo(tz_name)
+                    if st.tzinfo:
+                        dt_str = st.astimezone(local_tz).strftime("%Y-%m-%d")
+                    else:
+                        dt_str = st.replace(tzinfo=ZoneInfo("UTC")).astimezone(local_tz).strftime("%Y-%m-%d")
+                except Exception:
+                    dt_str = st.strftime("%Y-%m-%d")
+            elif st:
+                dt_str = str(st)[:10]
+
+        if not dt_str:
+            dt_str = str(r.get("start_time") or "")[:10]
+
+        if dt_str and not r.get("original_instance_date"):
+            r["original_instance_date"] = dt_str
+
+        key = f"{pid}_{dt_str}"
+        is_ov = (r.get("recurrence_exception_type") == "override") or (r.get("recurring_parent_id") is not None)
+
+        if key not in unique_map:
+            unique_map[key] = r
+        else:
+            # Explicit override row in DB overrides a generated master instance for the same local date
+            if is_ov and not (unique_map[key].get("recurrence_exception_type") == "override" or unique_map[key].get("recurring_parent_id") is not None):
+                unique_map[key] = r
+
+    unique_items = list(unique_map.values())
+
+    return {"success": True, "count": len(unique_items), "data": _serialize_datetime(unique_items)}
+
+
+@router.get("/schedules/{schedule_id}")
+async def get_schedule_by_id(schedule_id: str, user=Depends(get_current_user)):
+    """Fetch single schedule details via PostgreSQL stored procedure fn_get_schedule_details."""
+    school_id = user.get("school_id")
+    clean_id = schedule_id.split("_inst_")[0] if "_inst_" in schedule_id else schedule_id
+    inst_date = schedule_id.split("_inst_")[1] if "_inst_" in schedule_id else None
+
+    rows = await exec_sql(
+        "SELECT public.fn_get_schedule_details(%s::uuid, %s::uuid, %s::date) as res",
+        (school_id, clean_id, inst_date)
+    )
+    if rows and rows[0].get("res"):
+        res = rows[0]["res"]
+        if res.get("success") is False:
+            raise HTTPException(status_code=404, detail=res.get("error", "Schedule not found"))
+        return res
+
+    raise HTTPException(status_code=404, detail="Schedule not found")
 
 
 @router.post("/schedules")
@@ -1856,7 +1876,23 @@ async def create_schedule(req: ScheduleCreateRequest, user=Depends(get_current_u
     if not school_id:
         raise HTTPException(status_code=400, detail="Tenant school_id is required")
 
-    payload_json = json.dumps(req.dict(), default=str)
+    req_dict = req.dict()
+    if req_dict.get("schedule_type"):
+        req_dict["schedule_type"] = str(req_dict["schedule_type"]).strip().title()
+    if req_dict.get("category"):
+        req_dict["category"] = str(req_dict["category"]).strip().title()
+    if req.recurrence:
+        req_dict["frequency"] = req.recurrence.frequency
+        req_dict["interval"] = req.recurrence.interval
+        req_dict["days_of_week"] = req.recurrence.days_of_week
+        req_dict["end_type"] = req.recurrence.end_type
+        req_dict["end_count"] = req.recurrence.end_count
+        req_dict["end_date"] = req.recurrence.end_date
+        if req.is_recurring is not None:
+            req_dict["is_recurring"] = req.is_recurring
+        else:
+            req_dict["is_recurring"] = req.recurrence.frequency != "none"
+    payload_json = json.dumps(req_dict, default=str)
 
     rows = await exec_sql(
         "SELECT public.fn_create_schedule(%s::uuid, %s::uuid, %s::jsonb) as res",
@@ -1905,12 +1941,18 @@ async def get_schedule_by_id(schedule_id: str, user=Depends(get_current_user)):
     try:
         rows = await exec_sql(
             "SELECT public.fn_get_schedule_details(%s::uuid, %s::uuid, %s::date) as schedule_data;",
-            (schedule_id, school_id if school_id else None, target_date_str if target_date_str else None),
+            (school_id if school_id else None, schedule_id, target_date_str if target_date_str else None),
             fetch=True
         )
         if rows and rows[0].get("schedule_data"):
             data = rows[0]["schedule_data"]
-            return {"success": True, "data": _serialize_datetime(data)}
+            if isinstance(data, dict):
+                if data.get("success") is False:
+                    raise HTTPException(status_code=404, detail=data.get("error", "Schedule not found"))
+                rec = data.get("data", data)
+                return {"success": True, "data": _serialize_datetime(rec)}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.warning(f"Error calling fn_get_schedule_details: {e}")
 
@@ -1940,13 +1982,41 @@ async def update_schedule(
             target_instance_date = inst_date_str
         schedule_id = parent_id
 
-    payload_json = json.dumps(req.dict(exclude_unset=True), default=str)
+    req_dict = req.dict(exclude_unset=True)
+    if req_dict.get("schedule_type"):
+        req_dict["schedule_type"] = str(req_dict["schedule_type"]).strip().title()
+    if req_dict.get("category"):
+        req_dict["category"] = str(req_dict["category"]).strip().title()
+    if req.recurrence:
+        req_dict["frequency"] = req.recurrence.frequency
+        req_dict["interval"] = req.recurrence.interval
+        req_dict["days_of_week"] = req.recurrence.days_of_week
+        req_dict["end_type"] = req.recurrence.end_type
+        req_dict["end_count"] = req.recurrence.end_count
+        req_dict["end_date"] = req.recurrence.end_date
+        if req.is_recurring is not None:
+            req_dict["is_recurring"] = req.is_recurring
+        else:
+            req_dict["is_recurring"] = req.recurrence.frequency != "none"
+    payload_json = json.dumps(req_dict, default=str)
+
+    clean_scope = "entire_series"
+    if isinstance(recurrence_scope, str) and recurrence_scope.strip():
+        clean_scope = recurrence_scope.strip()
+    elif req_dict.get("recurrence_scope") and isinstance(req_dict["recurrence_scope"], str):
+        clean_scope = req_dict["recurrence_scope"].strip()
+
+    clean_target_date = None
+    if isinstance(target_instance_date, str) and target_instance_date.strip():
+        clean_target_date = target_instance_date.strip()
+    elif req_dict.get("target_instance_date") and isinstance(req_dict["target_instance_date"], str):
+        clean_target_date = req_dict["target_instance_date"].strip()
 
     rows = await exec_sql(
-        "SELECT public.fn_update_schedule(%s::uuid, %s::uuid, %s, %s::uuid, %s, %s::date, %s::jsonb) as res",
+        "SELECT public.fn_update_schedule(%s::uuid, %s::uuid, %s::uuid, %s::jsonb, %s, %s::date) as res",
         (
-            school_id, user_id, user_role, schedule_id, recurrence_scope,
-            target_instance_date if target_instance_date else None, payload_json
+            schedule_id, school_id, user_id, payload_json, clean_scope,
+            clean_target_date
         )
     )
     if rows and rows[0].get("res"):
@@ -1992,12 +2062,24 @@ async def delete_schedule(
     school_id = user.get("school_id")
     user_id = user.get("id")
 
+    clean_scope = "entire_series"
+    if isinstance(recurrence_scope, str) and recurrence_scope.strip():
+        scope_str = recurrence_scope.lower().strip().replace(" ", "_").replace("-", "_")
+        if "this" in scope_str and "following" not in scope_str and "series" not in scope_str:
+            clean_scope = "this_event"
+        elif "following" in scope_str or "future" in scope_str:
+            clean_scope = "following_events"
+        elif "series" in scope_str or "all" in scope_str:
+            clean_scope = "entire_series"
+
+    clean_target_date = None
+    if isinstance(target_instance_date, str) and target_instance_date.strip():
+        clean_target_date = target_instance_date.strip()
+
     parent_id = schedule_id
     inst_date_str = None
     if "_inst_" in schedule_id:
         parent_id, _, inst_date_str = schedule_id.partition("_inst_")
-        if not target_instance_date:
-            target_instance_date = inst_date_str
         schedule_id = parent_id
 
     row = await exec_sql("SELECT * FROM public.schedules WHERE id = %s AND school_id = %s", (schedule_id, school_id))
@@ -2007,70 +2089,116 @@ async def delete_schedule(
     old_rec = row[0]
     master_parent_id = str(old_rec["recurring_parent_id"]) if old_rec.get("recurring_parent_id") else schedule_id
 
-    if recurrence_scope == "this_event":
-        dates_to_exclude = set()
-        if target_instance_date:
-            dates_to_exclude.add(target_instance_date)
-        if inst_date_str:
-            dates_to_exclude.add(inst_date_str)
+    # Determine the exact instance date to exclude
+    effective_inst_date = clean_target_date or inst_date_str
+    if not effective_inst_date and old_rec.get("start_time"):
+        tz_name = old_rec.get("timezone") or "Asia/Kolkata"
+        try:
+            local_tz = ZoneInfo(tz_name)
+            st = old_rec["start_time"]
+            if isinstance(st, str):
+                st = datetime.fromisoformat(st.replace("Z", "+00:00"))
+            if isinstance(st, datetime):
+                effective_inst_date = (st.astimezone(local_tz) if st.tzinfo else st.replace(tzinfo=ZoneInfo("UTC")).astimezone(local_tz)).date().isoformat()
+            else:
+                effective_inst_date = str(st)[:10]
+        except Exception:
+            effective_inst_date = str(old_rec["start_time"])[:10]
 
-        for d_str in dates_to_exclude:
+    if clean_scope == "this_event":
+        if effective_inst_date:
+            # 1. Add exception to master recurrence
             await exec_sql(
                 "SELECT public.exclude_recurring_occurrence(%s::uuid, %s::date)",
-                (master_parent_id, d_str),
+                (master_parent_id, effective_inst_date),
                 fetch=False
             )
             if master_parent_id != schedule_id:
                 await exec_sql(
                     "SELECT public.exclude_recurring_occurrence(%s::uuid, %s::date)",
-                    (schedule_id, d_str),
+                    (schedule_id, effective_inst_date),
                     fetch=False
                 )
+
+            # 2. Soft delete any child override record for this specific instance date
             await exec_sql(
                 """
                 UPDATE public.schedules
                 SET deleted_at = NOW(), status = 'cancelled', updated_at = NOW()
-                WHERE recurring_parent_id = %s
-                  AND (original_instance_date = %s::date OR DATE(start_time) = %s::date)
+                WHERE (recurring_parent_id = %s OR recurring_parent_id = %s OR id = %s)
+                  AND (original_instance_date = %s::date OR DATE(start_time AT TIME ZONE COALESCE(NULLIF(timezone, ''), 'Asia/Kolkata')) = %s::date)
+                  AND (recurrence_exception_type = 'override' OR is_recurring = FALSE)
+                  AND id != %s
                 """,
-                (master_parent_id, d_str, d_str),
+                (master_parent_id, schedule_id, schedule_id, effective_inst_date, effective_inst_date, master_parent_id),
                 fetch=False
             )
-        if schedule_id != master_parent_id:
+
+            # 3. If schedule_id itself is a standalone child override row (not a recurring series), soft delete it
+            if schedule_id != master_parent_id and (not old_rec.get("is_recurring") or old_rec.get("recurrence_exception_type") == "override"):
+                await exec_sql(
+                    "UPDATE public.schedules SET deleted_at = NOW(), status = 'cancelled', updated_at = NOW() WHERE id = %s",
+                    (schedule_id,),
+                    fetch=False
+                )
+
+            # 4. Delete vehicle trips for this specific instance date
             await exec_sql(
-                "UPDATE public.schedules SET deleted_at = NOW(), status = 'cancelled', updated_at = NOW() WHERE id = %s",
-                (schedule_id,),
+                """
+                DELETE FROM public.vehicle_trips
+                WHERE (schedule_id = %s OR schedule_id = %s OR schedule_id IN (SELECT id FROM public.schedules WHERE recurring_parent_id = %s))
+                  AND (
+                      schedule_instance_date = %s::date
+                      OR start_date = %s
+                      OR DATE(scheduled_start AT TIME ZONE 'Asia/Kolkata') = %s::date
+                  )
+                """,
+                (master_parent_id, schedule_id, master_parent_id, effective_inst_date, effective_inst_date, effective_inst_date),
                 fetch=False
             )
 
-        # Delete trip for this specific day from vehicle_trips
-        await exec_sql(
-            """
-            DELETE FROM public.vehicle_trips
-            WHERE (schedule_id = %s OR schedule_id = %s)
-              AND (schedule_instance_date = %s::date OR start_date = %s OR scheduled_start::date = %s::date)
-            """,
-            (master_parent_id, schedule_id, target_instance_date, target_instance_date, target_instance_date),
-            fetch=False
-        )
+        return {"success": True, "message": f"Deleted occurrence for {effective_inst_date}."}
 
-        return {"success": True, "message": f"Deleted occurrence for {target_instance_date}."}
-
-    elif recurrence_scope == "following_events" and target_instance_date:
+    elif clean_scope == "following_events" and effective_inst_date:
         await exec_sql(
             "SELECT public.split_recurring_series(%s::uuid, %s::date)",
-            (master_parent_id, target_instance_date),
+            (schedule_id, effective_inst_date),
             fetch=False
         )
-        # Soft delete any overrides from target_instance_date onwards
+        if master_parent_id != schedule_id:
+            await exec_sql(
+                "SELECT public.split_recurring_series(%s::uuid, %s::date)",
+                (master_parent_id, effective_inst_date),
+                fetch=False
+            )
+            # If this schedule was already a split child series and the delete begins on/before its start date, soft delete it
+            tz_name = old_rec.get("timezone") or "Asia/Kolkata"
+            try:
+                local_tz = ZoneInfo(tz_name)
+                st = old_rec["start_time"]
+                if isinstance(st, str):
+                    st = datetime.fromisoformat(st.replace("Z", "+00:00"))
+                sched_start_date = (st.astimezone(local_tz) if getattr(st, "tzinfo", None) else st.replace(tzinfo=ZoneInfo("UTC")).astimezone(local_tz)).date().isoformat()
+            except Exception:
+                sched_start_date = str(old_rec.get("start_time", ""))[:10]
+
+            if effective_inst_date <= sched_start_date:
+                await exec_sql(
+                    "UPDATE public.schedules SET deleted_at = NOW(), status = 'cancelled', updated_at = NOW() WHERE id = %s",
+                    (schedule_id,),
+                    fetch=False
+                )
+
+        # Soft delete any overrides from effective_inst_date onwards
         await exec_sql(
             """
             UPDATE public.schedules
             SET deleted_at = NOW(), status = 'cancelled', updated_at = NOW()
-            WHERE (recurring_parent_id = %s OR recurring_parent_id = %s)
-              AND (original_instance_date >= %s::date OR DATE(start_time) >= %s::date)
+            WHERE (recurring_parent_id = %s OR recurring_parent_id = %s OR id = %s)
+              AND (original_instance_date >= %s::date OR DATE(start_time AT TIME ZONE COALESCE(NULLIF(timezone, ''), 'Asia/Kolkata')) >= %s::date)
+              AND (recurrence_exception_type = 'override' OR is_recurring = FALSE)
             """,
-            (master_parent_id, schedule_id, target_instance_date, target_instance_date),
+            (master_parent_id, schedule_id, schedule_id, effective_inst_date, effective_inst_date),
             fetch=False
         )
 
@@ -2078,35 +2206,40 @@ async def delete_schedule(
         await exec_sql(
             """
             DELETE FROM public.vehicle_trips
-            WHERE (schedule_id = %s OR schedule_id = %s)
-              AND (schedule_instance_date >= %s::date OR start_date >= %s OR scheduled_start::date >= %s::date)
+            WHERE (schedule_id = %s OR schedule_id = %s OR schedule_id IN (SELECT id FROM public.schedules WHERE recurring_parent_id = %s))
+              AND (
+                  schedule_instance_date >= %s::date
+                  OR start_date >= %s
+                  OR DATE(scheduled_start AT TIME ZONE 'Asia/Kolkata') >= %s::date
+              )
             """,
-            (master_parent_id, schedule_id, target_instance_date, target_instance_date, target_instance_date),
+            (master_parent_id, schedule_id, master_parent_id, effective_inst_date, effective_inst_date, effective_inst_date),
             fetch=False
         )
 
-        return {"success": True, "message": f"Deleted this and all following events from {target_instance_date}."}
+        return {"success": True, "message": f"Deleted this and all following events from {effective_inst_date}."}
 
-    # Default: Entire Series
+    # Default: Entire Series (Isolate to the targeted series)
+    target_series_id = schedule_id if old_rec.get("is_recurring") else master_parent_id
     await exec_sql(
         """
         UPDATE public.schedules
         SET deleted_at = NOW(), updated_at = NOW(), status = 'cancelled'
-        WHERE id = %s OR id = %s OR recurring_parent_id = %s OR recurring_parent_id = %s
+        WHERE id = %s OR recurring_parent_id = %s
         """,
-        (schedule_id, master_parent_id, master_parent_id, schedule_id),
+        (target_series_id, target_series_id),
         fetch=False
     )
     # Release resource bookings
     await exec_sql(
-        "UPDATE public.resource_bookings SET status = 'released' WHERE schedule_id = %s OR schedule_id = %s",
-        (schedule_id, master_parent_id),
+        "UPDATE public.resource_bookings SET status = 'released' WHERE schedule_id = %s OR schedule_id IN (SELECT id FROM public.schedules WHERE recurring_parent_id = %s)",
+        (target_series_id, target_series_id),
         fetch=False
     )
     # Delete associated vehicle_trips
     await exec_sql(
-        "DELETE FROM public.vehicle_trips WHERE schedule_id = %s OR schedule_id = %s",
-        (schedule_id, master_parent_id),
+        "DELETE FROM public.vehicle_trips WHERE schedule_id = %s OR schedule_id IN (SELECT id FROM public.schedules WHERE recurring_parent_id = %s)",
+        (target_series_id, target_series_id),
         fetch=False
     )
 
@@ -2129,6 +2262,8 @@ async def delete_schedule(
 async def cancel_schedule(
     schedule_id: str,
     req: ScheduleCancelRequest,
+    recurrence_scope: Optional[str] = None,
+    target_instance_date: Optional[str] = None,
     user=Depends(get_current_user)
 ):
     """
@@ -2142,18 +2277,29 @@ async def cancel_schedule(
     if not req.cancellation_reason or not req.cancellation_reason.strip():
         raise HTTPException(status_code=400, detail="Cancellation reason is required.")
 
-    target_date = req.target_instance_date
+    clean_scope = "entire_series"
+    if isinstance(recurrence_scope, str) and recurrence_scope.strip():
+        clean_scope = recurrence_scope.strip()
+    elif req.recurrence_scope and isinstance(req.recurrence_scope, str):
+        clean_scope = req.recurrence_scope.strip()
+
+    clean_target_date = None
+    if isinstance(target_instance_date, str) and target_instance_date.strip():
+        clean_target_date = target_instance_date.strip()
+    elif req.target_instance_date and isinstance(req.target_instance_date, str):
+        clean_target_date = req.target_instance_date.strip()
+
     if "_inst_" in schedule_id:
         parts = schedule_id.split("_inst_")
         schedule_id = parts[0]
-        if not target_date and len(parts) > 1:
-            target_date = parts[1]
+        if not clean_target_date and len(parts) > 1:
+            clean_target_date = parts[1]
 
     rows = await exec_sql(
         "SELECT public.fn_cancel_schedule(%s::uuid, %s::uuid, %s, %s::uuid, %s, %s, %s::date) as res",
         (
             school_id, user_id, user_role, schedule_id, req.cancellation_reason.strip(),
-            req.recurrence_scope or "entire_series", target_date if target_date else None
+            clean_scope, clean_target_date if clean_target_date else None
         )
     )
     if rows and rows[0].get("res"):
@@ -2207,12 +2353,16 @@ async def duplicate_schedule(schedule_id: str, user=Depends(get_current_user)):
     """Duplicate an existing schedule via PostgreSQL stored procedure fn_duplicate_schedule."""
     school_id = user.get("school_id")
     user_id = user.get("id")
+    target_date = None
     if "_inst_" in schedule_id:
-        schedule_id = schedule_id.split("_inst_")[0]
+        parts = schedule_id.split("_inst_")
+        schedule_id = parts[0]
+        if len(parts) > 1 and parts[1]:
+            target_date = parts[1]
 
     rows = await exec_sql(
-        "SELECT public.fn_duplicate_schedule(%s::uuid, %s::uuid, %s::uuid) as res",
-        (school_id, user_id, schedule_id)
+        "SELECT public.fn_duplicate_schedule(%s::uuid, %s::uuid, %s::uuid, %s::date) as res",
+        (school_id, user_id, schedule_id, target_date)
     )
     if rows and rows[0].get("res"):
         res = rows[0]["res"]
@@ -2261,104 +2411,6 @@ async def add_schedule_comment(
         return rows[0]["res"]
 
     raise HTTPException(status_code=500, detail="Failed to save comment")
-
-
-@router.get("/schedules/{schedule_id}")
-async def get_schedule_by_id(schedule_id: str, user=Depends(get_current_user)):
-    """Fetch live schedule details including participants, RSVPs, and discussion comments."""
-    school_id = user.get("school_id")
-    parent_id = schedule_id
-    if "_inst_" in schedule_id:
-        parent_id = schedule_id.split("_inst_")[0]
-
-    sql = """
-        SELECT s.*,
-               c.name AS calendar_name,
-               c.color AS calendar_color,
-               c.type AS calendar_type,
-               p.full_name AS organizer_name,
-               p.avatar_url AS organizer_avatar,
-               (
-                   SELECT json_agg(json_build_object(
-                       'id', sp.id,
-                       'user_id', sp.user_id,
-                       'participant_type', sp.participant_type,
-                       'participation_role', sp.participation_role,
-                       'permission', sp.permission,
-                       'rsvp_status', sp.rsvp_status,
-                       'decline_reason', sp.decline_reason,
-                       'rsvp_at', sp.rsvp_at,
-                       'full_name', prof.full_name,
-                       'role', prof.role,
-                       'avatar_url', prof.avatar_url
-                   ))
-                   FROM public.schedule_participants sp
-                   LEFT JOIN public.profiles prof ON prof.id = sp.user_id
-                   WHERE sp.schedule_id = s.id
-               ) AS participants,
-               (
-                   SELECT json_agg(json_build_object(
-                       'id', rb.id,
-                       'resource_id', rb.resource_id,
-                       'resource_name', cr.name,
-                       'resource_type', cr.type,
-                       'room_number', cr.room_number,
-                       'status', rb.status
-                   ))
-                   FROM public.resource_bookings rb
-                   LEFT JOIN public.calendar_resources cr ON cr.id = rb.resource_id
-                   WHERE rb.schedule_id = s.id
-               ) AS booked_resources,
-               (
-                   SELECT json_agg(json_build_object(
-                       'id', sc.id,
-                       'user_id', sc.user_id,
-                       'comment_text', sc.comment_text,
-                       'full_name', p2.full_name,
-                       'avatar_url', p2.avatar_url,
-                       'created_at', sc.created_at
-                   ) ORDER BY sc.created_at ASC)
-                   FROM public.schedule_comments sc
-                   LEFT JOIN public.profiles p2 ON p2.id = sc.user_id
-                   WHERE sc.schedule_id = s.id
-               ) AS comments,
-               (
-                   SELECT json_agg(json_build_object(
-                       'id', rem.id,
-                       'minutes_before', rem.minutes_before,
-                       'channel', rem.channel
-                   ))
-                   FROM public.schedule_reminders rem
-                   WHERE rem.schedule_id = s.id
-               ) AS reminders,
-               (
-                   SELECT json_build_object(
-                       'id', sr2.id,
-                       'frequency', sr2.frequency,
-                       'interval', sr2.interval,
-                       'days_of_week', sr2.days_of_week,
-                       'day_of_month', sr2.day_of_month,
-                       'month_of_year', sr2.month_of_year,
-                       'end_type', sr2.end_type,
-                       'end_count', sr2.end_count,
-                       'end_date', sr2.end_date,
-                       'exceptions', sr2.exceptions
-                   )
-                   FROM public.schedule_recurrence sr2
-                   WHERE sr2.schedule_id = s.id
-                   LIMIT 1
-               ) AS recurrence
-        FROM public.schedules s
-        LEFT JOIN public.calendars c ON c.id = s.calendar_id
-        LEFT JOIN public.profiles p ON p.id = s.organizer_id
-        WHERE s.id = %s AND s.school_id = %s
-    """
-    rows = await exec_sql(sql, (parent_id, school_id))
-    if not rows:
-        raise HTTPException(status_code=404, detail="Schedule not found")
-
-    rec = rows[0]
-    return {"success": True, "data": _serialize_datetime(rec)}
 
 
 # ============================================================================
@@ -2511,17 +2563,35 @@ async def list_event_types(user=Depends(get_current_user)):
 
 @router.post("/schedules/{schedule_id}/comments")
 async def add_schedule_comment(schedule_id: str, req: ScheduleCommentRequest, user=Depends(get_current_user)):
-    """Add discussion comment or activity note to schedule."""
+    """Add discussion comment or activity note to schedule via PostgreSQL stored procedure fn_add_schedule_comment."""
     user_id = user.get("id")
-    sql = """
-        INSERT INTO public.schedule_comments (
-            id, schedule_id, user_id, comment_text, created_at, updated_at
-        ) VALUES (
-            gen_random_uuid(), %s, %s, %s, NOW(), NOW()
-        ) RETURNING *
-    """
-    rows = await exec_sql(sql, (schedule_id, user_id, req.comment_text))
-    return {"success": True, "data": _serialize_datetime(rows[0]), "message": "Comment added successfully."}
+    school_id = user.get("school_id")
+    clean_id = schedule_id.split("_inst_")[0] if "_inst_" in schedule_id else schedule_id
+
+    rows = await exec_sql(
+        "SELECT public.fn_add_schedule_comment(%s::uuid, %s::uuid, %s::uuid, %s) as res",
+        (school_id, user_id, clean_id, req.comment_text)
+    )
+    if rows and rows[0].get("res"):
+        res = rows[0]["res"]
+        if res.get("success") is True:
+            return res
+    raise HTTPException(status_code=400, detail="Failed to add comment")
+
+
+@router.get("/schedules/{schedule_id}/comments")
+async def get_schedule_comments(schedule_id: str, user=Depends(get_current_user)):
+    """Fetch discussion comments for schedule via PostgreSQL stored procedure fn_get_schedule_comments."""
+    school_id = user.get("school_id")
+    clean_id = schedule_id.split("_inst_")[0] if "_inst_" in schedule_id else schedule_id
+
+    rows = await exec_sql(
+        "SELECT public.fn_get_schedule_comments(%s::uuid, %s::uuid) as res",
+        (school_id, clean_id)
+    )
+    if rows and rows[0].get("res"):
+        return rows[0]["res"]
+    return {"success": True, "data": []}
 
 
 @router.get("/schedules/{schedule_id}/history")

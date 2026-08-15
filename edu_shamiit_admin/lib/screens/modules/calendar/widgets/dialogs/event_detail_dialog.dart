@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -35,6 +36,7 @@ class EventDetailDialog extends ConsumerStatefulWidget {
 class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
   final _commentController = TextEditingController();
   late List<ScheduleCommentModel> _comments;
+  late List<ScheduleParticipantModel> _participants;
   String? _myRSVPStatus;
   String? _freshTripStatus;
   String? _freshTripId;
@@ -43,35 +45,74 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
   void initState() {
     super.initState();
     _comments = List.from(widget.schedule.comments);
+    _participants = List.from(widget.schedule.participants);
     
-    // Look up if user has already responded
+    _resolveMyRSVP();
+    _fetchFreshScheduleDetails();
+    _fetchFreshTripStatus();
+  }
+
+  void _resolveMyRSVP() {
     final user = ref.read(authProvider).userData;
     final currentUserId = user?['id']?.toString();
     if (currentUserId != null) {
-      for (final p in widget.schedule.participants) {
+      for (final p in _participants) {
         if (p.userId == currentUserId && p.rsvpStatus != 'pending') {
           _myRSVPStatus = p.rsvpStatus;
           break;
         }
       }
     }
+  }
 
-    _fetchFreshTripStatus();
+  Future<void> _fetchFreshScheduleDetails() async {
+    try {
+      final res = await ApiService().get('/schedules/${widget.schedule.id}', useCache: false);
+      if (res['success'] == true && res['data'] != null) {
+        final data = res['data'];
+        final rawParts = data['participants'] as List<dynamic>? ?? [];
+        final freshParts = rawParts.map((p) => ScheduleParticipantModel.fromJson(Map<String, dynamic>.from(p))).toList();
+        
+        final rawComms = data['comments'] as List<dynamic>? ?? [];
+        final freshComms = rawComms.map((c) => ScheduleCommentModel.fromJson(Map<String, dynamic>.from(c))).toList();
+
+        final tripStatus = (data['trip_status'] ?? data['live_trip_status'])?.toString();
+        final tripId = data['trip_id']?.toString();
+
+        if (mounted) {
+          setState(() {
+            _participants = freshParts;
+            if (freshComms.isNotEmpty || _comments.isEmpty) {
+              _comments = freshComms;
+            }
+            if (tripStatus != null && tripStatus.isNotEmpty) {
+              _freshTripStatus = tripStatus;
+            }
+            if (tripId != null && tripId.isNotEmpty) {
+              _freshTripId = tripId;
+            }
+            _resolveMyRSVP();
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _fetchFreshTripStatus() async {
-    if (widget.schedule.routeId == null && widget.schedule.tripId == null) return;
-    final String cleanScheduleId = widget.schedule.id.split('_inst_')[0];
+    final String? lookupId = (widget.schedule.tripId != null && widget.schedule.tripId!.isNotEmpty)
+        ? widget.schedule.tripId
+        : (widget.schedule.routeId != null && widget.schedule.routeId!.isNotEmpty ? widget.schedule.id : null);
+    if (lookupId == null || lookupId.isEmpty) return;
     try {
-      final res = await ApiService().get('/schedules/$cleanScheduleId', useCache: false);
+      final res = await ApiService().get('/transport/driver/trips/$lookupId/state', useCache: false);
       if (res['data'] != null) {
         final freshData = res['data'];
-        final status = freshData['trip_status']?.toString();
-        final tripId = freshData['trip_id']?.toString();
-        if (mounted && status != null) {
+        final status = (freshData['status'] ?? freshData['trip']?['status'])?.toString();
+        final tripId = freshData['trip_id']?.toString() ?? freshData['trip']?['id']?.toString();
+        if (mounted) {
           setState(() {
-            _freshTripStatus = status;
-            _freshTripId = tripId;
+            if (status != null && status.isNotEmpty) _freshTripStatus = status;
+            if (tripId != null && tripId.isNotEmpty) _freshTripId = tripId;
           });
         }
       }
@@ -87,7 +128,7 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
   void _submitComment() {
     final text = _commentController.text.trim();
     if (text.isNotEmpty) {
-      widget.onAddComment(text);
+      _commentController.clear();
       final user = ref.read(authProvider).userData;
       final userName = user?['full_name']?.toString() ?? 'You';
 
@@ -101,25 +142,30 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
             createdAt: DateTime.now(),
           ),
         );
-        _commentController.clear();
+      });
+
+      widget.onAddComment(text);
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          _fetchFreshScheduleDetails();
+        }
       });
     }
   }
 
   void _showCancelReasonDialog(BuildContext context, ScheduleModel s) {
     final reasonController = TextEditingController();
-    final bool isRecurringOrInst = s.isRecurring || s.id.contains('_inst_');
-    String selectedScope = 'entire_series';
+    final bool isRecurringOrInst = s.isRecurring || s.id.contains('_inst_') || s.recurringParentId != null;
+    String selectedScope = 'this_event';
     String? instanceDate;
 
     if (s.id.contains('_inst_')) {
       final parts = s.id.split('_inst_');
       if (parts.length > 1) {
         instanceDate = parts[1];
-        selectedScope = 'this_event';
       }
     } else {
-      instanceDate = DateFormat('yyyy-MM-dd').format(s.startTime);
+      instanceDate = DateFormat('yyyy-MM-dd').format(s.startTime.toLocal());
     }
 
     showDialog(
@@ -272,10 +318,10 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
     }
 
     // Tally RSVP metrics for Organizer
-    final acceptedCount = s.participants.where((p) => p.rsvpStatus == 'accepted').length;
-    final declinedCount = s.participants.where((p) => p.rsvpStatus == 'declined').length;
-    final tentativeCount = s.participants.where((p) => p.rsvpStatus == 'tentative').length;
-    final pendingCount = s.participants.where((p) => p.rsvpStatus == 'pending' || p.rsvpStatus.isEmpty).length;
+    final acceptedCount = _participants.where((p) => p.rsvpStatus == 'accepted').length;
+    final declinedCount = _participants.where((p) => p.rsvpStatus == 'declined').length;
+    final tentativeCount = _participants.where((p) => p.rsvpStatus == 'tentative').length;
+    final pendingCount = _participants.where((p) => p.rsvpStatus == 'pending' || p.rsvpStatus.isEmpty).length;
 
     // Responsive measurements
     final screenWidth = MediaQuery.sizeOf(context).width;
@@ -477,10 +523,10 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isOrganizer ? 'Attendee Responses (${s.participants.length})' : 'Participants & Assignments',
+                          isOrganizer ? 'Attendee Responses (${_participants.length})' : 'Participants & Assignments',
                           style: TextStyle(fontSize: (13 * ts).roundToDouble(), fontWeight: FontWeight.w800, color: const Color(0xFF0F172A)),
                         ),
-                        if (isOrganizer && s.participants.isNotEmpty) ...[
+                        if (isOrganizer && _participants.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           Wrap(
                             spacing: 4,
@@ -496,11 +542,11 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    if (s.participants.isEmpty)
+                    if (_participants.isEmpty)
                       const Text('No external participants assigned.', style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)))
                     else
                       Column(
-                        children: s.participants.map((p) {
+                        children: _participants.map((p) {
                           return _buildParticipantRow(p, isMobile);
                         }).toList(),
                       ),
@@ -547,7 +593,30 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                           activeColor: const Color(0xFF10B981),
                           isMobile: isMobile,
                           onPressed: () {
-                            setState(() => _myRSVPStatus = 'accepted');
+                            final currentUserId = ref.read(authProvider).userData?['id']?.toString();
+                            setState(() {
+                              _myRSVPStatus = 'accepted';
+                              if (currentUserId != null) {
+                                final idx = _participants.indexWhere((p) => p.userId == currentUserId);
+                                if (idx != -1) {
+                                  _participants[idx] = ScheduleParticipantModel(
+                                    id: _participants[idx].id,
+                                    userId: _participants[idx].userId,
+                                    fullName: _participants[idx].fullName,
+                                    role: _participants[idx].role,
+                                    targetRole: _participants[idx].targetRole,
+                                    targetClass: _participants[idx].targetClass,
+                                    email: _participants[idx].email,
+                                    avatarUrl: _participants[idx].avatarUrl,
+                                    participantType: _participants[idx].participantType,
+                                    participationRole: _participants[idx].participationRole,
+                                    permission: _participants[idx].permission,
+                                    rsvpStatus: 'accepted',
+                                    declineReason: null,
+                                  );
+                                }
+                              }
+                            });
                             widget.onRSVP('accepted', null);
                           },
                         ),
@@ -558,7 +627,30 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                           activeColor: const Color(0xFFEF4444),
                           isMobile: isMobile,
                           onPressed: () {
-                            setState(() => _myRSVPStatus = 'declined');
+                            final currentUserId = ref.read(authProvider).userData?['id']?.toString();
+                            setState(() {
+                              _myRSVPStatus = 'declined';
+                              if (currentUserId != null) {
+                                final idx = _participants.indexWhere((p) => p.userId == currentUserId);
+                                if (idx != -1) {
+                                  _participants[idx] = ScheduleParticipantModel(
+                                    id: _participants[idx].id,
+                                    userId: _participants[idx].userId,
+                                    fullName: _participants[idx].fullName,
+                                    role: _participants[idx].role,
+                                    targetRole: _participants[idx].targetRole,
+                                    targetClass: _participants[idx].targetClass,
+                                    email: _participants[idx].email,
+                                    avatarUrl: _participants[idx].avatarUrl,
+                                    participantType: _participants[idx].participantType,
+                                    participationRole: _participants[idx].participationRole,
+                                    permission: _participants[idx].permission,
+                                    rsvpStatus: 'declined',
+                                    declineReason: 'Unavailable at this time',
+                                  );
+                                }
+                              }
+                            });
                             widget.onRSVP('declined', 'Unavailable at this time');
                           },
                         ),
@@ -569,7 +661,30 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                           activeColor: const Color(0xFFF59E0B),
                           isMobile: isMobile,
                           onPressed: () {
-                            setState(() => _myRSVPStatus = 'tentative');
+                            final currentUserId = ref.read(authProvider).userData?['id']?.toString();
+                            setState(() {
+                              _myRSVPStatus = 'tentative';
+                              if (currentUserId != null) {
+                                final idx = _participants.indexWhere((p) => p.userId == currentUserId);
+                                if (idx != -1) {
+                                  _participants[idx] = ScheduleParticipantModel(
+                                    id: _participants[idx].id,
+                                    userId: _participants[idx].userId,
+                                    fullName: _participants[idx].fullName,
+                                    role: _participants[idx].role,
+                                    targetRole: _participants[idx].targetRole,
+                                    targetClass: _participants[idx].targetClass,
+                                    email: _participants[idx].email,
+                                    avatarUrl: _participants[idx].avatarUrl,
+                                    participantType: _participants[idx].participantType,
+                                    participationRole: _participants[idx].participationRole,
+                                    permission: _participants[idx].permission,
+                                    rsvpStatus: 'tentative',
+                                    declineReason: null,
+                                  );
+                                }
+                              }
+                            });
                             widget.onRSVP('tentative', null);
                           },
                         ),
@@ -893,10 +1008,26 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
 
     // Build display name
     String displayName;
-    if (p.userId == null || p.userId!.isEmpty || p.participantType == "role" || p.participantType == "class") {
-      displayName = '${p.fullName ?? "User"} (Group)';
+    final isGroupType = p.userId == null || p.userId!.isEmpty || p.participantType == "role" || p.participantType == "class" || p.participantType == "class_section";
+    if (isGroupType) {
+      final targetRoleStr = (p.targetRole ?? p.role ?? '').trim();
+      final targetClassStr = (p.targetClass ?? '').trim();
+      String groupName = '';
+
+      if (p.fullName != null && p.fullName!.isNotEmpty && p.fullName != 'User') {
+        groupName = p.fullName!;
+      } else if (targetRoleStr.isNotEmpty) {
+        final cap = '${targetRoleStr[0].toUpperCase()}${targetRoleStr.substring(1)}';
+        groupName = 'All ${cap.endsWith('s') ? cap : '${cap}s'}';
+      } else if (targetClassStr.isNotEmpty) {
+        groupName = targetClassStr.startsWith('Class') ? targetClassStr : 'Class $targetClassStr';
+      } else {
+        groupName = 'Audience Group';
+      }
+
+      displayName = groupName.contains('(') ? groupName : '$groupName (Group)';
     } else {
-      displayName = p.fullName ?? 'User';
+      displayName = (p.fullName != null && p.fullName!.isNotEmpty && p.fullName != 'User') ? p.fullName! : 'Participant';
     }
 
     return Container(
@@ -1257,7 +1388,9 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
               onPressed: () {
                 Navigator.of(context).pop();
                 final queryMap = <String, String>{};
-                final String effectiveTripId = _freshTripId ?? ((s.tripId != null && s.tripId!.isNotEmpty) ? s.tripId! : s.id);
+                final String effectiveTripId = (s.tripId != null && s.tripId!.isNotEmpty)
+                    ? s.tripId!
+                    : (_freshTripId ?? s.id);
                 queryMap['trip_id'] = effectiveTripId;
                 if (s.routeId != null && s.routeId!.isNotEmpty) {
                   queryMap['route_id'] = s.routeId!;
