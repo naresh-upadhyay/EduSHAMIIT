@@ -62,11 +62,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         route: '/admin/calendar',
         section: NavSection.overview),
     _NavItem(
-        icon: Icons.calendar_today_rounded,
-        label: 'Timetable',
-        route: '/driver/timetable',
-        section: NavSection.overview),
-    _NavItem(
         icon: Icons.person_outline_rounded,
         label: 'My Profile',
         route: '/admin/my-profile',
@@ -276,7 +271,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       if (location == route ||
           (location == '/driver/dashboard' && route == '/admin/dashboard') ||
           (location == '/driver/dashboard' && route == '/driver/dashboard') ||
-          (location == '/driver/timetable' && route == '/driver/timetable')) {
+          (location == '/driver/timetable' && route == '/admin/calendar')) {
         return i;
       }
       if (location.startsWith(route) && route.length > maxLen) {
@@ -379,7 +374,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         return item.route == '/admin/dashboard' ||
                item.route == '/driver/dashboard' ||
                item.route == '/admin/calendar' ||
-               item.route == '/driver/timetable' ||
                item.route == '/admin/alerts-notifications' ||
                item.route == '/admin/emergency' ||
                item.route == '/admin/my-profile';
@@ -1054,11 +1048,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         if (_isRouteExpanded && showLabels) ...[
           _buildSubTile('Overview', '/admin/route-management', 0, isRouteRoute && activeTab == 0, isDark),
           _buildSubTile('Route List', '/admin/route-management', 1, isRouteRoute && activeTab == 1, isDark),
-          _buildSubTile('Trips & Schedule', '/admin/route-management', 2, isRouteRoute && activeTab == 2, isDark),
-          _buildSubTile('Live Tracking', '/admin/route-management', 3, isRouteRoute && activeTab == 3, isDark),
-          _buildSubTile('Route Reports', '/admin/route-management', 4, isRouteRoute && activeTab == 4, isDark),
-          _buildSubTile('Stops', '/admin/route-management', 5, isRouteRoute && activeTab == 5, isDark),
-          _buildSubTile('Passenger Assignment', '/admin/route-management', 6, isRouteRoute && activeTab == 6, isDark),
+          _buildSubTile('Live Tracking', '/admin/route-management', 2, isRouteRoute && activeTab == 2, isDark),
+          _buildSubTile('Route Reports', '/admin/route-management', 3, isRouteRoute && activeTab == 3, isDark),
+          _buildSubTile('Stops', '/admin/route-management', 4, isRouteRoute && activeTab == 4, isDark),
+          _buildSubTile('Passenger Assignment', '/admin/route-management', 5, isRouteRoute && activeTab == 5, isDark),
         ],
       ],
     );
