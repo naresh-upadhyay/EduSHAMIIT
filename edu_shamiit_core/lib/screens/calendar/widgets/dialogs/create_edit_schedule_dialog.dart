@@ -207,12 +207,19 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
 
   bool _isClassSelected(String className) {
     final target = className.trim().toLowerCase();
+    final targetWithoutPrefix = target.replaceFirst(RegExp(r'^(class|grade)\s*', caseSensitive: false), '').trim();
     return _assignedPeople.any((p) {
       final isClassBroadcast = p['user_id'] == null;
       if (!isClassBroadcast) return false;
       final n = (p['name'] ?? p['target_class'] ?? '').toString().trim().toLowerCase();
       final tc = (p['target_class'] ?? '').toString().trim().toLowerCase();
-      return n == target || tc == target || n == 'class $target';
+      final nClean = n.replaceFirst(RegExp(r'^(class|grade)\s*', caseSensitive: false), '').trim();
+      final tcClean = tc.replaceFirst(RegExp(r'^(class|grade)\s*', caseSensitive: false), '').trim();
+      return n == target ||
+          tc == target ||
+          n == 'class $target' ||
+          tc == 'class $target' ||
+          (targetWithoutPrefix.isNotEmpty && (nClean == targetWithoutPrefix || tcClean == targetWithoutPrefix));
     });
   }
 
@@ -240,11 +247,12 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
 
   void _toggleClassGroup(String className, bool enable) {
     final target = className.trim();
+    final targetWithoutPrefix = target.replaceFirst(RegExp(r'^(class|grade)\s*', caseSensitive: false), '').trim();
     if (enable) {
       if (!_isClassSelected(target)) {
         _assignedPeople.add({
           'user_id': null,
-          'name': target.startsWith('Class') ? target : 'Class $target',
+          'name': (target.startsWith('Class') || target.startsWith('Grade')) ? target : 'Class $target',
           'role': 'Class Group',
           'target_class': target,
           'participation_role': 'required',
@@ -259,7 +267,13 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
       _assignedPeople.removeWhere((p) {
         final n = (p['name'] ?? '').toString().trim().toLowerCase();
         final tc = (p['target_class'] ?? '').toString().trim().toLowerCase();
-        return n == target.toLowerCase() || tc == target.toLowerCase() || n == 'class ${target.toLowerCase()}';
+        final nClean = n.replaceFirst(RegExp(r'^(class|grade)\s*', caseSensitive: false), '').trim();
+        final tcClean = tc.replaceFirst(RegExp(r'^(class|grade)\s*', caseSensitive: false), '').trim();
+        return n == target.toLowerCase() ||
+            tc == target.toLowerCase() ||
+            n == 'class ${target.toLowerCase()}' ||
+            tc == 'class ${target.toLowerCase()}' ||
+            (targetWithoutPrefix.isNotEmpty && (nClean == targetWithoutPrefix || tcClean == targetWithoutPrefix));
       });
       _assignedPeople.removeWhere((p) {
         final r = (p['target_role'] ?? p['role'] ?? '').toString().trim().toLowerCase();
@@ -620,6 +634,23 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
 
     final hexColor = '#${(_selectedColor.r * 255).round().toRadixString(16).padLeft(2, '0')}${(_selectedColor.g * 255).round().toRadixString(16).padLeft(2, '0')}${(_selectedColor.b * 255).round().toRadixString(16).padLeft(2, '0')}'.toUpperCase();
 
+    final targetRolesList = <String>[];
+    final targetClassesList = <String>[];
+    final targetUserIdsList = <String>[];
+
+    for (final p in _assignedPeople) {
+      final uid = p['user_id']?.toString();
+      if (uid != null && uid.isNotEmpty) {
+        targetUserIdsList.add(uid);
+      } else if (p['role'] == 'Class Group' || p['target_class'] != null) {
+        final c = (p['target_class'] ?? p['name'])?.toString();
+        if (c != null && c.isNotEmpty) targetClassesList.add(c);
+      } else {
+        final r = (p['target_role'] ?? p['role'])?.toString();
+        if (r != null && r.isNotEmpty && r != 'group' && r != 'Class Group') targetRolesList.add(r);
+      }
+    }
+
     final payload = <String, dynamic>{
       'calendar_id': _selectedCalendarId,
       'title': _titleController.text.trim(),
@@ -640,6 +671,9 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
       'virtual_meeting_provider': _virtualUrlController.text.trim().isNotEmpty ? _virtualProvider : null,
       'visibility': _selectedVisibility,
       'is_recurring': _recurrenceFreq != 'none',
+      'target_roles': targetRolesList,
+      'target_classes': targetClassesList,
+      'target_user_ids': targetUserIdsList,
       'participants': _assignedPeople.map((p) {
         final userId = p['user_id']?.toString();
         final rawTargetRole = (p['target_role'] ?? (p['role'] != 'Class Group' && p['role'] != 'group' ? p['role'] : null))?.toString();
@@ -2518,7 +2552,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                         ),
                         Expanded(
                           child: Text(
-                            'Class $className',
+                            (className.startsWith('Class') || className.startsWith('Grade')) ? className : 'Class $className',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: isChecked ? FontWeight.w800 : FontWeight.w600,

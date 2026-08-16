@@ -1287,10 +1287,25 @@ async def get_schedules(
     # User personalized filters
     if assigned_to_me:
         conditions.append("""
-            (s.id IN (SELECT schedule_id FROM public.schedule_participants WHERE user_id = %s)
-             OR s.id IN (SELECT schedule_id FROM public.schedule_participants WHERE target_role ILIKE %s))
+            (
+                s.id IN (
+                    SELECT sp.schedule_id 
+                    FROM public.schedule_participants sp
+                    LEFT JOIN public.profiles prof ON prof.id = %s
+                    WHERE sp.user_id = %s 
+                       OR (sp.user_id IS NULL AND sp.target_role IS NOT NULL AND sp.target_role ILIKE %s)
+                       OR (sp.user_id IS NULL AND sp.target_class IS NOT NULL AND prof.class IS NOT NULL AND (
+                           sp.target_class ILIKE prof.class
+                           OR prof.class ILIKE sp.target_class
+                           OR REPLACE(REPLACE(REPLACE(REPLACE(LOWER(sp.target_class), 'class', ''), 'grade', ''), ' ', ''), '-', '')
+                              = REPLACE(REPLACE(REPLACE(REPLACE(LOWER(prof.class), 'class', ''), 'grade', ''), ' ', ''), '-', '')
+                           OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(sp.target_class), 'class', ''), 'grade', ''), ' ', ''), '-', ''), 'x', '10'), 'ix', '9')
+                              = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(prof.class), 'class', ''), 'grade', ''), ' ', ''), '-', ''), 'x', '10'), 'ix', '9')
+                       ))
+                )
+            )
         """)
-        params.extend([user_id, f"%{role}%"])
+        params.extend([user_id, user_id, f"%{role}%"])
 
     if created_by_me:
         conditions.append("s.created_by = %s")
@@ -1317,11 +1332,32 @@ async def get_schedules(
                     LEFT JOIN public.profiles prof ON prof.id = %s
                     WHERE sp.user_id = %s 
                        OR (sp.user_id IS NULL AND sp.target_role IS NOT NULL AND sp.target_role ILIKE %s)
-                       OR (sp.user_id IS NULL AND sp.target_class IS NOT NULL AND prof.class IS NOT NULL AND sp.target_class ILIKE prof.class)
+                       OR (sp.user_id IS NULL AND sp.target_class IS NOT NULL AND prof.class IS NOT NULL AND (
+                           sp.target_class ILIKE prof.class
+                           OR prof.class ILIKE sp.target_class
+                           OR REPLACE(REPLACE(REPLACE(REPLACE(LOWER(sp.target_class), 'class', ''), 'grade', ''), ' ', ''), '-', '')
+                              = REPLACE(REPLACE(REPLACE(REPLACE(LOWER(prof.class), 'class', ''), 'grade', ''), ' ', ''), '-', '')
+                           OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(sp.target_class), 'class', ''), 'grade', ''), ' ', ''), '-', ''), 'x', '10'), 'ix', '9')
+                              = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(prof.class), 'class', ''), 'grade', ''), ' ', ''), '-', ''), 'x', '10'), 'ix', '9')
+                       ))
+                )
+                OR (
+                    s.target_classes IS NOT NULL 
+                    AND jsonb_typeof(s.target_classes) = 'array' 
+                    AND EXISTS (
+                        SELECT 1 
+                        FROM public.profiles prof2, jsonb_array_elements_text(s.target_classes) tc
+                        WHERE prof2.id = %s AND prof2.class IS NOT NULL AND (
+                            tc ILIKE prof2.class
+                            OR prof2.class ILIKE tc
+                            OR REPLACE(REPLACE(REPLACE(REPLACE(LOWER(tc), 'class', ''), 'grade', ''), ' ', ''), '-', '')
+                               = REPLACE(REPLACE(REPLACE(REPLACE(LOWER(prof2.class), 'class', ''), 'grade', ''), ' ', ''), '-', '')
+                        )
+                    )
                 )
             )
         """)
-        params.extend([user_id, user_id, user_id, user_id, f"%{role}%"])
+        params.extend([user_id, user_id, user_id, user_id, f"%{role}%", user_id])
 
     where_clause = " AND ".join(conditions)
     sql = f"""
@@ -1499,10 +1535,38 @@ async def get_schedules(
                         s.visibility = 'institution_wide'
                         OR s.created_by = %s
                         OR s.organizer_id = %s
-                        OR s.id IN (SELECT schedule_id FROM public.schedule_participants WHERE user_id = %s OR target_role ILIKE %s)
+                        OR s.id IN (
+                            SELECT sp.schedule_id 
+                            FROM public.schedule_participants sp
+                            LEFT JOIN public.profiles prof ON prof.id = %s
+                            WHERE sp.user_id = %s 
+                               OR (sp.user_id IS NULL AND sp.target_role IS NOT NULL AND sp.target_role ILIKE %s)
+                               OR (sp.user_id IS NULL AND sp.target_class IS NOT NULL AND prof.class IS NOT NULL AND (
+                                   sp.target_class ILIKE prof.class
+                                   OR prof.class ILIKE sp.target_class
+                                   OR REPLACE(REPLACE(REPLACE(REPLACE(LOWER(sp.target_class), 'class', ''), 'grade', ''), ' ', ''), '-', '')
+                                      = REPLACE(REPLACE(REPLACE(REPLACE(LOWER(prof.class), 'class', ''), 'grade', ''), ' ', ''), '-', '')
+                                   OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(sp.target_class), 'class', ''), 'grade', ''), ' ', ''), '-', ''), 'x', '10'), 'ix', '9')
+                                      = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(prof.class), 'class', ''), 'grade', ''), ' ', ''), '-', ''), 'x', '10'), 'ix', '9')
+                               ))
+                        )
+                        OR (
+                            s.target_classes IS NOT NULL 
+                            AND jsonb_typeof(s.target_classes) = 'array' 
+                            AND EXISTS (
+                                SELECT 1 
+                                FROM public.profiles prof2, jsonb_array_elements_text(s.target_classes) tc
+                                WHERE prof2.id = %s AND prof2.class IS NOT NULL AND (
+                                    tc ILIKE prof2.class
+                                    OR prof2.class ILIKE tc
+                                    OR REPLACE(REPLACE(REPLACE(REPLACE(LOWER(tc), 'class', ''), 'grade', ''), ' ', ''), '-', '')
+                                       = REPLACE(REPLACE(REPLACE(REPLACE(LOWER(prof2.class), 'class', ''), 'grade', ''), ' ', ''), '-', '')
+                                )
+                            )
+                        )
                     )
                 """)
-                rec_params.extend([user_id, user_id, user_id, f"%{role}%"])
+                rec_params.extend([user_id, user_id, user_id, user_id, f"%{role}%", user_id])
 
             rec_where = " AND ".join(rec_conds)
 
