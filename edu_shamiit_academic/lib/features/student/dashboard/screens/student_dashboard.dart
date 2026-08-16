@@ -166,9 +166,9 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
       ],
       "quick_access": [
         {
-          "title": "Timetable",
-          "icon": "🗓️",
-          "route": "/student/timetable",
+          "title": "Calendar",
+          "icon": "📅",
+          "route": "/student/calendar",
           "bg": "EEF2FF"
         },
         {

@@ -33,10 +33,10 @@ class StudentShellScaffold extends ConsumerWidget {
         label: 'Courses',
         route: '/student/courses'),
     _NavItem(
-        icon: Icons.schedule_rounded,
-        emoji: '🗓️',
-        label: 'Timetable',
-        route: '/student/timetable'),
+        icon: Icons.calendar_month_rounded,
+        emoji: '📅',
+        label: 'Calendar',
+        route: '/student/calendar'),
     _NavItem(
         icon: Icons.bar_chart_rounded,
         emoji: '📊',

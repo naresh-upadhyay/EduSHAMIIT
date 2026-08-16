@@ -469,7 +469,7 @@ class _TeacherDashboardScreenState
               ),
             ),
             TextButton(
-              onPressed: () => context.push('/teacher/timetable'),
+              onPressed: () => context.push('/teacher/calendar'),
               child: Text('View All'.tr(ref)),
             ),
           ],

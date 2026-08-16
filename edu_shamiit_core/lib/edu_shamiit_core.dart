@@ -68,3 +68,9 @@ export 'screens/auth/get_started_screen.dart';
 export 'screens/auth/faq_screen.dart';
 export 'screens/auth/user_guides_screen.dart';
 export 'screens/auth/help_center_screen.dart';
+
+// Shared Calendar Module
+export 'screens/calendar/universal_calendar_screen.dart';
+export 'screens/calendar/models/calendar_models.dart';
+export 'screens/calendar/providers/calendar_provider.dart';
+

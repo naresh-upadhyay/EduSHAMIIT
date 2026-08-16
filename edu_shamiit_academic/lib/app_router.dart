@@ -8,7 +8,6 @@ import 'package:edu_shamiit_academic/features/shared/settings/screens/settings_s
 import 'package:edu_shamiit_academic/features/shared/ai_chat/screens/ai_chat_screen.dart';
 import 'package:edu_shamiit_academic/features/shared/documents/screens/documents_screen.dart';
 import 'package:edu_shamiit_academic/features/student/dashboard/screens/student_dashboard.dart';
-import 'package:edu_shamiit_academic/features/student/timetable/screens/student_timetable.dart';
 import 'package:edu_shamiit_academic/features/student/results/screens/student_results.dart';
 import 'package:edu_shamiit_academic/features/student/homework/screens/student_homework.dart';
 import 'package:edu_shamiit_academic/features/student/attendance/screens/student_attendance.dart';
@@ -41,7 +40,6 @@ import 'package:edu_shamiit_academic/features/student/exams/screens/exam_result_
 import 'package:edu_shamiit_academic/features/student/exams/screens/exam_review_screen.dart';
 
 import 'package:edu_shamiit_academic/features/teacher/dashboard/screens/teacher_dashboard.dart';
-import 'package:edu_shamiit_academic/features/teacher/timetable/screens/teacher_timetable.dart';
 import 'package:edu_shamiit_academic/features/teacher/attendance/screens/teacher_attendance.dart';
 import 'package:edu_shamiit_academic/features/teacher/homework/screens/teacher_homework.dart';
 import 'package:edu_shamiit_academic/features/teacher/gradebook/screens/teacher_gradebook.dart';
@@ -190,6 +188,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       },
     ),
     GoRoute(
+      path: '/calendar',
+      redirect: (context, state) {
+        final authState = ref.read(authProvider);
+        final isTeacher = authState.role.value == 'teacher';
+        return isTeacher ? '/teacher/calendar' : '/student/calendar';
+      },
+    ),
+    GoRoute(
       path: '/live-room',
       builder: (context, state) {
         final extra = state.extra as Map<String, dynamic>;
@@ -216,8 +222,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           pageBuilder: (_, __) => const NoTransitionPage(child: StudentDashboard()),
         ),
         GoRoute(
+          path: '/student/calendar',
+          pageBuilder: (_, __) => const NoTransitionPage(child: UniversalCalendarScreen()),
+        ),
+        GoRoute(
           path: '/student/timetable',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentTimetable()),
+          redirect: (_, __) => '/student/calendar',
         ),
         GoRoute(
           path: '/student/results',
@@ -397,8 +407,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           pageBuilder: (_, __) => const NoTransitionPage(child: TeacherDashboardScreen()),
         ),
         GoRoute(
+          path: '/teacher/calendar',
+          pageBuilder: (_, __) => const NoTransitionPage(child: UniversalCalendarScreen()),
+        ),
+        GoRoute(
           path: '/teacher/timetable',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherTimetable()),
+          redirect: (_, __) => '/teacher/calendar',
         ),
         GoRoute(
           path: '/teacher/attendance',

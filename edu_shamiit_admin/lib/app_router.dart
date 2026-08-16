@@ -7,8 +7,8 @@ import 'package:edu_shamiit_admin/screens/role_dashboards/super_admin_dashboard_
 import 'package:edu_shamiit_admin/screens/role_dashboards/driver_dashboard_screen.dart';
 import 'package:edu_shamiit_admin/screens/role_dashboards/my_profile_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/schools/schools_screen.dart';
-import 'package:edu_shamiit_admin/screens/modules/calendar/universal_calendar_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/users/users_screen.dart';
+import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:edu_shamiit_admin/screens/modules/infra/infra_monitor_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/config/system_config_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/roles/admin_roles_screen.dart';
