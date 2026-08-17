@@ -169,6 +169,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         route: '/admin/modules',
         section: NavSection.systemDev),
     _NavItem(
+        icon: Icons.tune_rounded,
+        label: 'Lookup Management',
+        route: '/admin/lookups',
+        section: NavSection.systemDev),
+    _NavItem(
         icon: Icons.settings_input_component_outlined,
         label: 'Automations Engine',
         route: '/admin/automations',
@@ -319,6 +324,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/roles' ||
                item.route == '/admin/config' ||
                item.route == '/admin/modules' ||
+               item.route == '/admin/lookups' ||
                item.route == '/admin/automations' ||
                item.route == '/admin/insights' ||
                item.route == '/admin/apis' ||
@@ -341,6 +347,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/calendar' ||
                item.route == '/admin/users' ||
                item.route == '/admin/roles' ||
+               item.route == '/admin/lookups' ||
                item.route == '/admin/finance' ||
                item.route == '/admin/defaulters' ||
                item.route == '/admin/staff' ||

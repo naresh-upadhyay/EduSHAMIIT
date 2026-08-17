@@ -80,4 +80,11 @@ export 'screens/notices/models/notice_models.dart';
 export 'screens/notices/providers/notice_provider.dart';
 export 'screens/notices/services/notice_api_service.dart';
 
+// Shared Lookup Management Module
+export 'screens/lookups/lookup_management_screen.dart';
+export 'screens/lookups/models/lookup_models.dart';
+export 'screens/lookups/providers/lookup_provider.dart';
+export 'screens/lookups/services/lookup_api_service.dart';
+
+
 

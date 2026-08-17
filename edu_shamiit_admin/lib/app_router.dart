@@ -292,6 +292,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/admin/roles',
             pageBuilder: (_, __) => const NoTransitionPage(child: AdminRolesScreen()),
           ),
+          GoRoute(
+            path: '/admin/lookups',
+            pageBuilder: (_, __) => const NoTransitionPage(child: LookupManagementScreen()),
+          ),
+          GoRoute(
+            path: '/lookups',
+            pageBuilder: (_, __) => const NoTransitionPage(child: LookupManagementScreen()),
+          ),
           // Sub-routes for the operational tabs
           GoRoute(
             path: '/admin/finance',
