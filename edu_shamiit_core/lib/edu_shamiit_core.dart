@@ -74,3 +74,10 @@ export 'screens/calendar/universal_calendar_screen.dart';
 export 'screens/calendar/models/calendar_models.dart';
 export 'screens/calendar/providers/calendar_provider.dart';
 
+// Shared Notices & Circulars Module
+export 'screens/notices/universal_notices_screen.dart';
+export 'screens/notices/models/notice_models.dart';
+export 'screens/notices/providers/notice_provider.dart';
+export 'screens/notices/services/notice_api_service.dart';
+
+

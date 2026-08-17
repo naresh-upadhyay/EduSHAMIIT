@@ -20,7 +20,6 @@ import 'package:edu_shamiit_academic/features/student/courses/screens/student_co
 import 'package:edu_shamiit_academic/features/teacher/my_classes/screens/teacher_class_subjects.dart';
 import 'package:edu_shamiit_academic/features/teacher/courses/screens/teacher_course_details.dart';
 import 'package:edu_shamiit_academic/features/student/notifications/screens/student_notifications.dart';
-import 'package:edu_shamiit_academic/features/student/notices/screens/student_notices_screen.dart';
 import 'package:edu_shamiit_academic/features/student/transport/screens/student_transport_screen.dart';
 
 import 'package:edu_shamiit_academic/features/student/achievements/screens/student_achievements_screen.dart';
@@ -44,7 +43,6 @@ import 'package:edu_shamiit_academic/features/teacher/attendance/screens/teacher
 import 'package:edu_shamiit_academic/features/teacher/homework/screens/teacher_homework.dart';
 import 'package:edu_shamiit_academic/features/teacher/gradebook/screens/teacher_gradebook.dart';
 import 'package:edu_shamiit_academic/features/teacher/my_classes/screens/teacher_my_classes.dart';
-import 'package:edu_shamiit_academic/features/teacher/notices/screens/teacher_notices.dart';
 import 'package:edu_shamiit_academic/features/teacher/profile/screens/teacher_profile.dart';
 import 'package:edu_shamiit_academic/features/teacher/exams/screens/teacher_exams.dart';
 import 'package:edu_shamiit_academic/features/teacher/exams/screens/create_exam_screen.dart';
@@ -239,7 +237,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
         GoRoute(
           path: '/student/notices',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentNotices()),
+          pageBuilder: (_, __) => const NoTransitionPage(child: UniversalNoticesScreen()),
         ),
         GoRoute(
           path: '/student/homework',
@@ -454,7 +452,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
         GoRoute(
           path: '/teacher/notices',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherNotices()),
+          pageBuilder: (_, __) => const NoTransitionPage(child: UniversalNoticesScreen()),
         ),
         GoRoute(
           path: '/teacher/profile',

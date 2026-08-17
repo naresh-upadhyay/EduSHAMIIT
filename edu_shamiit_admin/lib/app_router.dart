@@ -373,7 +373,15 @@ final routerProvider = Provider<GoRouter>((ref) {
 
           GoRoute(
             path: '/admin/announcements',
-            pageBuilder: (_, __) => const NoTransitionPage(child: AnnouncementsScreen()),
+            pageBuilder: (_, __) => const NoTransitionPage(child: UniversalNoticesScreen()),
+          ),
+          GoRoute(
+            path: '/admin/notices',
+            pageBuilder: (_, __) => const NoTransitionPage(child: UniversalNoticesScreen()),
+          ),
+          GoRoute(
+            path: '/notices',
+            pageBuilder: (_, __) => const NoTransitionPage(child: UniversalNoticesScreen()),
           ),
 
           GoRoute(
