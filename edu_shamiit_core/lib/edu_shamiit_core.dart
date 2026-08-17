@@ -86,5 +86,11 @@ export 'screens/lookups/models/lookup_models.dart';
 export 'screens/lookups/providers/lookup_provider.dart';
 export 'screens/lookups/services/lookup_api_service.dart';
 
+// Shared Academic Class Management Module
+export 'screens/classes/class_management_screen.dart';
+export 'screens/classes/models/class_models.dart';
+export 'screens/classes/providers/class_provider.dart';
+export 'screens/classes/services/class_api_service.dart';
+
 
 

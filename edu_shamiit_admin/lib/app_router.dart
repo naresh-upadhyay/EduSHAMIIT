@@ -24,7 +24,6 @@ import 'package:edu_shamiit_admin/screens/modules/quick_access/quick_access_scre
 import 'package:edu_shamiit_admin/screens/modules/quick_access/emergency_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/fleet/driver_management_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/fleet/route_management_screen.dart';
-import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:edu_shamiit_admin/providers/system_config_provider.dart';
 
 final adminShellKey = GlobalKey<NavigatorState>(debugLabel: 'adminShell');
@@ -299,6 +298,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/lookups',
             pageBuilder: (_, __) => const NoTransitionPage(child: LookupManagementScreen()),
+          ),
+          GoRoute(
+            path: '/admin/classes',
+            pageBuilder: (_, __) => const NoTransitionPage(child: ClassManagementScreen()),
+          ),
+          GoRoute(
+            path: '/classes',
+            pageBuilder: (_, __) => const NoTransitionPage(child: ClassManagementScreen()),
           ),
           // Sub-routes for the operational tabs
           GoRoute(

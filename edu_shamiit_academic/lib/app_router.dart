@@ -426,7 +426,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
         GoRoute(
           path: '/teacher/my-classes',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherMyClasses()),
+          pageBuilder: (_, __) => const NoTransitionPage(child: ClassManagementScreen()),
+        ),
+        GoRoute(
+          path: '/academic/classes',
+          pageBuilder: (_, __) => const NoTransitionPage(child: ClassManagementScreen()),
+        ),
+        GoRoute(
+          path: '/classes',
+          pageBuilder: (_, __) => const NoTransitionPage(child: ClassManagementScreen()),
         ),
         GoRoute(
           path: '/teacher/my-classes/:classId/subjects',

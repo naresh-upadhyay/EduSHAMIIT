@@ -96,6 +96,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         route: '/admin/users',
         section: NavSection.organization),
     _NavItem(
+        icon: Icons.class_outlined,
+        label: 'Class Management',
+        route: '/admin/classes',
+        section: NavSection.organization),
+    _NavItem(
         icon: Icons.admin_panel_settings_outlined,
         label: 'Manage Roles',
         route: '/admin/roles',
@@ -320,6 +325,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/calendar' ||
                item.route == '/admin/schools' ||
                item.route == '/admin/users' ||
+               item.route == '/admin/classes' ||
                item.route == '/admin/infra' ||
                item.route == '/admin/roles' ||
                item.route == '/admin/config' ||
@@ -346,6 +352,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         return item.route == '/admin/dashboard' ||
                item.route == '/admin/calendar' ||
                item.route == '/admin/users' ||
+               item.route == '/admin/classes' ||
                item.route == '/admin/roles' ||
                item.route == '/admin/lookups' ||
                item.route == '/admin/finance' ||
