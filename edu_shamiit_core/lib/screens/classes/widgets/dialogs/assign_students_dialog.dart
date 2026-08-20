@@ -52,7 +52,7 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
     final results = await _api.searchStudents(
       search: query,
       academicYear: widget.academicYear,
-      limit: 100,
+      limit: 200,
     );
     if (mounted) {
       setState(() {
@@ -71,6 +71,22 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
         _isLoading = false;
       });
     }
+  }
+
+  void _selectAllFiltered() {
+    setState(() {
+      for (var s in _students) {
+        _selectedStudentIds.add(s.id);
+      }
+    });
+  }
+
+  void _deselectAllFiltered() {
+    setState(() {
+      for (var s in _students) {
+        _selectedStudentIds.remove(s.id);
+      }
+    });
   }
 
   void _validateAndSubmit() async {
@@ -122,12 +138,14 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
     final isDark = theme.brightness == Brightness.dark;
     final targetLabel = widget.sectionName != null ? '${widget.className} - Section ${widget.sectionName}' : widget.className;
 
+    final allFilteredSelected = _students.isNotEmpty && _students.every((s) => _selectedStudentIds.contains(s.id));
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 0,
       backgroundColor: Colors.transparent,
       child: Container(
-        width: 600,
+        width: 620,
         constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.88),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -176,8 +194,9 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                             color: isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
+                        const SizedBox(height: 2),
                         Text(
-                          'Select or unselect students for $targetLabel.',
+                          'Select or reassign students for $targetLabel (${widget.academicYear}).',
                           style: TextStyle(
                             fontSize: 12,
                             color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
@@ -196,32 +215,96 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
               ),
             ),
 
-            // Search Bar & Multi-Select Header
+            // Search Bar & Bulk Selection Controls
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (v) => _loadStudents(query: v),
-                decoration: InputDecoration(
-                  hintText: 'Search student by name, admission no, or roll no...',
-                  hintStyle: TextStyle(
-                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                    fontSize: 13,
+              padding: const EdgeInsets.fromLTRB(24, 14, 24, 10),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _searchController,
+                    onChanged: (v) => _loadStudents(query: v),
+                    decoration: InputDecoration(
+                      hintText: 'Search student by name, admission no, or roll no...',
+                      hintStyle: TextStyle(
+                        color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                        fontSize: 13,
+                      ),
+                      prefixIcon: const Icon(Icons.search, size: 18),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 16),
+                              onPressed: () {
+                                _searchController.clear();
+                                _loadStudents(query: '');
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      ),
+                    ),
+                    style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
                   ),
-                  prefixIcon: const Icon(Icons.search, size: 18),
-                  filled: true,
-                  fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Showing ${_students.length} students',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          TextButton.icon(
+                            onPressed: _students.isEmpty
+                                ? null
+                                : (allFilteredSelected ? _deselectAllFiltered : _selectAllFiltered),
+                            icon: Icon(
+                              allFilteredSelected ? Icons.deselect_rounded : Icons.select_all_rounded,
+                              size: 15,
+                              color: const Color(0xFF10B981),
+                            ),
+                            label: Text(
+                              allFilteredSelected ? 'Deselect All' : 'Select All Filtered',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF10B981),
+                              ),
+                            ),
+                          ),
+                          if (_selectedStudentIds.isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            TextButton.icon(
+                              onPressed: () => setState(() => _selectedStudentIds.clear()),
+                              icon: const Icon(Icons.clear_all_rounded, size: 15, color: Color(0xFFEF4444)),
+                              label: const Text(
+                                'Clear All',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFFEF4444),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                  ),
-                ),
-                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                ],
               ),
             ),
 
@@ -244,7 +327,7 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                           ),
                         )
                       : ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
                           shrinkWrap: true,
                           itemCount: _students.length,
                           separatorBuilder: (_, __) => Divider(
@@ -269,8 +352,15 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                                 });
                               },
                               borderRadius: BorderRadius.circular(8),
-                              child: Padding(
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(vertical: 2),
                                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? (isDark ? const Color(0xFF10B981).withOpacity(0.12) : const Color(0xFFECFDF5))
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
                                 child: Row(
                                   children: [
                                     CircleAvatar(
@@ -334,8 +424,8 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                                                     fontSize: 10,
                                                     fontWeight: FontWeight.w600,
                                                     color: isCurrentlyHere
-                                                        ? const Color(0xFF059669)
-                                                        : (s.isAssigned ? const Color(0xFFD97706) : const Color(0xFF64748B)),
+                                                      ? const Color(0xFF059669)
+                                                      : (s.isAssigned ? const Color(0xFFD97706) : const Color(0xFF64748B)),
                                                   ),
                                                 ),
                                               ),
@@ -382,11 +472,11 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '${_selectedStudentIds.length} Selected',
+                    '${_selectedStudentIds.length} Students Selected',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      color: _selectedStudentIds.isNotEmpty ? const Color(0xFF10B981) : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                     ),
                   ),
                   Row(

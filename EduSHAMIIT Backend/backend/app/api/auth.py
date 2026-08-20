@@ -1376,6 +1376,12 @@ class UpdateUserRequest(BaseModel):
     password: Optional[str] = None
     status: Optional[str] = None
     department: Optional[str] = None
+    manager_id: Optional[str] = None
+
+
+class AssignManagerRequest(BaseModel):
+    user_ids: List[str]
+    manager_id: Optional[str] = None
 
 
 @router.get("/users/stats",
@@ -1519,7 +1525,18 @@ async def list_users(
         res = await query.order("created_at", ascending=False).aexecute()
         users = res.data or []
         
-        # Format the joined school data
+        # Batch resolve reporting manager info
+        manager_ids = list({u.get("manager_id") for u in users if u.get("manager_id")})
+        manager_map = {}
+        if manager_ids:
+            try:
+                mgr_res = await sb.table("profiles").select("id, full_name, email, role, avatar_url, department").in_("id", manager_ids).aexecute()
+                for m in (mgr_res.data or []):
+                    manager_map[m["id"]] = m
+            except Exception as e:
+                logger.warning(f"Failed to batch resolve manager profiles: {e}")
+
+        # Format the joined school & manager data
         formatted_users = []
         for u in users:
             school_obj = u.pop("schools", None)
@@ -1529,6 +1546,22 @@ async def list_users(
             else:
                 u["school_name"] = "System-wide" if u["role"] == "super_admin" else "Unknown"
                 u["school_status"] = None
+
+            # Attach Manager Info
+            mgr_id = u.get("manager_id")
+            mgr = manager_map.get(mgr_id)
+            if mgr:
+                u["manager_name"] = mgr.get("full_name")
+                u["manager_email"] = mgr.get("email")
+                u["manager_role"] = mgr.get("role")
+                u["manager_avatar_url"] = mgr.get("avatar_url")
+                u["manager_department"] = mgr.get("department")
+            else:
+                u["manager_name"] = None
+                u["manager_email"] = None
+                u["manager_role"] = None
+                u["manager_avatar_url"] = None
+                u["manager_department"] = None
                 
             # Resolve dynamic status
             lockout_until_str = u.get("lockout_until")
@@ -1603,6 +1636,8 @@ async def update_user(
             update_data["class"] = request.class_name
         if request.department is not None:
             update_data["department"] = request.department
+        if request.manager_id is not None:
+            update_data["manager_id"] = None if (request.manager_id == "" or request.manager_id.lower() == "none") else request.manager_id
         if request.status is not None:
             update_data["status"] = request.status
             if request.status == "Locked":
@@ -1725,6 +1760,147 @@ async def update_user(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update user: {str(e)}")
+
+
+@router.get("/users/managers",
+    summary="List Eligible Reporting Managers",
+    description="Retrieve all eligible managers with direct report counts and search support."
+)
+async def list_eligible_managers(
+    q: Optional[str] = None,
+    department: Optional[str] = None,
+    school_id: Optional[str] = None,
+    user=Depends(get_current_user)
+):
+    try:
+        sb = get_supabase()
+        caller_role = user.get("role", "").lower()
+        effective_school_id = user.get("school_id") if caller_role != "super_admin" else school_id
+
+        # Query active profiles (admin, principal, director, teacher, staff, hr, etc.)
+        query = sb.table("profiles").select("id, user_id, full_name, email, role, department, designation, avatar_url, school_id")
+        
+        if effective_school_id and str(effective_school_id).strip():
+            query = query.eq("school_id", effective_school_id)
+            
+        if department and department != "All":
+            query = query.eq("department", department)
+            
+        if q and q.strip():
+            search_str = q.strip()
+            query = query.or_(f"full_name.ilike.%{search_str}%,email.ilike.%{search_str}%,user_id.ilike.%{search_str}%")
+            
+        res = await query.order("full_name", ascending=True).aexecute()
+        raw_managers = res.data or []
+
+        # Count direct reports for each manager
+        direct_counts = {}
+        if raw_managers:
+            mgr_ids = [m["id"] for m in raw_managers]
+            count_res = await sb.table("profiles").select("manager_id").in_("manager_id", mgr_ids).aexecute()
+            for r in (count_res.data or []):
+                m_id = r.get("manager_id")
+                if m_id:
+                    direct_counts[m_id] = direct_counts.get(m_id, 0) + 1
+
+        managers_list = []
+        for m in raw_managers:
+            m["direct_reports_count"] = direct_counts.get(m["id"], 0)
+            managers_list.append(m)
+
+        return {"success": True, "data": managers_list, "count": len(managers_list)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch managers: {str(e)}")
+
+
+@router.post("/users/assign-manager",
+    summary="Assign or Clear Reporting Manager for Users",
+    description="Assign a manager to one or multiple users, or clear their manager if manager_id is null."
+)
+async def assign_manager(
+    payload: AssignManagerRequest,
+    user=Depends(get_current_user)
+):
+    try:
+        from datetime import datetime
+        sb = get_supabase()
+        caller_role = user.get("role", "").lower()
+        caller_school_id = user.get("school_id")
+
+        if not payload.user_ids:
+            raise HTTPException(status_code=400, detail="At least one user ID must be provided")
+
+        user_ids = list(set(payload.user_ids))
+
+        # Check self-assignment / circular validation
+        manager_data = None
+        if payload.manager_id and payload.manager_id.strip() and payload.manager_id.lower() != "none":
+            if payload.manager_id in user_ids:
+                raise HTTPException(status_code=400, detail="A user cannot be assigned as their own reporting manager.")
+                
+            # Verify manager exists
+            mgr_res = await sb.table("profiles").select("id, full_name, school_id, role, department").eq("id", payload.manager_id).maybe_single().aexecute()
+            if not mgr_res.data:
+                raise HTTPException(status_code=404, detail="Selected manager profile not found")
+            manager_data = mgr_res.data
+
+            if caller_role != "super_admin" and manager_data.get("school_id") != caller_school_id:
+                raise HTTPException(status_code=403, detail="Manager belongs to a different institution")
+            update_val = payload.manager_id
+        else:
+            update_val = None
+
+        # Fetch users to verify permissions
+        target_res = await sb.table("profiles").select("id, full_name, school_id").in_("id", user_ids).aexecute()
+        targets = target_res.data or []
+        if not targets:
+            raise HTTPException(status_code=404, detail="No matching user profiles found")
+
+        # Verify that all selected users belong to the exact same school
+        target_schools = set(t.get("school_id") for t in targets if t.get("school_id"))
+        if len(target_schools) > 1:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot assign manager to users from multiple schools. All selected users must belong to the same school."
+            )
+
+        # If manager is specified, verify manager belongs to the same school as target users
+        if manager_data and target_schools:
+            target_school_id = list(target_schools)[0]
+            mgr_school_id = manager_data.get("school_id")
+            if mgr_school_id and mgr_school_id != target_school_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="The selected reporting manager belongs to a different school than the selected user(s)."
+                )
+
+        if caller_role != "super_admin":
+            for t in targets:
+                if t.get("school_id") != caller_school_id:
+                    raise HTTPException(status_code=403, detail=f"Access denied: User {t.get('full_name')} belongs to another school")
+
+        valid_ids = [t["id"] for t in targets]
+
+        # Update manager_id for all target users
+        await sb.table("profiles").update({
+            "manager_id": update_val,
+            "updated_at": datetime.utcnow().isoformat()
+        }).in_("id", valid_ids).aexecute()
+
+        msg = f"Assigned {manager_data['full_name']} as reporting manager for {len(valid_ids)} user(s)" if manager_data else f"Cleared reporting manager for {len(valid_ids)} user(s)"
+
+        return {
+            "success": True,
+            "message": msg,
+            "updated_count": len(valid_ids),
+            "manager": manager_data
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to assign manager: {str(e)}")
 
 
 # ──────────────────────────────────────────────────────────────

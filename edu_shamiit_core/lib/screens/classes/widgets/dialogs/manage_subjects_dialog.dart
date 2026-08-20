@@ -253,7 +253,7 @@ class _ManageSubjectsDialogState extends State<ManageSubjectsDialog> {
                                             ),
                                           ),
                                           Text(
-                                            '${s.type} • ${s.periodsPerWeek} Periods/Week • Code: ${s.code}',
+                                            s.code.isNotEmpty ? '${s.type} • Code: ${s.code}' : s.type,
                                             style: TextStyle(
                                               fontSize: 11.5,
                                               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),

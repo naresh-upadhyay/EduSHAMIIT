@@ -29,15 +29,15 @@ class _AssignClassTeacherDialogState extends State<AssignClassTeacherDialog> {
   final TextEditingController _searchController = TextEditingController();
 
   List<AcademicTeacherModel> _teachers = [];
-  final Set<String> _selectedTeacherIds = {};
+  String? _selectedTeacherId;
   bool _isLoading = true;
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    for (var t in widget.currentlyAssigned) {
-      _selectedTeacherIds.add(t.id);
+    if (widget.currentlyAssigned.isNotEmpty) {
+      _selectedTeacherId = widget.currentlyAssigned.first.id;
     }
     _loadTeachers();
   }
@@ -50,7 +50,7 @@ class _AssignClassTeacherDialogState extends State<AssignClassTeacherDialog> {
 
   Future<void> _loadTeachers({String query = ''}) async {
     setState(() => _isLoading = true);
-    final results = await _api.searchTeachers(search: query, limit: 30);
+    final results = await _api.searchTeachers(search: query, limit: 100);
     if (mounted) {
       setState(() {
         _teachers = results;
@@ -62,7 +62,10 @@ class _AssignClassTeacherDialogState extends State<AssignClassTeacherDialog> {
   void _submit() async {
     setState(() => _isSaving = true);
     try {
-      await widget.onSave(_selectedTeacherIds.toList());
+      final List<String> teacherIds = _selectedTeacherId != null && _selectedTeacherId!.isNotEmpty
+          ? [_selectedTeacherId!]
+          : [];
+      await widget.onSave(teacherIds);
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
       if (mounted) setState(() => _isSaving = false);
@@ -74,13 +77,14 @@ class _AssignClassTeacherDialogState extends State<AssignClassTeacherDialog> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final targetLabel = widget.sectionName != null ? '${widget.className} - Section ${widget.sectionName}' : widget.className;
+    final currentlyAssignedId = widget.currentlyAssigned.isNotEmpty ? widget.currentlyAssigned.first.id : null;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 0,
       backgroundColor: Colors.transparent,
       child: Container(
-        width: 540,
+        width: 560,
         constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -129,8 +133,9 @@ class _AssignClassTeacherDialogState extends State<AssignClassTeacherDialog> {
                             color: isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
+                        const SizedBox(height: 2),
                         Text(
-                          'Select from User Management faculty for $targetLabel.',
+                          'Select faculty member from User Management for $targetLabel.',
                           style: TextStyle(
                             fontSize: 12,
                             color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
@@ -148,32 +153,63 @@ class _AssignClassTeacherDialogState extends State<AssignClassTeacherDialog> {
               ),
             ),
 
-            // Search Bar
+            // Search Bar & Clear Selection Option
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (v) => _loadTeachers(query: v),
-                decoration: InputDecoration(
-                  hintText: 'Search faculty by name, ID, or department...',
-                  hintStyle: TextStyle(
-                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                    fontSize: 13,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (v) => _loadTeachers(query: v),
+                      decoration: InputDecoration(
+                        hintText: 'Search faculty by name, employee ID, or department...',
+                        hintStyle: TextStyle(
+                          color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                          fontSize: 13,
+                        ),
+                        prefixIcon: const Icon(Icons.search, size: 18),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 16),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  _loadTeachers(query: '');
+                                },
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                        ),
+                      ),
+                      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                    ),
                   ),
-                  prefixIcon: const Icon(Icons.search, size: 18),
-                  filled: true,
-                  fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                  ),
-                ),
-                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                  if (_selectedTeacherId != null) ...[
+                    const SizedBox(width: 10),
+                    Tooltip(
+                      message: 'Unassign / Remove Teacher',
+                      child: OutlinedButton.icon(
+                        onPressed: () => setState(() => _selectedTeacherId = null),
+                        icon: const Icon(Icons.person_remove_outlined, size: 14, color: Color(0xFFEF4444)),
+                        label: const Text('Unassign', style: TextStyle(fontSize: 12, color: Color(0xFFEF4444))),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          side: const BorderSide(color: Color(0xFFEF4444)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
 
@@ -184,9 +220,16 @@ class _AssignClassTeacherDialogState extends State<AssignClassTeacherDialog> {
                   : _teachers.isEmpty
                       ? Padding(
                           padding: const EdgeInsets.all(32),
-                          child: Text(
-                            'No faculty found matching your search.',
-                            style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.person_search_outlined, size: 40, color: isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
+                              const SizedBox(height: 10),
+                              Text(
+                                'No faculty found matching your search.',
+                                style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B), fontSize: 13),
+                              ),
+                            ],
                           ),
                         )
                       : ListView.separated(
@@ -199,25 +242,37 @@ class _AssignClassTeacherDialogState extends State<AssignClassTeacherDialog> {
                           ),
                           itemBuilder: (context, index) {
                             final t = _teachers[index];
-                            final isSelected = _selectedTeacherIds.contains(t.id);
+                            final isSelected = _selectedTeacherId == t.id;
+                            final isCurrentlyAssignedHere = currentlyAssignedId == t.id;
 
                             return InkWell(
                               onTap: () {
                                 setState(() {
                                   if (isSelected) {
-                                    _selectedTeacherIds.remove(t.id);
+                                    _selectedTeacherId = null;
                                   } else {
-                                    _selectedTeacherIds.add(t.id);
+                                    _selectedTeacherId = t.id;
                                   }
                                 });
                               },
                               borderRadius: BorderRadius.circular(8),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(vertical: 2),
+                                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? (isDark ? const Color(0xFF4F46E5).withOpacity(0.2) : const Color(0xFFEEF2FF))
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isSelected ? const Color(0xFF4F46E5) : Colors.transparent,
+                                    width: 1.5,
+                                  ),
+                                ),
                                 child: Row(
                                   children: [
                                     CircleAvatar(
-                                      radius: 18,
+                                      radius: 20,
                                       backgroundColor: const Color(0xFF4F46E5).withOpacity(0.15),
                                       backgroundImage: t.avatarUrl != null ? NetworkImage(t.avatarUrl!) : null,
                                       child: t.avatarUrl == null
@@ -226,25 +281,43 @@ class _AssignClassTeacherDialogState extends State<AssignClassTeacherDialog> {
                                               style: const TextStyle(
                                                 color: Color(0xFF4F46E5),
                                                 fontWeight: FontWeight.w700,
-                                                fontSize: 13,
+                                                fontSize: 14,
                                               ),
                                             )
                                           : null,
                                     ),
-                                    const SizedBox(width: 12),
+                                    const SizedBox(width: 14),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            t.fullName,
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600,
-                                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                            ),
+                                          Row(
+                                            children: [
+                                              Text(
+                                                t.fullName,
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                                ),
+                                              ),
+                                              if (isCurrentlyAssignedHere) ...[
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFF10B981).withOpacity(0.15),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                  child: const Text(
+                                                    'Current Teacher',
+                                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF059669)),
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
                                           ),
-                                          const SizedBox(height: 2),
+                                          const SizedBox(height: 3),
                                           Text(
                                             '${t.employeeId ?? 'EMP'} • ${t.department ?? 'Faculty'} • ${t.email ?? ''}',
                                             style: TextStyle(
@@ -257,17 +330,13 @@ class _AssignClassTeacherDialogState extends State<AssignClassTeacherDialog> {
                                         ],
                                       ),
                                     ),
-                                    Checkbox(
-                                      value: isSelected,
+                                    Radio<String?>(
+                                      value: t.id,
+                                      groupValue: _selectedTeacherId,
                                       activeColor: const Color(0xFF4F46E5),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                                       onChanged: (val) {
                                         setState(() {
-                                          if (val == true) {
-                                            _selectedTeacherIds.add(t.id);
-                                          } else {
-                                            _selectedTeacherIds.remove(t.id);
-                                          }
+                                          _selectedTeacherId = val;
                                         });
                                       },
                                     ),
@@ -295,11 +364,11 @@ class _AssignClassTeacherDialogState extends State<AssignClassTeacherDialog> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '${_selectedTeacherIds.length} Selected',
+                    _selectedTeacherId != null ? '1 Teacher Selected' : 'No Teacher Selected (Unassigned)',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      color: _selectedTeacherId != null ? const Color(0xFF4F46E5) : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                     ),
                   ),
                   Row(
@@ -332,7 +401,7 @@ class _AssignClassTeacherDialogState extends State<AssignClassTeacherDialog> {
                                 height: 18,
                                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                               )
-                            : const Text('Save Assignments', style: TextStyle(fontWeight: FontWeight.w600)),
+                            : const Text('Save Assignment', style: TextStyle(fontWeight: FontWeight.w600)),
                       ),
                     ],
                   ),

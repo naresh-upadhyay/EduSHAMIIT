@@ -37,8 +37,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   int _currentPage = 1;
   int _pageSize = 10;
 
-  // Role labels map for display
-  static const Map<String, String> _roleLabels = {
+  // Role labels map for display (dynamically merged with database app_roles)
+  List<Map<String, dynamic>> _appRoles = [];
+  final Map<String, String> _roleLabels = {
     'super_admin': 'Super Admin',
     'admin': 'School Admin',
     'teacher': 'Teacher',
@@ -60,6 +61,32 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     'exam_ctrl': 'Exam Controller',
   };
 
+  String _formatRoleName(String role) {
+    if (_roleLabels.containsKey(role.toLowerCase())) {
+      return _roleLabels[role.toLowerCase()]!;
+    }
+    final words = role.replaceAll('_', ' ').split(' ');
+    return words.map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}' : '').join(' ');
+  }
+
+  Future<void> _fetchRoles() async {
+    try {
+      final res = await ApiService().get('/admin/schools/roles', useCache: false);
+      if (res['success'] == true && res['data'] != null) {
+        final rolesList = List<Map<String, dynamic>>.from(res['data']);
+        setState(() {
+          _appRoles = rolesList;
+          for (var r in rolesList) {
+            final name = (r['name'] ?? '').toString().toLowerCase();
+            if (name.isNotEmpty) {
+              _roleLabels[name] = _formatRoleName(name);
+            }
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
   @override
   void initState() {
     super.initState();
@@ -77,6 +104,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     }
     _fetchUsers();
     _fetchSchools();
+    _fetchRoles();
     _fetchStats();
   }
 
@@ -171,8 +199,16 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     try {
       final res = await ApiService().get('/admin/schools', useCache: false);
       if (res['success'] == true && res['data'] != null && res['data']['schools'] != null) {
+        final rawSchools = List<Map<String, dynamic>>.from(res['data']['schools']);
+        final Map<String, Map<String, dynamic>> uniqueSchools = {};
+        for (var s in rawSchools) {
+          final name = (s['name'] ?? '').toString().trim();
+          if (name.isNotEmpty && !uniqueSchools.containsKey(name.toLowerCase())) {
+            uniqueSchools[name.toLowerCase()] = s;
+          }
+        }
         setState(() {
-          _schools = List<Map<String, dynamic>>.from(res['data']['schools']);
+          _schools = uniqueSchools.values.toList();
         });
       }
     } catch (e) {
@@ -524,7 +560,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
               style: TextStyle(color: textPrimary, fontSize: 12, fontWeight: FontWeight.w500),
               icon: Icon(Icons.business_outlined, color: accentColor, size: 16),
-              items: ['All', ..._schools.map((s) => s['name'] as String)].map((String val) {
+              items: ['All', ..._schools.map((s) => (s['name'] ?? '').toString().trim()).where((n) => n.isNotEmpty).toSet()].map((String val) {
                 return DropdownMenuItem<String>(
                   value: val,
                   child: Row(
@@ -543,6 +579,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     _selectedInstitution = val;
                     _currentPage = 1;
                     _fetchUsers();
+                    _fetchStats();
                   });
                 }
               },
@@ -939,6 +976,43 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             ],
           ),
           const SizedBox(height: 12),
+          // Reporting Manager info on Mobile
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF13182C) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.supervisor_account_rounded, size: 14, color: Color(0xFF0EA5E9)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    user['manager_name'] != null && user['manager_name'].toString().isNotEmpty
+                        ? 'Manager: ${user['manager_name']} (${_roleLabels[user['manager_role']] ?? user['manager_role'] ?? 'Staff'})'
+                        : 'Manager: Unassigned',
+                    style: GoogleFonts.dmSans(
+                      color: user['manager_name'] != null ? textPrimary : textMuted,
+                      fontSize: 11,
+                      fontWeight: user['manager_name'] != null ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                InkWell(
+                  onTap: () => _showAssignManagerDialog([user]),
+                  child: Text(
+                    user['manager_name'] != null ? 'Change' : 'Assign',
+                    style: const TextStyle(color: Color(0xFF0EA5E9), fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
           const Divider(height: 1, color: Colors.white10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -950,6 +1024,14 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  IconButton(
+                    icon: const Icon(Icons.supervisor_account_outlined, size: 18),
+                    color: const Color(0xFF0EA5E9),
+                    tooltip: 'Assign Manager',
+                    onPressed: () => _showAssignManagerDialog([user]),
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(6),
+                  ),
                   IconButton(
                     icon: const Icon(Icons.remove_red_eye_outlined, size: 18),
                     color: accentColor,
@@ -1051,10 +1133,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           TextColumn('Role', textSecondary, width: 90),
                           TextColumn('Institution', textSecondary, width: 160),
                           TextColumn('Department', textSecondary, width: 90),
+                          TextColumn('Reporting Manager', textSecondary, width: 140),
                           TextColumn('Status', textSecondary, width: 85),
                           TextColumn('Last Login', textSecondary, width: 90),
                           TextColumn('Created On', textSecondary, width: 90),
-                          TextColumn('Actions', textSecondary, width: 150),
+                          TextColumn('Actions', textSecondary, width: 180),
                         ],
                         rows: paginatedUsers.map((user) {
                           final isSelected = _selectedUserIds.contains(user['id']);
@@ -1193,6 +1276,81 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                               ),
                               DataCell(
                                 SizedBox(
+                                  width: 140,
+                                  child: user['manager_name'] != null && user['manager_name'].toString().isNotEmpty
+                                      ? InkWell(
+                                          onTap: () => _showAssignManagerDialog([user]),
+                                          borderRadius: BorderRadius.circular(6),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                                            child: Row(
+                                              children: [
+                                                CircleAvatar(
+                                                  radius: 10,
+                                                  backgroundImage: user['manager_avatar_url'] != null && user['manager_avatar_url'].isNotEmpty
+                                                      ? NetworkImage(user['manager_avatar_url'])
+                                                      : null,
+                                                  backgroundColor: const Color(0xFF0EA5E9).withValues(alpha: 0.15),
+                                                  child: user['manager_avatar_url'] == null || user['manager_avatar_url'].isEmpty
+                                                      ? Text(
+                                                          user['manager_name'][0].toUpperCase(),
+                                                          style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF0EA5E9)),
+                                                        )
+                                                      : null,
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    children: [
+                                                      Text(
+                                                        user['manager_name'] ?? '',
+                                                        style: GoogleFonts.dmSans(color: textPrimary, fontSize: 11, fontWeight: FontWeight.bold),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                      if (user['manager_role'] != null)
+                                                        Text(
+                                                          _roleLabels[user['manager_role']] ?? user['manager_role'],
+                                                          style: GoogleFonts.dmSans(color: textMuted, fontSize: 9),
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow.ellipsis,
+                                                        ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        )
+                                      : InkWell(
+                                          onTap: () => _showAssignManagerDialog([user]),
+                                          borderRadius: BorderRadius.circular(4),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03),
+                                              borderRadius: BorderRadius.circular(4),
+                                              border: Border.all(color: borderColor),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.add_circle_outline, size: 12, color: accentColor),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  'Assign',
+                                                  style: GoogleFonts.dmSans(color: accentColor, fontSize: 10, fontWeight: FontWeight.w600),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                ),
+                              ),
+                              DataCell(
+                                SizedBox(
                                   width: 85,
                                   child: Row(
                                     children: [
@@ -1236,9 +1394,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                               ),
                               DataCell(
                                 SizedBox(
-                                  width: 150,
+                                  width: 180,
                                   child: Row(
                                     children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.supervisor_account_outlined, size: 16),
+                                        color: const Color(0xFF0EA5E9),
+                                        tooltip: 'Assign Reporting Manager',
+                                        onPressed: () => _showAssignManagerDialog([user]),
+                                      ),
                                       IconButton(
                                         icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
                                         color: accentColor,
@@ -1477,6 +1641,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       'Front Office',
       'Transport'
     ];
+    final List<String> schoolNames = [
+      'All',
+      ..._schools.map((s) => (s['name'] ?? '').toString().trim()).where((n) => n.isNotEmpty).toSet().toList()
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()))
+    ];
     return Wrap(
       spacing: 12,
       runSpacing: 12,
@@ -1515,6 +1684,23 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               _fetchUsers();
             },
           ),
+        ),
+        _buildDropdown(
+          'All Institutions',
+          _selectedInstitution,
+          schoolNames,
+          (val) {
+            setState(() {
+              _selectedInstitution = val;
+              _currentPage = 1;
+              _fetchUsers();
+              _fetchStats();
+            });
+          },
+          isDark,
+          cardBg,
+          borderColor,
+          textPrimary,
         ),
         _buildDropdown(
           'All Roles',
@@ -1574,6 +1760,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               _selectedDepartment = 'All';
               _currentPage = 1;
               _fetchUsers();
+              _fetchStats();
             });
             _showSnackBar('Filters reset');
           },
@@ -1680,6 +1867,17 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             label: const Text('Change Role', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF8B5CF6),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => _showAssignManagerDialog(selectedItems),
+            icon: const Icon(Icons.supervisor_account_rounded, size: 14),
+            label: const Text('Assign Manager', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0EA5E9),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
@@ -2136,11 +2334,28 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   _buildDetailItem('Father\'s Name', fatherName, textSecondary, textPrimary),
                   _buildDetailItem('Mother\'s Name', motherName, textSecondary, textPrimary),
                   _buildDetailItem('Last Login', lastLogin, textSecondary, textPrimary),
+                  _buildDetailItem(
+                    'Reporting Manager',
+                    user['manager_name'] != null && user['manager_name'].toString().isNotEmpty
+                        ? '${user['manager_name']} (${_roleLabels[user['manager_role']] ?? user['manager_role'] ?? 'Staff'})'
+                        : 'Unassigned',
+                    textSecondary,
+                    textPrimary,
+                  ),
                 ],
               ),
             ),
           ),
           actions: [
+            TextButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                _showAssignManagerDialog([user]);
+              },
+              icon: const Icon(Icons.supervisor_account_rounded, size: 16),
+              label: const Text('Assign / Change Manager'),
+              style: TextButton.styleFrom(foregroundColor: const Color(0xFF0EA5E9), textStyle: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -2166,6 +2381,617 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           ),
         ],
       ),
+    );
+  }
+
+
+  // ─── ASSIGN MANAGER DIALOG (SINGLE & BULK) ───────────────────────────
+  void _showAssignManagerDialog(List<Map<String, dynamic>> targetUsers) {
+    if (targetUsers.isEmpty) return;
+
+    // Multi-School Validation Check: Ensure all selected users belong to the exact same school
+    final distinctSchoolIds = targetUsers
+        .map((u) => u['school_id']?.toString())
+        .where((s) => s != null && s.isNotEmpty)
+        .toSet();
+
+    if (distinctSchoolIds.length > 1) {
+      _showSnackBar(
+        'Cannot assign manager to users from multiple schools. Please select users belonging to the same school.',
+        isError: true,
+      );
+      return;
+    }
+
+    final targetSchoolId = distinctSchoolIds.isNotEmpty ? distinctSchoolIds.first : null;
+    final schoolName = targetUsers.firstWhere(
+      (u) => u['school_name'] != null && u['school_name'].toString().isNotEmpty,
+      orElse: () => <String, dynamic>{},
+    )['school_name'];
+
+    String? selectedManagerId;
+    bool isClearing = false;
+    bool isSaving = false;
+    String searchFilter = '';
+    String roleFilter = 'All';
+
+    if (targetUsers.length == 1 && targetUsers[0]['manager_id'] != null) {
+      selectedManagerId = targetUsers[0]['manager_id'].toString();
+    }
+
+    final targetUserIds = targetUsers.map((u) => u['id'].toString()).toSet();
+
+    showDialog(
+      context: context,
+      barrierDismissible: !isSaving,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final theme = Theme.of(context);
+            final isDark = theme.brightness == Brightness.dark;
+            final cardBg = isDark ? const Color(0xFF13182C) : Colors.white;
+            final surfaceBg = isDark ? const Color(0xFF1B223C) : const Color(0xFFF8FAFC);
+            final borderColor = isDark ? Colors.white10 : const Color(0xFFE2E8F0);
+            final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
+            final textSecondary = isDark ? Colors.white70 : const Color(0xFF475569);
+            final textMuted = isDark ? Colors.white38 : const Color(0xFF94A3B8);
+            const accentColor = Color(0xFF0EA5E9);
+
+            return FutureBuilder<Map<String, dynamic>>(
+              future: ApiService().get(
+                '/auth/users/managers${targetSchoolId != null ? '?school_id=$targetSchoolId' : ''}',
+                useCache: false,
+              ),
+              builder: (context, snapshot) {
+                List<Map<String, dynamic>> allManagers = [];
+                if (snapshot.hasData && snapshot.data?['success'] == true && snapshot.data?['data'] != null) {
+                  allManagers = List<Map<String, dynamic>>.from(snapshot.data!['data']);
+                }
+
+                // Dynamically collect ALL unique roles from database app_roles & fetched managers
+                final availableRoleChips = <String>{};
+                for (final r in _appRoles) {
+                  final name = (r['name'] ?? '').toString().toLowerCase();
+                  if (name.isNotEmpty) {
+                    availableRoleChips.add(_roleLabels[name] ?? _formatRoleName(name));
+                  }
+                }
+                for (final m in allManagers) {
+                  final r = (m['role'] ?? '').toString().toLowerCase();
+                  if (r.isNotEmpty) {
+                    availableRoleChips.add(_roleLabels[r] ?? _formatRoleName(r));
+                  }
+                }
+                final List<String> dynamicFilterChips = ['All', ...availableRoleChips.toList()..sort()];
+
+                // Filter out targets from being their own manager
+                final eligibleManagers = allManagers.where((m) {
+                  final mId = m['id'].toString();
+                  if (targetUserIds.contains(mId)) return false; // Prevent self-assignment
+                  if (searchFilter.isNotEmpty) {
+                    final q = searchFilter.toLowerCase();
+                    final name = (m['full_name'] ?? '').toString().toLowerCase();
+                    final email = (m['email'] ?? '').toString().toLowerCase();
+                    final dept = (m['department'] ?? '').toString().toLowerCase();
+                    if (!name.contains(q) && !email.contains(q) && !dept.contains(q)) return false;
+                  }
+                  if (roleFilter != 'All') {
+                    final role = (m['role'] ?? '').toString().toLowerCase();
+                    final roleDisplay = _roleLabels[role] ?? _formatRoleName(role);
+                    if (roleDisplay != roleFilter && role != roleFilter.toLowerCase().replaceAll(' ', '_')) {
+                      return false;
+                    }
+                  }
+                  return true;
+                }).toList();
+
+                return Dialog(
+                  backgroundColor: cardBg,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  child: Container(
+                    width: 620,
+                    constraints: const BoxConstraints(maxHeight: 700),
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Header
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: accentColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.supervisor_account_rounded, color: accentColor, size: 22),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Wrap(
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    spacing: 8,
+                                    runSpacing: 4,
+                                    children: [
+                                      Text(
+                                        'Assign Reporting Manager',
+                                        style: GoogleFonts.outfit(color: textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: accentColor.withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          '${targetUsers.length} user${targetUsers.length > 1 ? 's' : ''}',
+                                          style: GoogleFonts.dmSans(color: accentColor, fontSize: 11, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                      if (schoolName != null)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            schoolName.toString(),
+                                            style: GoogleFonts.dmSans(color: const Color(0xFF8B5CF6), fontSize: 11, fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Set organization reporting structure and hierarchy for selected members',
+                                    style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
+                              icon: Icon(Icons.close, color: textMuted, size: 20),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Selected target users chips preview
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: surfaceBg,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: borderColor),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'ASSIGNING TO:',
+                                style: GoogleFonts.dmSans(color: textMuted, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                              ),
+                              const SizedBox(height: 6),
+                              SizedBox(
+                                height: 32,
+                                child: ListView.separated(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: targetUsers.length,
+                                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                                  itemBuilder: (context, idx) {
+                                    final u = targetUsers[idx];
+                                    final uName = u['full_name'] ?? 'User';
+                                    final uRole = _roleLabels[u['role']] ?? u['role'] ?? 'Role';
+                                    final uRoleColor = _getRoleColor(u['role'] ?? 'student');
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? const Color(0xFF13182C) : Colors.white,
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: borderColor),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 10,
+                                            backgroundColor: uRoleColor.withValues(alpha: 0.15),
+                                            child: Text(
+                                              uName.isNotEmpty ? uName[0].toUpperCase() : 'U',
+                                              style: TextStyle(color: uRoleColor, fontSize: 9, fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            uName,
+                                            style: GoogleFonts.dmSans(color: textPrimary, fontSize: 11, fontWeight: FontWeight.w600),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '($uRole)',
+                                            style: GoogleFonts.dmSans(color: textMuted, fontSize: 10),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Search and Filter Pills
+                        Row(
+                          children: [
+                            Expanded(
+                              child: SizedBox(
+                                height: 36,
+                                child: TextField(
+                                  style: TextStyle(color: textPrimary, fontSize: 12),
+                                  decoration: InputDecoration(
+                                    hintText: 'Search eligible managers by name, email, department...',
+                                    hintStyle: TextStyle(color: textMuted, fontSize: 12),
+                                    prefixIcon: Icon(Icons.search, color: textMuted, size: 16),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                                    filled: true,
+                                    fillColor: surfaceBg,
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+                                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+                                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: accentColor)),
+                                  ),
+                                  onChanged: (v) => setModalState(() => searchFilter = v),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Dynamic Scrollable Role Filter Pills
+                        SizedBox(
+                          height: 34,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: dynamicFilterChips.length,
+                            separatorBuilder: (_, __) => const SizedBox(width: 8),
+                            itemBuilder: (context, idx) {
+                              final filter = dynamicFilterChips[idx];
+                              final isSel = roleFilter == filter;
+                              return ChoiceChip(
+                                label: Text(
+                                  filter,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                                    color: isSel ? Colors.white : textSecondary,
+                                  ),
+                                ),
+                                selected: isSel,
+                                selectedColor: accentColor,
+                                backgroundColor: surfaceBg,
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                side: BorderSide(color: isSel ? accentColor : borderColor),
+                                onSelected: (_) => setModalState(() => roleFilter = filter),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Manager list or Unassign option
+                        Expanded(
+                          child: snapshot.connectionState == ConnectionState.waiting
+                              ? const Center(child: CircularProgressIndicator())
+                              : Column(
+                                  children: [
+                                    // Option to Unassign / Clear Manager
+                                    InkWell(
+                                      onTap: () {
+                                        setModalState(() {
+                                          isClearing = true;
+                                          selectedManagerId = null;
+                                        });
+                                      },
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Container(
+                                        margin: const EdgeInsets.only(bottom: 8),
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                        decoration: BoxDecoration(
+                                          color: isClearing ? const Color(0xFFEF4444).withValues(alpha: 0.1) : surfaceBg,
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: isClearing ? const Color(0xFFEF4444) : borderColor,
+                                            width: isClearing ? 1.5 : 1,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(6),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(Icons.person_remove_outlined, color: Color(0xFFEF4444), size: 16),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'None / Unassign Manager',
+                                                    style: GoogleFonts.dmSans(
+                                                      color: isClearing ? const Color(0xFFEF4444) : textPrimary,
+                                                      fontSize: 13,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    'Clear existing reporting manager assignment for selected user(s)',
+                                                    style: GoogleFonts.dmSans(color: textMuted, fontSize: 11),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Radio<bool>(
+                                              value: true,
+                                              groupValue: isClearing,
+                                              activeColor: const Color(0xFFEF4444),
+                                              onChanged: (_) {
+                                                setModalState(() {
+                                                  isClearing = true;
+                                                  selectedManagerId = null;
+                                                });
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+
+                                    // List of Eligible Managers
+                                    Expanded(
+                                      child: eligibleManagers.isEmpty
+                                          ? Center(
+                                              child: Text('No eligible managers found matching filter', style: TextStyle(color: textMuted, fontSize: 12)),
+                                            )
+                                          : ListView.separated(
+                                              itemCount: eligibleManagers.length,
+                                              separatorBuilder: (_, __) => const SizedBox(height: 6),
+                                              itemBuilder: (context, idx) {
+                                                final m = eligibleManagers[idx];
+                                                final mId = m['id'].toString();
+                                                final isSelected = !isClearing && selectedManagerId == mId;
+                                                final mName = m['full_name'] ?? 'Unknown';
+                                                final mEmail = m['email'] ?? '';
+                                                final mRole = _roleLabels[m['role']] ?? m['role'] ?? 'Staff';
+                                                final mRoleColor = _getRoleColor(m['role'] ?? 'teacher');
+                                                final mDept = m['department'] ?? 'General';
+                                                final directReports = m['direct_reports_count'] ?? 0;
+
+                                                return InkWell(
+                                                  onTap: () {
+                                                    setModalState(() {
+                                                      isClearing = false;
+                                                      selectedManagerId = mId;
+                                                    });
+                                                  },
+                                                  borderRadius: BorderRadius.circular(8),
+                                                  child: Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                                    decoration: BoxDecoration(
+                                                      color: isSelected ? accentColor.withValues(alpha: 0.08) : surfaceBg,
+                                                      borderRadius: BorderRadius.circular(8),
+                                                      border: Border.all(
+                                                        color: isSelected ? accentColor : borderColor,
+                                                        width: isSelected ? 1.5 : 1,
+                                                      ),
+                                                    ),
+                                                    child: Row(
+                                                      children: [
+                                                        CircleAvatar(
+                                                          radius: 16,
+                                                          backgroundImage: m['avatar_url'] != null && m['avatar_url'].isNotEmpty
+                                                              ? NetworkImage(m['avatar_url'])
+                                                              : null,
+                                                          backgroundColor: mRoleColor.withValues(alpha: 0.15),
+                                                          child: m['avatar_url'] == null || m['avatar_url'].isEmpty
+                                                              ? Text(
+                                                                  mName.isNotEmpty ? mName[0].toUpperCase() : 'M',
+                                                                  style: TextStyle(color: mRoleColor, fontSize: 12, fontWeight: FontWeight.bold),
+                                                                )
+                                                              : null,
+                                                        ),
+                                                        const SizedBox(width: 10),
+                                                        Expanded(
+                                                          child: Column(
+                                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                                            children: [
+                                                              Row(
+                                                                children: [
+                                                                  Flexible(
+                                                                    child: Text(
+                                                                      mName,
+                                                                      style: GoogleFonts.dmSans(
+                                                                        color: isSelected ? accentColor : textPrimary,
+                                                                        fontSize: 13,
+                                                                        fontWeight: FontWeight.bold,
+                                                                      ),
+                                                                      overflow: TextOverflow.ellipsis,
+                                                                    ),
+                                                                  ),
+                                                                  const SizedBox(width: 6),
+                                                                  Container(
+                                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                                                    decoration: BoxDecoration(
+                                                                      color: mRoleColor.withValues(alpha: 0.12),
+                                                                      borderRadius: BorderRadius.circular(4),
+                                                                    ),
+                                                                    child: Text(
+                                                                      mRole,
+                                                                      style: TextStyle(color: mRoleColor, fontSize: 9, fontWeight: FontWeight.bold),
+                                                                    ),
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                              const SizedBox(height: 2),
+                                                              Row(
+                                                                children: [
+                                                                  Text(mDept, style: TextStyle(color: textSecondary, fontSize: 11)),
+                                                                  if (mEmail.isNotEmpty) ...[
+                                                                    const Text(' • ', style: TextStyle(color: Colors.grey, fontSize: 10)),
+                                                                    Flexible(
+                                                                      child: Text(
+                                                                        mEmail,
+                                                                        style: TextStyle(color: textMuted, fontSize: 11),
+                                                                        overflow: TextOverflow.ellipsis,
+                                                                      ),
+                                                                    ),
+                                                                  ],
+                                                                ],
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 8),
+                                                        // Direct reports pill
+                                                        Container(
+                                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                          decoration: BoxDecoration(
+                                                            color: isDark ? const Color(0xFF13182C) : Colors.white,
+                                                            borderRadius: BorderRadius.circular(12),
+                                                            border: Border.all(color: borderColor),
+                                                          ),
+                                                          child: Row(
+                                                            mainAxisSize: MainAxisSize.min,
+                                                            children: [
+                                                              Icon(Icons.people_outline, size: 12, color: accentColor),
+                                                              const SizedBox(width: 4),
+                                                              Text(
+                                                                '$directReports reports',
+                                                                style: TextStyle(color: textSecondary, fontSize: 10, fontWeight: FontWeight.bold),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 8),
+                                                        Radio<String>(
+                                                          value: mId,
+                                                          groupValue: isClearing ? null : selectedManagerId,
+                                                          activeColor: accentColor,
+                                                          onChanged: (val) {
+                                                            setModalState(() {
+                                                              isClearing = false;
+                                                              selectedManagerId = val;
+                                                            });
+                                                          },
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Divider(height: 1, color: Colors.white10),
+                        const SizedBox(height: 16),
+
+                        // Action Buttons
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
+                              child: Text('Cancel', style: TextStyle(color: textSecondary, fontWeight: FontWeight.bold)),
+                            ),
+                            const SizedBox(width: 12),
+                            ElevatedButton(
+                              onPressed: (isSaving || (!isClearing && selectedManagerId == null))
+                                  ? null
+                                  : () async {
+                                      setModalState(() => isSaving = true);
+                                      try {
+                                        final targetIds = targetUsers.map((u) => u['id'].toString()).toList();
+                                        final res = await ApiService().post(
+                                          '/auth/users/assign-manager',
+                                          {
+                                            'user_ids': targetIds,
+                                            'manager_id': isClearing ? null : selectedManagerId,
+                                          },
+                                        );
+
+                                        if (res['success'] == true) {
+                                          if (dialogContext.mounted) {
+                                            Navigator.pop(dialogContext);
+                                          }
+                                          if (mounted) {
+                                            _showSnackBar(res['message'] ?? 'Manager assigned successfully');
+                                            _fetchUsers();
+                                            _fetchStats();
+                                          }
+                                        } else {
+                                          if (mounted) {
+                                            _showSnackBar(res['detail'] ?? res['error'] ?? 'Failed to assign manager', isError: true);
+                                            setModalState(() => isSaving = false);
+                                          }
+                                        }
+                                      } catch (e) {
+                                        if (mounted) {
+                                          _showSnackBar('Error assigning manager: $e', isError: true);
+                                          setModalState(() => isSaving = false);
+                                        }
+                                      }
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isClearing ? const Color(0xFFEF4444) : accentColor,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: isSaving
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(isClearing ? Icons.person_remove : Icons.check_circle, size: 16),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          isClearing ? 'Clear Manager' : 'Confirm Assignment',
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                        ),
+                                      ],
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 
@@ -3208,6 +4034,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     String selectedRole = user['role'] ?? 'student';
     String selectedStatus = user['status'] ?? 'Active';
     String? selectedSchoolId = user['school_id'];
+    String? selectedManagerId = user['manager_id'];
     bool isSchoolSuspended = false;
 
     showDialog(
@@ -3360,6 +4187,56 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        FutureBuilder<Map<String, dynamic>>(
+                          future: ApiService().get(
+                            '/auth/users/managers${selectedSchoolId != null ? '?school_id=$selectedSchoolId' : ''}',
+                            useCache: false,
+                          ),
+                          builder: (context, mgrSnapshot) {
+                            List<Map<String, dynamic>> eligibleMgrs = [];
+                            if (mgrSnapshot.hasData && mgrSnapshot.data?['success'] == true && mgrSnapshot.data?['data'] != null) {
+                              eligibleMgrs = List<Map<String, dynamic>>.from(mgrSnapshot.data!['data'])
+                                  .where((m) => m['id'].toString() != user['id'].toString())
+                                  .toList();
+                            }
+                            return DropdownButtonFormField<String?>(
+                              isExpanded: true,
+                              initialValue: (selectedManagerId != null && eligibleMgrs.any((m) => m['id'].toString() == selectedManagerId))
+                                  ? selectedManagerId
+                                  : null,
+                              decoration: const InputDecoration(
+                                labelText: 'Reporting Manager (Optional)',
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              ),
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
+                              ),
+                              dropdownColor: Theme.of(context).cardColor,
+                              items: [
+                                const DropdownMenuItem<String?>(
+                                  value: null,
+                                  child: Text('None / No Manager Assigned', style: TextStyle(color: Colors.grey)),
+                                ),
+                                ...eligibleMgrs.map((m) {
+                                  final mName = m['full_name'] ?? 'Unknown';
+                                  final mRole = _roleLabels[m['role']] ?? m['role'] ?? 'Staff';
+                                  return DropdownMenuItem<String?>(
+                                    value: m['id'].toString(),
+                                    child: Text('$mName ($mRole)'),
+                                  );
+                                }),
+                              ],
+                              onChanged: (val) {
+                                setStateBuilder(() {
+                                  selectedManagerId = val;
+                                });
+                              },
+                            );
+                          },
+                        ),
                         if (showSchoolSelect) ...[
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
@@ -3456,6 +4333,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                               'department': departmentController.text.trim().isNotEmpty
                                   ? departmentController.text.trim()
                                   : null,
+                              'manager_id': selectedManagerId,
                               if (passwordController.text.isNotEmpty) 'password': passwordController.text,
                             };
                             Navigator.of(context).pop();

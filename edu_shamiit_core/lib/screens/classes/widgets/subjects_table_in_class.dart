@@ -19,18 +19,17 @@ class SubjectsTableInClass extends ConsumerWidget {
   });
 
   Color _getTypeColor(String type) {
-    switch (type.toLowerCase()) {
-      case 'core':
-        return const Color(0xFF3B82F6);
-      case 'elective':
-        return const Color(0xFFF59E0B);
-      case 'language':
-        return const Color(0xFFEC4899);
-      case 'practical':
-        return const Color(0xFF10B981);
-      default:
-        return const Color(0xFF8B5CF6);
+    final t = type.toLowerCase();
+    if (t.contains('core')) {
+      return const Color(0xFF3B82F6);
+    } else if (t.contains('elec') || t.contains('opt')) {
+      return const Color(0xFFF59E0B);
+    } else if (t.contains('lang')) {
+      return const Color(0xFFEC4899);
+    } else if (t.contains('prac') || t.contains('lab')) {
+      return const Color(0xFF10B981);
     }
+    return const Color(0xFF8B5CF6);
   }
 
   @override
@@ -183,7 +182,6 @@ class SubjectsTableInClass extends ConsumerWidget {
                         const DataColumn(label: Text('SUBJECT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5))),
                         const DataColumn(label: Text('CODE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5))),
                         const DataColumn(label: Text('TYPE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5))),
-                        const DataColumn(label: Text('PERIODS/WK', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5))),
                         const DataColumn(label: Text('STATUS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5))),
                         const DataColumn(label: Text('SCOPE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5))),
                         if (!isTeacher)
@@ -204,16 +202,16 @@ class SubjectsTableInClass extends ConsumerWidget {
                                           context: context,
                                           builder: (ctx) => CreateEditSubjectDialog(
                                             subjectToEdit: sub,
-                                            availableClasses: state.classes,
+                                            availableClasses: state.availableClasses,
                                             onSave: (payload) => notifier.updateSubject(
                                               sub.id,
                                               name: payload['name'],
                                               code: payload['code'],
                                               type: payload['type'],
                                               description: payload['description'],
-                                              periodsPerWeek: payload['periods_per_week'],
                                               color: payload['color'],
                                               status: payload['status'],
+                                              isOptional: payload['is_optional'],
                                             ),
                                           ),
                                         );
@@ -287,17 +285,6 @@ class SubjectsTableInClass extends ConsumerWidget {
                               ),
                             ),
 
-                            // Periods/Week
-                            DataCell(
-                              Text(
-                                '${sub.periodsPerWeek} / week',
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
-                                ),
-                              ),
-                            ),
-
                             // Status
                             DataCell(
                               Container(
@@ -360,16 +347,16 @@ class SubjectsTableInClass extends ConsumerWidget {
                                         context: context,
                                         builder: (ctx) => CreateEditSubjectDialog(
                                           subjectToEdit: sub,
-                                          availableClasses: state.classes,
+                                          availableClasses: state.availableClasses,
                                           onSave: (payload) => notifier.updateSubject(
                                             sub.id,
                                             name: payload['name'],
                                             code: payload['code'],
                                             type: payload['type'],
                                             description: payload['description'],
-                                            periodsPerWeek: payload['periods_per_week'],
                                             color: payload['color'],
                                             status: payload['status'],
+                                            isOptional: payload['is_optional'],
                                           ),
                                         ),
                                       );

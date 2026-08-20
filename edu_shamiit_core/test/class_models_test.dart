@@ -4,7 +4,10 @@ import 'package:edu_shamiit_core/screens/classes/models/class_models.dart';
 
 void main() {
   group('Class Management Models Unit Tests', () {
-    test('AcademicClassModel JSON parsing and properties', () {
+    // ------------------------------------------------------------------------
+    // 1. AcademicClassModel Tests & Edge Cases
+    // ------------------------------------------------------------------------
+    test('AcademicClassModel JSON parsing and standard properties', () {
       final json = {
         'id': 'c-101',
         'name': 'Class 10',
@@ -35,12 +38,49 @@ void main() {
       expect(model.badgeColor, isA<Color>());
     });
 
+    test('AcademicClassModel edge cases: null/missing fields and fallback defaults', () {
+      final json = {
+        'id': 'c-empty',
+        'name': '',
+        'status': 'inactive',
+      };
+
+      final model = AcademicClassModel.fromJson(json);
+      expect(model.id, 'c-empty');
+      expect(model.name, '');
+      expect(model.code, '');
+      expect(model.stage, 'Secondary'); // default
+      expect(model.displayOrder, 1); // default
+      expect(model.isActive, isFalse);
+      expect(model.sectionsCount, 0);
+      expect(model.subjectsCount, 0);
+      expect(model.studentsCount, 0);
+      expect(model.classTeachersCount, 0);
+      expect(model.badgeColor, isA<Color>());
+    });
+
+    test('AcademicClassModel badgeColor distribution for various class names', () {
+      final class1 = AcademicClassModel(id: '1', name: 'Class 1', code: 'C1', stage: 'Primary');
+      final class5 = AcademicClassModel(id: '5', name: 'Class 5', code: 'C5', stage: 'Primary');
+      final class10 = AcademicClassModel(id: '10', name: 'Class 10', code: 'C10', stage: 'Secondary');
+      final classSpecial = AcademicClassModel(id: 's', name: 'Nursery Blue', code: 'NUR', stage: 'Pre-Primary');
+
+      expect(class1.badgeColor, isNotNull);
+      expect(class5.badgeColor, isNotNull);
+      expect(class10.badgeColor, isNotNull);
+      expect(classSpecial.badgeColor, isNotNull);
+    });
+
+    // ------------------------------------------------------------------------
+    // 2. AcademicSectionModel Tests & Edge Cases
+    // ------------------------------------------------------------------------
     test('AcademicSectionModel JSON parsing and properties', () {
       final json = {
         'id': 'sec-101',
         'class_id': 'c-101',
         'class_name': 'Class 10',
         'class_code': 'C10',
+        'class_stage': 'Secondary',
         'name': 'Section A',
         'code': '10A',
         'capacity': 40,
@@ -50,20 +90,47 @@ void main() {
         'students_count': 35,
         'subjects_count': 4,
         'assigned_subject_ids': ['sub-1', 'sub-2'],
+        'class_teacher': {
+          'id': 't-1',
+          'full_name': 'Dr. Sarah Jenkins',
+          'email': 'sarah@school.edu',
+        },
       };
 
       final model = AcademicSectionModel.fromJson(json);
       expect(model.id, 'sec-101');
       expect(model.classId, 'c-101');
+      expect(model.className, 'Class 10');
       expect(model.name, 'Section A');
       expect(model.roomNumber, 'Room 101');
       expect(model.capacity, 40);
       expect(model.studentsCount, 35);
       expect(model.subjectsCount, 4);
       expect(model.assignedSubjectIds, ['sub-1', 'sub-2']);
+      expect(model.classTeacher?.fullName, 'Dr. Sarah Jenkins');
       expect(model.isActive, isTrue);
     });
 
+    test('AcademicSectionModel edge cases: zero capacity and null teacher', () {
+      final json = {
+        'id': 'sec-empty',
+        'name': 'B',
+        'capacity': 0,
+        'status': 'INACTIVE',
+      };
+
+      final model = AcademicSectionModel.fromJson(json);
+      expect(model.id, 'sec-empty');
+      expect(model.capacity, 0);
+      expect(model.studentsCount, 0);
+      expect(model.classTeacher, isNull);
+      expect(model.isActive, isFalse);
+      expect(model.assignedSubjectIds, isEmpty);
+    });
+
+    // ------------------------------------------------------------------------
+    // 3. AcademicSubjectModel Tests & Edge Cases
+    // ------------------------------------------------------------------------
     test('AcademicSubjectModel JSON parsing and color helper', () {
       final json = {
         'id': 'sub-101',
@@ -91,6 +158,20 @@ void main() {
       expect(model.isActive, isTrue);
     });
 
+    test('AcademicSubjectModel color parsing edge cases (short hex, invalid hex)', () {
+      final subShortHex = AcademicSubjectModel(id: 's1', name: 'Art', code: 'ART', color: '#FFF');
+      expect(subShortHex.subjectColor, isA<Color>());
+
+      final subNoHash = AcademicSubjectModel(id: 's2', name: 'Music', code: 'MUS', color: '10B981');
+      expect(subNoHash.subjectColor, const Color(0xFF10B981));
+
+      final subInvalidHex = AcademicSubjectModel(id: 's3', name: 'Drama', code: 'DRM', color: 'invalid-color');
+      expect(subInvalidHex.subjectColor, const Color(0xFF4F46E5)); // Fallback color
+    });
+
+    // ------------------------------------------------------------------------
+    // 4. AcademicStudentModel & Conflict Helpers
+    // ------------------------------------------------------------------------
     test('AcademicStudentModel assignment summary helper', () {
       final unassigned = AcademicStudentModel(
         id: 's-1',
@@ -142,7 +223,10 @@ void main() {
       expect(conflictClassOnly.locationString, 'Class 5');
     });
 
-    test('AcademicStatsModel JSON parsing', () {
+    // ------------------------------------------------------------------------
+    // 5. AcademicStatsModel Tests
+    // ------------------------------------------------------------------------
+    test('AcademicStatsModel JSON parsing and edge cases', () {
       final json = {
         'total_classes': 12,
         'active_classes': 10,
@@ -150,6 +234,11 @@ void main() {
         'total_subjects': 18,
         'total_students': 450,
         'total_teachers': 32,
+        'total_rooms': 15,
+        'available_rooms': 12,
+        'in_use_rooms': 2,
+        'maintenance_rooms': 1,
+        'total_room_capacity': 600,
         'academic_year': '2026-27',
       };
 
@@ -160,6 +249,11 @@ void main() {
       expect(stats.totalSubjects, 18);
       expect(stats.totalStudents, 450);
       expect(stats.totalTeachers, 32);
+      expect(stats.totalRooms, 15);
+      expect(stats.availableRooms, 12);
+      expect(stats.inUseRooms, 2);
+      expect(stats.maintenanceRooms, 1);
+      expect(stats.totalRoomCapacity, 600);
       expect(stats.academicYear, '2026-27');
     });
   });

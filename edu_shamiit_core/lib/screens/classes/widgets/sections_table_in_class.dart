@@ -78,7 +78,8 @@ class SectionsTableInClass extends ConsumerWidget {
                           showDialog(
                             context: context,
                             builder: (ctx) => CreateEditSectionDialog(
-                              availableClasses: state.classes,
+                              availableClasses: state.availableClasses,
+                              availableRooms: state.rooms,
                               defaultClassId: academicClass.id,
                               academicYear: academicClass.academicYear,
                               onSave: (payload) => notifier.createSection(
@@ -87,6 +88,7 @@ class SectionsTableInClass extends ConsumerWidget {
                                 code: payload['code'],
                                 capacity: payload['capacity'],
                                 roomNumber: payload['room_number'],
+                                roomId: payload['room_id'],
                                 academicYear: payload['academic_year'],
                                 status: payload['status'],
                               ),
@@ -196,7 +198,8 @@ class SectionsTableInClass extends ConsumerWidget {
                                           context: context,
                                           builder: (ctx) => CreateEditSectionDialog(
                                             sectionToEdit: sec,
-                                            availableClasses: state.classes,
+                                            availableClasses: state.availableClasses,
+                                            availableRooms: state.rooms,
                                             defaultClassId: academicClass.id,
                                             onSave: (payload) => notifier.updateSection(
                                               sec.id,
@@ -204,6 +207,7 @@ class SectionsTableInClass extends ConsumerWidget {
                                               code: payload['code'],
                                               capacity: payload['capacity'],
                                               roomNumber: payload['room_number'],
+                                              roomId: payload['room_id'],
                                               status: payload['status'],
                                             ),
                                           ),
@@ -349,13 +353,32 @@ class SectionsTableInClass extends ConsumerWidget {
                               ),
                             ),
 
-                            // Room Number
+                            // Room Number / Location
                             DataCell(
-                              Text(
-                                sec.roomNumber != null && sec.roomNumber!.isNotEmpty ? sec.roomNumber! : '—',
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                              InkWell(
+                                onTap: () => notifier.setActiveTab(3),
+                                borderRadius: BorderRadius.circular(6),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.meeting_room_outlined,
+                                        size: 14,
+                                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        sec.effectiveRoomDisplay,
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: sec.roomName != null ? FontWeight.w600 : FontWeight.normal,
+                                          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -399,7 +422,7 @@ class SectionsTableInClass extends ConsumerWidget {
                                         context: context,
                                         builder: (ctx) => CreateEditSectionDialog(
                                           sectionToEdit: sec,
-                                          availableClasses: state.classes,
+                                          availableClasses: state.availableClasses,
                                           defaultClassId: academicClass.id,
                                           onSave: (payload) => notifier.updateSection(
                                             sec.id,

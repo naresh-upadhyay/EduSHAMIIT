@@ -10,3 +10,7 @@ select * FROM public.app_roles;
 SELECT *  FROM public.schedules 
 JOIN public.calendars cal ON calendar_id=cal.id
 where cal.name LIKE '%FLEET%' or  cal.name LIKE '%monk%' 
+
+select * from public.profiles;
+
+select * from public.app_roles;

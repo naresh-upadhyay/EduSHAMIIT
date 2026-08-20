@@ -16,6 +16,7 @@ class ClassTabsBar extends ConsumerWidget {
       {'label': 'Classes', 'count': state.stats.totalClasses, 'icon': Icons.class_outlined},
       {'label': 'Sections', 'count': state.stats.totalSections, 'icon': Icons.grid_view_rounded},
       {'label': 'Subjects', 'count': state.stats.totalSubjects, 'icon': Icons.menu_book_rounded},
+      {'label': 'Rooms', 'count': state.stats.totalRooms, 'icon': Icons.meeting_room_outlined},
     ];
 
     return Container(

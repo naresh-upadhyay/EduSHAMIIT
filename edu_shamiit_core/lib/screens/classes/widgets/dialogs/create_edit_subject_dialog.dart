@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/class_models.dart';
+import '../../services/academic_lookup_helper.dart';
 
 class CreateEditSubjectDialog extends StatefulWidget {
   final AcademicSubjectModel? subjectToEdit;
@@ -21,23 +22,16 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _codeController;
-  late TextEditingController _periodsController;
   late TextEditingController _descriptionController;
 
   String _type = 'Core';
   String _selectedColor = '#4F46E5';
   String _status = 'ACTIVE';
-  final Set<String> _selectedClassIds = {};
+  bool _isOptional = false;
   bool _isSaving = false;
 
-  final List<String> _subjectTypes = [
-    'Core',
-    'Elective',
-    'Language',
-    'Practical',
-    'Activity',
-    'Other',
-  ];
+  List<AcademicLookupItem> _subjectTypes = [];
+  List<AcademicLookupItem> _statuses = [];
 
   final List<String> _presetColors = [
     '#4F46E5', // Indigo
@@ -56,14 +50,44 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
     final s = widget.subjectToEdit;
     _nameController = TextEditingController(text: s?.name ?? '');
     _codeController = TextEditingController(text: s?.code ?? '');
-    _periodsController = TextEditingController(text: (s?.periodsPerWeek ?? 5).toString());
     _descriptionController = TextEditingController(text: s?.description ?? '');
 
     if (s != null) {
       _type = s.type;
       _selectedColor = s.color;
       _status = s.status;
-      _selectedClassIds.addAll(s.assignedClassIds);
+      _isOptional = s.isOptional;
+    } else {
+      _isOptional = false;
+    }
+    _loadLookups();
+  }
+
+  Future<void> _loadLookups() async {
+    final helper = AcademicLookupHelper.instance;
+    final results = await Future.wait([
+      helper.getActiveLookup('SUBJECT_TYPE'),
+      helper.getActiveLookup('ACADEMIC_STATUS'),
+    ]);
+
+    if (mounted) {
+      setState(() {
+        _subjectTypes = List<AcademicLookupItem>.from(results[0]);
+        _statuses = List<AcademicLookupItem>.from(results[1]);
+        if (_subjectTypes.isNotEmpty && !_subjectTypes.any((t) => t.label.toLowerCase() == _type.toLowerCase())) {
+          _type = _subjectTypes.first.label;
+        }
+        if (_status.isNotEmpty) {
+          final matched = _statuses.where((s) =>
+              s.code.toUpperCase() == _status.toUpperCase() ||
+              s.label.toUpperCase() == _status.toUpperCase()).firstOrNull;
+          if (matched != null) {
+            _status = matched.code;
+          } else {
+            _statuses.add(AcademicLookupItem(id: _status, code: _status, label: _status));
+          }
+        }
+      });
     }
   }
 
@@ -71,7 +95,6 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
   void dispose() {
     _nameController.dispose();
     _codeController.dispose();
-    _periodsController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
@@ -86,10 +109,9 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
       'code': _codeController.text.trim().toUpperCase(),
       'type': _type,
       'description': _descriptionController.text.trim(),
-      'periods_per_week': int.tryParse(_periodsController.text.trim()) ?? 5,
       'color': _selectedColor,
       'status': _status,
-      'class_ids': _selectedClassIds.toList(),
+      'is_optional': _isOptional,
     };
 
     try {
@@ -98,6 +120,43 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
     } catch (_) {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  InputDecoration _inputDecoration(String hint, bool isDark) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8), fontSize: 13),
+      filled: true,
+      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFFEF4444)),
+      ),
+    );
+  }
+
+  Widget _buildFieldLabel(String text, bool isDark) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: isDark ? Colors.white70 : const Color(0xFF334155),
+      ),
+    );
   }
 
   @override
@@ -111,8 +170,8 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
       elevation: 0,
       backgroundColor: Colors.transparent,
       child: Container(
-        width: 580,
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.88),
+        width: 600,
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.90),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -161,7 +220,7 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                           ),
                         ),
                         Text(
-                          'Configure subject name, type classification, periods per week, and color tag.',
+                          'Configure subject name, type classification, mandatory/optional status, and color tag.',
                           style: TextStyle(
                             fontSize: 12,
                             color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
@@ -235,7 +294,7 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                       ),
                       const SizedBox(height: 18),
 
-                      // Type & Periods
+                      // Subject Type & Status
                       Row(
                         children: [
                           Expanded(
@@ -253,12 +312,25 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
-                                      value: _type,
+                                      value: _subjectTypes.any((t) => t.label.toLowerCase() == _type.toLowerCase())
+                                          ? _subjectTypes.firstWhere((t) => t.label.toLowerCase() == _type.toLowerCase()).label
+                                          : (_subjectTypes.isNotEmpty ? _subjectTypes.first.label : _type),
                                       isExpanded: true,
                                       dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                                       style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
-                                      items: _subjectTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                                      onChanged: (v) => setState(() => _type = v ?? 'Core'),
+                                      items: _subjectTypes.map((t) => DropdownMenuItem(value: t.label, child: Text(t.label))).toList(),
+                                      onChanged: (v) {
+                                        if (v != null) {
+                                          setState(() {
+                                            _type = v;
+                                            if (v.toLowerCase() == 'elective' || v.toLowerCase() == 'optional') {
+                                              _isOptional = true;
+                                            } else if (v.toLowerCase() == 'core') {
+                                              _isOptional = false;
+                                            }
+                                          });
+                                        }
+                                      },
                                     ),
                                   ),
                                 ),
@@ -270,18 +342,100 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildFieldLabel('Periods / Week', isDark),
+                                _buildFieldLabel('Status', isDark),
                                 const SizedBox(height: 6),
-                                TextFormField(
-                                  controller: _periodsController,
-                                  keyboardType: TextInputType.number,
-                                  decoration: _inputDecoration('5', isDark),
-                                  style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                                    borderRadius: BorderRadius.circular(8),
+                                    color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: _statuses.any((s) => s.code.toUpperCase() == _status.toUpperCase())
+                                          ? _statuses.firstWhere((s) => s.code.toUpperCase() == _status.toUpperCase()).code
+                                          : (_statuses.isNotEmpty ? _statuses.first.code : _status),
+                                      isExpanded: true,
+                                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
+                                      items: _statuses.map((s) => DropdownMenuItem(value: s.code, child: Text(s.label))).toList(),
+                                      onChanged: (v) => setState(() => _status = v ?? 'ACTIVE'),
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 18),
+
+                      // Mandatory vs Optional Enrollment Rule Card
+                      _buildFieldLabel('Subject Requirement & Enrollment Mode *', isDark),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF0F172A).withOpacity(0.5) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                        ),
+                        child: Column(
+                          children: [
+                            RadioListTile<bool>(
+                              title: Row(
+                                children: [
+                                  const Text('Mandatory (Compulsory)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF10B981).withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text('Auto-Enrolls All Students', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFF059669))),
+                                  ),
+                                ],
+                              ),
+                              subtitle: Text(
+                                'When assigned to a class/section, all enrolled students are automatically assigned to this subject.',
+                                style: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                              ),
+                              value: false,
+                              groupValue: _isOptional,
+                              activeColor: const Color(0xFF4F46E5),
+                              contentPadding: EdgeInsets.zero,
+                              onChanged: (val) => setState(() => _isOptional = val ?? false),
+                            ),
+                            const Divider(height: 12),
+                            RadioListTile<bool>(
+                              title: Row(
+                                children: [
+                                  const Text('Optional / Elective', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF59E0B).withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text('Selective Enrollment', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFFD97706))),
+                                  ),
+                                ],
+                              ),
+                              subtitle: Text(
+                                'Subject starts with 0 enrolled students. Admin selectively searches and enrolls students within the section.',
+                                style: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                              ),
+                              value: true,
+                              groupValue: _isOptional,
+                              activeColor: const Color(0xFF4F46E5),
+                              contentPadding: EdgeInsets.zero,
+                              onChanged: (val) => setState(() => _isOptional = val ?? true),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 18),
 
@@ -324,42 +478,6 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                         decoration: _inputDecoration('Brief summary of syllabus or curriculum...', isDark),
                         style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
                       ),
-                      const SizedBox(height: 18),
-
-                      // Target Classes Checkbox Selector (when creating)
-                      if (!isEdit && widget.availableClasses.isNotEmpty) ...[
-                        _buildFieldLabel('Assign to Classes (Optional)', isDark),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF0F172A).withOpacity(0.4) : const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                          ),
-                          child: Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: widget.availableClasses.map((cls) {
-                              final isChecked = _selectedClassIds.contains(cls.id);
-                              return FilterChip(
-                                label: Text(cls.name, style: TextStyle(fontSize: 12, color: isChecked ? Colors.white : null)),
-                                selected: isChecked,
-                                selectedColor: const Color(0xFF4F46E5),
-                                onSelected: (val) {
-                                  setState(() {
-                                    if (val) {
-                                      _selectedClassIds.add(cls.id);
-                                    } else {
-                                      _selectedClassIds.remove(cls.id);
-                                    }
-                                  });
-                                },
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),
@@ -419,42 +537,6 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildFieldLabel(String label, bool isDark) {
-    return Text(
-      label,
-      style: TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration(String hint, bool isDark) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: TextStyle(
-        color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-        fontSize: 13,
-      ),
-      filled: true,
-      fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
       ),
     );
   }

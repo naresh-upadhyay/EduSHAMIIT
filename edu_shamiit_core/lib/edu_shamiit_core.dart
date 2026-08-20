@@ -92,5 +92,17 @@ export 'screens/classes/models/class_models.dart';
 export 'screens/classes/providers/class_provider.dart';
 export 'screens/classes/services/class_api_service.dart';
 
-
-
+// Shared Attendance Management Module
+export 'screens/attendance/attendance_management_screen.dart';
+export 'screens/attendance/models/attendance_models.dart';
+export 'screens/attendance/providers/attendance_provider.dart';
+export 'screens/attendance/services/attendance_api_service.dart';
+export 'screens/attendance/widgets/daily_attendance_tab.dart';
+export 'screens/attendance/widgets/staff_attendance_tab.dart';
+export 'screens/attendance/widgets/leave_permissions_tab.dart';
+export 'screens/attendance/widgets/bulk_operations_tab.dart';
+export 'screens/attendance/widgets/attendance_insights_tab.dart';
+export 'screens/attendance/widgets/attendance_settings_tab.dart';
+export 'screens/attendance/widgets/drawers/student_attendance_drawer.dart';
+export 'screens/attendance/widgets/dialogs/attendance_override_dialog.dart';
+export 'screens/attendance/widgets/dialogs/attendance_confirmation_dialog.dart';

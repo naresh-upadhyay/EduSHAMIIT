@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/class_models.dart';
+import '../../services/academic_lookup_helper.dart';
 
 class CreateEditClassDialog extends StatefulWidget {
   final AcademicClassModel? classToEdit;
@@ -22,20 +23,13 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
   late TextEditingController _nameController;
   late TextEditingController _codeController;
   late TextEditingController _displayOrderController;
-  late TextEditingController _newSectionController;
 
   String _stage = 'Secondary';
   String _status = 'ACTIVE';
-  List<Map<String, dynamic>> _sections = [];
   bool _isSaving = false;
 
-  final List<String> _stages = [
-    'Pre-Primary',
-    'Primary',
-    'Middle School',
-    'Secondary',
-    'Senior Secondary',
-  ];
+  List<AcademicLookupItem> _stages = [];
+  List<AcademicLookupItem> _statuses = [];
 
   @override
   void initState() {
@@ -44,24 +38,39 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
     _nameController = TextEditingController(text: c?.name ?? '');
     _codeController = TextEditingController(text: c?.code ?? '');
     _displayOrderController = TextEditingController(text: (c?.displayOrder ?? 1).toString());
-    _newSectionController = TextEditingController();
 
     if (c != null) {
       _stage = c.stage;
       _status = c.status;
-      _sections = c.sections.map((s) => {
-        'id': s.id,
-        'name': s.name,
-        'code': s.code,
-        'capacity': s.capacity,
-        'status': s.status,
-      }).toList();
-    } else {
-      // Default standard sections for new class
-      _sections = [
-        {'name': 'A', 'code': 'A', 'capacity': 40, 'status': 'ACTIVE'},
-        {'name': 'B', 'code': 'B', 'capacity': 40, 'status': 'ACTIVE'},
-      ];
+    }
+    _loadLookups();
+  }
+
+  Future<void> _loadLookups() async {
+    final helper = AcademicLookupHelper.instance;
+    final results = await Future.wait([
+      helper.getActiveLookup('CLASS_STAGE'),
+      helper.getActiveLookup('ACADEMIC_STATUS'),
+    ]);
+
+    if (mounted) {
+      setState(() {
+        _stages = List<AcademicLookupItem>.from(results[0]);
+        _statuses = List<AcademicLookupItem>.from(results[1]);
+        if (_stages.isNotEmpty && !_stages.any((s) => s.label.toLowerCase() == _stage.toLowerCase())) {
+          _stage = _stages.first.label;
+        }
+        if (_status.isNotEmpty) {
+          final matched = _statuses.where((s) =>
+              s.code.toUpperCase() == _status.toUpperCase() ||
+              s.label.toUpperCase() == _status.toUpperCase()).firstOrNull;
+          if (matched != null) {
+            _status = matched.code;
+          } else {
+            _statuses.add(AcademicLookupItem(id: _status, code: _status, label: _status));
+          }
+        }
+      });
     }
   }
 
@@ -70,36 +79,7 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
     _nameController.dispose();
     _codeController.dispose();
     _displayOrderController.dispose();
-    _newSectionController.dispose();
     super.dispose();
-  }
-
-  void _addSection() {
-    final text = _newSectionController.text.trim();
-    if (text.isEmpty) return;
-
-    if (_sections.any((s) => (s['name'] as String).toUpperCase() == text.toUpperCase())) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Section "$text" is already added.')),
-      );
-      return;
-    }
-
-    setState(() {
-      _sections.add({
-        'name': text,
-        'code': text.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase(),
-        'capacity': 40,
-        'status': 'ACTIVE',
-      });
-      _newSectionController.clear();
-    });
-  }
-
-  void _removeSection(int index) {
-    setState(() {
-      _sections.removeAt(index);
-    });
   }
 
   void _submit() async {
@@ -114,7 +94,6 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
       'display_order': int.tryParse(_displayOrderController.text.trim()) ?? 1,
       'status': _status,
       'academic_year': widget.academicYear,
-      'sections': _sections,
     };
 
     try {
@@ -186,7 +165,7 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
                           ),
                         ),
                         Text(
-                          'Configure class attributes, stage and initial sections.',
+                          'Configure class name, code, stage, and display order.',
                           style: TextStyle(
                             fontSize: 12,
                             color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
@@ -278,11 +257,13 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
-                                      value: _stage,
+                                      value: _stages.any((s) => s.label.toLowerCase() == _stage.toLowerCase())
+                                          ? _stages.firstWhere((s) => s.label.toLowerCase() == _stage.toLowerCase()).label
+                                          : (_stages.isNotEmpty ? _stages.first.label : _stage),
                                       isExpanded: true,
                                       dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                                       style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
-                                      items: _stages.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                      items: _stages.map((s) => DropdownMenuItem(value: s.label, child: Text(s.label))).toList(),
                                       onChanged: (v) => setState(() => _stage = v ?? 'Secondary'),
                                     ),
                                   ),
@@ -329,15 +310,15 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
-                                      value: _status,
+                                      value: _statuses.any((s) => s.code == _status)
+                                          ? _status
+                                          : (_statuses.isNotEmpty ? _statuses.first.code : 'ACTIVE'),
                                       isExpanded: true,
                                       dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                                       style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
-                                      items: const [
-                                        DropdownMenuItem(value: 'ACTIVE', child: Text('Active')),
-                                        DropdownMenuItem(value: 'INACTIVE', child: Text('Inactive')),
-                                        DropdownMenuItem(value: 'ARCHIVED', child: Text('Archived')),
-                                      ],
+                                      items: _statuses
+                                          .map((s) => DropdownMenuItem(value: s.code, child: Text(s.label)))
+                                          .toList(),
                                       onChanged: (v) => setState(() => _status = v ?? 'ACTIVE'),
                                     ),
                                   ),
@@ -375,163 +356,6 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 24),
-
-                      // Inline Sections Manager Section
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Sections in this Class',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                ),
-                              ),
-                              Text(
-                                'A class can have multiple sections or none (e.g. single-batch class).',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF4F46E5).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '${_sections.length} Sections',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF4F46E5),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Add Section Inline Bar
-                      Row(
-                        children: [
-                          Expanded(
-                            child: SizedBox(
-                              height: 40,
-                              child: TextField(
-                                controller: _newSectionController,
-                                decoration: _inputDecoration('Add section (e.g. C, D, Blue)', isDark).copyWith(
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                ),
-                                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
-                                onSubmitted: (_) => _addSection(),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton.icon(
-                            onPressed: _addSection,
-                            icon: const Icon(Icons.add, size: 16),
-                            label: const Text('Add', style: TextStyle(fontSize: 13)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF4F46E5),
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Sections Chips Display
-                      if (_sections.isEmpty)
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF0F172A).withOpacity(0.4) : const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                              style: BorderStyle.solid,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.info_outline, size: 16, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'No sections added. Students and teachers will be assigned directly to this class.',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      else
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: _sections.asMap().entries.map((entry) {
-                            final idx = entry.key;
-                            final sec = entry.value;
-                            return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFF10B981),
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Section ${sec['name']}',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  InkWell(
-                                    onTap: () => _removeSection(idx),
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Icon(
-                                      Icons.close,
-                                      size: 14,
-                                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        ),
                     ],
                   ),
                 ),

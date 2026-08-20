@@ -76,6 +76,36 @@ class ApiService {
     }
   }
 
+  /// GET raw string (e.g. for CSV/text downloads)
+  Future<String> getString(String endpoint, {Map<String, dynamic>? query}) async {
+    try {
+      var uri = Uri.parse('${AppConfig.apiBaseUrl}$endpoint');
+      if (query != null && query.isNotEmpty) {
+        final Map<String, String> mergedParams = {...uri.queryParameters};
+        query.forEach((key, value) {
+          if (value != null) {
+            mergedParams[key] = value.toString();
+          }
+        });
+        uri = uri.replace(queryParameters: mergedParams);
+      }
+      final response = await _client
+          .get(uri, headers: await _headers)
+          .timeout(AppConfig.apiTimeout);
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return response.body;
+      } else if (response.statusCode == 401) {
+        onUnauthorized?.call();
+        throw ApiException('Unauthorized: Please login again');
+      } else {
+        throw ApiException('Server returned error: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(e.toString().replaceAll(RegExp(r'^(ApiException:|Exception:|\s*Api)+', caseSensitive: false), '').trim());
+    }
+  }
+
   /// POST request
   Future<Map<String, dynamic>> post(
       String endpoint, Map<String, dynamic> data) async {

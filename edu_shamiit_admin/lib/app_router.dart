@@ -439,7 +439,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/admin/attendance',
-            pageBuilder: (_, __) => const NoTransitionPage(child: PlaceholderScreen(title: 'Attendance')),
+            pageBuilder: (_, __) => const NoTransitionPage(child: AttendanceManagementScreen()),
+          ),
+          GoRoute(
+            path: '/attendance',
+            pageBuilder: (_, __) => const NoTransitionPage(child: AttendanceManagementScreen()),
           ),
           GoRoute(
             path: '/admin/parent-requests',
