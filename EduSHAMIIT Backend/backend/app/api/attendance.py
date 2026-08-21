@@ -286,13 +286,16 @@ async def override_locked_attendance(
     current_user: dict = Depends(get_current_user),
     school_id: str = Depends(require_school_id)
 ):
-    """Override a locked or leave-restricted attendance record with mandatory reason."""
+    """Override a locked or leave-restricted attendance record with mandatory reason via stored procedure."""
     _require_permission(current_user, "attendance.override_locked")
     user_id = str(current_user.get("id"))
+    reason_clean = payload.reason.strip()
+    if not reason_clean:
+        raise HTTPException(status_code=400, detail="An override reason is mandatory")
 
     rows = await exec_sql(
         "SELECT public.fn_override_locked_attendance(%s::UUID, %s::UUID, %s::UUID, %s, %s, %s) AS result;",
-        (school_id, user_id, str(payload.record_id), payload.record_type, payload.new_status, payload.reason.strip())
+        (school_id, user_id, str(payload.record_id), payload.record_type, payload.new_status, reason_clean)
     )
     res = rows[0]["result"] if rows else {"success": False, "error": "Override failed"}
     if not res.get("success"):

@@ -191,7 +191,11 @@ async def get_notice_roles(
             """
             SELECT DISTINCT name FROM public.app_roles WHERE status = 'Active' OR status IS NULL
             UNION
-            SELECT DISTINCT role AS name FROM public.profiles WHERE (school_id = %s::UUID OR school_id IS NULL) AND role IS NOT NULL AND role != ''
+            SELECT DISTINCT role AS name FROM public.profiles 
+            WHERE (school_id = %s::UUID OR school_id IS NULL) 
+              AND role IS NOT NULL 
+              AND role != ''
+              AND role NOT IN (SELECT name FROM public.app_roles WHERE status = 'Inactive')
             ORDER BY name;
             """,
             (school_id,)

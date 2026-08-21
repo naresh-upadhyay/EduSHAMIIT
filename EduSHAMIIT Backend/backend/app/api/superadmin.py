@@ -1,7 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request, Response
 from typing import Optional, List
 from datetime import datetime, timedelta
 import uuid
+import io
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 from app.config import settings
 
 from app.middleware.auth import (
@@ -17,25 +22,36 @@ vault_router = APIRouter()
 require_super_admin_or_director = require_any_role("super_admin", "director")
 
 # ===========================================================
-# Roles CRUD Schemas & Endpoints
+# Roles CRUD & Role Hierarchy Schemas & Endpoints
 # ===========================================================
 from pydantic import BaseModel
 
 class RoleCreateRequest(BaseModel):
     name: str
+    display_name: Optional[str] = None
     code: Optional[str] = None
     description: Optional[str] = None
+    parent_role_id: Optional[str] = None
+    role_type: Optional[str] = "CUSTOM"
+    inherit_permissions: Optional[bool] = True
     permissions: List[str] = []
     draft_permissions: Optional[List[str]] = None
     status: Optional[str] = "Active"
 
 class RoleUpdateRequest(BaseModel):
     name: Optional[str] = None
+    display_name: Optional[str] = None
     code: Optional[str] = None
     description: Optional[str] = None
+    parent_role_id: Optional[str] = None
+    role_type: Optional[str] = None
+    inherit_permissions: Optional[bool] = None
     permissions: Optional[List[str]] = None
     draft_permissions: Optional[List[str]] = None
     status: Optional[str] = None
+
+class RoleParentUpdateRequest(BaseModel):
+    new_parent_role_id: Optional[str] = None
 
 def count_allowed_permissions(perms_list: list) -> int:
     if not perms_list:
@@ -43,7 +59,11 @@ def count_allowed_permissions(perms_list: list) -> int:
     count = 0
     for p in perms_list:
         p_str = str(p)
-        if ":" in p_str and p_str.endswith(":allow"):
+        if ":" in p_str:
+            if p_str.endswith(":allow"):
+                count += 1
+        else:
+            # Standalone permission string like "manage_classes"
             count += 1
     return count
 
@@ -54,109 +74,610 @@ def check_pending_publish(perms: list, draft: list) -> bool:
     d_set = set(str(x) for x in draft if ":" in str(x))
     return p_set != d_set
 
-def augment_role_metadata(role: dict) -> dict:
-    if role.get("name") == "super_admin":
-        role["permissions_count"] = 108
-        role["draft_permissions_count"] = 108
-        role["has_pending_publish"] = False
+def compute_ancestor_permissions(role_id: str, roles_by_id: dict) -> list:
+    """Recursively collect inherited allowed permissions from ancestor parent roles."""
+    curr = roles_by_id.get(str(role_id))
+    if not curr:
+        return []
+    
+    inherited = []
+    seen_parents = set()
+    parent_id = curr.get("parent_role_id")
+    
+    while parent_id and str(parent_id) not in seen_parents:
+        seen_parents.add(str(parent_id))
+        parent = roles_by_id.get(str(parent_id))
+        if not parent:
+            break
+        # If parent has inherit_permissions enabled, accumulate its permissions
+        parent_perms = parent.get("permissions") or []
+        for p in parent_perms:
+            p_str = str(p)
+            if (":" in p_str and p_str.endswith(":allow")) or (":" not in p_str):
+                if p_str not in inherited:
+                    inherited.append(p_str)
+        parent_id = parent.get("parent_role_id")
+        
+    return inherited
+
+def detect_circular_parent(role_id: str, new_parent_id: Optional[str], roles_by_id: dict) -> bool:
+    """Returns True if assigning new_parent_id creates a circular parent-child reference."""
+    if not new_parent_id:
+        return False
+    if str(role_id) == str(new_parent_id):
+        return True
+    
+    seen = {str(role_id)}
+    curr_id = str(new_parent_id)
+    while curr_id:
+        if curr_id in seen:
+            return True
+        seen.add(curr_id)
+        parent_role = roles_by_id.get(curr_id)
+        if not parent_role:
+            break
+        curr_id = str(parent_role.get("parent_role_id") or "")
+        
+    return False
+
+def augment_role_metadata(role: dict, roles_by_id: Optional[dict] = None) -> dict:
+    """Augment role record dynamically using database fields."""
+    raw_name = (role.get("name") or "").strip()
+    # Direct database column fallback to formatted name
+    if not role.get("display_name"):
+        role["display_name"] = raw_name.replace("_", " ").title()
+    
+    # Use code from database or fallback to formatted name
+    if not role.get("code"):
+        role["code"] = f"ROLE_{raw_name.upper()}"
+        
+    perms = role.get("permissions") or []
+    draft = role.get("draft_permissions") or []
+    
+    role["permissions_count"] = count_allowed_permissions(perms)
+    role["draft_permissions_count"] = count_allowed_permissions(draft)
+    role["has_pending_publish"] = check_pending_publish(perms, draft)
+    role["level"] = role.get("level") or 1
+    role["role_type"] = role.get("role_type") or ("CUSTOM" if role.get("is_custom") else "SYSTEM")
+    
+    # Calculate inherited permissions if roles_by_id is provided
+    if roles_by_id and role.get("id"):
+        inherited = compute_ancestor_permissions(str(role["id"]), roles_by_id)
+        role["inherited_permissions"] = inherited
+        role["inherited_permissions_count"] = len(inherited)
+        
+        # Effective permissions = direct + inherited
+        direct_set = set(perms)
+        effective_set = direct_set.union(set(inherited))
+        role["effective_permissions"] = list(effective_set)
+        role["effective_permissions_count"] = len(effective_set)
     else:
-        perms = role.get("permissions") or []
-        draft = role.get("draft_permissions") or []
-        role["permissions_count"] = count_allowed_permissions(perms)
-        role["draft_permissions_count"] = count_allowed_permissions(draft)
-        role["has_pending_publish"] = check_pending_publish(perms, draft)
+        role["inherited_permissions"] = []
+        role["inherited_permissions_count"] = 0
+        role["effective_permissions"] = perms
+        role["effective_permissions_count"] = role["permissions_count"]
+        
+    if "user_count" not in role:
+        role["user_count"] = 0
+        
     return role
 
-@router.get("/roles")
-async def list_roles(
+async def log_role_audit_event(
+    sb,
+    user: dict,
+    action: str,
+    role_name: str,
+    role_id: str,
+    changes: Optional[dict] = None,
+    status: str = "Success"
+):
+    """Record an audit trail event for role operations."""
+    try:
+        actor_id = user.get("id") or user.get("sub")
+        actor_email = user.get("email") or "admin@schoolerp.com"
+        actor_name = user.get("user_metadata", {}).get("full_name") or user.get("name") or "Super Admin"
+        actor_role = user.get("role") or "super_admin"
+        school_id = user.get("school_id")
+        
+        valid_user_id = None
+        if isinstance(actor_id, str) and len(actor_id) == 36:
+            try:
+                p_check = await sb.table("profiles").select("id").eq("id", actor_id).aexecute()
+                if p_check.data:
+                    valid_user_id = actor_id
+            except Exception:
+                valid_user_id = None
+                
+        audit_entry = {
+            "school_id": school_id,
+            "user_id": valid_user_id,
+            "user_email": actor_email,
+            "user_name": actor_name,
+            "user_role": actor_role,
+            "event_type": "ROLE_MANAGEMENT",
+            "module": "Roles & Permissions",
+            "action": action,
+            "resource": role_name,
+            "resource_type": "app_roles",
+            "changes": changes or {},
+            "status": status,
+        }
+        await sb.table("audit_logs").insert(audit_entry).aexecute()
+    except Exception as e:
+        print(f"Error logging role audit event: {e}", flush=True)
+
+@router.get("/roles/hierarchy")
+async def get_role_hierarchy(
+    school_id: Optional[str] = None,
     user=Depends(require_super_admin_or_director),
 ):
-    """List all application roles and calculate dynamic user counts per role."""
+    """
+    Get the complete interactive role hierarchy tree and flat metadata.
+    Includes parent-child relationships, calculated levels, user counts,
+    and inherited & effective permissions.
+    """
     sb = get_supabase()
     
-    # 1. Fetch roles
-    roles_res = await sb.table("app_roles").select("*").order("name").aexecute()
-    roles = roles_res.data or []
+    # 1. Fetch ONLY active roles for hierarchy
+    query = sb.table("app_roles").select("*").or_("status.eq.Active,status.is.null")
+    if school_id:
+        query = query.or_(f"school_id.eq.{school_id},school_id.is.null")
+    roles_res = await query.order("level").order("display_order").order("name").aexecute()
+    roles = [r for r in (roles_res.data or []) if (r.get("status") or "Active").lower() == "active"]
     
     # 2. Get user counts per role dynamically from profiles table
+    role_counts = {}
     try:
         profiles_res = await sb.table("profiles").select("role").aexecute()
         profiles = profiles_res.data or []
-        
-        role_counts = {}
         for p in profiles:
-            role_name = p.get("role")
-            if role_name:
-                role_counts[role_name] = role_counts.get(role_name, 0) + 1
-                
-        for r in roles:
-            r["user_count"] = role_counts.get(r["name"], 0)
-            augment_role_metadata(r)
+            rname = p.get("role")
+            if rname:
+                role_counts[rname] = role_counts.get(rname, 0) + 1
+    except Exception as e:
+        print(f"Error fetching role counts for hierarchy: {e}", flush=True)
+        
+    roles_by_id = {str(r["id"]): r for r in roles}
+    
+    # Calculate child counts (only considering active children)
+    children_map = {}
+    for r in roles:
+        pid = r.get("parent_role_id")
+        if pid and str(pid) in roles_by_id:
+            pid_str = str(pid)
+            children_map.setdefault(pid_str, []).append(r)
+            
+    for r in roles:
+        r_id_str = str(r["id"])
+        r["user_count"] = role_counts.get(r["name"], 0)
+        r["child_roles_count"] = len(children_map.get(r_id_str, []))
+        
+        # Parent metadata
+        pid = r.get("parent_role_id")
+        if pid and str(pid) in roles_by_id:
+            parent_r = roles_by_id[str(pid)]
+            r["parent_role_name"] = parent_r.get("name")
+            r["parent_role_display_name"] = parent_r.get("display_name") or (parent_r.get("name") or "").replace("_", " ").title()
+            r["parent_role_code"] = parent_r.get("code")
+        else:
+            r["parent_role_name"] = None
+            r["parent_role_display_name"] = "—"
+            r["parent_role_code"] = None
+            
+        augment_role_metadata(r, roles_by_id)
+
+    # Build nested tree structure starting from roots (parent_role_id is None or not in active roles or root level)
+    def build_tree_node(role_dict: dict) -> dict:
+        node = dict(role_dict)
+        r_id = str(node["id"])
+        child_nodes = children_map.get(r_id, [])
+        node["children"] = [build_tree_node(c) for c in child_nodes]
+        return node
+        
+    roots = [r for r in roles if not r.get("parent_role_id") or str(r.get("parent_role_id")) not in roles_by_id or r.get("level") == 1]
+    tree = [build_tree_node(root) for root in roots]
+    
+    return {
+        "success": True,
+        "data": tree,
+        "tree": tree,
+        "flat_roles": roles,
+        "total_roles": len(roles),
+        "root_count": len(roots)
+    }
+
+@router.get("/roles/hierarchy/pdf")
+@router.get("/roles/hierarchy/export-pdf")
+async def export_role_hierarchy_pdf(
+    school_id: Optional[str] = None,
+    user=Depends(require_super_admin_or_director),
+):
+    """
+    Generate an authentic, professional PDF report of the active Role Hierarchy Tree
+    and flat Access Control Matrix.
+    """
+    sb = get_supabase()
+    
+    # 1. Fetch ONLY active roles for hierarchy
+    query = sb.table("app_roles").select("*").or_("status.eq.Active,status.is.null")
+    if school_id:
+        query = query.or_(f"school_id.eq.{school_id},school_id.is.null")
+    roles_res = await query.order("level").order("display_order").order("name").aexecute()
+    roles = [r for r in (roles_res.data or []) if (r.get("status") or "Active").lower() == "active"]
+    
+    # 2. Get user counts per role dynamically from profiles table
+    role_counts = {}
+    try:
+        profiles_res = await sb.table("profiles").select("role").aexecute()
+        profiles = profiles_res.data or []
+        for p in profiles:
+            rname = p.get("role")
+            if rname:
+                role_counts[rname] = role_counts.get(rname, 0) + 1
+    except Exception as e:
+        print(f"Error fetching role counts for hierarchy PDF: {e}", flush=True)
+        
+    roles_by_id = {str(r["id"]): r for r in roles}
+    
+    for r in roles:
+        r_id_str = str(r["id"])
+        r["user_count"] = role_counts.get(r["name"], 0)
+        pid = r.get("parent_role_id")
+        if pid and str(pid) in roles_by_id:
+            parent_r = roles_by_id[str(pid)]
+            r["parent_role_name"] = parent_r.get("name")
+            r["parent_role_display_name"] = parent_r.get("display_name") or (parent_r.get("name") or "").replace("_", " ").title()
+        else:
+            r["parent_role_name"] = None
+            r["parent_role_display_name"] = "—"
+
+    # Build in-memory PDF
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        rightMargin=30,
+        leftMargin=30,
+        topMargin=30,
+        bottomMargin=30,
+    )
+    
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'DocTitle',
+        parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
+        fontSize=18,
+        textColor=colors.HexColor('#1E1B4B'),
+        spaceAfter=4,
+    )
+    subtitle_style = ParagraphStyle(
+        'DocSubTitle',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=10,
+        textColor=colors.HexColor('#64748B'),
+        spaceAfter=10,
+    )
+    cell_style = ParagraphStyle(
+        'CellText',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=8.5,
+        textColor=colors.HexColor('#1E293B'),
+        leading=11,
+    )
+    cell_bold = ParagraphStyle(
+        'CellBold',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=8.5,
+        textColor=colors.HexColor('#0F172A'),
+        leading=11,
+    )
+    cell_header = ParagraphStyle(
+        'CellHeader',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=9,
+        textColor=colors.white,
+        leading=11,
+    )
+
+    story = []
+    
+    # Title & Subtitle Header
+    story.append(Paragraph("EduSHAMIIT ERP — Role Hierarchy & Access Matrix", title_style))
+    gen_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    story.append(Paragraph(f"Official Organizational Hierarchy Report • Generated: {gen_time} • Total Active Roles: {len(roles)}", subtitle_style))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#6366F1'), spaceAfter=14))
+    
+    # Table Header & Data
+    headers = [
+        Paragraph("ROLE NAME", cell_header),
+        Paragraph("ROLE CODE", cell_header),
+        Paragraph("TYPE", cell_header),
+        Paragraph("LEVEL", cell_header),
+        Paragraph("PARENT ROLE", cell_header),
+        Paragraph("USERS", cell_header),
+        Paragraph("PERMISSIONS", cell_header),
+        Paragraph("STATUS", cell_header),
+    ]
+    
+    table_data = [headers]
+    
+    for idx, r in enumerate(roles):
+        dname = r.get("display_name") or (r.get("name") or "").replace("_", " ").title()
+        code = r.get("code") or (r.get("name") or "").upper()
+        rtype = (r.get("role_type") or ("Custom" if r.get("is_custom") else "System")).title()
+        level_str = f"Level {r.get('level', 1)}"
+        parent = r.get("parent_role_display_name") or "—"
+        users = str(r.get("user_count", 0))
+        perms_count = len(r.get("permissions") or [])
+        perms = f"{perms_count} active perms"
+        status = (r.get("status") or "Active").upper()
+        
+        row = [
+            Paragraph(dname, cell_bold),
+            Paragraph(code, cell_style),
+            Paragraph(rtype, cell_style),
+            Paragraph(level_str, cell_bold),
+            Paragraph(parent, cell_style),
+            Paragraph(users, cell_style),
+            Paragraph(perms, cell_style),
+            Paragraph(status, cell_bold),
+        ]
+        table_data.append(row)
+        
+    t = Table(table_data, colWidths=[150, 110, 80, 65, 140, 60, 95, 70])
+    
+    table_style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2E1B5B')),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+    ])
+    
+    for r_idx in range(1, len(table_data)):
+        bg_color = colors.HexColor('#F8FAFC') if r_idx % 2 == 1 else colors.white
+        table_style.add('BACKGROUND', (0, r_idx), (-1, r_idx), bg_color)
+        
+    t.setStyle(table_style)
+    story.append(t)
+    
+    story.append(Spacer(1, 14))
+    story.append(Paragraph("Confidential — Generated by EduSHAMIIT Enterprise Suite", subtitle_style))
+    
+    doc.build(story)
+    buffer.seek(0)
+    pdf_bytes = buffer.getvalue()
+    
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=EduSHAMIIT_Role_Hierarchy_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        }
+    )
+
+@router.get("/roles")
+async def list_roles(
+    q: Optional[str] = Query(None, description="Search term for role name or code"),
+    role_type: Optional[str] = Query(None, description="Filter by role type: SYSTEM, CUSTOM, DEFAULT, INHERITED"),
+    status: Optional[str] = Query(None, description="Filter by status: Active, Inactive"),
+    level: Optional[int] = Query(None, description="Filter by level"),
+    school_id: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    limit: Optional[int] = Query(None, ge=1, le=500),
+    sort_by: str = Query("level"),
+    sort_order: str = Query("asc"),
+    user=Depends(require_super_admin_or_director),
+):
+    """List all application roles with pagination, hierarchy metadata, and filters."""
+    sb = get_supabase()
+    
+    # 1. Fetch all roles to accurately compute hierarchy linkages
+    roles_res = await sb.table("app_roles").select("*").order("level").order("name").aexecute()
+    roles = roles_res.data or []
+    
+    # 2. Get user counts per role dynamically from profiles table
+    role_counts = {}
+    try:
+        profiles_res = await sb.table("profiles").select("role").aexecute()
+        profiles = profiles_res.data or []
+        for p in profiles:
+            rname = p.get("role")
+            if rname:
+                role_counts[rname] = role_counts.get(rname, 0) + 1
     except Exception as e:
         print(f"Error fetching role user counts: {e}", flush=True)
-        for r in roles:
-            r["user_count"] = 0
-            augment_role_metadata(r)
+        
+    roles_by_id = {str(r["id"]): r for r in roles}
+    
+    # Calculate child counts
+    children_map = {}
+    for r in roles:
+        pid = r.get("parent_role_id")
+        if pid:
+            children_map.setdefault(str(pid), []).append(r)
             
+    for r in roles:
+        r_id_str = str(r["id"])
+        r["user_count"] = role_counts.get(r["name"], 0)
+        r["child_roles_count"] = len(children_map.get(r_id_str, []))
+        
+        pid = r.get("parent_role_id")
+        if pid and str(pid) in roles_by_id:
+            parent_r = roles_by_id[str(pid)]
+            r["parent_role_name"] = parent_r.get("name")
+            r["parent_role_display_name"] = parent_r.get("display_name") or (parent_r.get("name") or "").replace("_", " ").title()
+            r["parent_role_code"] = parent_r.get("code")
+        else:
+            r["parent_role_name"] = None
+            r["parent_role_display_name"] = "—"
+            r["parent_role_code"] = None
+            
+        augment_role_metadata(r, roles_by_id)
+
+    # 3. Apply in-memory filtering for flexible search across multiple fields
+    filtered_roles = list(roles)
+    
+    if q and isinstance(q, str) and q.strip():
+        search_term = q.strip().lower()
+        filtered_roles = [
+            r for r in filtered_roles
+            if search_term in (r.get("name") or "").lower()
+            or search_term in (r.get("display_name") or "").lower()
+            or search_term in (r.get("code") or "").lower()
+            or search_term in (r.get("description") or "").lower()
+            or search_term in (r.get("parent_role_display_name") or "").lower()
+        ]
+        
+    if role_type and isinstance(role_type, str) and role_type.upper() != "ALL":
+        filtered_roles = [
+            r for r in filtered_roles
+            if (r.get("role_type") or "").upper() == role_type.upper()
+        ]
+        
+    if status and isinstance(status, str) and status != "All Status":
+        filtered_roles = [
+            r for r in filtered_roles
+            if (r.get("status") or "").lower() == status.lower()
+        ]
+        
+    if level is not None and isinstance(level, int) and level > 0:
+        filtered_roles = [
+            r for r in filtered_roles
+            if r.get("level") == level
+        ]
+
+    # 4. Sorting
+    reverse_sort = (isinstance(sort_order, str) and sort_order.lower() == "desc")
+    sort_key = sort_by if isinstance(sort_by, str) else "level"
+    if sort_key in ["name", "code", "role_type", "status", "created_at"]:
+        filtered_roles.sort(key=lambda x: str(x.get(sort_key) or ""), reverse=reverse_sort)
+    elif sort_key in ["level", "user_count", "permissions_count", "child_roles_count"]:
+        filtered_roles.sort(key=lambda x: int(x.get(sort_key) or 0), reverse=reverse_sort)
+    else:
+        filtered_roles.sort(key=lambda x: (int(x.get("level") or 1), str(x.get("name") or "")), reverse=reverse_sort)
+
+    total_count = len(filtered_roles)
+    page_num = page if isinstance(page, int) and page >= 1 else 1
+    if limit is not None and isinstance(limit, int) and limit >= 1:
+        start_idx = (page_num - 1) * limit
+        end_idx = start_idx + limit
+        paginated_roles = filtered_roles[start_idx:end_idx]
+        total_pages = (total_count + limit - 1) // limit if limit > 0 else 1
+    else:
+        paginated_roles = filtered_roles
+        total_pages = 1
+
     # All system permissions that can be assigned
     system_permissions = [
-        "view_courses",
-        "submit_assignments",
-        "view_grades",
-        "view_attendance",
-        "grade_assignments",
-        "manage_classes",
-        "manage_users",
-        "view_reports",
-        "manage_admissions",
-        "manage_infra",
-        "manage_roles",
-        "manage_finance",
-        "manage_staff",
-        "manage_payroll",
-        "manage_transport",
-        "manage_library",
-        "view_logs",
-        "manage_sports",
-        "manage_support",
-        "manage_hostel",
-        "manage_exams"
+        "view_courses", "submit_assignments", "view_grades", "view_attendance",
+        "grade_assignments", "manage_classes", "manage_users", "view_reports",
+        "manage_admissions", "manage_infra", "manage_roles", "manage_finance",
+        "manage_staff", "manage_payroll", "manage_transport", "manage_library",
+        "view_logs", "manage_sports", "manage_support", "manage_hostel", "manage_exams"
     ]
             
     return {
         "success": True,
-        "data": roles,
+        "data": paginated_roles,
+        "total": total_count,
+        "page": page,
+        "limit": limit or total_count,
+        "total_pages": total_pages,
         "system_permissions": system_permissions
     }
+
+@router.get("/roles/{role_id}")
+async def get_role_detail(
+    role_id: str,
+    user=Depends(require_super_admin_or_director),
+):
+    """Fetch single role details with parent, children, direct, and inherited permissions."""
+    sb = get_supabase()
+    
+    # 1. Fetch all roles to build relationship context
+    roles_res = await sb.table("app_roles").select("*").aexecute()
+    roles = roles_res.data or []
+    roles_by_id = {str(r["id"]): r for r in roles}
+    
+    target_role = roles_by_id.get(str(role_id))
+    if not target_role:
+        raise HTTPException(status_code=404, detail="Role not found")
+        
+    # Get user count
+    user_count_res = await sb.table("profiles").select("id").eq("role", target_role["name"]).aexecute()
+    target_role["user_count"] = len(user_count_res.data or [])
+    
+    # Get direct children
+    children = [r for r in roles if str(r.get("parent_role_id") or "") == str(role_id)]
+    target_role["child_roles"] = children
+    target_role["child_roles_count"] = len(children)
+    
+    # Parent details
+    pid = target_role.get("parent_role_id")
+    if pid and str(pid) in roles_by_id:
+        parent_r = roles_by_id[str(pid)]
+        target_role["parent_role"] = {
+            "id": parent_r.get("id"),
+            "name": parent_r.get("name"),
+            "display_name": (parent_r.get("name") or "").replace("_", " ").title(),
+            "code": parent_r.get("code"),
+            "level": parent_r.get("level")
+        }
+    else:
+        target_role["parent_role"] = None
+        
+    augmented = augment_role_metadata(target_role, roles_by_id)
+    return {"success": True, "data": augmented}
 
 @router.post("/roles")
 async def create_role(
     req: RoleCreateRequest,
     user=Depends(require_super_admin_or_director),
 ):
-    """Create a new custom user role."""
+    """Create a new role with hierarchy linkage, level calculation, and validation."""
     sb = get_supabase()
     
-    role_name = req.name.strip()
+    role_name = req.name.strip().lower().replace(" ", "_")
     if not role_name:
         raise HTTPException(status_code=400, detail="Role name cannot be empty")
         
     # Check if role name already exists (case-insensitive check)
     exists = await sb.table("app_roles").select("id").ilike("name", role_name).aexecute()
     if exists.data:
-        raise HTTPException(status_code=400, detail=f"Role with name '{role_name}' already exists")
+        raise HTTPException(status_code=400, detail=f"Role with name '{req.name.strip()}' already exists")
         
-    role_code = req.code.strip() if req.code else f"ROLE_{role_name.upper().replace(' ', '_')}"
+    role_code = req.code.strip().upper() if req.code else f"ROLE_{role_name.upper()}"
     # Check if role code already exists
     code_exists = await sb.table("app_roles").select("id").eq("code", role_code).aexecute()
     if code_exists.data:
         raise HTTPException(status_code=400, detail=f"Role with code '{role_code}' already exists")
         
+    # Calculate level based on parent_role_id
+    level = 1
+    if req.parent_role_id:
+        parent_res = await sb.table("app_roles").select("id, level").eq("id", req.parent_role_id).aexecute()
+        if parent_res.data:
+            level = (parent_res.data[0].get("level") or 1) + 1
+        else:
+            raise HTTPException(status_code=400, detail="Selected parent role does not exist")
+            
     # Insert new role
     payload = {
         "name": role_name,
+        "display_name": req.display_name.strip() if req.display_name else req.name.strip().replace("_", " ").title(),
         "code": role_code,
-        "description": req.description,
+        "description": req.description or f"Custom role for {req.name.strip()}",
+        "parent_role_id": req.parent_role_id,
+        "level": level,
+        "role_type": req.role_type or "CUSTOM",
+        "inherit_permissions": req.inherit_permissions if req.inherit_permissions is not None else True,
         "permissions": req.permissions,
         "draft_permissions": req.draft_permissions or req.permissions or [],
         "is_custom": True,
@@ -167,8 +688,30 @@ async def create_role(
     if not res.data:
         raise HTTPException(status_code=500, detail="Failed to create role")
         
-    res_data = augment_role_metadata(res.data[0])
+    created_role = res.data[0]
+    await log_role_audit_event(
+        sb=sb,
+        user=user,
+        action="ROLE_CREATED",
+        role_name=role_name,
+        role_id=str(created_role.get("id")),
+        changes={"payload": payload}
+    )
+    
+    res_data = augment_role_metadata(created_role)
     return {"success": True, "data": res_data}
+
+async def recalculate_descendant_levels(sb, parent_id: str, parent_level: int, roles_by_id: dict):
+    """Recursively update levels of all child and descendant roles when a parent level changes."""
+    children = [r for r in roles_by_id.values() if str(r.get("parent_role_id") or "") == str(parent_id)]
+    for child in children:
+        child_id = str(child["id"])
+        new_child_level = parent_level + 1
+        if child.get("level") != new_child_level:
+            await sb.table("app_roles").update({"level": new_child_level}).eq("id", child_id).aexecute()
+            child["level"] = new_child_level
+            roles_by_id[child_id]["level"] = new_child_level
+            await recalculate_descendant_levels(sb, child_id, new_child_level, roles_by_id)
 
 @router.put("/roles/{role_id}")
 async def update_role(
@@ -176,40 +719,70 @@ async def update_role(
     req: RoleUpdateRequest,
     user=Depends(require_super_admin_or_director),
 ):
-    """Update custom or system role details."""
+    """Update custom or system role details with hierarchy circular checks."""
     sb = get_supabase()
     
-    # 1. Fetch current role
-    role_res = await sb.table("app_roles").select("*").eq("id", role_id).aexecute()
-    if not role_res.data:
+    # 1. Fetch all roles to evaluate circular dependencies and levels
+    all_roles_res = await sb.table("app_roles").select("*").aexecute()
+    all_roles = all_roles_res.data or []
+    roles_by_id = {str(r["id"]): r for r in all_roles}
+    
+    curr_role = roles_by_id.get(str(role_id))
+    if not curr_role:
         raise HTTPException(status_code=404, detail="Role not found")
         
-    curr_role = role_res.data[0]
-    
     payload = {}
+    old_values = {}
+    
+    if req.display_name is not None:
+        payload["display_name"] = req.display_name.strip()
+        old_values["display_name"] = curr_role.get("display_name")
+
     # Prevent changing name or code of core system roles (is_custom = False)
-    if not curr_role["is_custom"]:
-        if req.name and req.name.strip() != curr_role["name"]:
+    if not curr_role.get("is_custom"):
+        if req.name and req.name.strip().lower().replace(" ", "_") != curr_role["name"]:
             raise HTTPException(status_code=400, detail="Cannot rename built-in system roles")
-        if req.code and req.code.strip() != curr_role["code"]:
+        if req.code and req.code.strip().upper() != curr_role["code"]:
             raise HTTPException(status_code=400, detail="Cannot modify built-in system role codes")
     else:
         if req.name:
-            new_name = req.name.strip()
+            new_name = req.name.strip().lower().replace(" ", "_")
             if new_name != curr_role["name"]:
-                # Ensure new name is unique
                 exists = await sb.table("app_roles").select("id").ilike("name", new_name).aexecute()
-                if exists.data:
-                    raise HTTPException(status_code=400, detail=f"Role with name '{new_name}' already exists")
+                if exists.data and str(exists.data[0]["id"]) != str(role_id):
+                    raise HTTPException(status_code=400, detail=f"Role with name '{req.name.strip()}' already exists")
                 payload["name"] = new_name
+                old_values["name"] = curr_role["name"]
         if req.code:
-            new_code = req.code.strip()
+            new_code = req.code.strip().upper()
             if new_code != curr_role["code"]:
-                # Ensure new code is unique
                 exists = await sb.table("app_roles").select("id").eq("code", new_code).aexecute()
-                if exists.data:
+                if exists.data and str(exists.data[0]["id"]) != str(role_id):
                     raise HTTPException(status_code=400, detail=f"Role with code '{new_code}' already exists")
                 payload["code"] = new_code
+                old_values["code"] = curr_role["code"]
+
+    # Parent Role & Level changes
+    if req.parent_role_id is not None:
+        new_parent_id = req.parent_role_id if req.parent_role_id != "" else None
+        if str(new_parent_id or "") != str(curr_role.get("parent_role_id") or ""):
+            # Check circular dependency!
+            if detect_circular_parent(role_id, new_parent_id, roles_by_id):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot assign this parent role as it would create a circular hierarchy loop (a role cannot be its own ancestor)"
+                )
+            
+            payload["parent_role_id"] = new_parent_id
+            old_values["parent_role_id"] = curr_role.get("parent_role_id")
+            
+            # Recalculate level
+            if new_parent_id and new_parent_id in roles_by_id:
+                new_level = (roles_by_id[new_parent_id].get("level") or 1) + 1
+            else:
+                new_level = 1
+            payload["level"] = new_level
+            old_values["level"] = curr_role.get("level")
 
     if req.permissions is not None:
         payload["permissions"] = req.permissions
@@ -219,16 +792,170 @@ async def update_role(
         payload["description"] = req.description
     if req.status is not None:
         payload["status"] = req.status
+    if req.role_type is not None:
+        payload["role_type"] = req.role_type
+    if req.inherit_permissions is not None:
+        payload["inherit_permissions"] = req.inherit_permissions
         
     if not payload:
-        return {"success": True, "data": augment_role_metadata(curr_role)}
+        return {"success": True, "data": augment_role_metadata(curr_role, roles_by_id)}
         
     res = await sb.table("app_roles").update(payload).eq("id", role_id).aexecute()
     if not res.data:
         raise HTTPException(status_code=500, detail="Failed to update role")
         
-    res_data = augment_role_metadata(res.data[0])
+    updated_role = res.data[0]
+    
+    if "level" in payload:
+        roles_by_id[str(role_id)]["level"] = payload["level"]
+        roles_by_id[str(role_id)]["parent_role_id"] = payload.get("parent_role_id", curr_role.get("parent_role_id"))
+        await recalculate_descendant_levels(sb, role_id, payload["level"], roles_by_id)
+        
+    await log_role_audit_event(
+        sb=sb,
+        user=user,
+        action="ROLE_UPDATED",
+        role_name=curr_role["name"],
+        role_id=role_id,
+        changes={"old": old_values, "new": payload}
+    )
+    
+    res_data = augment_role_metadata(updated_role, roles_by_id)
     return {"success": True, "data": res_data}
+
+@router.patch("/roles/{role_id}/parent")
+async def update_role_parent(
+    role_id: str,
+    req: RoleParentUpdateRequest,
+    user=Depends(require_super_admin_or_director),
+):
+    """Quick re-parenting endpoint with strict circular hierarchy detection."""
+    sb = get_supabase()
+    all_roles_res = await sb.table("app_roles").select("*").aexecute()
+    all_roles = all_roles_res.data or []
+    roles_by_id = {str(r["id"]): r for r in all_roles}
+    
+    curr_role = roles_by_id.get(str(role_id))
+    if not curr_role:
+        raise HTTPException(status_code=404, detail="Role not found")
+        
+    new_pid = req.new_parent_role_id if req.new_parent_role_id != "" else None
+    
+    if detect_circular_parent(role_id, new_pid, roles_by_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot assign this parent role as it would create a circular hierarchy loop"
+        )
+        
+    new_level = 1
+    if new_pid and new_pid in roles_by_id:
+        new_level = (roles_by_id[new_pid].get("level") or 1) + 1
+        
+    res = await sb.table("app_roles").update({
+        "parent_role_id": new_pid,
+        "level": new_level
+    }).eq("id", role_id).aexecute()
+    
+    if not res.data:
+        raise HTTPException(status_code=500, detail="Failed to update role parent")
+        
+    roles_by_id[str(role_id)]["level"] = new_level
+    roles_by_id[str(role_id)]["parent_role_id"] = new_pid
+    await recalculate_descendant_levels(sb, role_id, new_level, roles_by_id)
+    
+    await log_role_audit_event(
+        sb=sb,
+        user=user,
+        action="ROLE_REPARENTED",
+        role_name=curr_role["name"],
+        role_id=role_id,
+        changes={
+            "old_parent_id": curr_role.get("parent_role_id"),
+            "new_parent_id": new_pid,
+            "old_level": curr_role.get("level"),
+            "new_level": new_level
+        }
+    )
+    
+    return {
+        "success": True,
+        "message": "Role re-parented successfully",
+        "data": augment_role_metadata(res.data[0], roles_by_id)
+    }
+
+@router.get("/roles/{role_id}/users")
+async def get_role_users(
+    role_id: str,
+    q: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    user=Depends(require_super_admin_or_director),
+):
+    """List all users assigned to this role with pagination and search."""
+    sb = get_supabase()
+    
+    role_res = await sb.table("app_roles").select("name").eq("id", role_id).aexecute()
+    if not role_res.data:
+        raise HTTPException(status_code=404, detail="Role not found")
+        
+    role_name = role_res.data[0]["name"]
+    
+    query = sb.table("profiles").select(
+        "id, user_id, email, full_name, role, status, avatar_url, phone, employee_id, admission_number, department, designation, school_id, last_login, created_at, updated_at"
+    ).eq("role", role_name)
+    
+    users_res = await query.order("full_name").aexecute()
+    users = users_res.data or []
+    
+    if q and q.strip():
+        term = q.strip().lower()
+        users = [
+            u for u in users
+            if term in (u.get("full_name") or "").lower()
+            or term in (u.get("email") or "").lower()
+            or term in (u.get("phone") or "").lower()
+            or term in (u.get("employee_id") or "").lower()
+            or term in (u.get("admission_number") or "").lower()
+        ]
+        
+    total = len(users)
+    start = (page - 1) * limit
+    paginated = users[start:start + limit]
+    
+    return {
+        "success": True,
+        "data": paginated,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "role_name": role_name
+    }
+
+@router.get("/roles/{role_id}/audit-logs")
+async def get_role_audit_logs(
+    role_id: str,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    user=Depends(require_super_admin_or_director),
+):
+    """List audit log history for a specific role."""
+    sb = get_supabase()
+    
+    role_res = await sb.table("app_roles").select("name").eq("id", role_id).aexecute()
+    if not role_res.data:
+        raise HTTPException(status_code=404, detail="Role not found")
+        
+    role_name = role_res.data[0]["name"]
+    
+    logs_res = await sb.table("audit_logs").select("*").eq("resource", role_name).order("created_at", ascending=False).limit(limit).aexecute()
+    logs = logs_res.data or []
+    
+    return {
+        "success": True,
+        "data": logs,
+        "total": len(logs),
+        "role_name": role_name
+    }
 
 @router.post("/roles/{role_id}/publish")
 async def publish_role_permissions(
@@ -254,6 +981,15 @@ async def publish_role_permissions(
     if not res.data:
         raise HTTPException(status_code=500, detail="Failed to publish permissions")
         
+    await log_role_audit_event(
+        sb=sb,
+        user=user,
+        action="PERMISSIONS_PUBLISHED",
+        role_name=curr_role["name"],
+        role_id=role_id,
+        changes={"published_permissions": draft_perms}
+    )
+    
     res_data = augment_role_metadata(res.data[0])
     return {"success": True, "data": res_data}
 
@@ -262,7 +998,7 @@ async def delete_role(
     role_id: str,
     user=Depends(require_super_admin_or_director),
 ):
-    """Delete a custom user role."""
+    """Delete a custom user role with safety dependency checks."""
     sb = get_supabase()
     
     # 1. Fetch current role
@@ -272,16 +1008,39 @@ async def delete_role(
         
     curr_role = role_res.data[0]
     
-    # Block deleting built-in roles
-    # if not curr_role["is_custom"]:
-    #     raise HTTPException(status_code=400, detail="Cannot delete built-in core system roles")
+    # Block deleting built-in system roles
+    if not curr_role.get("is_custom", True) or (curr_role.get("role_type") == "SYSTEM" and curr_role.get("level") == 1):
+        raise HTTPException(status_code=400, detail="Cannot delete core system built-in roles")
         
     # Check if any user is currently assigned this role
     users_with_role = await sb.table("profiles").select("id").eq("role", curr_role["name"]).aexecute()
-    if users_with_role.data:
-        raise HTTPException(status_code=400, detail=f"Cannot delete role '{curr_role['name']}' as it is currently assigned to users")
+    user_count = len(users_with_role.data or [])
+    if user_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete role '{curr_role['name']}' as it has {user_count} active assigned users. Reassign users first."
+        )
+        
+    # Check if this role has child roles depending on it
+    children_res = await sb.table("app_roles").select("id, name").eq("parent_role_id", role_id).aexecute()
+    child_count = len(children_res.data or [])
+    if child_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete role '{curr_role['name']}' as it has {child_count} sub-roles depending on it. Re-parent child roles first."
+        )
         
     await sb.table("app_roles").delete().eq("id", role_id).aexecute()
+    
+    await log_role_audit_event(
+        sb=sb,
+        user=user,
+        action="ROLE_DELETED",
+        role_name=curr_role["name"],
+        role_id=role_id,
+        changes={"deleted_role": curr_role}
+    )
+    
     return {"success": True, "message": f"Role '{curr_role['name']}' deleted successfully"}
 
 # ===========================================================
@@ -329,10 +1088,15 @@ async def create_school(
 ):
     """Create a new school/institute with subscription specs."""
     name = payload.get("name")
-    if not name:
+    if not name or not name.strip():
         raise HTTPException(status_code=400, detail="School name is required")
+    name = name.strip()
         
     sb = get_supabase()
+    existing_school = await sb.table("schools").select("id").ilike("name", name).maybe_single().aexecute()
+    if existing_school and existing_school.data:
+        raise HTTPException(status_code=400, detail=f"A school with name '{name}' already exists.")
+        
     school_id = str(uuid.uuid4())
     
     # Pricing & Subscription info

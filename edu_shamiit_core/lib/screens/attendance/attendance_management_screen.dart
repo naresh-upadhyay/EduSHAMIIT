@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../constants/app_fonts.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/role_provider.dart';
 import '../../utils/responsive.dart';
 import 'models/attendance_models.dart';
 import 'providers/attendance_provider.dart';
@@ -33,16 +36,17 @@ class AttendanceManagementScreen extends ConsumerWidget {
     final state = ref.watch(attendanceProvider);
     final notifier = ref.read(attendanceProvider.notifier);
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final isDesktop = Responsive.isDesktop(context);
 
     final List<_AttendanceTabDef> availableTabs = [
-      const _AttendanceTabDef(id: 0, label: 'Daily Attendance', icon: Icons.checklist_rounded, view: DailyAttendanceTab()),
+      const _AttendanceTabDef(id: 0, label: 'Daily Attendance', icon: Icons.calendar_today_rounded, view: DailyAttendanceTab()),
       if (state.isManager)
         const _AttendanceTabDef(id: 1, label: 'Staff Attendance', icon: Icons.badge_outlined, view: StaffAttendanceTab()),
       if (state.isManager)
         const _AttendanceTabDef(id: 2, label: 'Leave & Permissions', icon: Icons.beach_access_rounded, view: LeavePermissionsTab()),
-      const _AttendanceTabDef(id: 3, label: 'Bulk Operations', icon: Icons.flash_on_rounded, view: BulkOperationsTab()),
-      const _AttendanceTabDef(id: 4, label: 'Attendance Insights', icon: Icons.insights_rounded, view: AttendanceInsightsTab()),
+      const _AttendanceTabDef(id: 3, label: 'Bulk Operations', icon: Icons.bolt_rounded, view: BulkOperationsTab()),
+      const _AttendanceTabDef(id: 4, label: 'Attendance Insights', icon: Icons.bar_chart_rounded, view: AttendanceInsightsTab()),
       const _AttendanceTabDef(id: 5, label: 'Settings', icon: Icons.settings_outlined, view: AttendanceSettingsTab()),
     ];
 
@@ -71,20 +75,23 @@ class AttendanceManagementScreen extends ConsumerWidget {
       }
     });
 
+    final scaffoldBg = isDark ? const Color(0xFF090D1A) : const Color(0xFFF8FAFC);
+
     return Scaffold(
-      backgroundColor: theme.colorScheme.background,
+      backgroundColor: scaffoldBg,
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Top Header Bar
-          _buildHeaderBar(context, state, notifier, theme),
+          // 1. Top Header Bar (Title, Date Navigator Pill, Profile, Actions)
+          _buildHeaderBar(context, ref, state, notifier, isDark, theme),
 
           // 2. 5 Dynamic Summary Metric KPI Cards
-          _buildSummaryKpiCards(state, notifier, isDesktop, theme),
+          _buildSummaryKpiCards(state, notifier, isDesktop, isDark, theme),
 
-          // 3. Tab Bar (conditionally displays Staff & Leave tabs only if user is a manager)
-          _buildTabBar(availableTabs, state, notifier, theme),
+          // 3. Underline Tab Navigation Bar (Left Aligned)
+          _buildTabBar(availableTabs, state, notifier, isDark, theme),
 
-          // 4. Tab Views
+          // 4. Tab Views (Main Content Area)
           Expanded(
             child: IndexedStack(
               index: currentStackIndex,
@@ -97,61 +104,527 @@ class AttendanceManagementScreen extends ConsumerWidget {
   }
 
   // ==========================================================================
-  // 1. HEADER BAR
+  // 1. HEADER BAR (Fully Responsive for Desktop, Tablet, Split-Screen & Mobile)
   // ==========================================================================
-  Widget _buildHeaderBar(BuildContext context, AttendanceState state, AttendanceNotifier notifier, ThemeData theme) {
+  Widget _buildHeaderBar(
+    BuildContext context,
+    WidgetRef ref,
+    AttendanceState state,
+    AttendanceNotifier notifier,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    final dateStr = DateFormat('dd MMM yyyy, EEE').format(state.selectedDate);
+    final authState = ref.watch(authProvider);
+    final userName = authState.userData?['full_name']?.toString() ??
+        authState.userData?['name']?.toString() ??
+        'Administrator';
+    final userRole = authState.userData?['role_name']?.toString() ??
+        authState.userData?['role']?.toString() ??
+        (authState.role != UserRole.unknown ? authState.role.name : 'Staff');
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(bottom: BorderSide(color: theme.dividerColor.withOpacity(0.08))),
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+        border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0))),
       ),
-      child: Row(
-        children: [
-          if (Navigator.of(context).canPop())
-            IconButton(
-              icon: const Icon(Icons.arrow_back_rounded),
-              onPressed: () => Navigator.of(context).pop(),
-              tooltip: 'Back',
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact = constraints.maxWidth < 1050;
+          final isVeryCompact = constraints.maxWidth < 700;
+
+          // Date Navigator Pill Widget: < 21 Aug 2026, Fri >
+          final datePickerPill = Container(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
             ),
-          const SizedBox(width: 4),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.chevron_left_rounded, size: 18, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
+                  onPressed: () => notifier.prevDay(),
+                  tooltip: 'Previous Day',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 26, minHeight: 32),
+                ),
+                GestureDetector(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: state.selectedDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2030),
+                    );
+                    if (picked != null) notifier.setDate(picked);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.calendar_today_rounded, size: 13, color: Color(0xFF4F46E5)),
+                        const SizedBox(width: 5),
+                        Text(
+                          dateStr,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.chevron_right_rounded, size: 18, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
+                  onPressed: () => notifier.nextDay(),
+                  tooltip: 'Next Day',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 26, minHeight: 32),
+                ),
+              ],
+            ),
+          );
+
+          // User Profile Widget (Adaptive Avatar + Name)
+          final profileWidget = isCompact
+              ? Tooltip(
+                  message: '$userName ($userRole)',
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.3), width: 1.5),
+                      color: const Color(0xFFEEF2FF),
+                    ),
+                    child: Center(
+                      child: Text(
+                        userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                        style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF4F46E5), fontSize: 13),
+                      ),
+                    ),
+                  ),
+                )
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.3), width: 1.5),
+                        color: const Color(0xFFEEF2FF),
+                      ),
+                      child: Center(
+                        child: Text(
+                          userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                          style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF4F46E5), fontSize: 13),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          userName,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        Text(
+                          userRole,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+
+          // Action Buttons: Take Attendance & Reports
+          final actionButtons = Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                'Attendance Management',
-                style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.bold, fontSize: 18),
+              PopupMenuButton<String>(
+                tooltip: 'Take Attendance Options',
+                onSelected: (val) {
+                  if (val == 'daily') notifier.setTab(0);
+                  if (val == 'staff') notifier.setTab(1);
+                  if (val == 'bulk') notifier.setTab(3);
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'daily',
+                    child: Row(
+                      children: [
+                        Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF4F46E5)),
+                        SizedBox(width: 10),
+                        Text('Mark Daily Class Attendance', style: TextStyle(fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                  if (state.isManager)
+                    const PopupMenuItem(
+                      value: 'staff',
+                      child: Row(
+                        children: [
+                          Icon(Icons.badge_outlined, size: 16, color: Color(0xFF4F46E5)),
+                          SizedBox(width: 10),
+                          Text('Mark Staff Attendance', style: TextStyle(fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  const PopupMenuItem(
+                    value: 'bulk',
+                    child: Row(
+                      children: [
+                        Icon(Icons.bolt_rounded, size: 16, color: Color(0xFF4F46E5)),
+                        SizedBox(width: 10),
+                        Text('Bulk Operations', style: TextStyle(fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                ],
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4F46E5),
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF4F46E5).withValues(alpha: 0.25),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.add_rounded, size: 16, color: Colors.white),
+                      if (!isCompact) ...[
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Take Attendance',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+                        ),
+                      ],
+                      const SizedBox(width: 4),
+                      const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Colors.white70),
+                    ],
+                  ),
+                ),
               ),
-              Text(
-                'Student, staff, period schedules, and leave tracking',
-                style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 11),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: () => notifier.setTab(4),
+                icon: const Icon(Icons.bar_chart_rounded, size: 15, color: Color(0xFF4F46E5)),
+                label: isCompact
+                    ? const SizedBox.shrink()
+                    : Text(
+                        'Reports',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                        ),
+                      ),
+                style: OutlinedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: isCompact ? 10 : 12, vertical: 7),
+                  side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
               ),
             ],
-          ),
-          const Spacer(),
+          );
 
-          // Reports Action
-          OutlinedButton.icon(
-            onPressed: () => notifier.setTab(4),
-            icon: const Icon(Icons.insights_rounded, size: 16),
-            label: const Text('Insights & Reports', style: TextStyle(fontSize: 12)),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          if (isVeryCompact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    if (Navigator.of(context).canPop())
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: IconButton(
+                          icon: const Icon(Icons.arrow_back_rounded, size: 20),
+                          onPressed: () => Navigator.of(context).pop(),
+                          tooltip: 'Back',
+                        ),
+                      ),
+                    Expanded(
+                      child: Text(
+                        'Attendance Management',
+                        style: TextStyle(
+                          fontFamily: AppFonts.heading,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                    ),
+                    profileWidget,
+                  ],
+                ),
+                const SizedBox(height: 10),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      datePickerPill,
+                      const SizedBox(width: 8),
+                      actionButtons,
+                    ],
+                  ),
+                ),
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              if (Navigator.of(context).canPop())
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back_rounded, size: 20),
+                    onPressed: () => Navigator.of(context).pop(),
+                    tooltip: 'Back',
+                  ),
+                ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Attendance Management',
+                      style: TextStyle(
+                        fontFamily: AppFonts.heading,
+                        fontWeight: FontWeight.w800,
+                        fontSize: isCompact ? 17 : 20,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    if (!isCompact) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Take and manage attendance for all users and subject-wise student attendance.',
+                        style: TextStyle(
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              datePickerPill,
+              const SizedBox(width: 10),
+              profileWidget,
+              const SizedBox(width: 10),
+              actionButtons,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // ==========================================================================
+  // 2. SUMMARY KPI CARDS (Dynamic calculations from FastAPI stats)
+  // ==========================================================================
+  Widget _buildSummaryKpiCards(
+    AttendanceState state,
+    AttendanceNotifier notifier,
+    bool isDesktop,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    final stats = state.stats;
+    final total = stats.totalStudents;
+    final present = stats.presentCount;
+    final absent = stats.absentCount;
+    final lateCount = stats.lateCount;
+    final onLeave = stats.onLeaveCount;
+
+    final overallPct = total > 0 ? ((present / total) * 100).toStringAsFixed(1) : (stats.overallAttendancePct > 0 ? stats.overallAttendancePct.toStringAsFixed(1) : '0.0');
+    final presentPct = total > 0 ? ((present / total) * 100).toStringAsFixed(1) : '0.0';
+    final absentPct = total > 0 ? ((absent / total) * 100).toStringAsFixed(1) : '0.0';
+    final latePct = total > 0 ? ((lateCount / total) * 100).toStringAsFixed(1) : '0.0';
+    final leavePct = total > 0 ? ((onLeave / total) * 100).toStringAsFixed(1) : '0.0';
+
+    final formatter = NumberFormat('#,###');
+
+    final cards = [
+      _buildMetricCard(
+        title: 'Overall Attendance (Today)',
+        value: '$overallPct%',
+        subtitle: 'Present: ${formatter.format(present)} / ${formatter.format(total)}',
+        icon: Icons.people_alt_rounded,
+        iconColor: const Color(0xFF6366F1),
+        iconBgColor: const Color(0xFFEEF2FF),
+        isDark: isDark,
+      ),
+      _buildMetricCard(
+        title: 'Students Present',
+        value: formatter.format(present),
+        subtitle: '$presentPct% of Total',
+        icon: Icons.person_pin_rounded,
+        iconColor: const Color(0xFF10B981),
+        iconBgColor: const Color(0xFFECFDF5),
+        isDark: isDark,
+      ),
+      _buildMetricCard(
+        title: 'Students Absent',
+        value: formatter.format(absent),
+        subtitle: '$absentPct% of Total',
+        icon: Icons.person_off_rounded,
+        iconColor: const Color(0xFFEF4444),
+        iconBgColor: const Color(0xFFFEF2F2),
+        isDark: isDark,
+      ),
+      _buildMetricCard(
+        title: 'Late Entries',
+        value: formatter.format(lateCount),
+        subtitle: '$latePct% of Total',
+        icon: Icons.access_time_filled_rounded,
+        iconColor: const Color(0xFFF59E0B),
+        iconBgColor: const Color(0xFFFFFBEB),
+        isDark: isDark,
+      ),
+      _buildMetricCard(
+        title: 'On Leave',
+        value: formatter.format(onLeave),
+        subtitle: '$leavePct% of Total',
+        icon: Icons.calendar_month_rounded,
+        iconColor: const Color(0xFF3B82F6),
+        iconBgColor: const Color(0xFFEFF6FF),
+        isDark: isDark,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 1150) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            child: Row(
+              children: cards.map((c) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: c))).toList(),
             ),
-          ),
-          const SizedBox(width: 10),
+          );
+        } else {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: cards.map((c) => Container(width: 210, margin: const EdgeInsets.only(right: 10), child: c)).toList(),
+            ),
+          );
+        }
+      },
+    );
+  }
 
-          // Primary + Take Attendance Button
-          ElevatedButton.icon(
-            onPressed: () => notifier.setTab(0),
-            icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
-            label: const Text('Take Attendance', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4F46E5),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+  Widget _buildMetricCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBgColor,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: isDark ? iconColor.withValues(alpha: 0.15) : iconBgColor,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontFamily: AppFonts.heading,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
         ],
@@ -160,164 +633,74 @@ class AttendanceManagementScreen extends ConsumerWidget {
   }
 
   // ==========================================================================
-  // 2. SUMMARY KPI CARDS
+  // 3. TAB BAR (Starts directly from the left edge)
   // ==========================================================================
-  Widget _buildSummaryKpiCards(AttendanceState state, AttendanceNotifier notifier, bool isDesktop, ThemeData theme) {
-    final stats = state.stats;
-
-    final cards = [
-      _buildMetricCard(
-        title: 'Overall Attendance',
-        value: '${stats.overallRate.toStringAsFixed(0)}%',
-        subtitle: 'Today • ${stats.totalStudents} total',
-        icon: Icons.pie_chart_rounded,
-        color: const Color(0xFF10B981),
-        theme: theme,
-      ),
-      _buildMetricCard(
-        title: 'Students Present',
-        value: '${stats.presentCount}',
-        subtitle: 'Marked on time',
-        icon: Icons.check_circle_outline_rounded,
-        color: const Color(0xFF10B981),
-        theme: theme,
-      ),
-      _buildMetricCard(
-        title: 'Students Absent',
-        value: '${stats.absentCount}',
-        subtitle: 'Unexcused / Illness',
-        icon: Icons.cancel_outlined,
-        color: const Color(0xFFEF4444),
-        theme: theme,
-      ),
-      _buildMetricCard(
-        title: 'Late Entries',
-        value: '${stats.lateCount}',
-        subtitle: 'Logged after start',
-        icon: Icons.access_time_rounded,
-        color: const Color(0xFFF59E0B),
-        theme: theme,
-      ),
-      _buildMetricCard(
-        title: 'On Leave',
-        value: '${stats.onLeaveCount}',
-        subtitle: 'Approved applications',
-        icon: Icons.beach_access_rounded,
-        color: const Color(0xFF8B5CF6),
-        theme: theme,
-      ),
-    ];
-
-    if (isDesktop) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        child: Row(
-          children: cards.map((c) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 6), child: c))).toList(),
-        ),
-      );
-    } else {
-      return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: cards.map((c) => Container(width: 170, margin: const EdgeInsets.only(right: 10), child: c)).toList(),
-        ),
-      );
-    }
-  }
-
-  Widget _buildMetricCard({
-    required String title,
-    required String value,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required ThemeData theme,
-  }) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: theme.dividerColor.withOpacity(0.08)),
-      ),
-      color: theme.colorScheme.surface,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(title, style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 11), maxLines: 1),
-                  Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 18)),
-                  Text(subtitle, style: TextStyle(color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7), fontSize: 10), maxLines: 1),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ==========================================================================
-  // 3. TAB BAR
-  // ==========================================================================
-  Widget _buildTabBar(List<_AttendanceTabDef> tabs, AttendanceState state, AttendanceNotifier notifier, ThemeData theme) {
+  Widget _buildTabBar(
+    List<_AttendanceTabDef> tabs,
+    AttendanceState state,
+    AttendanceNotifier notifier,
+    bool isDark,
+    ThemeData theme,
+  ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      width: double.infinity,
+      alignment: Alignment.centerLeft,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(bottom: BorderSide(color: theme.dividerColor.withOpacity(0.1))),
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+        border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0))),
       ),
-      child: Row(
-        children: tabs.map((tab) {
-          final isSelected = state.activeTab == tab.id;
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: tabs.map((tab) {
+              final isSelected = state.activeTab == tab.id;
 
-          return InkWell(
-            onTap: () => notifier.setTab(tab.id),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: isSelected ? const Color(0xFF4F46E5) : Colors.transparent,
-                    width: 2.5,
-                  ),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    tab.icon,
-                    size: 16,
-                    color: isSelected ? const Color(0xFF4F46E5) : theme.colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    tab.label,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                      color: isSelected ? const Color(0xFF4F46E5) : theme.colorScheme.onSurfaceVariant,
+              return InkWell(
+                onTap: () => notifier.setTab(tab.id),
+                splashColor: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                highlightColor: Colors.transparent,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isSelected ? const Color(0xFF4F46E5) : Colors.transparent,
+                        width: 2.5,
+                      ),
                     ),
                   ),
-                ],
-              ),
-            ),
-          );
-        }).toList(),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        tab.icon,
+                        size: 16,
+                        color: isSelected
+                            ? const Color(0xFF4F46E5)
+                            : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        tab.label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: isSelected
+                              ? const Color(0xFF4F46E5)
+                              : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
       ),
     );
   }

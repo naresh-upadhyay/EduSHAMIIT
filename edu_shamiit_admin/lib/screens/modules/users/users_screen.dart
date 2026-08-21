@@ -69,17 +69,37 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     return words.map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}' : '').join(' ');
   }
 
+  int _getRoleLevel(String? role) {
+    if (role == null) return 3;
+    final rLower = role.toLowerCase().replaceAll(' ', '_');
+    final match = _appRoles.firstWhere(
+      (r) => (r['name'] ?? '').toString().toLowerCase() == rLower ||
+             (r['code'] ?? '').toString().toLowerCase() == rLower,
+      orElse: () => <String, dynamic>{},
+    );
+    if (match.isNotEmpty && match['level'] != null) {
+      return (match['level'] as num).toInt();
+    }
+    if (rLower == 'super_admin' || rLower == 'owner') return 1;
+    if (rLower == 'admin' || rLower == 'director' || rLower == 'principal') return 2;
+    if (rLower == 'class_teacher' || rLower == 'subject_teacher' || rLower == 'driver' || rLower == 'sports') return 4;
+    return 3;
+  }
+
   Future<void> _fetchRoles() async {
     try {
-      final res = await ApiService().get('/admin/schools/roles', useCache: false);
+      final res = await ApiService().get('/admin/schools/roles?status=Active', useCache: false);
       if (res['success'] == true && res['data'] != null) {
-        final rolesList = List<Map<String, dynamic>>.from(res['data']);
+        final rolesList = List<Map<String, dynamic>>.from(res['data'])
+            .where((r) => (r['status'] ?? 'Active').toString().toLowerCase() == 'active')
+            .toList();
         setState(() {
           _appRoles = rolesList;
+          _roleLabels.clear();
           for (var r in rolesList) {
             final name = (r['name'] ?? '').toString().toLowerCase();
             if (name.isNotEmpty) {
-              _roleLabels[name] = _formatRoleName(name);
+              _roleLabels[name] = (r['display_name'] ?? _formatRoleName(name)).toString();
             }
           }
         });
@@ -172,8 +192,18 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       final String queryStr = queryParts.isNotEmpty ? '?${queryParts.join('&')}' : '';
       final res = await ApiService().get('/auth/users$queryStr', useCache: false);
       if (res['success'] == true && res['data'] != null) {
+        final rawUsers = List<Map<String, dynamic>>.from(res['data']);
+        final Map<String, Map<String, dynamic>> uniqueUsers = {};
+        for (var u in rawUsers) {
+          final id = (u['id'] ?? '').toString().trim();
+          final email = (u['email'] ?? '').toString().trim().toLowerCase();
+          final key = id.isNotEmpty ? id : email;
+          if (key.isNotEmpty && !uniqueUsers.containsKey(key)) {
+            uniqueUsers[key] = u;
+          }
+        }
         setState(() {
-          _users = List<Map<String, dynamic>>.from(res['data']);
+          _users = uniqueUsers.values.toList();
           _selectedUserIds.clear();
           final maxPage = (_users.length / _pageSize).ceil();
           if (_currentPage > maxPage) {
@@ -2436,35 +2466,48 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             final textSecondary = isDark ? Colors.white70 : const Color(0xFF475569);
             final textMuted = isDark ? Colors.white38 : const Color(0xFF94A3B8);
             const accentColor = Color(0xFF0EA5E9);
+            final queryParams = <String>[];
+            if (targetSchoolId != null && targetSchoolId.isNotEmpty) {
+              queryParams.add('school_id=$targetSchoolId');
+            }
+            if (targetUserIds.isNotEmpty) {
+              queryParams.add('target_user_ids=${targetUserIds.join(',')}');
+            }
+            final managerApiUrl = '/auth/users/managers${queryParams.isNotEmpty ? '?${queryParams.join('&')}' : ''}';
 
             return FutureBuilder<Map<String, dynamic>>(
               future: ApiService().get(
-                '/auth/users/managers${targetSchoolId != null ? '?school_id=$targetSchoolId' : ''}',
+                managerApiUrl,
                 useCache: false,
               ),
               builder: (context, snapshot) {
+                final resData = snapshot.data;
                 List<Map<String, dynamic>> allManagers = [];
-                if (snapshot.hasData && snapshot.data?['success'] == true && snapshot.data?['data'] != null) {
-                  allManagers = List<Map<String, dynamic>>.from(snapshot.data!['data']);
+                int targetRoleLevel = 99;
+                String targetRoleDisplay = 'User';
+
+                if (snapshot.hasData && resData?['success'] == true && resData?['data'] != null) {
+                  allManagers = List<Map<String, dynamic>>.from(resData!['data']);
+                  targetRoleLevel = resData['target_role_level'] as int? ?? 99;
+                  targetRoleDisplay = (resData['target_role_display'] ?? 'User').toString();
                 }
 
-                // Dynamically collect ALL unique roles from database app_roles & fetched managers
+                // Dynamically collect eligible roles returned by hierarchy filtering
                 final availableRoleChips = <String>{};
-                for (final r in _appRoles) {
-                  final name = (r['name'] ?? '').toString().toLowerCase();
-                  if (name.isNotEmpty) {
-                    availableRoleChips.add(_roleLabels[name] ?? _formatRoleName(name));
+                if (resData?['eligible_role_display_names'] != null) {
+                  for (final name in (resData!['eligible_role_display_names'] as List<dynamic>)) {
+                    availableRoleChips.add(name.toString());
                   }
                 }
                 for (final m in allManagers) {
-                  final r = (m['role'] ?? '').toString().toLowerCase();
+                  final r = (m['role_display_name'] ?? _roleLabels[m['role']] ?? _formatRoleName(m['role'] ?? '')).toString();
                   if (r.isNotEmpty) {
-                    availableRoleChips.add(_roleLabels[r] ?? _formatRoleName(r));
+                    availableRoleChips.add(r);
                   }
                 }
                 final List<String> dynamicFilterChips = ['All', ...availableRoleChips.toList()..sort()];
 
-                // Filter out targets from being their own manager
+                // Filter out targets from being their own manager and match search/role
                 final eligibleManagers = allManagers.where((m) {
                   final mId = m['id'].toString();
                   if (targetUserIds.contains(mId)) return false; // Prevent self-assignment
@@ -2477,7 +2520,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   }
                   if (roleFilter != 'All') {
                     final role = (m['role'] ?? '').toString().toLowerCase();
-                    final roleDisplay = _roleLabels[role] ?? _formatRoleName(role);
+                    final roleDisplay = (m['role_display_name'] ?? _roleLabels[role] ?? _formatRoleName(role)).toString();
                     if (roleDisplay != roleFilter && role != roleFilter.toLowerCase().replaceAll(' ', '_')) {
                       return false;
                     }
@@ -2490,8 +2533,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                   child: Container(
-                    width: 620,
-                    constraints: const BoxConstraints(maxHeight: 700),
+                    width: 640,
+                    constraints: const BoxConstraints(maxHeight: 720),
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2562,14 +2605,14 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
 
-                        // Selected target users chips preview
+                        // Selected target users chips preview + Hierarchy Rule Banner
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: surfaceBg,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(10),
                             border: Border.all(color: borderColor),
                           ),
                           child: Column(
@@ -2590,6 +2633,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                     final u = targetUsers[idx];
                                     final uName = u['full_name'] ?? 'User';
                                     final uRole = _roleLabels[u['role']] ?? u['role'] ?? 'Role';
+                                    final uLevel = _getRoleLevel(u['role']);
                                     final uRoleColor = _getRoleColor(u['role'] ?? 'student');
                                     return Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -2619,16 +2663,52 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                             '($uRole)',
                                             style: GoogleFonts.dmSans(color: textMuted, fontSize: 10),
                                           ),
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              'L$uLevel',
+                                              style: const TextStyle(color: Color(0xFF818CF8), fontSize: 9, fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     );
                                   },
                                 ),
                               ),
+                              const SizedBox(height: 8),
+                              // Hierarchy Rule Guidance Note
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6366F1).withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.account_tree_outlined, size: 14, color: Color(0xFF818CF8)),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        targetRoleLevel <= 1
+                                            ? '🛡️ Role Hierarchy Rule: Target user is at top level (Level 1). Only Level 1 leaders or unassigning are valid.'
+                                            : '🛡️ Role Hierarchy Rule: Showing eligible managers with Rank Level ≤ $targetRoleLevel ($targetRoleDisplay or higher authority).',
+                                        style: const TextStyle(color: Color(0xFF818CF8), fontSize: 10.5, fontWeight: FontWeight.w500),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
 
                         // Search and Filter Pills
                         Row(
@@ -2657,7 +2737,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         ),
                         const SizedBox(height: 10),
 
-                        // Dynamic Scrollable Role Filter Pills
+                        // Dynamic Scrollable Role Filter Pills (Filtered by Role Hierarchy)
                         SizedBox(
                           height: 34,
                           child: ListView.separated(
@@ -2775,7 +2855,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                                 final isSelected = !isClearing && selectedManagerId == mId;
                                                 final mName = m['full_name'] ?? 'Unknown';
                                                 final mEmail = m['email'] ?? '';
-                                                final mRole = _roleLabels[m['role']] ?? m['role'] ?? 'Staff';
+                                                final mRole = (m['role_display_name'] ?? _roleLabels[m['role']] ?? m['role'] ?? 'Staff').toString();
+                                                final mLevel = m['role_level'] ?? _getRoleLevel(m['role']);
                                                 final mRoleColor = _getRoleColor(m['role'] ?? 'teacher');
                                                 final mDept = m['department'] ?? 'General';
                                                 final directReports = m['direct_reports_count'] ?? 0;
@@ -2833,14 +2914,14 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                                                   ),
                                                                   const SizedBox(width: 6),
                                                                   Container(
-                                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                                                     decoration: BoxDecoration(
                                                                       color: mRoleColor.withValues(alpha: 0.12),
                                                                       borderRadius: BorderRadius.circular(4),
                                                                     ),
                                                                     child: Text(
-                                                                      mRole,
-                                                                      style: TextStyle(color: mRoleColor, fontSize: 9, fontWeight: FontWeight.bold),
+                                                                      '$mRole • L$mLevel',
+                                                                      style: TextStyle(color: mRoleColor, fontSize: 9.5, fontWeight: FontWeight.bold),
                                                                     ),
                                                                   ),
                                                                 ],
@@ -2876,7 +2957,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                                           child: Row(
                                                             mainAxisSize: MainAxisSize.min,
                                                             children: [
-                                                              Icon(Icons.people_outline, size: 12, color: accentColor),
+                                                              const Icon(Icons.people_outline, size: 12, color: accentColor),
                                                               const SizedBox(width: 4),
                                                               Text(
                                                                 '$directReports reports',

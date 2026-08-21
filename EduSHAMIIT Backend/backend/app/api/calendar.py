@@ -1095,9 +1095,14 @@ async def get_assignable_roles(user=Depends(get_current_user)):
     try:
         roles_sql = """
             SELECT DISTINCT name, description FROM (
-                SELECT name, COALESCE(description, name) AS description FROM public.app_roles WHERE name IS NOT NULL AND name != ''
+                SELECT name, COALESCE(description, name) AS description 
+                FROM public.app_roles 
+                WHERE (status = 'Active' OR status IS NULL) AND name IS NOT NULL AND name != ''
                 UNION
-                SELECT role AS name, role AS description FROM public.profiles WHERE role IS NOT NULL AND role != ''
+                SELECT role AS name, role AS description 
+                FROM public.profiles 
+                WHERE role IS NOT NULL AND role != ''
+                  AND role NOT IN (SELECT name FROM public.app_roles WHERE status = 'Inactive')
             ) combined_roles
             ORDER BY name
         """

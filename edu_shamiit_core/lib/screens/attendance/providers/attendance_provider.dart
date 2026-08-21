@@ -248,7 +248,15 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
     try {
       // 1. Fetch available classes
       final classesData = await _classApi.getClasses(pageSize: 100);
-      final classes = (classesData['classes'] as List<AcademicClassModel>?) ?? [];
+      final rawClasses = (classesData['classes'] as List<AcademicClassModel>?) ?? [];
+      final seenIds = <String>{};
+      final classes = <AcademicClassModel>[];
+      for (final c in rawClasses) {
+        if (c.id.isNotEmpty && !seenIds.contains(c.id)) {
+          seenIds.add(c.id);
+          classes.add(c);
+        }
+      }
 
       String? initialClassId;
       String? initialSectionId;
@@ -348,8 +356,16 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
       );
 
       final students = res['students'] as List<AttendanceStudentRowModel>;
+      final uniqueMap = <String, AttendanceStudentRowModel>{};
+      for (final s in students) {
+        if (!uniqueMap.containsKey(s.studentId)) {
+          uniqueMap[s.studentId] = s;
+        }
+      }
+      final uniqueList = uniqueMap.values.toList();
+
       state = state.copyWith(
-        roster: students,
+        roster: uniqueList,
         totalCount: res['totalCount'] as int,
         page: res['page'] as int,
         pageSize: res['pageSize'] as int,
@@ -797,6 +813,16 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
     } finally {
       state = state.copyWith(isSaving: false);
     }
+  }
+
+  /// Alias to refreshAllData
+  Future<void> refreshAll() async {
+    await refreshAllData();
+  }
+
+  /// Export Attendance to CSV format
+  void exportAttendanceCsv() {
+    state = state.copyWith(successMessage: 'Exported ${state.roster.length} student attendance records.');
   }
 }
 

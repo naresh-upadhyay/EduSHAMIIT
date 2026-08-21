@@ -1407,6 +1407,24 @@ async def get_user_stats(
         res = await query.aexecute()
         users = res.data or []
         
+        # Deduplicate users by ID and email
+        seen_stats_ids = set()
+        seen_stats_emails = set()
+        unique_users_for_stats = []
+        for u in users:
+            uid = str(u.get("id") or "")
+            uemail = (u.get("email") or "").strip().lower()
+            if uid and uid in seen_stats_ids:
+                continue
+            if uemail and uemail in seen_stats_emails:
+                continue
+            if uid:
+                seen_stats_ids.add(uid)
+            if uemail:
+                seen_stats_emails.add(uemail)
+            unique_users_for_stats.append(u)
+
+        users = unique_users_for_stats
         total_users = len(users)
         active_users = 0
         inactive_users = 0
@@ -1593,7 +1611,24 @@ async def list_users(
                     
             formatted_users.append(u)
             
-        return {"success": True, "data": formatted_users}
+        # Deduplicate users by ID and email (case-insensitive) to prevent duplicate display
+        seen_user_ids = set()
+        seen_user_emails = set()
+        unique_users = []
+        for u in formatted_users:
+            uid = str(u.get("id") or "")
+            uemail = (u.get("email") or "").strip().lower()
+            if uid and uid in seen_user_ids:
+                continue
+            if uemail and uemail in seen_user_emails:
+                continue
+            if uid:
+                seen_user_ids.add(uid)
+            if uemail:
+                seen_user_emails.add(uemail)
+            unique_users.append(u)
+
+        return {"success": True, "data": unique_users}
     except HTTPException:
         raise
     except Exception as e:
@@ -1764,12 +1799,14 @@ async def update_user(
 
 @router.get("/users/managers",
     summary="List Eligible Reporting Managers",
-    description="Retrieve all eligible managers with direct report counts and search support."
+    description="Retrieve all eligible managers based on role hierarchy, role rank levels, and direct report counts."
 )
 async def list_eligible_managers(
     q: Optional[str] = None,
     department: Optional[str] = None,
     school_id: Optional[str] = None,
+    target_user_ids: Optional[str] = None,
+    target_role: Optional[str] = None,
     user=Depends(get_current_user)
 ):
     try:
@@ -1777,8 +1814,52 @@ async def list_eligible_managers(
         caller_role = user.get("role", "").lower()
         effective_school_id = user.get("school_id") if caller_role != "super_admin" else school_id
 
-        # Query active profiles (admin, principal, director, teacher, staff, hr, etc.)
-        query = sb.table("profiles").select("id, user_id, full_name, email, role, department, designation, avatar_url, school_id")
+        # 1. Fetch active roles from app_roles for dynamic hierarchy metadata
+        roles_res = await sb.table("app_roles").select("id, name, display_name, level, parent_role_id, role_type, is_custom, status").or_("status.eq.Active,status.is.null").aexecute()
+        all_app_roles = [r for r in (roles_res.data or []) if (r.get("status") or "Active").lower() == "active"]
+        role_map = {}
+        for r in all_app_roles:
+            rname = (r.get("name") or "").lower()
+            role_map[rname] = {
+                "id": r.get("id"),
+                "name": rname,
+                "display_name": r.get("display_name") or rname.replace("_", " ").title(),
+                "level": r.get("level") or 3,
+                "parent_role_id": r.get("parent_role_id"),
+                "role_type": r.get("role_type") or "SYSTEM"
+            }
+
+        # 2. Determine target user(s) and their role level
+        target_ids_list = [uid.strip() for uid in target_user_ids.split(",") if uid.strip()] if target_user_ids else []
+        target_profiles = []
+        target_role_level = 99
+        target_role_display = "User"
+
+        if target_ids_list:
+            t_res = await sb.table("profiles").select("id, full_name, role, school_id, manager_id").in_("id", target_ids_list).aexecute()
+            target_profiles = t_res.data or []
+            if target_profiles:
+                levels = [role_map.get((p.get("role") or "").lower(), {}).get("level", 3) for p in target_profiles]
+                target_role_level = min(levels)
+                primary_role = (target_profiles[0].get("role") or "").lower()
+                target_role_display = role_map.get(primary_role, {}).get("display_name", primary_role.title())
+        elif target_role:
+            rname = target_role.lower()
+            target_role_level = role_map.get(rname, {}).get("level", 3)
+            target_role_display = role_map.get(rname, {}).get("display_name", rname.title())
+
+        # 3. Determine eligible manager roles dynamically based on Role Hierarchy:
+        # A candidate manager's role level MUST be <= target_role_level (i.e. numerically lower or equal level = higher/equal authority)
+        eligible_roles = []
+        for rname, rinfo in role_map.items():
+            if rinfo.get("level", 3) <= target_role_level:
+                eligible_roles.append(rname)
+
+        if not eligible_roles:
+            eligible_roles = ["super_admin", "owner"] if target_role_level <= 1 else ["super_admin", "admin", "director", "principal"]
+
+        # 5. Query active candidate profiles
+        query = sb.table("profiles").select("id, user_id, full_name, email, role, department, designation, avatar_url, school_id, manager_id")
         
         if effective_school_id and str(effective_school_id).strip():
             query = query.eq("school_id", effective_school_id)
@@ -1791,12 +1872,30 @@ async def list_eligible_managers(
             query = query.or_(f"full_name.ilike.%{search_str}%,email.ilike.%{search_str}%,user_id.ilike.%{search_str}%")
             
         res = await query.order("full_name", ascending=True).aexecute()
-        raw_managers = res.data or []
+        raw_profiles = res.data or []
 
-        # Count direct reports for each manager
+        # 6. Filter candidates:
+        # - Exclude target users themselves (cannot manage self)
+        # - Exclude subordinate descendants (prevent circular loops)
+        # - Must belong to eligible_roles
+        target_ids_set = set(target_ids_list)
+        
+        subordinate_ids = set()
+        if target_ids_set:
+            all_profiles_res = await sb.table("profiles").select("id, manager_id").aexecute()
+            all_p = all_profiles_res.data or []
+            curr_parents = set(target_ids_set)
+            while curr_parents:
+                next_gen = {p["id"] for p in all_p if p.get("manager_id") in curr_parents and p["id"] not in subordinate_ids}
+                if not next_gen:
+                    break
+                subordinate_ids.update(next_gen)
+                curr_parents = next_gen
+
+        # 7. Count direct reports
         direct_counts = {}
-        if raw_managers:
-            mgr_ids = [m["id"] for m in raw_managers]
+        if raw_profiles:
+            mgr_ids = [m["id"] for m in raw_profiles]
             count_res = await sb.table("profiles").select("manager_id").in_("manager_id", mgr_ids).aexecute()
             for r in (count_res.data or []):
                 m_id = r.get("manager_id")
@@ -1804,11 +1903,36 @@ async def list_eligible_managers(
                     direct_counts[m_id] = direct_counts.get(m_id, 0) + 1
 
         managers_list = []
-        for m in raw_managers:
-            m["direct_reports_count"] = direct_counts.get(m["id"], 0)
-            managers_list.append(m)
+        eligible_roles_present = set()
 
-        return {"success": True, "data": managers_list, "count": len(managers_list)}
+        for p in raw_profiles:
+            pid = str(p.get("id") or "")
+            prole = (p.get("role") or "").lower()
+
+            if pid in target_ids_set or pid in subordinate_ids:
+                continue
+
+            if prole not in eligible_roles:
+                continue
+
+            rmeta = role_map.get(prole, {})
+            p["role_display_name"] = rmeta.get("display_name", prole.replace("_", " ").title())
+            p["role_level"] = rmeta.get("level", 3)
+            p["direct_reports_count"] = direct_counts.get(pid, 0)
+            managers_list.append(p)
+            eligible_roles_present.add(p["role_display_name"])
+
+        # Sort: Highest authority (Level 1 -> 2 -> 3) first, then most direct reports, then name
+        managers_list.sort(key=lambda x: (x.get("role_level", 99), -x.get("direct_reports_count", 0), x.get("full_name", "")))
+
+        return {
+            "success": True,
+            "data": managers_list,
+            "count": len(managers_list),
+            "target_role_level": target_role_level,
+            "target_role_display": target_role_display,
+            "eligible_role_display_names": sorted(list(eligible_roles_present))
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -1853,10 +1977,27 @@ async def assign_manager(
             update_val = None
 
         # Fetch users to verify permissions
-        target_res = await sb.table("profiles").select("id, full_name, school_id").in_("id", user_ids).aexecute()
+        target_res = await sb.table("profiles").select("id, full_name, school_id, role").in_("id", user_ids).aexecute()
         targets = target_res.data or []
         if not targets:
             raise HTTPException(status_code=404, detail="No matching user profiles found")
+
+        # Role Hierarchy Validation
+        if manager_data and targets:
+            roles_res = await sb.table("app_roles").select("name, level, display_name").aexecute()
+            role_level_map = { (r.get("name") or "").lower(): r.get("level") or 3 for r in (roles_res.data or []) }
+            
+            mgr_role = (manager_data.get("role") or "").lower()
+            mgr_level = role_level_map.get(mgr_role, 3)
+            
+            for t in targets:
+                t_role = (t.get("role") or "").lower()
+                t_level = role_level_map.get(t_role, 3)
+                if mgr_level > t_level:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Role Hierarchy Violation: Manager {manager_data.get('full_name')} (Level {mgr_level}) cannot be assigned to {t.get('full_name')} (Level {t_level}). Manager must have higher or equal rank in the role hierarchy."
+                    )
 
         # Verify that all selected users belong to the exact same school
         target_schools = set(t.get("school_id") for t in targets if t.get("school_id"))

@@ -1,5 +1,7 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../../../constants/app_fonts.dart';
 import '../../../../utils/responsive.dart';
 import '../models/attendance_models.dart';
@@ -34,69 +36,78 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
     final notifier = ref.read(attendanceProvider.notifier);
     final isDesktop = Responsive.isDesktop(context);
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Main Content Area
+        // ═════════════════════════════════════════════════════════════════════
+        // MAIN ATTENDANCE WORKSPACE (Left / Center)
+        // ═════════════════════════════════════════════════════════════════════
         Expanded(
           flex: 7,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Top Filters Bar (Date, Class, Section, Mode)
-                _buildTopFilterBar(state, notifier, isDesktop, theme),
+                // 1. Top Controls & Filters Bar (Date, Class, Section, Mode, Load, Reset)
+                _buildTopFilterBar(state, notifier, isDark, theme),
+                const SizedBox(height: 16),
+
+                // 2. Mode Notification Banner (All Day Mode Selected)
+                if (state.selectedMode == AttendanceMode.allDay) _buildAllDayLockBanner(state, isDark),
+                const SizedBox(height: 16),
+
+                // 3. Class Header & Stats Summary Row
+                _buildClassHeaderAndStats(state, notifier, isDark, theme),
                 const SizedBox(height: 14),
 
-                // 2. Mode Notification Banner
-                if (state.selectedMode == AttendanceMode.allDay) _buildAllDayLockBanner(state, theme),
+                // 4. Student Search Bar & Action Buttons Toolbar
+                _buildSearchBarAndActionsToolbar(state, notifier, isDark, theme),
                 const SizedBox(height: 14),
 
-                // 3. Class Context Info Pill
-                _buildClassContextPill(state, theme),
+                // 5. Student Attendance Roster Table
+                _buildStudentRosterTable(state, notifier, isDark, theme),
+                const SizedBox(height: 14),
+
+                // 6. Quick Status Legend Row
+                _buildStatusLegendRow(isDark),
                 const SizedBox(height: 16),
 
-                // 4. Action Bar (Search + Quick Mark Buttons)
-                _buildActionBar(state, notifier, isDesktop, theme),
-                const SizedBox(height: 16),
-
-                // 5. Student Attendance Table
-                _buildStudentRosterTable(state, notifier, theme),
-                const SizedBox(height: 16),
-
-                // 6. Bottom Sticky Save Bar & Pagination
-                _buildBottomSaveAndPaginationBar(state, notifier, theme),
-                const SizedBox(height: 30),
+                // 7. Bottom Pagination & Sticky Save Bar
+                _buildBottomSaveAndPaginationBar(state, notifier, isDark, theme),
+                const SizedBox(height: 32),
               ],
             ),
           ),
         ),
 
-        // Right Sidebar (Desktop only)
+        // ═════════════════════════════════════════════════════════════════════
+        // RIGHT SIDEBAR (Desktop: Day Summary, Today's Schedule, Quick Actions)
+        // ═════════════════════════════════════════════════════════════════════
         if (isDesktop && _selectedDrawerStudent == null)
           Container(
-            width: 320,
-            padding: const EdgeInsets.only(top: 16, right: 20, left: 10, bottom: 20),
+            width: 330,
+            padding: const EdgeInsets.only(top: 18, right: 24, left: 12, bottom: 24),
             decoration: BoxDecoration(
-              border: Border(left: BorderSide(color: theme.dividerColor.withOpacity(0.08))),
+              border: Border(left: BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0))),
             ),
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildDaySummaryCard(state, theme),
+                  _buildDaySummaryCard(state, isDark, theme),
                   const SizedBox(height: 18),
-                  _buildTodaysScheduleCard(state, notifier, theme),
+                  _buildTodaysScheduleCard(state, notifier, isDark, theme),
                   const SizedBox(height: 18),
-                  _buildQuickActionsCard(state, notifier, theme),
+                  _buildQuickActionsCard(state, notifier, isDark, theme),
                 ],
               ),
             ),
           ),
 
-        // Student Detail Side Drawer (if student clicked)
+        // Student Detail Side Drawer (if student row clicked)
         if (_selectedDrawerStudent != null)
           StudentAttendanceDrawer(
             student: _selectedDrawerStudent!,
@@ -109,574 +120,394 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
   }
 
   // ==========================================================================
-  // 1. TOP FILTER BAR
+  // 1. FILTER BAR (Responsive for all screen widths)
   // ==========================================================================
-  Widget _buildTopFilterBar(AttendanceState state, AttendanceNotifier notifier, bool isDesktop, ThemeData theme) {
+  Widget _buildTopFilterBar(
+    AttendanceState state,
+    AttendanceNotifier notifier,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    final dateStr = DateFormat('dd MMM yyyy, EEE').format(state.selectedDate);
+
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.08)),
+        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          // Date Navigator
-          Container(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: theme.dividerColor.withOpacity(0.12)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.chevron_left_rounded, size: 20),
-                  onPressed: () => notifier.prevDay(),
-                  tooltip: 'Previous Day',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 900;
+
+          // 1. Date Field
+          final dateField = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Date',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                 ),
-                GestureDetector(
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: state.selectedDate,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2030),
-                    );
-                    if (picked != null) notifier.setDate(picked);
-                  },
+              ),
+              const SizedBox(height: 6),
+              InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: state.selectedDate,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2030),
+                  );
+                  if (picked != null) notifier.setDate(picked);
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  height: 38,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  ),
                   child: Row(
                     children: [
-                      const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF4F46E5)),
-                      const SizedBox(width: 6),
-                      Text(
-                        state.displayDateString,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                      Expanded(
+                        child: Text(
+                          dateStr,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
                       ),
+                      const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF4F46E5)),
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right_rounded, size: 20),
-                  onPressed: () => notifier.nextDay(),
-                  tooltip: 'Next Day',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
+              ),
+            ],
+          );
+
+          // 2. Class Dropdown
+          final uniqueClasses = <String, AcademicClassModel>{};
+          for (final c in state.availableClasses) {
+            if (c.id.isNotEmpty && !uniqueClasses.containsKey(c.id)) {
+              uniqueClasses[c.id] = c;
+            }
+          }
+          final classList = uniqueClasses.values.toList();
+          final effectiveClassId = classList.any((c) => c.id == state.selectedClassId)
+              ? state.selectedClassId
+              : (classList.isNotEmpty ? classList.first.id : null);
+
+          final classField = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Class',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                 ),
-                if (!state.isToday)
-                  TextButton(
-                    onPressed: () => notifier.setToday(),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      minimumSize: const Size(40, 36),
-                    ),
-                    child: const Text('Today', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  ),
-              ],
-            ),
-          ),
-
-          // Class Dropdown
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: theme.dividerColor.withOpacity(0.12)),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: state.selectedClassId,
-                hint: const Text('Select Class', style: TextStyle(fontSize: 13)),
-                items: state.availableClasses.map((c) {
-                  return DropdownMenuItem<String>(
-                    value: c.id,
-                    child: Text(c.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  );
-                }).toList(),
-                onChanged: (val) {
-                  if (val != null) notifier.setClass(val);
-                },
               ),
-            ),
-          ),
-
-          // Section Dropdown
-          if (state.selectedClassId != null) ...[
-            Builder(
-              builder: (context) {
-                final currentClass = state.availableClasses.firstWhere(
-                  (c) => c.id == state.selectedClassId,
-                  orElse: () => state.availableClasses.first,
-                );
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: theme.dividerColor.withOpacity(0.12)),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String?>(
-                      value: state.selectedSectionId,
-                      hint: const Text('All Sections', style: TextStyle(fontSize: 13)),
-                      items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('All Sections', style: TextStyle(fontSize: 13)),
-                        ),
-                        ...currentClass.sections.map((s) {
-                          return DropdownMenuItem<String?>(
-                            value: s.id,
-                            child: Text('Section ${s.name}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                          );
-                        }),
-                      ],
-                      onChanged: (val) => notifier.setSection(val),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
-
-          // Attendance Mode Dropdown
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFBFDBFE)),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<AttendanceMode>(
-                value: state.selectedMode,
-                icon: const Icon(Icons.tune_rounded, size: 16, color: Color(0xFF2563EB)),
-                items: AttendanceMode.values.map((m) {
-                  return DropdownMenuItem<AttendanceMode>(
-                    value: m,
-                    child: Row(
-                      children: [
-                        if (m == AttendanceMode.allDay)
-                          const Padding(
-                            padding: EdgeInsets.only(right: 6),
-                            child: Icon(Icons.lock_outline_rounded, size: 14, color: Color(0xFF2563EB)),
-                          ),
-                        Text(
-                          m.label,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E40AF)),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-                onChanged: (val) {
-                  if (val != null) notifier.setMode(val);
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==========================================================================
-  // 2. ALL-DAY LOCK BANNER
-  // ==========================================================================
-  Widget _buildAllDayLockBanner(AttendanceState state, ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0FDF4),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFBBF7D0)),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.lock_rounded, color: Color(0xFF16A34A), size: 18),
-          SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              '🔒 All-day attendance applied • Saving attendance will automatically propagate and lock all scheduled periods today.',
-              style: TextStyle(color: Color(0xFF166534), fontWeight: FontWeight.w600, fontSize: 12),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==========================================================================
-  // 3. CLASS CONTEXT PILL
-  // ==========================================================================
-  Widget _buildClassContextPill(AttendanceState state, ThemeData theme) {
-    final className = state.availableClasses.firstWhere((c) => c.id == state.selectedClassId, orElse: () => AcademicClassModel(id: '', name: 'Class', code: '', stage: '')).name;
-    final total = state.stats.totalStudents;
-    final present = state.stats.studentsPresent;
-    final absent = state.stats.studentsAbsent;
-    final lateCount = state.stats.lateEntries;
-    final onLeave = state.stats.onLeave;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.25),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        '$className • Total: $total | Present: $present | Absent: $absent | Late: $lateCount | On Leave: $onLeave',
-        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
-      ),
-    );
-  }
-
-  // ==========================================================================
-  // 4. ACTION BAR (Search + Quick Mark Buttons)
-  // ==========================================================================
-  Widget _buildActionBar(AttendanceState state, AttendanceNotifier notifier, bool isDesktop, ThemeData theme) {
-    return Row(
-      children: [
-        // Search Field
-        Expanded(
-          child: SizedBox(
-            height: 38,
-            child: TextField(
-              controller: _searchController,
-              onChanged: (val) => notifier.setSearch(val),
-              decoration: InputDecoration(
-                hintText: 'Search by student name, roll no, admission no...',
-                hintStyle: const TextStyle(fontSize: 12),
-                prefixIcon: const Icon(Icons.search_rounded, size: 18),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear_rounded, size: 16),
-                        onPressed: () {
-                          _searchController.clear();
-                          notifier.setSearch('');
-                        },
-                      )
-                    : null,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                filled: true,
-                fillColor: theme.colorScheme.surface,
-                border: OutlineInputBorder(
+              const SizedBox(height: 6),
+              Container(
+                height: 38,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.1)),
+                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: effectiveClassId,
+                    isExpanded: true,
+                    icon: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    hint: Text('Select Class', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                    items: classList.map((c) {
+                      return DropdownMenuItem<String>(
+                        value: c.id,
+                        child: Text(c.name, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) notifier.setClass(val);
+                    },
+                  ),
                 ),
               ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
+            ],
+          );
 
-        // Quick Mark Buttons
-        OutlinedButton.icon(
-          onPressed: () => notifier.markAll(AttendanceStatus.present),
-          icon: const Icon(Icons.done_all_rounded, size: 16, color: Color(0xFF10B981)),
-          label: const Text('Mark All Present', style: TextStyle(fontSize: 12, color: Color(0xFF10B981))),
-          style: OutlinedButton.styleFrom(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          ),
-        ),
-        const SizedBox(width: 8),
-        OutlinedButton.icon(
-          onPressed: () => notifier.markAll(AttendanceStatus.absent),
-          icon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFFEF4444)),
-          label: const Text('Mark All Absent', style: TextStyle(fontSize: 12, color: Color(0xFFEF4444))),
-          style: OutlinedButton.styleFrom(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          ),
-        ),
-        const SizedBox(width: 8),
-        OutlinedButton.icon(
-          onPressed: () => notifier.markAll(AttendanceStatus.late),
-          icon: const Icon(Icons.access_time_rounded, size: 16, color: Color(0xFFF59E0B)),
-          label: const Text('Mark All Late', style: TextStyle(fontSize: 12, color: Color(0xFFF59E0B))),
-          style: OutlinedButton.styleFrom(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          ),
-        ),
-      ],
-    );
-  }
+          // 3. Section Dropdown
+          final currentClass = classList.firstWhere(
+            (c) => c.id == effectiveClassId,
+            orElse: () => classList.isNotEmpty ? classList.first : AcademicClassModel(id: '', name: 'Class 10', code: 'C10', stage: 'Secondary'),
+          );
+          final uniqueSections = <String, AcademicSectionModel>{};
+          for (final s in currentClass.sections) {
+            if (s.id.isNotEmpty && !uniqueSections.containsKey(s.id)) {
+              uniqueSections[s.id] = s;
+            }
+          }
+          final sectionList = uniqueSections.values.toList();
+          final effectiveSectionId = sectionList.any((s) => s.id == state.selectedSectionId)
+              ? state.selectedSectionId
+              : null;
 
-  // ==========================================================================
-  // 5. STUDENT ROSTER TABLE
-  // ==========================================================================
-  Widget _buildStudentRosterTable(AttendanceState state, AttendanceNotifier notifier, ThemeData theme) {
-    if (state.isLoading) {
-      return Container(
-        height: 240,
-        alignment: Alignment.center,
-        child: const CircularProgressIndicator(),
-      );
-    }
-
-    if (state.roster.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(40),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
-        ),
-        child: const Column(
-          children: [
-            Icon(Icons.people_outline_rounded, size: 48, color: Colors.grey),
-            SizedBox(height: 12),
-            Text('No students found for selected class/section', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-          ],
-        ),
-      );
-    }
-
-    final isAllSelected = state.roster.isNotEmpty && state.selectedStudentIds.length == state.roster.length;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Column(
-          children: [
-            // Table Header
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              color: theme.colorScheme.surfaceVariant.withOpacity(0.35),
-              child: Row(
-                children: [
-                  Checkbox(
-                    value: isAllSelected,
-                    onChanged: (val) => notifier.selectAllStudents(val ?? false),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  const SizedBox(width: 8),
-                  const SizedBox(width: 60, child: Text('Roll No.', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  const Expanded(flex: 3, child: Text('Student', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  const Expanded(flex: 4, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  const Expanded(flex: 2, child: Text('Remarks', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  const Expanded(flex: 2, child: Text('Last Updated', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  const SizedBox(width: 40),
-                ],
+          final sectionField = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Section',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                ),
               ),
-            ),
-            const Divider(height: 1),
+              const SizedBox(height: 6),
+              Container(
+                height: 38,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String?>(
+                    value: effectiveSectionId,
+                    isExpanded: true,
+                    icon: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    hint: Text('All Sections', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('All Sections', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      ),
+                      ...sectionList.map((s) {
+                        return DropdownMenuItem<String?>(
+                          value: s.id,
+                          child: Text(s.name, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                        );
+                      }),
+                    ],
+                    onChanged: (val) => notifier.setSection(val),
+                  ),
+                ),
+              ),
+            ],
+          );
 
-            // Student Rows
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: state.roster.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final student = state.roster[index];
-                final currentStatus = state.draftStatuses[student.studentId] ?? student.status;
-                final isSelected = state.selectedStudentIds.contains(student.studentId);
-
-                return InkWell(
-                  onTap: () {
-                    setState(() => _selectedDrawerStudent = student);
-                    widget.onSelectStudent?.call(student);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    color: isSelected ? const Color(0xFFEEF2FF) : Colors.transparent,
+          // 4. Mode Dropdown
+          final modeField = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Mode',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(height: 6),
+              PopupMenuButton<AttendanceMode>(
+                tooltip: 'Select Attendance Mode',
+                onSelected: (mode) => notifier.setMode(mode),
+                offset: const Offset(0, 42),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: AttendanceMode.allDay,
                     child: Row(
                       children: [
-                        Checkbox(
-                          value: isSelected,
-                          onChanged: (_) => notifier.toggleStudentSelection(student.studentId),
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        const SizedBox(width: 8),
-
-                        // Roll Number
-                        SizedBox(
-                          width: 60,
-                          child: Text(
-                            student.rollNumber.isNotEmpty ? student.rollNumber : '-',
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                          ),
-                        ),
-
-                        // Student Info (Avatar + Name)
+                        const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF4F46E5)),
+                        const SizedBox(width: 10),
                         Expanded(
-                          flex: 3,
-                          child: Row(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              CircleAvatar(
-                                radius: 15,
-                                backgroundColor: const Color(0xFF4F46E5).withOpacity(0.12),
-                                backgroundImage: student.avatarUrl != null ? NetworkImage(student.avatarUrl!) : null,
-                                child: student.avatarUrl == null
-                                    ? Text(
-                                        student.fullName.isNotEmpty ? student.fullName[0].toUpperCase() : 'S',
-                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)),
-                                      )
-                                    : null,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      student.fullName,
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    Text(
-                                      'Adm: ${student.admissionNumber}',
-                                      style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurfaceVariant),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                              const Text('By Schedule (All Day)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                              Text('Mark for all periods of the day', style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                             ],
                           ),
                         ),
-
-                        // Compact Interactive Status Buttons: [P] [A] [L] [O] [H] [-]
-                        Expanded(
-                          flex: 4,
-                          child: Row(
-                            children: [
-                              _buildCompactStatusButton(student, AttendanceStatus.present, currentStatus, notifier),
-                              const SizedBox(width: 4),
-                              _buildCompactStatusButton(student, AttendanceStatus.absent, currentStatus, notifier),
-                              const SizedBox(width: 4),
-                              _buildCompactStatusButton(student, AttendanceStatus.late, currentStatus, notifier),
-                              const SizedBox(width: 4),
-                              _buildCompactStatusButton(student, AttendanceStatus.onLeave, currentStatus, notifier),
-                              const SizedBox(width: 4),
-                              _buildCompactStatusButton(student, AttendanceStatus.halfDay, currentStatus, notifier),
-                              const SizedBox(width: 4),
-                              _buildCompactStatusButton(student, AttendanceStatus.notMarked, currentStatus, notifier),
-                            ],
-                          ),
-                        ),
-
-                        // Remarks
-                        Expanded(
-                          flex: 2,
-                          child: student.remarks.isNotEmpty
-                              ? Text(student.remarks, style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic), maxLines: 1, overflow: TextOverflow.ellipsis)
-                              : Text('-', style: TextStyle(color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5))),
-                        ),
-
-                        // Last Updated
-                        Expanded(
-                          flex: 2,
-                          child: student.lastUpdatedAt != null
-                              ? Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('${student.lastUpdatedAt!.hour.toString().padLeft(2, '0')}:${student.lastUpdatedAt!.minute.toString().padLeft(2, '0')}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                                    Text(student.updatedByName ?? 'Teacher', style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurfaceVariant)),
-                                  ],
-                                )
-                              : const Text('-', style: TextStyle(fontSize: 11)),
-                        ),
-
-                        // Row Menu ⋮
-                        PopupMenuButton<String>(
-                          icon: const Icon(Icons.more_vert_rounded, size: 18),
-                          onSelected: (val) {
-                            if (val == 'view') {
-                              setState(() => _selectedDrawerStudent = student);
-                            } else if (val == 'override') {
-                              _showOverrideDialog(student, currentStatus, notifier);
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(value: 'view', child: Text('View Details & History')),
-                            const PopupMenuItem(value: 'override', child: Text('Override Lock with Reason')),
-                          ],
-                        ),
+                        if (state.selectedMode == AttendanceMode.allDay)
+                          const Icon(Icons.check_rounded, size: 16, color: Color(0xFF4F46E5)),
                       ],
                     ),
                   ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+                  PopupMenuItem(
+                    value: AttendanceMode.byPeriod,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.schedule_rounded, size: 16, color: Color(0xFF3B82F6)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text('By Period', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                              Text('Mark attendance for a specific period', style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                            ],
+                          ),
+                        ),
+                        if (state.selectedMode == AttendanceMode.byPeriod)
+                          const Icon(Icons.check_rounded, size: 16, color: Color(0xFF4F46E5)),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: AttendanceMode.customSelection,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.tune_rounded, size: 16, color: Color(0xFF8B5CF6)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text('Custom Selection', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                              Text('Select multiple periods', style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                            ],
+                          ),
+                        ),
+                        if (state.selectedMode == AttendanceMode.customSelection)
+                          const Icon(Icons.check_rounded, size: 16, color: Color(0xFF4F46E5)),
+                      ],
+                    ),
+                  ),
+                ],
+                child: Container(
+                  height: 38,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          state.selectedMode.label,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
 
-  Widget _buildCompactStatusButton(
-    AttendanceStudentRowModel student,
-    AttendanceStatus status,
-    AttendanceStatus currentStatus,
-    AttendanceNotifier notifier,
-  ) {
-    final isSelected = currentStatus == status;
+          // 5. Action Buttons
+          final actionButtons = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 38,
+                child: ElevatedButton(
+                  onPressed: () => notifier.refreshAll(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4F46E5),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    elevation: 0,
+                  ),
+                  child: const Text('Load', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 38,
+                child: OutlinedButton(
+                  onPressed: () => notifier.resetDrafts(),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
+                    side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Reset', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          );
 
-    return InkWell(
-      onTap: () {
-        if (student.isLocked) {
-          _showOverrideDialog(student, status, notifier);
-        } else {
-          notifier.updateStudentStatus(student.studentId, status);
-        }
-      },
-      borderRadius: BorderRadius.circular(6),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        width: 28,
-        height: 28,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isSelected ? status.color : status.backgroundColor.withOpacity(0.5),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: isSelected ? status.color : status.borderColor,
-            width: isSelected ? 1.5 : 1,
-          ),
-          boxShadow: isSelected
-              ? [BoxShadow(color: status.color.withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))]
-              : null,
-        ),
-        child: Text(
-          status.code,
-          style: TextStyle(
-            color: isSelected ? Colors.white : status.color,
-            fontWeight: FontWeight.bold,
-            fontSize: 11,
-          ),
-        ),
-      ),
-    );
-  }
+          if (isNarrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: dateField),
+                    const SizedBox(width: 10),
+                    Expanded(child: classField),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(child: sectionField),
+                    const SizedBox(width: 10),
+                    Expanded(child: modeField),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: actionButtons,
+                ),
+              ],
+            );
+          }
 
-  void _showOverrideDialog(AttendanceStudentRowModel student, AttendanceStatus targetStatus, AttendanceNotifier notifier) {
-    showDialog(
-      context: context,
-      builder: (context) => AttendanceOverrideDialog(
-        student: student,
-        targetStatus: targetStatus,
-        onConfirm: (reason) {
-          notifier.overrideStudentRecord(
-            recordId: student.id,
-            recordType: 'DAILY',
-            newStatus: targetStatus,
-            reason: reason,
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(flex: 3, child: dateField),
+              const SizedBox(width: 12),
+              Expanded(flex: 3, child: classField),
+              const SizedBox(width: 12),
+              Expanded(flex: 3, child: sectionField),
+              const SizedBox(width: 12),
+              Expanded(flex: 4, child: modeField),
+              const SizedBox(width: 12),
+              actionButtons,
+            ],
           );
         },
       ),
@@ -684,66 +515,984 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
   }
 
   // ==========================================================================
-  // 6. BOTTOM STICKY SAVE & PAGINATION BAR
+  // 2. ALL-DAY LOCK BANNER (Matching Image 1)
   // ==========================================================================
-  Widget _buildBottomSaveAndPaginationBar(AttendanceState state, AttendanceNotifier notifier, ThemeData theme) {
+  Widget _buildAllDayLockBanner(AttendanceState state, bool isDark) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: isDark ? const Color(0xFF1E1B4B).withValues(alpha: 0.4) : const Color(0xFFEEF2FF),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: isDark ? const Color(0xFF3730A3) : const Color(0xFFC7D2FE)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.info_outline_rounded, color: Color(0xFF4F46E5), size: 18),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'All Day Mode Selected',
+                  style: TextStyle(color: Color(0xFF312E81), fontWeight: FontWeight.w700, fontSize: 12.5),
+                ),
+                SizedBox(height: 1),
+                Text(
+                  'Attendance marked in this mode will be applied to all periods for the selected date. Once saved, it will be locked for all periods.',
+                  style: TextStyle(color: Color(0xFF4338CA), fontSize: 11.5),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: const Color(0xFFC7D2FE)),
+            ),
+            child: const Icon(Icons.lock_outline_rounded, size: 14, color: Color(0xFF4F46E5)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================================================
+  // 3. CLASS HEADER & CONTEXT STATS ROW (Adaptive Wrap)
+  // ==========================================================================
+  Widget _buildClassHeaderAndStats(
+    AttendanceState state,
+    AttendanceNotifier notifier,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    final selectedClass = state.availableClasses.firstWhere(
+      (c) => c.id == state.selectedClassId,
+      orElse: () => state.availableClasses.isNotEmpty
+          ? state.availableClasses.first
+          : AcademicClassModel(id: '', name: 'Class', code: '', stage: ''),
+    );
+    final className = selectedClass.name.isNotEmpty ? selectedClass.name : 'Class';
+    String sectionName = '';
+    if (state.selectedSectionId != null && selectedClass.sections.isNotEmpty) {
+      final foundSection = selectedClass.sections.firstWhere(
+        (s) => s.id == state.selectedSectionId,
+        orElse: () => selectedClass.sections.first,
+      );
+      sectionName = foundSection.name;
+    } else if (selectedClass.sections.isNotEmpty) {
+      sectionName = selectedClass.sections.first.name;
+    }
+    final classDisplayTitle = sectionName.isNotEmpty ? '$className - $sectionName' : className;
+
+    final total = state.totalCount > 0 ? state.totalCount : state.roster.length;
+    final present = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.present).length;
+    final absent = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.absent).length;
+    final lateCount = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.late).length;
+    final onLeave = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.onLeave).length;
+
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 6,
+      children: [
+        Text(
+          classDisplayTitle,
+          style: TextStyle(
+            fontFamily: AppFonts.heading,
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+            letterSpacing: -0.3,
+          ),
+        ),
+        const SizedBox(width: 6),
+
+        // Total Students Pill
+        _buildStatPill('Total Students: $total', const Color(0xFF64748B), isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+
+        // Present Pill
+        _buildStatPill('Present: $present', const Color(0xFF15803D), const Color(0xFFECFDF5)),
+
+        // Absent Pill
+        _buildStatPill('Absent: $absent', const Color(0xFFB91C1C), const Color(0xFFFEF2F2)),
+
+        // Late Pill
+        _buildStatPill('Late: $lateCount', const Color(0xFFB45309), const Color(0xFFFFFBEB)),
+
+        // On Leave Pill
+        _buildStatPill('On Leave: $onLeave', const Color(0xFF1D4ED8), const Color(0xFFEFF6FF)),
+      ],
+    );
+  }
+
+  Widget _buildStatPill(String label, Color textColor, Color bgColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: textColor,
+          fontWeight: FontWeight.w700,
+          fontSize: 11.5,
+        ),
+      ),
+    );
+  }
+
+  // ==========================================================================
+  // 4. STUDENT SEARCH BAR & ACTION BUTTONS TOOLBAR (Responsive)
+  // ==========================================================================
+  Widget _buildSearchBarAndActionsToolbar(
+    AttendanceState state,
+    AttendanceNotifier notifier,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    final searchWidget = SizedBox(
+      height: 38,
+      child: TextField(
+        controller: _searchController,
+        onChanged: (val) => notifier.setSearch(val),
+        style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+        decoration: InputDecoration(
+          hintText: 'Search by student name, roll no, admission no...',
+          hintStyle: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+          prefixIcon: Icon(Icons.search_rounded, size: 17, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear_rounded, size: 15),
+                  onPressed: () {
+                    _searchController.clear();
+                    notifier.setSearch('');
+                  },
+                )
+              : null,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          filled: true,
+          fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+          ),
+        ),
+      ),
+    );
+
+    final actionButtons = Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        // Quick Mark: Mark All Present
+        ElevatedButton(
+          onPressed: () => notifier.markAll(AttendanceStatus.present),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF10B981),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            elevation: 0,
+          ),
+          child: const Text('Mark All Present', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+        ),
+
+        // Quick Mark: Mark All Absent
+        ElevatedButton(
+          onPressed: () => notifier.markAll(AttendanceStatus.absent),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFEF4444),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            elevation: 0,
+          ),
+          child: const Text('Mark All Absent', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+        ),
+
+        // Quick Mark: Mark All Late
+        OutlinedButton(
+          onPressed: () => notifier.markAll(AttendanceStatus.late),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFFD97706),
+            backgroundColor: const Color(0xFFFFFBEB),
+            side: const BorderSide(color: Color(0xFFFDE68A)),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          child: const Text('Mark All Late', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+        ),
+
+        // More Actions Dropdown
+        PopupMenuButton<String>(
+          tooltip: 'More Bulk Actions',
+          onSelected: (val) {
+            if (val == 'leave') notifier.markAll(AttendanceStatus.onLeave);
+            if (val == 'half') notifier.markAll(AttendanceStatus.halfDay);
+            if (val == 'reset') notifier.resetDrafts();
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(value: 'leave', child: Text('Mark All On Leave')),
+            const PopupMenuItem(value: 'half', child: Text('Mark All Half Day')),
+            const PopupMenuDivider(),
+            const PopupMenuItem(value: 'reset', child: Text('Reset to Saved Status')),
+          ],
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'More Actions',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 850) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              searchWidget,
+              const SizedBox(height: 10),
+              actionButtons,
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: searchWidget),
+            const SizedBox(width: 14),
+            actionButtons,
+          ],
+        );
+      },
+    );
+  }
+
+  // ==========================================================================
+  // 5. STUDENT ATTENDANCE ROSTER TABLE (Scrollable & Responsive)
+  // ==========================================================================
+  Widget _buildStudentRosterTable(
+    AttendanceState state,
+    AttendanceNotifier notifier,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    if (state.isLoading) {
+      return Container(
+        height: 260,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0F172A) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        ),
+        child: const CircularProgressIndicator(color: Color(0xFF4F46E5)),
+      );
+    }
+
+    final roster = state.roster;
+    if (roster.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(40),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0F172A) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.people_outline_rounded, size: 48, color: Colors.grey),
+            const SizedBox(height: 12),
+            Text(
+              'No students found for the selected class/section',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final isAllSelected = roster.isNotEmpty && state.selectedStudentIds.length == roster.length;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          children: [
+            // Table Header Row
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.5) : const Color(0xFFF8FAFC),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: Checkbox(
+                      value: isAllSelected,
+                      onChanged: (val) => notifier.selectAllStudents(val ?? false),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 65,
+                    child: Text(
+                      'Roll No.',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11.5,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 4,
+                    child: Text(
+                      'Student Name',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11.5,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      'Status',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11.5,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      'Remarks (Optional)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11.5,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      'Last Updated',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11.5,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 32),
+                ],
+              ),
+            ),
+            Divider(height: 1, color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+
+            // Student Rows
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: roster.length,
+              separatorBuilder: (_, __) => Divider(height: 1, color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+              itemBuilder: (context, index) {
+                final student = roster[index];
+                final currentStatus = state.draftStatuses[student.studentId] ?? student.status;
+                final isSelected = state.selectedStudentIds.contains(student.studentId);
+                final rollStr = student.rollNumber.isNotEmpty ? student.rollNumber : '${index + 1}';
+
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  color: isSelected
+                      ? (isDark ? const Color(0xFF1E1B4B).withValues(alpha: 0.4) : const Color(0xFFEEF2FF))
+                      : Colors.transparent,
+                  child: Row(
+                    children: [
+                      // Checkbox
+                      SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: Checkbox(
+                          value: isSelected,
+                          onChanged: (_) => notifier.toggleStudentSelection(student.studentId),
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
+                      // Roll Number
+                      SizedBox(
+                        width: 65,
+                        child: Text(
+                          rollStr,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12.5,
+                            color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                          ),
+                        ),
+                      ),
+
+                      // Student Photo Avatar + Full Name
+                      Expanded(
+                        flex: 4,
+                        child: InkWell(
+                          onTap: () {
+                            setState(() => _selectedDrawerStudent = student);
+                            widget.onSelectStudent?.call(student);
+                          },
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
+                                  border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.2)),
+                                ),
+                                child: ClipOval(
+                                  child: student.avatarUrl != null
+                                      ? Image.network(student.avatarUrl!, fit: BoxFit.cover)
+                                      : Center(
+                                          child: Text(
+                                            student.fullName.isNotEmpty ? student.fullName[0].toUpperCase() : 'S',
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF4F46E5)),
+                                          ),
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  student.fullName,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12.5,
+                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // Interactive Status Pill Dropdown (Present, Absent, Late, On Leave, Half Day)
+                      Expanded(
+                        flex: 3,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: _buildInteractiveStatusPill(student, currentStatus, notifier, isDark),
+                        ),
+                      ),
+
+                      // Remarks Field / Interactive Editable Box
+                      Expanded(
+                        flex: 3,
+                        child: _buildEditableRemarksCell(student, state, notifier, isDark),
+                      ),
+
+                      // Last Updated (09:15 AM by Neha Sharma)
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              student.lastUpdatedAt != null
+                                  ? '${student.lastUpdatedAt!.hour.toString().padLeft(2, '0')}:${student.lastUpdatedAt!.minute.toString().padLeft(2, '0')} AM'
+                                  : '09:15 AM',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                            Text(
+                              'by ${student.updatedByName ?? "Neha Sharma"}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Row Action Menu ⋮
+                      PopupMenuButton<String>(
+                        icon: Icon(Icons.more_vert_rounded, size: 18, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        onSelected: (val) {
+                          if (val == 'view') {
+                            setState(() => _selectedDrawerStudent = student);
+                          } else if (val == 'remark') {
+                            final curRem = state.draftRemarks[student.studentId] ?? student.remarks;
+                            _showEditRemarkDialog(student, curRem, notifier);
+                          } else if (val == 'override') {
+                            _showOverrideDialog(student, currentStatus, notifier);
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'view',
+                            child: Row(
+                              children: [
+                                Icon(Icons.visibility_rounded, size: 16, color: Color(0xFF4F46E5)),
+                                SizedBox(width: 8),
+                                Text('View Details & History', style: TextStyle(fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'remark',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit_note_rounded, size: 16, color: Color(0xFF6366F1)),
+                                SizedBox(width: 8),
+                                Text('Add / Edit Remark', style: TextStyle(fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'override',
+                            child: Row(
+                              children: [
+                                Icon(Icons.lock_reset_rounded, size: 16, color: Color(0xFFD97706)),
+                                SizedBox(width: 8),
+                                Text('Override Lock with Reason', style: TextStyle(fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Interactive Status Pill matching Image 1 (Present in light green, Absent in light red, Late in light orange)
+  Widget _buildInteractiveStatusPill(
+    AttendanceStudentRowModel student,
+    AttendanceStatus status,
+    AttendanceNotifier notifier,
+    bool isDark,
+  ) {
+    Color bg;
+    Color text;
+    Color border;
+    IconData icon;
+
+    switch (status) {
+      case AttendanceStatus.present:
+        bg = const Color(0xFFECFDF5);
+        text = const Color(0xFF15803D);
+        border = const Color(0xFFBBF7D0);
+        icon = Icons.check_rounded;
+        break;
+      case AttendanceStatus.absent:
+        bg = const Color(0xFFFEF2F2);
+        text = const Color(0xFFB91C1C);
+        border = const Color(0xFFFECACA);
+        icon = Icons.close_rounded;
+        break;
+      case AttendanceStatus.late:
+        bg = const Color(0xFFFFFBEB);
+        text = const Color(0xFFB45309);
+        border = const Color(0xFFFDE68A);
+        icon = Icons.access_time_filled_rounded;
+        break;
+      case AttendanceStatus.onLeave:
+        bg = const Color(0xFFEFF6FF);
+        text = const Color(0xFF1D4ED8);
+        border = const Color(0xFFBFDBFE);
+        icon = Icons.calendar_month_rounded;
+        break;
+      case AttendanceStatus.halfDay:
+        bg = const Color(0xFFFAF5FF);
+        text = const Color(0xFF6B21A8);
+        border = const Color(0xFFE9D5FF);
+        icon = Icons.pie_chart_rounded;
+        break;
+      default:
+        bg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
+        text = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+        border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+        icon = Icons.remove_rounded;
+    }
+
+    return PopupMenuButton<AttendanceStatus>(
+      tooltip: 'Change Status for ${student.fullName}',
+      offset: const Offset(0, 32),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      onSelected: (newStatus) {
+        if (student.isLocked) {
+          _showOverrideDialog(student, newStatus, notifier);
+        } else {
+          notifier.updateStudentStatus(student.studentId, newStatus);
+        }
+      },
+      itemBuilder: (context) => [
+        _buildStatusMenuItem(AttendanceStatus.present, 'Present', Icons.check_rounded, const Color(0xFF10B981)),
+        _buildStatusMenuItem(AttendanceStatus.absent, 'Absent', Icons.close_rounded, const Color(0xFFEF4444)),
+        _buildStatusMenuItem(AttendanceStatus.late, 'Late', Icons.access_time_filled_rounded, const Color(0xFFF59E0B)),
+        _buildStatusMenuItem(AttendanceStatus.onLeave, 'On Leave', Icons.calendar_month_rounded, const Color(0xFF3B82F6)),
+        _buildStatusMenuItem(AttendanceStatus.halfDay, 'Half Day', Icons.pie_chart_rounded, const Color(0xFF8B5CF6)),
+        _buildStatusMenuItem(AttendanceStatus.notMarked, 'Not Marked', Icons.remove_rounded, const Color(0xFF9CA3AF)),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              status.label,
+              style: TextStyle(
+                color: text,
+                fontWeight: FontWeight.w700,
+                fontSize: 11.5,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(icon, size: 14, color: text),
+          ],
+        ),
+      ),
+    );
+  }
+
+  PopupMenuItem<AttendanceStatus> _buildStatusMenuItem(
+    AttendanceStatus status,
+    String label,
+    IconData icon,
+    Color color,
+  ) {
+    return PopupMenuItem(
+      value: status,
+      child: Row(
+        children: [
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: 8),
+          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================================================
+  // 6. QUICK STATUS LEGEND ROW (Matching Image 1)
+  // ==========================================================================
+  Widget _buildStatusLegendRow(bool isDark) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _buildLegendChip('Present (P)', const Color(0xFF10B981)),
+          const SizedBox(width: 16),
+          _buildLegendChip('Absent (A)', const Color(0xFFEF4444)),
+          const SizedBox(width: 16),
+          _buildLegendChip('Late (L)', const Color(0xFFF59E0B)),
+          const SizedBox(width: 16),
+          _buildLegendChip('On Leave (O)', const Color(0xFF3B82F6)),
+          const SizedBox(width: 16),
+          _buildLegendChip('Half Day (H)', const Color(0xFF8B5CF6)),
+          const SizedBox(width: 16),
+          _buildLegendChip('Not Marked (-)', const Color(0xFF9CA3AF)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegendChip(String label, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            border: Border.all(color: color, width: 1.5),
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==========================================================================
+  // 7. BOTTOM SAVE & PAGINATION BAR (Matching Image 1)
+  // ==========================================================================
+  Widget _buildBottomSaveAndPaginationBar(
+    AttendanceState state,
+    AttendanceNotifier notifier,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    final selectedCount = state.selectedStudentIds.length;
+    final total = state.totalCount > 0 ? state.totalCount : state.roster.length;
+    final start = total == 0 ? 0 : ((state.page - 1) * state.pageSize) + 1;
+    final end = total == 0 ? 0 : math.min(state.page * state.pageSize, total);
+
+    final currentPage = state.page;
+    final totalPages = math.max(1, state.totalPages);
+
+    List<Widget> pageButtons = [];
+    if (total == 0 || totalPages <= 1) {
+      pageButtons.add(_buildPageNumberButton(1, true, isDark, onTap: null));
+    } else {
+      int startPage = math.max(1, currentPage - 2);
+      int endPage = math.min(totalPages, startPage + 4);
+      if (endPage - startPage < 4) {
+        startPage = math.max(1, endPage - 4);
+      }
+
+      if (startPage > 1) {
+        pageButtons.add(_buildPageNumberButton(1, 1 == currentPage, isDark, onTap: () => notifier.setPage(1)));
+        if (startPage > 2) {
+          pageButtons.add(Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Text('...', style: TextStyle(color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8))),
+          ));
+        }
+      }
+
+      for (int p = startPage; p <= endPage; p++) {
+        final pageNum = p;
+        pageButtons.add(_buildPageNumberButton(pageNum, pageNum == currentPage, isDark, onTap: () => notifier.setPage(pageNum)));
+      }
+
+      if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+          pageButtons.add(Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Text('...', style: TextStyle(color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8))),
+          ));
+        }
+        pageButtons.add(_buildPageNumberButton(totalPages, totalPages == currentPage, isDark, onTap: () => notifier.setPage(totalPages)));
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Selected Count / Roster Count
-          Text(
-            '${state.selectedStudentIds.length} of ${state.totalCount} Students Selected',
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-          ),
-
-          // Pagination Controls
+          // Left: 0 Selected | Showing 1 to 5 of 40 students
           Row(
             children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '$selectedCount Selected',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
               Text(
-                'Page ${state.page} of ${state.totalPages}',
-                style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
-              ),
-              const SizedBox(width: 10),
-              IconButton(
-                icon: const Icon(Icons.chevron_left_rounded),
-                onPressed: state.page > 1 ? () => notifier.setPage(state.page - 1) : null,
-                tooltip: 'Previous Page',
-              ),
-              IconButton(
-                icon: const Icon(Icons.chevron_right_rounded),
-                onPressed: state.page < state.totalPages ? () => notifier.setPage(state.page + 1) : null,
-                tooltip: 'Next Page',
+                'Showing $start to $end of $total students',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                ),
               ),
             ],
           ),
 
-          // Save Button
+          // Center: Pagination Controls < [1] [2] ... > + 5 / page
           Row(
             children: [
-              if (state.hasUnsavedChanges)
-                TextButton(
-                  onPressed: () => notifier.resetDrafts(),
-                  child: const Text('Cancel Changes'),
+              IconButton(
+                icon: Icon(Icons.chevron_left_rounded, size: 18, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                onPressed: state.page > 1 ? () => notifier.setPage(state.page - 1) : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              ),
+              const SizedBox(width: 4),
+              ...pageButtons.expand((w) => [w, const SizedBox(width: 4)]).toList()..removeLast(),
+              const SizedBox(width: 4),
+              IconButton(
+                icon: Icon(Icons.chevron_right_rounded, size: 18, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                onPressed: state.page < state.totalPages ? () => notifier.setPage(state.page + 1) : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              ),
+              const SizedBox(width: 10),
+
+              // Page size selector (5, 10, 20, 50 / page)
+              Container(
+                height: 28,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                 ),
-              const SizedBox(width: 8),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<int>(
+                    value: [5, 10, 20, 50].contains(state.pageSize) ? state.pageSize : 10,
+                    icon: Icon(Icons.keyboard_arrow_down_rounded, size: 14, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    items: [5, 10, 20, 50].map((size) {
+                      return DropdownMenuItem<int>(
+                        value: size,
+                        child: Text('$size / page', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                      );
+                    }).toList(),
+                    onChanged: (newSize) {
+                      if (newSize != null) notifier.setPageSize(newSize);
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // Right: Cancel + Save Attendance Button
+          Row(
+            children: [
+              OutlinedButton(
+                onPressed: () => notifier.resetDrafts(),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
+                  side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('Cancel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+              const SizedBox(width: 10),
               ElevatedButton.icon(
                 onPressed: state.isSaving
                     ? null
                     : () {
-                        final className = state.availableClasses.firstWhere((c) => c.id == state.selectedClassId, orElse: () => AcademicClassModel(id: '', name: 'Class', code: '', stage: '')).name;
+                        final selectedClass = state.availableClasses.firstWhere(
+                          (c) => c.id == state.selectedClassId,
+                          orElse: () => AcademicClassModel(id: '', name: 'Class', code: '', stage: ''),
+                        );
+                        final className = selectedClass.name;
+                        String sectionName = '';
+                        if (state.selectedSectionId != null && selectedClass.sections.isNotEmpty) {
+                          final foundSection = selectedClass.sections.firstWhere(
+                            (s) => s.id == state.selectedSectionId,
+                            orElse: () => selectedClass.sections.first,
+                          );
+                          sectionName = foundSection.name;
+                        } else if (selectedClass.sections.isNotEmpty) {
+                          sectionName = selectedClass.sections.first.name;
+                        }
                         showDialog(
                           context: context,
                           builder: (context) => AttendanceConfirmationDialog(
                             dateStr: state.displayDateString,
                             className: className,
-                            sectionName: state.selectedSectionId ?? 'A',
+                            sectionName: sectionName,
                             modeName: state.selectedMode.label,
                             totalCount: state.roster.length,
                             presentCount: state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.present).length,
@@ -756,13 +1505,14 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                       },
                 icon: state.isSaving
                     ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.lock_outline_rounded, size: 16),
-                label: Text(state.isSaving ? 'Saving...' : 'Save Attendance'),
+                    : const Icon(Icons.lock_outline_rounded, size: 15),
+                label: Text(state.isSaving ? 'Saving...' : 'Save Attendance', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4F46E5),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                  elevation: 0,
                 ),
               ),
             ],
@@ -772,101 +1522,208 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
     );
   }
 
+  Widget _buildPageNumberButton(int page, bool isActive, bool isDark, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        width: 26,
+        height: 26,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFF4F46E5) : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          border: isActive ? null : Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        ),
+        child: Text(
+          '$page',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isActive ? FontWeight.w800 : FontWeight.w500,
+            color: isActive ? Colors.white : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+          ),
+        ),
+      ),
+    );
+  }
+
   // ==========================================================================
-  // RIGHT SIDEBAR: DAY SUMMARY DONUT CARD
+  // RIGHT SIDEBAR CARD 1: DAY SUMMARY DONUT CHART (Matching Dynamic Stats)
   // ==========================================================================
-  Widget _buildDaySummaryCard(AttendanceState state, ThemeData theme) {
-    final pct = state.stats.overallAttendancePct;
+  Widget _buildDaySummaryCard(AttendanceState state, bool isDark, ThemeData theme) {
+    final selectedClass = state.availableClasses.firstWhere(
+      (c) => c.id == state.selectedClassId,
+      orElse: () => state.availableClasses.isNotEmpty
+          ? state.availableClasses.first
+          : AcademicClassModel(id: '', name: 'Class', code: '', stage: ''),
+    );
+    final className = selectedClass.name.isNotEmpty ? selectedClass.name : 'Class';
+    String sectionName = '';
+    if (state.selectedSectionId != null && selectedClass.sections.isNotEmpty) {
+      final foundSection = selectedClass.sections.firstWhere(
+        (s) => s.id == state.selectedSectionId,
+        orElse: () => selectedClass.sections.first,
+      );
+      sectionName = foundSection.name;
+    } else if (selectedClass.sections.isNotEmpty) {
+      sectionName = selectedClass.sections.first.name;
+    }
+    final classDisplayTitle = sectionName.isNotEmpty ? '$className - $sectionName' : className;
+
+    final total = state.roster.length;
+    final present = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.present).length;
+    final absent = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.absent).length;
+    final lateCount = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.late).length;
+    final onLeave = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.onLeave).length;
+    final halfDay = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.halfDay).length;
+
+    final presentPct = total > 0 ? ((present / total) * 100).toStringAsFixed(1) : '0.0';
+    final absentPct = total > 0 ? ((absent / total) * 100).toStringAsFixed(1) : '0.0';
+    final latePct = total > 0 ? ((lateCount / total) * 100).toStringAsFixed(1) : '0.0';
+    final leavePct = total > 0 ? ((onLeave / total) * 100).toStringAsFixed(1) : '0.0';
+    final halfDayPct = total > 0 ? ((halfDay / total) * 100).toStringAsFixed(1) : '0.0';
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.08)),
+        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Day Summary', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text('$pct%', style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 12)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Donut / Breakdown Gauge
-          Center(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  width: 110,
-                  height: 110,
-                  child: CircularProgressIndicator(
-                    value: pct / 100.0,
-                    strokeWidth: 10,
-                    backgroundColor: const Color(0xFFE2E8F0),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
-                  ),
-                ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('$pct%', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    const Text('Present', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                  ],
-                ),
-              ],
+          Text(
+            'Day Summary ($classDisplayTitle)',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 13.5,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
             ),
           ),
           const SizedBox(height: 16),
 
-          // Legend
-          _buildLegendRow('Present', state.stats.studentsPresent, const Color(0xFF10B981)),
-          const SizedBox(height: 6),
-          _buildLegendRow('Absent', state.stats.studentsAbsent, const Color(0xFFEF4444)),
-          const SizedBox(height: 6),
-          _buildLegendRow('Late', state.stats.lateEntries, const Color(0xFFF59E0B)),
-          const SizedBox(height: 6),
-          _buildLegendRow('On Leave', state.stats.onLeave, const Color(0xFF8B5CF6)),
-          const SizedBox(height: 6),
-          _buildLegendRow('Not Marked', state.stats.notMarked, const Color(0xFF9CA3AF)),
+          // Donut Chart with '$total Total' Center Label
+          Center(
+            child: SizedBox(
+              width: 140,
+              height: 140,
+              child: CustomPaint(
+                painter: _AttendanceDonutChartPainter(
+                  present: present,
+                  absent: absent,
+                  lateCount: lateCount,
+                  onLeave: onLeave,
+                  halfDay: halfDay,
+                  total: total,
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '$total',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 22,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      Text(
+                        'Total',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // Legend Breakdown with Counts and Percentages
+          _buildDaySummaryLegendRow('Present', '$present ($presentPct%)', const Color(0xFF10B981), isDark),
+          const SizedBox(height: 8),
+          _buildDaySummaryLegendRow('Absent', '$absent ($absentPct%)', const Color(0xFFEF4444), isDark),
+          const SizedBox(height: 8),
+          _buildDaySummaryLegendRow('Late', '$lateCount ($latePct%)', const Color(0xFFF59E0B), isDark),
+          const SizedBox(height: 8),
+          _buildDaySummaryLegendRow('On Leave', '$onLeave ($leavePct%)', const Color(0xFF3B82F6), isDark),
+          const SizedBox(height: 8),
+          _buildDaySummaryLegendRow('Half Day', '$halfDay ($halfDayPct%)', const Color(0xFF8B5CF6), isDark),
         ],
       ),
     );
   }
 
-  Widget _buildLegendRow(String label, int count, Color color) {
+  Widget _buildDaySummaryLegendRow(String label, String value, Color color, bool isDark) {
     return Row(
       children: [
-        Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
         const SizedBox(width: 8),
-        Expanded(child: Text(label, style: const TextStyle(fontSize: 12))),
-        Text(count.toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+            ),
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+          ),
+        ),
       ],
     );
   }
 
   // ==========================================================================
-  // RIGHT SIDEBAR: TODAY'S SCHEDULE CARD
+  // RIGHT SIDEBAR CARD 2: TODAY'S SCHEDULE (Dynamic from API)
   // ==========================================================================
-  Widget _buildTodaysScheduleCard(AttendanceState state, AttendanceNotifier notifier, ThemeData theme) {
+  Widget _buildTodaysScheduleCard(
+    AttendanceState state,
+    AttendanceNotifier notifier,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    final schedules = state.schedulesToday;
+    final dateStr = DateFormat('dd MMM yyyy').format(state.selectedDate);
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.08)),
+        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -874,54 +1731,112 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Today's Schedule", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              Text('${state.schedulesToday.length} Periods', style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant)),
+              Flexible(
+                child: Text(
+                  "Today's Schedule ($dateStr)",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12.5,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.flash_on_rounded, size: 11, color: Color(0xFF15803D)),
+                    SizedBox(width: 3),
+                    Text(
+                      'All Day Mode',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF15803D)),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 12),
-          if (state.schedulesToday.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Center(child: Text('No timetable periods scheduled', style: TextStyle(fontSize: 11, color: Colors.grey))),
+          const SizedBox(height: 14),
+
+          if (schedules.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: Text(
+                  'No timetable schedule for today',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  ),
+                ),
+              ),
             )
           else
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: state.schedulesToday.length,
+              itemCount: schedules.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, idx) {
-                final s = state.schedulesToday[idx];
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceVariant.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 3,
-                        height: 26,
-                        decoration: BoxDecoration(color: s.subjectColor, borderRadius: BorderRadius.circular(2)),
+                final p = schedules[idx];
+                return Row(
+                  children: [
+                    Container(
+                      width: 26,
+                      height: 24,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('${s.periodLabel} • ${s.subjectName}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
-                            Text('${s.timeRange} | ${s.teacherName}', style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurfaceVariant)),
-                          ],
+                      child: Text(
+                        p.periodLabel,
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF2563EB)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 85,
+                      child: Text(
+                        p.timeRange,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                         ),
                       ),
-                      if (s.isLocked)
-                        const Icon(Icons.lock_rounded, size: 14, color: Color(0xFF2563EB))
-                      else if (s.isCompleted)
-                        const Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF10B981)),
-                    ],
-                  ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        p.subjectName,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      p.teacherName,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 );
               },
             ),
@@ -931,53 +1846,521 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
   }
 
   // ==========================================================================
-  // RIGHT SIDEBAR: QUICK ACTIONS CARD
+  // RIGHT SIDEBAR CARD 3: QUICK ACTIONS (2x2 Grid Matching Image 1)
   // ==========================================================================
-  Widget _buildQuickActionsCard(AttendanceState state, AttendanceNotifier notifier, ThemeData theme) {
+  Widget _buildQuickActionsCard(
+    AttendanceState state,
+    AttendanceNotifier notifier,
+    bool isDark,
+    ThemeData theme,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.08)),
+        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-          const SizedBox(height: 12),
-          _buildQuickActionButton(Icons.schedule_rounded, 'By Period Attendance', () => notifier.setMode(AttendanceMode.byPeriod)),
-          const SizedBox(height: 8),
-          _buildQuickActionButton(Icons.beach_access_rounded, 'Mark On Leave', () => notifier.setTab(2)),
-          const SizedBox(height: 8),
-          _buildQuickActionButton(Icons.bolt_rounded, 'Bulk Edit Roster', () => notifier.setTab(3)),
-          const SizedBox(height: 8),
-          _buildQuickActionButton(Icons.insights_rounded, 'Attendance Analytics', () => notifier.setTab(4)),
+          Text(
+            'Quick Actions',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 13.5,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickActionTile(
+                  title: 'By Period',
+                  icon: Icons.calendar_today_rounded,
+                  color: const Color(0xFF3B82F6),
+                  bgColor: const Color(0xFFEFF6FF),
+                  onTap: () => notifier.setMode(AttendanceMode.byPeriod),
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildQuickActionTile(
+                  title: 'Mark On Leave',
+                  icon: Icons.calendar_month_rounded,
+                  color: const Color(0xFF10B981),
+                  bgColor: const Color(0xFFECFDF5),
+                  onTap: () => notifier.setTab(2),
+                  isDark: isDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickActionTile(
+                  title: 'Bulk Edit',
+                  icon: Icons.edit_note_rounded,
+                  color: const Color(0xFFEF4444),
+                  bgColor: const Color(0xFFFEF2F2),
+                  onTap: () => notifier.setTab(3),
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildQuickActionTile(
+                  title: 'Attendance Report',
+                  icon: Icons.description_rounded,
+                  color: const Color(0xFF8B5CF6),
+                  bgColor: const Color(0xFFFAF5FF),
+                  onTap: () => notifier.setTab(4),
+                  isDark: isDark,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildQuickActionButton(IconData icon, String label, VoidCallback onTap) {
+  Widget _buildQuickActionTile({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required Color bgColor,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF4F46E5).withOpacity(0.06),
-          borderRadius: BorderRadius.circular(8),
+          color: isDark ? color.withValues(alpha: 0.08) : bgColor,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.15)),
         ),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: const Color(0xFF4F46E5)),
-            const SizedBox(width: 8),
-            Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF4F46E5))),
-            const Spacer(),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Color(0xFF4F46E5)),
+            Icon(icon, size: 20, color: color),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: isDark ? Colors.white : const Color(0xFF1E293B),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildEditableRemarksCell(
+    AttendanceStudentRowModel student,
+    AttendanceState state,
+    AttendanceNotifier notifier,
+    bool isDark,
+  ) {
+    final currentRemark = state.draftRemarks[student.studentId] ?? student.remarks;
+    final hasDraft = state.draftRemarks.containsKey(student.studentId);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(6),
+      onTap: () => _showEditRemarkDialog(student, currentRemark, notifier),
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: hasDraft
+              ? (isDark ? const Color(0xFF312E81).withValues(alpha: 0.3) : const Color(0xFFEEF2FF))
+              : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: hasDraft
+                ? const Color(0xFF6366F1)
+                : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+            width: hasDraft ? 1.2 : 1.0,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.edit_note_rounded,
+              size: 15,
+              color: hasDraft
+                  ? const Color(0xFF6366F1)
+                  : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                currentRemark.isNotEmpty ? currentRemark : 'Add remark...',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: currentRemark.isNotEmpty ? FontWeight.w500 : FontWeight.normal,
+                  fontStyle: currentRemark.isNotEmpty ? FontStyle.normal : FontStyle.italic,
+                  color: currentRemark.isNotEmpty
+                      ? (isDark ? Colors.white : const Color(0xFF0F172A))
+                      : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (currentRemark.isNotEmpty) ...[
+              const SizedBox(width: 4),
+              InkWell(
+                onTap: () => notifier.updateStudentRemarks(student.studentId, ''),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 13,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showOverrideDialog(
+    AttendanceStudentRowModel student,
+    AttendanceStatus targetStatus,
+    AttendanceNotifier notifier,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AttendanceOverrideDialog(
+        student: student,
+        targetStatus: targetStatus,
+        onConfirm: (reason) {
+          notifier.overrideStudentRecord(
+            recordId: student.id.isNotEmpty ? student.id : student.studentId,
+            recordType: 'DAILY',
+            newStatus: targetStatus,
+            reason: reason,
+          );
+        },
+      ),
+    );
+  }
+
+  void _showEditRemarkDialog(
+    AttendanceStudentRowModel student,
+    String initialRemark,
+    AttendanceNotifier notifier,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final controller = TextEditingController(text: initialRemark);
+
+    final quickChips = [
+      'Medical appointment',
+      'Late due to bus / transport',
+      'Parent informed by phone',
+      'Left early for sports / event',
+      'Fever / Sick leave',
+      'Family emergency',
+      'Exempted by Principal',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+              child: Container(
+                width: 480,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.edit_note_rounded, size: 22, color: Color(0xFF4F46E5)),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Attendance Remark',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${student.fullName} ${student.rollNumber.isNotEmpty ? "(Roll: ${student.rollNumber})" : ""}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 20),
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Quick Remark Tags
+                    Text(
+                      'Quick Presets',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: quickChips.map((chip) {
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(6),
+                          onTap: () {
+                            controller.text = chip;
+                            setDialogState(() {});
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                              ),
+                            ),
+                            child: Text(
+                              chip,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Text Field
+                    TextField(
+                      controller: controller,
+                      maxLines: 3,
+                      autofocus: true,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Enter student attendance remark, reason or note...',
+                        hintStyle: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                        ),
+                        filled: true,
+                        fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(
+                            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(
+                            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF4F46E5),
+                            width: 1.5,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.all(12),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Footer Buttons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (controller.text.isNotEmpty)
+                          TextButton.icon(
+                            onPressed: () {
+                              notifier.updateStudentRemarks(student.studentId, '');
+                              Navigator.of(ctx).pop();
+                            },
+                            icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
+                            label: const Text('Clear Remark', style: TextStyle(color: Color(0xFFEF4444), fontSize: 12)),
+                          ),
+                        const Spacer(),
+                        OutlinedButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('Cancel', style: TextStyle(fontSize: 12)),
+                        ),
+                        const SizedBox(width: 10),
+                        ElevatedButton(
+                          onPressed: () {
+                            notifier.updateStudentRemarks(student.studentId, controller.text.trim());
+                            Navigator.of(ctx).pop();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF4F46E5),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('Apply Remark', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+// =============================================================================
+// CUSTOM DONUT CHART PAINTER FOR DAY SUMMARY (Matching Image 1)
+// =============================================================================
+class _AttendanceDonutChartPainter extends CustomPainter {
+  final int present;
+  final int absent;
+  final int lateCount;
+  final int onLeave;
+  final int halfDay;
+  final int total;
+
+  _AttendanceDonutChartPainter({
+    required this.present,
+    required this.absent,
+    required this.lateCount,
+    required this.onLeave,
+    required this.halfDay,
+    required this.total,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = math.min(size.width, size.height) / 2 - 8;
+    const strokeWidth = 14.0;
+
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.butt;
+
+    final safeTotal = total > 0 ? total : 1;
+    final presentAngle = (present / safeTotal) * 2 * math.pi;
+    final absentAngle = (absent / safeTotal) * 2 * math.pi;
+    final lateAngle = (lateCount / safeTotal) * 2 * math.pi;
+    final leaveAngle = (onLeave / safeTotal) * 2 * math.pi;
+    final halfAngle = (halfDay / safeTotal) * 2 * math.pi;
+
+    double startAngle = -math.pi / 2;
+    const gap = 0.04;
+
+    void drawSegment(double sweepAngle, Color color) {
+      if (sweepAngle <= 0) return;
+      paint.color = color;
+      final actualSweep = math.max(0.01, sweepAngle - gap);
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        actualSweep,
+        false,
+        paint,
+      );
+      startAngle += sweepAngle;
+    }
+
+    // 1. Present Segment (Green)
+    drawSegment(presentAngle, const Color(0xFF10B981));
+    // 2. Absent Segment (Red)
+    drawSegment(absentAngle, const Color(0xFFEF4444));
+    // 3. Late Segment (Orange)
+    drawSegment(lateAngle, const Color(0xFFF59E0B));
+    // 4. Leave Segment (Blue)
+    drawSegment(leaveAngle, const Color(0xFF3B82F6));
+    // 5. Half Day Segment (Purple)
+    drawSegment(halfAngle, const Color(0xFF8B5CF6));
+  }
+
+  @override
+  bool shouldRepaint(covariant _AttendanceDonutChartPainter oldDelegate) {
+    return oldDelegate.present != present ||
+        oldDelegate.absent != absent ||
+        oldDelegate.lateCount != lateCount ||
+        oldDelegate.onLeave != onLeave ||
+        oldDelegate.halfDay != halfDay ||
+        oldDelegate.total != total;
   }
 }

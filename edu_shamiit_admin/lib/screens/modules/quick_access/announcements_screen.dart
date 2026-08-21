@@ -137,10 +137,13 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
 
   Future<void> _fetchRoles() async {
     try {
-      final res = await ApiService().get('/admin/schools/roles');
-      if (res['success'] == true) {
+      final res = await ApiService().get('/admin/schools/roles?status=Active');
+      if (res['success'] == true && res['data'] != null) {
+        final rolesList = List<Map<String, dynamic>>.from(res['data'])
+            .where((r) => (r['status'] ?? 'Active').toString().toLowerCase() == 'active')
+            .toList();
         setState(() {
-          _roles = res['data'] ?? [];
+          _roles = rolesList;
         });
       }
     } catch (e) {

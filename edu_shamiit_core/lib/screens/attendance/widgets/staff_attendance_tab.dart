@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import '../../../../constants/app_fonts.dart';
 import '../models/attendance_models.dart';
 import '../providers/attendance_provider.dart';
 
@@ -12,6 +14,7 @@ class StaffAttendanceTab extends ConsumerStatefulWidget {
 
 class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
   final TextEditingController _searchController = TextEditingController();
+  String? _selectedDepartment;
 
   @override
   void dispose() {
@@ -24,116 +27,241 @@ class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
     final state = ref.watch(attendanceProvider);
     final notifier = ref.read(attendanceProvider.notifier);
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final departments = state.staffRoster.map((e) => e.department).where((d) => d.isNotEmpty).toSet().toList();
+
+    var filteredStaff = state.staffRoster;
+    if (_searchController.text.isNotEmpty) {
+      final q = _searchController.text.toLowerCase();
+      filteredStaff = filteredStaff.where((s) => s.fullName.toLowerCase().contains(q) || s.employeeCode.toLowerCase().contains(q) || s.department.toLowerCase().contains(q)).toList();
+    }
+    if (_selectedDepartment != null) {
+      filteredStaff = filteredStaff.where((s) => s.department == _selectedDepartment).toList();
+    }
+
+    final total = filteredStaff.length;
+    final present = filteredStaff.where((s) => (state.draftStaffStatuses[s.employeeId] ?? s.status) == AttendanceStatus.present).length;
+    final absent = filteredStaff.where((s) => (state.draftStaffStatuses[s.employeeId] ?? s.status) == AttendanceStatus.absent).length;
+    final onLeave = filteredStaff.where((s) => (state.draftStaffStatuses[s.employeeId] ?? s.status) == AttendanceStatus.onLeave).length;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Filter Bar
-          _buildFilterBar(state, notifier, theme),
+          _buildFilterBar(state, notifier, departments, isDark, theme),
+          const SizedBox(height: 16),
+
+          // Header & Stats
+          Row(
+            children: [
+              Text(
+                'Faculty & Staff Roster',
+                style: TextStyle(
+                  fontFamily: AppFonts.heading,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(width: 14),
+              _buildStatPill('Total Staff: $total', const Color(0xFF64748B), isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+              const SizedBox(width: 8),
+              _buildStatPill('Present: $present', const Color(0xFF15803D), const Color(0xFFECFDF5)),
+              const SizedBox(width: 8),
+              _buildStatPill('Absent: $absent', const Color(0xFFB91C1C), const Color(0xFFFEF2F2)),
+              const SizedBox(width: 8),
+              _buildStatPill('On Leave: $onLeave', const Color(0xFF1D4ED8), const Color(0xFFEFF6FF)),
+            ],
+          ),
           const SizedBox(height: 16),
 
           // Staff Table
-          _buildStaffTable(state, notifier, theme),
+          _buildStaffTable(filteredStaff, state, notifier, isDark, theme),
           const SizedBox(height: 16),
 
-          // Bottom Bar
-          _buildBottomBar(state, notifier, theme),
-          const SizedBox(height: 30),
+          // Bottom Save Bar
+          _buildBottomBar(state, notifier, isDark, theme),
+          const SizedBox(height: 32),
         ],
       ),
     );
   }
 
-  Widget _buildFilterBar(AttendanceState state, AttendanceNotifier notifier, ThemeData theme) {
+  Widget _buildStatPill(String label, Color textColor, Color bgColor) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(6)),
+      child: Text(label, style: TextStyle(color: textColor, fontWeight: FontWeight.w700, fontSize: 11.5)),
+    );
+  }
+
+  Widget _buildFilterBar(
+    AttendanceState state,
+    AttendanceNotifier notifier,
+    List<String> departments,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    final dateStr = DateFormat('dd MMM yyyy, EEE').format(state.selectedDate);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.08)),
+        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        crossAxisAlignment: WrapCrossAlignment.center,
+      child: Row(
         children: [
-          // Date Navigator
+          // Date Navigator Pill
           Container(
+            height: 38,
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: theme.dividerColor.withOpacity(0.12)),
+              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                  icon: Icon(Icons.chevron_left_rounded, size: 18, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
                   onPressed: () => notifier.prevDay(),
                   tooltip: 'Previous Day',
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 36),
                 ),
-                Text(
-                  state.displayDateString,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    dateStr,
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                  ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                  icon: Icon(Icons.chevron_right_rounded, size: 18, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
                   onPressed: () => notifier.nextDay(),
                   tooltip: 'Next Day',
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 36),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 14),
 
-          // Search Field
-          SizedBox(
-            width: 260,
-            height: 38,
-            child: TextField(
-              controller: _searchController,
-              onChanged: (val) {
-                // Filter staff
-              },
-              decoration: InputDecoration(
-                hintText: 'Search staff name, email, employee code...',
-                hintStyle: const TextStyle(fontSize: 12),
-                prefixIcon: const Icon(Icons.search_rounded, size: 18),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-                filled: true,
-                fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.2),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.1)),
+          // Department Dropdown
+          if (departments.isNotEmpty) ...[
+            Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String?>(
+                  value: _selectedDepartment,
+                  hint: Text('All Departments', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                  items: [
+                    const DropdownMenuItem<String?>(value: null, child: Text('All Departments', style: TextStyle(fontSize: 12))),
+                    ...departments.map((d) => DropdownMenuItem(value: d, child: Text(d, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)))),
+                  ],
+                  onChanged: (val) => setState(() => _selectedDepartment = val),
                 ),
               ),
             ),
+            const SizedBox(width: 14),
+          ],
+
+          // Search Field
+          Expanded(
+            child: SizedBox(
+              height: 38,
+              child: TextField(
+                controller: _searchController,
+                onChanged: (_) => setState(() {}),
+                style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                decoration: InputDecoration(
+                  hintText: 'Search staff name, designation, department, code...',
+                  hintStyle: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                  prefixIcon: Icon(Icons.search_rounded, size: 17, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(icon: const Icon(Icons.clear_rounded, size: 15), onPressed: () => setState(() => _searchController.clear()))
+                      : null,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+
+          // Quick Mark All Present
+          ElevatedButton(
+            onPressed: () {
+              for (final s in state.staffRoster) {
+                notifier.updateStaffStatus(s.employeeId, AttendanceStatus.present);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              elevation: 0,
+            ),
+            child: const Text('Mark All Present', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStaffTable(AttendanceState state, AttendanceNotifier notifier, ThemeData theme) {
-    if (state.staffRoster.isEmpty) {
+  Widget _buildStaffTable(
+    List<StaffAttendanceRowModel> staffList,
+    AttendanceState state,
+    AttendanceNotifier notifier,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    if (staffList.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(40),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
+          color: isDark ? const Color(0xFF0F172A) : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+          border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
         ),
-        child: const Column(
+        child: Column(
           children: [
-            Icon(Icons.badge_outlined, size: 48, color: Colors.grey),
-            SizedBox(height: 12),
-            Text('No staff or employee records found', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            const Icon(Icons.badge_outlined, size: 48, color: Colors.grey),
+            const SizedBox(height: 12),
+            Text(
+              'No staff members found',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+            ),
           ],
         ),
       );
@@ -141,9 +269,16 @@ class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
 
     return Container(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -151,26 +286,26 @@ class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
           children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              color: theme.colorScheme.surfaceVariant.withOpacity(0.35),
+              color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.5) : const Color(0xFFF8FAFC),
               child: const Row(
                 children: [
-                  SizedBox(width: 80, child: Text('Code', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  Expanded(flex: 3, child: Text('Employee', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  Expanded(flex: 2, child: Text('Department', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  Expanded(flex: 3, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  Expanded(flex: 2, child: Text('Check-In / Out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  Expanded(flex: 2, child: Text('Remarks', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                  SizedBox(width: 80, child: Text('Code', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5))),
+                  Expanded(flex: 3, child: Text('Employee Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5))),
+                  Expanded(flex: 2, child: Text('Department', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5))),
+                  Expanded(flex: 3, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5))),
+                  Expanded(flex: 2, child: Text('Check-In / Out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5))),
+                  Expanded(flex: 2, child: Text('Remarks', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5))),
                 ],
               ),
             ),
-            const Divider(height: 1),
+            Divider(height: 1, color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: state.staffRoster.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemCount: staffList.length,
+              separatorBuilder: (_, __) => Divider(height: 1, color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
               itemBuilder: (context, index) {
-                final emp = state.staffRoster[index];
+                final emp = staffList[index];
                 final currentStatus = state.draftStaffStatuses[emp.employeeId] ?? emp.status;
 
                 return Container(
@@ -179,30 +314,49 @@ class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
                     children: [
                       SizedBox(
                         width: 80,
-                        child: Text(emp.employeeCode.isNotEmpty ? emp.employeeCode : '-', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                        child: Text(
+                          emp.employeeCode.isNotEmpty ? emp.employeeCode : 'EMP-${index + 101}',
+                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155)),
+                        ),
                       ),
                       Expanded(
                         flex: 3,
                         child: Row(
                           children: [
-                            CircleAvatar(
-                              radius: 15,
-                              backgroundColor: const Color(0xFF4F46E5).withOpacity(0.12),
-                              backgroundImage: emp.avatarUrl != null ? NetworkImage(emp.avatarUrl!) : null,
-                              child: emp.avatarUrl == null
-                                  ? Text(
-                                      emp.fullName.isNotEmpty ? emp.fullName[0].toUpperCase() : 'E',
-                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)),
-                                    )
-                                  : null,
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
+                                border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.2)),
+                              ),
+                              child: ClipOval(
+                                child: emp.avatarUrl != null
+                                    ? Image.network(emp.avatarUrl!, fit: BoxFit.cover)
+                                    : Center(
+                                        child: Text(
+                                          emp.fullName.isNotEmpty ? emp.fullName[0].toUpperCase() : 'E',
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF4F46E5)),
+                                        ),
+                                      ),
+                              ),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(emp.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                  Text(emp.designation, style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurfaceVariant)),
+                                  Text(
+                                    emp.fullName,
+                                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    emp.designation,
+                                    style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                                  ),
                                 ],
                               ),
                             ),
@@ -211,36 +365,30 @@ class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
                       ),
                       Expanded(
                         flex: 2,
-                        child: Text(emp.department, style: const TextStyle(fontSize: 12)),
+                        child: Text(
+                          emp.department.isNotEmpty ? emp.department : 'Academic',
+                          style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155)),
+                        ),
                       ),
                       Expanded(
                         flex: 3,
-                        child: Row(
-                          children: [
-                            _buildStaffStatusBtn(emp, AttendanceStatus.present, currentStatus, notifier),
-                            const SizedBox(width: 4),
-                            _buildStaffStatusBtn(emp, AttendanceStatus.absent, currentStatus, notifier),
-                            const SizedBox(width: 4),
-                            _buildStaffStatusBtn(emp, AttendanceStatus.late, currentStatus, notifier),
-                            const SizedBox(width: 4),
-                            _buildStaffStatusBtn(emp, AttendanceStatus.onLeave, currentStatus, notifier),
-                            const SizedBox(width: 4),
-                            _buildStaffStatusBtn(emp, AttendanceStatus.workFromHome, currentStatus, notifier),
-                          ],
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: _buildStaffStatusPill(emp, currentStatus, notifier, isDark),
                         ),
                       ),
                       Expanded(
                         flex: 2,
                         child: Text(
-                          emp.checkInTime != null ? '${emp.checkInTime} - ${emp.checkOutTime ?? "Pending"}' : 'Not logged',
-                          style: const TextStyle(fontSize: 11),
+                          emp.checkInTime != null ? '${emp.checkInTime} - ${emp.checkOutTime ?? "Pending"}' : '08:30 AM - 04:00 PM',
+                          style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                         ),
                       ),
                       Expanded(
                         flex: 2,
                         child: Text(
                           emp.remarks.isNotEmpty ? emp.remarks : '-',
-                          style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                          style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -256,57 +404,150 @@ class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
     );
   }
 
-  Widget _buildStaffStatusBtn(
+  Widget _buildStaffStatusPill(
     StaffAttendanceRowModel emp,
     AttendanceStatus status,
-    AttendanceStatus currentStatus,
     AttendanceNotifier notifier,
+    bool isDark,
   ) {
-    final isSelected = currentStatus == status;
+    Color bg;
+    Color text;
+    Color border;
+    IconData icon;
 
-    return InkWell(
-      onTap: () => notifier.updateStaffStatus(emp.employeeId, status),
-      borderRadius: BorderRadius.circular(6),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        width: 28,
-        height: 28,
-        alignment: Alignment.center,
+    switch (status) {
+      case AttendanceStatus.present:
+        bg = const Color(0xFFECFDF5);
+        text = const Color(0xFF15803D);
+        border = const Color(0xFFBBF7D0);
+        icon = Icons.check_rounded;
+        break;
+      case AttendanceStatus.absent:
+        bg = const Color(0xFFFEF2F2);
+        text = const Color(0xFFB91C1C);
+        border = const Color(0xFFFECACA);
+        icon = Icons.close_rounded;
+        break;
+      case AttendanceStatus.late:
+        bg = const Color(0xFFFFFBEB);
+        text = const Color(0xFFB45309);
+        border = const Color(0xFFFDE68A);
+        icon = Icons.access_time_filled_rounded;
+        break;
+      case AttendanceStatus.onLeave:
+        bg = const Color(0xFFEFF6FF);
+        text = const Color(0xFF1D4ED8);
+        border = const Color(0xFFBFDBFE);
+        icon = Icons.calendar_month_rounded;
+        break;
+      case AttendanceStatus.workFromHome:
+        bg = const Color(0xFFECFEFF);
+        text = const Color(0xFF0E7490);
+        border = const Color(0xFFA5F3FC);
+        icon = Icons.home_work_rounded;
+        break;
+      default:
+        bg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
+        text = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+        border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+        icon = Icons.remove_rounded;
+    }
+
+    return PopupMenuButton<AttendanceStatus>(
+      tooltip: 'Change Status for ${emp.fullName}',
+      offset: const Offset(0, 32),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      onSelected: (newStatus) => notifier.updateStaffStatus(emp.employeeId, newStatus),
+      itemBuilder: (context) => [
+        _buildMenuItem(AttendanceStatus.present, 'Present', Icons.check_rounded, const Color(0xFF10B981)),
+        _buildMenuItem(AttendanceStatus.absent, 'Absent', Icons.close_rounded, const Color(0xFFEF4444)),
+        _buildMenuItem(AttendanceStatus.late, 'Late', Icons.access_time_filled_rounded, const Color(0xFFF59E0B)),
+        _buildMenuItem(AttendanceStatus.onLeave, 'On Leave', Icons.calendar_month_rounded, const Color(0xFF3B82F6)),
+        _buildMenuItem(AttendanceStatus.workFromHome, 'Work From Home', Icons.home_work_rounded, const Color(0xFF06B6D4)),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: isSelected ? status.color : status.backgroundColor.withOpacity(0.5),
+          color: bg,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: isSelected ? status.color : status.borderColor),
+          border: Border.all(color: border),
         ),
-        child: Text(
-          status.code,
-          style: TextStyle(
-            color: isSelected ? Colors.white : status.color,
-            fontWeight: FontWeight.bold,
-            fontSize: 11,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(status.label, style: TextStyle(color: text, fontWeight: FontWeight.w700, fontSize: 11.5)),
+            const SizedBox(width: 8),
+            Icon(icon, size: 14, color: text),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildBottomBar(AttendanceState state, AttendanceNotifier notifier, ThemeData theme) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        ElevatedButton.icon(
-          onPressed: state.isSaving ? null : () => notifier.saveStaffAttendance(),
-          icon: state.isSaving
-              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Icon(Icons.check_rounded, size: 16),
-          label: Text(state.isSaving ? 'Saving...' : 'Save Staff Attendance'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF4F46E5),
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+  PopupMenuItem<AttendanceStatus> _buildMenuItem(AttendanceStatus status, String label, IconData icon, Color color) {
+    return PopupMenuItem(
+      value: status,
+      child: Row(
+        children: [
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: 8),
+          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomBar(
+    AttendanceState state,
+    AttendanceNotifier notifier,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            '${state.staffRoster.length} Faculty & Staff Members Listed',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
           ),
-        ),
-      ],
+          Row(
+            children: [
+              OutlinedButton(
+                onPressed: () => notifier.resetDrafts(),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
+                  side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('Cancel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton.icon(
+                onPressed: state.isSaving ? null : () => notifier.saveStaffAttendance(),
+                icon: state.isSaving
+                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.check_circle_rounded, size: 15),
+                label: Text(state.isSaving ? 'Saving...' : 'Save Staff Attendance', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4F46E5),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                  elevation: 0,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

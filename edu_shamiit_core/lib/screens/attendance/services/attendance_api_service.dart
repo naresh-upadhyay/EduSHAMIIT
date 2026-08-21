@@ -286,6 +286,19 @@ class AttendanceApiService {
     }
   }
 
+  /// Export attendance as CSV
+  Future<String> exportCsv({
+    required String date,
+    String? classId,
+    String? sectionId,
+  }) async {
+    final query = <String, String>{'attendance_date': date};
+    if (classId != null && classId.isNotEmpty) query['class_id'] = classId;
+    if (sectionId != null && sectionId.isNotEmpty) query['section_id'] = sectionId;
+    final res = await _api.get('/attendance/export', query: query, useCache: false);
+    return res['csv_data']?.toString() ?? res['data']?.toString() ?? '';
+  }
+
   /// Get current user's reporting manager status & direct reports count
   Future<Map<String, dynamic>> getManagerStatus() async {
     try {
