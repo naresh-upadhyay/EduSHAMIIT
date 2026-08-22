@@ -78,6 +78,9 @@ class AttendanceApiService {
     String mode = 'ALL_DAY',
     int? periodNumber,
     String? subjectId,
+    String? scheduleId,
+    List<String>? selectedScheduleIds,
+    List<Map<String, dynamic>>? selectedPeriods,
     required List<Map<String, dynamic>> records,
     bool allowOverride = false,
   }) async {
@@ -88,6 +91,11 @@ class AttendanceApiService {
       'mode': mode,
       'period_number': periodNumber,
       'subject_id': subjectId,
+      'schedule_id': scheduleId,
+      if (selectedScheduleIds != null && selectedScheduleIds.isNotEmpty)
+        'selected_schedule_ids': selectedScheduleIds,
+      if (selectedPeriods != null && selectedPeriods.isNotEmpty)
+        'selected_periods': selectedPeriods,
       'records': records,
       'allow_override': allowOverride,
     };

@@ -89,9 +89,12 @@ class SaveAttendanceRequest(BaseModel):
     attendance_date: str = Field(..., description="YYYY-MM-DD")
     class_id: uuid.UUID
     section_id: Optional[uuid.UUID] = Field(None)
-    mode: str = Field("ALL_DAY", description="ALL_DAY, PERIOD, MULTI_SCHEDULE")
+    mode: str = Field("ALL_DAY", description="ALL_DAY, PERIOD, MULTI_SCHEDULE, CUSTOM_SELECTION")
     period_number: Optional[int] = Field(None)
     subject_id: Optional[uuid.UUID] = Field(None)
+    schedule_id: Optional[uuid.UUID] = Field(None)
+    selected_schedule_ids: List[str] = Field(default_factory=list)
+    selected_periods: List[Dict[str, Any]] = Field(default_factory=list)
     records: List[AttendanceItemPayload] = Field(default_factory=list)
     allow_override: Optional[bool] = Field(False)
 
@@ -209,11 +212,13 @@ async def get_attendance_stats(
 ):
     """Retrieve dynamic summary cards and day summary for attendance."""
     _require_permission(current_user, "attendance.view")
-    scoped_teacher = _resolve_teacher_id_scope(current_user, str(teacher_id) if teacher_id else None)
+    scoped_teacher = _resolve_teacher_id_scope(current_user, str(teacher_id) if teacher_id and isinstance(teacher_id, (str, uuid.UUID)) else None)
+    c_id = str(class_id) if class_id and isinstance(class_id, (str, uuid.UUID)) else None
+    s_id = str(section_id) if section_id and isinstance(section_id, (str, uuid.UUID)) else None
 
     rows = await exec_sql(
         "SELECT public.fn_get_attendance_dashboard_stats(%s::UUID, %s::DATE, %s::UUID, %s::UUID, %s::UUID) AS result;",
-        (school_id, attendance_date, str(class_id) if class_id else None, str(section_id) if section_id else None, scoped_teacher)
+        (school_id, attendance_date, c_id, s_id, scoped_teacher)
     )
     if not rows or not rows[0].get("result"):
         return {"success": True, "data": {"overall_attendance_pct": 0, "total_students": 0, "students_present": 0, "students_absent": 0, "late_entries": 0, "on_leave": 0}}
@@ -242,18 +247,23 @@ async def get_daily_attendance_roster(
 ):
     """Retrieve paginated student roster with leave detection, lock status, and last updated info."""
     _require_permission(current_user, "attendance.view")
-    scoped_teacher = _resolve_teacher_id_scope(current_user, str(teacher_id) if teacher_id else None)
+    scoped_teacher = _resolve_teacher_id_scope(current_user, str(teacher_id) if teacher_id and isinstance(teacher_id, (str, uuid.UUID)) else None)
+
+    search_val = search.strip() if isinstance(search, str) else ""
+    status_val = status_filter if isinstance(status_filter, str) else "ALL"
+    page_val = int(page) if isinstance(page, int) else 1
+    page_size_val = int(page_size) if isinstance(page_size, int) else 10
 
     rows = await exec_sql(
         "SELECT public.fn_get_daily_attendance_roster(%s::UUID, %s::DATE, %s::UUID, %s::UUID, %s, %s, %s::UUID, %s, %s, %s, %s, %s::UUID) AS result;",
         (
             school_id, attendance_date, str(class_id), str(section_id) if section_id else None,
             mode, period_number, str(subject_id) if subject_id else None,
-            search.strip(), status_filter, page, page_size, scoped_teacher
+            search_val, status_val, page_val, page_size_val, scoped_teacher
         )
     )
     if not rows or not rows[0].get("result"):
-        return {"success": True, "data": {"students": [], "total_count": 0, "page": page, "page_size": page_size, "total_pages": 0, "is_locked_all_day": False}}
+        return {"success": True, "data": {"students": [], "total_count": 0, "page": page_val, "page_size": page_size_val, "total_pages": 0, "is_locked_all_day": False}}
     return _serialize_val(rows[0]["result"])
 
 
@@ -315,79 +325,17 @@ async def get_class_schedules_today(
     current_user: dict = Depends(get_current_user),
     school_id: str = Depends(require_school_id)
 ):
-    """Fetch today's scheduled academic periods from class subjects / timetable."""
+    """Fetch today's scheduled academic periods from Academic Calendar with class-section-subject offerings."""
     _require_permission(current_user, "attendance.view")
 
-    query = """
-        SELECT 
-            csa.subject_id,
-            sub.name as subject_name,
-            sub.code as subject_code,
-            sub.color as subject_color,
-            COALESCE(csa.periods_per_week, sub.periods_per_week, 5) as periods_per_week,
-            ROW_NUMBER() OVER (ORDER BY sub.name ASC) as period_number,
-            p.full_name as teacher_name,
-            p.avatar_url as teacher_avatar,
-            EXISTS (
-                SELECT 1 FROM public.attendance_period_records apr
-                WHERE apr.school_id = %s::UUID
-                  AND apr.class_id = %s::UUID
-                  AND (apr.section_id = %s::UUID OR apr.section_id IS NULL)
-                  AND apr.attendance_date = %s::DATE
-                  AND apr.subject_id = csa.subject_id
-                  AND apr.is_locked = TRUE
-            ) as is_locked,
-            EXISTS (
-                SELECT 1 FROM public.attendance_period_records apr
-                WHERE apr.school_id = %s::UUID
-                  AND apr.class_id = %s::UUID
-                  AND (apr.section_id = %s::UUID OR apr.section_id IS NULL)
-                  AND apr.attendance_date = %s::DATE
-                  AND apr.subject_id = csa.subject_id
-            ) as is_completed
-        FROM public.class_subject_assignments csa
-        JOIN public.academic_subjects sub ON sub.id = csa.subject_id
-        LEFT JOIN public.class_teacher_assignments cta ON cta.class_id = csa.class_id AND (cta.section_id = csa.section_id OR cta.section_id IS NULL)
-        LEFT JOIN public.profiles p ON p.id = cta.teacher_id
-        WHERE csa.school_id = %s::UUID
-          AND csa.class_id = %s::UUID
-          AND (csa.section_id = %s::UUID OR %s::UUID IS NULL OR csa.section_id IS NULL)
-        ORDER BY period_number ASC;
-    """
     sec_str = str(section_id) if section_id else None
     rows = await exec_sql(
-        query,
-        (
-            school_id, str(class_id), sec_str, attendance_date,
-            school_id, str(class_id), sec_str, attendance_date,
-            school_id, str(class_id), sec_str, sec_str
-        )
+        "SELECT public.fn_get_class_academic_periods_for_date(%s::UUID, %s::DATE, %s::UUID, %s::UUID) AS result;",
+        (school_id, attendance_date, str(class_id), sec_str)
     )
-    schedules = []
-    for idx, r in enumerate(rows):
-        start_hour = 8 + (idx * 50 // 60)
-        start_min = (idx * 50) % 60
-        end_min = (start_min + 45) % 60
-        end_hour = start_hour + ((start_min + 45) // 60)
-        time_str = f"{start_hour:02d}:{start_min:02d} - {end_hour:02d}:{end_min:02d}"
-
-        schedules.append({
-            "id": f"p-{r.get('period_number')}",
-            "period_number": r.get("period_number"),
-            "period_label": f"P{r.get('period_number')}",
-            "time_range": time_str,
-            "subject_id": str(r.get("subject_id")),
-            "subject_name": r.get("subject_name"),
-            "subject_code": r.get("subject_code"),
-            "subject_color": r.get("subject_color") or "#4F46E5",
-            "teacher_name": r.get("teacher_name") or "Subject Teacher",
-            "teacher_avatar": r.get("teacher_avatar"),
-            "is_locked": bool(r.get("is_locked")),
-            "is_completed": bool(r.get("is_completed")),
-            "status": "LOCKED" if r.get("is_locked") else ("COMPLETED" if r.get("is_completed") else "NOT_STARTED")
-        })
-
-    return {"success": True, "data": {"schedules": schedules, "count": len(schedules)}}
+    if not rows or not rows[0].get("result"):
+        return {"success": True, "data": {"schedules": [], "count": 0, "source": "empty"}}
+    return _serialize_val(rows[0]["result"])
 
 
 @router.get("/student-detail/{student_id}")

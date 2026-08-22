@@ -76,12 +76,26 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
         final rawComms = data['comments'] as List<dynamic>? ?? [];
         final freshComms = rawComms.map((c) => ScheduleCommentModel.fromJson(Map<String, dynamic>.from(c))).toList();
 
+        final uniqueParts = <ScheduleParticipantModel>[];
+        final seenUserIds = <String>{};
+        for (final p in freshParts) {
+          final uid = p.userId;
+          if (uid != null && uid.isNotEmpty) {
+            if (!seenUserIds.contains(uid)) {
+              seenUserIds.add(uid);
+              uniqueParts.add(p);
+            }
+          } else {
+            uniqueParts.add(p);
+          }
+        }
+
         final tripStatus = (data['trip_status'] ?? data['live_trip_status'])?.toString();
         final tripId = data['trip_id']?.toString();
 
         if (mounted) {
           setState(() {
-            _participants = freshParts;
+            _participants = uniqueParts;
             if (freshComms.isNotEmpty || _comments.isEmpty) {
               _comments = freshComms;
             }
@@ -1008,24 +1022,24 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
 
     // Build display name
     String displayName;
-    final isGroupType = p.userId == null || p.userId!.isEmpty || p.participantType == "role" || p.participantType == "class" || p.participantType == "class_section";
+    final isGroupType = p.userId == null || p.userId!.isEmpty;
     if (isGroupType) {
       final targetRoleStr = (p.targetRole ?? p.role ?? '').trim();
       final targetClassStr = (p.targetClass ?? '').trim();
       String groupName = '';
 
-      if (p.fullName != null && p.fullName!.isNotEmpty && p.fullName != 'User') {
+      if (p.fullName != null && p.fullName!.isNotEmpty && p.fullName != 'User' && p.fullName != 'Participant') {
         groupName = p.fullName!;
       } else if (targetRoleStr.isNotEmpty) {
         final cap = '${targetRoleStr[0].toUpperCase()}${targetRoleStr.substring(1)}';
         groupName = 'All ${cap.endsWith('s') ? cap : '${cap}s'}';
       } else if (targetClassStr.isNotEmpty) {
-        groupName = targetClassStr.startsWith('Class') ? targetClassStr : 'Class $targetClassStr';
+        groupName = (p.targetSection != null && p.targetSection!.isNotEmpty) ? '$targetClassStr - ${p.targetSection}' : targetClassStr;
       } else {
         groupName = 'Audience Group';
       }
 
-      displayName = groupName.contains('(') ? groupName : '$groupName (Group)';
+      displayName = (groupName.contains('(') || groupName.contains('•') || groupName.contains(' - ')) ? groupName : '$groupName (Group)';
     } else {
       displayName = (p.fullName != null && p.fullName!.isNotEmpty && p.fullName != 'User') ? p.fullName! : 'Participant';
     }

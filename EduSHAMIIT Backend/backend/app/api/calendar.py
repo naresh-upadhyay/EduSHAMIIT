@@ -204,6 +204,10 @@ class ParticipantAssignmentSchema(BaseModel):
     target_department: Optional[str] = None
     target_class: Optional[str] = None
     target_section: Optional[str] = None
+    class_id: Optional[str] = None
+    section_id: Optional[str] = None
+    target_subject_id: Optional[str] = None
+    target_subject: Optional[str] = None
     participant_type: Optional[str] = "individual" # individual, role, department, class_section, institution
     participation_role: Optional[str] = "required" # required, optional, fyi
     permission: Optional[str] = "can_view" # can_view, can_edit, can_invite, can_manage
@@ -242,6 +246,10 @@ class ScheduleCreateRequest(BaseModel):
     is_recurring: Optional[bool] = False
     recurrence: Optional[RecurrenceRuleSchema] = None
     participants: Optional[List[ParticipantAssignmentSchema]] = []
+    target_roles: Optional[List[str]] = []
+    target_classes: Optional[List[str]] = []
+    target_class_sections: Optional[List[Dict[str, Any]]] = []
+    target_user_ids: Optional[List[str]] = []
     resources: Optional[List[ResourceBookingSchema]] = []
     reminders: Optional[List[ReminderSchema]] = []
     route_id: Optional[str] = None
@@ -277,6 +285,10 @@ class ScheduleUpdateRequest(BaseModel):
     recurrence: Optional[RecurrenceRuleSchema] = None
     recurrence_scope: Optional[str] = "entire_series" # this_event, following_events, entire_series
     participants: Optional[List[ParticipantAssignmentSchema]] = None
+    target_roles: Optional[List[str]] = None
+    target_classes: Optional[List[str]] = None
+    target_class_sections: Optional[List[Dict[str, Any]]] = None
+    target_user_ids: Optional[List[str]] = None
     resources: Optional[List[ResourceBookingSchema]] = None
     reminders: Optional[List[ReminderSchema]] = None
     metadata: Optional[Dict[str, Any]] = None
@@ -1091,72 +1103,115 @@ async def delete_calendar(calendar_id: str, user=Depends(get_current_user)):
 @router.get("/calendar/assignable-roles")
 @router.get("/assignable-roles")
 async def get_assignable_roles(user=Depends(get_current_user)):
-    """Fetch distinct system roles from public.app_roles and public.profiles for schedule assignment."""
+    """
+    Fetch only ACTIVE system roles directly from public.app_roles table with exact display names and codes.
+    Excludes inactive roles (e.g. STUDENT_SELF).
+    """
+    school_id = user.get("school_id")
     try:
-        roles_sql = """
-            SELECT DISTINCT name, description FROM (
-                SELECT name, COALESCE(description, name) AS description 
-                FROM public.app_roles 
-                WHERE (status = 'Active' OR status IS NULL) AND name IS NOT NULL AND name != ''
-                UNION
-                SELECT role AS name, role AS description 
-                FROM public.profiles 
-                WHERE role IS NOT NULL AND role != ''
-                  AND role NOT IN (SELECT name FROM public.app_roles WHERE status = 'Inactive')
-            ) combined_roles
-            ORDER BY name
+        rows = await exec_sql(
+            "SELECT public.fn_get_schedule_assignable_roles(%s::uuid) as res;",
+            (school_id,)
+        )
+        if rows and rows[0].get("res") and rows[0]["res"].get("success"):
+            return rows[0]["res"]
+
+        # Direct SQL Fallback
+        sql = """
+            SELECT id, name, code,
+                   COALESCE(NULLIF(display_name, ''), initcap(replace(name, '_', ' '))) AS display_name,
+                   description, role_type, status
+            FROM public.app_roles
+            WHERE (school_id = %s OR school_id IS NULL)
+              AND (UPPER(COALESCE(status, 'ACTIVE')) = 'ACTIVE')
+            ORDER BY display_order ASC, name ASC;
         """
-        rows = await exec_sql(roles_sql)
-        roles_set = {r["name"].lower(): r for r in rows if r.get("name")}
-        
-        default_roles = ["teacher", "driver", "student", "parent", "admin", "staff", "hr", "finance", "transport", "principal", "director", "support"]
-        for dr in default_roles:
-            if dr.lower() not in roles_set:
-                rows.append({"name": dr, "description": f"Standard {dr} role"})
-
-        formatted_roles = []
-        seen = set()
-        for r in rows:
-            r_name = str(r.get("name") or "").strip()
-            if r_name and r_name.lower() not in seen:
-                seen.add(r_name.lower())
-                formatted_roles.append({
-                    "name": r_name,
-                    "description": r.get("description") or r_name
-                })
-
-        return {"success": True, "data": sorted(formatted_roles, key=lambda x: x["name"].lower())}
+        db_roles = await exec_sql(sql, (school_id,))
+        return {"success": True, "data": _serialize_datetime(db_roles)}
     except Exception as e:
         logger.error(f"[Assignable Roles Error]: {e}")
-        fallback = ["teacher", "driver", "student", "parent", "admin", "staff", "hr", "finance", "transport", "principal", "director", "support"]
-        return {"success": True, "data": [{"name": r, "description": f"Standard {r} role"} for r in fallback]}
+        sql = "SELECT name, code, display_name, description FROM public.app_roles WHERE UPPER(COALESCE(status, 'ACTIVE')) = 'ACTIVE';"
+        db_roles = await exec_sql(sql)
+        return {"success": True, "data": _serialize_datetime(db_roles)}
 
 
 @router.get("/calendar/assignable-classes")
 @router.get("/assignable-classes")
+@router.get("/calendar/assignable-class-sections")
+@router.get("/assignable-class-sections")
 async def get_assignable_classes(user=Depends(get_current_user)):
-    """Fetch distinct academic classes directly from public.profiles(class column) table dynamically."""
+    """
+    Fetch active Class-Section combinations directly from Sections Tab of Class Management
+    along with their assigned subjects and teachers.
+    """
+    school_id = user.get("school_id")
     try:
-        classes_sql = """
-            SELECT DISTINCT "class" AS class_name 
-            FROM public.profiles 
-            WHERE "class" IS NOT NULL AND "class" != ''
-            ORDER BY class_name
+        rows = await exec_sql(
+            "SELECT public.fn_get_schedule_assignable_class_sections(%s::uuid) as res;",
+            (school_id,)
+        )
+        if rows and rows[0].get("res") and rows[0]["res"].get("success"):
+            return rows[0]["res"]
+
+        # Direct SQL Fallback joining academic_sections, academic_classes, and class_subject_assignments
+        sql = """
+            SELECT 
+                c.id AS class_id,
+                c.name AS class_name,
+                c.code AS class_code,
+                s.id AS section_id,
+                s.name AS section_name,
+                s.code AS section_code,
+                (c.name || ' - ' || s.name) AS display_name,
+                s.room_number,
+                s.capacity,
+                (
+                    SELECT p.full_name
+                    FROM public.class_teacher_assignments cta
+                    JOIN public.profiles p ON p.id = cta.teacher_id
+                    WHERE cta.section_id = s.id
+                    LIMIT 1
+                ) AS class_teacher_name,
+                (
+                    SELECT COUNT(DISTINCT sca.student_id)
+                    FROM public.student_class_assignments sca
+                    WHERE sca.section_id = s.id
+                      AND (sca.status = 'ACTIVE' OR sca.status IS NULL)
+                ) AS student_count,
+                COALESCE((
+                    SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'id', sub.id,
+                            'name', sub.name,
+                            'code', sub.code,
+                            'color', sub.color,
+                            'teacher_id', sst.teacher_id,
+                            'teacher_name', tp.full_name
+                        ) ORDER BY sub.name ASC
+                    )
+                    FROM public.class_subject_assignments csa
+                    JOIN public.academic_subjects sub ON sub.id = csa.subject_id
+                    LEFT JOIN public.section_subject_teachers sst ON sst.section_id = s.id AND sst.subject_id = sub.id
+                    LEFT JOIN public.profiles tp ON tp.id = sst.teacher_id
+                    WHERE (csa.section_id = s.id OR (csa.class_id = c.id AND csa.section_id IS NULL))
+                      AND sub.deleted_at IS NULL
+                      AND (UPPER(COALESCE(sub.status, 'ACTIVE')) = 'ACTIVE')
+                      AND (UPPER(COALESCE(csa.status, 'ACTIVE')) = 'ACTIVE')
+                ), '[]'::jsonb) AS subjects
+            FROM public.academic_sections s
+            JOIN public.academic_classes c ON c.id = s.class_id
+            WHERE (s.school_id = %s OR s.school_id IS NULL)
+              AND s.deleted_at IS NULL
+              AND c.deleted_at IS NULL
+              AND (UPPER(COALESCE(s.status, 'ACTIVE')) = 'ACTIVE')
+              AND (UPPER(COALESCE(c.status, 'ACTIVE')) = 'ACTIVE')
+            ORDER BY c.display_order ASC, c.name ASC, s.name ASC;
         """
-        rows = await exec_sql(classes_sql)
-        found_classes = [str(r["class_name"]).strip() for r in rows if r.get("class_name")]
-
-        default_classes = ["10A", "IX-A", "X-A", "X-B", "Class 1-A", "Class 2-A", "Class 9-A", "Grade 11-Sci", "Grade 12-Sci"]
-        for dc in default_classes:
-            if dc not in found_classes:
-                found_classes.append(dc)
-
-        formatted_classes = [{"name": c} for c in sorted(list(set(found_classes)))]
-        return {"success": True, "data": formatted_classes}
+        class_sections = await exec_sql(sql, (school_id,))
+        return {"success": True, "data": _serialize_datetime(class_sections)}
     except Exception as e:
         logger.error(f"[Assignable Classes Error]: {e}")
-        fallback = ["10A", "IX-A", "X-A", "X-B", "Class 9-A", "Grade 11-Sci", "Grade 12-Sci"]
-        return {"success": True, "data": [{"name": c} for c in fallback]}
+        return {"success": True, "data": []}
 
 
 @router.get("/calendar/transport-routes")

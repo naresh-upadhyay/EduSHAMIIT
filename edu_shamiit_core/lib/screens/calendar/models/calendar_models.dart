@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 
 /// Supported Calendar View Modes
@@ -178,6 +177,9 @@ class ScheduleModel {
   final String? driverName;
   final String? tripId;
   final String? tripStatus;
+  final List<String> targetRoles;
+  final List<String> targetClasses;
+  final List<Map<String, dynamic>> targetClassSections;
 
   final DateTime? startTimeUtc;
   final DateTime? endTimeUtc;
@@ -231,6 +233,9 @@ class ScheduleModel {
     this.driverName,
     this.tripId,
     this.tripStatus,
+    this.targetRoles = const [],
+    this.targetClasses = const [],
+    this.targetClassSections = const [],
   });
 
   factory ScheduleModel.fromJson(Map<String, dynamic> json) {
@@ -356,6 +361,9 @@ class ScheduleModel {
       driverName: json['driver_name']?.toString(),
       tripId: json['trip_id']?.toString(),
       tripStatus: json['trip_status']?.toString(),
+      targetRoles: (json['target_roles'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      targetClasses: (json['target_classes'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      targetClassSections: (json['target_class_sections'] as List?)?.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList() ?? const [],
     );
   }
 
@@ -373,6 +381,8 @@ class ScheduleModel {
     String? approvalStatus,
     DateTime? startTime,
     DateTime? endTime,
+    DateTime? startTimeUtc,
+    DateTime? endTimeUtc,
     bool? isAllDay,
     String? timezone,
     String? locationName,
@@ -396,6 +406,7 @@ class ScheduleModel {
     List<ScheduleResourceBookingModel>? resources,
     List<ScheduleReminderModel>? reminders,
     List<ScheduleCommentModel>? comments,
+    String? cancellationReason,
     String? routeId,
     String? routeName,
     String? routeCode,
@@ -405,6 +416,9 @@ class ScheduleModel {
     String? driverName,
     String? tripId,
     String? tripStatus,
+    List<String>? targetRoles,
+    List<String>? targetClasses,
+    List<Map<String, dynamic>>? targetClassSections,
   }) {
     return ScheduleModel(
       id: id ?? this.id,
@@ -420,6 +434,8 @@ class ScheduleModel {
       approvalStatus: approvalStatus ?? this.approvalStatus,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
+      startTimeUtc: startTimeUtc ?? this.startTimeUtc,
+      endTimeUtc: endTimeUtc ?? this.endTimeUtc,
       isAllDay: isAllDay ?? this.isAllDay,
       timezone: timezone ?? this.timezone,
       locationName: locationName ?? this.locationName,
@@ -443,7 +459,7 @@ class ScheduleModel {
       resources: resources ?? this.resources,
       reminders: reminders ?? this.reminders,
       comments: comments ?? this.comments,
-      cancellationReason: cancellationReason,
+      cancellationReason: cancellationReason ?? this.cancellationReason,
       routeId: routeId ?? this.routeId,
       routeName: routeName ?? this.routeName,
       routeCode: routeCode ?? this.routeCode,
@@ -453,12 +469,16 @@ class ScheduleModel {
       driverName: driverName ?? this.driverName,
       tripId: tripId ?? this.tripId,
       tripStatus: tripStatus ?? this.tripStatus,
+      targetRoles: targetRoles ?? this.targetRoles,
+      targetClasses: targetClasses ?? this.targetClasses,
+      targetClassSections: targetClassSections ?? this.targetClassSections,
     );
   }
 }
 
 /// Recurrence Rule Model
 class RecurrenceRuleModel {
+  final String id;
   final String frequency; // daily, weekly, monthly, yearly, custom
   final int interval;
   final List<String> daysOfWeek;
@@ -467,8 +487,10 @@ class RecurrenceRuleModel {
   final String endType; // never, after_count, until_date
   final int? endCount;
   final DateTime? endDate;
+  final List<String> exceptions;
 
   RecurrenceRuleModel({
+    required this.id,
     required this.frequency,
     this.interval = 1,
     this.daysOfWeek = const [],
@@ -477,33 +499,36 @@ class RecurrenceRuleModel {
     this.endType = 'never',
     this.endCount,
     this.endDate,
+    this.exceptions = const [],
   });
 
   factory RecurrenceRuleModel.fromJson(Map<String, dynamic> json) {
+    DateTime? parsedEnd;
+    if (json['end_date'] != null) {
+      parsedEnd = DateTime.tryParse(json['end_date'].toString());
+    }
+
     List<String> days = [];
     if (json['days_of_week'] is List) {
       days = (json['days_of_week'] as List).map((e) => e.toString()).toList();
-    } else if (json['days_of_week'] is String) {
-      try {
-        final parsed = jsonDecode(json['days_of_week']);
-        if (parsed is List) days = parsed.map((e) => e.toString()).toList();
-      } catch (_) {}
     }
 
-    DateTime? endDt;
-    if (json['end_date'] != null || json['rec_end_date'] != null) {
-      endDt = DateTime.tryParse((json['end_date'] ?? json['rec_end_date']).toString());
+    List<String> exc = [];
+    if (json['exceptions'] is List) {
+      exc = (json['exceptions'] as List).map((e) => e.toString()).toList();
     }
 
     return RecurrenceRuleModel(
-      frequency: json['frequency']?.toString() ?? 'daily',
+      id: json['id']?.toString() ?? '',
+      frequency: json['frequency']?.toString() ?? 'none',
       interval: (json['interval'] as num?)?.toInt() ?? 1,
       daysOfWeek: days,
       dayOfMonth: (json['day_of_month'] as num?)?.toInt(),
       monthOfYear: (json['month_of_year'] as num?)?.toInt(),
       endType: json['end_type']?.toString() ?? 'never',
       endCount: (json['end_count'] as num?)?.toInt(),
-      endDate: endDt,
+      endDate: parsedEnd,
+      exceptions: exc,
     );
   }
 }
@@ -516,6 +541,11 @@ class ScheduleParticipantModel {
   final String? role;
   final String? targetRole;
   final String? targetClass;
+  final String? targetSection;
+  final String? classId;
+  final String? sectionId;
+  final String? targetSubjectId;
+  final String? targetSubject;
   final String? email;
   final String? avatarUrl;
   final String participantType; // individual, role, department, class_section
@@ -531,6 +561,11 @@ class ScheduleParticipantModel {
     this.role,
     this.targetRole,
     this.targetClass,
+    this.targetSection,
+    this.classId,
+    this.sectionId,
+    this.targetSubjectId,
+    this.targetSubject,
     this.email,
     this.avatarUrl,
     this.participantType = 'individual',
@@ -548,6 +583,11 @@ class ScheduleParticipantModel {
       role: json['role']?.toString(),
       targetRole: json['target_role']?.toString(),
       targetClass: json['target_class']?.toString(),
+      targetSection: json['target_section']?.toString(),
+      classId: json['class_id']?.toString(),
+      sectionId: json['section_id']?.toString(),
+      targetSubjectId: json['target_subject_id']?.toString(),
+      targetSubject: json['target_subject']?.toString(),
       email: json['email']?.toString(),
       avatarUrl: json['avatar_url']?.toString(),
       participantType: json['participant_type']?.toString() ?? 'individual',

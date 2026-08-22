@@ -55,8 +55,13 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 _buildTopFilterBar(state, notifier, isDark, theme),
                 const SizedBox(height: 16),
 
-                // 2. Mode Notification Banner (All Day Mode Selected)
-                if (state.selectedMode == AttendanceMode.allDay) _buildAllDayLockBanner(state, isDark),
+                // 2. Mode Notification Banner / Period Selector Bar
+                if (state.selectedMode == AttendanceMode.allDay)
+                  _buildAllDayLockBanner(state, isDark)
+                else if (state.selectedMode == AttendanceMode.byPeriod)
+                  _buildSinglePeriodSelectionBar(state, notifier, isDark, theme)
+                else if (state.selectedMode == AttendanceMode.customSelection)
+                  _buildMultiPeriodSelectionBar(state, notifier, isDark, theme),
                 const SizedBox(height: 16),
 
                 // 3. Class Header & Stats Summary Row
@@ -561,6 +566,396 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               border: Border.all(color: const Color(0xFFC7D2FE)),
             ),
             child: const Icon(Icons.lock_outline_rounded, size: 14, color: Color(0xFF4F46E5)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================================================
+  // 2A. SINGLE PERIOD SELECTION BAR (For 'By Period' Mode)
+  // ==========================================================================
+  Widget _buildSinglePeriodSelectionBar(
+    AttendanceState state,
+    AttendanceNotifier notifier,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    final schedules = state.schedulesToday;
+
+    if (schedules.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.info_outline_rounded, color: Color(0xFF3B82F6), size: 18),
+            const SizedBox(width: 10),
+            Text(
+              'No Academic Calendar schedule found for this class on selected date.',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.schedule_rounded, size: 16, color: Color(0xFF3B82F6)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Select Academic Period / Subject',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                '${schedules.length} Periods Available Today',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: schedules.map((sched) {
+                final isSelected = sched.periodNumber == state.selectedPeriodNumber;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: InkWell(
+                    onTap: () {
+                      notifier.setPeriod(
+                        sched.periodNumber,
+                        sched.subjectId,
+                        scheduleId: sched.scheduleId ?? sched.id,
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? (isDark ? const Color(0xFF312E81).withValues(alpha: 0.5) : const Color(0xFFEEF2FF))
+                            : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isSelected
+                              ? const Color(0xFF4F46E5)
+                              : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                          width: isSelected ? 1.8 : 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? const Color(0xFF4F46E5)
+                                  : sched.subjectColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              sched.periodLabel,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: isSelected ? Colors.white : sched.subjectColor,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    sched.subjectName,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
+                                      color: isSelected
+                                          ? (isDark ? Colors.white : const Color(0xFF312E81))
+                                          : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                                    ),
+                                  ),
+                                  if (sched.isCompleted) ...[
+                                    const SizedBox(width: 6),
+                                    const Icon(Icons.check_circle_rounded, size: 13, color: Color(0xFF10B981)),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Text(
+                                    sched.timeRange,
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '• ${sched.teacherName}',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          if (isSelected) ...[
+                            const SizedBox(width: 8),
+                            const Icon(Icons.radio_button_checked_rounded, size: 16, color: Color(0xFF4F46E5)),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================================================
+  // 2B. MULTI-PERIOD SELECTION BAR (For 'Custom Selection' Mode)
+  // ==========================================================================
+  Widget _buildMultiPeriodSelectionBar(
+    AttendanceState state,
+    AttendanceNotifier notifier,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    final schedules = state.schedulesToday;
+    final selectedCount = schedules.where((s) => state.selectedScheduleIds.contains(s.id) || (s.scheduleId != null && state.selectedScheduleIds.contains(s.scheduleId))).length;
+    final allSelected = schedules.isNotEmpty && selectedCount == schedules.length;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.tune_rounded, size: 16, color: Color(0xFF8B5CF6)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Custom Selection: Choose Target Periods',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '$selectedCount of ${schedules.length} Selected',
+                      style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFF7C3AED)),
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  TextButton.icon(
+                    onPressed: () => notifier.selectAllSchedules(!allSelected),
+                    icon: Icon(allSelected ? Icons.deselect_rounded : Icons.select_all_rounded, size: 14),
+                    label: Text(allSelected ? 'Deselect All' : 'Select All', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF7C3AED),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (schedules.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'No Academic Calendar schedule found for this class on selected date.',
+                style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+              ),
+            )
+          else
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: schedules.map((sched) {
+                  final isChecked = state.selectedScheduleIds.contains(sched.id) ||
+                      (sched.scheduleId != null && state.selectedScheduleIds.contains(sched.scheduleId));
+
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: InkWell(
+                      onTap: () => notifier.toggleScheduleSelection(sched.id),
+                      borderRadius: BorderRadius.circular(10),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isChecked
+                              ? (isDark ? const Color(0xFF581C87).withValues(alpha: 0.3) : const Color(0xFFFAF5FF))
+                              : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isChecked
+                                ? const Color(0xFF8B5CF6)
+                                : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                            width: isChecked ? 1.6 : 1.0,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Checkbox(
+                              value: isChecked,
+                              onChanged: (_) => notifier.toggleScheduleSelection(sched.id),
+                              activeColor: const Color(0xFF8B5CF6),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            const SizedBox(width: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: sched.subjectColor.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                sched.periodLabel,
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: sched.subjectColor,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  sched.subjectName,
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: isChecked ? FontWeight.w800 : FontWeight.w700,
+                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                                Text(
+                                  '${sched.timeRange} • ${sched.teacherName}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1B4B).withValues(alpha: 0.3) : const Color(0xFFF5F3FF),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF8B5CF6)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    selectedCount > 0
+                        ? 'Attendance saved below will be simultaneously applied across all $selectedCount selected periods.'
+                        : 'Please select at least 1 period above to mark attendance.',
+                    style: const TextStyle(fontSize: 10.5, color: Color(0xFF6D28D9), fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1493,7 +1888,11 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                             dateStr: state.displayDateString,
                             className: className,
                             sectionName: sectionName,
-                            modeName: state.selectedMode.label,
+                            modeName: state.selectedMode == AttendanceMode.allDay
+                                ? 'All Day'
+                                : (state.selectedMode == AttendanceMode.byPeriod
+                                    ? 'Period ${state.selectedPeriodNumber ?? 1}'
+                                    : 'Custom Selection (${state.selectedScheduleIds.length} Periods)'),
                             totalCount: state.roster.length,
                             presentCount: state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.present).length,
                             absentCount: state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.absent).length,
@@ -1506,7 +1905,16 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 icon: state.isSaving
                     ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.lock_outline_rounded, size: 15),
-                label: Text(state.isSaving ? 'Saving...' : 'Save Attendance', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                label: Text(
+                  state.isSaving
+                      ? 'Saving...'
+                      : (state.selectedMode == AttendanceMode.allDay
+                          ? 'Save Attendance (All Day)'
+                          : (state.selectedMode == AttendanceMode.byPeriod
+                              ? 'Save Attendance (P${state.selectedPeriodNumber ?? 1})'
+                              : 'Save Attendance (${state.selectedScheduleIds.length} Periods)')),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4F46E5),
                   foregroundColor: Colors.white,
@@ -1747,17 +2155,33 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFECFDF5),
+                  color: state.selectedMode == AttendanceMode.allDay
+                      ? const Color(0xFFECFDF5)
+                      : (state.selectedMode == AttendanceMode.byPeriod ? const Color(0xFFEFF6FF) : const Color(0xFFF5F3FF)),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.flash_on_rounded, size: 11, color: Color(0xFF15803D)),
-                    SizedBox(width: 3),
+                    Icon(
+                      state.selectedMode == AttendanceMode.allDay
+                          ? Icons.flash_on_rounded
+                          : (state.selectedMode == AttendanceMode.byPeriod ? Icons.schedule_rounded : Icons.tune_rounded),
+                      size: 11,
+                      color: state.selectedMode == AttendanceMode.allDay
+                          ? const Color(0xFF15803D)
+                          : (state.selectedMode == AttendanceMode.byPeriod ? const Color(0xFF2563EB) : const Color(0xFF7C3AED)),
+                    ),
+                    const SizedBox(width: 3),
                     Text(
-                      'All Day Mode',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF15803D)),
+                      state.selectedMode.label,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: state.selectedMode == AttendanceMode.allDay
+                            ? const Color(0xFF15803D)
+                            : (state.selectedMode == AttendanceMode.byPeriod ? const Color(0xFF2563EB) : const Color(0xFF7C3AED)),
+                      ),
                     ),
                   ],
                 ),
@@ -1771,7 +2195,7 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Center(
                 child: Text(
-                  'No timetable schedule for today',
+                  'No Academic Calendar schedule found for today',
                   style: TextStyle(
                     fontSize: 11.5,
                     color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
@@ -1787,56 +2211,99 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, idx) {
                 final p = schedules[idx];
-                return Row(
-                  children: [
-                    Container(
-                      width: 26,
-                      height: 24,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        p.periodLabel,
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF2563EB)),
-                      ),
+                final isCurrentPeriod = state.selectedMode == AttendanceMode.byPeriod && state.selectedPeriodNumber == p.periodNumber;
+
+                return InkWell(
+                  onTap: () {
+                    notifier.setMode(AttendanceMode.byPeriod);
+                    notifier.setPeriod(p.periodNumber, p.subjectId, scheduleId: p.scheduleId ?? p.id);
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isCurrentPeriod
+                          ? (isDark ? const Color(0xFF312E81).withValues(alpha: 0.4) : const Color(0xFFEEF2FF))
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      border: isCurrentPeriod ? Border.all(color: const Color(0xFF4F46E5), width: 1.2) : null,
                     ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: 85,
-                      child: Text(
-                        p.timeRange,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 26,
+                          height: 24,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: isCurrentPeriod
+                                ? const Color(0xFF4F46E5)
+                                : p.subjectColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            p.periodLabel,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: isCurrentPeriod ? Colors.white : p.subjectColor,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        p.subjectName,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: 80,
+                          child: Text(
+                            p.timeRange,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            ),
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                p.subjectName,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                p.teacherName,
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (p.isLocked)
+                          const Icon(Icons.lock_rounded, size: 12, color: Color(0xFF64748B))
+                        else if (p.isCompleted)
+                          const Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF10B981))
+                        else
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF59E0B),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      p.teacherName,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                  ),
                 );
               },
             ),

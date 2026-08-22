@@ -56,6 +56,10 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
 
   List<Map<String, dynamic>> _dbRoles = [];
   List<Map<String, dynamic>> _dbClasses = [];
+  final Set<String> _selectedRoleKeys = {};
+  final Set<String> _selectedClassSectionKeys = {};
+  final Map<String, String?> _selectedClassSectionSubjects = {};
+  final List<Map<String, dynamic>> _manualIndividualUsers = [];
   bool _isLoadingRoles = false;
   bool _isLoadingClasses = false;
 
@@ -70,7 +74,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
             parsedRoles.add(Map<String, dynamic>.from(item));
           } else if (item != null) {
             final str = item.toString().trim();
-            if (str.isNotEmpty) parsedRoles.add({'name': str});
+            if (str.isNotEmpty) parsedRoles.add({'name': str, 'display_name': str});
           }
         }
         if (parsedRoles.isNotEmpty && mounted) {
@@ -86,18 +90,25 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
     if (mounted) {
       setState(() {
         _dbRoles = [
-          {'name': 'teacher'},
-          {'name': 'driver'},
-          {'name': 'student'},
-          {'name': 'parent'},
-          {'name': 'admin'},
-          {'name': 'staff'},
-          {'name': 'hr'},
-          {'name': 'finance'},
-          {'name': 'transport'},
-          {'name': 'principal'},
-          {'name': 'director'},
-          {'name': 'support'}
+          {'name': 'owner', 'display_name': 'Owner'},
+          {'name': 'super_admin', 'display_name': 'Super Admin'},
+          {'name': 'admin', 'display_name': 'Institution Admin'},
+          {'name': 'director', 'display_name': 'Director'},
+          {'name': 'principal', 'display_name': 'Academic Admin'},
+          {'name': 'exam_ctrl', 'display_name': 'Examination Controller'},
+          {'name': 'teacher', 'display_name': 'Teacher'},
+          {'name': 'class_teacher', 'display_name': 'Class Teacher'},
+          {'name': 'subject_teacher', 'display_name': 'Subject Teacher'},
+          {'name': 'student', 'display_name': 'Student'},
+          {'name': 'parent', 'display_name': 'Student (Parent)'},
+          {'name': 'driver', 'display_name': 'Driver'},
+          {'name': 'finance', 'display_name': 'Accountant'},
+          {'name': 'hr', 'display_name': 'HR Manager'},
+          {'name': 'library', 'display_name': 'Librarian'},
+          {'name': 'security', 'display_name': 'Campus Security'},
+          {'name': 'sports', 'display_name': 'Sports Coach'},
+          {'name': 'support', 'display_name': 'Front Office'},
+          {'name': 'transport', 'display_name': 'Transport Manager'}
         ];
         _isLoadingRoles = false;
       });
@@ -113,18 +124,12 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
         for (final item in (res['data'] as List)) {
           if (item is Map) {
             parsedClasses.add(Map<String, dynamic>.from(item));
-          } else if (item != null) {
-            final str = item.toString().trim();
-            if (str.isNotEmpty) parsedClasses.add({'name': str});
           }
         }
         if (parsedClasses.isNotEmpty && mounted) {
           setState(() {
             _dbClasses = parsedClasses;
             _isLoadingClasses = false;
-            if (_isRoleSelected('student')) {
-              _toggleStudentRole(true);
-            }
           });
           return;
         }
@@ -133,153 +138,45 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
 
     if (mounted) {
       setState(() {
-        _dbClasses = [
-          {'name': '10A'},
-          {'name': 'IX-A'},
-          {'name': 'X-A'},
-          {'name': 'X-B'},
-          {'name': 'Class 1-A'},
-          {'name': 'Class 2-A'},
-          {'name': 'Class 9-A'},
-          {'name': 'Grade 11-Sci'},
-          {'name': 'Grade 12-Sci'}
-        ];
+        _dbClasses = [];
         _isLoadingClasses = false;
-        if (_isRoleSelected('student')) {
-          _toggleStudentRole(true);
-        }
       });
+    }
+  }
+
+  String _getClassSectionKey(Map<String, dynamic> c) {
+    final cid = c['class_id']?.toString() ?? '';
+    final sid = c['section_id']?.toString() ?? '';
+    if (cid.isNotEmpty || sid.isNotEmpty) return '${cid}_$sid';
+    return (c['display_name'] ?? c['name'] ?? '').toString();
+  }
+
+  bool _isClassSectionSelected(Map<String, dynamic> c) {
+    return _selectedClassSectionKeys.contains(_getClassSectionKey(c));
+  }
+
+  void _toggleClassSection(Map<String, dynamic> c, bool enable) {
+    final key = _getClassSectionKey(c);
+    if (enable) {
+      _selectedClassSectionKeys.add(key);
+      _selectedClassSectionSubjects.putIfAbsent(key, () => null);
+    } else {
+      _selectedClassSectionKeys.remove(key);
+      _selectedClassSectionSubjects.remove(key);
     }
   }
 
   bool _isRoleSelected(String roleName) {
-    final target = roleName.trim().toLowerCase();
-    final targetPlural = target.endsWith('s') ? target : '${target}s';
-    return _assignedPeople.any((p) {
-      final isRoleBroadcast = p['user_id'] == null;
-      if (!isRoleBroadcast) return false;
-      final r = (p['target_role'] ?? p['role'] ?? '').toString().trim().toLowerCase();
-      final n = (p['name'] ?? '').toString().trim().toLowerCase();
-      return r == target ||
-          r == targetPlural ||
-          n == target ||
-          n == targetPlural ||
-          n == 'all $targetPlural' ||
-          n == 'all $target' ||
-          (target == 'student' && (n.contains('student') || r.contains('student'))) ||
-          (target == 'driver' && (n.contains('driver') || r.contains('driver')));
-    });
+    return _selectedRoleKeys.contains(roleName.trim().toLowerCase());
   }
 
-  void _toggleRoleGroup(String roleName, bool enable) {
-    final target = roleName.trim().toLowerCase();
+  void _toggleRoleGroup(Map<String, dynamic> rObj, bool enable) {
+    final roleName = (rObj['name'] ?? '').toString().trim().toLowerCase();
+    if (roleName.isEmpty) return;
     if (enable) {
-      if (target == 'student') {
-        _toggleStudentRole(true);
-      } else {
-        if (!_isRoleSelected(target)) {
-          final capRole = roleName[0].toUpperCase() + roleName.substring(1);
-          final displayName = 'All ${capRole.endsWith('s') ? capRole : '${capRole}s'}';
-          _assignedPeople.add({
-            'user_id': null,
-            'name': displayName,
-            'role': target,
-            'target_role': target,
-            'participation_role': 'required',
-            'permission': 'can_view',
-          });
-        }
-      }
+      _selectedRoleKeys.add(roleName);
     } else {
-      if (target == 'student') {
-        _toggleStudentRole(false);
-      } else {
-        _assignedPeople.removeWhere((p) {
-          if (p['user_id'] != null) return false;
-          final r = (p['target_role'] ?? p['role'] ?? '').toString().trim().toLowerCase();
-          final n = (p['name'] ?? '').toString().trim().toLowerCase();
-          final targetPlural = target.endsWith('s') ? target : '${target}s';
-          return r == target || r == targetPlural || n == target || n == targetPlural || n == 'all $targetPlural' || n == 'all $target';
-        });
-      }
-    }
-  }
-
-  bool _isClassSelected(String className) {
-    final target = className.trim().toLowerCase();
-    final targetWithoutPrefix = target.replaceFirst(RegExp(r'^(class|grade)\s*', caseSensitive: false), '').trim();
-    return _assignedPeople.any((p) {
-      final isClassBroadcast = p['user_id'] == null;
-      if (!isClassBroadcast) return false;
-      final n = (p['name'] ?? p['target_class'] ?? '').toString().trim().toLowerCase();
-      final tc = (p['target_class'] ?? '').toString().trim().toLowerCase();
-      final nClean = n.replaceFirst(RegExp(r'^(class|grade)\s*', caseSensitive: false), '').trim();
-      final tcClean = tc.replaceFirst(RegExp(r'^(class|grade)\s*', caseSensitive: false), '').trim();
-      return n == target ||
-          tc == target ||
-          n == 'class $target' ||
-          tc == 'class $target' ||
-          (targetWithoutPrefix.isNotEmpty && (nClean == targetWithoutPrefix || tcClean == targetWithoutPrefix));
-    });
-  }
-
-  void _toggleStudentRole(bool enable) {
-    if (enable) {
-      _assignedPeople.removeWhere((p) => (p['role'] ?? '') == 'Class Group' || _dbClasses.any((c) => (c['name'] ?? '').toString().trim().toLowerCase() == (p['name'] ?? '').toString().trim().toLowerCase()));
-      if (!_isRoleSelected('student')) {
-        _assignedPeople.add({
-          'user_id': null,
-          'name': 'All Students',
-          'role': 'student',
-          'target_role': 'student',
-          'participation_role': 'required',
-          'permission': 'can_view',
-        });
-      }
-    } else {
-      _assignedPeople.removeWhere((p) {
-        final r = (p['target_role'] ?? p['role'] ?? '').toString().trim().toLowerCase();
-        final n = (p['name'] ?? '').toString().trim().toLowerCase();
-        return r == 'student' || n.contains('student');
-      });
-    }
-  }
-
-  void _toggleClassGroup(String className, bool enable) {
-    final target = className.trim();
-    final targetWithoutPrefix = target.replaceFirst(RegExp(r'^(class|grade)\s*', caseSensitive: false), '').trim();
-    if (enable) {
-      if (!_isClassSelected(target)) {
-        _assignedPeople.add({
-          'user_id': null,
-          'name': (target.startsWith('Class') || target.startsWith('Grade')) ? target : 'Class $target',
-          'role': 'Class Group',
-          'target_class': target,
-          'participation_role': 'required',
-          'permission': 'can_view',
-        });
-      }
-      final allClassesSelected = _dbClasses.isNotEmpty && _dbClasses.every((c) => _isClassSelected((c['name'] ?? '').toString()));
-      if (allClassesSelected) {
-        _toggleStudentRole(true);
-      }
-    } else {
-      _assignedPeople.removeWhere((p) {
-        final n = (p['name'] ?? '').toString().trim().toLowerCase();
-        final tc = (p['target_class'] ?? '').toString().trim().toLowerCase();
-        final nClean = n.replaceFirst(RegExp(r'^(class|grade)\s*', caseSensitive: false), '').trim();
-        final tcClean = tc.replaceFirst(RegExp(r'^(class|grade)\s*', caseSensitive: false), '').trim();
-        return n == target.toLowerCase() ||
-            tc == target.toLowerCase() ||
-            n == 'class ${target.toLowerCase()}' ||
-            tc == 'class ${target.toLowerCase()}' ||
-            (targetWithoutPrefix.isNotEmpty && (nClean == targetWithoutPrefix || tcClean == targetWithoutPrefix));
-      });
-      _assignedPeople.removeWhere((p) {
-        final r = (p['target_role'] ?? p['role'] ?? '').toString().trim().toLowerCase();
-        final n = (p['name'] ?? '').toString().trim().toLowerCase();
-        return r == 'student' || n.contains('student');
-      });
+      _selectedRoleKeys.remove(roleName);
     }
   }
 
@@ -502,10 +399,15 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
 
     if (init != null) {
       if (init.recurrenceRule != null) {
-        _recurrenceFreq = init.recurrenceRule!.frequency;
+        _recurrenceFreq = init.recurrenceRule!.frequency.toLowerCase().trim();
         _recurrenceInterval = init.recurrenceRule!.interval;
         _recurrenceDays = List.from(init.recurrenceRule!.daysOfWeek);
-        _endType = init.recurrenceRule!.endType;
+        final rawEndType = init.recurrenceRule!.endType.toLowerCase().trim();
+        _endType = (rawEndType == 'after_count' || rawEndType == 'count')
+            ? 'after_count'
+            : (rawEndType == 'until_date' || rawEndType == 'until' || rawEndType == 'on_date')
+                ? 'until_date'
+                : 'never';
         _endCount = init.recurrenceRule!.endCount ?? 10;
         _recurrenceEndDate = init.recurrenceRule!.endDate;
       } else if (init.isRecurring) {
@@ -515,41 +417,58 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
         _endCount = 10;
       } else {
         _recurrenceFreq = 'none';
+        _endType = 'never';
+        _endCount = 10;
       }
-      for (final p in init.participants) {
-        final rawRole = (p.targetRole ?? (p.role != 'Class Group' && p.role != 'group' ? p.role : null) ?? '').trim();
-        final targetRole = (rawRole != 'group' && rawRole != 'Class Group') ? rawRole : '';
-        final targetClass = (p.targetClass ?? '').trim();
-        final isIndividual = p.userId != null && p.userId!.isNotEmpty;
+      _selectedRoleKeys.clear();
+      if (init.targetRoles.isNotEmpty) {
+        _selectedRoleKeys.addAll(init.targetRoles.map((r) => r.toLowerCase().trim()));
+      }
 
-        String pName = '';
-        if (isIndividual) {
-          pName = (p.fullName != null && p.fullName!.isNotEmpty && p.fullName != 'User' && p.fullName != 'Audience Group') ? p.fullName! : 'Individual User';
-        } else {
-          if (p.fullName != null && p.fullName!.isNotEmpty && p.fullName != 'User' && p.fullName != 'Audience Group' && p.fullName != 'User Group') {
-            pName = p.fullName!;
-          } else if (targetRole.isNotEmpty) {
-            final capRole = '${targetRole[0].toUpperCase()}${targetRole.substring(1)}';
-            pName = 'All ${capRole.endsWith('s') ? capRole : '${capRole}s'}';
-          } else if (targetClass.isNotEmpty) {
-            pName = targetClass.startsWith('Class') ? targetClass : 'Class $targetClass';
-          } else {
-            pName = 'User Group';
+      _selectedClassSectionKeys.clear();
+      _selectedClassSectionSubjects.clear();
+      if (init.targetClassSections.isNotEmpty) {
+        for (final tcs in init.targetClassSections) {
+          final cid = tcs['class_id']?.toString() ?? '';
+          final sid = tcs['section_id']?.toString() ?? '';
+          final key = (cid.isNotEmpty || sid.isNotEmpty) ? '${cid}_$sid' : (tcs['display_name'] ?? '').toString();
+          if (key.isNotEmpty) {
+            _selectedClassSectionKeys.add(key);
+            _selectedClassSectionSubjects[key] = tcs['subject_id']?.toString();
           }
         }
+      }
 
-        _assignedPeople.add({
-          'user_id': p.userId,
-          'name': pName,
-          'role': isIndividual
-              ? (p.role ?? targetRole)
-              : (targetRole.isNotEmpty ? targetRole : (targetClass.isNotEmpty ? 'Class Group' : 'group')),
-          'email': p.email,
-          'target_role': targetRole.isNotEmpty ? targetRole : null,
-          'target_class': targetClass.isNotEmpty ? targetClass : null,
-          'participation_role': p.participationRole,
-          'permission': p.permission,
-        });
+      _manualIndividualUsers.clear();
+      for (final p in init.participants) {
+        final isGroup = p.userId == null || p.userId!.isEmpty;
+        if (isGroup) {
+          if (p.targetRole != null && p.targetRole!.isNotEmpty) {
+            _selectedRoleKeys.add(p.targetRole!.toLowerCase().trim());
+          }
+          if (p.classId != null || p.sectionId != null) {
+            final key = '${p.classId ?? ""}_${p.sectionId ?? ""}';
+            if (key != '_') {
+              _selectedClassSectionKeys.add(key);
+              if (p.targetSubjectId != null) {
+                _selectedClassSectionSubjects[key] = p.targetSubjectId;
+              }
+            }
+          }
+        } else {
+          // Only manual individuals who were explicitly added (not auto-resolved class or role participants)
+          final isAutoResolved = p.classId != null || p.sectionId != null || (p.targetRole != null && p.targetRole!.isNotEmpty);
+          if (!isAutoResolved) {
+            _manualIndividualUsers.add({
+              'user_id': p.userId,
+              'name': (p.fullName != null && p.fullName!.isNotEmpty) ? p.fullName! : 'Individual User',
+              'role': p.role ?? 'Member',
+              'email': p.email,
+              'participation_role': p.participationRole,
+              'permission': p.permission,
+            });
+          }
+        }
       }
       for (final r in init.resources) {
         _selectedResourceIds.add(r.resourceId);
@@ -634,22 +553,47 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
 
     final hexColor = '#${(_selectedColor.r * 255).round().toRadixString(16).padLeft(2, '0')}${(_selectedColor.g * 255).round().toRadixString(16).padLeft(2, '0')}${(_selectedColor.b * 255).round().toRadixString(16).padLeft(2, '0')}'.toUpperCase();
 
-    final targetRolesList = <String>[];
-    final targetClassesList = <String>[];
-    final targetUserIdsList = <String>[];
+    final targetRolesList = _selectedRoleKeys.toList();
 
-    for (final p in _assignedPeople) {
-      final uid = p['user_id']?.toString();
-      if (uid != null && uid.isNotEmpty) {
-        targetUserIdsList.add(uid);
-      } else if (p['role'] == 'Class Group' || p['target_class'] != null) {
-        final c = (p['target_class'] ?? p['name'])?.toString();
-        if (c != null && c.isNotEmpty) targetClassesList.add(c);
-      } else {
-        final r = (p['target_role'] ?? p['role'])?.toString();
-        if (r != null && r.isNotEmpty && r != 'group' && r != 'Class Group') targetRolesList.add(r);
+    final targetClassSections = <Map<String, dynamic>>[];
+    for (final key in _selectedClassSectionKeys) {
+      final matches = _dbClasses.where((c) => _getClassSectionKey(c) == key).toList();
+      if (matches.isNotEmpty) {
+        final cObj = matches.first;
+        final subId = _selectedClassSectionSubjects[key];
+        Map<String, dynamic>? selectedSub;
+        if (subId != null && cObj['subjects'] is List) {
+          final subList = (cObj['subjects'] as List).whereType<Map>().toList();
+          final subMatches = subList.where((s) => s['id']?.toString() == subId).toList();
+          if (subMatches.isNotEmpty) selectedSub = Map<String, dynamic>.from(subMatches.first);
+        }
+
+        targetClassSections.add({
+          'class_id': cObj['class_id'],
+          'class_name': cObj['class_name'],
+          'section_id': cObj['section_id'],
+          'section_name': cObj['section_name'],
+          'subject_id': subId,
+          'subject_name': selectedSub?['name'],
+          'display_name': cObj['display_name'] ?? '${cObj['class_name']} - ${cObj['section_name']}',
+        });
       }
     }
+
+    final targetUserIdsList = _manualIndividualUsers
+        .map((u) => (u['user_id'] ?? u['id'])?.toString())
+        .where((id) => id != null && id.isNotEmpty)
+        .cast<String>()
+        .toList();
+
+    final manualParticipants = _manualIndividualUsers.map((u) {
+      return {
+        'user_id': u['user_id'] ?? u['id'],
+        'participant_type': 'individual',
+        'participation_role': u['participation_role'] ?? 'required',
+        'permission': u['permission'] ?? 'can_view',
+      };
+    }).toList();
 
     final payload = <String, dynamic>{
       'calendar_id': _selectedCalendarId,
@@ -672,35 +616,10 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
       'visibility': _selectedVisibility,
       'is_recurring': _recurrenceFreq != 'none',
       'target_roles': targetRolesList,
-      'target_classes': targetClassesList,
+      'target_classes': <String>[],
+      'target_class_sections': targetClassSections,
       'target_user_ids': targetUserIdsList,
-      'participants': _assignedPeople.map((p) {
-        final userId = p['user_id']?.toString();
-        final rawTargetRole = (p['target_role'] ?? (p['role'] != 'Class Group' && p['role'] != 'group' ? p['role'] : null))?.toString();
-        final isClassGroup = (p['role'] == 'Class Group' || p['target_class'] != null);
-        final isRoleGroup = userId == null || userId.isEmpty;
-
-        String participantType = 'individual';
-        if (isClassGroup) {
-          participantType = 'class_section';
-        } else if (isRoleGroup) {
-          participantType = 'role';
-        }
-
-        final targetRole = (isRoleGroup && !isClassGroup && rawTargetRole != null && rawTargetRole.isNotEmpty && rawTargetRole != 'group' && rawTargetRole != 'Class Group')
-            ? rawTargetRole
-            : null;
-        final targetClass = isClassGroup ? (p['target_class'] ?? p['name']) : null;
-
-        return {
-          'user_id': (userId != null && userId.isNotEmpty) ? userId : null,
-          'target_role': targetRole,
-          'target_class': targetClass,
-          'participant_type': participantType,
-          'participation_role': p['participation_role'] ?? 'required',
-          'permission': p['permission'] ?? 'can_view',
-        };
-      }).toList(),
+      'participants': manualParticipants,
       'resources': _selectedResourceIds.map((rid) => {
         'resource_id': rid,
         'start_time': startIso,
@@ -723,7 +642,9 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
         days = [dayNames[_startDate.weekday] ?? 'MO'];
       }
       final endCountVal = _endType == 'after_count' ? _endCount : null;
-      final endDateVal = _endType == 'until_date' ? _recurrenceEndDate?.toIso8601String() : null;
+      final endDateVal = _endType == 'until_date' && _recurrenceEndDate != null
+          ? '${_recurrenceEndDate!.year.toString().padLeft(4, '0')}-${_recurrenceEndDate!.month.toString().padLeft(2, '0')}-${_recurrenceEndDate!.day.toString().padLeft(2, '0')}'
+          : null;
 
       payload['is_recurring'] = true;
       payload['frequency'] = _recurrenceFreq;
@@ -2254,11 +2175,6 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
       return _isRoleSelected(roleName);
     });
 
-    final allClassesSelected = classesList.isNotEmpty && classesList.every((cObj) {
-      final className = (cObj['name'] ?? '').toString();
-      return _isClassSelected(className);
-    });
-
     final filteredUsers = _realUsers.where((u) {
       final query = _searchPeopleController.text.trim().toLowerCase();
       if (query.isEmpty) return true;
@@ -2277,26 +2193,11 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
             setState(() {
               if (_selectedVisibility == 'institution_wide' && allRolesSelected) {
                 _selectedVisibility = 'shared';
-                _assignedPeople.clear();
+                _selectedRoleKeys.clear();
               } else {
                 _selectedVisibility = 'institution_wide';
                 for (final rObj in rolesList) {
-                  final roleName = (rObj['name'] ?? '').toString();
-                  if (roleName.isNotEmpty) {
-                    if (roleName.toLowerCase() == 'student') {
-                      _toggleStudentRole(true);
-                    } else if (!_isRoleSelected(roleName)) {
-                      final capRole = roleName[0].toUpperCase() + roleName.substring(1);
-                      _assignedPeople.add({
-                        'user_id': null,
-                        'name': 'All ${capRole.endsWith('s') ? capRole : '${capRole}s'}',
-                        'role': roleName.toLowerCase(),
-                        'target_role': roleName.toLowerCase(),
-                        'participation_role': 'required',
-                        'permission': 'can_view',
-                      });
-                    }
-                  }
+                  _toggleRoleGroup(rObj, true);
                 }
               }
             });
@@ -2328,26 +2229,11 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                         if (val == true) {
                           _selectedVisibility = 'institution_wide';
                           for (final rObj in rolesList) {
-                            final roleName = (rObj['name'] ?? '').toString();
-                            if (roleName.isNotEmpty) {
-                              if (roleName.toLowerCase() == 'student') {
-                                _toggleStudentRole(true);
-                              } else if (!_isRoleSelected(roleName)) {
-                                final capRole = roleName[0].toUpperCase() + roleName.substring(1);
-                                _assignedPeople.add({
-                                  'user_id': null,
-                                  'name': 'All ${capRole.endsWith('s') ? capRole : '${capRole}s'}',
-                                  'role': roleName.toLowerCase(),
-                                  'target_role': roleName.toLowerCase(),
-                                  'participation_role': 'required',
-                                  'permission': 'can_view',
-                                });
-                              }
-                            }
+                            _toggleRoleGroup(rObj, true);
                           }
                         } else {
                           _selectedVisibility = 'shared';
-                          _assignedPeople.clear();
+                          _selectedRoleKeys.clear();
                         }
                       });
                     },
@@ -2410,6 +2296,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
             itemBuilder: (ctx, idx) {
               final rObj = rolesList[idx];
               final roleName = (rObj['name'] ?? '').toString();
+              final displayName = (rObj['display_name'] ?? rObj['name'] ?? roleName).toString();
               if (roleName.isEmpty) return const SizedBox();
 
               final isChecked = _isRoleSelected(roleName);
@@ -2417,7 +2304,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
               return InkWell(
                 onTap: () {
                   setState(() {
-                    _toggleRoleGroup(roleName, !isChecked);
+                    _toggleRoleGroup(rObj, !isChecked);
                   });
                 },
                 borderRadius: BorderRadius.circular(5),
@@ -2444,14 +2331,14 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                           visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
                           onChanged: (val) {
                             setState(() {
-                              _toggleRoleGroup(roleName, val == true);
+                              _toggleRoleGroup(rObj, val == true);
                             });
                           },
                         ),
                       ),
                       Expanded(
                         child: Text(
-                          'All ${roleName[0].toUpperCase()}${roleName.substring(1)}s',
+                          'All $displayName',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: isChecked ? FontWeight.w800 : FontWeight.w600,
@@ -2467,106 +2354,221 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
             },
           ),
 
-        // 3. CLASS-BASED PRESETS — hidden when "All Students" is already selected
-        //    (because all classes are covered); shown otherwise so the user can
-        //    pick individual classes. Selecting all classes auto-promotes to
-        //    "All Students" via _toggleClassGroup, which then hides this section.
-        if (!_isRoleSelected('student') || _assignedPeople.any((p) => (p['role'] ?? '').toString().toLowerCase() == 'class group')) ...[
-          SizedBox(height: isMob ? 6 : 10),
+        // 3. CLASS-SECTION PRESETS
+        SizedBox(height: isMob ? 6 : 10),
+        Row(
+          children: [
+            Text('Filter by Specific Class / Section', style: labelStyle),
+            if (_isLoadingClasses) ...[
+              const SizedBox(width: 6),
+              const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5)),
+            ],
+            const Spacer(),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  final allClassesSelected = classesList.isNotEmpty && classesList.every((c) => _isClassSectionSelected(c));
+                  for (final cObj in classesList) {
+                    _toggleClassSection(cObj, !allClassesSelected);
+                  }
+                });
+              },
+              style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
+              child: Text(
+                (classesList.isNotEmpty && classesList.every((c) => _isClassSectionSelected(c))) ? 'Deselect All' : 'Select All',
+                style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        if (classesList.isEmpty)
+          Text(_isLoadingClasses ? 'Loading classes & sections...' : 'No classes or sections available', style: TextStyle(fontSize: 10, color: Colors.grey.shade500))
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: classesList.length,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: isMob ? 2 : 4,
+              childAspectRatio: isMob ? 3.0 : 4.2,
+              crossAxisSpacing: 4,
+              mainAxisSpacing: 4,
+            ),
+            itemBuilder: (ctx, idx) {
+              final cObj = classesList[idx];
+              final displayName = cObj['display_name'] ?? '${cObj['class_name'] ?? ''} - ${cObj['section_name'] ?? ''}';
+              if (displayName.isEmpty) return const SizedBox();
+
+              final isChecked = _isClassSectionSelected(cObj);
+
+              return InkWell(
+                onTap: () => setState(() => _toggleClassSection(cObj, !isChecked)),
+                borderRadius: BorderRadius.circular(5),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: isChecked
+                        ? (isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5))
+                        : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(
+                      color: isChecked ? const Color(0xFF10B981) : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      width: isChecked ? 1.5 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Transform.scale(
+                        scale: 0.75,
+                        child: Checkbox(
+                          value: isChecked,
+                          activeColor: const Color(0xFF10B981),
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                          onChanged: (val) => setState(() => _toggleClassSection(cObj, val == true)),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          displayName,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: isChecked ? FontWeight.w800 : FontWeight.w600,
+                            color: isChecked ? const Color(0xFF10B981) : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+
+        // 3.5. CLASS-SECTION SUBJECT ALLOCATION (NEW SECTION BELOW FILTER BY CLASS/SECTION)
+        if (_selectedClassSectionKeys.isNotEmpty) ...[
+          SizedBox(height: isMob ? 8 : 12),
           Row(
             children: [
-              Text('Filter by Specific Class / Grade', style: labelStyle),
-              if (_isLoadingClasses) ...[
-                const SizedBox(width: 6),
-                const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5)),
-              ],
-              const Spacer(),
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    if (allClassesSelected) {
-                      for (final cObj in classesList) {
-                        final className = (cObj['name'] ?? '').toString();
-                        _toggleClassGroup(className, false);
-                      }
-                    } else {
-                      for (final cObj in classesList) {
-                        final className = (cObj['name'] ?? '').toString();
-                        _toggleClassGroup(className, true);
-                      }
-                    }
-                  });
-                },
-                style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
-                child: Text(allClassesSelected ? 'Deselect All' : 'Select All', style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5))),
-              ),
+              Icon(Icons.menu_book_rounded, size: isMob ? 14 : 16, color: const Color(0xFF4F46E5)),
+              const SizedBox(width: 6),
+              Text('Class-Section Subject Allocation', style: labelStyle),
             ],
           ),
           const SizedBox(height: 2),
-          if (classesList.isEmpty)
-            Text('No classes loaded from database', style: TextStyle(fontSize: 10, color: Colors.grey.shade500))
-          else
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: classesList.length,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: isMob ? 2 : 4,
-                childAspectRatio: isMob ? 3.2 : 4.5,
-                crossAxisSpacing: 4,
-                mainAxisSpacing: 4,
+          Text(
+            'Select a specific subject to schedule for that subject\'s teacher & students, or "None" for all students & teachers of the class-section.',
+            style: TextStyle(fontSize: (9.5 * ts).roundToDouble(), color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+          ),
+          const SizedBox(height: 6),
+          ..._dbClasses.where((c) => _isClassSectionSelected(c)).map((cObj) {
+            final key = _getClassSectionKey(cObj);
+            final displayName = cObj['display_name'] ?? '${cObj['class_name']} - ${cObj['section_name']}';
+            final subjects = (cObj['subjects'] as List? ?? []).whereType<Map>().map((s) => Map<String, dynamic>.from(s)).toList();
+            final currentSubjectId = _selectedClassSectionSubjects[key];
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: currentSubjectId != null ? const Color(0xFF4F46E5) : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                  width: currentSubjectId != null ? 1.2 : 1,
+                ),
               ),
-              itemBuilder: (ctx, idx) {
-                final cObj = classesList[idx];
-                final className = (cObj['name'] ?? '').toString();
-                if (className.isEmpty) return const SizedBox();
-
-                final isChecked = _isClassSelected(className);
-
-                return InkWell(
-                  onTap: () => setState(() => _toggleClassGroup(className, !isChecked)),
-                  borderRadius: BorderRadius.circular(5),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: isChecked
-                          ? (isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5))
-                          : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
-                      borderRadius: BorderRadius.circular(5),
-                      border: Border.all(
-                        color: isChecked ? const Color(0xFF10B981) : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                        width: isChecked ? 1.5 : 1,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.class_outlined, size: 13, color: Color(0xFF10B981)),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          displayName,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      children: [
-                        Transform.scale(
-                          scale: 0.75,
-                          child: Checkbox(
-                            value: isChecked,
-                            activeColor: const Color(0xFF10B981),
-                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
-                            onChanged: (val) => setState(() => _toggleClassGroup(className, val == true)),
+                      if (subjects.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
                           ),
-                        ),
-                        Expanded(
                           child: Text(
-                            (className.startsWith('Class') || className.startsWith('Grade')) ? className : 'Class $className',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: isChecked ? FontWeight.w800 : FontWeight.w600,
-                              color: isChecked ? const Color(0xFF10B981) : (isDark ? Colors.white : const Color(0xFF0F172A)),
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                            '${subjects.length} Subjects',
+                            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF4F46E5)),
                           ),
                         ),
-                      ],
-                    ),
+                    ],
                   ),
-                );
-              },
-            ),
+                  const SizedBox(height: 4),
+                  DropdownButtonFormField<String?>(
+                    initialValue: currentSubjectId,
+                    isExpanded: true,
+                    isDense: true,
+                    style: itemStyle,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1))),
+                    ),
+                    items: [
+                      DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text(
+                          'None (All Students & Teachers of this Class-Section)',
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white70 : const Color(0xFF334155),
+                          ),
+                        ),
+                      ),
+                      ...subjects.map((sub) {
+                        final sId = sub['id']?.toString();
+                        final sName = sub['name']?.toString() ?? 'Subject';
+                        final sCode = sub['code']?.toString() ?? '';
+                        final tName = sub['teacher_name']?.toString();
+                        return DropdownMenuItem<String?>(
+                          value: sId,
+                          child: Text(
+                            '$sName ($sCode)${tName != null && tName.isNotEmpty ? " • $tName" : ""}',
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                    onChanged: (val) {
+                      setState(() {
+                        _selectedClassSectionSubjects[key] = val;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
 
         SizedBox(height: isMob ? 6 : 10),
@@ -2613,7 +2615,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
               separatorBuilder: (c, i) => const Divider(height: 1),
               itemBuilder: (ctx, idx) {
                 final u = filteredUsers[idx];
-                final isAdded = _assignedPeople.any((p) => p['user_id'] == u['id']);
+                final isAdded = _manualIndividualUsers.any((m) => m['user_id'] == u['id']);
 
                 return ListTile(
                   dense: true,
@@ -2635,14 +2637,17 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
                           icon: const Icon(Icons.person_add_alt_1_rounded, size: 16, color: Color(0xFF4F46E5)),
                           onPressed: () {
                             setState(() {
-                              _assignedPeople.add({
-                                'user_id': u['id'],
-                                'name': u['full_name'] ?? 'User',
-                                'role': u['role'] ?? 'Member',
-                                'email': u['email'],
-                                'participation_role': 'required',
-                                'permission': 'can_view',
-                              });
+                              final uid = u['id']?.toString();
+                              if (uid != null && !_manualIndividualUsers.any((m) => m['user_id'] == uid)) {
+                                _manualIndividualUsers.add({
+                                  'user_id': uid,
+                                  'name': u['full_name'] ?? 'User',
+                                  'role': u['role'] ?? 'Member',
+                                  'email': u['email'],
+                                  'participation_role': 'required',
+                                  'permission': 'can_view',
+                                });
+                              }
                             });
                           },
                         ),
@@ -2654,158 +2659,313 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
         ],
 
         // 5. CURRENT AUDIENCE ROSTER
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Audience Roster (${_assignedPeople.length})', style: labelStyle),
-            if (_assignedPeople.isNotEmpty)
-              TextButton(
-                onPressed: () => setState(() => _assignedPeople.clear()),
-                style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
-                child: const Text('Clear All', style: TextStyle(fontSize: 10, color: Color(0xFFEF4444))),
-              ),
-          ],
-        ),
-        const SizedBox(height: 4),
-
-        if (_assignedPeople.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-            ),
-            child: Center(
-              child: Text(
-                'No participants assigned yet. Check presets above or search members.',
-                style: TextStyle(fontSize: 10.5, color: Colors.grey.shade500),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          )
-        else
-          ..._assignedPeople.map((p) {
-            return Container(
-              margin: const EdgeInsets.only(bottom: 6),
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 20,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          (p['name'] != null && p['name'].toString().isNotEmpty) ? p['name'][0].toUpperCase() : 'P',
-                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              p['name'] ?? 'Participant',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              (p['email'] != null && p['email'].toString().isNotEmpty)
-                                  ? '${p['email']} • ${p['role']}'
-                                  : '${p['role']}',
-                              style: TextStyle(fontSize: 9.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, size: 15, color: Color(0xFFEF4444)),
+        Builder(
+          builder: (ctx) {
+            final totalAudienceCount = _selectedRoleKeys.length + _selectedClassSectionKeys.length + _manualIndividualUsers.length;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Audience Roster ($totalAudienceCount)', style: labelStyle),
+                    if (totalAudienceCount > 0)
+                      TextButton(
                         onPressed: () {
-                          setState(() => _assignedPeople.remove(p));
+                          setState(() {
+                            _selectedRoleKeys.clear();
+                            _selectedClassSectionKeys.clear();
+                            _selectedClassSectionSubjects.clear();
+                            _manualIndividualUsers.clear();
+                            _selectedVisibility = 'shared';
+                          });
                         },
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                        style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
+                        child: const Text('Clear All', style: TextStyle(fontSize: 10, color: Color(0xFFEF4444))),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                        ),
-                        child: DropdownButton<String>(
-                          value: p['participation_role'] ?? 'required',
-                          underline: const SizedBox(),
-                          isDense: true,
-                          iconSize: 14,
-                          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                          items: [
-                            DropdownMenuItem(value: 'required', child: Text('Required', style: TextStyle(fontSize: 10, color: isDark ? Colors.white70 : Colors.black87))),
-                            DropdownMenuItem(value: 'optional', child: Text('Optional', style: TextStyle(fontSize: 10, color: isDark ? Colors.white70 : Colors.black87))),
-                            DropdownMenuItem(value: 'fyi', child: Text('FYI', style: TextStyle(fontSize: 10, color: isDark ? Colors.white70 : Colors.black87))),
-                          ],
-                          onChanged: (val) {
-                            setState(() => p['participation_role'] = val);
-                          },
-                        ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                if (totalAudienceCount == 0)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'No audience assigned yet. Select roles, class-sections, or search specific members above.',
+                        style: TextStyle(fontSize: 10.5, color: Colors.grey.shade500),
+                        textAlign: TextAlign.center,
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                        ),
-                        child: DropdownButton<String>(
-                          value: (p['permission'] == 'read_write' || p['permission'] == 'can_edit' || p['permission'] == 'can_manage') ? 'can_edit' : 'can_view',
-                          underline: const SizedBox(),
-                          isDense: true,
-                          iconSize: 14,
-                          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                          items: [
-                            DropdownMenuItem(
-                              value: 'can_view',
-                              child: Text('Read Only', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF475569))),
+                    ),
+                  )
+                else ...[
+                  // A. Roles in Roster
+                  ..._selectedRoleKeys.map((rKey) {
+                    final rObj = rolesList.firstWhere(
+                      (r) => (r['name'] ?? '').toString().toLowerCase() == rKey,
+                      orElse: () => {'name': rKey, 'display_name': rKey[0].toUpperCase() + rKey.substring(1)},
+                    );
+                    final displayName = (rObj['display_name'] ?? rObj['name'] ?? rKey).toString();
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
                             ),
-                            DropdownMenuItem(
-                              value: 'can_edit',
-                              child: Text('Can Edit', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5))),
+                            child: const Icon(Icons.groups_rounded, size: 13, color: Color(0xFF4F46E5)),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'All $displayName',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                                ),
+                                Text(
+                                  'Role Broadcast • Auto-resolves all active $displayName users',
+                                  style: TextStyle(fontSize: 9.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                                ),
+                              ],
                             ),
-                          ],
-                          onChanged: (val) {
-                            setState(() {
-                              p['permission'] = val == 'can_edit' ? 'can_edit' : 'can_view';
-                            });
-                          },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded, size: 15, color: Color(0xFFEF4444)),
+                            onPressed: () => setState(() => _selectedRoleKeys.remove(rKey)),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+
+                  // B. Class-Sections in Roster
+                  ..._selectedClassSectionKeys.map((csKey) {
+                    final cObj = classesList.firstWhere(
+                      (c) => _getClassSectionKey(c) == csKey,
+                      orElse: () => {'display_name': csKey, 'class_name': csKey, 'section_name': ''},
+                    );
+                    final clsName = (cObj['class_name'] ?? '').toString();
+                    final secName = (cObj['section_name'] ?? '').toString();
+                    final displayName = cObj['display_name'] ?? (secName.isNotEmpty ? '$clsName - $secName' : clsName);
+
+                    final subId = _selectedClassSectionSubjects[csKey];
+                    Map<String, dynamic>? selectedSub;
+                    if (subId != null && cObj['subjects'] is List) {
+                      final subList = (cObj['subjects'] as List).whereType<Map>().toList();
+                      final subMatches = subList.where((s) => s['id']?.toString() == subId).toList();
+                      if (subMatches.isNotEmpty) selectedSub = Map<String, dynamic>.from(subMatches.first);
+                    }
+
+                    final bool hasSub = selectedSub != null;
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: hasSub ? const Color(0xFF4F46E5).withValues(alpha: 0.5) : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                         ),
                       ),
-                    ],
-                  ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: hasSub ? const Color(0xFF4F46E5).withValues(alpha: 0.1) : const Color(0xFF10B981).withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              hasSub ? Icons.menu_book_rounded : Icons.school_rounded,
+                              size: 13,
+                              color: hasSub ? const Color(0xFF4F46E5) : const Color(0xFF10B981),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  hasSub
+                                      ? '$displayName • ${selectedSub['name']} (${selectedSub['code'] ?? ""})'
+                                      : displayName,
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                                ),
+                                Text(
+                                  hasSub
+                                      ? 'Subject Offering • Teacher: ${selectedSub['teacher_name'] ?? "Assigned Subject Teacher"} • Enrolled Students'
+                                      : 'Class-Section Offering • General Schedule (All Students & Section Teachers)',
+                                  style: TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: hasSub ? FontWeight.w600 : FontWeight.normal,
+                                    color: hasSub ? const Color(0xFF4F46E5) : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded, size: 15, color: Color(0xFFEF4444)),
+                            onPressed: () {
+                              setState(() {
+                                _selectedClassSectionKeys.remove(csKey);
+                                _selectedClassSectionSubjects.remove(csKey);
+                              });
+                            },
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+
+                  // C. Manual Individuals in Roster
+                  ..._manualIndividualUsers.map((u) {
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  (u['name'] != null && u['name'].toString().isNotEmpty) ? u['name'][0].toUpperCase() : 'U',
+                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF8B5CF6)),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      u['name'] ?? 'Individual User',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      (u['email'] != null && u['email'].toString().isNotEmpty)
+                                          ? '${u['email']} • ${u['role'] ?? "Member"}'
+                                          : '${u['role'] ?? "Member"}',
+                                      style: TextStyle(fontSize: 9.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline_rounded, size: 15, color: Color(0xFFEF4444)),
+                                onPressed: () => setState(() => _manualIndividualUsers.remove(u)),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                ),
+                                child: DropdownButton<String>(
+                                  value: u['participation_role'] ?? 'required',
+                                  underline: const SizedBox(),
+                                  isDense: true,
+                                  iconSize: 14,
+                                  dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                  items: [
+                                    DropdownMenuItem(value: 'required', child: Text('Required', style: TextStyle(fontSize: 10, color: isDark ? Colors.white70 : Colors.black87))),
+                                    DropdownMenuItem(value: 'optional', child: Text('Optional', style: TextStyle(fontSize: 10, color: isDark ? Colors.white70 : Colors.black87))),
+                                    DropdownMenuItem(value: 'fyi', child: Text('FYI', style: TextStyle(fontSize: 10, color: isDark ? Colors.white70 : Colors.black87))),
+                                  ],
+                                  onChanged: (val) => setState(() => u['participation_role'] = val),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                                ),
+                                child: DropdownButton<String>(
+                                  value: (u['permission'] == 'read_write' || u['permission'] == 'can_edit' || u['permission'] == 'can_manage') ? 'can_edit' : 'can_view',
+                                  underline: const SizedBox(),
+                                  isDense: true,
+                                  iconSize: 14,
+                                  dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                  items: [
+                                    DropdownMenuItem(
+                                      value: 'can_view',
+                                      child: Text('Read Only', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF475569))),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'can_edit',
+                                      child: Text('Can Edit', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5))),
+                                    ),
+                                  ],
+                                  onChanged: (val) {
+                                    setState(() {
+                                      u['permission'] = val == 'can_edit' ? 'can_edit' : 'can_view';
+                                    });
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
                 ],
-              ),
+              ],
             );
-          }),
+          },
+        ),
       ],
     );
   }

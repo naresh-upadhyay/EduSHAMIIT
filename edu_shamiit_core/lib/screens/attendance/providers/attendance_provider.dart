@@ -390,7 +390,33 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
         classId: state.selectedClassId!,
         sectionId: state.selectedSectionId,
       );
-      state = state.copyWith(schedulesToday: schedules);
+
+      int? newPeriodNumber = state.selectedPeriodNumber;
+      String? newSubjectId = state.selectedSubjectId;
+      Set<String> newSelectedSchedIds = Set<String>.from(state.selectedScheduleIds);
+
+      // Auto-select first period if in byPeriod mode and nothing is selected
+      if (state.selectedMode == AttendanceMode.byPeriod && schedules.isNotEmpty) {
+        final hasCurrent = schedules.any((s) => s.periodNumber == state.selectedPeriodNumber);
+        if (!hasCurrent) {
+          newPeriodNumber = schedules.first.periodNumber;
+          newSubjectId = schedules.first.subjectId;
+        }
+      }
+
+      // Auto-select all or valid schedules if in customSelection mode
+      if (state.selectedMode == AttendanceMode.customSelection && schedules.isNotEmpty) {
+        if (newSelectedSchedIds.isEmpty) {
+          newSelectedSchedIds = schedules.map((s) => s.id).toSet();
+        }
+      }
+
+      state = state.copyWith(
+        schedulesToday: schedules,
+        selectedPeriodNumber: newPeriodNumber,
+        selectedSubjectId: newSubjectId,
+        selectedScheduleIds: newSelectedSchedIds,
+      );
     } catch (_) {}
   }
 
@@ -508,18 +534,61 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
   }
 
   void setMode(AttendanceMode mode) {
-    state = state.copyWith(selectedMode: mode, page: 1, clearErrors: true);
-    refreshAllData();
-  }
+    int? newPeriod = state.selectedPeriodNumber;
+    String? newSub = state.selectedSubjectId;
+    Set<String> newScheds = Set<String>.from(state.selectedScheduleIds);
 
-  void setPeriod(int? periodNumber, String? subjectId) {
+    if (mode == AttendanceMode.byPeriod && state.schedulesToday.isNotEmpty) {
+      if (newPeriod == null) {
+        newPeriod = state.schedulesToday.first.periodNumber;
+        newSub = state.schedulesToday.first.subjectId;
+      }
+    } else if (mode == AttendanceMode.customSelection && state.schedulesToday.isNotEmpty) {
+      if (newScheds.isEmpty) {
+        newScheds = state.schedulesToday.map((s) => s.id).toSet();
+      }
+    }
+
     state = state.copyWith(
-      selectedPeriodNumber: periodNumber,
-      selectedSubjectId: subjectId,
+      selectedMode: mode,
+      selectedPeriodNumber: newPeriod,
+      selectedSubjectId: newSub,
+      selectedScheduleIds: newScheds,
       page: 1,
       clearErrors: true,
     );
     refreshAllData();
+  }
+
+  void setPeriod(int? periodNumber, String? subjectId, {String? scheduleId}) {
+    final schedIds = (scheduleId != null && scheduleId.isNotEmpty) ? {scheduleId} : state.selectedScheduleIds;
+    state = state.copyWith(
+      selectedPeriodNumber: periodNumber,
+      selectedSubjectId: subjectId,
+      selectedScheduleIds: schedIds,
+      page: 1,
+      clearErrors: true,
+    );
+    fetchDailyRoster();
+  }
+
+  void toggleScheduleSelection(String scheduleId) {
+    final current = Set<String>.from(state.selectedScheduleIds);
+    if (current.contains(scheduleId)) {
+      current.remove(scheduleId);
+    } else {
+      current.add(scheduleId);
+    }
+    state = state.copyWith(selectedScheduleIds: current);
+  }
+
+  void selectAllSchedules(bool selectAll) {
+    if (selectAll) {
+      final allIds = state.schedulesToday.map((s) => s.id).toSet();
+      state = state.copyWith(selectedScheduleIds: allIds);
+    } else {
+      state = state.copyWith(selectedScheduleIds: {});
+    }
   }
 
   void setSearch(String query) {
@@ -615,6 +684,43 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
         });
       }
 
+      // Build multi-periods payload if in customSelection mode
+      List<Map<String, dynamic>>? selectedPeriodsPayload;
+      if (state.selectedMode == AttendanceMode.customSelection) {
+        selectedPeriodsPayload = [];
+        for (final sched in state.schedulesToday) {
+          if (state.selectedScheduleIds.contains(sched.id) ||
+              (sched.scheduleId != null && state.selectedScheduleIds.contains(sched.scheduleId))) {
+            selectedPeriodsPayload.add({
+              'period_number': sched.periodNumber,
+              'subject_id': sched.subjectId,
+              'schedule_id': sched.scheduleId,
+            });
+          }
+        }
+      }
+
+      // Find scheduleId if in byPeriod mode
+      String? singleScheduleId;
+      if (state.selectedMode == AttendanceMode.byPeriod) {
+        final matching = state.schedulesToday.firstWhere(
+          (s) => s.periodNumber == state.selectedPeriodNumber,
+          orElse: () => state.schedulesToday.isNotEmpty ? state.schedulesToday.first : AttendanceScheduleItemModel(
+            id: '',
+            periodNumber: 1,
+            periodLabel: 'P1',
+            timeRange: '',
+            subjectId: '',
+            subjectName: '',
+            subjectCode: '',
+            subjectColor: const Color(0xFF4F46E5),
+            teacherName: '',
+            status: '',
+          ),
+        );
+        singleScheduleId = matching.scheduleId;
+      }
+
       final res = await _api.saveAttendance(
         date: state.dateString,
         classId: state.selectedClassId!,
@@ -622,6 +728,9 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
         mode: state.selectedMode.apiKey,
         periodNumber: state.selectedPeriodNumber,
         subjectId: state.selectedSubjectId,
+        scheduleId: singleScheduleId,
+        selectedScheduleIds: state.selectedScheduleIds.toList(),
+        selectedPeriods: selectedPeriodsPayload,
         records: records,
         allowOverride: allowOverride,
       );

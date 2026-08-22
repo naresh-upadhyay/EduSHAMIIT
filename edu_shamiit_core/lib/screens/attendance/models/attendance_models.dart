@@ -322,6 +322,8 @@ class AttendanceStudentRowModel {
 /// Today's Timetable Schedule Item Model
 class AttendanceScheduleItemModel {
   final String id;
+  final String? scheduleId;
+  final String? scheduleTitle;
   final int periodNumber;
   final String periodLabel;
   final String timeRange;
@@ -334,9 +336,14 @@ class AttendanceScheduleItemModel {
   final bool isLocked;
   final bool isCompleted;
   final String status;
+  final int presentCount;
+  final int absentCount;
+  final int lateCount;
 
   AttendanceScheduleItemModel({
     required this.id,
+    this.scheduleId,
+    this.scheduleTitle,
     required this.periodNumber,
     required this.periodLabel,
     required this.timeRange,
@@ -349,6 +356,9 @@ class AttendanceScheduleItemModel {
     this.isLocked = false,
     this.isCompleted = false,
     required this.status,
+    this.presentCount = 0,
+    this.absentCount = 0,
+    this.lateCount = 0,
   });
 
   factory AttendanceScheduleItemModel.fromJson(Map<String, dynamic> json) {
@@ -363,6 +373,8 @@ class AttendanceScheduleItemModel {
 
     return AttendanceScheduleItemModel(
       id: json['id']?.toString() ?? '',
+      scheduleId: json['schedule_id']?.toString(),
+      scheduleTitle: json['schedule_title']?.toString(),
       periodNumber: json['period_number'] as int? ?? 1,
       periodLabel: json['period_label']?.toString() ?? 'P1',
       timeRange: json['time_range']?.toString() ?? '08:30 - 09:15',
@@ -375,6 +387,9 @@ class AttendanceScheduleItemModel {
       isLocked: json['is_locked'] == true,
       isCompleted: json['is_completed'] == true,
       status: json['status']?.toString() ?? 'NOT_STARTED',
+      presentCount: json['present_count'] as int? ?? 0,
+      absentCount: json['absent_count'] as int? ?? 0,
+      lateCount: json['late_count'] as int? ?? 0,
     );
   }
 }
