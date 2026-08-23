@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../constants/app_fonts.dart';
-import '../models/attendance_models.dart';
 import '../providers/attendance_provider.dart';
 
 class AttendanceInsightsTab extends ConsumerWidget {

@@ -118,6 +118,28 @@ class AttendanceApiService {
     return await _api.post('/attendance/override', body);
   }
 
+  /// Quick mark or update a single student's attendance for a specific period
+  Future<Map<String, dynamic>> quickMarkStudentPeriod({
+    required String studentId,
+    required String date,
+    required int periodNumber,
+    required String status,
+    String? subjectId,
+    String? scheduleId,
+    String? remarks,
+  }) async {
+    final body = <String, dynamic>{
+      'student_id': studentId,
+      'attendance_date': date,
+      'period_number': periodNumber,
+      'status': status,
+      if (subjectId != null && subjectId.isNotEmpty) 'subject_id': subjectId,
+      if (scheduleId != null && scheduleId.isNotEmpty) 'schedule_id': scheduleId,
+      'remarks': remarks ?? '',
+    };
+    return await _api.post('/attendance/quick-mark-period', body);
+  }
+
   /// Fetch today's timetable schedules for a class and section
   Future<List<AttendanceScheduleItemModel>> getSchedulesToday({
     required String date,

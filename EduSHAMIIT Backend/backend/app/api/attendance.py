@@ -106,6 +106,16 @@ class OverrideAttendanceRequest(BaseModel):
     reason: str = Field(..., min_length=3, description="Mandatory justification for overriding locked record")
 
 
+class QuickMarkPeriodRequest(BaseModel):
+    student_id: uuid.UUID
+    attendance_date: str = Field(..., description="YYYY-MM-DD")
+    period_number: int
+    status: str = Field("PRESENT", description="PRESENT, ABSENT, LATE, ON_LEAVE, HALF_DAY, NOT_MARKED")
+    subject_id: Optional[uuid.UUID] = Field(None)
+    schedule_id: Optional[uuid.UUID] = Field(None)
+    remarks: Optional[str] = Field("")
+
+
 class StaffAttendanceItemPayload(BaseModel):
     employee_id: uuid.UUID
     status: str = Field("PRESENT", description="PRESENT, ABSENT, LATE, HALF_DAY, ON_LEAVE, WORK_FROM_HOME, HOLIDAY")
@@ -249,16 +259,20 @@ async def get_daily_attendance_roster(
     _require_permission(current_user, "attendance.view")
     scoped_teacher = _resolve_teacher_id_scope(current_user, str(teacher_id) if teacher_id and isinstance(teacher_id, (str, uuid.UUID)) else None)
 
+    mode_val = mode if isinstance(mode, str) else "ALL_DAY"
+    period_num_val = int(period_number) if isinstance(period_number, (int, str)) and str(period_number).isdigit() else None
+    subject_id_val = str(subject_id) if subject_id and isinstance(subject_id, (str, uuid.UUID)) else None
+    section_id_val = str(section_id) if section_id and isinstance(section_id, (str, uuid.UUID)) else None
     search_val = search.strip() if isinstance(search, str) else ""
     status_val = status_filter if isinstance(status_filter, str) else "ALL"
-    page_val = int(page) if isinstance(page, int) else 1
-    page_size_val = int(page_size) if isinstance(page_size, int) else 10
+    page_val = int(page) if isinstance(page, (int, str)) and str(page).isdigit() else 1
+    page_size_val = int(page_size) if isinstance(page_size, (int, str)) and str(page_size).isdigit() else 10
 
     rows = await exec_sql(
         "SELECT public.fn_get_daily_attendance_roster(%s::UUID, %s::DATE, %s::UUID, %s::UUID, %s, %s, %s::UUID, %s, %s, %s, %s, %s::UUID) AS result;",
         (
-            school_id, attendance_date, str(class_id), str(section_id) if section_id else None,
-            mode, period_number, str(subject_id) if subject_id else None,
+            school_id, attendance_date, str(class_id), section_id_val,
+            mode_val, period_num_val, subject_id_val,
             search_val, status_val, page_val, page_size_val, scoped_teacher
         )
     )
@@ -310,6 +324,32 @@ async def override_locked_attendance(
     res = rows[0]["result"] if rows else {"success": False, "error": "Override failed"}
     if not res.get("success"):
         raise HTTPException(status_code=res.get("code", 400), detail=res.get("error", "Failed to override attendance"))
+    return _serialize_val(res)
+
+
+@router.post("/quick-mark-period")
+async def quick_mark_student_period(
+    payload: QuickMarkPeriodRequest,
+    current_user: dict = Depends(get_current_user),
+    school_id: str = Depends(require_school_id)
+):
+    """Instantly mark or update a single student's attendance for a specific period."""
+    _require_permission(current_user, "attendance.take")
+    user_id = str(current_user.get("id"))
+
+    rows = await exec_sql(
+        "SELECT public.fn_quick_mark_student_period(%s::UUID, %s::UUID, %s::UUID, %s::DATE, %s, %s, %s::UUID, %s::UUID, %s) AS result;",
+        (
+            school_id, user_id, str(payload.student_id), payload.attendance_date,
+            payload.period_number, payload.status,
+            str(payload.subject_id) if payload.subject_id else None,
+            str(payload.schedule_id) if payload.schedule_id else None,
+            payload.remarks or ""
+        )
+    )
+    res = rows[0]["result"] if rows else {"success": False, "error": "Quick mark failed"}
+    if not res.get("success"):
+        raise HTTPException(status_code=res.get("code", 400), detail=res.get("error", "Failed to update period attendance"))
     return _serialize_val(res)
 
 
@@ -480,17 +520,22 @@ async def get_staff_attendance(
     search: str = Query(""),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
-    manager_id: Optional[uuid.UUID] = Query(None),
+    manager_id: Optional[str] = Query(None, description="Optional manager UUID or 'MY_REPORTS'"),
     current_user: dict = Depends(get_current_user),
     school_id: str = Depends(require_school_id)
 ):
     """Retrieve staff attendance roster with department filtering and manager hierarchy."""
     _require_permission(current_user, "attendance.staff")
     
-    # If user is a manager (not admin/super_admin), strictly enforce their own manager scope
     user_role = str(current_user.get("role", "")).lower()
     user_id = str(current_user.get("id"))
-    scoped_manager = str(manager_id) if (user_role in ("super_admin", "admin") and manager_id) else (None if user_role in ("super_admin", "admin") else user_id)
+    
+    if manager_id and str(manager_id).upper() in ("MY_REPORTS", "ME", "DIRECT_REPORTS"):
+        scoped_manager = user_id
+    elif user_role in ("super_admin", "admin"):
+        scoped_manager = str(manager_id) if (manager_id and str(manager_id).upper() != "ALL") else None
+    else:
+        scoped_manager = user_id
 
     rows = await exec_sql(
         "SELECT public.fn_get_staff_attendance_roster(%s::UUID, %s::DATE, %s, %s, %s, %s, %s, %s, %s::UUID) AS result;",

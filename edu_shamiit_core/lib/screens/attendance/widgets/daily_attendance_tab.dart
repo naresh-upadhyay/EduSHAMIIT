@@ -114,11 +114,19 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
 
         // Student Detail Side Drawer (if student row clicked)
         if (_selectedDrawerStudent != null)
-          StudentAttendanceDrawer(
-            student: _selectedDrawerStudent!,
-            dateStr: state.displayDateString,
-            schedules: state.schedulesToday,
-            onClose: () => setState(() => _selectedDrawerStudent = null),
+          Builder(
+            builder: (context) {
+              final activeStudent = state.roster.firstWhere(
+                (s) => s.studentId == _selectedDrawerStudent!.studentId,
+                orElse: () => _selectedDrawerStudent!,
+              );
+              return StudentAttendanceDrawer(
+                student: activeStudent,
+                dateStr: state.displayDateString,
+                schedules: state.schedulesToday,
+                onClose: () => setState(() => _selectedDrawerStudent = null),
+              );
+            },
           ),
       ],
     );
@@ -1287,7 +1295,7 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                   ),
                   const SizedBox(width: 8),
                   SizedBox(
-                    width: 65,
+                    width: 55,
                     child: Text(
                       'Roll No.',
                       style: TextStyle(
@@ -1298,7 +1306,7 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                     ),
                   ),
                   Expanded(
-                    flex: 4,
+                    flex: 3,
                     child: Text(
                       'Student Name',
                       style: TextStyle(
@@ -1306,6 +1314,23 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                         fontSize: 11.5,
                         color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                       ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 4,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.view_timeline_rounded, size: 14, color: Color(0xFF6366F1)),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Periods Breakdown',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11.5,
+                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   Expanded(
@@ -1380,7 +1405,7 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
 
                       // Roll Number
                       SizedBox(
-                        width: 65,
+                        width: 55,
                         child: Text(
                           rollStr,
                           style: TextStyle(
@@ -1393,7 +1418,7 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
 
                       // Student Photo Avatar + Full Name
                       Expanded(
-                        flex: 4,
+                        flex: 3,
                         child: InkWell(
                           onTap: () {
                             setState(() => _selectedDrawerStudent = student);
@@ -1438,12 +1463,18 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                         ),
                       ),
 
-                      // Interactive Status Pill Dropdown (Present, Absent, Late, On Leave, Half Day)
+                      // Periods Attendance Breakdown (Interactive Period Chips)
+                      Expanded(
+                        flex: 4,
+                        child: _buildStudentPeriodsCell(student, state, notifier, isDark),
+                      ),
+
+                      // View-Only Status Pill (with rich multi-line hover breakdown)
                       Expanded(
                         flex: 3,
                         child: Align(
                           alignment: Alignment.centerLeft,
-                          child: _buildInteractiveStatusPill(student, currentStatus, notifier, isDark),
+                          child: _buildViewOnlyStatusPill(student, currentStatus, isDark),
                         ),
                       ),
 
@@ -1540,75 +1571,322 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
     );
   }
 
-  // Interactive Status Pill matching Image 1 (Present in light green, Absent in light red, Late in light orange)
-  Widget _buildInteractiveStatusPill(
+  // ==========================================================================
+  // PERIOD ATTENDANCE BREAKDOWN CELL (Interactive Period Badges for Student)
+  // ==========================================================================
+  Widget _buildStudentPeriodsCell(
+    AttendanceStudentRowModel student,
+    AttendanceState state,
+    AttendanceNotifier notifier,
+    bool isDark,
+  ) {
+    if (student.periods.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          'No Periods',
+          style: TextStyle(
+            fontSize: 10.5,
+            color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: student.periods.map((period) {
+          final isSelectedInMulti = state.selectedScheduleIds.contains(period.scheduleId) ||
+              (period.subjectId != null && state.selectedScheduleIds.contains(period.subjectId));
+
+          Color statusColor;
+          IconData statusIcon;
+          switch (period.status) {
+            case AttendanceStatus.present:
+              statusColor = const Color(0xFF10B981);
+              statusIcon = Icons.check_circle_rounded;
+              break;
+            case AttendanceStatus.absent:
+              statusColor = const Color(0xFFEF4444);
+              statusIcon = Icons.cancel_rounded;
+              break;
+            case AttendanceStatus.late:
+              statusColor = const Color(0xFFF59E0B);
+              statusIcon = Icons.watch_later_rounded;
+              break;
+            case AttendanceStatus.onLeave:
+              statusColor = const Color(0xFF8B5CF6);
+              statusIcon = Icons.event_busy_rounded;
+              break;
+            case AttendanceStatus.halfDay:
+              statusColor = const Color(0xFF6366F1);
+              statusIcon = Icons.pie_chart_rounded;
+              break;
+            default:
+              statusColor = isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
+              statusIcon = Icons.remove_circle_outline_rounded;
+          }
+
+          final tooltipMsg = '${period.periodLabel}: ${period.subjectName}\n'
+              'Time: ${period.timeRange}\n'
+              'Teacher: ${period.teacherName}\n'
+              'Status: ${period.status.label}${period.updatedByName != null ? ' (by ${period.updatedByName})' : ''}'
+              '${period.remarks.isNotEmpty ? '\nRemarks: ${period.remarks}' : ''}\n'
+              '👉 Click to quick change attendance';
+
+          return Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: Tooltip(
+              message: tooltipMsg,
+              preferBelow: false,
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
+              ),
+              textStyle: const TextStyle(fontSize: 11, color: Colors.white, height: 1.3),
+              child: PopupMenuButton<AttendanceStatus>(
+                tooltip: '',
+                offset: const Offset(0, 28),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                onSelected: (newStatus) {
+                  notifier.quickMarkStudentPeriod(
+                    studentId: student.studentId,
+                    periodNumber: period.periodNumber,
+                    status: newStatus,
+                    subjectId: period.subjectId,
+                    scheduleId: period.scheduleId,
+                  );
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    enabled: false,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${period.periodLabel}: ${period.subjectName}',
+                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                        ),
+                        Text(
+                          '${student.fullName} • ${period.timeRange}',
+                          style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                        ),
+                        const Divider(height: 12),
+                      ],
+                    ),
+                  ),
+                  _buildStatusMenuItem(AttendanceStatus.present, 'Mark Present', Icons.check_circle_rounded, const Color(0xFF10B981)),
+                  _buildStatusMenuItem(AttendanceStatus.absent, 'Mark Absent', Icons.cancel_rounded, const Color(0xFFEF4444)),
+                  _buildStatusMenuItem(AttendanceStatus.late, 'Mark Late', Icons.watch_later_rounded, const Color(0xFFF59E0B)),
+                  _buildStatusMenuItem(AttendanceStatus.onLeave, 'Mark On Leave', Icons.event_busy_rounded, const Color(0xFF8B5CF6)),
+                  _buildStatusMenuItem(AttendanceStatus.halfDay, 'Mark Half Day', Icons.pie_chart_rounded, const Color(0xFF6366F1)),
+                  _buildStatusMenuItem(AttendanceStatus.notMarked, 'Reset (Not Marked)', Icons.remove_circle_outline_rounded, const Color(0xFF94A3B8)),
+                ],
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: period.status != AttendanceStatus.notMarked
+                        ? statusColor.withValues(alpha: isDark ? 0.2 : 0.1)
+                        : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: isSelectedInMulti
+                          ? const Color(0xFF8B5CF6)
+                          : (period.status != AttendanceStatus.notMarked
+                              ? statusColor.withValues(alpha: 0.5)
+                              : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                      width: isSelectedInMulti ? 1.6 : 1.0,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          color: period.subjectColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        period.periodLabel,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        statusIcon,
+                        size: 12,
+                        color: statusColor,
+                      ),
+                      if (period.isLocked) ...[
+                        const SizedBox(width: 2),
+                        Icon(Icons.lock_rounded, size: 9, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // ==========================================================================
+  // VIEW-ONLY STATUS PROGRESS PILL (with Rich Hover Tooltip Breakdown)
+  // ==========================================================================
+  Widget _buildViewOnlyStatusPill(
     AttendanceStudentRowModel student,
     AttendanceStatus status,
-    AttendanceNotifier notifier,
     bool isDark,
   ) {
     Color bg;
     Color text;
     Color border;
     IconData icon;
+    String displayLabel;
 
-    switch (status) {
-      case AttendanceStatus.present:
-        bg = const Color(0xFFECFDF5);
-        text = const Color(0xFF15803D);
-        border = const Color(0xFFBBF7D0);
-        icon = Icons.check_rounded;
-        break;
-      case AttendanceStatus.absent:
-        bg = const Color(0xFFFEF2F2);
-        text = const Color(0xFFB91C1C);
-        border = const Color(0xFFFECACA);
-        icon = Icons.close_rounded;
-        break;
-      case AttendanceStatus.late:
-        bg = const Color(0xFFFFFBEB);
-        text = const Color(0xFFB45309);
-        border = const Color(0xFFFDE68A);
-        icon = Icons.access_time_filled_rounded;
-        break;
-      case AttendanceStatus.onLeave:
-        bg = const Color(0xFFEFF6FF);
-        text = const Color(0xFF1D4ED8);
-        border = const Color(0xFFBFDBFE);
-        icon = Icons.calendar_month_rounded;
-        break;
-      case AttendanceStatus.halfDay:
-        bg = const Color(0xFFFAF5FF);
-        text = const Color(0xFF6B21A8);
-        border = const Color(0xFFE9D5FF);
-        icon = Icons.pie_chart_rounded;
-        break;
-      default:
+    final summary = student.periodsSummary;
+    if (summary != null && summary.totalPeriods > 0) {
+      if (summary.markedPeriods == summary.totalPeriods) {
+        displayLabel = '${summary.markedPeriods}/${summary.totalPeriods} Marked';
+        if (summary.presentCount == summary.totalPeriods) {
+          bg = const Color(0xFFECFDF5);
+          text = const Color(0xFF15803D);
+          border = const Color(0xFFBBF7D0);
+          icon = Icons.check_circle_rounded;
+        } else if (summary.absentCount == summary.totalPeriods) {
+          bg = const Color(0xFFFEF2F2);
+          text = const Color(0xFFB91C1C);
+          border = const Color(0xFFFECACA);
+          icon = Icons.cancel_rounded;
+        } else {
+          bg = const Color(0xFFEEF2FF);
+          text = const Color(0xFF4F46E5);
+          border = const Color(0xFFC7D2FE);
+          icon = Icons.done_all_rounded;
+        }
+      } else if (summary.markedPeriods > 0) {
+        displayLabel = '${summary.markedPeriods}/${summary.totalPeriods} Marked';
+        bg = const Color(0xFFE0F2FE);
+        text = const Color(0xFF0369A1);
+        border = const Color(0xFFBAE6FD);
+        icon = Icons.pie_chart_outline_rounded;
+      } else {
+        displayLabel = 'Not Marked';
         bg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
         text = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
         border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
         icon = Icons.remove_rounded;
+      }
+    } else {
+      switch (status) {
+        case AttendanceStatus.present:
+          bg = const Color(0xFFECFDF5);
+          text = const Color(0xFF15803D);
+          border = const Color(0xFFBBF7D0);
+          icon = Icons.check_rounded;
+          displayLabel = 'Present';
+          break;
+        case AttendanceStatus.absent:
+          bg = const Color(0xFFFEF2F2);
+          text = const Color(0xFFB91C1C);
+          border = const Color(0xFFFECACA);
+          icon = Icons.close_rounded;
+          displayLabel = 'Absent';
+          break;
+        case AttendanceStatus.late:
+          bg = const Color(0xFFFFFBEB);
+          text = const Color(0xFFB45309);
+          border = const Color(0xFFFDE68A);
+          icon = Icons.access_time_filled_rounded;
+          displayLabel = 'Late';
+          break;
+        case AttendanceStatus.onLeave:
+          bg = const Color(0xFFEFF6FF);
+          text = const Color(0xFF1D4ED8);
+          border = const Color(0xFFBFDBFE);
+          icon = Icons.calendar_month_rounded;
+          displayLabel = 'On Leave';
+          break;
+        case AttendanceStatus.halfDay:
+          bg = const Color(0xFFFAF5FF);
+          text = const Color(0xFF6B21A8);
+          border = const Color(0xFFE9D5FF);
+          icon = Icons.pie_chart_rounded;
+          displayLabel = 'Half Day';
+          break;
+        case AttendanceStatus.partialPeriods:
+          bg = const Color(0xFFE0F2FE);
+          text = const Color(0xFF0369A1);
+          border = const Color(0xFFBAE6FD);
+          icon = Icons.pie_chart_outline_rounded;
+          displayLabel = summary != null ? '${summary.markedPeriods}/${summary.totalPeriods} Marked' : 'Partial';
+          break;
+        default:
+          bg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
+          text = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+          border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+          icon = Icons.remove_rounded;
+          displayLabel = 'Not Marked';
+      }
     }
 
-    return PopupMenuButton<AttendanceStatus>(
-      tooltip: 'Change Status for ${student.fullName}',
-      offset: const Offset(0, 32),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      onSelected: (newStatus) {
-        if (student.isLocked) {
-          _showOverrideDialog(student, newStatus, notifier);
-        } else {
-          notifier.updateStudentStatus(student.studentId, newStatus);
-        }
-      },
-      itemBuilder: (context) => [
-        _buildStatusMenuItem(AttendanceStatus.present, 'Present', Icons.check_rounded, const Color(0xFF10B981)),
-        _buildStatusMenuItem(AttendanceStatus.absent, 'Absent', Icons.close_rounded, const Color(0xFFEF4444)),
-        _buildStatusMenuItem(AttendanceStatus.late, 'Late', Icons.access_time_filled_rounded, const Color(0xFFF59E0B)),
-        _buildStatusMenuItem(AttendanceStatus.onLeave, 'On Leave', Icons.calendar_month_rounded, const Color(0xFF3B82F6)),
-        _buildStatusMenuItem(AttendanceStatus.halfDay, 'Half Day', Icons.pie_chart_rounded, const Color(0xFF8B5CF6)),
-        _buildStatusMenuItem(AttendanceStatus.notMarked, 'Not Marked', Icons.remove_rounded, const Color(0xFF9CA3AF)),
-      ],
+    // Build rich, multi-line formatted hover tooltip
+    String tooltipMsg;
+    if (student.periods.isNotEmpty) {
+      final periodLines = student.periods.map((p) {
+        String iconStr = p.status == AttendanceStatus.present
+            ? '✓'
+            : (p.status == AttendanceStatus.absent
+                ? '✗'
+                : (p.status == AttendanceStatus.late
+                    ? '🕒'
+                    : (p.status == AttendanceStatus.onLeave
+                        ? '📋'
+                        : (p.status == AttendanceStatus.halfDay ? '◐' : '-'))));
+        return '• ${p.periodLabel} (${p.subjectName}): ${p.status.label} $iconStr';
+      }).join('\n');
+
+      final summaryLine = summary != null
+          ? 'Summary: ${summary.presentCount} Present, ${summary.absentCount} Absent, ${summary.lateCount} Late, ${summary.onLeaveCount} Leave (${summary.markedPeriods}/${summary.totalPeriods} Periods Marked)'
+          : '${student.periods.length} Periods Scheduled';
+
+      tooltipMsg = '${student.fullName} • Status: $displayLabel${student.isLocked ? " (Locked)" : ""}\n'
+          '─────────────────────────────\n'
+          '$periodLines\n'
+          '─────────────────────────────\n'
+          '$summaryLine\n'
+          '💡 Note: Change attendance from the Periods Breakdown column';
+    } else {
+      tooltipMsg = '${student.fullName} • Status: $displayLabel${student.isLocked ? " (Locked)" : ""}';
+    }
+
+    return Tooltip(
+      message: tooltipMsg,
+      preferBelow: false,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 3))],
+      ),
+      textStyle: const TextStyle(fontSize: 11, color: Colors.white, height: 1.35),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
@@ -1620,14 +1898,14 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              status.label,
+              displayLabel,
               style: TextStyle(
                 color: text,
                 fontWeight: FontWeight.w700,
                 fontSize: 11.5,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Icon(icon, size: 14, color: text),
           ],
         ),

@@ -31,6 +31,11 @@ class AttendanceState {
   final List<StaffAttendanceRowModel> staffRoster;
   final Map<String, AttendanceStatus> draftStaffStatuses;
   final Map<String, String> draftStaffRemarks;
+  final Map<String, String> draftStaffCheckIns;
+  final Map<String, String> draftStaffCheckOuts;
+  final Set<String> selectedStaffIds;
+  final bool staffManagerOnlyFilter;
+  final String? staffSelectedManagerId;
   final String staffDepartmentFilter;
   final String staffRoleFilter;
   final String staffStatusFilter;
@@ -89,6 +94,11 @@ class AttendanceState {
     this.staffRoster = const [],
     this.draftStaffStatuses = const {},
     this.draftStaffRemarks = const {},
+    this.draftStaffCheckIns = const {},
+    this.draftStaffCheckOuts = const {},
+    this.selectedStaffIds = const {},
+    this.staffManagerOnlyFilter = false,
+    this.staffSelectedManagerId,
     this.staffDepartmentFilter = 'ALL',
     this.staffRoleFilter = 'ALL',
     this.staffStatusFilter = 'ALL',
@@ -128,6 +138,7 @@ class AttendanceState {
   }
 
   bool get hasUnsavedChanges => draftStatuses.isNotEmpty || draftRemarks.isNotEmpty;
+  bool get hasUnsavedStaffChanges => draftStaffStatuses.isNotEmpty || draftStaffRemarks.isNotEmpty || draftStaffCheckIns.isNotEmpty || draftStaffCheckOuts.isNotEmpty;
 
   AttendanceState copyWith({
     int? activeTab,
@@ -149,6 +160,12 @@ class AttendanceState {
     List<StaffAttendanceRowModel>? staffRoster,
     Map<String, AttendanceStatus>? draftStaffStatuses,
     Map<String, String>? draftStaffRemarks,
+    Map<String, String>? draftStaffCheckIns,
+    Map<String, String>? draftStaffCheckOuts,
+    Set<String>? selectedStaffIds,
+    bool? staffManagerOnlyFilter,
+    String? staffSelectedManagerId,
+    bool clearStaffManager = false,
     String? staffDepartmentFilter,
     String? staffRoleFilter,
     String? staffStatusFilter,
@@ -203,6 +220,11 @@ class AttendanceState {
       staffRoster: staffRoster ?? this.staffRoster,
       draftStaffStatuses: draftStaffStatuses ?? this.draftStaffStatuses,
       draftStaffRemarks: draftStaffRemarks ?? this.draftStaffRemarks,
+      draftStaffCheckIns: draftStaffCheckIns ?? this.draftStaffCheckIns,
+      draftStaffCheckOuts: draftStaffCheckOuts ?? this.draftStaffCheckOuts,
+      selectedStaffIds: selectedStaffIds ?? this.selectedStaffIds,
+      staffManagerOnlyFilter: staffManagerOnlyFilter ?? this.staffManagerOnlyFilter,
+      staffSelectedManagerId: clearStaffManager ? null : (staffSelectedManagerId ?? this.staffSelectedManagerId),
       staffDepartmentFilter: staffDepartmentFilter ?? this.staffDepartmentFilter,
       staffRoleFilter: staffRoleFilter ?? this.staffRoleFilter,
       staffStatusFilter: staffStatusFilter ?? this.staffStatusFilter,
@@ -423,6 +445,7 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
   /// Fetch staff attendance roster
   Future<void> fetchStaffRoster() async {
     try {
+      final managerId = state.staffManagerOnlyFilter ? 'MY_REPORTS' : state.staffSelectedManagerId;
       final res = await _api.getStaffAttendance(
         date: state.dateString,
         department: state.staffDepartmentFilter,
@@ -431,6 +454,7 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
         search: state.staffSearchQuery,
         page: state.staffPage,
         pageSize: state.staffPageSize,
+        managerId: managerId,
       );
 
       final staff = res['staff'] as List<StaffAttendanceRowModel>;
@@ -442,6 +466,9 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
         staffTotalPages: res['totalPages'] as int,
         draftStaffStatuses: {},
         draftStaffRemarks: {},
+        draftStaffCheckIns: {},
+        draftStaffCheckOuts: {},
+        selectedStaffIds: {},
       );
     } catch (e) {
       state = state.copyWith(errorMessage: 'Failed to load staff roster: $e');
@@ -661,6 +688,39 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
     state = state.copyWith(draftStatuses: {}, draftRemarks: {}, selectedStudentIds: {});
   }
 
+  /// Quick mark a student's attendance for a specific period
+  Future<bool> quickMarkStudentPeriod({
+    required String studentId,
+    required int periodNumber,
+    required AttendanceStatus status,
+    String? subjectId,
+    String? scheduleId,
+    String? remarks,
+  }) async {
+    try {
+      final res = await _api.quickMarkStudentPeriod(
+        studentId: studentId,
+        date: state.dateString,
+        periodNumber: periodNumber,
+        status: status.apiKey,
+        subjectId: subjectId,
+        scheduleId: scheduleId,
+        remarks: remarks,
+      );
+
+      if (res['success'] == true) {
+        await refreshAllData();
+        return true;
+      } else {
+        state = state.copyWith(errorMessage: res['error']?.toString() ?? 'Failed to update period attendance');
+        return false;
+      }
+    } catch (e) {
+      state = state.copyWith(errorMessage: e.toString());
+      return false;
+    }
+  }
+
   // ==========================================================================
   // SAVE & OVERRIDE ACTIONS
   // ==========================================================================
@@ -788,7 +848,7 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
   }
 
   // ==========================================================================
-  // STAFF, LEAVE, BULK & SETTINGS MUTATIONS
+  // STAFF ATTENDANCE MUTATIONS & BULK ACTIONS
   // ==========================================================================
 
   void updateStaffStatus(String employeeId, AttendanceStatus status) {
@@ -803,6 +863,126 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
     state = state.copyWith(draftStaffRemarks: current);
   }
 
+  void updateStaffCheckInTime(String employeeId, String? timeStr) {
+    final current = Map<String, String>.from(state.draftStaffCheckIns);
+    if (timeStr == null || timeStr.isEmpty) {
+      current[employeeId] = '';
+    } else {
+      current[employeeId] = timeStr;
+    }
+    state = state.copyWith(draftStaffCheckIns: current);
+  }
+
+  void updateStaffCheckOutTime(String employeeId, String? timeStr) {
+    final current = Map<String, String>.from(state.draftStaffCheckOuts);
+    if (timeStr == null || timeStr.isEmpty) {
+      current[employeeId] = '';
+    } else {
+      current[employeeId] = timeStr;
+    }
+    state = state.copyWith(draftStaffCheckOuts: current);
+  }
+
+  void toggleStaffSelection(String employeeId) {
+    final s = Set<String>.from(state.selectedStaffIds);
+    if (s.contains(employeeId)) {
+      s.remove(employeeId);
+    } else {
+      s.add(employeeId);
+    }
+    state = state.copyWith(selectedStaffIds: s);
+  }
+
+  void selectAllStaff(bool selectAll) {
+    if (selectAll) {
+      final allIds = state.staffRoster.map((s) => s.employeeId).toSet();
+      state = state.copyWith(selectedStaffIds: allIds);
+    } else {
+      state = state.copyWith(selectedStaffIds: {});
+    }
+  }
+
+  void markAllStaff(AttendanceStatus status) {
+    final drafts = Map<String, AttendanceStatus>.from(state.draftStaffStatuses);
+    for (final staff in state.staffRoster) {
+      drafts[staff.employeeId] = status;
+    }
+    state = state.copyWith(draftStaffStatuses: drafts);
+  }
+
+  void markSelectedStaff(AttendanceStatus status) {
+    if (state.selectedStaffIds.isEmpty) return;
+    final drafts = Map<String, AttendanceStatus>.from(state.draftStaffStatuses);
+    for (final empId in state.selectedStaffIds) {
+      drafts[empId] = status;
+    }
+    state = state.copyWith(draftStaffStatuses: drafts);
+  }
+
+  void bulkSetStaffCheckIn(String timeStr) {
+    if (state.selectedStaffIds.isEmpty) return;
+    final drafts = Map<String, String>.from(state.draftStaffCheckIns);
+    for (final empId in state.selectedStaffIds) {
+      drafts[empId] = timeStr;
+    }
+    state = state.copyWith(draftStaffCheckIns: drafts);
+  }
+
+  void bulkSetStaffCheckOut(String timeStr) {
+    if (state.selectedStaffIds.isEmpty) return;
+    final drafts = Map<String, String>.from(state.draftStaffCheckOuts);
+    for (final empId in state.selectedStaffIds) {
+      drafts[empId] = timeStr;
+    }
+    state = state.copyWith(draftStaffCheckOuts: drafts);
+  }
+
+  void setStaffManagerOnlyFilter(bool managerOnly) {
+    state = state.copyWith(staffManagerOnlyFilter: managerOnly, staffPage: 1);
+    fetchStaffRoster();
+  }
+
+  void setStaffDepartmentFilter(String dept) {
+    state = state.copyWith(staffDepartmentFilter: dept, staffPage: 1);
+    fetchStaffRoster();
+  }
+
+  void setStaffRoleFilter(String role) {
+    state = state.copyWith(staffRoleFilter: role, staffPage: 1);
+    fetchStaffRoster();
+  }
+
+  void setStaffStatusFilter(String status) {
+    state = state.copyWith(staffStatusFilter: status, staffPage: 1);
+    fetchStaffRoster();
+  }
+
+  void setStaffSearch(String query) {
+    state = state.copyWith(staffSearchQuery: query, staffPage: 1);
+    fetchStaffRoster();
+  }
+
+  void setStaffPage(int page) {
+    if (page < 1 || (page > state.staffTotalPages && state.staffTotalPages > 0)) return;
+    state = state.copyWith(staffPage: page);
+    fetchStaffRoster();
+  }
+
+  void setStaffPageSize(int pageSize) {
+    state = state.copyWith(staffPageSize: pageSize, staffPage: 1);
+    fetchStaffRoster();
+  }
+
+  void resetStaffDrafts() {
+    state = state.copyWith(
+      draftStaffStatuses: {},
+      draftStaffRemarks: {},
+      draftStaffCheckIns: {},
+      draftStaffCheckOuts: {},
+      selectedStaffIds: {},
+    );
+  }
+
   Future<bool> saveStaffAttendance() async {
     state = state.copyWith(isSaving: true, clearErrors: true);
     try {
@@ -810,11 +990,14 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
       for (final staff in state.staffRoster) {
         final st = state.draftStaffStatuses[staff.employeeId] ?? staff.status;
         final rem = state.draftStaffRemarks[staff.employeeId] ?? staff.remarks;
+        final inTime = state.draftStaffCheckIns[staff.employeeId] ?? staff.checkInTime;
+        final outTime = state.draftStaffCheckOuts[staff.employeeId] ?? staff.checkOutTime;
+
         records.add({
           'employee_id': staff.employeeId,
           'status': st.apiKey,
-          'check_in_time': staff.checkInTime,
-          'check_out_time': staff.checkOutTime,
+          'check_in_time': inTime,
+          'check_out_time': outTime,
           'is_wfh': staff.isWfh,
           'remarks': rem,
         });
@@ -826,6 +1009,9 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
           successMessage: 'Staff attendance saved successfully',
           draftStaffStatuses: {},
           draftStaffRemarks: {},
+          draftStaffCheckIns: {},
+          draftStaffCheckOuts: {},
+          selectedStaffIds: {},
         );
         await fetchStaffRoster();
         return true;

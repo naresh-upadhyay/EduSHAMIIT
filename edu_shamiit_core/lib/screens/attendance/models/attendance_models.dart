@@ -9,6 +9,7 @@ enum AttendanceStatus {
   halfDay,
   workFromHome,
   holiday,
+  partialPeriods,
   notMarked,
 }
 
@@ -29,6 +30,8 @@ extension AttendanceStatusExtension on AttendanceStatus {
         return 'W';
       case AttendanceStatus.holiday:
         return 'HD';
+      case AttendanceStatus.partialPeriods:
+        return 'PP';
       case AttendanceStatus.notMarked:
         return '-';
     }
@@ -50,6 +53,8 @@ extension AttendanceStatusExtension on AttendanceStatus {
         return 'Work From Home';
       case AttendanceStatus.holiday:
         return 'Holiday';
+      case AttendanceStatus.partialPeriods:
+        return 'Partial';
       case AttendanceStatus.notMarked:
         return 'Not Marked';
     }
@@ -71,6 +76,8 @@ extension AttendanceStatusExtension on AttendanceStatus {
         return 'WORK_FROM_HOME';
       case AttendanceStatus.holiday:
         return 'HOLIDAY';
+      case AttendanceStatus.partialPeriods:
+        return 'PARTIAL_PERIODS';
       case AttendanceStatus.notMarked:
         return 'NOT_MARKED';
     }
@@ -92,6 +99,8 @@ extension AttendanceStatusExtension on AttendanceStatus {
         return const Color(0xFF06B6D4); // Cyan
       case AttendanceStatus.holiday:
         return const Color(0xFF3B82F6); // Blue
+      case AttendanceStatus.partialPeriods:
+        return const Color(0xFF0EA5E9); // Sky Blue
       case AttendanceStatus.notMarked:
         return const Color(0xFF9CA3AF); // Neutral Gray
     }
@@ -134,6 +143,10 @@ extension AttendanceStatusExtension on AttendanceStatus {
       case 'HOLIDAY':
       case 'HD':
         return AttendanceStatus.holiday;
+      case 'PARTIAL_PERIODS':
+      case 'PARTIAL':
+      case 'PP':
+        return AttendanceStatus.partialPeriods;
       default:
         return AttendanceStatus.notMarked;
     }
@@ -238,6 +251,8 @@ class AttendanceStudentRowModel {
   final String? leaveReason;
   final DateTime? lastUpdatedAt;
   final String? updatedByName;
+  final List<StudentPeriodAttendanceModel> periods;
+  final StudentPeriodsSummaryModel? periodsSummary;
 
   AttendanceStudentRowModel({
     required this.id,
@@ -260,9 +275,23 @@ class AttendanceStudentRowModel {
     this.leaveReason,
     this.lastUpdatedAt,
     this.updatedByName,
+    this.periods = const [],
+    this.periodsSummary,
   });
 
   factory AttendanceStudentRowModel.fromJson(Map<String, dynamic> json) {
+    List<StudentPeriodAttendanceModel> parsedPeriods = [];
+    if (json['periods'] is List) {
+      parsedPeriods = (json['periods'] as List)
+          .map((p) => StudentPeriodAttendanceModel.fromJson(p as Map<String, dynamic>))
+          .toList();
+    }
+
+    StudentPeriodsSummaryModel? summary;
+    if (json['periods_summary'] is Map<String, dynamic>) {
+      summary = StudentPeriodsSummaryModel.fromJson(json['periods_summary'] as Map<String, dynamic>);
+    }
+
     return AttendanceStudentRowModel(
       id: json['id']?.toString() ?? '',
       studentId: json['student_id']?.toString() ?? json['id']?.toString() ?? '',
@@ -284,6 +313,8 @@ class AttendanceStudentRowModel {
       leaveReason: json['leave_reason']?.toString(),
       lastUpdatedAt: json['last_updated_at'] != null ? DateTime.tryParse(json['last_updated_at'].toString()) : null,
       updatedByName: json['updated_by_name']?.toString(),
+      periods: parsedPeriods,
+      periodsSummary: summary,
     );
   }
 
@@ -293,6 +324,8 @@ class AttendanceStudentRowModel {
     bool? isLocked,
     bool? isOverridden,
     String? overrideReason,
+    List<StudentPeriodAttendanceModel>? periods,
+    StudentPeriodsSummaryModel? periodsSummary,
   }) {
     return AttendanceStudentRowModel(
       id: id,
@@ -315,6 +348,146 @@ class AttendanceStudentRowModel {
       leaveReason: leaveReason,
       lastUpdatedAt: lastUpdatedAt,
       updatedByName: updatedByName,
+      periods: periods ?? this.periods,
+      periodsSummary: periodsSummary ?? this.periodsSummary,
+    );
+  }
+}
+
+class StudentPeriodAttendanceModel {
+  final int periodNumber;
+  final String periodLabel;
+  final String? subjectId;
+  final String subjectName;
+  final String subjectCode;
+  final Color subjectColor;
+  final String? scheduleId;
+  final String timeRange;
+  final String teacherName;
+  final String? teacherAvatar;
+  final AttendanceStatus status;
+  final String remarks;
+  final bool isLocked;
+  final bool lockedByAllDay;
+  final bool isOverridden;
+  final String? overrideReason;
+  final DateTime? lastUpdatedAt;
+  final String? updatedByName;
+
+  StudentPeriodAttendanceModel({
+    required this.periodNumber,
+    required this.periodLabel,
+    this.subjectId,
+    required this.subjectName,
+    this.subjectCode = '',
+    this.subjectColor = const Color(0xFF4F46E5),
+    this.scheduleId,
+    this.timeRange = '',
+    this.teacherName = '',
+    this.teacherAvatar,
+    required this.status,
+    this.remarks = '',
+    this.isLocked = false,
+    this.lockedByAllDay = false,
+    this.isOverridden = false,
+    this.overrideReason,
+    this.lastUpdatedAt,
+    this.updatedByName,
+  });
+
+  factory StudentPeriodAttendanceModel.fromJson(Map<String, dynamic> json) {
+    Color parsedColor = const Color(0xFF4F46E5);
+    final hex = json['subject_color']?.toString();
+    if (hex != null && hex.isNotEmpty) {
+      try {
+        final clean = hex.replaceAll('#', '');
+        parsedColor = Color(int.parse('FF$clean', radix: 16));
+      } catch (_) {}
+    }
+
+    return StudentPeriodAttendanceModel(
+      periodNumber: int.tryParse(json['period_number']?.toString() ?? '1') ?? 1,
+      periodLabel: json['period_label']?.toString() ?? 'P${json['period_number'] ?? 1}',
+      subjectId: json['subject_id']?.toString(),
+      subjectName: json['subject_name']?.toString() ?? 'Subject',
+      subjectCode: json['subject_code']?.toString() ?? '',
+      subjectColor: parsedColor,
+      scheduleId: json['schedule_id']?.toString(),
+      timeRange: json['time_range']?.toString() ?? '',
+      teacherName: json['teacher_name']?.toString() ?? 'Teacher',
+      teacherAvatar: json['teacher_avatar']?.toString(),
+      status: AttendanceStatusExtension.fromString(json['status']?.toString()),
+      remarks: json['remarks']?.toString() ?? '',
+      isLocked: json['is_locked'] == true,
+      lockedByAllDay: json['locked_by_all_day'] == true,
+      isOverridden: json['is_overridden'] == true,
+      overrideReason: json['override_reason']?.toString(),
+      lastUpdatedAt: json['last_updated_at'] != null ? DateTime.tryParse(json['last_updated_at'].toString()) : null,
+      updatedByName: json['updated_by_name']?.toString(),
+    );
+  }
+
+  StudentPeriodAttendanceModel copyWith({
+    AttendanceStatus? status,
+    String? remarks,
+    bool? isLocked,
+    bool? isOverridden,
+    String? overrideReason,
+  }) {
+    return StudentPeriodAttendanceModel(
+      periodNumber: periodNumber,
+      periodLabel: periodLabel,
+      subjectId: subjectId,
+      subjectName: subjectName,
+      subjectCode: subjectCode,
+      subjectColor: subjectColor,
+      scheduleId: scheduleId,
+      timeRange: timeRange,
+      teacherName: teacherName,
+      teacherAvatar: teacherAvatar,
+      status: status ?? this.status,
+      remarks: remarks ?? this.remarks,
+      isLocked: isLocked ?? this.isLocked,
+      lockedByAllDay: lockedByAllDay,
+      isOverridden: isOverridden ?? this.isOverridden,
+      overrideReason: overrideReason ?? this.overrideReason,
+      lastUpdatedAt: lastUpdatedAt,
+      updatedByName: updatedByName,
+    );
+  }
+}
+
+class StudentPeriodsSummaryModel {
+  final int totalPeriods;
+  final int markedPeriods;
+  final int notMarkedCount;
+  final int presentCount;
+  final int absentCount;
+  final int lateCount;
+  final int onLeaveCount;
+  final int halfDayCount;
+
+  StudentPeriodsSummaryModel({
+    this.totalPeriods = 0,
+    this.markedPeriods = 0,
+    this.notMarkedCount = 0,
+    this.presentCount = 0,
+    this.absentCount = 0,
+    this.lateCount = 0,
+    this.onLeaveCount = 0,
+    this.halfDayCount = 0,
+  });
+
+  factory StudentPeriodsSummaryModel.fromJson(Map<String, dynamic> json) {
+    return StudentPeriodsSummaryModel(
+      totalPeriods: int.tryParse(json['total_periods']?.toString() ?? '0') ?? 0,
+      markedPeriods: int.tryParse(json['marked_periods']?.toString() ?? '0') ?? 0,
+      notMarkedCount: int.tryParse(json['not_marked_count']?.toString() ?? '0') ?? 0,
+      presentCount: int.tryParse(json['present_count']?.toString() ?? '0') ?? 0,
+      absentCount: int.tryParse(json['absent_count']?.toString() ?? '0') ?? 0,
+      lateCount: int.tryParse(json['late_count']?.toString() ?? '0') ?? 0,
+      onLeaveCount: int.tryParse(json['on_leave_count']?.toString() ?? '0') ?? 0,
+      halfDayCount: int.tryParse(json['half_day_count']?.toString() ?? '0') ?? 0,
     );
   }
 }

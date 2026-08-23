@@ -5,7 +5,6 @@ import '../../constants/app_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/role_provider.dart';
 import '../../utils/responsive.dart';
-import 'models/attendance_models.dart';
 import 'providers/attendance_provider.dart';
 import 'widgets/daily_attendance_tab.dart';
 import 'widgets/staff_attendance_tab.dart';
