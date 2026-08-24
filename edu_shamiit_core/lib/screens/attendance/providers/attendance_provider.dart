@@ -1,3 +1,5 @@
+import '../../../utils/download_helper.dart';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -110,6 +112,31 @@ class AttendanceState {
     this.leaveRequests = const [],
     this.leaveStatusFilter = 'ALL',
     this.leaveRoleFilter = 'ALL',
+    LeaveDashboardModel? leaveDashboard,
+    this.publicHolidays = const [],
+    this.leaveTypes = const [],
+    this.activeRoles = const [],
+    this.isActiveRolesLoaded = false,
+    this.leaveBalances = const [],
+    this.employeeLeaveBalances = const [],
+    this.balancesPage = 1,
+    this.balancesPageSize = 10,
+    this.balancesTotalCount = 0,
+    this.balancesTotalPages = 1,
+    this.isLeaveBalancesLoading = false,
+    this.isLeaveBalancesLoaded = false,
+    this.isLeaveTypesLoaded = false,
+    this.isPermissionRequestsLoaded = false,
+    this.permissionRequests = const [],
+    this.leaveSubTab = 'REQUESTS',
+    this.leaveUserTypeFilter = 'ALL',
+    this.leaveDepartmentFilter = 'ALL',
+    this.leaveTypeFilter = 'ALL',
+    this.leaveSearchQuery = '',
+    this.leaveFromDate,
+    this.leaveToDate,
+    this.leavePage = 1,
+    this.leavePageSize = 10,
     this.insights,
     AttendanceSettingsModel? settings,
     this.auditLogs = const [],
@@ -128,7 +155,34 @@ class AttendanceState {
     this.successMessage,
   })  : selectedDate = selectedDate ?? DateTime.now(),
         stats = stats ?? AttendanceStatsModel(),
-        settings = settings ?? AttendanceSettingsModel();
+        settings = settings ?? AttendanceSettingsModel(),
+        leaveDashboard = leaveDashboard ?? LeaveDashboardModel(kpi: LeaveDashboardKpiModel());
+
+  final LeaveDashboardModel leaveDashboard;
+  final List<HolidayItemModel> publicHolidays;
+  final List<LeaveTypeModel> leaveTypes;
+  final List<AppRoleItemModel> activeRoles;
+  final bool isActiveRolesLoaded;
+  final List<LeaveBalanceRowModel> leaveBalances;
+  final List<EmployeeLeaveBalanceModel> employeeLeaveBalances;
+  final int balancesPage;
+  final int balancesPageSize;
+  final int balancesTotalCount;
+  final int balancesTotalPages;
+  final bool isLeaveBalancesLoading;
+  final bool isLeaveBalancesLoaded;
+  final bool isLeaveTypesLoaded;
+  final bool isPermissionRequestsLoaded;
+  final List<PermissionRequestModel> permissionRequests;
+  final String leaveSubTab; // REQUESTS, BALANCES, TYPES, PERMISSIONS, WORKFLOW
+  final String leaveUserTypeFilter;
+  final String leaveDepartmentFilter;
+  final String leaveTypeFilter;
+  final String leaveSearchQuery;
+  final DateTime? leaveFromDate;
+  final DateTime? leaveToDate;
+  final int leavePage;
+  final int leavePageSize;
 
   String get dateString => DateFormat('yyyy-MM-dd').format(selectedDate);
   String get displayDateString => DateFormat('dd MMM yyyy, EEE').format(selectedDate);
@@ -177,6 +231,32 @@ class AttendanceState {
     List<AttendanceLeaveRequestModel>? leaveRequests,
     String? leaveStatusFilter,
     String? leaveRoleFilter,
+    LeaveDashboardModel? leaveDashboard,
+    List<HolidayItemModel>? publicHolidays,
+    List<LeaveTypeModel>? leaveTypes,
+    List<LeaveBalanceRowModel>? leaveBalances,
+    List<EmployeeLeaveBalanceModel>? employeeLeaveBalances,
+    int? balancesPage,
+    int? balancesPageSize,
+    int? balancesTotalCount,
+    int? balancesTotalPages,
+    bool? isLeaveBalancesLoading,
+    bool? isLeaveBalancesLoaded,
+    bool? isLeaveTypesLoaded,
+    List<AppRoleItemModel>? activeRoles,
+    bool? isActiveRolesLoaded,
+    bool? isPermissionRequestsLoaded,
+    List<PermissionRequestModel>? permissionRequests,
+    String? leaveSubTab,
+    String? leaveUserTypeFilter,
+    String? leaveDepartmentFilter,
+    String? leaveTypeFilter,
+    String? leaveSearchQuery,
+    DateTime? leaveFromDate,
+    DateTime? leaveToDate,
+    bool clearLeaveDates = false,
+    int? leavePage,
+    int? leavePageSize,
     AttendanceInsightsModel? insights,
     AttendanceSettingsModel? settings,
     List<AttendanceAuditLogModel>? auditLogs,
@@ -236,6 +316,31 @@ class AttendanceState {
       leaveRequests: leaveRequests ?? this.leaveRequests,
       leaveStatusFilter: leaveStatusFilter ?? this.leaveStatusFilter,
       leaveRoleFilter: leaveRoleFilter ?? this.leaveRoleFilter,
+      leaveDashboard: leaveDashboard ?? this.leaveDashboard,
+      publicHolidays: publicHolidays ?? this.publicHolidays,
+      leaveTypes: leaveTypes ?? this.leaveTypes,
+      activeRoles: activeRoles ?? this.activeRoles,
+      isActiveRolesLoaded: isActiveRolesLoaded ?? this.isActiveRolesLoaded,
+      leaveBalances: leaveBalances ?? this.leaveBalances,
+      employeeLeaveBalances: employeeLeaveBalances ?? this.employeeLeaveBalances,
+      balancesPage: balancesPage ?? this.balancesPage,
+      balancesPageSize: balancesPageSize ?? this.balancesPageSize,
+      balancesTotalCount: balancesTotalCount ?? this.balancesTotalCount,
+      balancesTotalPages: balancesTotalPages ?? this.balancesTotalPages,
+      isLeaveBalancesLoading: isLeaveBalancesLoading ?? this.isLeaveBalancesLoading,
+      isLeaveBalancesLoaded: isLeaveBalancesLoaded ?? this.isLeaveBalancesLoaded,
+      isLeaveTypesLoaded: isLeaveTypesLoaded ?? this.isLeaveTypesLoaded,
+      isPermissionRequestsLoaded: isPermissionRequestsLoaded ?? this.isPermissionRequestsLoaded,
+      permissionRequests: permissionRequests ?? this.permissionRequests,
+      leaveSubTab: leaveSubTab ?? this.leaveSubTab,
+      leaveUserTypeFilter: leaveUserTypeFilter ?? this.leaveUserTypeFilter,
+      leaveDepartmentFilter: leaveDepartmentFilter ?? this.leaveDepartmentFilter,
+      leaveTypeFilter: leaveTypeFilter ?? this.leaveTypeFilter,
+      leaveSearchQuery: leaveSearchQuery ?? this.leaveSearchQuery,
+      leaveFromDate: clearLeaveDates ? null : (leaveFromDate ?? this.leaveFromDate),
+      leaveToDate: clearLeaveDates ? null : (leaveToDate ?? this.leaveToDate),
+      leavePage: leavePage ?? this.leavePage,
+      leavePageSize: leavePageSize ?? this.leavePageSize,
       insights: insights ?? this.insights,
       settings: settings ?? this.settings,
       auditLogs: auditLogs ?? this.auditLogs,
@@ -340,7 +445,18 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
     } else if (state.activeTab == 1) {
       await fetchStaffRoster();
     } else if (state.activeTab == 2) {
-      await fetchLeaveRequests();
+      if (state.leaveSubTab == 'BALANCES') {
+        await Future.wait([
+          fetchLeaveDashboard(),
+          fetchLeaveBalances(force: true),
+          fetchLeaveHolidays(force: true),
+        ]);
+      } else {
+        await Future.wait([
+          fetchLeaveDashboard(),
+          fetchLeaveHolidays(force: true),
+        ]);
+      }
     } else if (state.activeTab == 4) {
       await fetchInsights();
     } else if (state.activeTab == 5) {
@@ -518,7 +634,6 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
   void setTab(int tabIndex) {
     if (state.activeTab == tabIndex) return;
     state = state.copyWith(activeTab: tabIndex, clearErrors: true);
-    refreshAllData();
   }
 
   void setDate(DateTime date) {
@@ -1027,21 +1142,510 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
     }
   }
 
+  // ==========================================================================
+  // LEAVE & PERMISSIONS COMPLETE OPERATIONS
+  // ==========================================================================
+
+  Future<void> fetchLeaveHolidays({bool force = false}) async {
+    if (state.publicHolidays.isNotEmpty && !force) return;
+    try {
+      final holidays = await _api.getLeaveHolidays();
+      state = state.copyWith(publicHolidays: holidays);
+    } catch (_) {}
+  }
+
+  Future<void> fetchLeaveDashboard() async {
+    try {
+      final fromStr = state.leaveFromDate != null ? DateFormat('yyyy-MM-dd').format(state.leaveFromDate!) : null;
+      final toStr = state.leaveToDate != null ? DateFormat('yyyy-MM-dd').format(state.leaveToDate!) : null;
+      final managerId = state.staffManagerOnlyFilter ? 'MY_REPORTS' : null;
+
+      final dash = await _api.getLeaveDashboard(
+        userType: state.leaveUserTypeFilter,
+        department: state.leaveDepartmentFilter,
+        status: state.leaveStatusFilter,
+        leaveType: state.leaveTypeFilter,
+        search: state.leaveSearchQuery,
+        fromDate: fromStr,
+        toDate: toStr,
+        page: state.leavePage,
+        pageSize: state.leavePageSize,
+        managerId: managerId,
+      );
+
+      state = state.copyWith(
+        leaveDashboard: dash,
+        leaveRequests: dash.requests,
+      );
+    } catch (e) {
+      state = state.copyWith(errorMessage: 'Failed to load leave dashboard: $e');
+    }
+  }
+
+  Future<void> fetchLeaveTypes({bool force = false}) async {
+    if (state.isLeaveTypesLoaded && !force && state.leaveTypes.isNotEmpty) {
+      return;
+    }
+    try {
+      final list = await _api.getLeaveTypes();
+      state = state.copyWith(leaveTypes: list, isLeaveTypesLoaded: true);
+    } catch (_) {}
+  }
+
+  Future<void> fetchActiveRoles({bool force = false}) async {
+    if (state.isActiveRolesLoaded && !force && state.activeRoles.isNotEmpty) {
+      return;
+    }
+    try {
+      final roles = await _api.getActiveRoles();
+      state = state.copyWith(activeRoles: roles, isActiveRolesLoaded: true);
+    } catch (_) {}
+  }
+
+  Future<void> fetchLeaveBalances({bool force = false, bool background = false}) async {
+    if (state.isLeaveBalancesLoaded && !force && state.employeeLeaveBalances.isNotEmpty) {
+      return;
+    }
+    if (!background || state.employeeLeaveBalances.isEmpty) {
+      state = state.copyWith(isLeaveBalancesLoading: true);
+    }
+    try {
+      final res = await _api.getLeaveBalances(
+        department: state.leaveDepartmentFilter,
+        role: state.leaveUserTypeFilter,
+        search: state.leaveSearchQuery,
+        page: state.balancesPage,
+        pageSize: state.balancesPageSize,
+      );
+      final emps = res['employees'] as List<EmployeeLeaveBalanceModel>? ?? [];
+      final bals = res['balances'] as List<LeaveBalanceRowModel>? ?? [];
+      state = state.copyWith(
+        employeeLeaveBalances: emps,
+        leaveBalances: bals,
+        balancesPage: res['page'] as int? ?? state.balancesPage,
+        balancesPageSize: res['pageSize'] as int? ?? state.balancesPageSize,
+        balancesTotalCount: res['totalCount'] as int? ?? emps.length,
+        balancesTotalPages: res['totalPages'] as int? ?? 1,
+        isLeaveBalancesLoading: false,
+        isLeaveBalancesLoaded: true,
+      );
+    } catch (_) {
+      state = state.copyWith(isLeaveBalancesLoading: false);
+    }
+  }
+
+  Future<void> fetchPermissionRequests({bool force = false}) async {
+    if (state.isPermissionRequestsLoaded && !force && state.permissionRequests.isNotEmpty) {
+      return;
+    }
+    try {
+      final list = await _api.getPermissionRequests(
+        status: state.leaveStatusFilter,
+        search: state.leaveSearchQuery,
+      );
+      state = state.copyWith(permissionRequests: list, isPermissionRequestsLoaded: true);
+    } catch (_) {}
+  }
+
+  void setLeaveSubTab(String subTab) {
+    state = state.copyWith(leaveSubTab: subTab);
+    if (subTab == 'REQUESTS' && state.leaveRequests.isEmpty) {
+      fetchLeaveDashboard();
+    } else if (subTab == 'BALANCES' && !state.isLeaveBalancesLoaded) {
+      fetchLeaveBalances();
+    } else if (subTab == 'TYPES' && !state.isLeaveTypesLoaded) {
+      fetchLeaveTypes();
+    } else if (subTab == 'PERMISSIONS' && !state.isPermissionRequestsLoaded) {
+      fetchPermissionRequests();
+    }
+  }
+
+  void setLeaveFilters({
+    String? userType,
+    String? department,
+    String? status,
+    String? leaveType,
+    String? search,
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) {
+    state = state.copyWith(
+      leaveUserTypeFilter: userType,
+      leaveDepartmentFilter: department,
+      leaveStatusFilter: status,
+      leaveTypeFilter: leaveType,
+      leaveSearchQuery: search,
+      leaveFromDate: fromDate,
+      leaveToDate: toDate,
+      leavePage: 1,
+      balancesPage: 1,
+      isLeaveBalancesLoaded: false,
+      isLeaveTypesLoaded: false,
+      isPermissionRequestsLoaded: false,
+    );
+    if (state.leaveSubTab == 'BALANCES') {
+      fetchLeaveBalances(force: true);
+    } else if (state.leaveSubTab == 'TYPES') {
+      fetchLeaveTypes(force: true);
+    } else if (state.leaveSubTab == 'PERMISSIONS') {
+      fetchPermissionRequests(force: true);
+    } else {
+      fetchLeaveDashboard();
+    }
+  }
+
+  void resetLeaveFilters() {
+    state = state.copyWith(
+      leaveUserTypeFilter: 'ALL',
+      leaveDepartmentFilter: 'ALL',
+      leaveStatusFilter: 'ALL',
+      leaveTypeFilter: 'ALL',
+      leaveSearchQuery: '',
+      clearLeaveDates: true,
+      leavePage: 1,
+      balancesPage: 1,
+      isLeaveBalancesLoaded: false,
+      isLeaveTypesLoaded: false,
+      isPermissionRequestsLoaded: false,
+    );
+    if (state.leaveSubTab == 'BALANCES') {
+      fetchLeaveBalances(force: true);
+    } else if (state.leaveSubTab == 'TYPES') {
+      fetchLeaveTypes(force: true);
+    } else if (state.leaveSubTab == 'PERMISSIONS') {
+      fetchPermissionRequests(force: true);
+    } else {
+      fetchLeaveDashboard();
+    }
+  }
+
+  void setLeavePage(int page) {
+    if (page < 1) return;
+    state = state.copyWith(leavePage: page);
+    fetchLeaveDashboard();
+  }
+
+  void setLeavePageSize(int pageSize) {
+    state = state.copyWith(leavePageSize: pageSize, leavePage: 1);
+    fetchLeaveDashboard();
+  }
+
+  void setBalancesPage(int page) {
+    if (page < 1) return;
+    state = state.copyWith(balancesPage: page);
+    fetchLeaveBalances(force: true);
+  }
+
+  void setBalancesPageSize(int pageSize) {
+    state = state.copyWith(balancesPageSize: pageSize, balancesPage: 1);
+    fetchLeaveBalances(force: true);
+  }
+
+  /// Upload real leave supporting file (Medical cert, proof document)
+  Future<Map<String, dynamic>> uploadLeaveDocument(List<int> bytes, String filename) async {
+    try {
+      final res = await _api.uploadLeaveDocument(bytes, filename);
+      return res;
+    } catch (e) {
+      return {'success': false, 'detail': e.toString()};
+    }
+  }
+
+  /// Export filtered leave requests to CSV format and trigger download
+  Future<void> exportLeaveRequestsCsv() async {
+    final requests = state.leaveRequests;
+    if (requests.isEmpty) {
+      state = state.copyWith(errorMessage: 'No leave requests to export');
+      return;
+    }
+
+    final buffer = StringBuffer();
+    // UTF-8 BOM for Excel compatibility
+    buffer.write('﻿');
+    // Header
+    buffer.writeln('Request ID,Applicant Name,Employee Code,Department,Role,Leave Type,From Date,To Date,Days,Half Day,Status,Reason,Emergency Contact,Applied On,Approved/Rejected By,Review Remarks');
+
+    for (final req in requests) {
+      final code = req.requestCode.isNotEmpty ? req.requestCode : 'LV-${req.id.length >= 4 ? req.id.substring(0, 4).toUpperCase() : req.id}';
+      final name = '"${req.applicantName.replaceAll('"', '""')}"';
+      final empCode = '"${req.employeeCode.replaceAll('"', '""')}"';
+      final dept = '"${req.department.replaceAll('"', '""')}"';
+      final role = '"${req.applicantRole.replaceAll('"', '""')}"';
+      final type = '"${req.leaveType.replaceAll('"', '""')}"';
+      final from = DateFormat('yyyy-MM-dd').format(req.startDate);
+      final to = DateFormat('yyyy-MM-dd').format(req.endDate);
+      final days = req.daysCount.toStringAsFixed(1);
+      final half = req.halfDayType.replaceAll('_', ' ');
+      final status = req.status.toUpperCase();
+      final reason = '"${req.reason.replaceAll('"', '""')}"';
+      final contact = '"${(req.contactNumber ?? '').replaceAll('"', '""')}"';
+      final applied = DateFormat('yyyy-MM-dd HH:mm').format(req.appliedAt);
+      final approver = '"${(req.approvedByName ?? '').replaceAll('"', '""')}"';
+      final remarks = '"${(req.remarks ?? '').replaceAll('"', '""')}"';
+
+      buffer.writeln('$code,$name,$empCode,$dept,$role,$type,$from,$to,$days,$half,$status,$reason,$contact,$applied,$approver,$remarks');
+    }
+
+    try {
+      final csvContent = buffer.toString();
+      final bytes = utf8.encode(csvContent);
+      final filename = 'leave_requests_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv';
+      
+      final downloadHelper = getDownloadHelper();
+      await downloadHelper.downloadBytes(bytes, filename);
+
+      state = state.copyWith(successMessage: 'Exported ${requests.length} leave records to $filename');
+    } catch (e) {
+      state = state.copyWith(errorMessage: 'Failed to export CSV: $e');
+    }
+  }
+
+  void exportAttendanceCsv() {
+    exportLeaveRequestsCsv();
+  }
+
+  Future<bool> applyLeave({
+    String? applicantId,
+    required String leaveType,
+    required String startDate,
+    required String endDate,
+    required String reason,
+    String halfDayType = 'FULL_DAY',
+    String? contactNumber,
+    String? attachmentUrl,
+    double? billableDays,
+    double? daysCount,
+  }) async {
+    state = state.copyWith(isSaving: true, clearErrors: true);
+    try {
+      final res = await _api.applyLeave(
+        applicantId: applicantId,
+        leaveType: leaveType,
+        startDate: startDate,
+        endDate: endDate,
+        reason: reason,
+        halfDayType: halfDayType,
+        contactNumber: contactNumber,
+        attachmentUrl: attachmentUrl,
+        billableDays: billableDays,
+        daysCount: daysCount,
+      );
+      if (res['success'] == true) {
+        state = state.copyWith(successMessage: 'Leave application submitted successfully');
+        await fetchLeaveDashboard();
+        return true;
+      } else {
+        state = state.copyWith(errorMessage: res['detail'] ?? res['error'] ?? 'Failed to apply leave');
+        return false;
+      }
+    } catch (e) {
+      state = state.copyWith(errorMessage: 'Error applying leave: $e');
+      return false;
+    } finally {
+      state = state.copyWith(isSaving: false);
+    }
+  }
+
   Future<bool> handleLeaveAction(String leaveId, String action, {String? remarks}) async {
     state = state.copyWith(isLoading: true, clearErrors: true);
     try {
       final res = await _api.handleLeaveAction(leaveId: leaveId, action: action, remarks: remarks);
       if (res['success'] == true) {
         state = state.copyWith(successMessage: 'Leave request updated successfully');
-        await fetchLeaveRequests();
+        await fetchLeaveDashboard();
         await fetchDailyRoster();
+        await fetchStaffRoster();
+        return true;
+      } else {
+        state = state.copyWith(errorMessage: res['detail'] ?? res['error'] ?? 'Action failed');
+        return false;
+      }
+    } catch (e) {
+      state = state.copyWith(errorMessage: 'Error updating leave: $e');
+      return false;
+    } finally {
+      state = state.copyWith(isLoading: false);
+    }
+  }
+
+  Future<bool> handleBatchLeaveAction({
+    required List<String> requestIds,
+    required String action,
+    String? remarks,
+    bool selectAll = false,
+  }) async {
+    if (requestIds.isEmpty && !selectAll) return true;
+    state = state.copyWith(isLoading: true, clearErrors: true);
+    try {
+      final res = await _api.handleBatchLeaveAction(
+        requestIds: requestIds,
+        action: action,
+        remarks: remarks,
+        selectAll: selectAll,
+        status: state.leaveStatusFilter,
+        userType: state.leaveRoleFilter,
+      );
+      if (res['success'] == true) {
+        state = state.copyWith(successMessage: res['message'] ?? 'Batch leave action completed');
+        await fetchLeaveDashboard();
+        await fetchDailyRoster();
+        await fetchStaffRoster();
+        return true;
+      } else {
+        state = state.copyWith(errorMessage: res['detail'] ?? res['error'] ?? 'Batch action failed');
+        return false;
+      }
+    } catch (e) {
+      state = state.copyWith(errorMessage: 'Error processing batch leave action: $e');
+      return false;
+    } finally {
+      state = state.copyWith(isLoading: false);
+    }
+  }
+
+  Future<bool> handleBatchPermissionAction({
+    required List<String> permissionIds,
+    required String action,
+    String? remarks,
+    bool selectAll = false,
+  }) async {
+    if (permissionIds.isEmpty && !selectAll) return true;
+    state = state.copyWith(isLoading: true, clearErrors: true);
+    try {
+      final res = await _api.handleBatchPermissionAction(
+        permissionIds: permissionIds,
+        action: action,
+        remarks: remarks,
+        selectAll: selectAll,
+        status: state.leaveStatusFilter,
+      );
+      if (res['success'] == true) {
+        state = state.copyWith(successMessage: res['message'] ?? 'Batch permission action completed');
+        await fetchPermissionRequests(force: true);
+        await fetchLeaveDashboard();
+        return true;
+      } else {
+        state = state.copyWith(errorMessage: res['detail'] ?? res['error'] ?? 'Batch action failed');
+        return false;
+      }
+    } catch (e) {
+      state = state.copyWith(errorMessage: 'Error processing batch permission action: $e');
+      return false;
+    } finally {
+      state = state.copyWith(isLoading: false);
+    }
+  }
+
+  Future<bool> saveLeaveType(Map<String, dynamic> payload) async {
+    state = state.copyWith(isSaving: true, clearErrors: true);
+    try {
+      final res = await _api.saveLeaveType(payload);
+      if (res['success'] == true) {
+        state = state.copyWith(successMessage: 'Leave type saved successfully');
+        await fetchLeaveTypes(force: true);
+        await fetchLeaveDashboard();
+        return true;
+      } else {
+        state = state.copyWith(errorMessage: res['detail'] ?? 'Failed to save leave type');
+        return false;
+      }
+    } catch (e) {
+      state = state.copyWith(errorMessage: 'Error saving leave type: $e');
+      return false;
+    } finally {
+      state = state.copyWith(isSaving: false);
+    }
+  }
+
+  Future<bool> adjustLeaveBalance({
+    required String userId,
+    required String leaveTypeId,
+    required double adjustmentDays,
+    required String reason,
+  }) async {
+    state = state.copyWith(isSaving: true, clearErrors: true);
+    try {
+      final res = await _api.adjustLeaveBalance(
+        userId: userId,
+        leaveTypeId: leaveTypeId,
+        adjustmentDays: adjustmentDays,
+        reason: reason,
+      );
+      if (res['success'] == true) {
+        state = state.copyWith(successMessage: 'Leave balance adjusted successfully');
+        await fetchLeaveBalances(force: true);
+        await fetchLeaveDashboard();
+        return true;
+      } else {
+        state = state.copyWith(errorMessage: res['detail'] ?? res['error'] ?? 'Failed to adjust balance');
+        return false;
+      }
+    } catch (e) {
+      state = state.copyWith(errorMessage: 'Error adjusting balance: $e');
+      return false;
+    } finally {
+      state = state.copyWith(isSaving: false);
+    }
+  }
+
+  Future<bool> applyPermissionRequest({
+    String? applicantId,
+    required String permissionType,
+    required String date,
+    required String startTime,
+    required String endTime,
+    double durationHours = 1.0,
+    required String reason,
+  }) async {
+    state = state.copyWith(isSaving: true, clearErrors: true);
+    try {
+      final res = await _api.applyPermissionRequest(
+        applicantId: applicantId,
+        permissionType: permissionType,
+        date: date,
+        startTime: startTime,
+        endTime: endTime,
+        durationHours: durationHours,
+        reason: reason,
+      );
+      if (res['success'] == true) {
+        state = state.copyWith(successMessage: 'Permission request submitted successfully');
+        await fetchPermissionRequests(force: true);
+        return true;
+      } else {
+        state = state.copyWith(errorMessage: res['detail'] ?? res['error'] ?? 'Failed to apply permission');
+        return false;
+      }
+    } catch (e) {
+      state = state.copyWith(errorMessage: 'Error applying permission: $e');
+      return false;
+    } finally {
+      state = state.copyWith(isSaving: false);
+    }
+  }
+
+  Future<bool> handlePermissionAction({
+    required String permissionId,
+    required String action,
+    String? remarks,
+  }) async {
+    state = state.copyWith(isLoading: true, clearErrors: true);
+    try {
+      final res = await _api.handlePermissionAction(
+        permissionId: permissionId,
+        action: action,
+        remarks: remarks,
+      );
+      if (res['success'] == true) {
+        state = state.copyWith(successMessage: 'Permission request updated successfully');
+        await fetchPermissionRequests(force: true);
         return true;
       } else {
         state = state.copyWith(errorMessage: res['detail'] ?? 'Action failed');
         return false;
       }
     } catch (e) {
-      state = state.copyWith(errorMessage: 'Error updating leave: $e');
+      state = state.copyWith(errorMessage: 'Error updating permission: $e');
       return false;
     } finally {
       state = state.copyWith(isLoading: false);
@@ -1113,11 +1717,6 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
   /// Alias to refreshAllData
   Future<void> refreshAll() async {
     await refreshAllData();
-  }
-
-  /// Export Attendance to CSV format
-  void exportAttendanceCsv() {
-    state = state.copyWith(successMessage: 'Exported ${state.roster.length} student attendance records.');
   }
 }
 

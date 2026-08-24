@@ -39,9 +39,9 @@ class AcademicLookupHelper {
   final Map<String, List<AcademicLookupItem>> _cache = {};
 
   /// Fetch active lookup values for a given key_code. Only active values are returned.
-  Future<List<AcademicLookupItem>> getActiveLookup(String keyCode, {List<AcademicLookupItem>? fallbacks}) async {
+  Future<List<AcademicLookupItem>> getActiveLookup(String keyCode, {List<AcademicLookupItem>? fallbacks, bool forceRefresh = false}) async {
     final upperKey = keyCode.toUpperCase().trim();
-    if (_cache.containsKey(upperKey) && _cache[upperKey]!.isNotEmpty) {
+    if (!forceRefresh && _cache.containsKey(upperKey) && _cache[upperKey]!.isNotEmpty) {
       return _cache[upperKey]!;
     }
 
@@ -49,7 +49,7 @@ class AcademicLookupHelper {
       final res = await _api.get(
         '/lookups/code/$upperKey',
         query: {'include_inactive': false},
-        useCache: true,
+        useCache: false,
       );
 
       if (res['success'] == true && res['values'] is List) {
@@ -66,9 +66,18 @@ class AcademicLookupHelper {
     } catch (_) {}
 
     // Return cached or fallback if API call fails
-    final fallbackList = fallbacks ?? _getDefaultLookups(upperKey);
+    final fallbackList = _cache[upperKey] ?? fallbacks ?? _getDefaultLookups(upperKey);
     _cache[upperKey] = fallbackList;
     return fallbackList;
+  }
+
+  /// Invalidate specific or all cached lookups
+  void clearCache([String? keyCode]) {
+    if (keyCode != null && keyCode.isNotEmpty) {
+      _cache.remove(keyCode.toUpperCase().trim());
+    } else {
+      _cache.clear();
+    }
   }
 
   /// Get cached active list synchronously if available, otherwise return defaults
@@ -205,6 +214,25 @@ class AcademicLookupHelper {
           AcademicLookupItem(id: '3', code: 'EVENT', label: 'Event / Seminar'),
           AcademicLookupItem(id: '4', code: 'MAINTENANCE', label: 'Maintenance'),
           AcademicLookupItem(id: '5', code: 'TEMPORARY', label: 'Temporary Booking'),
+        ];
+
+      case 'CALENDAR_CATEGORY':
+        return const [
+          AcademicLookupItem(id: '1', code: 'ACADEMIC', label: 'Academic'),
+          AcademicLookupItem(id: '2', code: 'EVENT', label: 'Event'),
+          AcademicLookupItem(id: '3', code: 'HOLIDAY', label: 'Holiday'),
+          AcademicLookupItem(id: '4', code: 'MEETING', label: 'Meeting'),
+          AcademicLookupItem(id: '5', code: 'EXAMINATION', label: 'Examination'),
+          AcademicLookupItem(id: '6', code: 'REMINDER', label: 'Reminder'),
+          AcademicLookupItem(id: '7', code: 'PERSONAL', label: 'Personal'),
+          AcademicLookupItem(id: '8', code: 'TASK', label: 'Task'),
+          AcademicLookupItem(id: '9', code: 'CLASS', label: 'Class'),
+          AcademicLookupItem(id: '10', code: 'TRAINING', label: 'Training'),
+          AcademicLookupItem(id: '11', code: 'TRIP', label: 'Trip'),
+          AcademicLookupItem(id: '12', code: 'LEAVE', label: 'Leave'),
+          AcademicLookupItem(id: '13', code: 'GENERAL', label: 'General'),
+          AcademicLookupItem(id: '14', code: 'SPORTS', label: 'Sports'),
+          AcademicLookupItem(id: '15', code: 'ANNIVERSARY', label: 'Anniversary'),
         ];
 
       default:

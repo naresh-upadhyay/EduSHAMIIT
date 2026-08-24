@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
 import '../../models/calendar_models.dart';
+import '../../../classes/services/academic_lookup_helper.dart';
 import 'recurrence_scope_dialog.dart';
 
 class CreateEditScheduleDialog extends StatefulWidget {
@@ -234,13 +235,15 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
 
   Future<void> _fetchCategories() async {
     try {
-      final res = await ApiService().get('/calendar/categories', query: {'type': 'schedule'}, useCache: false);
-      if (res['success'] == true && res['data'] is List) {
-        if (mounted) {
-          setState(() {
-            _dynamicCategories = (res['data'] as List).whereType<Map<String, dynamic>>().toList();
-          });
-        }
+      final lookupItems = await AcademicLookupHelper.instance.getActiveLookup('CALENDAR_CATEGORY', forceRefresh: true);
+      if (lookupItems.isNotEmpty && mounted) {
+        setState(() {
+          _dynamicCategories = lookupItems.map((item) => {
+            'code': item.code,
+            'name': item.label,
+            'label': item.label,
+          }).toList();
+        });
       }
     } catch (e) {
       debugPrint('[CreateEditScheduleDialog] error fetching categories: $e');
@@ -1109,29 +1112,40 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog> wit
               final List<Map<String, dynamic>> rawCatList = _dynamicCategories.isNotEmpty
                   ? _dynamicCategories
                   : [
-                      {'name': 'Meeting', 'label': 'Meeting'},
-                      {'name': 'Class', 'label': 'Class'},
-                      {'name': 'Exam', 'label': 'Exam'},
+                      {'name': 'Academic', 'label': 'Academic'},
                       {'name': 'Event', 'label': 'Event'},
-                      {'name': 'Task', 'label': 'Task'},
+                      {'name': 'Holiday', 'label': 'Holiday'},
+                      {'name': 'Meeting', 'label': 'Meeting'},
+                      {'name': 'Examination', 'label': 'Examination'},
                       {'name': 'Reminder', 'label': 'Reminder'},
+                      {'name': 'Personal', 'label': 'Personal'},
+                      {'name': 'Task', 'label': 'Task'},
+                      {'name': 'Class', 'label': 'Class'},
                       {'name': 'Training', 'label': 'Training'},
                       {'name': 'Trip', 'label': 'Trip (Transport)'},
-                      {'name': 'School Event', 'label': 'School Event'},
                       {'name': 'Leave', 'label': 'Leave'},
+                      {'name': 'General', 'label': 'General'},
+                      {'name': 'Sports', 'label': 'Sports'},
+                      {'name': 'Anniversary', 'label': 'Anniversary'},
                     ];
 
               final Map<String, String> dropdownItemsMap = {};
               for (final c in rawCatList) {
-                final name = c['name']?.toString() ?? '';
+                final name = c['name']?.toString() ?? c['label']?.toString() ?? '';
                 final label = c['label']?.toString() ?? name;
                 if (name.isNotEmpty) {
                   dropdownItemsMap[name] = label;
                 }
               }
 
-              final currentVal = _selectedType.isNotEmpty ? _selectedType : 'Meeting';
-              if (!dropdownItemsMap.containsKey(currentVal)) {
+              String currentVal = _selectedType.isNotEmpty ? _selectedType : 'Event';
+              final matchingKey = dropdownItemsMap.keys.firstWhere(
+                (k) => k.toLowerCase() == currentVal.toLowerCase(),
+                orElse: () => '',
+              );
+              if (matchingKey.isNotEmpty) {
+                currentVal = matchingKey;
+              } else {
                 dropdownItemsMap[currentVal] = currentVal;
               }
 

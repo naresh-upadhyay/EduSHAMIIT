@@ -17,21 +17,32 @@ class _AttendanceTabDef {
   final int id;
   final String label;
   final IconData icon;
-  final Widget view;
+  final Widget Function() builder;
 
   const _AttendanceTabDef({
     required this.id,
     required this.label,
     required this.icon,
-    required this.view,
+    required this.builder,
   });
 }
 
-class AttendanceManagementScreen extends ConsumerWidget {
-  const AttendanceManagementScreen({Key? key}) : super(key: key);
+class AttendanceManagementScreen extends ConsumerStatefulWidget {
+  const AttendanceManagementScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AttendanceManagementScreen> createState() => _AttendanceManagementScreenState();
+}
+
+class _AttendanceManagementScreenState extends ConsumerState<AttendanceManagementScreen> {
+  final Map<int, Widget> _cachedTabWidgets = {};
+
+  Widget _getTabWidget(int tabId, Widget Function() builder) {
+    return _cachedTabWidgets.putIfAbsent(tabId, builder);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(attendanceProvider);
     final notifier = ref.read(attendanceProvider.notifier);
     final theme = Theme.of(context);
@@ -39,18 +50,20 @@ class AttendanceManagementScreen extends ConsumerWidget {
     final isDesktop = Responsive.isDesktop(context);
 
     final List<_AttendanceTabDef> availableTabs = [
-      const _AttendanceTabDef(id: 0, label: 'Daily Attendance', icon: Icons.calendar_today_rounded, view: DailyAttendanceTab()),
+      _AttendanceTabDef(id: 0, label: 'Daily Attendance', icon: Icons.calendar_today_rounded, builder: () => const DailyAttendanceTab()),
       if (state.isManager)
-        const _AttendanceTabDef(id: 1, label: 'Staff Attendance', icon: Icons.badge_outlined, view: StaffAttendanceTab()),
+        _AttendanceTabDef(id: 1, label: 'Staff Attendance', icon: Icons.badge_outlined, builder: () => const StaffAttendanceTab()),
       if (state.isManager)
-        const _AttendanceTabDef(id: 2, label: 'Leave & Permissions', icon: Icons.beach_access_rounded, view: LeavePermissionsTab()),
-      const _AttendanceTabDef(id: 3, label: 'Bulk Operations', icon: Icons.bolt_rounded, view: BulkOperationsTab()),
-      const _AttendanceTabDef(id: 4, label: 'Attendance Insights', icon: Icons.bar_chart_rounded, view: AttendanceInsightsTab()),
-      const _AttendanceTabDef(id: 5, label: 'Settings', icon: Icons.settings_outlined, view: AttendanceSettingsTab()),
+        _AttendanceTabDef(id: 2, label: 'Leave & Permissions', icon: Icons.beach_access_rounded, builder: () => const LeavePermissionsTab()),
+      _AttendanceTabDef(id: 3, label: 'Bulk Operations', icon: Icons.bolt_rounded, builder: () => const BulkOperationsTab()),
+      _AttendanceTabDef(id: 4, label: 'Attendance Insights', icon: Icons.bar_chart_rounded, builder: () => const AttendanceInsightsTab()),
+      _AttendanceTabDef(id: 5, label: 'Settings', icon: Icons.settings_outlined, builder: () => const AttendanceSettingsTab()),
     ];
 
-    final activeIndex = availableTabs.indexWhere((t) => t.id == state.activeTab);
-    final currentStackIndex = activeIndex >= 0 ? activeIndex : 0;
+    final activeTabDef = availableTabs.firstWhere(
+      (t) => t.id == state.activeTab,
+      orElse: () => availableTabs.first,
+    );
 
     // Listen for error and success messages
     ref.listen<AttendanceState>(attendanceProvider, (previous, next) {
@@ -90,11 +103,11 @@ class AttendanceManagementScreen extends ConsumerWidget {
           // 3. Underline Tab Navigation Bar (Left Aligned)
           _buildTabBar(availableTabs, state, notifier, isDark, theme),
 
-          // 4. Tab Views (Main Content Area)
+          // 4. Tab Views (High-Performance Active Tab View Switcher)
           Expanded(
-            child: IndexedStack(
-              index: currentStackIndex,
-              children: availableTabs.map((t) => t.view).toList(),
+            child: KeyedSubtree(
+              key: ValueKey('attendance_tab_${state.activeTab}'),
+              child: _getTabWidget(state.activeTab, activeTabDef.builder),
             ),
           ),
         ],

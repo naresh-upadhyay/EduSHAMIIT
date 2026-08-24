@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../services/api_service.dart';
+import '../../classes/services/academic_lookup_helper.dart';
 import '../models/lookup_models.dart';
 import '../services/lookup_api_service.dart';
 
@@ -303,6 +305,8 @@ class LookupNotifier extends StateNotifier<LookupState> {
     state = state.copyWith(isSaving: true, clearError: true);
     try {
       final res = await _service.createLookupKey(payload);
+      AcademicLookupHelper.instance.clearCache();
+      ApiService().clearCache();
       state = state.copyWith(isSaving: false);
       final newKeyId = res['data']?['id']?.toString();
       await loadKeys(preserveSelection: false);
@@ -321,6 +325,8 @@ class LookupNotifier extends StateNotifier<LookupState> {
     state = state.copyWith(isSaving: true, clearError: true);
     try {
       await _service.updateLookupKey(lookupId, payload, version: state.selectedKey?.version);
+      AcademicLookupHelper.instance.clearCache();
+      ApiService().clearCache();
       state = state.copyWith(isSaving: false);
       await loadKeys(preserveSelection: true);
       await selectKey(lookupId);
@@ -336,6 +342,8 @@ class LookupNotifier extends StateNotifier<LookupState> {
     state = state.copyWith(isSaving: true, clearError: true);
     try {
       final res = await _service.deleteLookupKey(lookupId, forceDeactivate: forceDeactivate);
+      AcademicLookupHelper.instance.clearCache();
+      ApiService().clearCache();
       state = state.copyWith(isSaving: false);
       await loadKeys(preserveSelection: false);
       return res;
@@ -351,6 +359,8 @@ class LookupNotifier extends StateNotifier<LookupState> {
     state = state.copyWith(isSaving: true, clearError: true);
     try {
       await _service.createLookupValue(state.selectedKey!.id, payload);
+      AcademicLookupHelper.instance.clearCache(state.selectedKey?.keyCode);
+      ApiService().clearCache();
       state = state.copyWith(isSaving: false);
       await selectKey(state.selectedKey!.id);
       return true;
@@ -366,6 +376,8 @@ class LookupNotifier extends StateNotifier<LookupState> {
     state = state.copyWith(isSaving: true, clearError: true);
     try {
       final res = await _service.bulkCreateLookupValues(state.selectedKey!.id, values);
+      AcademicLookupHelper.instance.clearCache(state.selectedKey?.keyCode);
+      ApiService().clearCache();
       state = state.copyWith(isSaving: false);
       await selectKey(state.selectedKey!.id);
       return res;
@@ -381,6 +393,8 @@ class LookupNotifier extends StateNotifier<LookupState> {
     state = state.copyWith(isSaving: true, clearError: true);
     try {
       await _service.updateLookupValue(state.selectedKey!.id, valueId, payload);
+      AcademicLookupHelper.instance.clearCache(state.selectedKey?.keyCode);
+      ApiService().clearCache();
       state = state.copyWith(isSaving: false);
       await selectKey(state.selectedKey!.id);
       return true;
@@ -396,6 +410,8 @@ class LookupNotifier extends StateNotifier<LookupState> {
     state = state.copyWith(isSaving: true, clearError: true);
     try {
       final res = await _service.deleteLookupValue(state.selectedKey!.id, valueId, forceDeactivate: forceDeactivate);
+      AcademicLookupHelper.instance.clearCache(state.selectedKey?.keyCode);
+      ApiService().clearCache();
       state = state.copyWith(isSaving: false);
       await selectKey(state.selectedKey!.id);
       return res;
@@ -410,6 +426,8 @@ class LookupNotifier extends StateNotifier<LookupState> {
     if (state.selectedKey == null) return false;
     try {
       await _service.reorderLookupValues(state.selectedKey!.id, orderedIds);
+      AcademicLookupHelper.instance.clearCache(state.selectedKey?.keyCode);
+      ApiService().clearCache();
       await loadValues();
       return true;
     } catch (e) {
@@ -424,6 +442,8 @@ class LookupNotifier extends StateNotifier<LookupState> {
     state = state.copyWith(isSaving: true, clearError: true);
     try {
       final res = await _service.importLookupValues(state.selectedKey!.id, csvContent: csvContent, values: values);
+      AcademicLookupHelper.instance.clearCache(state.selectedKey?.keyCode);
+      ApiService().clearCache();
       state = state.copyWith(isSaving: false);
       await selectKey(state.selectedKey!.id);
       return res;

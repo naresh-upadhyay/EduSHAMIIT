@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 /// Supported Attendance Statuses across the EduSHAMIIT ERP
 enum AttendanceStatus {
@@ -658,56 +659,579 @@ class StaffAttendanceRowModel {
   }
 }
 
-/// Leave Request Model
+/// Enhanced Leave Request Model
 class AttendanceLeaveRequestModel {
   final String id;
+  final String requestCode;
   final String applicantId;
   final String applicantName;
   final String? avatarUrl;
+  final String employeeCode;
   final String applicantRole;
+  final String department;
+  final String designation;
   final String leaveType;
+  final Color leaveTypeColor;
   final DateTime startDate;
   final DateTime endDate;
+  final double daysCount;
+  final String halfDayType;
   final String reason;
   final String status;
   final String? remarks;
+  final String? rejectionReason;
+  final String? attachmentUrl;
+  final String? contactNumber;
+  final DateTime appliedAt;
   final String? approvedByName;
-  final int daysCount;
-  final DateTime createdAt;
+  final String? managerName;
 
   AttendanceLeaveRequestModel({
     required this.id,
+    this.requestCode = '',
     required this.applicantId,
     required this.applicantName,
     this.avatarUrl,
+    this.employeeCode = '',
     required this.applicantRole,
+    this.department = 'General',
+    this.designation = '',
     required this.leaveType,
+    this.leaveTypeColor = const Color(0xFF4F46E5),
     required this.startDate,
     required this.endDate,
+    this.daysCount = 1.0,
+    this.halfDayType = 'FULL_DAY',
     required this.reason,
     required this.status,
     this.remarks,
+    this.rejectionReason,
+    this.attachmentUrl,
+    this.contactNumber,
+    required this.appliedAt,
     this.approvedByName,
-    this.daysCount = 1,
-    required this.createdAt,
+    this.managerName,
   });
 
+  DateTime get createdAt => appliedAt;
+
   factory AttendanceLeaveRequestModel.fromJson(Map<String, dynamic> json) {
+    Color parsedColor = const Color(0xFF4F46E5);
+    final hex = json['color_hex']?.toString() ?? json['leave_type_color']?.toString() ?? '';
+    if (hex.startsWith('#') && hex.length >= 7) {
+      try {
+        final colorInt = int.parse(hex.replaceFirst('#', '0xFF'));
+        parsedColor = Color(colorInt);
+      } catch (_) {}
+    }
+
+    final rawDays = json['billable_days'] ?? json['duration_days'] ?? json['days_count'] ?? json['days'];
+    final parsedDays = (rawDays is num) ? rawDays.toDouble() : (double.tryParse(rawDays?.toString() ?? '') ?? 1.0);
+
     return AttendanceLeaveRequestModel(
       id: json['id']?.toString() ?? '',
+      requestCode: json['request_code']?.toString() ?? '',
       applicantId: json['applicant_id']?.toString() ?? '',
       applicantName: json['applicant_name']?.toString() ?? 'Applicant',
       avatarUrl: json['avatar_url']?.toString(),
-      applicantRole: json['applicant_role']?.toString() ?? 'student',
-      leaveType: json['leave_type']?.toString() ?? 'Medical Leave',
+      employeeCode: json['employee_code']?.toString() ?? '',
+      applicantRole: json['applicant_role']?.toString() ?? 'teacher',
+      department: json['department']?.toString() ?? 'General',
+      designation: json['designation']?.toString() ?? '',
+      leaveType: json['leave_type']?.toString() ?? 'Casual Leave',
+      leaveTypeColor: parsedColor,
       startDate: DateTime.tryParse(json['start_date']?.toString() ?? '') ?? DateTime.now(),
       endDate: DateTime.tryParse(json['end_date']?.toString() ?? '') ?? DateTime.now(),
+      daysCount: parsedDays,
+      halfDayType: json['half_day_type']?.toString() ?? 'FULL_DAY',
       reason: json['reason']?.toString() ?? '',
       status: json['status']?.toString() ?? 'pending',
       remarks: json['remarks']?.toString(),
+      rejectionReason: json['rejection_reason']?.toString(),
+      attachmentUrl: json['attachment_url']?.toString(),
+      contactNumber: json['contact_number']?.toString(),
+      appliedAt: DateTime.tryParse(json['applied_at']?.toString() ?? json['created_at']?.toString() ?? '') ?? DateTime.now(),
       approvedByName: json['approved_by_name']?.toString(),
-      daysCount: json['days_count'] as int? ?? 1,
+      managerName: json['manager_name']?.toString(),
+    );
+  }
+}
+
+/// Leave Dashboard KPI Summary Model
+class LeaveDashboardKpiModel {
+  final int totalRequests;
+  final int approvedLeaves;
+  final int pendingRequests;
+  final int rejectedLeaves;
+  final int cancelledLeaves;
+  final double approvedPercentage;
+  final double pendingPercentage;
+  final double rejectedPercentage;
+  final double cancelledPercentage;
+
+  LeaveDashboardKpiModel({
+    this.totalRequests = 0,
+    this.approvedLeaves = 0,
+    this.pendingRequests = 0,
+    this.rejectedLeaves = 0,
+    this.cancelledLeaves = 0,
+    this.approvedPercentage = 0.0,
+    this.pendingPercentage = 0.0,
+    this.rejectedPercentage = 0.0,
+    this.cancelledPercentage = 0.0,
+  });
+
+  factory LeaveDashboardKpiModel.fromJson(Map<String, dynamic> json) {
+    return LeaveDashboardKpiModel(
+      totalRequests: json['total_requests'] as int? ?? 0,
+      approvedLeaves: json['approved_leaves'] as int? ?? 0,
+      pendingRequests: json['pending_requests'] as int? ?? 0,
+      rejectedLeaves: json['rejected_leaves'] as int? ?? 0,
+      cancelledLeaves: json['cancelled_leaves'] as int? ?? 0,
+      approvedPercentage: (json['approved_percentage'] as num?)?.toDouble() ?? 0.0,
+      pendingPercentage: (json['pending_percentage'] as num?)?.toDouble() ?? 0.0,
+      rejectedPercentage: (json['rejected_percentage'] as num?)?.toDouble() ?? 0.0,
+      cancelledPercentage: (json['cancelled_percentage'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+}
+
+/// Leave Balance Summary Item Model (Right Sidebar)
+class LeaveBalanceSummaryItemModel {
+  final String leaveTypeId;
+  final String leaveTypeName;
+  final String leaveTypeCode;
+  final Color color;
+  final double allocatedDays;
+  final double usedDays;
+  final double pendingDays;
+  final double availableDays;
+
+  LeaveBalanceSummaryItemModel({
+    required this.leaveTypeId,
+    required this.leaveTypeName,
+    required this.leaveTypeCode,
+    this.color = const Color(0xFF4F46E5),
+    this.allocatedDays = 12.0,
+    this.usedDays = 0.0,
+    this.pendingDays = 0.0,
+    this.availableDays = 12.0,
+  });
+
+  factory LeaveBalanceSummaryItemModel.fromJson(Map<String, dynamic> json) {
+    Color parsedColor = const Color(0xFF4F46E5);
+    final hex = json['color_hex']?.toString() ?? '';
+    if (hex.startsWith('#') && hex.length >= 7) {
+      try {
+        final colorInt = int.parse(hex.replaceFirst('#', '0xFF'));
+        parsedColor = Color(colorInt);
+      } catch (_) {}
+    }
+
+    return LeaveBalanceSummaryItemModel(
+      leaveTypeId: json['leave_type_id']?.toString() ?? '',
+      leaveTypeName: json['leave_type_name']?.toString() ?? 'Leave',
+      leaveTypeCode: json['leave_type_code']?.toString() ?? 'LV',
+      color: parsedColor,
+      allocatedDays: (json['allocated_days'] as num?)?.toDouble() ?? 12.0,
+      usedDays: (json['used_days'] as num?)?.toDouble() ?? 0.0,
+      pendingDays: (json['pending_days'] as num?)?.toDouble() ?? 0.0,
+      availableDays: (json['available_days'] as num?)?.toDouble() ?? 12.0,
+    );
+  }
+}
+
+/// Upcoming Leave Item Model (Right Sidebar)
+class UpcomingLeaveItemModel {
+  final String id;
+  final String employeeName;
+  final String? avatarUrl;
+  final String leaveType;
+  final DateTime startDate;
+  final DateTime endDate;
+  final String dateRangeFormatted;
+
+  UpcomingLeaveItemModel({
+    required this.id,
+    required this.employeeName,
+    this.avatarUrl,
+    required this.leaveType,
+    required this.startDate,
+    required this.endDate,
+    required this.dateRangeFormatted,
+  });
+
+  factory UpcomingLeaveItemModel.fromJson(Map<String, dynamic> json) {
+    final sDate = DateTime.tryParse(json['start_date']?.toString() ?? '') ?? DateTime.now();
+    final eDate = DateTime.tryParse(json['end_date']?.toString() ?? '') ?? sDate;
+    String formattedDate = json['date_range_formatted']?.toString() ?? '';
+    if (formattedDate.isEmpty) {
+      if (sDate.year == eDate.year && sDate.month == eDate.month && sDate.day == eDate.day) {
+        formattedDate = DateFormat('dd MMM').format(sDate);
+      } else if (sDate.month == eDate.month && sDate.year == eDate.year) {
+        formattedDate = '${DateFormat('dd').format(sDate)} - ${DateFormat('dd MMM').format(eDate)}';
+      } else {
+        formattedDate = '${DateFormat('dd MMM').format(sDate)} - ${DateFormat('dd MMM').format(eDate)}';
+      }
+    }
+
+    final empName = json['employee_name']?.toString() ?? json['applicant_name']?.toString() ?? json['full_name']?.toString() ?? json['name']?.toString() ?? 'Employee';
+
+    return UpcomingLeaveItemModel(
+      id: json['id']?.toString() ?? '',
+      employeeName: empName,
+      avatarUrl: json['avatar_url']?.toString(),
+      leaveType: json['leave_type']?.toString() ?? 'Leave',
+      startDate: sDate,
+      endDate: eDate,
+      dateRangeFormatted: formattedDate,
+    );
+  }
+}
+
+/// Complete Leave & Permissions Dashboard Model
+class LeaveDashboardModel {
+  final LeaveDashboardKpiModel kpi;
+  final List<AttendanceLeaveRequestModel> requests;
+  final List<LeaveBalanceSummaryItemModel> balanceSummary;
+  final List<UpcomingLeaveItemModel> upcomingLeaves;
+  final int page;
+  final int pageSize;
+  final int totalCount;
+  final int totalPages;
+
+  LeaveDashboardModel({
+    required this.kpi,
+    this.requests = const [],
+    this.balanceSummary = const [],
+    this.upcomingLeaves = const [],
+    this.page = 1,
+    this.pageSize = 10,
+    this.totalCount = 0,
+    this.totalPages = 1,
+  });
+
+  factory LeaveDashboardModel.fromJson(Map<String, dynamic> json) {
+    final kpiData = json['kpi'] as Map<String, dynamic>? ?? {};
+    final reqList = json['requests'] as List? ?? [];
+    final balList = json['balance_summary'] as List? ?? [];
+    final upList = json['upcoming_leaves'] as List? ?? [];
+    final pagination = json['pagination'] as Map<String, dynamic>? ?? {};
+
+    final parsedPage = (json['page'] ?? pagination['page']) as int? ?? 1;
+    final parsedPageSize = (json['page_size'] ?? pagination['page_size']) as int? ?? 10;
+    final parsedTotalCount = (json['total_count'] ?? pagination['total_count'] ?? kpiData['total_requests']) as int? ?? reqList.length;
+    final parsedTotalPages = (json['total_pages'] ?? pagination['total_pages']) as int? ?? 1;
+
+    return LeaveDashboardModel(
+      kpi: LeaveDashboardKpiModel.fromJson(kpiData),
+      requests: reqList.map((e) => AttendanceLeaveRequestModel.fromJson(e as Map<String, dynamic>)).toList(),
+      balanceSummary: balList.map((e) => LeaveBalanceSummaryItemModel.fromJson(e as Map<String, dynamic>)).toList(),
+      upcomingLeaves: upList.map((e) => UpcomingLeaveItemModel.fromJson(e as Map<String, dynamic>)).toList(),
+      page: parsedPage,
+      pageSize: parsedPageSize,
+      totalCount: parsedTotalCount,
+      totalPages: parsedTotalPages,
+    );
+  }
+}
+
+/// Role Model from app_roles
+class AppRoleItemModel {
+  final String id;
+  final String name;
+  final String code;
+  final String displayName;
+  final String description;
+
+  const AppRoleItemModel({
+    required this.id,
+    required this.name,
+    required this.code,
+    required this.displayName,
+    this.description = '',
+  });
+
+  factory AppRoleItemModel.fromJson(Map<String, dynamic> json) {
+    return AppRoleItemModel(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      code: json['code']?.toString() ?? '',
+      displayName: json['display_name']?.toString() ?? json['name']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+    );
+  }
+}
+
+/// Configurable Leave Type & Policy Model
+class LeaveTypeModel {
+  final String id;
+  final String name;
+  final String code;
+  final String category;
+  final double annualEntitlement;
+  final bool monthlyAccrual;
+  final bool carryForwardAllowed;
+  final double maxCarryForward;
+  final bool encashmentAllowed;
+  final bool docRequired;
+  final double docRequiredAfterDays;
+  final bool allowHalfDay;
+  final List<String> applicableRoles;
+  final Color color;
+  final bool isActive;
+
+  LeaveTypeModel({
+    required this.id,
+    required this.name,
+    required this.code,
+    this.category = 'PAID',
+    this.annualEntitlement = 12.0,
+    this.monthlyAccrual = false,
+    this.carryForwardAllowed = true,
+    this.maxCarryForward = 5.0,
+    this.encashmentAllowed = false,
+    this.docRequired = false,
+    this.docRequiredAfterDays = 2.0,
+    this.allowHalfDay = true,
+    this.applicableRoles = const [],
+    this.color = const Color(0xFF4F46E5),
+    this.isActive = true,
+  });
+
+  factory LeaveTypeModel.fromJson(Map<String, dynamic> json) {
+    Color parsedColor = const Color(0xFF4F46E5);
+    final hex = json['color_hex']?.toString() ?? '';
+    if (hex.startsWith('#') && hex.length >= 7) {
+      try {
+        final colorInt = int.parse(hex.replaceFirst('#', '0xFF'));
+        parsedColor = Color(colorInt);
+      } catch (_) {}
+    }
+
+    final rolesRaw = json['applicable_roles'];
+    List<String> parsedRoles = [];
+    if (rolesRaw is List) {
+      parsedRoles = rolesRaw.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+    } else if (rolesRaw is String && rolesRaw.isNotEmpty) {
+      parsedRoles = rolesRaw.replaceAll('{', '').replaceAll('}', '').split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    }
+
+    return LeaveTypeModel(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      code: json['code']?.toString() ?? '',
+      category: json['category']?.toString() ?? 'PAID',
+      annualEntitlement: (json['annual_entitlement'] as num?)?.toDouble() ?? 12.0,
+      monthlyAccrual: json['monthly_accrual'] == true,
+      carryForwardAllowed: json['carry_forward_allowed'] == true,
+      maxCarryForward: (json['max_carry_forward'] as num?)?.toDouble() ?? 5.0,
+      encashmentAllowed: json['encashment_allowed'] == true,
+      docRequired: json['doc_required'] == true,
+      docRequiredAfterDays: (json['doc_required_after_days'] as num?)?.toDouble() ?? 2.0,
+      allowHalfDay: json['allow_half_day'] != false,
+      applicableRoles: parsedRoles,
+      color: parsedColor,
+      isActive: json['is_active'] != false,
+    );
+  }
+}
+
+/// Employee Leave Balance Detailed Row Model
+class LeaveBalanceRowModel {
+  final String id;
+  final String userId;
+  final String fullName;
+  final String role;
+  final String employeeCode;
+  final String department;
+  final String designation;
+  final String leaveTypeId;
+  final String leaveTypeName;
+  final String leaveTypeCode;
+  final Color color;
+  final double allocatedDays;
+  final double usedDays;
+  final double pendingDays;
+  final double carriedForwardDays;
+  final double availableDays;
+  final String academicYear;
+
+  LeaveBalanceRowModel({
+    required this.id,
+    required this.userId,
+    required this.fullName,
+    required this.role,
+    this.employeeCode = '',
+    this.department = 'General',
+    this.designation = '',
+    required this.leaveTypeId,
+    required this.leaveTypeName,
+    required this.leaveTypeCode,
+    this.color = const Color(0xFF4F46E5),
+    this.allocatedDays = 12.0,
+    this.usedDays = 0.0,
+    this.pendingDays = 0.0,
+    this.carriedForwardDays = 0.0,
+    this.availableDays = 12.0,
+    this.academicYear = '2026-2027',
+  });
+
+  factory LeaveBalanceRowModel.fromJson(Map<String, dynamic> json) {
+    Color parsedColor = const Color(0xFF4F46E5);
+    final hex = json['color_hex']?.toString() ?? '';
+    if (hex.startsWith('#') && hex.length >= 7) {
+      try {
+        final colorInt = int.parse(hex.replaceFirst('#', '0xFF'));
+        parsedColor = Color(colorInt);
+      } catch (_) {}
+    }
+
+    return LeaveBalanceRowModel(
+      id: json['id']?.toString() ?? '',
+      userId: json['user_id']?.toString() ?? '',
+      fullName: json['full_name']?.toString() ?? '',
+      role: json['role']?.toString() ?? '',
+      employeeCode: json['employee_code']?.toString() ?? '',
+      department: json['department']?.toString() ?? 'General',
+      designation: json['designation']?.toString() ?? '',
+      leaveTypeId: json['leave_type_id']?.toString() ?? '',
+      leaveTypeName: json['leave_type_name']?.toString() ?? '',
+      leaveTypeCode: json['leave_type_code']?.toString() ?? '',
+      color: parsedColor,
+      allocatedDays: (json['allocated_days'] as num?)?.toDouble() ?? 12.0,
+      usedDays: (json['used_days'] as num?)?.toDouble() ?? 0.0,
+      pendingDays: (json['pending_days'] as num?)?.toDouble() ?? 0.0,
+      carriedForwardDays: (json['carried_forward_days'] as num?)?.toDouble() ?? 0.0,
+      availableDays: (json['available_days'] as num?)?.toDouble() ?? 12.0,
+      academicYear: json['academic_year']?.toString() ?? '2026-2027',
+    );
+  }
+}
+
+/// Grouped Employee Leave Balances Model
+class EmployeeLeaveBalanceModel {
+  final String userId;
+  final String fullName;
+  final String role;
+  final String? avatarUrl;
+  final String employeeCode;
+  final String department;
+  final String designation;
+  final List<LeaveBalanceRowModel> balances;
+  final double totalAllocated;
+  final double totalUsed;
+  final double totalAvailable;
+
+  EmployeeLeaveBalanceModel({
+    required this.userId,
+    required this.fullName,
+    required this.role,
+    this.avatarUrl,
+    required this.employeeCode,
+    this.department = 'General',
+    this.designation = '',
+    this.balances = const [],
+    this.totalAllocated = 0.0,
+    this.totalUsed = 0.0,
+    this.totalAvailable = 0.0,
+  });
+
+  factory EmployeeLeaveBalanceModel.fromJson(Map<String, dynamic> json) {
+    final rawList = json['balances'] as List? ?? [];
+    final bals = rawList.map((b) {
+      final bMap = Map<String, dynamic>.from(b as Map<String, dynamic>);
+      bMap['user_id'] = json['user_id'];
+      bMap['full_name'] = json['full_name'];
+      bMap['role'] = json['role'];
+      bMap['avatar_url'] = json['avatar_url'];
+      bMap['employee_code'] = json['employee_code'];
+      bMap['department'] = json['department'];
+      bMap['designation'] = json['designation'];
+      return LeaveBalanceRowModel.fromJson(bMap);
+    }).toList();
+
+    return EmployeeLeaveBalanceModel(
+      userId: json['user_id']?.toString() ?? '',
+      fullName: json['full_name']?.toString() ?? '',
+      role: json['role']?.toString() ?? '',
+      avatarUrl: json['avatar_url']?.toString(),
+      employeeCode: json['employee_code']?.toString() ?? '',
+      department: json['department']?.toString() ?? 'General',
+      designation: json['designation']?.toString() ?? '',
+      balances: bals,
+      totalAllocated: (json['total_allocated'] as num?)?.toDouble() ?? 0.0,
+      totalUsed: (json['total_used'] as num?)?.toDouble() ?? 0.0,
+      totalAvailable: (json['total_available'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+}
+
+/// Short Permission / Hourly Leave Request Model
+class PermissionRequestModel {
+  final String id;
+  final String requestCode;
+  final String applicantId;
+  final String applicantName;
+  final String? avatarUrl;
+  final String employeeCode;
+  final String department;
+  final String applicantRole;
+  final String permissionType;
+  final DateTime permissionDate;
+  final String startTime;
+  final String endTime;
+  final double durationHours;
+  final String reason;
+  final String status;
+  final String? rejectionReason;
+  final String? remarks;
+  final DateTime createdAt;
+  final String? approvedByName;
+
+  PermissionRequestModel({
+    required this.id,
+    this.requestCode = '',
+    required this.applicantId,
+    required this.applicantName,
+    this.avatarUrl,
+    this.employeeCode = '',
+    this.department = 'General',
+    this.applicantRole = 'teacher',
+    required this.permissionType,
+    required this.permissionDate,
+    required this.startTime,
+    required this.endTime,
+    this.durationHours = 1.0,
+    required this.reason,
+    required this.status,
+    this.rejectionReason,
+    this.remarks,
+    required this.createdAt,
+    this.approvedByName,
+  });
+
+  factory PermissionRequestModel.fromJson(Map<String, dynamic> json) {
+    return PermissionRequestModel(
+      id: json['id']?.toString() ?? '',
+      requestCode: json['request_code']?.toString() ?? '',
+      applicantId: json['applicant_id']?.toString() ?? '',
+      applicantName: json['applicant_name']?.toString() ?? 'Applicant',
+      avatarUrl: json['avatar_url']?.toString(),
+      employeeCode: json['employee_code']?.toString() ?? '',
+      department: json['department']?.toString() ?? 'General',
+      applicantRole: json['applicant_role']?.toString() ?? 'teacher',
+      permissionType: json['permission_type']?.toString() ?? 'SHORT_PERMISSION',
+      permissionDate: DateTime.tryParse(json['permission_date']?.toString() ?? '') ?? DateTime.now(),
+      startTime: json['start_time']?.toString() ?? '09:00',
+      endTime: json['end_time']?.toString() ?? '10:00',
+      durationHours: (json['duration_hours'] as num?)?.toDouble() ?? 1.0,
+      reason: json['reason']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'PENDING',
+      rejectionReason: json['rejection_reason']?.toString(),
+      remarks: json['remarks']?.toString(),
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
+      approvedByName: json['approved_by_name']?.toString(),
     );
   }
 }
@@ -862,6 +1386,54 @@ class AttendanceAuditLogModel {
       userName: json['user_name']?.toString() ?? 'System',
       userAvatar: json['user_avatar']?.toString(),
       userRole: json['user_role']?.toString(),
+    );
+  }
+}
+
+/// Public & Institutional Holiday Model for Calendar & Leave Exclusions
+class HolidayItemModel {
+  final String id;
+  final String title;
+  final String? description;
+  final String scheduleType;
+  final String category;
+  final DateTime startDate;
+  final DateTime endDate;
+  final Color color;
+  final String calendarName;
+
+  HolidayItemModel({
+    required this.id,
+    required this.title,
+    this.description,
+    this.scheduleType = 'holiday',
+    this.category = 'Holidays',
+    required this.startDate,
+    required this.endDate,
+    this.color = const Color(0xFFEF4444),
+    this.calendarName = 'Public Holidays',
+  });
+
+  factory HolidayItemModel.fromJson(Map<String, dynamic> json) {
+    Color parsedColor = const Color(0xFFEF4444);
+    final hex = json['color']?.toString() ?? '';
+    if (hex.startsWith('#') && hex.length >= 7) {
+      try {
+        final colorInt = int.parse(hex.replaceFirst('#', '0xFF'));
+        parsedColor = Color(colorInt);
+      } catch (_) {}
+    }
+
+    return HolidayItemModel(
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? 'Public Holiday',
+      description: json['description']?.toString(),
+      scheduleType: json['schedule_type']?.toString() ?? 'holiday',
+      category: json['category']?.toString() ?? 'Holidays',
+      startDate: DateTime.tryParse(json['start_date']?.toString() ?? '') ?? DateTime.now(),
+      endDate: DateTime.tryParse(json['end_date']?.toString() ?? '') ?? DateTime.now(),
+      color: parsedColor,
+      calendarName: json['calendar_name']?.toString() ?? 'Public Holidays',
     );
   }
 }

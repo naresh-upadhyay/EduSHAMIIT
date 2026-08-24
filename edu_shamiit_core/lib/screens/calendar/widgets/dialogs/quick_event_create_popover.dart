@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../../classes/services/academic_lookup_helper.dart';
 
 class QuickEventCreatePopover extends StatefulWidget {
   final DateTime selectedDate;
@@ -22,6 +23,24 @@ class QuickEventCreatePopover extends StatefulWidget {
 class _QuickEventCreatePopoverState extends State<QuickEventCreatePopover> {
   final _titleController = TextEditingController();
   String _selectedType = 'Meeting';
+  List<Map<String, dynamic>> _categories = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCategories();
+  }
+
+  Future<void> _fetchCategories() async {
+    try {
+      final items = await AcademicLookupHelper.instance.getActiveLookup('CALENDAR_CATEGORY', forceRefresh: true);
+      if (items.isNotEmpty && mounted) {
+        setState(() {
+          _categories = items.map((i) => {'code': i.code, 'name': i.label, 'label': i.label}).toList();
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -95,24 +114,54 @@ class _QuickEventCreatePopoverState extends State<QuickEventCreatePopover> {
             const SizedBox(height: 16),
 
             // Type selector
-            DropdownButtonFormField<String>(
-              initialValue: _selectedType,
-              decoration: InputDecoration(
-                labelText: 'Schedule Type',
-                filled: true,
-                fillColor: const Color(0xFFF8FAFC),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'Meeting', child: Text('Meeting')),
-                DropdownMenuItem(value: 'Class', child: Text('Class')),
-                DropdownMenuItem(value: 'Task', child: Text('Task')),
-                DropdownMenuItem(value: 'Reminder', child: Text('Reminder')),
-                DropdownMenuItem(value: 'Trip', child: Text('Trip (Transport)')),
-              ],
-              onChanged: (val) {
-                if (val != null) setState(() => _selectedType = val);
+            Builder(
+              builder: (context) {
+                final List<Map<String, dynamic>> list = _categories.isNotEmpty
+                    ? _categories
+                    : [
+                        {'name': 'Academic', 'label': 'Academic'},
+                        {'name': 'Event', 'label': 'Event'},
+                        {'name': 'Holiday', 'label': 'Holiday'},
+                        {'name': 'Meeting', 'label': 'Meeting'},
+                        {'name': 'Examination', 'label': 'Examination'},
+                        {'name': 'Reminder', 'label': 'Reminder'},
+                        {'name': 'Personal', 'label': 'Personal'},
+                        {'name': 'Task', 'label': 'Task'},
+                        {'name': 'Class', 'label': 'Class'},
+                        {'name': 'Training', 'label': 'Training'},
+                        {'name': 'Trip', 'label': 'Trip (Transport)'},
+                        {'name': 'Leave', 'label': 'Leave'},
+                        {'name': 'General', 'label': 'General'},
+                        {'name': 'Sports', 'label': 'Sports'},
+                        {'name': 'Anniversary', 'label': 'Anniversary'},
+                      ];
+                final map = <String, String>{};
+                for (final c in list) {
+                  final name = c['name']?.toString() ?? c['label']?.toString() ?? '';
+                  final label = c['label']?.toString() ?? name;
+                  if (name.isNotEmpty) map[name] = label;
+                }
+                String current = _selectedType;
+                final match = map.keys.firstWhere((k) => k.toLowerCase() == current.toLowerCase(), orElse: () => '');
+                if (match.isNotEmpty) {
+                  current = match;
+                } else {
+                  map[current] = current;
+                }
+                return DropdownButtonFormField<String>(
+                  initialValue: current,
+                  decoration: InputDecoration(
+                    labelText: 'Schedule Type',
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  items: map.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => _selectedType = val);
+                  },
+                );
               },
             ),
             const SizedBox(height: 20),

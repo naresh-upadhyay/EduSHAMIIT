@@ -216,19 +216,102 @@ class AttendanceApiService {
     return await _api.post('/attendance/staff/save', body);
   }
 
-  /// Get integrated leave requests
+  /// Get comprehensive Leave & Permissions Dashboard
+  Future<LeaveDashboardModel> getLeaveDashboard({
+    String userType = 'ALL',
+    String department = 'ALL',
+    String status = 'ALL',
+    String leaveType = 'ALL',
+    String search = '',
+    String? fromDate,
+    String? toDate,
+    int page = 1,
+    int pageSize = 10,
+    String? managerId,
+  }) async {
+    try {
+      final query = <String, String>{
+        'user_type': userType,
+        'department': department,
+        'status': status,
+        'leave_type': leaveType,
+        'search': search,
+        'page': page.toString(),
+        'page_size': pageSize.toString(),
+      };
+      if (fromDate != null && fromDate.isNotEmpty) query['from_date'] = fromDate;
+      if (toDate != null && toDate.isNotEmpty) query['to_date'] = toDate;
+      if (managerId != null && managerId.isNotEmpty) query['manager_id'] = managerId;
+
+      final res = await _api.get('/attendance/leave/dashboard', query: query, useCache: false);
+      if (res['success'] == true && res['data'] != null) {
+        return LeaveDashboardModel.fromJson(res['data'] as Map<String, dynamic>);
+      }
+    } catch (_) {}
+    return LeaveDashboardModel(kpi: LeaveDashboardKpiModel());
+  }
+
+  /// Get integrated leave requests list
   Future<List<AttendanceLeaveRequestModel>> getLeaveRequests({
     String status = 'ALL',
     String role = 'ALL',
+    String? managerId,
   }) async {
     try {
-      final res = await _api.get('/attendance/leave-requests', query: {'status': status, 'role': role}, useCache: false);
+      final query = <String, String>{'status': status, 'role': role};
+      if (managerId != null && managerId.isNotEmpty) query['manager_id'] = managerId;
+      final res = await _api.get('/attendance/leave-requests', query: query, useCache: false);
       final data = res['data'] as Map<String, dynamic>? ?? {};
-      final rawList = data['leave_requests'] as List? ?? [];
-      return rawList.map((e) => AttendanceLeaveRequestModel.fromJson(e as Map<String, dynamic>)).toList();
+      final list = data['leave_requests'] as List? ?? [];
+      return list.map((e) => AttendanceLeaveRequestModel.fromJson(e as Map<String, dynamic>)).toList();
     } catch (_) {
       return [];
     }
+  }
+
+  /// Upload supporting leave document (medical certificate, proof)
+  Future<Map<String, dynamic>> uploadLeaveDocument(List<int> bytes, String filename) async {
+    return await _api.multipartPostBytes('/attendance/leave/upload', bytes, filename, 'file');
+  }
+
+  /// Retrieve public & institutional calendar holidays
+  Future<List<HolidayItemModel>> getLeaveHolidays() async {
+    try {
+      final res = await _api.get('/attendance/leave/holidays', useCache: false);
+      final list = res['data'] as List? ?? [];
+      return list.map((e) => HolidayItemModel.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Apply for a leave application
+  Future<Map<String, dynamic>> applyLeave({
+    String? applicantId,
+    required String leaveType,
+    required String startDate,
+    required String endDate,
+    required String reason,
+    String halfDayType = 'FULL_DAY',
+    String? contactNumber,
+    String? attachmentUrl,
+    double? billableDays,
+    double? daysCount,
+  }) async {
+    final body = <String, dynamic>{
+      'leave_type': leaveType,
+      'start_date': startDate,
+      'end_date': endDate,
+      'reason': reason,
+      'half_day_type': halfDayType,
+    };
+    if (applicantId != null && applicantId.isNotEmpty) body['applicant_id'] = applicantId;
+    if (contactNumber != null && contactNumber.isNotEmpty) body['contact_number'] = contactNumber;
+    if (attachmentUrl != null && attachmentUrl.isNotEmpty) body['attachment_url'] = attachmentUrl;
+    if (billableDays != null) body['billable_days'] = billableDays;
+    if (daysCount != null) body['days_count'] = daysCount;
+
+    return await _api.post('/attendance/leave/apply', body);
   }
 
   /// Approve or Reject a leave application
@@ -241,7 +324,193 @@ class AttendanceApiService {
       'action': action,
       'remarks': remarks,
     };
-    return await _api.post('/attendance/leave-requests/$leaveId/action', body);
+    return await _api.post('/attendance/leave/requests/$leaveId/action', body);
+  }
+
+  /// Batch Approve, Reject or Cancel multiple leave applications
+  Future<Map<String, dynamic>> handleBatchLeaveAction({
+    required List<String> requestIds,
+    required String action, // APPROVE, REJECT, CANCEL
+    String? remarks,
+    bool selectAll = false,
+    String? status,
+    String? userType,
+    String? department,
+  }) async {
+    final body = <String, dynamic>{
+      'request_ids': requestIds,
+      'action': action,
+      'remarks': remarks,
+      'select_all': selectAll,
+    };
+    if (status != null) body['status'] = status;
+    if (userType != null) body['user_type'] = userType;
+    if (department != null) body['department'] = department;
+    return await _api.post('/attendance/leave/requests/batch-action', body);
+  }
+
+  /// Get list of configured leave types, optionally filtered by role
+  Future<List<LeaveTypeModel>> getLeaveTypes({String? role}) async {
+    try {
+      final query = (role != null && role.isNotEmpty && role.toUpperCase() != 'ALL') ? {'role': role} : null;
+      final res = await _api.get('/attendance/leave/types', query: query, useCache: false);
+      final data = res['data'] as Map<String, dynamic>? ?? {};
+      final list = data['leave_types'] as List? ?? [];
+      return list.map((e) => LeaveTypeModel.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Get active roles from app_roles
+  Future<List<AppRoleItemModel>> getActiveRoles() async {
+    try {
+      final res = await _api.get('/attendance/roles', useCache: false);
+      final data = res['data'] as Map<String, dynamic>? ?? {};
+      final list = data['roles'] as List? ?? [];
+      return list.map((e) => AppRoleItemModel.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Save or update a leave type policy
+  Future<Map<String, dynamic>> saveLeaveType(Map<String, dynamic> payload) async {
+    return await _api.post('/attendance/leave/types', payload);
+  }
+
+  /// Get all employee leave balances (paginated)
+  Future<Map<String, dynamic>> getLeaveBalances({
+    String academicYear = '2026-2027',
+    String department = 'ALL',
+    String role = 'ALL',
+    String search = '',
+    int page = 1,
+    int pageSize = 10,
+  }) async {
+    try {
+      final query = <String, String>{
+        'academic_year': academicYear,
+        'department': department,
+        'role': role,
+        'search': search,
+        'page': page.toString(),
+        'page_size': pageSize.toString(),
+      };
+      final res = await _api.get('/attendance/leave/balances', query: query, useCache: false);
+      final data = res['data'] as Map<String, dynamic>? ?? {};
+      final rawEmployees = data['employees'] as List? ?? [];
+      final employees = rawEmployees.map((e) => EmployeeLeaveBalanceModel.fromJson(e as Map<String, dynamic>)).toList();
+      final rawBalances = data['balances'] as List? ?? [];
+      final balances = rawBalances.map((e) => LeaveBalanceRowModel.fromJson(e as Map<String, dynamic>)).toList();
+
+      return {
+        'employees': employees,
+        'balances': balances,
+        'page': (data['page'] as num?)?.toInt() ?? page,
+        'pageSize': (data['page_size'] as num?)?.toInt() ?? pageSize,
+        'totalCount': (data['total_count'] as num?)?.toInt() ?? employees.length,
+        'totalPages': (data['total_pages'] as num?)?.toInt() ?? 1,
+      };
+    } catch (_) {
+      return {
+        'employees': <EmployeeLeaveBalanceModel>[],
+        'balances': <LeaveBalanceRowModel>[],
+        'page': 1,
+        'pageSize': 10,
+        'totalCount': 0,
+        'totalPages': 1,
+      };
+    }
+  }
+
+  /// Adjust employee leave balance
+  Future<Map<String, dynamic>> adjustLeaveBalance({
+    required String userId,
+    required String leaveTypeId,
+    required double adjustmentDays,
+    required String reason,
+    String academicYear = '2026-2027',
+  }) async {
+    final body = <String, dynamic>{
+      'user_id': userId,
+      'leave_type_id': leaveTypeId,
+      'adjustment_days': adjustmentDays,
+      'reason': reason,
+      'academic_year': academicYear,
+    };
+    return await _api.post('/attendance/leave/balances/adjust', body);
+  }
+
+  /// Get short permission requests
+  Future<List<PermissionRequestModel>> getPermissionRequests({
+    String status = 'ALL',
+    String? date,
+    String search = '',
+  }) async {
+    try {
+      final query = <String, String>{'status': status, 'search': search};
+      if (date != null && date.isNotEmpty) query['date'] = date;
+      final res = await _api.get('/attendance/permissions/requests', query: query, useCache: false);
+      final data = res['data'] as Map<String, dynamic>? ?? {};
+      final list = data['permissions'] as List? ?? [];
+      return list.map((e) => PermissionRequestModel.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Apply for short permission request
+  Future<Map<String, dynamic>> applyPermissionRequest({
+    String? applicantId,
+    required String permissionType,
+    required String date,
+    required String startTime,
+    required String endTime,
+    double durationHours = 1.0,
+    required String reason,
+  }) async {
+    final body = <String, dynamic>{
+      'permission_type': permissionType,
+      'permission_date': date,
+      'start_time': startTime,
+      'end_time': endTime,
+      'duration_hours': durationHours,
+      'reason': reason,
+    };
+    if (applicantId != null && applicantId.isNotEmpty) body['applicant_id'] = applicantId;
+    return await _api.post('/attendance/permissions/requests', body);
+  }
+
+  /// Approve or Reject short permission request
+  Future<Map<String, dynamic>> handlePermissionAction({
+    required String permissionId,
+    required String action, // APPROVE, REJECT, CANCEL
+    String? remarks,
+  }) async {
+    final body = <String, dynamic>{
+      'action': action,
+      'remarks': remarks,
+    };
+    return await _api.post('/attendance/permissions/requests/$permissionId/action', body);
+  }
+
+  /// Batch Approve, Reject or Cancel multiple permission requests
+  Future<Map<String, dynamic>> handleBatchPermissionAction({
+    required List<String> permissionIds,
+    required String action, // APPROVE, REJECT, CANCEL
+    String? remarks,
+    bool selectAll = false,
+    String? status,
+  }) async {
+    final body = <String, dynamic>{
+      'permission_ids': permissionIds,
+      'action': action,
+      'remarks': remarks,
+      'select_all': selectAll,
+    };
+    if (status != null) body['status'] = status;
+    return await _api.post('/attendance/permissions/requests/batch-action', body);
   }
 
   /// Execute bulk operations
