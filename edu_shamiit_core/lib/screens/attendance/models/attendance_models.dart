@@ -372,6 +372,8 @@ class StudentPeriodAttendanceModel {
   final bool lockedByAllDay;
   final bool isOverridden;
   final String? overrideReason;
+  final String? sectionId;
+  final String? sectionName;
   final DateTime? lastUpdatedAt;
   final String? updatedByName;
 
@@ -383,6 +385,8 @@ class StudentPeriodAttendanceModel {
     this.subjectCode = '',
     this.subjectColor = const Color(0xFF4F46E5),
     this.scheduleId,
+    this.sectionId,
+    this.sectionName,
     this.timeRange = '',
     this.teacherName = '',
     this.teacherAvatar,
@@ -414,6 +418,8 @@ class StudentPeriodAttendanceModel {
       subjectCode: json['subject_code']?.toString() ?? '',
       subjectColor: parsedColor,
       scheduleId: json['schedule_id']?.toString(),
+      sectionId: json['section_id']?.toString(),
+      sectionName: json['section_name']?.toString(),
       timeRange: json['time_range']?.toString() ?? '',
       teacherName: json['teacher_name']?.toString() ?? 'Teacher',
       teacherAvatar: json['teacher_avatar']?.toString(),
@@ -434,6 +440,8 @@ class StudentPeriodAttendanceModel {
     bool? isLocked,
     bool? isOverridden,
     String? overrideReason,
+    String? sectionId,
+    String? sectionName,
   }) {
     return StudentPeriodAttendanceModel(
       periodNumber: periodNumber,
@@ -443,6 +451,8 @@ class StudentPeriodAttendanceModel {
       subjectCode: subjectCode,
       subjectColor: subjectColor,
       scheduleId: scheduleId,
+      sectionId: sectionId ?? this.sectionId,
+      sectionName: sectionName ?? this.sectionName,
       timeRange: timeRange,
       teacherName: teacherName,
       teacherAvatar: teacherAvatar,
@@ -500,6 +510,10 @@ class AttendanceScheduleItemModel {
   final String? scheduleTitle;
   final int periodNumber;
   final String periodLabel;
+  final int? sectionPeriodNumber;
+  final String? sectionPeriodLabel;
+  final String? sectionId;
+  final String? sectionName;
   final String timeRange;
   final String subjectId;
   final String subjectName;
@@ -520,6 +534,10 @@ class AttendanceScheduleItemModel {
     this.scheduleTitle,
     required this.periodNumber,
     required this.periodLabel,
+    this.sectionPeriodNumber,
+    this.sectionPeriodLabel,
+    this.sectionId,
+    this.sectionName,
     required this.timeRange,
     required this.subjectId,
     required this.subjectName,
@@ -551,6 +569,10 @@ class AttendanceScheduleItemModel {
       scheduleTitle: json['schedule_title']?.toString(),
       periodNumber: json['period_number'] as int? ?? 1,
       periodLabel: json['period_label']?.toString() ?? 'P1',
+      sectionPeriodNumber: json['section_period_number'] as int?,
+      sectionPeriodLabel: json['section_period_label']?.toString(),
+      sectionId: json['section_id']?.toString(),
+      sectionName: json['section_name']?.toString(),
       timeRange: json['time_range']?.toString() ?? '08:30 - 09:15',
       subjectId: json['subject_id']?.toString() ?? '',
       subjectName: json['subject_name']?.toString() ?? 'Subject',
@@ -1240,28 +1262,70 @@ class PermissionRequestModel {
 class AttendanceInsightsModel {
   final String startDate;
   final String endDate;
-  final List<Map<String, dynamic>> dailyTrend;
-  final List<Map<String, dynamic>> atRiskStudents;
-  final int atRiskCount;
-  final List<Map<String, dynamic>> classComparison;
+  final String viewBy;
+  final String? role;
+  final String? department;
+  final String granularity;
+  final Map<String, dynamic> kpis;
+  final List<Map<String, dynamic>> trend;
+  final Map<String, dynamic> distribution;
+  final List<Map<String, dynamic>> topClasses;
+  final List<Map<String, dynamic>> topAbsentees;
+  final List<Map<String, dynamic>> dayOfWeek;
+  final List<Map<String, dynamic>> departmentStats;
+  final List<Map<String, dynamic>> availableDepartments;
+  final List<Map<String, dynamic>> availableRoles;
+  final List<Map<String, dynamic>> insightsAlerts;
 
   AttendanceInsightsModel({
     required this.startDate,
     required this.endDate,
-    this.dailyTrend = const [],
-    this.atRiskStudents = const [],
-    this.atRiskCount = 0,
-    this.classComparison = const [],
+    this.viewBy = 'OVERALL',
+    this.role,
+    this.department,
+    this.granularity = 'monthly',
+    this.kpis = const {},
+    this.trend = const [],
+    this.distribution = const {},
+    this.topClasses = const [],
+    this.topAbsentees = const [],
+    this.dayOfWeek = const [],
+    this.departmentStats = const [],
+    this.availableDepartments = const [],
+    this.availableRoles = const [],
+    this.insightsAlerts = const [],
   });
+
+  // Backward compatibility getters
+  List<Map<String, dynamic>> get dailyTrend => trend;
+  List<Map<String, dynamic>> get atRiskStudents => topAbsentees;
+  int get atRiskCount => topAbsentees.length;
+  List<Map<String, dynamic>> get classComparison => topClasses;
 
   factory AttendanceInsightsModel.fromJson(Map<String, dynamic> json) {
     return AttendanceInsightsModel(
       startDate: json['start_date']?.toString() ?? '',
       endDate: json['end_date']?.toString() ?? '',
-      dailyTrend: (json['daily_trend'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
-      atRiskStudents: (json['at_risk_students'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
-      atRiskCount: json['at_risk_count'] as int? ?? 0,
-      classComparison: (json['class_comparison'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
+      viewBy: json['view_by']?.toString() ?? 'OVERALL',
+      role: json['role']?.toString(),
+      department: json['department']?.toString(),
+      granularity: json['granularity']?.toString() ?? 'monthly',
+      kpis: (json['kpis'] as Map<String, dynamic>?) ?? {},
+      trend: (json['trend'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
+          (json['daily_trend'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
+          [],
+      distribution: (json['distribution'] as Map<String, dynamic>?) ?? {},
+      topClasses: (json['top_classes'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
+          (json['class_comparison'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
+          [],
+      topAbsentees: (json['top_absentees'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
+          (json['at_risk_students'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
+          [],
+      dayOfWeek: (json['day_of_week'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
+      departmentStats: (json['department_stats'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
+      availableDepartments: (json['available_departments'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
+      availableRoles: (json['available_roles'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
+      insightsAlerts: (json['insights_alerts'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
     );
   }
 }

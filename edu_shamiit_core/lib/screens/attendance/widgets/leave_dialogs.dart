@@ -977,7 +977,7 @@ class _ApplyLeaveDialogState extends ConsumerState<ApplyLeaveDialog> {
                           Text('Applicant / Employee', style: _labelStyle(isDark)),
                           const SizedBox(height: 5),
                           DropdownButtonFormField<String>(
-                            value: _selectedApplicantId,
+                            value: (state.staffRoster.any((s) => s.employeeId == _selectedApplicantId)) ? _selectedApplicantId : null,
                             hint: Text('Apply for Self (Current User)', style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white60 : Colors.black45)),
                             isExpanded: true,
                             decoration: _inputDecoration(isDark, prefixIcon: Icons.person_outline),
@@ -1030,7 +1030,9 @@ class _ApplyLeaveDialogState extends ConsumerState<ApplyLeaveDialog> {
                                   Text('Duration Type', style: _labelStyle(isDark)),
                                   const SizedBox(height: 5),
                                   DropdownButtonFormField<String>(
-                                    value: _halfDayType,
+                                    value: (policy?.allowHalfDay ?? true)
+                                        ? (['FULL_DAY', 'FIRST_HALF', 'SECOND_HALF'].contains(_halfDayType) ? _halfDayType : 'FULL_DAY')
+                                        : 'FULL_DAY',
                                     decoration: _inputDecoration(isDark, prefixIcon: Icons.timelapse_outlined),
                                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                                     items: [
@@ -1622,7 +1624,7 @@ class _PermissionRequestDialogState extends ConsumerState<PermissionRequestDialo
                 Text('Applicant / Employee', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isDark ? Colors.white70 : const Color(0xFF475569))),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
-                  value: _selectedApplicantId,
+                  value: (state.staffRoster.any((s) => s.employeeId == _selectedApplicantId)) ? _selectedApplicantId : null,
                   hint: const Text('Apply for Self (Current User)', style: TextStyle(fontSize: 13)),
                   isExpanded: true,
                   decoration: InputDecoration(
@@ -1648,7 +1650,9 @@ class _PermissionRequestDialogState extends ConsumerState<PermissionRequestDialo
               Text('Permission Type *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isDark ? Colors.white70 : const Color(0xFF475569))),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
-                value: _permissionType,
+                value: const ['LATE_ARRIVAL', 'EARLY_DEPARTURE', 'SHORT_PERMISSION', 'MEDICAL', 'OFFICIAL', 'PERSONAL'].contains(_permissionType)
+                    ? _permissionType
+                    : 'SHORT_PERMISSION',
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.category_outlined, size: 18),
                   filled: true,
@@ -3130,7 +3134,7 @@ class _LeaveTypeDialogState extends ConsumerState<LeaveTypeDialog> {
                                 const Text('Category', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                                 const SizedBox(height: 6),
                                 DropdownButtonFormField<String>(
-                                  value: _category,
+                                  value: const ['PAID', 'UNPAID', 'SPECIAL'].contains(_category) ? _category : 'PAID',
                                   decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
                                   items: const [
                                     DropdownMenuItem(value: 'PAID', child: Text('Paid Leave')),

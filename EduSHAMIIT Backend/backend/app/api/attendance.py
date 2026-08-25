@@ -88,6 +88,7 @@ class AttendanceItemPayload(BaseModel):
     remarks: Optional[str] = Field(None)
     period_number: Optional[int] = Field(None)
     subject_id: Optional[uuid.UUID] = Field(None)
+    periods: Optional[List[Dict[str, Any]]] = Field(default=None)
 
 
 class SaveAttendanceRequest(BaseModel):
@@ -1644,23 +1645,187 @@ async def export_attendance_csv(
 
 @router.get("/insights")
 async def get_attendance_insights(
-    start_date: str = Query(..., description="YYYY-MM-DD"),
-    end_date: str = Query(..., description="YYYY-MM-DD"),
+    start_date: Optional[str] = Query(None, description="YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="YYYY-MM-DD"),
+    view_by: str = Query("OVERALL", description="OVERALL, STUDENTS, STAFF"),
+    role: Optional[str] = Query(None, description="Specific role e.g. teacher, driver, accountant"),
     class_id: Optional[uuid.UUID] = Query(None),
     section_id: Optional[uuid.UUID] = Query(None),
+    department: Optional[str] = Query(None),
+    subject_id: Optional[uuid.UUID] = Query(None),
+    granularity: str = Query("monthly", description="daily, weekly, monthly"),
     current_user: dict = Depends(get_current_user),
     school_id: str = Depends(require_school_id)
 ):
-    """Retrieve analytical insights, trends, class comparisons, and at-risk students (<75%)."""
+    """Production-grade Attendance Insights and Analytics Engine."""
     _require_permission(current_user, "attendance.report")
+    
+    # 1. Parse Parameters
+    start_date_val = str(start_date) if isinstance(start_date, (str, date, datetime)) else None
+    end_date_val = str(end_date) if isinstance(end_date, (str, date, datetime)) else None
+    view_by_val = str(view_by) if isinstance(view_by, str) else "OVERALL"
+    role_val = str(role) if (role is not None and str(role).strip() != "" and str(role).upper() != "ALL") else None
+    granularity_val = str(granularity) if isinstance(granularity, str) else "monthly"
+    dept_str = str(department) if (isinstance(department, str) and department.upper() != "ALL" and department.strip() != "" and department.upper() != "ALL DEPARTMENTS") else None
+
+    today = date.today()
+    try:
+        e_date = datetime.strptime(end_date_val, "%Y-%m-%d").date() if end_date_val else today
+    except Exception:
+        e_date = today
+    try:
+        s_date = datetime.strptime(start_date_val, "%Y-%m-%d").date() if start_date_val else (e_date - timedelta(days=30))
+    except Exception:
+        s_date = e_date - timedelta(days=30)
+    
+    if s_date > e_date:
+        s_date, e_date = e_date, s_date
+
+    s_date_str = str(s_date)
+    e_date_str = str(e_date)
+    v_by = view_by_val.upper()
+    cid_str = str(class_id) if (class_id is not None and "params" not in str(type(class_id))) else None
+    sec_str = str(section_id) if (section_id is not None and "params" not in str(type(section_id))) else None
+    sub_str = str(subject_id) if (subject_id is not None and "params" not in str(type(subject_id))) else None
+    granularity = granularity_val.lower()
+
+    # Call comprehensive stored procedure
+    rows = await exec_sql(
+        """
+        SELECT public.fn_get_attendance_insights(
+            %s::UUID, %s::DATE, %s::DATE, %s, %s, %s::UUID, %s::UUID, %s, %s::UUID, %s
+        ) AS result;
+        """,
+        (school_id, s_date_str, e_date_str, v_by, role_val, cid_str, sec_str, dept_str, sub_str, granularity)
+    )
+
+    if rows and rows[0].get("result"):
+        return _serialize_val(rows[0]["result"])
+
+    return {
+        "success": True,
+        "data": {
+            "start_date": s_date_str,
+            "end_date": e_date_str,
+            "view_by": v_by,
+            "role": role_val,
+            "granularity": granularity,
+            "kpis": {},
+            "trend": [],
+            "distribution": {},
+            "top_classes": [],
+            "top_absentees": [],
+            "day_of_week": [],
+            "department_stats": [],
+            "available_departments": [],
+            "available_roles": [],
+            "insights_alerts": []
+        }
+    }
+
+
+@router.get("/insights/student/{student_id}")
+async def get_student_attendance_insights_profile(
+    student_id: uuid.UUID,
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    current_user: dict = Depends(get_current_user),
+    school_id: str = Depends(require_school_id)
+):
+    """Retrieve full student / staff attendance profile, calendar heatmap, and logs."""
+    _require_permission(current_user, "attendance.view")
+    
+    start_date_val = str(start_date) if isinstance(start_date, (str, date, datetime)) else None
+    end_date_val = str(end_date) if isinstance(end_date, (str, date, datetime)) else None
+    today = date.today()
+    try:
+        e_date = datetime.strptime(end_date_val, "%Y-%m-%d").date() if end_date_val else today
+    except Exception:
+        e_date = today
+    try:
+        s_date = datetime.strptime(start_date_val, "%Y-%m-%d").date() if start_date_val else (e_date - timedelta(days=60))
+    except Exception:
+        s_date = e_date - timedelta(days=60)
 
     rows = await exec_sql(
-        "SELECT public.fn_get_attendance_insights(%s::UUID, %s::DATE, %s::DATE, %s::UUID, %s::UUID) AS result;",
-        (school_id, start_date, end_date, str(class_id) if class_id else None, str(section_id) if section_id else None)
+        """
+        SELECT public.fn_get_student_insights_profile(
+            %s::UUID, %s::UUID, %s::DATE, %s::DATE
+        ) AS result;
+        """,
+        (school_id, str(student_id), str(s_date), str(e_date))
     )
-    if not rows or not rows[0].get("result"):
-        return {"success": True, "data": {"daily_trend": [], "at_risk_students": [], "at_risk_count": 0, "class_comparison": []}}
-    return _serialize_val(rows[0]["result"])
+
+    if rows and rows[0].get("result"):
+        res = rows[0]["result"]
+        if not res.get("success"):
+            raise HTTPException(status_code=404, detail=res.get("error", "Profile not found"))
+        return _serialize_val(res)
+
+    raise HTTPException(status_code=404, detail="Student not found")
+
+
+@router.get("/insights/export")
+async def export_attendance_insights_csv(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    view_by: str = Query("OVERALL"),
+    class_id: Optional[uuid.UUID] = Query(None),
+    section_id: Optional[uuid.UUID] = Query(None),
+    department: Optional[str] = Query(None),
+    current_user: dict = Depends(get_current_user),
+    school_id: str = Depends(require_school_id)
+):
+    """Export attendance insights roster as a clean CSV report."""
+    _require_permission(current_user, "attendance.export")
+    
+    start_date_val = str(start_date) if isinstance(start_date, (str, date, datetime)) else None
+    end_date_val = str(end_date) if isinstance(end_date, (str, date, datetime)) else None
+    today = date.today()
+    e_date = datetime.strptime(end_date_val, "%Y-%m-%d").date() if end_date_val else today
+    s_date = datetime.strptime(start_date_val, "%Y-%m-%d").date() if start_date_val else (e_date - timedelta(days=30))
+    
+    cid_str = str(class_id) if (class_id is not None and "params" not in str(type(class_id))) else None
+    sec_str = str(section_id) if (section_id is not None and "params" not in str(type(section_id))) else None
+
+    rows = await exec_sql("""
+        SELECT 
+            sca.roll_number, p.admission_number, p.full_name, c.name as class_name, s.name as section_name,
+            COUNT(adr.id) as total_days,
+            COUNT(CASE WHEN UPPER(adr.status) = 'PRESENT' THEN 1 END) as present_days,
+            COUNT(CASE WHEN UPPER(adr.status) = 'ABSENT' THEN 1 END) as absent_days,
+            COUNT(CASE WHEN UPPER(adr.status) = 'LATE' THEN 1 END) as late_days,
+            COUNT(CASE WHEN UPPER(adr.status) IN ('ON_LEAVE', 'HALF_DAY') THEN 1 END) as leave_days,
+            CASE 
+                WHEN COUNT(adr.id) > 0 THEN ROUND((COUNT(CASE WHEN UPPER(adr.status) IN ('PRESENT', 'LATE') THEN 1 END)::NUMERIC / COUNT(adr.id)::NUMERIC) * 100.0, 2)
+                ELSE 0.0
+            END as attendance_percentage
+        FROM public.student_class_assignments sca
+        JOIN public.profiles p ON p.id = sca.student_id AND (p.status IS NULL OR p.status != 'Deleted')
+        LEFT JOIN public.academic_classes c ON c.id = sca.class_id
+        LEFT JOIN public.academic_sections s ON s.id = sca.section_id
+        LEFT JOIN public.attendance_daily_records adr ON adr.student_id = p.id AND adr.school_id = %s::UUID AND adr.attendance_date BETWEEN %s::DATE AND %s::DATE
+        WHERE sca.school_id = %s::UUID AND sca.status = 'ACTIVE'
+          AND (%s::UUID IS NULL OR sca.class_id = %s::UUID)
+          AND (%s::UUID IS NULL OR sca.section_id = %s::UUID)
+        GROUP BY sca.roll_number, p.admission_number, p.full_name, c.name, s.name
+        ORDER BY c.name ASC, s.name ASC, sca.roll_number ASC, p.full_name ASC;
+    """, (school_id, str(s_date), str(e_date), school_id, cid_str, cid_str, sec_str, sec_str))
+    
+    csv_lines = ["Roll No,Admission No,Student Name,Class,Section,Total Days,Present,Absent,Late,Leave,Attendance %"]
+    for r in rows:
+        csv_lines.append(
+            f'"{r.get("roll_number") or ""}","{r.get("admission_number") or ""}","{r.get("full_name") or ""}",'
+            f'"{r.get("class_name") or ""}","{r.get("section_name") or ""}",{r.get("total_days") or 0},'
+            f'{r.get("present_days") or 0},{r.get("absent_days") or 0},{r.get("late_days") or 0},'
+            f'{r.get("leave_days") or 0},{r.get("attendance_percentage") or 0.0}%'
+        )
+    csv_content = "\n".join(csv_lines)
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=attendance_insights_{s_date}_to_{e_date}.csv"}
+    )
 
 
 @router.get("/settings")

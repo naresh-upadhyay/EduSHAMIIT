@@ -72,6 +72,12 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 _buildSearchBarAndActionsToolbar(state, notifier, isDark, theme),
                 const SizedBox(height: 14),
 
+                // Floating Bulk Action Bar (when students are selected)
+                if (state.selectedStudentIds.isNotEmpty) ...[
+                  _buildFloatingBulkActionBar(state, notifier, isDark, theme),
+                  const SizedBox(height: 14),
+                ],
+
                 // 5. Student Attendance Roster Table
                 _buildStudentRosterTable(state, notifier, isDark, theme),
                 const SizedBox(height: 14),
@@ -729,6 +735,28 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                                           : (isDark ? Colors.white : const Color(0xFF0F172A)),
                                     ),
                                   ),
+                                  if (state.selectedSectionId == null && sched.sectionName != null && sched.sectionName!.isNotEmpty) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? const Color(0xFF4F46E5).withValues(alpha: 0.2)
+                                            : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        'Sec ${sched.sectionName}',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                          color: isSelected
+                                              ? (isDark ? Colors.white : const Color(0xFF312E81))
+                                              : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                   if (sched.isCompleted) ...[
                                     const SizedBox(width: 6),
                                     const Icon(Icons.check_circle_rounded, size: 13, color: Color(0xFF10B981)),
@@ -918,13 +946,35 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  sched.subjectName,
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    fontWeight: isChecked ? FontWeight.w800 : FontWeight.w700,
-                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                  ),
+                                Row(
+                                  children: [
+                                    Text(
+                                      sched.subjectName,
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: isChecked ? FontWeight.w800 : FontWeight.w700,
+                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    if (state.selectedSectionId == null && sched.sectionName != null && sched.sectionName!.isNotEmpty) ...[
+                                      const SizedBox(width: 5),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 4.5, vertical: 1),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                          borderRadius: BorderRadius.circular(3),
+                                        ),
+                                        child: Text(
+                                          'Sec ${sched.sectionName}',
+                                          style: TextStyle(
+                                            fontSize: 8.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                                 Text(
                                   '${sched.timeRange} • ${sched.teacherName}',
@@ -988,21 +1038,21 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
     final className = selectedClass.name.isNotEmpty ? selectedClass.name : 'Class';
     String sectionName = '';
     if (state.selectedSectionId != null && selectedClass.sections.isNotEmpty) {
-      final foundSection = selectedClass.sections.firstWhere(
-        (s) => s.id == state.selectedSectionId,
-        orElse: () => selectedClass.sections.first,
-      );
-      sectionName = foundSection.name;
-    } else if (selectedClass.sections.isNotEmpty) {
-      sectionName = selectedClass.sections.first.name;
+      final foundSection = selectedClass.sections.where((s) => s.id == state.selectedSectionId);
+      if (foundSection.isNotEmpty) {
+        sectionName = foundSection.first.name;
+      }
     }
-    final classDisplayTitle = sectionName.isNotEmpty ? '$className - $sectionName' : className;
+    final classDisplayTitle = state.selectedSectionId == null
+        ? '$className - All Sections'
+        : (sectionName.isNotEmpty ? '$className - $sectionName' : className);
 
     final total = state.totalCount > 0 ? state.totalCount : state.roster.length;
     final present = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.present).length;
     final absent = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.absent).length;
     final lateCount = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.late).length;
     final onLeave = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.onLeave).length;
+    final halfDay = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.halfDay).length;
 
     return Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -1035,6 +1085,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
 
         // On Leave Pill
         _buildStatPill('On Leave: $onLeave', const Color(0xFF1D4ED8), const Color(0xFFEFF6FF)),
+
+        if (halfDay > 0)
+          _buildStatPill('Half Day: $halfDay', const Color(0xFF6B21A8), const Color(0xFFFAF5FF)),
       ],
     );
   }
@@ -1100,66 +1153,205 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
       ),
     );
 
+    final selectedCount = state.selectedStudentIds.length;
+    final bool hasSelection = selectedCount > 0;
+
+    // Scope label & color
+    String modeScopeLabel;
+    Color modeScopeColor;
+    IconData modeScopeIcon;
+
+    if (state.selectedMode == AttendanceMode.allDay) {
+      modeScopeLabel = 'Whole Day (All Periods)';
+      modeScopeColor = const Color(0xFF3B82F6);
+      modeScopeIcon = Icons.wb_sunny_rounded;
+    } else if (state.selectedMode == AttendanceMode.byPeriod) {
+      final activePNum = state.selectedPeriodNumber ?? 1;
+      final matchingSched = state.schedulesToday.firstWhere(
+        (s) => s.periodNumber == activePNum,
+        orElse: () => AttendanceScheduleItemModel(
+          id: '',
+          periodNumber: activePNum,
+          periodLabel: 'P$activePNum',
+          timeRange: '',
+          subjectId: '',
+          subjectName: 'Period $activePNum',
+          subjectCode: '',
+          subjectColor: const Color(0xFFF59E0B),
+          teacherName: '',
+          status: '',
+        ),
+      );
+      modeScopeLabel = 'Period $activePNum (${matchingSched.subjectName})';
+      modeScopeColor = const Color(0xFFF59E0B);
+      modeScopeIcon = Icons.timelapse_rounded;
+    } else {
+      final customCount = state.selectedScheduleIds.length;
+      modeScopeLabel = 'Custom ($customCount Periods)';
+      modeScopeColor = const Color(0xFF8B5CF6);
+      modeScopeIcon = Icons.tune_rounded;
+    }
+
     final actionButtons = Wrap(
       spacing: 8,
       runSpacing: 6,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        // Quick Mark: Mark All Present
-        ElevatedButton(
-          onPressed: () => notifier.markAll(AttendanceStatus.present),
+        // Scope Indicator Badge
+        Container(
+          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: modeScopeColor.withValues(alpha: isDark ? 0.18 : 0.09),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: modeScopeColor.withValues(alpha: 0.35)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(modeScopeIcon, size: 14, color: modeScopeColor),
+              const SizedBox(width: 6),
+              Text(
+                'Scope: $modeScopeLabel',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: modeScopeColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Quick Mark: Mark Present (Selected / All)
+        ElevatedButton.icon(
+          onPressed: () => _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.present, hasSelection),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF10B981),
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             elevation: 0,
           ),
-          child: const Text('Mark All Present', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+          icon: Icon(hasSelection ? Icons.check_circle_outline_rounded : Icons.done_all_rounded, size: 15),
+          label: Text(
+            hasSelection ? 'Mark Selected Present ($selectedCount)' : 'Mark All Present',
+            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+          ),
         ),
 
-        // Quick Mark: Mark All Absent
-        ElevatedButton(
-          onPressed: () => notifier.markAll(AttendanceStatus.absent),
+        // Quick Mark: Mark Absent (Selected / All)
+        ElevatedButton.icon(
+          onPressed: () => _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.absent, hasSelection),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFEF4444),
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             elevation: 0,
           ),
-          child: const Text('Mark All Absent', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+          icon: const Icon(Icons.cancel_outlined, size: 15),
+          label: Text(
+            hasSelection ? 'Mark Selected Absent ($selectedCount)' : 'Mark All Absent',
+            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+          ),
         ),
 
-        // Quick Mark: Mark All Late
-        OutlinedButton(
-          onPressed: () => notifier.markAll(AttendanceStatus.late),
+        // Quick Mark: Mark Late (Selected / All)
+        OutlinedButton.icon(
+          onPressed: () => _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.late, hasSelection),
           style: OutlinedButton.styleFrom(
             foregroundColor: const Color(0xFFD97706),
             backgroundColor: const Color(0xFFFFFBEB),
             side: const BorderSide(color: Color(0xFFFDE68A)),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
-          child: const Text('Mark All Late', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+          icon: const Icon(Icons.watch_later_outlined, size: 15),
+          label: Text(
+            hasSelection ? 'Mark Selected Late ($selectedCount)' : 'Mark All Late',
+            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+          ),
         ),
 
         // More Actions Dropdown
         PopupMenuButton<String>(
           tooltip: 'More Bulk Actions',
           onSelected: (val) {
-            if (val == 'leave') notifier.markAll(AttendanceStatus.onLeave);
-            if (val == 'half') notifier.markAll(AttendanceStatus.halfDay);
+            if (val == 'leave') _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.onLeave, hasSelection);
+            if (val == 'half') _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.halfDay, hasSelection);
+            if (val == 'remark') _showBulkRemarksDialog(state, notifier, hasSelection);
+            if (val == 'deselect') notifier.selectAllStudents(false);
             if (val == 'reset') notifier.resetDrafts();
           },
           itemBuilder: (context) => [
-            const PopupMenuItem(value: 'leave', child: Text('Mark All On Leave')),
-            const PopupMenuItem(value: 'half', child: Text('Mark All Half Day')),
+            PopupMenuItem(
+              value: 'leave',
+              child: Row(
+                children: [
+                  const Icon(Icons.event_busy_rounded, size: 16, color: Color(0xFF8B5CF6)),
+                  const SizedBox(width: 8),
+                  Text(
+                    hasSelection ? 'Mark Selected On Leave ($selectedCount)' : 'Mark All On Leave',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'half',
+              child: Row(
+                children: [
+                  const Icon(Icons.pie_chart_rounded, size: 16, color: Color(0xFF6366F1)),
+                  const SizedBox(width: 8),
+                  Text(
+                    hasSelection ? 'Mark Selected Half Day ($selectedCount)' : 'Mark All Half Day',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'remark',
+              child: Row(
+                children: [
+                  const Icon(Icons.edit_note_rounded, size: 16, color: Color(0xFF0284C7)),
+                  const SizedBox(width: 8),
+                  Text(
+                    hasSelection ? 'Add Remark to Selected ($selectedCount)' : 'Add Remark to All',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            if (hasSelection) ...[
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                value: 'deselect',
+                child: Row(
+                  children: [
+                    const Icon(Icons.close_rounded, size: 16, color: Color(0xFF64748B)),
+                    const SizedBox(width: 8),
+                    Text('Deselect All ($selectedCount)', style: const TextStyle(fontSize: 12)),
+                  ],
+                ),
+              ),
+            ],
             const PopupMenuDivider(),
-            const PopupMenuItem(value: 'reset', child: Text('Reset to Saved Status')),
+            const PopupMenuItem(
+              value: 'reset',
+              child: Row(
+                children: [
+                  Icon(Icons.restore_rounded, size: 16, color: Color(0xFF94A3B8)),
+                  SizedBox(width: 8),
+                  Text('Reset Drafts to Saved Status', style: TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
           ],
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : Colors.white,
               borderRadius: BorderRadius.circular(8),
@@ -1187,7 +1379,7 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < 850) {
+        if (constraints.maxWidth < 1100) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -1207,6 +1399,77 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
           ],
         );
       },
+    );
+  }
+
+  void _showBulkRemarksDialog(AttendanceState state, AttendanceNotifier notifier, bool hasSelection) {
+    final count = hasSelection ? state.selectedStudentIds.length : state.roster.length;
+    final textController = TextEditingController();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Row(
+          children: [
+            const Icon(Icons.edit_note_rounded, color: Color(0xFF4F46E5), size: 22),
+            const SizedBox(width: 8),
+            Text(
+              'Add Remarks for $count ${count == 1 ? "Student" : "Students"}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This remark will be applied to ${hasSelection ? "the $count selected students" : "all $count students in this roster"}.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: textController,
+                maxLines: 3,
+                style: const TextStyle(fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'e.g. Participated in sports event / Medical excuse / Late due to rain...',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding: const EdgeInsets.all(12),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final val = textController.text.trim();
+              if (val.isNotEmpty) {
+                notifier.applyBulkRemarks(val);
+              }
+              Navigator.of(ctx).pop();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4F46E5),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Apply Remarks'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1469,12 +1732,12 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                         child: _buildStudentPeriodsCell(student, state, notifier, isDark),
                       ),
 
-                      // View-Only Status Pill (with rich multi-line hover breakdown)
+                      // Interactive Status Pill (with 1-click mode-aware dropdown & rich hover breakdown)
                       Expanded(
                         flex: 3,
                         child: Align(
                           alignment: Alignment.centerLeft,
-                          child: _buildViewOnlyStatusPill(student, currentStatus, isDark),
+                          child: _buildInteractiveStatusPill(student, currentStatus, state, notifier, isDark),
                         ),
                       ),
 
@@ -1657,13 +1920,22 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 offset: const Offset(0, 28),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 onSelected: (newStatus) {
-                  notifier.quickMarkStudentPeriod(
-                    studentId: student.studentId,
-                    periodNumber: period.periodNumber,
-                    status: newStatus,
-                    subjectId: period.subjectId,
-                    scheduleId: period.scheduleId,
-                  );
+                  if (period.isLocked) {
+                    _showOverridePeriodDialog(
+                      student: student,
+                      period: period,
+                      targetStatus: newStatus,
+                      notifier: notifier,
+                    );
+                  } else {
+                    notifier.quickMarkStudentPeriod(
+                      studentId: student.studentId,
+                      periodNumber: period.periodNumber,
+                      status: newStatus,
+                      subjectId: period.subjectId,
+                      scheduleId: period.scheduleId,
+                    );
+                  }
                 },
                 itemBuilder: (context) => [
                   PopupMenuItem(
@@ -1749,11 +2021,13 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
   }
 
   // ==========================================================================
-  // VIEW-ONLY STATUS PROGRESS PILL (with Rich Hover Tooltip Breakdown)
+  // INTERACTIVE STATUS PROGRESS PILL (with Rich Hover Tooltip & 1-Click Dropdown)
   // ==========================================================================
-  Widget _buildViewOnlyStatusPill(
+  Widget _buildInteractiveStatusPill(
     AttendanceStudentRowModel student,
     AttendanceStatus status,
+    AttendanceState state,
+    AttendanceNotifier notifier,
     bool isDark,
   ) {
     Color bg;
@@ -1761,91 +2035,66 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
     Color border;
     IconData icon;
     String displayLabel;
-
     final summary = student.periodsSummary;
-    if (summary != null && summary.totalPeriods > 0) {
-      if (summary.markedPeriods == summary.totalPeriods) {
-        displayLabel = '${summary.markedPeriods}/${summary.totalPeriods} Marked';
-        if (summary.presentCount == summary.totalPeriods) {
-          bg = const Color(0xFFECFDF5);
-          text = const Color(0xFF15803D);
-          border = const Color(0xFFBBF7D0);
-          icon = Icons.check_circle_rounded;
-        } else if (summary.absentCount == summary.totalPeriods) {
-          bg = const Color(0xFFFEF2F2);
-          text = const Color(0xFFB91C1C);
-          border = const Color(0xFFFECACA);
-          icon = Icons.cancel_rounded;
-        } else {
-          bg = const Color(0xFFEEF2FF);
-          text = const Color(0xFF4F46E5);
-          border = const Color(0xFFC7D2FE);
-          icon = Icons.done_all_rounded;
-        }
-      } else if (summary.markedPeriods > 0) {
-        displayLabel = '${summary.markedPeriods}/${summary.totalPeriods} Marked';
+
+    AttendanceStatus effectiveStatus;
+    if (state.selectedMode == AttendanceMode.byPeriod) {
+      final activePNum = state.selectedPeriodNumber ?? (student.periods.isNotEmpty ? student.periods.first.periodNumber : 1);
+      final activeP = student.periods.where((p) => p.periodNumber == activePNum).firstOrNull;
+      effectiveStatus = activeP?.status ?? AttendanceStatus.notMarked;
+    } else {
+      effectiveStatus = status;
+    }
+
+    switch (effectiveStatus) {
+      case AttendanceStatus.present:
+        bg = const Color(0xFFECFDF5);
+        text = const Color(0xFF15803D);
+        border = const Color(0xFFBBF7D0);
+        icon = Icons.check_rounded;
+        displayLabel = 'Present';
+        break;
+      case AttendanceStatus.absent:
+        bg = const Color(0xFFFEF2F2);
+        text = const Color(0xFFB91C1C);
+        border = const Color(0xFFFECACA);
+        icon = Icons.close_rounded;
+        displayLabel = 'Absent';
+        break;
+      case AttendanceStatus.late:
+        bg = const Color(0xFFFFFBEB);
+        text = const Color(0xFFB45309);
+        border = const Color(0xFFFDE68A);
+        icon = Icons.access_time_filled_rounded;
+        displayLabel = 'Late';
+        break;
+      case AttendanceStatus.onLeave:
+        bg = const Color(0xFFEFF6FF);
+        text = const Color(0xFF1D4ED8);
+        border = const Color(0xFFBFDBFE);
+        icon = Icons.calendar_month_rounded;
+        displayLabel = 'On Leave';
+        break;
+      case AttendanceStatus.halfDay:
+        bg = const Color(0xFFFAF5FF);
+        text = const Color(0xFF6B21A8);
+        border = const Color(0xFFE9D5FF);
+        icon = Icons.pie_chart_rounded;
+        displayLabel = 'Half Day';
+        break;
+      case AttendanceStatus.partialPeriods:
         bg = const Color(0xFFE0F2FE);
         text = const Color(0xFF0369A1);
         border = const Color(0xFFBAE6FD);
         icon = Icons.pie_chart_outline_rounded;
-      } else {
-        displayLabel = 'Not Marked';
+        displayLabel = 'Partial';
+        break;
+      default:
         bg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
         text = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
         border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
         icon = Icons.remove_rounded;
-      }
-    } else {
-      switch (status) {
-        case AttendanceStatus.present:
-          bg = const Color(0xFFECFDF5);
-          text = const Color(0xFF15803D);
-          border = const Color(0xFFBBF7D0);
-          icon = Icons.check_rounded;
-          displayLabel = 'Present';
-          break;
-        case AttendanceStatus.absent:
-          bg = const Color(0xFFFEF2F2);
-          text = const Color(0xFFB91C1C);
-          border = const Color(0xFFFECACA);
-          icon = Icons.close_rounded;
-          displayLabel = 'Absent';
-          break;
-        case AttendanceStatus.late:
-          bg = const Color(0xFFFFFBEB);
-          text = const Color(0xFFB45309);
-          border = const Color(0xFFFDE68A);
-          icon = Icons.access_time_filled_rounded;
-          displayLabel = 'Late';
-          break;
-        case AttendanceStatus.onLeave:
-          bg = const Color(0xFFEFF6FF);
-          text = const Color(0xFF1D4ED8);
-          border = const Color(0xFFBFDBFE);
-          icon = Icons.calendar_month_rounded;
-          displayLabel = 'On Leave';
-          break;
-        case AttendanceStatus.halfDay:
-          bg = const Color(0xFFFAF5FF);
-          text = const Color(0xFF6B21A8);
-          border = const Color(0xFFE9D5FF);
-          icon = Icons.pie_chart_rounded;
-          displayLabel = 'Half Day';
-          break;
-        case AttendanceStatus.partialPeriods:
-          bg = const Color(0xFFE0F2FE);
-          text = const Color(0xFF0369A1);
-          border = const Color(0xFFBAE6FD);
-          icon = Icons.pie_chart_outline_rounded;
-          displayLabel = summary != null ? '${summary.markedPeriods}/${summary.totalPeriods} Marked' : 'Partial';
-          break;
-        default:
-          bg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
-          text = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-          border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
-          icon = Icons.remove_rounded;
-          displayLabel = 'Not Marked';
-      }
+        displayLabel = 'Not Marked';
     }
 
     // Build rich, multi-line formatted hover tooltip
@@ -1873,9 +2122,18 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
           '$periodLines\n'
           '─────────────────────────────\n'
           '$summaryLine\n'
-          '💡 Note: Change attendance from the Periods Breakdown column';
+          '👉 Click to change attendance for active mode';
     } else {
-      tooltipMsg = '${student.fullName} • Status: $displayLabel${student.isLocked ? " (Locked)" : ""}';
+      tooltipMsg = '${student.fullName} • Status: $displayLabel${student.isLocked ? " (Locked)" : ""}\n👉 Click to change attendance';
+    }
+
+    String modeHelpText;
+    if (state.selectedMode == AttendanceMode.allDay) {
+      modeHelpText = 'Whole Day (Updates all periods)';
+    } else if (state.selectedMode == AttendanceMode.byPeriod) {
+      modeHelpText = 'Period ${state.selectedPeriodNumber ?? 1} Only';
+    } else {
+      modeHelpText = 'Custom (${state.selectedScheduleIds.length} Periods)';
     }
 
     return Tooltip(
@@ -1887,26 +2145,282 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
         boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 3))],
       ),
       textStyle: const TextStyle(fontSize: 11, color: Colors.white, height: 1.35),
+      child: PopupMenuButton<AttendanceStatus>(
+        tooltip: '',
+        offset: const Offset(0, 32),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        onSelected: (newStatus) {
+          bool isTargetLocked;
+          if (state.selectedMode == AttendanceMode.byPeriod) {
+            final activePNum = state.selectedPeriodNumber ?? (student.periods.isNotEmpty ? student.periods.first.periodNumber : 1);
+            final activeP = student.periods.where((p) => p.periodNumber == activePNum).firstOrNull;
+            isTargetLocked = activeP?.isLocked ?? false;
+          } else {
+            isTargetLocked = student.isLocked && state.isLockedAllDay;
+          }
+
+          if (isTargetLocked) {
+            _showOverrideDialog(student, newStatus, notifier);
+          } else {
+            notifier.markAttendance(newStatus, targetStudentIds: {student.studentId});
+          }
+        },
+        itemBuilder: (context) => [
+          PopupMenuItem(
+            enabled: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  student.fullName,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                ),
+                Text(
+                  'Mode: $modeHelpText',
+                  style: const TextStyle(fontSize: 10.5, color: Color(0xFF6366F1), fontWeight: FontWeight.w600),
+                ),
+                const Divider(height: 10),
+              ],
+            ),
+          ),
+          _buildStatusMenuItem(AttendanceStatus.present, 'Mark Present', Icons.check_circle_rounded, const Color(0xFF10B981)),
+          _buildStatusMenuItem(AttendanceStatus.absent, 'Mark Absent', Icons.cancel_rounded, const Color(0xFFEF4444)),
+          _buildStatusMenuItem(AttendanceStatus.late, 'Mark Late', Icons.watch_later_rounded, const Color(0xFFF59E0B)),
+          _buildStatusMenuItem(AttendanceStatus.onLeave, 'Mark On Leave', Icons.event_busy_rounded, const Color(0xFF8B5CF6)),
+          _buildStatusMenuItem(AttendanceStatus.halfDay, 'Mark Half Day', Icons.pie_chart_rounded, const Color(0xFF6366F1)),
+          _buildStatusMenuItem(AttendanceStatus.notMarked, 'Reset (Not Marked)', Icons.remove_circle_outline_rounded, const Color(0xFF94A3B8)),
+        ],
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                displayLabel,
+                style: TextStyle(
+                  color: text,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11.5,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(icon, size: 14, color: text),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==========================================================================
+  // FLOATING BULK ACTION BAR (When 1+ Students are Checked)
+  // ==========================================================================
+  Widget _buildFloatingBulkActionBar(
+    AttendanceState state,
+    AttendanceNotifier notifier,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    final count = state.selectedStudentIds.length;
+    if (count == 0) return const SizedBox.shrink();
+
+    String modeText;
+    Color modeColor;
+    if (state.selectedMode == AttendanceMode.allDay) {
+      modeText = 'Whole Day (All Periods)';
+      modeColor = const Color(0xFF3B82F6);
+    } else if (state.selectedMode == AttendanceMode.byPeriod) {
+      modeText = 'Period ${state.selectedPeriodNumber ?? 1}';
+      modeColor = const Color(0xFFF59E0B);
+    } else {
+      modeText = 'Custom (${state.selectedScheduleIds.length} Periods)';
+      modeColor = const Color(0xFF8B5CF6);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1B4B) : const Color(0xFFEEF2FF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.4), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        alignment: WrapAlignment.spaceBetween,
+        children: [
+          // Left: Selection count & Mode Tag
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4F46E5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$count Selected',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: modeColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: modeColor.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.bolt_rounded, size: 13, color: modeColor),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Mode: $modeText',
+                      style: TextStyle(color: modeColor, fontWeight: FontWeight.w700, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // Center: Instant Action Pills
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _buildBulkPill('Present', const Color(0xFF10B981), Icons.check_circle_rounded, () {
+                _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.present, true);
+              }),
+              _buildBulkPill('Absent', const Color(0xFFEF4444), Icons.cancel_rounded, () {
+                _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.absent, true);
+              }),
+              _buildBulkPill('Late', const Color(0xFFF59E0B), Icons.watch_later_rounded, () {
+                _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.late, true);
+              }),
+              _buildBulkPill('On Leave', const Color(0xFF8B5CF6), Icons.event_busy_rounded, () {
+                _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.onLeave, true);
+              }),
+              _buildBulkPill('Half Day', const Color(0xFF6366F1), Icons.pie_chart_rounded, () {
+                _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.halfDay, true);
+              }),
+              _buildBulkPill('Remarks', isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569), Icons.edit_note_rounded, () {
+                _showBulkRemarksDialog(state, notifier, true);
+              }),
+            ],
+          ),
+
+          // Right: Deselect All & Save
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextButton.icon(
+                onPressed: () => notifier.selectAllStudents(false),
+                icon: const Icon(Icons.close_rounded, size: 14),
+                label: const Text('Deselect', style: TextStyle(fontSize: 11.5)),
+                style: TextButton.styleFrom(
+                  foregroundColor: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(width: 6),
+              ElevatedButton.icon(
+                onPressed: state.isSaving
+                    ? null
+                    : () {
+                        final selectedClass = state.availableClasses.firstWhere(
+                          (c) => c.id == state.selectedClassId,
+                          orElse: () => AcademicClassModel(id: '', name: 'Class', code: '', stage: ''),
+                        );
+                        final className = selectedClass.name;
+                        String sectionName = 'All Sections';
+                        if (state.selectedSectionId != null && selectedClass.sections.isNotEmpty) {
+                          final foundSection = selectedClass.sections.where((s) => s.id == state.selectedSectionId);
+                          if (foundSection.isNotEmpty) {
+                            sectionName = foundSection.first.name;
+                          }
+                        }
+                        showDialog(
+                          context: context,
+                          builder: (context) => AttendanceConfirmationDialog(
+                            dateStr: state.displayDateString,
+                            className: className,
+                            sectionName: sectionName,
+                            modeName: state.selectedMode == AttendanceMode.allDay
+                                ? 'All Day'
+                                : (state.selectedMode == AttendanceMode.byPeriod
+                                    ? 'Period ${state.selectedPeriodNumber ?? 1}'
+                                    : 'Custom Selection (${state.selectedScheduleIds.length} Periods)'),
+                            totalCount: state.roster.length,
+                            presentCount: state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.present).length,
+                            absentCount: state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.absent).length,
+                            lateCount: state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.late).length,
+                            onLeaveCount: state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.onLeave).length,
+                            onConfirm: () => notifier.saveDailyAttendance(),
+                          ),
+                        );
+                      },
+                icon: state.isSaving
+                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.save_rounded, size: 15),
+                label: Text(
+                  state.isSaving ? 'Saving...' : 'Save & Submit ($count)',
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4F46E5),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBulkPill(String label, Color color, IconData icon, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: bg,
+          color: color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: border),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 5),
             Text(
-              displayLabel,
+              label,
               style: TextStyle(
-                color: text,
+                color: color,
                 fontWeight: FontWeight.w700,
                 fontSize: 11.5,
               ),
             ),
-            const SizedBox(width: 6),
-            Icon(icon, size: 14, color: text),
           ],
         ),
       ),
@@ -2150,15 +2664,12 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                           orElse: () => AcademicClassModel(id: '', name: 'Class', code: '', stage: ''),
                         );
                         final className = selectedClass.name;
-                        String sectionName = '';
+                        String sectionName = 'All Sections';
                         if (state.selectedSectionId != null && selectedClass.sections.isNotEmpty) {
-                          final foundSection = selectedClass.sections.firstWhere(
-                            (s) => s.id == state.selectedSectionId,
-                            orElse: () => selectedClass.sections.first,
-                          );
-                          sectionName = foundSection.name;
-                        } else if (selectedClass.sections.isNotEmpty) {
-                          sectionName = selectedClass.sections.first.name;
+                          final foundSection = selectedClass.sections.where((s) => s.id == state.selectedSectionId);
+                          if (foundSection.isNotEmpty) {
+                            sectionName = foundSection.first.name;
+                          }
                         }
                         showDialog(
                           context: context,
@@ -2182,22 +2693,16 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                       },
                 icon: state.isSaving
                     ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.lock_outline_rounded, size: 15),
+                    : const Icon(Icons.save_rounded, size: 15),
                 label: Text(
-                  state.isSaving
-                      ? 'Saving...'
-                      : (state.selectedMode == AttendanceMode.allDay
-                          ? 'Save Attendance (All Day)'
-                          : (state.selectedMode == AttendanceMode.byPeriod
-                              ? 'Save Attendance (P${state.selectedPeriodNumber ?? 1})'
-                              : 'Save Attendance (${state.selectedScheduleIds.length} Periods)')),
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  state.isSaving ? 'Saving...' : 'Save Attendance',
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4F46E5),
                   foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
                   elevation: 0,
                 ),
               ),
@@ -2234,7 +2739,7 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
   }
 
   // ==========================================================================
-  // RIGHT SIDEBAR CARD 1: DAY SUMMARY DONUT CHART (Matching Dynamic Stats)
+  // RIGHT SIDEBAR CARD 1: DAY SUMMARY CHART (Donut Chart & Percentages)
   // ==========================================================================
   Widget _buildDaySummaryCard(AttendanceState state, bool isDark, ThemeData theme) {
     final selectedClass = state.availableClasses.firstWhere(
@@ -2246,15 +2751,14 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
     final className = selectedClass.name.isNotEmpty ? selectedClass.name : 'Class';
     String sectionName = '';
     if (state.selectedSectionId != null && selectedClass.sections.isNotEmpty) {
-      final foundSection = selectedClass.sections.firstWhere(
-        (s) => s.id == state.selectedSectionId,
-        orElse: () => selectedClass.sections.first,
-      );
-      sectionName = foundSection.name;
-    } else if (selectedClass.sections.isNotEmpty) {
-      sectionName = selectedClass.sections.first.name;
+      final foundSection = selectedClass.sections.where((s) => s.id == state.selectedSectionId);
+      if (foundSection.isNotEmpty) {
+        sectionName = foundSection.first.name;
+      }
     }
-    final classDisplayTitle = sectionName.isNotEmpty ? '$className - $sectionName' : className;
+    final classDisplayTitle = state.selectedSectionId == null
+        ? '$className - All Sections'
+        : (sectionName.isNotEmpty ? '$className - $sectionName' : className);
 
     final total = state.roster.length;
     final present = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.present).length;
@@ -2544,15 +3048,39 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                p.subjectName,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      p.subjectName,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (state.selectedSectionId == null && p.sectionName != null && p.sectionName!.isNotEmpty) ...[
+                                    const SizedBox(width: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                        borderRadius: BorderRadius.circular(3),
+                                      ),
+                                      child: Text(
+                                        'Sec ${p.sectionName}',
+                                        style: TextStyle(
+                                          fontSize: 8.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                               Text(
                                 p.teacherName,
@@ -2812,6 +3340,96 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
         },
       ),
     );
+  }
+
+  void _showOverridePeriodDialog({
+    required AttendanceStudentRowModel student,
+    required StudentPeriodAttendanceModel period,
+    required AttendanceStatus targetStatus,
+    required AttendanceNotifier notifier,
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) => AttendanceOverrideDialog(
+        student: student,
+        periodNumber: period.periodNumber,
+        periodLabel: '${period.periodLabel} (${period.subjectName})',
+        targetStatus: targetStatus,
+        onConfirm: (reason) {
+          notifier.quickMarkStudentPeriod(
+            studentId: student.studentId,
+            periodNumber: period.periodNumber,
+            status: targetStatus,
+            remarks: reason,
+            subjectId: period.subjectId,
+            scheduleId: period.scheduleId,
+          );
+        },
+      ),
+    );
+  }
+
+  void _showBulkOverrideDialog({
+    required BuildContext context,
+    required List<AttendanceStudentRowModel> students,
+    required AttendanceStatus targetStatus,
+    required AttendanceNotifier notifier,
+    bool hasSelection = false,
+    Set<String>? targetStudentIds,
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) => AttendanceOverrideDialog(
+        bulkStudents: students,
+        targetStatus: targetStatus,
+        onConfirm: (reason) {
+          notifier.markAttendance(
+            targetStatus,
+            remarks: reason,
+            targetStudentIds: targetStudentIds,
+          );
+        },
+      ),
+    );
+  }
+
+  void _handleBulkMarkAttendance(
+    BuildContext context,
+    AttendanceState state,
+    AttendanceNotifier notifier,
+    AttendanceStatus status,
+    bool hasSelection,
+  ) {
+    final targetStudents = hasSelection
+        ? state.roster.where((s) => state.selectedStudentIds.contains(s.studentId)).toList()
+        : state.roster;
+
+    bool anyLocked;
+    if (state.selectedMode == AttendanceMode.byPeriod) {
+      final activePNum = state.selectedPeriodNumber ?? 1;
+      anyLocked = targetStudents.any((s) {
+        final p = s.periods.where((p) => p.periodNumber == activePNum).firstOrNull;
+        return p?.isLocked ?? false;
+      });
+    } else {
+      anyLocked = targetStudents.any((s) => s.isLocked) && state.isLockedAllDay;
+    }
+
+    if (anyLocked) {
+      _showBulkOverrideDialog(
+        context: context,
+        students: targetStudents,
+        targetStatus: status,
+        notifier: notifier,
+        hasSelection: hasSelection,
+        targetStudentIds: hasSelection ? state.selectedStudentIds : null,
+      );
+    } else {
+      notifier.markAttendance(
+        status,
+        targetStudentIds: hasSelection ? state.selectedStudentIds : null,
+      );
+    }
   }
 
   void _showEditRemarkDialog(

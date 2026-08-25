@@ -98,11 +98,37 @@ class AcademicLookupHelper {
       getActiveLookup('SUBJECT_TYPE'),
       getActiveLookup('ACADEMIC_STATUS'),
       getActiveLookup('ALLOCATION_TYPE'),
+      getActiveLookup('DEPARTMENT'),
     ]);
   }
 
   List<AcademicLookupItem> _getDefaultLookups(String keyCode) {
     switch (keyCode) {
+      case 'DEPARTMENT':
+      case 'DEPARTMENTS':
+        return const [
+          AcademicLookupItem(id: '1', code: 'ACADEMIC', label: 'Academic / Teaching'),
+          AcademicLookupItem(id: '2', code: 'ADMINISTRATION', label: 'Administration'),
+          AcademicLookupItem(id: '3', code: 'MATHEMATICS', label: 'Mathematics'),
+          AcademicLookupItem(id: '4', code: 'SCIENCE', label: 'Science'),
+          AcademicLookupItem(id: '5', code: 'LANGUAGES', label: 'English / Languages'),
+          AcademicLookupItem(id: '6', code: 'SOCIAL_STUDIES', label: 'Social Studies & Humanities'),
+          AcademicLookupItem(id: '7', code: 'COMPUTER_SCIENCE', label: 'Computer Science & IT'),
+          AcademicLookupItem(id: '8', code: 'FINANCE', label: 'Finance & Accounts'),
+          AcademicLookupItem(id: '9', code: 'HR', label: 'Human Resources'),
+          AcademicLookupItem(id: '10', code: 'LIBRARY', label: 'Library & Information'),
+          AcademicLookupItem(id: '11', code: 'SPORTS', label: 'Physical Education & Sports'),
+          AcademicLookupItem(id: '12', code: 'ARTS', label: 'Arts & Performing Arts'),
+          AcademicLookupItem(id: '13', code: 'TRANSPORT', label: 'Transport & Fleet'),
+          AcademicLookupItem(id: '14', code: 'HOSTEL', label: 'Hostel & Residential'),
+          AcademicLookupItem(id: '15', code: 'SECURITY', label: 'Security & Safety'),
+          AcademicLookupItem(id: '16', code: 'HEALTH_CLINIC', label: 'Medical & Health Clinic'),
+          AcademicLookupItem(id: '17', code: 'MAINTENANCE', label: 'Maintenance & Facilities'),
+          AcademicLookupItem(id: '18', code: 'EXAMINATION', label: 'Examination & Assessment'),
+          AcademicLookupItem(id: '19', code: 'STUDENT_AFFAIRS', label: 'Student Affairs & Admissions'),
+          AcademicLookupItem(id: '20', code: 'GENERAL', label: 'General / Unassigned'),
+        ];
+
       case 'ROOM_TYPE':
         return const [
           AcademicLookupItem(id: '1', code: 'CLASSROOM', label: 'Classroom'),

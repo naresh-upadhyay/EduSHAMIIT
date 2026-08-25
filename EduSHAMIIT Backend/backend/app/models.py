@@ -29,6 +29,8 @@ class RegisterRequest(BaseModel):
     role: str
     school_id: str
     class_name: Optional[str] = None
+    department: Optional[str] = None
+    manager_id: Optional[str] = None
 
     class Config:
         json_schema_extra = {
@@ -38,9 +40,12 @@ class RegisterRequest(BaseModel):
                 "full_name": "John Doe",
                 "role": "student",
                 "school_id": "11111111-1111-1111-1111-111111111111",
-                "class_name": "10A"
+                "class_name": "10A",
+                "department": "Science",
+                "manager_id": None
             }
         }
+
 
 
 class RefreshRequest(BaseModel):

@@ -36,24 +36,24 @@ async def run_tests():
     class_id = classes[0]["id"]
     class_name = classes[0]["name"]
 
-    sections = await exec_sql("SELECT id, name FROM public.academic_sections WHERE class_id = %s LIMIT 1;", (str(class_id),))
-    section_id = sections[0]["id"] if sections else None
-    section_name = sections[0]["name"] if sections else "Default"
-    logger.info(f"Using Class: {class_name} ({class_id}), Section: {section_name} ({section_id})")
-
-    # Fetch active students for Class 5
+    # Fetch section with active student in Class 5
     students = await exec_sql("""
-        SELECT sca.student_id, p.full_name, sca.roll_number 
+        SELECT sca.student_id, p.full_name, sca.roll_number, sca.section_id, s.name as section_name
         FROM public.student_class_assignments sca
         JOIN public.profiles p ON p.id = sca.student_id
-        WHERE sca.school_id = %s AND sca.class_id = %s AND sca.status = 'ACTIVE';
+        LEFT JOIN public.academic_sections s ON s.id = sca.section_id
+        WHERE sca.school_id = %s AND sca.class_id = %s AND sca.status = 'ACTIVE'
+        ORDER BY sca.assigned_at DESC LIMIT 1;
     """, (school_id, str(class_id)))
     assert len(students) > 0, "No students found in Class 5"
     student_id = str(students[0]["student_id"])
     student_name = students[0]["full_name"]
+    section_id = str(students[0]["section_id"]) if students[0].get("section_id") else None
+    section_name = students[0]["section_name"] or "Default"
+    logger.info(f"Using Class: {class_name} ({class_id}), Section: {section_name} ({section_id})")
     logger.info(f"Testing with Student: {student_name} ({student_id})")
 
-    test_date = "2026-08-22"
+    test_date = "2026-08-19"
 
     # Clean up previous test attendance for this date
     await exec_sql("DELETE FROM public.attendance_period_records WHERE school_id = %s AND attendance_date = %s;", (school_id, test_date), fetch=False)

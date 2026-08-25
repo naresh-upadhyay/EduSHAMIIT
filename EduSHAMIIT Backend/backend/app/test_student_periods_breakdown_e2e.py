@@ -110,12 +110,12 @@ async def run_tests():
     student_partial = next((s for s in roster_partial["data"]["students"] if s["student_id"] == student_id), None)
     assert student_partial is not None
     logger.info(f"Student Partial Status: {student_partial['status']}, Summary: {student_partial['periods_summary']}")
-    assert student_partial["status"] == "PARTIAL_PERIODS", f"Expected PARTIAL_PERIODS, got {student_partial['status']}"
+    assert student_partial["status"] == "HALF_DAY", f"Expected HALF_DAY, got {student_partial['status']}"
     assert student_partial["periods_summary"]["marked_periods"] == 1
     assert student_partial["periods_summary"]["present_count"] == 1
     assert student_partial["periods"][0]["status"] == "PRESENT"
     assert student_partial["periods"][1]["status"] == "NOT_MARKED"
-    logger.info("✅ Verified: Partial period completion shows PARTIAL_PERIODS and accurate period chips!")
+    logger.info("✅ Verified: 1 out of 2 periods present mathematically computes to HALF_DAY (50% rule) and period chips!")
 
     # -------------------------------------------------------------------------
     # STEP 4: Quick-Mark Period 2 as PRESENT -> Verify Auto-Complete

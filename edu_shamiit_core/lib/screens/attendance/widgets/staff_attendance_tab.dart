@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../../constants/app_fonts.dart';
 import '../models/attendance_models.dart';
 import '../providers/attendance_provider.dart';
+import '../../classes/services/academic_lookup_helper.dart';
 
 class StaffAttendanceTab extends ConsumerStatefulWidget {
   const StaffAttendanceTab({super.key});
@@ -15,6 +16,18 @@ class StaffAttendanceTab extends ConsumerStatefulWidget {
 class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await AcademicLookupHelper.instance.getActiveLookup('DEPARTMENT');
+      if (mounted) {
+        ref.read(attendanceProvider.notifier).fetchStaffLookups();
+        ref.read(attendanceProvider.notifier).fetchStaffRoster();
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -30,13 +43,32 @@ class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Collect all departments from current roster or default
-    final departments = state.staffRoster
-        .map((e) => e.department)
-        .where((d) => d.isNotEmpty && d != 'General')
-        .toSet()
-        .toList();
-    departments.sort();
+    // Load all departments dynamically from Lookup Key-Value table ('DEPARTMENT'), state, and roster
+    final Set<String> deptSet = {};
+    final lookupDepts = AcademicLookupHelper.instance.getCachedLookup('DEPARTMENT');
+    for (final item in lookupDepts) {
+      if (item.label.isNotEmpty && item.label != 'ALL') {
+        deptSet.add(item.label);
+      }
+    }
+    for (final d in state.staffAvailableDepartments) {
+      if (d.isNotEmpty && d != 'ALL') deptSet.add(d);
+    }
+    for (final d in state.insightsAvailableDepartments) {
+      final name = d['name']?.toString() ?? d['label']?.toString();
+      if (name != null && name.isNotEmpty && name != 'ALL' && name != 'All Departments') {
+        deptSet.add(name);
+      }
+    }
+    for (final s in state.staffRoster) {
+      if (s.department.isNotEmpty && s.department != 'ALL') {
+        deptSet.add(s.department);
+      }
+    }
+    if (state.staffDepartmentFilter.isNotEmpty && state.staffDepartmentFilter != 'ALL') {
+      deptSet.add(state.staffDepartmentFilter);
+    }
+    final departments = deptSet.toList()..sort();
 
     final staffList = state.staffRoster;
     final totalCount = state.staffTotalCount > 0 ? state.staffTotalCount : staffList.length;
@@ -128,6 +160,22 @@ class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
     ThemeData theme,
   ) {
     final dateStr = DateFormat('dd MMM yyyy, EEE').format(state.selectedDate);
+    final isDeptValid = state.staffDepartmentFilter == 'ALL' || departments.contains(state.staffDepartmentFilter);
+    final effectiveDept = isDeptValid ? state.staffDepartmentFilter : 'ALL';
+
+    const validStatuses = [
+      'ALL',
+      'PRESENT',
+      'ABSENT',
+      'LATE',
+      'ON_LEAVE',
+      'HALF_DAY',
+      'WORK_FROM_HOME',
+      'NOT_MARKED',
+    ];
+    final effectiveStatus = validStatuses.contains(state.staffStatusFilter)
+        ? state.staffStatusFilter
+        : 'ALL';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -460,7 +508,8 @@ class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
-                    value: state.staffDepartmentFilter,
+                    value: effectiveDept,
+                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                     icon: Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
                     style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                     items: [
@@ -486,7 +535,8 @@ class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
-                    value: state.staffStatusFilter,
+                    value: effectiveStatus,
+                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                     icon: Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
                     style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                     items: const [
@@ -652,6 +702,47 @@ class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
     bool isDark,
     ThemeData theme,
   ) {
+    if (state.isStaffLoading && staffList.isEmpty) {
+      return Container(
+        height: 300,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0F172A) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(
+              width: 36,
+              height: 36,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4F46E5)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Loading faculty & staff attendance roster...',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (staffList.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(40),
@@ -693,6 +784,14 @@ class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
         borderRadius: BorderRadius.circular(12),
         child: Column(
           children: [
+            // Linear Progress Indicator when re-fetching or filtering in background
+            if (state.isStaffLoading)
+              const LinearProgressIndicator(
+                minHeight: 2.5,
+                backgroundColor: Colors.transparent,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4F46E5)),
+              ),
+
             // TABLE HEADER
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1155,7 +1254,10 @@ class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
     final totalCount = state.staffTotalCount > 0 ? state.staffTotalCount : state.staffRoster.length;
     final currentPage = state.staffPage;
     final pageSize = state.staffPageSize;
-    final totalPages = state.staffTotalPages > 0 ? state.staffTotalPages : 1;
+    final calculatedPages = (totalCount / pageSize).ceil();
+    final totalPages = state.staffTotalPages > 0
+        ? state.staffTotalPages
+        : (calculatedPages > 0 ? calculatedPages : 1);
 
     final startItem = totalCount == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
     final endItem = (currentPage * pageSize) > totalCount ? totalCount : (currentPage * pageSize);
@@ -1174,51 +1276,112 @@ class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 16,
+        runSpacing: 12,
         children: [
-          // Left: Showing count & Pagination Page Selector
+          // Left: Showing count
+          Text(
+            'Showing $startItem to $endItem of $totalCount Faculty & Staff',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+            ),
+          ),
+
+          // Center: Records Per Page dropdown & Page Navigation Controls
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
+              // Records Per Page Selector
               Text(
-                'Showing $startItem to $endItem of $totalCount Faculty & Staff',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+                'Records per page:',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                height: 32,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<int>(
+                    value: [10, 25, 50, 100].contains(pageSize) ? pageSize : 10,
+                    onChanged: state.isStaffLoading
+                        ? null
+                        : (val) {
+                            if (val != null) notifier.setStaffPageSize(val);
+                          },
+                    isDense: true,
+                    borderRadius: BorderRadius.circular(8),
+                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    icon: Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 16,
+                      color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                    ),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                    items: const [10, 25, 50, 100].map((size) {
+                      return DropdownMenuItem<int>(
+                        value: size,
+                        child: Text('$size'),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ),
               const SizedBox(width: 14),
 
-              // Page controls
-              if (totalPages > 1) ...[
-                IconButton(
-                  icon: const Icon(Icons.chevron_left_rounded, size: 18),
-                  onPressed: currentPage > 1 ? () => notifier.setStaffPage(currentPage - 1) : null,
-                  tooltip: 'Previous Page',
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                  padding: EdgeInsets.zero,
+              // Page navigation controls
+              IconButton(
+                icon: const Icon(Icons.chevron_left_rounded, size: 18),
+                onPressed: (currentPage > 1 && !state.isStaffLoading)
+                    ? () => notifier.setStaffPage(currentPage - 1)
+                    : null,
+                tooltip: 'Previous Page',
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                padding: EdgeInsets.zero,
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4F46E5),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF4F46E5),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    '$currentPage / $totalPages',
-                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
-                  ),
+                child: Text(
+                  '$currentPage / $totalPages',
+                  style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w700),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right_rounded, size: 18),
-                  onPressed: currentPage < totalPages ? () => notifier.setStaffPage(currentPage + 1) : null,
-                  tooltip: 'Next Page',
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                  padding: EdgeInsets.zero,
-                ),
-              ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right_rounded, size: 18),
+                onPressed: (currentPage < totalPages && !state.isStaffLoading)
+                    ? () => notifier.setStaffPage(currentPage + 1)
+                    : null,
+                tooltip: 'Next Page',
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                padding: EdgeInsets.zero,
+              ),
             ],
           ),
 
           // Right: Action buttons (Cancel Drafts & Save Staff Attendance)
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               if (hasChanges) ...[
                 OutlinedButton(

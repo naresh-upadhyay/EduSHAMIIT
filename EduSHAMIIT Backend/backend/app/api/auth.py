@@ -525,6 +525,8 @@ async def register(request: RegisterRequest):
             "email": request.email,
             "role": request.role,
             "class": request.class_name,
+            "department": request.department,
+            "manager_id": request.manager_id,
         }).aexecute()
 
         return RegisterResponse(

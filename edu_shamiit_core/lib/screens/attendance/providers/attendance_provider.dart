@@ -1,5 +1,6 @@
 import '../../../utils/download_helper.dart';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -7,6 +8,7 @@ import '../models/attendance_models.dart';
 import '../services/attendance_api_service.dart';
 import '../../classes/models/class_models.dart';
 import '../../classes/services/class_api_service.dart';
+import '../../classes/services/academic_lookup_helper.dart';
 
 final attendanceApiServiceProvider = Provider<AttendanceApiService>((ref) {
   return AttendanceApiService();
@@ -31,6 +33,7 @@ class AttendanceState {
 
   final List<AttendanceScheduleItemModel> schedulesToday;
   final List<StaffAttendanceRowModel> staffRoster;
+  final List<String> staffAvailableDepartments;
   final Map<String, AttendanceStatus> draftStaffStatuses;
   final Map<String, String> draftStaffRemarks;
   final Map<String, String> draftStaffCheckIns;
@@ -46,12 +49,24 @@ class AttendanceState {
   final int staffPageSize;
   final int staffTotalCount;
   final int staffTotalPages;
+  final bool isStaffLoading;
 
   final List<AttendanceLeaveRequestModel> leaveRequests;
   final String leaveStatusFilter;
   final String leaveRoleFilter;
 
   final AttendanceInsightsModel? insights;
+  final DateTime? insightsStartDate;
+  final DateTime? insightsEndDate;
+  final String insightsViewBy;
+  final String? insightsRole;
+  final String? insightsClassId;
+  final String? insightsSectionId;
+  final String? insightsDepartment;
+  final List<Map<String, dynamic>> insightsAvailableDepartments;
+  final List<Map<String, dynamic>> insightsAvailableRoles;
+  final String insightsGranularity;
+  final bool insightsIsLoading;
   final AttendanceSettingsModel settings;
   final List<AttendanceAuditLogModel> auditLogs;
 
@@ -94,6 +109,7 @@ class AttendanceState {
     this.selectedStudentIds = const {},
     this.schedulesToday = const [],
     this.staffRoster = const [],
+    this.staffAvailableDepartments = const [],
     this.draftStaffStatuses = const {},
     this.draftStaffRemarks = const {},
     this.draftStaffCheckIns = const {},
@@ -109,6 +125,7 @@ class AttendanceState {
     this.staffPageSize = 10,
     this.staffTotalCount = 0,
     this.staffTotalPages = 1,
+    this.isStaffLoading = false,
     this.leaveRequests = const [],
     this.leaveStatusFilter = 'ALL',
     this.leaveRoleFilter = 'ALL',
@@ -138,6 +155,17 @@ class AttendanceState {
     this.leavePage = 1,
     this.leavePageSize = 10,
     this.insights,
+    this.insightsStartDate,
+    this.insightsEndDate,
+    this.insightsViewBy = 'OVERALL',
+    this.insightsRole,
+    this.insightsClassId,
+    this.insightsSectionId,
+    this.insightsDepartment,
+    this.insightsAvailableDepartments = const [],
+    this.insightsAvailableRoles = const [],
+    this.insightsGranularity = 'monthly',
+    this.insightsIsLoading = false,
     AttendanceSettingsModel? settings,
     this.auditLogs = const [],
     this.searchQuery = '',
@@ -212,6 +240,7 @@ class AttendanceState {
     Set<String>? selectedStudentIds,
     List<AttendanceScheduleItemModel>? schedulesToday,
     List<StaffAttendanceRowModel>? staffRoster,
+    List<String>? staffAvailableDepartments,
     Map<String, AttendanceStatus>? draftStaffStatuses,
     Map<String, String>? draftStaffRemarks,
     Map<String, String>? draftStaffCheckIns,
@@ -228,6 +257,7 @@ class AttendanceState {
     int? staffPageSize,
     int? staffTotalCount,
     int? staffTotalPages,
+    bool? isStaffLoading,
     List<AttendanceLeaveRequestModel>? leaveRequests,
     String? leaveStatusFilter,
     String? leaveRoleFilter,
@@ -258,6 +288,22 @@ class AttendanceState {
     int? leavePage,
     int? leavePageSize,
     AttendanceInsightsModel? insights,
+    DateTime? insightsStartDate,
+    DateTime? insightsEndDate,
+    bool clearInsightsDates = false,
+    String? insightsViewBy,
+    String? insightsRole,
+    bool clearInsightsRole = false,
+    String? insightsClassId,
+    bool clearInsightsClass = false,
+    String? insightsSectionId,
+    bool clearInsightsSection = false,
+    String? insightsDepartment,
+    bool clearInsightsDepartment = false,
+    List<Map<String, dynamic>>? insightsAvailableDepartments,
+    List<Map<String, dynamic>>? insightsAvailableRoles,
+    String? insightsGranularity,
+    bool? insightsIsLoading,
     AttendanceSettingsModel? settings,
     List<AttendanceAuditLogModel>? auditLogs,
     String? searchQuery,
@@ -298,6 +344,7 @@ class AttendanceState {
       selectedStudentIds: selectedStudentIds ?? this.selectedStudentIds,
       schedulesToday: schedulesToday ?? this.schedulesToday,
       staffRoster: staffRoster ?? this.staffRoster,
+      staffAvailableDepartments: staffAvailableDepartments ?? this.staffAvailableDepartments,
       draftStaffStatuses: draftStaffStatuses ?? this.draftStaffStatuses,
       draftStaffRemarks: draftStaffRemarks ?? this.draftStaffRemarks,
       draftStaffCheckIns: draftStaffCheckIns ?? this.draftStaffCheckIns,
@@ -313,6 +360,7 @@ class AttendanceState {
       staffPageSize: staffPageSize ?? this.staffPageSize,
       staffTotalCount: staffTotalCount ?? this.staffTotalCount,
       staffTotalPages: staffTotalPages ?? this.staffTotalPages,
+      isStaffLoading: isStaffLoading ?? this.isStaffLoading,
       leaveRequests: leaveRequests ?? this.leaveRequests,
       leaveStatusFilter: leaveStatusFilter ?? this.leaveStatusFilter,
       leaveRoleFilter: leaveRoleFilter ?? this.leaveRoleFilter,
@@ -342,6 +390,17 @@ class AttendanceState {
       leavePage: leavePage ?? this.leavePage,
       leavePageSize: leavePageSize ?? this.leavePageSize,
       insights: insights ?? this.insights,
+      insightsStartDate: clearInsightsDates ? null : (insightsStartDate ?? this.insightsStartDate),
+      insightsEndDate: clearInsightsDates ? null : (insightsEndDate ?? this.insightsEndDate),
+      insightsViewBy: insightsViewBy ?? this.insightsViewBy,
+      insightsRole: clearInsightsRole ? null : (insightsRole ?? this.insightsRole),
+      insightsClassId: clearInsightsClass ? null : (insightsClassId ?? this.insightsClassId),
+      insightsSectionId: clearInsightsSection ? null : (insightsSectionId ?? this.insightsSectionId),
+      insightsDepartment: clearInsightsDepartment ? null : (insightsDepartment ?? this.insightsDepartment),
+      insightsAvailableDepartments: insightsAvailableDepartments ?? this.insightsAvailableDepartments,
+      insightsAvailableRoles: insightsAvailableRoles ?? this.insightsAvailableRoles,
+      insightsGranularity: insightsGranularity ?? this.insightsGranularity,
+      insightsIsLoading: insightsIsLoading ?? this.insightsIsLoading,
       settings: settings ?? this.settings,
       auditLogs: auditLogs ?? this.auditLogs,
       searchQuery: searchQuery ?? this.searchQuery,
@@ -403,9 +462,12 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
       // 1. Check Manager Status
       await checkManagerStatus();
 
-      // 2. Fetch Daily Attendance Data
+      // 2. Fetch Lookups from key-value tables (DEPARTMENT, etc.)
+      await fetchStaffLookups();
+
+      // 3. Fetch Daily Attendance Data
       await refreshAllData();
-      // 3. Fetch Settings in Background
+      // 4. Fetch Settings in Background
       final settings = await _api.getSettings();
       state = state.copyWith(settings: settings);
     } catch (e) {
@@ -413,6 +475,23 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
     } finally {
       state = state.copyWith(isLoading: false);
     }
+  }
+
+  /// Fetch departments dynamically from Lookup Key-Value tables ('DEPARTMENT')
+  Future<void> fetchStaffLookups() async {
+    try {
+      final deptItems = await AcademicLookupHelper.instance.getActiveLookup('DEPARTMENT');
+      final depts = deptItems.map((e) => e.label).where((d) => d.isNotEmpty && d != 'ALL').toSet();
+
+      final updatedDepts = Set<String>.from(state.staffAvailableDepartments)..addAll(depts);
+      if (state.staffDepartmentFilter.isNotEmpty && state.staffDepartmentFilter != 'ALL') {
+        updatedDepts.add(state.staffDepartmentFilter);
+      }
+
+      state = state.copyWith(
+        staffAvailableDepartments: updatedDepts.toList()..sort(),
+      );
+    } catch (_) {}
   }
 
   /// Check whether logged-in user is a reporting manager
@@ -560,6 +639,7 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
 
   /// Fetch staff attendance roster
   Future<void> fetchStaffRoster() async {
+    state = state.copyWith(isStaffLoading: true, clearErrors: true);
     try {
       final managerId = state.staffManagerOnlyFilter ? 'MY_REPORTS' : state.staffSelectedManagerId;
       final res = await _api.getStaffAttendance(
@@ -574,8 +654,25 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
       );
 
       final staff = res['staff'] as List<StaffAttendanceRowModel>;
+      final updatedDepts = Set<String>.from(state.staffAvailableDepartments);
+      final lookupDepts = AcademicLookupHelper.instance.getCachedLookup('DEPARTMENT');
+      for (final item in lookupDepts) {
+        if (item.label.isNotEmpty && item.label != 'ALL') {
+          updatedDepts.add(item.label);
+        }
+      }
+      for (final s in staff) {
+        if (s.department.isNotEmpty && s.department != 'ALL') {
+          updatedDepts.add(s.department);
+        }
+      }
+      if (state.staffDepartmentFilter.isNotEmpty && state.staffDepartmentFilter != 'ALL') {
+        updatedDepts.add(state.staffDepartmentFilter);
+      }
+
       state = state.copyWith(
         staffRoster: staff,
+        staffAvailableDepartments: updatedDepts.toList()..sort(),
         staffTotalCount: res['totalCount'] as int,
         staffPage: res['page'] as int,
         staffPageSize: res['pageSize'] as int,
@@ -588,6 +685,8 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
       );
     } catch (e) {
       state = state.copyWith(errorMessage: 'Failed to load staff roster: $e');
+    } finally {
+      state = state.copyWith(isStaffLoading: false);
     }
   }
 
@@ -602,21 +701,91 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
     } catch (_) {}
   }
 
-  /// Fetch insights & at-risk students
+  /// Fetch insights & at-risk analytics
   Future<void> fetchInsights() async {
     try {
-      final now = state.selectedDate;
-      final startDate = DateFormat('yyyy-MM-dd').format(now.subtract(const Duration(days: 30)));
-      final endDate = DateFormat('yyyy-MM-dd').format(now);
+      state = state.copyWith(insightsIsLoading: true);
+      final now = DateTime.now();
+      final sDate = state.insightsStartDate ?? now.subtract(const Duration(days: 30));
+      final eDate = state.insightsEndDate ?? now;
+      final startDate = DateFormat('yyyy-MM-dd').format(sDate);
+      final endDate = DateFormat('yyyy-MM-dd').format(eDate);
 
       final ins = await _api.getInsights(
         startDate: startDate,
         endDate: endDate,
-        classId: state.selectedClassId,
-        sectionId: state.selectedSectionId,
+        viewBy: state.insightsViewBy,
+        role: state.insightsRole,
+        classId: state.insightsClassId,
+        sectionId: state.insightsSectionId,
+        department: state.insightsDepartment,
+        granularity: state.insightsGranularity,
       );
-      state = state.copyWith(insights: ins);
-    } catch (_) {}
+
+      final depts = (ins != null && ins.availableDepartments.isNotEmpty)
+          ? ins.availableDepartments
+          : state.insightsAvailableDepartments;
+      final roles = (ins != null && ins.availableRoles.isNotEmpty)
+          ? ins.availableRoles
+          : state.insightsAvailableRoles;
+
+      state = state.copyWith(
+        insights: ins,
+        insightsAvailableDepartments: depts,
+        insightsAvailableRoles: roles,
+        insightsIsLoading: false,
+      );
+    } catch (_) {
+      state = state.copyWith(insightsIsLoading: false);
+    }
+  }
+
+  /// Update insights filter parameters and trigger refetch
+  void setInsightsFilters({
+    DateTime? startDate,
+    DateTime? endDate,
+    String? viewBy,
+    String? role,
+    String? classId,
+    String? sectionId,
+    String? department,
+    String? granularity,
+  }) {
+    state = state.copyWith(
+      insightsStartDate: startDate ?? state.insightsStartDate,
+      insightsEndDate: endDate ?? state.insightsEndDate,
+      insightsViewBy: viewBy ?? state.insightsViewBy,
+      insightsRole: role ?? state.insightsRole,
+      clearInsightsRole: role == null && role != state.insightsRole,
+      insightsClassId: classId ?? state.insightsClassId,
+      clearInsightsClass: classId == null && classId != state.insightsClassId,
+      insightsSectionId: sectionId ?? state.insightsSectionId,
+      clearInsightsSection: sectionId == null && sectionId != state.insightsSectionId,
+      insightsDepartment: department ?? state.insightsDepartment,
+      clearInsightsDepartment: department == null && department != state.insightsDepartment,
+      insightsGranularity: granularity ?? state.insightsGranularity,
+    );
+    fetchInsights();
+  }
+
+  /// Set trend granularity (daily, weekly, monthly)
+  void setInsightsGranularity(String granularity) {
+    state = state.copyWith(insightsGranularity: granularity);
+    fetchInsights();
+  }
+
+  /// Reset insights filters to default 30-day baseline
+  void resetInsightsFilters() {
+    state = state.copyWith(
+      clearInsightsDates: true,
+      insightsViewBy: 'OVERALL',
+      clearInsightsRole: true,
+      clearInsightsClass: true,
+      clearInsightsSection: true,
+      clearInsightsDepartment: true,
+      insightsGranularity: 'monthly',
+    );
+    fetchInsights();
   }
 
   /// Fetch school attendance settings
@@ -634,10 +803,11 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
   void setTab(int tabIndex) {
     if (state.activeTab == tabIndex) return;
     state = state.copyWith(activeTab: tabIndex, clearErrors: true);
+    refreshAllData();
   }
 
   void setDate(DateTime date) {
-    state = state.copyWith(selectedDate: date, page: 1, clearErrors: true);
+    state = state.copyWith(selectedDate: date, page: 1, staffPage: 1, clearErrors: true);
     refreshAllData();
   }
 
@@ -711,7 +881,11 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
       page: 1,
       clearErrors: true,
     );
-    fetchDailyRoster();
+    // If roster is already loaded in memory, don't wipe un-saved in-memory drafts by re-fetching.
+    // Only fetch if roster is empty.
+    if (state.roster.isEmpty) {
+      fetchDailyRoster();
+    }
   }
 
   void toggleScheduleSelection(String scheduleId) {
@@ -759,9 +933,7 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
   // ==========================================================================
 
   void updateStudentStatus(String studentId, AttendanceStatus newStatus) {
-    final currentDrafts = Map<String, AttendanceStatus>.from(state.draftStatuses);
-    currentDrafts[studentId] = newStatus;
-    state = state.copyWith(draftStatuses: currentDrafts);
+    markAttendance(newStatus, targetStudentIds: {studentId});
   }
 
   void updateStudentRemarks(String studentId, String remarks) {
@@ -789,14 +961,267 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
     }
   }
 
+  /// Compatibility wrapper for markAll
   void markAll(AttendanceStatus status) {
-    final currentDrafts = Map<String, AttendanceStatus>.from(state.draftStatuses);
+    markAttendance(status);
+  }
+
+  /// Core intelligent mark attendance action (Single / Multi-Select / Bulk All)
+  /// - Whole Day: updates whole day status AND all periods for the target students
+  /// - Period Mode: updates the specific active period for target students and recalculates composite status
+  /// - Custom Mode: updates all selected custom periods for target students and recalculates composite status
+  void markAttendance(
+    AttendanceStatus status, {
+    Set<String>? targetStudentIds,
+    String? remarks,
+  }) {
+    final targets = (targetStudentIds != null && targetStudentIds.isNotEmpty)
+        ? targetStudentIds
+        : (state.selectedStudentIds.isNotEmpty
+            ? state.selectedStudentIds
+            : state.roster.map((s) => s.studentId).toSet());
+
+    final updatedRoster = <AttendanceStudentRowModel>[];
+    final updatedDraftStatuses = Map<String, AttendanceStatus>.from(state.draftStatuses);
+    final updatedDraftRemarks = Map<String, String>.from(state.draftRemarks);
+
     for (final student in state.roster) {
-      if (!student.isLocked) {
-        currentDrafts[student.studentId] = status;
+      if (!targets.contains(student.studentId)) {
+        updatedRoster.add(student);
+        continue;
+      }
+
+      final updatedPeriods = <StudentPeriodAttendanceModel>[];
+
+      if (state.selectedMode == AttendanceMode.allDay) {
+        // MODE 1: Whole Day Mode
+        // Mark whole day + mark ALL periods for this student
+        for (final p in student.periods) {
+          updatedPeriods.add(p.copyWith(
+            status: status,
+            remarks: remarks ?? p.remarks,
+          ));
+        }
+        updatedDraftStatuses[student.studentId] = status;
+        if (remarks != null && remarks.isNotEmpty) {
+          updatedDraftRemarks[student.studentId] = remarks;
+        }
+
+        updatedRoster.add(student.copyWith(
+          status: status,
+          remarks: remarks ?? student.remarks,
+          periods: updatedPeriods,
+        ));
+      } else if (state.selectedMode == AttendanceMode.byPeriod) {
+        // MODE 2: Specific Period Mode
+        final activePeriodNumber = state.selectedPeriodNumber ??
+            (student.periods.isNotEmpty ? student.periods.first.periodNumber : 1);
+
+        for (final p in student.periods) {
+          if (p.periodNumber == activePeriodNumber) {
+            updatedPeriods.add(p.copyWith(
+              status: status,
+              remarks: remarks ?? p.remarks,
+            ));
+          } else {
+            updatedPeriods.add(p);
+          }
+        }
+
+        final compositeStatus = _calculateCompositeDayStatus(updatedPeriods, fallback: status);
+        updatedDraftStatuses[student.studentId] = compositeStatus;
+        if (remarks != null && remarks.isNotEmpty) {
+          updatedDraftRemarks[student.studentId] = remarks;
+        }
+
+        updatedRoster.add(student.copyWith(
+          status: compositeStatus,
+          remarks: remarks ?? student.remarks,
+          periods: updatedPeriods,
+        ));
+      } else if (state.selectedMode == AttendanceMode.customSelection) {
+        // MODE 3: Custom Selection Mode
+        final selectedScheduleIds = state.selectedScheduleIds;
+        final selectedPeriodNumbers = <int>{};
+        for (final sched in state.schedulesToday) {
+          if (selectedScheduleIds.contains(sched.id) ||
+              (sched.scheduleId != null && selectedScheduleIds.contains(sched.scheduleId))) {
+            selectedPeriodNumbers.add(sched.periodNumber);
+          }
+        }
+
+        for (final p in student.periods) {
+          final isSelected = selectedPeriodNumbers.contains(p.periodNumber) ||
+              (p.scheduleId != null && selectedScheduleIds.contains(p.scheduleId));
+          if (isSelected) {
+            updatedPeriods.add(p.copyWith(
+              status: status,
+              remarks: remarks ?? p.remarks,
+            ));
+          } else {
+            updatedPeriods.add(p);
+          }
+        }
+
+        final compositeStatus = _calculateCompositeDayStatus(updatedPeriods, fallback: status);
+        updatedDraftStatuses[student.studentId] = compositeStatus;
+        if (remarks != null && remarks.isNotEmpty) {
+          updatedDraftRemarks[student.studentId] = remarks;
+        }
+
+        updatedRoster.add(student.copyWith(
+          status: compositeStatus,
+          remarks: remarks ?? student.remarks,
+          periods: updatedPeriods,
+        ));
       }
     }
-    state = state.copyWith(draftStatuses: currentDrafts);
+
+    // Recalculate dynamic statistics optimistically
+    int presentCnt = 0;
+    int absentCnt = 0;
+    int lateCnt = 0;
+    int leaveCnt = 0;
+    int halfDayCnt = 0;
+    int notMarkedCnt = 0;
+
+    for (final s in updatedRoster) {
+      final st = updatedDraftStatuses[s.studentId] ?? s.status;
+      switch (st) {
+        case AttendanceStatus.present:
+          presentCnt++;
+          break;
+        case AttendanceStatus.absent:
+          absentCnt++;
+          break;
+        case AttendanceStatus.late:
+          lateCnt++;
+          break;
+        case AttendanceStatus.onLeave:
+          leaveCnt++;
+          break;
+        case AttendanceStatus.halfDay:
+          halfDayCnt++;
+          break;
+        case AttendanceStatus.notMarked:
+        default:
+          notMarkedCnt++;
+          break;
+      }
+    }
+
+    final total = updatedRoster.length;
+    final double overallPct = total > 0
+        ? ((presentCnt + (lateCnt * 0.8) + (halfDayCnt * 0.5)) / total * 100)
+        : 0.0;
+
+    final updatedStats = AttendanceStatsModel(
+      overallAttendancePct: math.max(0.0, math.min(100.0, overallPct)),
+      totalStudents: total,
+      studentsPresent: presentCnt,
+      studentsAbsent: absentCnt,
+      lateEntries: lateCnt,
+      onLeave: leaveCnt,
+      halfDay: halfDayCnt,
+      notMarked: notMarkedCnt,
+      daySummary: {
+        'total': total,
+        'present': presentCnt,
+        'absent': absentCnt,
+        'late': lateCnt,
+        'on_leave': leaveCnt,
+        'half_day': halfDayCnt,
+        'not_marked': notMarkedCnt,
+      },
+    );
+
+    state = state.copyWith(
+      roster: updatedRoster,
+      draftStatuses: updatedDraftStatuses,
+      draftRemarks: updatedDraftRemarks,
+      stats: updatedStats,
+    );
+  }
+
+  AttendanceStatus _calculateCompositeDayStatus(
+    List<StudentPeriodAttendanceModel> periods, {
+    AttendanceStatus fallback = AttendanceStatus.notMarked,
+  }) {
+    if (periods.isEmpty) return fallback;
+    final totalPeriods = periods.length;
+    final marked = periods.where((p) => p.status != AttendanceStatus.notMarked).toList();
+    if (marked.isEmpty) return AttendanceStatus.notMarked;
+
+    final presentCount = marked.where((p) => p.status == AttendanceStatus.present).length;
+    final absentCount = marked.where((p) => p.status == AttendanceStatus.absent).length;
+    final lateCount = marked.where((p) => p.status == AttendanceStatus.late).length;
+    final leaveCount = marked.where((p) => p.status == AttendanceStatus.onLeave).length;
+    final halfDayCount = marked.where((p) => p.status == AttendanceStatus.halfDay).length;
+
+    // 1. All ON_LEAVE
+    if (leaveCount == totalPeriods) {
+      return AttendanceStatus.onLeave;
+    }
+
+    // 2. All ABSENT
+    if (absentCount == totalPeriods) {
+      return AttendanceStatus.absent;
+    }
+
+    // 3. All periods PRESENT
+    if (presentCount == totalPeriods) {
+      return AttendanceStatus.present;
+    }
+
+    // 4. All attended but at least one LATE
+    if ((presentCount + lateCount) == totalPeriods && lateCount > 0 && absentCount == 0 && leaveCount == 0 && halfDayCount == 0) {
+      return AttendanceStatus.late;
+    }
+
+    // 5. Any official leave + other non-present periods (e.g. Leave + Absent)
+    if (leaveCount > 0 && presentCount == 0 && lateCount == 0) {
+      return AttendanceStatus.onLeave;
+    }
+
+    // 6. Percentage calculation: Attended score = Present (1.0) + Late (1.0) + Half Day (0.5)
+    final attendedScore = presentCount.toDouble() + lateCount.toDouble() + (0.5 * halfDayCount.toDouble());
+    final pct = (attendedScore / (totalPeriods > 0 ? totalPeriods : 1)) * 100.0;
+
+    if (pct >= 75.0) {
+      return AttendanceStatus.present;
+    } else if (pct >= 50.0) {
+      return AttendanceStatus.halfDay;
+    } else {
+      if (leaveCount > 0 && (absentCount > 0 || halfDayCount > 0)) {
+        return AttendanceStatus.onLeave;
+      }
+      return AttendanceStatus.absent;
+    }
+  }
+
+  void applyBulkRemarks(String remarks, {Set<String>? targetStudentIds}) {
+    final targets = (targetStudentIds != null && targetStudentIds.isNotEmpty)
+        ? targetStudentIds
+        : (state.selectedStudentIds.isNotEmpty
+            ? state.selectedStudentIds
+            : state.roster.map((s) => s.studentId).toSet());
+
+    final updatedDraftRemarks = Map<String, String>.from(state.draftRemarks);
+    final updatedRoster = <AttendanceStudentRowModel>[];
+
+    for (final student in state.roster) {
+      if (targets.contains(student.studentId)) {
+        updatedDraftRemarks[student.studentId] = remarks;
+        updatedRoster.add(student.copyWith(remarks: remarks));
+      } else {
+        updatedRoster.add(student);
+      }
+    }
+
+    state = state.copyWith(
+      roster: updatedRoster,
+      draftRemarks: updatedDraftRemarks,
+    );
   }
 
   void resetDrafts() {
@@ -812,6 +1237,98 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
     String? scheduleId,
     String? remarks,
   }) async {
+    // 1. Optimistic in-memory update for 0ms visual feedback
+    final updatedRoster = <AttendanceStudentRowModel>[];
+    for (final student in state.roster) {
+      if (student.studentId == studentId) {
+        final updatedPeriods = <StudentPeriodAttendanceModel>[];
+        for (final p in student.periods) {
+          if (p.periodNumber == periodNumber) {
+            updatedPeriods.add(p.copyWith(
+              status: status,
+              remarks: remarks ?? p.remarks,
+            ));
+          } else {
+            updatedPeriods.add(p);
+          }
+        }
+        final compStatus = _calculateCompositeDayStatus(updatedPeriods, fallback: status);
+        final currentDrafts = Map<String, AttendanceStatus>.from(state.draftStatuses);
+        currentDrafts[studentId] = compStatus;
+        updatedRoster.add(student.copyWith(
+          status: compStatus,
+          periods: updatedPeriods,
+        ));
+      } else {
+        updatedRoster.add(student);
+      }
+    }
+
+    // Recalculate dynamic statistics optimistically
+    int presentCnt = 0;
+    int absentCnt = 0;
+    int lateCnt = 0;
+    int leaveCnt = 0;
+    int halfDayCnt = 0;
+    int notMarkedCnt = 0;
+
+    for (final s in updatedRoster) {
+      final st = (s.studentId == studentId ? (state.draftStatuses[studentId] ?? s.status) : (state.draftStatuses[s.studentId] ?? s.status));
+      switch (st) {
+        case AttendanceStatus.present:
+          presentCnt++;
+          break;
+        case AttendanceStatus.absent:
+          absentCnt++;
+          break;
+        case AttendanceStatus.late:
+          lateCnt++;
+          break;
+        case AttendanceStatus.onLeave:
+          leaveCnt++;
+          break;
+        case AttendanceStatus.halfDay:
+          halfDayCnt++;
+          break;
+        case AttendanceStatus.notMarked:
+        default:
+          notMarkedCnt++;
+          break;
+      }
+    }
+
+    final total = updatedRoster.length;
+    final double overallPct = total > 0
+        ? ((presentCnt + (lateCnt * 0.8) + (halfDayCnt * 0.5)) / total * 100)
+        : 0.0;
+
+    final updatedStats = AttendanceStatsModel(
+      overallAttendancePct: math.max(0.0, math.min(100.0, overallPct)),
+      totalStudents: total,
+      studentsPresent: presentCnt,
+      studentsAbsent: absentCnt,
+      lateEntries: lateCnt,
+      onLeave: leaveCnt,
+      halfDay: halfDayCnt,
+      notMarked: notMarkedCnt,
+      daySummary: {
+        'total': total,
+        'present': presentCnt,
+        'absent': absentCnt,
+        'late': lateCnt,
+        'on_leave': leaveCnt,
+        'half_day': halfDayCnt,
+        'not_marked': notMarkedCnt,
+      },
+    );
+
+    state = state.copyWith(
+      roster: updatedRoster,
+      draftStatuses: Map<String, AttendanceStatus>.from(state.draftStatuses)..addAll({studentId: (updatedRoster.firstWhere((x) => x.studentId == studentId).status)}),
+      stats: updatedStats,
+    );
+
+    // 2. Persist to Backend API
     try {
       final res = await _api.quickMarkStudentPeriod(
         studentId: studentId,
@@ -850,12 +1367,23 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
       for (final student in state.roster) {
         final st = state.draftStatuses[student.studentId] ?? student.status;
         final rem = state.draftRemarks[student.studentId] ?? student.remarks;
+
+        final periodsList = student.periods.map((p) => {
+          'period_number': p.periodNumber,
+          'period_label': p.periodLabel,
+          'status': p.status.apiKey,
+          'remarks': p.remarks,
+          'subject_id': p.subjectId,
+          'schedule_id': p.scheduleId,
+        }).toList();
+
         records.add({
           'student_id': student.studentId,
           'status': st.apiKey,
           'remarks': rem,
           'period_number': state.selectedPeriodNumber,
           'subject_id': state.selectedSubjectId,
+          'periods': periodsList,
         });
       }
 

@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import '../../../../constants/app_fonts.dart';
 import '../models/attendance_models.dart';
 import '../providers/attendance_provider.dart';
+import '../../classes/services/academic_lookup_helper.dart';
 import 'leave_dialogs.dart';
 
 class LeavePermissionsTab extends ConsumerStatefulWidget {
@@ -38,11 +39,16 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final notifier = ref.read(attendanceProvider.notifier);
-      await notifier.fetchLeaveDashboard();
+      await AcademicLookupHelper.instance.getActiveLookup('DEPARTMENT');
+      await AcademicLookupHelper.instance.getActiveLookup('LEAVE_CATEGORY');
       if (mounted) {
-        notifier.fetchLeaveBalances(background: true);
-        notifier.fetchLeaveTypes();
+        final notifier = ref.read(attendanceProvider.notifier);
+        await notifier.fetchLeaveDashboard();
+        if (mounted) {
+          notifier.fetchStaffLookups();
+          notifier.fetchLeaveBalances(background: true);
+          notifier.fetchLeaveTypes();
+        }
       }
     });
   }
@@ -290,10 +296,35 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
     );
   }
 
-  // ==========================================================================
-  // 2. COMPREHENSIVE FILTER & SEARCH BAR
-  // ==========================================================================
   Widget _buildFilterBar(bool isDark) {
+    final state = ref.watch(attendanceProvider);
+
+    final lookupDepts = AcademicLookupHelper.instance.getCachedLookup('DEPARTMENT');
+    final deptNames = <String>{};
+    for (final it in lookupDepts) {
+      if (it.label.isNotEmpty && it.label != 'ALL') deptNames.add(it.label);
+    }
+    for (final d in state.staffAvailableDepartments) {
+      if (d.isNotEmpty && d != 'ALL') deptNames.add(d);
+    }
+    for (final d in state.insightsAvailableDepartments) {
+      final name = d['name']?.toString() ?? d['label']?.toString();
+      if (name != null && name.isNotEmpty && name != 'ALL' && name != 'All Departments') {
+        deptNames.add(name);
+      }
+    }
+    final sortedDepts = deptNames.toList()..sort();
+
+    final dynamicLeaveTypes = <String>{};
+    for (final t in state.leaveTypes) {
+      if (t.name.isNotEmpty && t.name != 'ALL') dynamicLeaveTypes.add(t.name);
+    }
+    final lookupLeaveCats = AcademicLookupHelper.instance.getCachedLookup('LEAVE_CATEGORY');
+    for (final it in lookupLeaveCats) {
+      if (it.label.isNotEmpty && it.label != 'ALL') dynamicLeaveTypes.add(it.label);
+    }
+    final sortedLeaveTypes = dynamicLeaveTypes.toList()..sort();
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -347,14 +378,9 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
             value: _department,
             hint: 'Department',
             isDark: isDark,
-            items: const [
-              DropdownMenuItem(value: 'ALL', child: Text('All Departments')),
-              DropdownMenuItem(value: 'Mathematics', child: Text('Mathematics')),
-              DropdownMenuItem(value: 'English', child: Text('English')),
-              DropdownMenuItem(value: 'Science', child: Text('Science')),
-              DropdownMenuItem(value: 'Social Studies', child: Text('Social Studies')),
-              DropdownMenuItem(value: 'Administration', child: Text('Administration')),
-              DropdownMenuItem(value: 'General', child: Text('General')),
+            items: [
+              const DropdownMenuItem(value: 'ALL', child: Text('All Departments')),
+              ...sortedDepts.map((d) => DropdownMenuItem(value: d, child: Text(d))),
             ],
             onChanged: (v) => setState(() => _department = v ?? 'ALL'),
           ),
@@ -379,13 +405,9 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
             value: _leaveType,
             hint: 'Leave Type',
             isDark: isDark,
-            items: const [
-              DropdownMenuItem(value: 'ALL', child: Text('All Types')),
-              DropdownMenuItem(value: 'Casual Leave', child: Text('Casual Leave')),
-              DropdownMenuItem(value: 'Medical Leave', child: Text('Medical Leave')),
-              DropdownMenuItem(value: 'Earned Leave', child: Text('Earned Leave')),
-              DropdownMenuItem(value: 'Sick Leave', child: Text('Sick Leave')),
-              DropdownMenuItem(value: 'Comp Off', child: Text('Comp Off')),
+            items: [
+              const DropdownMenuItem(value: 'ALL', child: Text('All Types')),
+              ...sortedLeaveTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))),
             ],
             onChanged: (v) => setState(() => _leaveType = v ?? 'ALL'),
           ),
@@ -469,7 +491,7 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: value,
+          value: items.any((it) => it.value == value) ? value : (items.isNotEmpty ? items.first.value : null),
           isDense: true,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -1064,7 +1086,7 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
                   const SizedBox(width: 6),
                   DropdownButtonHideUnderline(
                     child: DropdownButton<int>(
-                      value: state.leavePageSize,
+                      value: const [10, 25, 50, 100].contains(state.leavePageSize) ? state.leavePageSize : 10,
                       isDense: true,
                       style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                       dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1217,7 +1239,7 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
                   const SizedBox(width: 6),
                   DropdownButtonHideUnderline(
                     child: DropdownButton<int>(
-                      value: state.balancesPageSize,
+                      value: const [10, 25, 50].contains(state.balancesPageSize) ? state.balancesPageSize : 10,
                       isDense: true,
                       style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                       dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1955,7 +1977,7 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
                       const SizedBox(width: 6),
                       DropdownButtonHideUnderline(
                         child: DropdownButton<int>(
-                          value: _permsPageSize,
+                          value: const [10, 25, 50, 100].contains(_permsPageSize) ? _permsPageSize : 10,
                           isDense: true,
                           style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,

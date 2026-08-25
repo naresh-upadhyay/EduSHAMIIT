@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
+import 'package:edu_shamiit_core/screens/classes/services/academic_lookup_helper.dart';
+import 'package:edu_shamiit_core/screens/classes/services/class_api_service.dart';
+import 'package:edu_shamiit_core/screens/classes/models/class_models.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -17,6 +20,8 @@ class AdminUsersScreen extends StatefulWidget {
 class _AdminUsersScreenState extends State<AdminUsersScreen> {
   List<Map<String, dynamic>> _users = [];
   List<Map<String, dynamic>> _schools = [];
+  List<AcademicLookupItem> _departmentLookups = [];
+  List<AcademicClassModel> _academicClasses = [];
   bool _loadingUsers = true;
   bool _loadingSchools = true;
   bool _loadingStats = true;
@@ -107,6 +112,28 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     } catch (_) {}
   }
 
+  Future<void> _fetchDepartmentLookups() async {
+    try {
+      final list = await AcademicLookupHelper.instance.getActiveLookup('DEPARTMENT');
+      if (mounted) {
+        setState(() {
+          _departmentLookups = list;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _fetchAcademicClasses() async {
+    try {
+      final res = await ClassApiService().getClasses(pageSize: 100);
+      if (mounted && res['classes'] is List<AcademicClassModel>) {
+        setState(() {
+          _academicClasses = res['classes'] as List<AcademicClassModel>;
+        });
+      }
+    } catch (_) {}
+  }
+
   @override
   void initState() {
     super.initState();
@@ -125,8 +152,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     _fetchUsers();
     _fetchSchools();
     _fetchRoles();
+    _fetchDepartmentLookups();
+    _fetchAcademicClasses();
     _fetchStats();
   }
+
 
   Future<void> _fetchStats() async {
     setState(() {
@@ -1650,6 +1680,72 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     );
   }
 
+  List<DropdownMenuItem<String?>> _buildClassDropdownItems() {
+    final List<DropdownMenuItem<String?>> items = [];
+    final Set<String> addedValues = {};
+
+    if (_academicClasses.isEmpty) {
+      final defaultClasses = [
+        'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
+        'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10',
+        'Class 11', 'Class 12',
+        '10A', '10B', '11A', '11B', '12A', '12B'
+      ];
+      for (final cls in defaultClasses) {
+        items.add(
+          DropdownMenuItem<String?>(
+            value: cls,
+            child: Text(cls, overflow: TextOverflow.ellipsis),
+          ),
+        );
+      }
+      return items;
+    }
+
+    for (final c in _academicClasses) {
+      final cName = c.name.trim();
+      final cCode = c.code.trim();
+
+      if (cName.isNotEmpty && !addedValues.contains(cName)) {
+        addedValues.add(cName);
+        items.add(
+          DropdownMenuItem<String?>(
+            value: cName,
+            child: Text(cName, overflow: TextOverflow.ellipsis),
+          ),
+        );
+      }
+      if (cCode.isNotEmpty && cCode != cName && !addedValues.contains(cCode)) {
+        addedValues.add(cCode);
+        items.add(
+          DropdownMenuItem<String?>(
+            value: cCode,
+            child: Text(cCode, overflow: TextOverflow.ellipsis),
+          ),
+        );
+      }
+
+      for (final s in c.sections) {
+        final sCode = s.code.trim();
+        final sName = s.name.trim();
+        final sectionDisplay = sCode.isNotEmpty ? sCode : '$cName - $sName';
+        if (sectionDisplay.isNotEmpty && !addedValues.contains(sectionDisplay)) {
+          addedValues.add(sectionDisplay);
+          items.add(
+            DropdownMenuItem<String?>(
+              value: sectionDisplay,
+              child: Text(
+                sCode.isNotEmpty ? '$cName ($sCode)' : sectionDisplay,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          );
+        }
+      }
+    }
+    return items;
+  }
+
   Widget _buildFiltersRow(
     bool isDark,
     Color cardBg,
@@ -1658,19 +1754,43 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     Color textSecondary,
     Color accentColor,
   ) {
-    final List<String> depts = [
-      'All',
-      'Administration',
-      'Academic',
-      'Finance',
-      'Science',
-      'Library',
-      'IT Support',
-      'Mathematics',
-      'Student Affairs',
-      'Front Office',
-      'Transport'
-    ];
+    final List<String> lookupDepts = _departmentLookups
+        .map((d) => d.label.trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
+    final Set<String> allDeptSet = {'All'};
+    if (lookupDepts.isNotEmpty) {
+      allDeptSet.addAll(lookupDepts);
+    } else {
+      allDeptSet.addAll([
+        'Academic / Teaching',
+        'Administration',
+        'Mathematics',
+        'Science',
+        'English / Languages',
+        'Social Studies & Humanities',
+        'Computer Science & IT',
+        'Finance & Accounts',
+        'Human Resources',
+        'Library & Information',
+        'Physical Education & Sports',
+        'Arts & Performing Arts',
+        'Transport & Fleet',
+        'Hostel & Residential',
+        'Security & Safety',
+        'Medical & Health Clinic',
+        'Maintenance & Facilities',
+        'Examination & Assessment',
+        'Student Affairs & Admissions',
+        'General / Unassigned',
+      ]);
+    }
+    for (var u in _users) {
+      final ud = (u['department'] ?? '').toString().trim();
+      if (ud.isNotEmpty) allDeptSet.add(ud);
+    }
+    final List<String> depts = allDeptSet.toList();
+
     final List<String> schoolNames = [
       'All',
       ..._schools.map((s) => (s['name'] ?? '').toString().trim()).where((n) => n.isNotEmpty).toSet().toList()
@@ -3855,10 +3975,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final nameController = TextEditingController();
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
-    final classController = TextEditingController();
 
     String selectedRole = 'student';
     String? selectedSchoolId;
+    String? selectedDepartment;
+    String? selectedClassName;
     bool isSchoolSuspended = false;
 
     showDialog(
@@ -3880,6 +4001,51 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             } else {
               isSchoolSuspended = false;
             }
+
+            final List<DropdownMenuItem<String?>> deptItems = [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('None / Not Specified', style: TextStyle(color: Colors.grey)),
+              ),
+              ...(_departmentLookups.isNotEmpty
+                  ? _departmentLookups.map((d) => DropdownMenuItem<String?>(
+                      value: d.label,
+                      child: Text(d.label, overflow: TextOverflow.ellipsis),
+                    ))
+                  : [
+                      'Academic / Teaching',
+                      'Administration',
+                      'Mathematics',
+                      'Science',
+                      'English / Languages',
+                      'Social Studies & Humanities',
+                      'Computer Science & IT',
+                      'Finance & Accounts',
+                      'Human Resources',
+                      'Library & Information',
+                      'Physical Education & Sports',
+                      'Arts & Performing Arts',
+                      'Transport & Fleet',
+                      'Hostel & Residential',
+                      'Security & Safety',
+                      'Medical & Health Clinic',
+                      'Maintenance & Facilities',
+                      'Examination & Assessment',
+                      'Student Affairs & Admissions',
+                      'General / Unassigned',
+                    ].map((name) => DropdownMenuItem<String?>(
+                      value: name,
+                      child: Text(name, overflow: TextOverflow.ellipsis),
+                    ))),
+            ];
+
+            final List<DropdownMenuItem<String?>> classItems = [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('None / Unassigned', style: TextStyle(color: Colors.grey)),
+              ),
+              ..._buildClassDropdownItems(),
+            ];
 
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -3975,6 +4141,27 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                             }
                           },
                         ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String?>(
+                          isExpanded: true,
+                          initialValue: selectedDepartment,
+                          decoration: const InputDecoration(
+                            labelText: 'Department (Optional)',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          ),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
+                          ),
+                          dropdownColor: Theme.of(context).cardColor,
+                          items: deptItems,
+                          onChanged: (val) {
+                            setStateBuilder(() {
+                              selectedDepartment = val;
+                            });
+                          },
+                        ),
                         if (showSchoolSelect) ...[
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
@@ -4008,15 +4195,25 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         ],
                         if (showClassInput) ...[
                           const SizedBox(height: 12),
-                          TextFormField(
-                            controller: classController,
-                            style: const TextStyle(fontSize: 13),
+                          DropdownButtonFormField<String?>(
+                            isExpanded: true,
+                            initialValue: selectedClassName,
                             decoration: const InputDecoration(
-                              labelText: 'Class Name (e.g. 10A)',
+                              labelText: 'Class / Section (Optional)',
                               border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                             ),
-                            validator: (val) => (val == null || val.trim().isEmpty) ? 'Required for students' : null,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
+                            ),
+                            dropdownColor: Theme.of(context).cardColor,
+                            items: classItems,
+                            onChanged: (val) {
+                              setStateBuilder(() {
+                                selectedClassName = val;
+                              });
+                            },
                           ),
                         ],
                         if (isSchoolSuspended) ...[
@@ -4067,7 +4264,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                               'full_name': nameController.text.trim(),
                               'role': selectedRole,
                               'school_id': selectedSchoolId ?? '',
-                              'class_name': showClassInput ? classController.text.trim() : null,
+                              'class_name': showClassInput ? (selectedClassName?.trim().isNotEmpty == true ? selectedClassName!.trim() : null) : null,
+                              'department': (selectedDepartment != null && selectedDepartment!.trim().isNotEmpty) ? selectedDepartment!.trim() : null,
                             };
                             Navigator.of(context).pop();
                             setState(() {
@@ -4109,13 +4307,19 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final nameController = TextEditingController(text: user['full_name']);
     final emailController = TextEditingController(text: user['email']);
     final passwordController = TextEditingController();
-    final classController = TextEditingController(text: user['class'] ?? '');
-    final departmentController = TextEditingController(text: user['department'] ?? '');
 
     String selectedRole = user['role'] ?? 'student';
     String selectedStatus = user['status'] ?? 'Active';
     String? selectedSchoolId = user['school_id'];
     String? selectedManagerId = user['manager_id'];
+    String? selectedDepartment = (user['department'] != null && user['department'].toString().trim().isNotEmpty) 
+        ? user['department'].toString().trim() 
+        : null;
+    String? selectedClassName = (user['class'] != null && user['class'].toString().trim().isNotEmpty)
+        ? user['class'].toString().trim()
+        : ((user['class_name'] != null && user['class_name'].toString().trim().isNotEmpty)
+            ? user['class_name'].toString().trim()
+            : null);
     bool isSchoolSuspended = false;
 
     showDialog(
@@ -4135,6 +4339,69 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               isSchoolSuspended = selectedSchoolObj['subscription_status'] == 'suspended';
             } else {
               isSchoolSuspended = false;
+            }
+
+            final List<DropdownMenuItem<String?>> deptItems = [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('None / Not Specified', style: TextStyle(color: Colors.grey)),
+              ),
+              ...(_departmentLookups.isNotEmpty
+                  ? _departmentLookups.map((d) => DropdownMenuItem<String?>(
+                      value: d.label,
+                      child: Text(d.label, overflow: TextOverflow.ellipsis),
+                    ))
+                  : [
+                      'Academic / Teaching',
+                      'Administration',
+                      'Mathematics',
+                      'Science',
+                      'English / Languages',
+                      'Social Studies & Humanities',
+                      'Computer Science & IT',
+                      'Finance & Accounts',
+                      'Human Resources',
+                      'Library & Information',
+                      'Physical Education & Sports',
+                      'Arts & Performing Arts',
+                      'Transport & Fleet',
+                      'Hostel & Residential',
+                      'Security & Safety',
+                      'Medical & Health Clinic',
+                      'Maintenance & Facilities',
+                      'Examination & Assessment',
+                      'Student Affairs & Admissions',
+                      'General / Unassigned',
+                    ].map((name) => DropdownMenuItem<String?>(
+                      value: name,
+                      child: Text(name, overflow: TextOverflow.ellipsis),
+                    ))),
+            ];
+
+            if (selectedDepartment != null && !deptItems.any((item) => item.value == selectedDepartment)) {
+              deptItems.add(
+                DropdownMenuItem<String?>(
+                  value: selectedDepartment,
+                  child: Text(selectedDepartment!, overflow: TextOverflow.ellipsis),
+                ),
+              );
+            }
+
+            final List<DropdownMenuItem<String?>> classItems = [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('None / Unassigned', style: TextStyle(color: Colors.grey)),
+              ),
+              ..._buildClassDropdownItems(),
+            ];
+
+            if (selectedClassName != null && !classItems.any((item) => item.value == selectedClassName)) {
+              classItems.add(
+                DropdownMenuItem<String?>(
+                  value: selectedClassName,
+                  child: Text(selectedClassName!, overflow: TextOverflow.ellipsis),
+                ),
+              );
             }
 
             return AlertDialog(
@@ -4259,14 +4526,25 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           },
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
-                          controller: departmentController,
-                          style: const TextStyle(fontSize: 13),
+                        DropdownButtonFormField<String?>(
+                          isExpanded: true,
+                          initialValue: selectedDepartment,
                           decoration: const InputDecoration(
-                            labelText: 'Department',
+                            labelText: 'Department (Optional)',
                             border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           ),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
+                          ),
+                          dropdownColor: Theme.of(context).cardColor,
+                          items: deptItems,
+                          onChanged: (val) {
+                            setStateBuilder(() {
+                              selectedDepartment = val;
+                            });
+                          },
                         ),
                         const SizedBox(height: 12),
                         FutureBuilder<Map<String, dynamic>>(
@@ -4278,7 +4556,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                             List<Map<String, dynamic>> eligibleMgrs = [];
                             if (mgrSnapshot.hasData && mgrSnapshot.data?['success'] == true && mgrSnapshot.data?['data'] != null) {
                               eligibleMgrs = List<Map<String, dynamic>>.from(mgrSnapshot.data!['data'])
-                                  .where((m) => m['id'].toString() != user['id'].toString())
+                                   .where((m) => m['id'].toString() != user['id'].toString())
                                   .toList();
                             }
                             return DropdownButtonFormField<String?>(
@@ -4351,15 +4629,25 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         ],
                         if (showClassInput) ...[
                           const SizedBox(height: 12),
-                          TextFormField(
-                            controller: classController,
-                            style: const TextStyle(fontSize: 13),
+                          DropdownButtonFormField<String?>(
+                            isExpanded: true,
+                            initialValue: selectedClassName,
                             decoration: const InputDecoration(
-                              labelText: 'Class Name (e.g. 10A)',
+                              labelText: 'Class / Section (Optional)',
                               border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                             ),
-                            validator: (val) => (val == null || val.trim().isEmpty) ? 'Required for students' : null,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
+                            ),
+                            dropdownColor: Theme.of(context).cardColor,
+                            items: classItems,
+                            onChanged: (val) {
+                              setStateBuilder(() {
+                                selectedClassName = val;
+                              });
+                            },
                           ),
                         ],
                         if (isSchoolSuspended) ...[
@@ -4409,11 +4697,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                               'email': emailController.text.trim(),
                               'role': selectedRole,
                               'school_id': selectedSchoolId ?? '',
-                              'class_name': showClassInput ? classController.text.trim() : null,
+                              'class_name': showClassInput ? (selectedClassName?.trim().isNotEmpty == true ? selectedClassName!.trim() : null) : null,
                               'status': selectedStatus,
-                              'department': departmentController.text.trim().isNotEmpty
-                                  ? departmentController.text.trim()
-                                  : null,
+                              'department': (selectedDepartment != null && selectedDepartment!.trim().isNotEmpty) ? selectedDepartment!.trim() : null,
                               'manager_id': selectedManagerId,
                               if (passwordController.text.isNotEmpty) 'password': passwordController.text,
                             };

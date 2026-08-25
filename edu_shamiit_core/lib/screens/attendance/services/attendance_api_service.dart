@@ -541,18 +541,69 @@ class AttendanceApiService {
   Future<AttendanceInsightsModel?> getInsights({
     required String startDate,
     required String endDate,
+    String? viewBy,
+    String? role,
     String? classId,
     String? sectionId,
+    String? department,
+    String? granularity,
   }) async {
     try {
       final query = <String, String>{'start_date': startDate, 'end_date': endDate};
+      if (viewBy != null && viewBy.isNotEmpty) query['view_by'] = viewBy;
+      if (role != null && role.isNotEmpty && role != 'ALL') query['role'] = role;
       if (classId != null && classId.isNotEmpty) query['class_id'] = classId;
       if (sectionId != null && sectionId.isNotEmpty) query['section_id'] = sectionId;
+      if (department != null && department.isNotEmpty && department != 'ALL' && department != 'All Departments') {
+        query['department'] = department;
+      }
+      if (granularity != null && granularity.isNotEmpty) query['granularity'] = granularity;
 
       final res = await _api.get('/attendance/insights', query: query, useCache: false);
       if (res['success'] == true && res['data'] != null) {
         return AttendanceInsightsModel.fromJson(res['data'] as Map<String, dynamic>);
       }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Get student attendance insights profile & calendar heatmap
+  Future<Map<String, dynamic>?> getStudentInsightsProfile(
+    String studentId, {
+    String? startDate,
+    String? endDate,
+  }) async {
+    try {
+      final query = <String, String>{};
+      if (startDate != null && startDate.isNotEmpty) query['start_date'] = startDate;
+      if (endDate != null && endDate.isNotEmpty) query['end_date'] = endDate;
+
+      final res = await _api.get('/attendance/insights/student/$studentId', query: query, useCache: false);
+      if (res['success'] == true && res['data'] != null) {
+        return res['data'] as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Download attendance insights CSV report
+  Future<String?> exportInsightsReport({
+    required String startDate,
+    required String endDate,
+    String? viewBy,
+    String? classId,
+    String? sectionId,
+    String? department,
+  }) async {
+    try {
+      final query = <String, String>{'start_date': startDate, 'end_date': endDate};
+      if (viewBy != null && viewBy.isNotEmpty) query['view_by'] = viewBy;
+      if (classId != null && classId.isNotEmpty) query['class_id'] = classId;
+      if (sectionId != null && sectionId.isNotEmpty) query['section_id'] = sectionId;
+      if (department != null && department.isNotEmpty && department != 'ALL') query['department'] = department;
+
+      final res = await _api.get('/attendance/insights/export', query: query, useCache: false);
+      return res.toString();
     } catch (_) {}
     return null;
   }
