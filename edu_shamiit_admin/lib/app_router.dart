@@ -82,7 +82,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/',
         builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
+          final config = ref.read(systemConfigProvider);
           return SharedHomeScreen(
             systemName: config?.systemName,
             systemLogo: config?.systemLogo,
@@ -96,7 +96,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/contact',
         builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
+          final config = ref.read(systemConfigProvider);
           return SharedContactUsScreen(
             systemName: config?.systemName,
             systemLogo: config?.systemLogo,
@@ -107,7 +107,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/privacy-policy',
         builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
+          final config = ref.read(systemConfigProvider);
           return SharedPrivacyPolicyScreen(
             systemName: config?.systemName,
             systemLogo: config?.systemLogo,
@@ -118,7 +118,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/terms-conditions',
         builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
+          final config = ref.read(systemConfigProvider);
           return SharedTermsConditionsScreen(
             systemName: config?.systemName,
             systemLogo: config?.systemLogo,
@@ -129,7 +129,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/get-started',
         builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
+          final config = ref.read(systemConfigProvider);
           return SharedGetStartedScreen(
             systemName: config?.systemName,
             systemLogo: config?.systemLogo,
@@ -139,7 +139,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/faq',
         builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
+          final config = ref.read(systemConfigProvider);
           return SharedFaqScreen(
             systemName: config?.systemName,
             systemLogo: config?.systemLogo,
@@ -150,7 +150,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/user-guides',
         builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
+          final config = ref.read(systemConfigProvider);
           final category = state.uri.queryParameters['category'];
           final article = state.uri.queryParameters['article'];
           return SharedUserGuidesScreen(
@@ -166,7 +166,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/help-center',
         builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
+          final config = ref.read(systemConfigProvider);
           return SharedHelpCenterScreen(
             systemName: config?.systemName,
             systemLogo: config?.systemLogo,
@@ -177,7 +177,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/forgot-password',
         builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
+          final config = ref.read(systemConfigProvider);
           return SharedForgotPasswordScreen(
             isAdmin: true,
             systemName: config?.systemName,
@@ -189,7 +189,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/otp-verification',
         builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
+          final config = ref.read(systemConfigProvider);
           final args = state.extra as Map<String, dynamic>?;
           final email = args?['email'] as String? ?? '';
           final isLogin = args?['isLogin'] as bool? ?? false;
@@ -208,7 +208,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/reset-password',
         builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
+          final config = ref.read(systemConfigProvider);
           final args = state.extra as Map<String, dynamic>?;
           final email = args?['email'] as String? ?? '';
           final otp = args?['otp'] as String? ?? '';

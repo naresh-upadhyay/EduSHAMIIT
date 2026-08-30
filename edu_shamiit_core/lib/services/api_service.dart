@@ -216,10 +216,15 @@ class ApiService {
       final uri = Uri.parse('${AppConfig.apiBaseUrl}$endpoint');
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
+      final schoolId = prefs.getString('school_id');
 
       final request = http.MultipartRequest('POST', uri);
+      request.headers['apikey'] = AppConfig.supabaseAnonKey;
       if (token != null) {
         request.headers['Authorization'] = 'Bearer $token';
+      }
+      if (schoolId != null && schoolId.isNotEmpty) {
+        request.headers['X-School-Id'] = schoolId;
       }
       if (fields != null) {
         request.fields.addAll(fields);
@@ -242,10 +247,15 @@ class ApiService {
       final uri = Uri.parse('${AppConfig.apiBaseUrl}$endpoint');
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
+      final schoolId = prefs.getString('school_id');
 
       final request = http.MultipartRequest('POST', uri);
+      request.headers['apikey'] = AppConfig.supabaseAnonKey;
       if (token != null) {
         request.headers['Authorization'] = 'Bearer $token';
+      }
+      if (schoolId != null && schoolId.isNotEmpty) {
+        request.headers['X-School-Id'] = schoolId;
       }
       if (fields != null) {
         request.fields.addAll(fields);

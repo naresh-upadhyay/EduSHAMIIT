@@ -192,34 +192,67 @@ async def upload_system_file(
     if len(file_bytes) == 0:
         raise HTTPException(status_code=400, detail="Empty image file")
     
-    # Generate a unique path/filename
+    # Generate unique filename
     ext_map = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "image/svg+xml": "svg"}
     ext = ext_map.get(content_type, "jpg")
     timestamp = int(datetime.utcnow().timestamp())
     storage_path = f"system/{file_type}_{timestamp}.{ext}"
     
-    # Upload via httpx to Supabase storage REST API
-    supabase_url = settings.SUPABASE_URL.rstrip("/")
-    storage_url = f"{supabase_url}/storage/v1/object/avatars/{storage_path}"
+    # 1. Local disk persistence
+    try:
+        local_dir = "/app/assets/system"
+        os.makedirs(local_dir, exist_ok=True)
+        local_file_path = os.path.join(local_dir, f"{file_type}_{timestamp}.{ext}")
+        with open(local_file_path, "wb") as f:
+            f.write(file_bytes)
+    except Exception as disk_err:
+        logger.warning(f"Could not save local asset copy: {disk_err}")
+
+    # 2. Upload to Supabase storage container (direct storage:5000 first, then kong:8000 fallback)
+    storage_targets = [
+        f"http://storage:5000/object/avatars/{storage_path}",
+        f"{settings.SUPABASE_URL.rstrip('/')}/storage/v1/object/avatars/{storage_path}"
+    ]
     
     headers = {
         "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
         "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
-        "Content-Type": content_type
+        "Content-Type": content_type,
+        "x-upsert": "true"
     }
     
-    async with httpx.AsyncClient() as client:
+    uploaded = False
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        for target_url in storage_targets:
+            try:
+                upload_res = await client.post(target_url, headers=headers, content=file_bytes)
+                if upload_res.status_code in (200, 201):
+                    uploaded = True
+                    break
+                elif upload_res.status_code == 409:
+                    put_res = await client.put(target_url, headers=headers, content=file_bytes)
+                    if put_res.status_code in (200, 201):
+                        uploaded = True
+                        break
+            except Exception as e:
+                logger.warning(f"Storage upload target {target_url} failed: {e}")
+                continue
+
+    if not uploaded:
+        # Fallback to Supabase Python SDK
         try:
-            upload_response = await client.post(storage_url, headers=headers, content=file_bytes)
-            if upload_response.status_code not in (200, 201):
-                raise HTTPException(status_code=500, detail=f"Storage upload failed: {upload_response.text}")
-        except Exception as e:
-            if isinstance(e, HTTPException):
-                raise e
-            raise HTTPException(status_code=500, detail=f"Storage upload request failed: {str(e)}")
-            
+            sb = get_supabase()
+            sb.storage.from_("avatars").upload(
+                file=file_bytes,
+                path=storage_path,
+                file_options={"content-type": content_type, "upsert": "true"}
+            )
+            uploaded = True
+        except Exception as sdk_err:
+            logger.warning(f"Supabase SDK upload fallback error: {sdk_err}")
+
     from app.middleware.auth import get_public_supabase_url
-    public_url_base = get_public_supabase_url(supabase_url)
+    public_url_base = get_public_supabase_url(settings.SUPABASE_URL)
     public_url = f"{public_url_base}/storage/v1/object/public/avatars/{storage_path}?t={timestamp}"
     
     return {

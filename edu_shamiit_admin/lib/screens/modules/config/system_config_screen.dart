@@ -330,14 +330,19 @@ class _AdminSystemConfigScreenState
           source: ImageSource.gallery, maxWidth: 1000, imageQuality: 90);
       if (image == null) return;
 
-      final croppedBytes = await _cropImage(image.path);
-      if (croppedBytes == null) return; // User cancelled crop
+      Uint8List? uploadBytes;
+      try {
+        uploadBytes = await _cropImage(image.path);
+      } catch (_) {
+        uploadBytes = null;
+      }
+      uploadBytes ??= await image.readAsBytes();
 
       setState(() => _isSaving = true);
 
       final res = await ApiService().multipartPostBytes(
         '/admin/system-config/upload?file_type=$fileType',
-        croppedBytes,
+        uploadBytes,
         image.name,
         'file',
       );
