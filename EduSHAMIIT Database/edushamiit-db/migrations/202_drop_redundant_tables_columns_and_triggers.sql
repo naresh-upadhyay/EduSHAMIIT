@@ -6,10 +6,17 @@
 -- ──────────────────────────────────────────────
 
 -- Ensure vehicles table has records for all bus_routes before switching FKs
-INSERT INTO public.vehicles (id, school_id, vehicle_no, seating_capacity, status)
-SELECT id, school_id, bus_number, capacity, COALESCE(status, 'Active')
-FROM public.bus_routes
-ON CONFLICT (school_id, vehicle_no) DO NOTHING;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'bus_routes') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'bus_routes' AND column_name = 'bus_number') THEN
+      INSERT INTO public.vehicles (id, school_id, vehicle_no, seating_capacity, status)
+      SELECT id, school_id, bus_number, COALESCE(total_capacity, 40), COALESCE(status, 'Active')
+      FROM public.bus_routes
+      ON CONFLICT (school_id, vehicle_no) DO NOTHING;
+    END IF;
+  END IF;
+END $$;
 
 -- Drop legacy FK constraints pointing to bus_routes
 ALTER TABLE public.vehicle_documents DROP CONSTRAINT IF EXISTS vehicle_documents_vehicle_id_fkey;
@@ -44,13 +51,27 @@ DROP TRIGGER IF EXISTS trg_sync_driver_assignment_to_trip ON public.driver_assig
 DROP TRIGGER IF EXISTS trg_sync_trip_to_driver_assignment ON public.vehicle_trips;
 
 -- Re-attach sanitized non-recursive triggers
-CREATE TRIGGER trg_sync_driver_assignment_to_trip
-AFTER INSERT OR UPDATE ON public.driver_assignments
-FOR EACH ROW EXECUTE FUNCTION public.sync_driver_assignment_to_trip();
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'driver_assignments') THEN
+    CREATE TRIGGER trg_sync_driver_assignment_to_trip
+    AFTER INSERT OR UPDATE ON public.driver_assignments
+    FOR EACH ROW EXECUTE FUNCTION public.sync_driver_assignment_to_trip();
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
 
-CREATE TRIGGER trg_sync_trip_to_driver_assignment
-AFTER INSERT OR UPDATE ON public.vehicle_trips
-FOR EACH ROW EXECUTE FUNCTION public.sync_trip_to_driver_assignment();
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'vehicle_trips') THEN
+    CREATE TRIGGER trg_sync_trip_to_driver_assignment
+    AFTER INSERT OR UPDATE ON public.vehicle_trips
+    FOR EACH ROW EXECUTE FUNCTION public.sync_trip_to_driver_assignment();
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
 
 -- Drop redundant profile-driver sync triggers if present
 DROP TRIGGER IF EXISTS trg_sync_driver_to_profile ON public.drivers;
@@ -67,10 +88,10 @@ SELECT
   d.profile_id,
   d.school_id,
   d.driver_code,
-  COALESCE(p.full_name, d.name) AS full_name,
-  COALESCE(p.email, d.email) AS email,
-  COALESCE(p.phone, d.phone) AS phone,
-  COALESCE(p.avatar_url, d.photo_url) AS photo_url,
+  COALESCE(p.full_name, d.driver_code) AS full_name,
+  p.email AS email,
+  p.phone AS phone,
+  p.avatar_url AS photo_url,
   d.license_no,
   d.license_type,
   d.license_expiry_date,
@@ -92,8 +113,8 @@ SELECT
   school_id,
   user_id,
   title,
-  message,
-  COALESCE(category, 'General') AS category,
+  body AS message,
+  COALESCE(type, 'General') AS category,
   COALESCE(is_read, FALSE) AS is_read,
   created_at
 FROM public.notifications

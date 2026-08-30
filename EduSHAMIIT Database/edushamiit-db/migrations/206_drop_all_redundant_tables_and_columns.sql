@@ -5,23 +5,44 @@
 -- 1. MIGRATE DATA TO PRIMARY TABLES BEFORE DROPPING
 -- ──────────────────────────────────────────────
 
+-- Ensure notifications table columns exist for compatibility
+ALTER TABLE IF EXISTS public.notifications ADD COLUMN IF NOT EXISTS message TEXT;
+ALTER TABLE IF EXISTS public.notifications ADD COLUMN IF NOT EXISTS category TEXT;
+
 -- Migrate any announcements into notifications
-INSERT INTO public.notifications (school_id, title, message, category, is_read, created_at)
-SELECT school_id, title, content, 'announcement', FALSE, created_at
-FROM public.announcements
-ON CONFLICT DO NOTHING;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'announcements') THEN
+    INSERT INTO public.notifications (school_id, title, body, type, is_read, created_at)
+    SELECT school_id, title, COALESCE(description, title), 'announcement', FALSE, created_at
+    FROM public.announcements
+    ON CONFLICT DO NOTHING;
+  END IF;
+END $$;
 
 -- Migrate any system_alerts into notifications
-INSERT INTO public.notifications (school_id, title, message, category, is_read, created_at)
-SELECT school_id, alert_type, message, 'system_alert', COALESCE(is_read, FALSE), created_at
-FROM public.system_alerts
-ON CONFLICT DO NOTHING;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'system_alerts') THEN
+    INSERT INTO public.notifications (school_id, title, body, type, is_read, created_at)
+    SELECT school_id, title, COALESCE(description, title), 'system_alert', COALESCE(is_read, FALSE), created_at
+    FROM public.system_alerts
+    ON CONFLICT DO NOTHING;
+  END IF;
+END $$;
 
 -- Migrate bus_routes records into vehicles if not present
-INSERT INTO public.vehicles (id, school_id, vehicle_no, seating_capacity, status)
-SELECT id, school_id, bus_number, capacity, COALESCE(status, 'Active')
-FROM public.bus_routes
-ON CONFLICT (school_id, vehicle_no) DO NOTHING;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'bus_routes') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'bus_routes' AND column_name = 'bus_number') THEN
+      INSERT INTO public.vehicles (id, school_id, vehicle_no, seating_capacity, status)
+      SELECT id, school_id, bus_number, COALESCE(total_capacity, 40), COALESCE(status, 'Active')
+      FROM public.bus_routes
+      ON CONFLICT (school_id, vehicle_no) DO NOTHING;
+    END IF;
+  END IF;
+END $$;
 
 
 -- ──────────────────────────────────────────────
@@ -61,6 +82,8 @@ DROP VIEW IF EXISTS public.vw_drivers CASCADE;
 -- 5. RE-CREATE UNIFIED RPC FUNCTIONS FOR NOTIFICATIONS
 -- ──────────────────────────────────────────────
 
+DROP FUNCTION IF EXISTS public.rpc_get_user_notifications(UUID, UUID) CASCADE;
+DROP FUNCTION IF EXISTS public.rpc_get_user_notifications(UUID) CASCADE;
 CREATE OR REPLACE FUNCTION public.rpc_get_user_notifications(p_user_id UUID, p_school_id UUID DEFAULT NULL)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -74,8 +97,8 @@ BEGIN
     jsonb_build_object(
       'id', n.id,
       'title', n.title,
-      'message', n.message,
-      'category', n.category,
+      'message', COALESCE(n.body, n.title),
+      'category', COALESCE(n.type, 'General'),
       'is_read', COALESCE(n.is_read, FALSE),
       'created_at', n.created_at
     )

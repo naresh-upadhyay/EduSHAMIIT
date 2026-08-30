@@ -14,6 +14,7 @@ DO $$
 DECLARE
     r RECORD;
     v_school_id UUID;
+    v_admin_id UUID;
     v_dept_key_id UUID;
     v_target_dept VARCHAR(150);
     v_clean_dept VARCHAR(150);
@@ -32,52 +33,60 @@ BEGIN
     -- Step 1: Ensure DEPARTMENT lookup key & standard values exist per school
     -- ────────────────────────────────────────────────────────────────────────
     FOR r IN SELECT id FROM public.schools LOOP
-        INSERT INTO public.lookup_keys (
-            school_id, key_name, key_code, description, key_type, icon, status
-        )
-        VALUES (
-            r.id,
-            'Department',
-            'DEPARTMENT',
-            'Institutional and academic departments across campus.',
-            'SYSTEM',
-            'corporate_fare_rounded',
-            'ACTIVE'
-        )
-        ON CONFLICT (school_id, key_code) WHERE deleted_at IS NULL 
-        DO NOTHING;
+        SELECT id INTO v_admin_id FROM public.profiles WHERE school_id = r.id LIMIT 1;
+        IF v_admin_id IS NULL THEN
+            SELECT id INTO v_admin_id FROM public.profiles LIMIT 1;
+        END IF;
 
-        SELECT id INTO v_dept_key_id 
-        FROM public.lookup_keys 
-        WHERE school_id = r.id AND key_code = 'DEPARTMENT' AND deleted_at IS NULL 
-        LIMIT 1;
-
-        IF v_dept_key_id IS NOT NULL THEN
-            INSERT INTO public.lookup_values (
-                lookup_key_id, school_id, value_name, value_code, description, status, sort_order
-            ) VALUES
-                (v_dept_key_id, r.id, 'Academic / Teaching', 'ACADEMIC', 'Instructional faculty and academic curriculum staff.', 'ACTIVE', 1),
-                (v_dept_key_id, r.id, 'Administration', 'ADMINISTRATION', 'Executive leadership and general school administration.', 'ACTIVE', 2),
-                (v_dept_key_id, r.id, 'Mathematics', 'MATHEMATICS', 'Mathematics faculty and numeric sciences.', 'ACTIVE', 3),
-                (v_dept_key_id, r.id, 'Science', 'SCIENCE', 'Physics, Chemistry, Biology and scientific laboratories.', 'ACTIVE', 4),
-                (v_dept_key_id, r.id, 'English / Languages', 'LANGUAGES', 'Language arts, literature and linguistic studies.', 'ACTIVE', 5),
-                (v_dept_key_id, r.id, 'Social Studies & Humanities', 'SOCIAL_STUDIES', 'History, Geography, Civics, and Social Sciences.', 'ACTIVE', 6),
-                (v_dept_key_id, r.id, 'Computer Science & IT', 'COMPUTER_SCIENCE', 'Information technology, programming, and computer labs.', 'ACTIVE', 7),
-                (v_dept_key_id, r.id, 'Finance & Accounts', 'FINANCE', 'Institutional accounting, tuition billing, and payroll.', 'ACTIVE', 8),
-                (v_dept_key_id, r.id, 'Human Resources', 'HR', 'Staff recruitment, employee welfare, and personnel records.', 'ACTIVE', 9),
-                (v_dept_key_id, r.id, 'Library & Information', 'LIBRARY', 'Learning resources center, book circulation, and digital media.', 'ACTIVE', 10),
-                (v_dept_key_id, r.id, 'Physical Education & Sports', 'SPORTS', 'Athletics, physical education, gymnasiums, and teams.', 'ACTIVE', 11),
-                (v_dept_key_id, r.id, 'Arts & Performing Arts', 'ARTS', 'Fine arts, music, dance, and creative drama studios.', 'ACTIVE', 12),
-                (v_dept_key_id, r.id, 'Transport & Fleet', 'TRANSPORT', 'Buses, vans, fleet routing, and driver coordination.', 'ACTIVE', 13),
-                (v_dept_key_id, r.id, 'Hostel & Residential', 'HOSTEL', 'Boarding facilities, wardens, and student residential care.', 'ACTIVE', 14),
-                (v_dept_key_id, r.id, 'Security & Safety', 'SECURITY', 'Campus surveillance, security guards, and emergency protocols.', 'ACTIVE', 15),
-                (v_dept_key_id, r.id, 'Medical & Health Clinic', 'HEALTH_CLINIC', 'Infirmary, campus medical staff, and student healthcare.', 'ACTIVE', 16),
-                (v_dept_key_id, r.id, 'Maintenance & Facilities', 'MAINTENANCE', 'Campus repairs, electricals, sanitation, and physical upkeep.', 'ACTIVE', 17),
-                (v_dept_key_id, r.id, 'Examination & Assessment', 'EXAMINATION', 'Standardized grading, test scheduling, and report cards.', 'ACTIVE', 18),
-                (v_dept_key_id, r.id, 'Student Affairs & Admissions', 'STUDENT_AFFAIRS', 'Enrollment, student counseling, and co-curriculars.', 'ACTIVE', 19),
-                (v_dept_key_id, r.id, 'General / Unassigned', 'GENERAL', 'Non-departmental staff or unassigned profiles.', 'ACTIVE', 20)
-            ON CONFLICT (lookup_key_id, value_code) WHERE deleted_at IS NULL 
+        IF v_admin_id IS NOT NULL THEN
+            INSERT INTO public.lookup_keys (
+                school_id, key_name, key_code, description, key_type, icon, status, created_by
+            )
+            VALUES (
+                r.id,
+                'Department',
+                'DEPARTMENT',
+                'Institutional and academic departments across campus.',
+                'SYSTEM',
+                'corporate_fare_rounded',
+                'ACTIVE',
+                v_admin_id
+            )
+            ON CONFLICT (school_id, key_code) WHERE deleted_at IS NULL 
             DO NOTHING;
+
+            SELECT id INTO v_dept_key_id 
+            FROM public.lookup_keys 
+            WHERE school_id = r.id AND key_code = 'DEPARTMENT' AND deleted_at IS NULL 
+            LIMIT 1;
+
+            IF v_dept_key_id IS NOT NULL THEN
+                INSERT INTO public.lookup_values (
+                    lookup_key_id, school_id, value_name, value_code, description, status, sort_order, created_by
+                ) VALUES
+                    (v_dept_key_id, r.id, 'Academic / Teaching', 'ACADEMIC', 'Instructional faculty and academic curriculum staff.', 'ACTIVE', 1, v_admin_id),
+                    (v_dept_key_id, r.id, 'Administration', 'ADMINISTRATION', 'Executive leadership and general school administration.', 'ACTIVE', 2, v_admin_id),
+                    (v_dept_key_id, r.id, 'Mathematics', 'MATHEMATICS', 'Mathematics faculty and numeric sciences.', 'ACTIVE', 3, v_admin_id),
+                    (v_dept_key_id, r.id, 'Science', 'SCIENCE', 'Physics, Chemistry, Biology and scientific laboratories.', 'ACTIVE', 4, v_admin_id),
+                    (v_dept_key_id, r.id, 'English / Languages', 'LANGUAGES', 'Language arts, literature and linguistic studies.', 'ACTIVE', 5, v_admin_id),
+                    (v_dept_key_id, r.id, 'Social Studies & Humanities', 'SOCIAL_STUDIES', 'History, Geography, Civics, and Social Sciences.', 'ACTIVE', 6, v_admin_id),
+                    (v_dept_key_id, r.id, 'Computer Science & IT', 'COMPUTER_SCIENCE', 'Information technology, programming, and computer labs.', 'ACTIVE', 7, v_admin_id),
+                    (v_dept_key_id, r.id, 'Finance & Accounts', 'FINANCE', 'Institutional accounting, tuition billing, and payroll.', 'ACTIVE', 8, v_admin_id),
+                    (v_dept_key_id, r.id, 'Human Resources', 'HR', 'Staff recruitment, employee welfare, and personnel records.', 'ACTIVE', 9, v_admin_id),
+                    (v_dept_key_id, r.id, 'Library & Information', 'LIBRARY', 'Learning resources center, book circulation, and digital media.', 'ACTIVE', 10, v_admin_id),
+                    (v_dept_key_id, r.id, 'Physical Education & Sports', 'SPORTS', 'Athletics, physical education, gymnasiums, and teams.', 'ACTIVE', 11, v_admin_id),
+                    (v_dept_key_id, r.id, 'Arts & Performing Arts', 'ARTS', 'Fine arts, music, dance, and creative drama studios.', 'ACTIVE', 12, v_admin_id),
+                    (v_dept_key_id, r.id, 'Transport & Fleet', 'TRANSPORT', 'Buses, vans, fleet routing, and driver coordination.', 'ACTIVE', 13, v_admin_id),
+                    (v_dept_key_id, r.id, 'Hostel & Residential', 'HOSTEL', 'Boarding facilities, wardens, and student residential care.', 'ACTIVE', 14, v_admin_id),
+                    (v_dept_key_id, r.id, 'Security & Safety', 'SECURITY', 'Campus surveillance, security guards, and emergency protocols.', 'ACTIVE', 15, v_admin_id),
+                    (v_dept_key_id, r.id, 'Medical & Health Clinic', 'HEALTH_CLINIC', 'Infirmary, campus medical staff, and student healthcare.', 'ACTIVE', 16, v_admin_id),
+                    (v_dept_key_id, r.id, 'Maintenance & Facilities', 'MAINTENANCE', 'Campus repairs, electricals, sanitation, and physical upkeep.', 'ACTIVE', 17, v_admin_id),
+                    (v_dept_key_id, r.id, 'Examination & Assessment', 'EXAMINATION', 'Standardized grading, test scheduling, and report cards.', 'ACTIVE', 18, v_admin_id),
+                    (v_dept_key_id, r.id, 'Student Affairs & Admissions', 'STUDENT_AFFAIRS', 'Enrollment, student counseling, and co-curriculars.', 'ACTIVE', 19, v_admin_id),
+                    (v_dept_key_id, r.id, 'General / Unassigned', 'GENERAL', 'Non-departmental staff or unassigned profiles.', 'ACTIVE', 20, v_admin_id)
+                ON CONFLICT (lookup_key_id, value_code) WHERE deleted_at IS NULL 
+                DO NOTHING;
+            END IF;
         END IF;
     END LOOP;
 

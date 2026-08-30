@@ -3,6 +3,9 @@
 -- Seeds online exams, questions, submissions, and active sessions
 -- ============================================================
 
+-- Drop check constraint if present to allow idempotent seeding across redesigns
+ALTER TABLE IF EXISTS public.exam_questions DROP CONSTRAINT IF EXISTS chk_exam_question_type;
+
 -- ── 1. ONLINE EXAMS: Seed realistic online exams ──
 
 INSERT INTO exams (id, school_id, subject_id, teacher_id, title, description,
@@ -33,11 +36,11 @@ INSERT INTO exam_questions (id, exam_id, question_text, question_type, options, 
 VALUES
   -- Mathematics Exam Questions
   ('91000001-0000-0000-0000-000000000001', 'a1000001-0000-0000-0000-000000000099', 
-   'Evaluate the limit of (sin x)/x as x approaches 0.', 'mcq', 
+   'Evaluate the limit of (sin x)/x as x approaches 0.', 'single_select', 
    '["0", "1", "undefined", "infinity"]'::jsonb, '1', 10, 1),
 
   ('91000001-0000-0000-0000-000000000002', 'a1000001-0000-0000-0000-000000000099', 
-   'Find the derivative of f(x) = 3x^2 + 5x at x = 2.', 'numerical', 
+   'Find the derivative of f(x) = 3x^2 + 5x at x = 2.', 'subjective', 
    null, '17', 15, 2),
 
   ('91000001-0000-0000-0000-000000000003', 'a1000001-0000-0000-0000-000000000099', 
@@ -45,21 +48,21 @@ VALUES
    null, null, 40, 3),
 
   ('91000001-0000-0000-0000-000000000004', 'a1000001-0000-0000-0000-000000000099', 
-   'The derivative of sin(x) with respect to x is ________.', 'fill_in_the_blank', 
+   'The derivative of sin(x) with respect to x is ________.', 'subjective', 
    null, 'cos(x)', 15, 4),
 
   ('91000001-0000-0000-0000-000000000005', 'a1000001-0000-0000-0000-000000000099', 
-   'Assertion: The function f(x) = |x| is continuous at x = 0. Reason: The function f(x) = |x| is differentiable at x = 0.', 'assertion_reason', 
+   'Assertion: The function f(x) = |x| is continuous at x = 0. Reason: The function f(x) = |x| is differentiable at x = 0.', 'single_select', 
    '["Both Assertion and Reason are true and Reason is correct explanation", "Both Assertion and Reason are true but Reason is not correct explanation", "Assertion is true but Reason is false", "Assertion is false but Reason is true"]'::jsonb, 
    'Assertion is true but Reason is false', 20, 5),
 
   -- Physics Exam Questions
   ('91000001-0000-0000-0000-000000000006', 'a1000001-0000-0000-0000-000000000100', 
-   'What is the SI unit of magnetic flux?', 'mcq', 
+   'What is the SI unit of magnetic flux?', 'single_select', 
    '["Tesla", "Weber", "Henry", "Farad"]'::jsonb, 'Weber', 10, 1),
 
   ('91000001-0000-0000-0000-000000000007', 'a1000001-0000-0000-0000-000000000100', 
-   'Calculate the force on a 2C charge moving at 3 m/s perpendicular to a 5T magnetic field.', 'numerical', 
+   'Calculate the force on a 2C charge moving at 3 m/s perpendicular to a 5T magnetic field.', 'subjective', 
    null, '30', 20, 2),
 
   ('91000001-0000-0000-0000-000000000008', 'a1000001-0000-0000-0000-000000000100', 

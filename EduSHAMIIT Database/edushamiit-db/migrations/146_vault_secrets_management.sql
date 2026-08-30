@@ -2,6 +2,7 @@
 -- Create secure wrapper functions in public schema to manage vault secrets securely from service-role API clients.
 
 -- 1. List vault secrets (names, descriptions, created_at, updated_at - no decrypted values)
+DROP FUNCTION IF EXISTS public.get_vault_secrets() CASCADE;
 CREATE OR REPLACE FUNCTION public.get_vault_secrets()
 RETURNS TABLE (
     id uuid,
@@ -22,6 +23,7 @@ END;
 $$;
 
 -- 2. Reveal/get decrypted secret value
+DROP FUNCTION IF EXISTS public.get_vault_secret_value(uuid) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_vault_secret_value(secret_id uuid)
 RETURNS text
 LANGUAGE plpgsql
@@ -39,6 +41,7 @@ END;
 $$;
 
 -- 3. Create secret
+DROP FUNCTION IF EXISTS public.create_vault_secret(text, text, text) CASCADE;
 CREATE OR REPLACE FUNCTION public.create_vault_secret(
     secret_name text,
     secret_value text,
@@ -57,6 +60,7 @@ END;
 $$;
 
 -- 4. Update secret
+DROP FUNCTION IF EXISTS public.update_vault_secret(uuid, text, text, text) CASCADE;
 CREATE OR REPLACE FUNCTION public.update_vault_secret(
     secret_id uuid,
     secret_value text DEFAULT NULL,
@@ -73,6 +77,7 @@ END;
 $$;
 
 -- 5. Delete secret
+DROP FUNCTION IF EXISTS public.delete_vault_secret(uuid) CASCADE;
 CREATE OR REPLACE FUNCTION public.delete_vault_secret(secret_id uuid)
 RETURNS void
 LANGUAGE plpgsql
@@ -84,6 +89,7 @@ END;
 $$;
 
 -- 6. Fetch all decrypted secrets at once for backend settings injection
+DROP FUNCTION IF EXISTS public.get_all_decrypted_secrets() CASCADE;
 CREATE OR REPLACE FUNCTION public.get_all_decrypted_secrets()
 RETURNS TABLE (
     secret_name text,

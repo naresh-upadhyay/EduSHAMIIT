@@ -2,6 +2,8 @@
 -- Description: Push heavy multi-query FastAPI operations into optimized PostgreSQL stored procedures (RPC functions).
 
 -- 1. Enhanced Teacher Dashboard Summary RPC Function
+DROP FUNCTION IF EXISTS public.get_teacher_dashboard_summary(UUID, UUID, INT) CASCADE;
+DROP FUNCTION IF EXISTS public.get_teacher_dashboard_summary(UUID, UUID) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_teacher_dashboard_summary(
     p_school_id UUID, 
     p_teacher_id UUID, 
@@ -66,6 +68,8 @@ $$;
 
 
 -- 2. Enhanced Student Dashboard Summary RPC Function
+DROP FUNCTION IF EXISTS public.get_student_dashboard_summary(UUID, UUID, INT) CASCADE;
+DROP FUNCTION IF EXISTS public.get_student_dashboard_summary(UUID, UUID) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_student_dashboard_summary(
     p_school_id UUID, 
     p_student_id UUID, 
@@ -142,7 +146,9 @@ $$;
 
 
 -- 3. Vehicle Live Dashboard Summary RPC Function (Aggregated Superfast KPIs)
-CREATE OR REPLACE FUNCTION public.get_vehicle_dashboard_summary(p_school_id UUID)
+DROP FUNCTION IF EXISTS public.get_vehicle_dashboard_summary(UUID) CASCADE;
+DROP FUNCTION IF EXISTS public.get_vehicle_dashboard_summary() CASCADE;
+CREATE OR REPLACE FUNCTION public.get_vehicle_dashboard_summary(p_school_id UUID DEFAULT NULL)
 RETURNS JSONB
 LANGUAGE plpgsql
 STABLE
@@ -163,7 +169,7 @@ DECLARE
   v_warning_alerts INT := 0;
   v_result JSONB;
 BEGIN
-  -- Vehicles Stats (from public.vehicles or public.bus_routes)
+  -- Vehicles Stats
   SELECT 
     COUNT(*),
     COALESCE(SUM(CASE WHEN LOWER(status) = 'active' THEN 1 ELSE 0 END), 0),
@@ -210,6 +216,7 @@ $$;
 
 
 -- 4. Fast Unread Notification Counter RPC Function
+DROP FUNCTION IF EXISTS public.rpc_get_unread_notifications_count(UUID) CASCADE;
 CREATE OR REPLACE FUNCTION public.rpc_get_unread_notifications_count(p_user_id UUID)
 RETURNS INT
 LANGUAGE sql
@@ -223,6 +230,7 @@ $$;
 
 
 -- 5. Bulk Attendance Processor RPC Function
+DROP FUNCTION IF EXISTS public.rpc_process_bulk_attendance(UUID, JSONB) CASCADE;
 CREATE OR REPLACE FUNCTION public.rpc_process_bulk_attendance(p_school_id UUID, p_records JSONB)
 RETURNS INT
 LANGUAGE plpgsql

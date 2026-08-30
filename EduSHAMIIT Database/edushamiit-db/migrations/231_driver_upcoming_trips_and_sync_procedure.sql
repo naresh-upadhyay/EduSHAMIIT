@@ -9,6 +9,13 @@
 --      and deletion to associated `vehicle_trips`.
 -- ============================================================================
 
+-- 0. ENSURE VEHICLE TRIPS COLUMNS EXIST
+ALTER TABLE IF EXISTS public.vehicle_trips
+  ADD COLUMN IF NOT EXISTS schedule_id UUID REFERENCES public.schedules(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS schedule_instance_date DATE;
+
+CREATE INDEX IF NOT EXISTS idx_vehicle_trips_schedule_id ON public.vehicle_trips(schedule_id);
+
 -- 1. CLEANUP ORPHAN & DESYNCHRONIZED TRIPS
 DELETE FROM public.vehicle_trips vt
 WHERE vt.schedule_id IS NOT NULL 
@@ -17,6 +24,8 @@ WHERE vt.schedule_id IS NOT NULL
   );
 
 -- 2. HIGH PERFORMANCE STORED FUNCTION FOR UPCOMING & ONGOING TRIPS
+DROP FUNCTION IF EXISTS public.fn_get_driver_upcoming_trip(UUID, UUID) CASCADE;
+DROP FUNCTION IF EXISTS public.fn_get_driver_upcoming_trip(UUID) CASCADE;
 CREATE OR REPLACE FUNCTION public.fn_get_driver_upcoming_trip(
     p_user_id UUID,
     p_school_id UUID DEFAULT NULL
