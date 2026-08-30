@@ -16,13 +16,23 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'message', 'User ID required');
   END IF;
 
-  -- Delete cascading records
-  DELETE FROM public.user_documents WHERE user_id = p_user_id;
+  -- Delete cascading records across all related tables
+  DELETE FROM public.user_documents WHERE owner_id = p_user_id OR shared_with_id = p_user_id OR shared_by_id = p_user_id;
   DELETE FROM public.user_active_sessions WHERE user_id = p_user_id;
-  DELETE FROM public.group_members WHERE user_id = p_user_id;
+  DELETE FROM public.group_members WHERE member_id = p_user_id;
   DELETE FROM public.notifications WHERE user_id = p_user_id;
+  DELETE FROM public.password_resets WHERE user_id = p_user_id;
+  DELETE FROM public.attendance WHERE student_id = p_user_id;
+  DELETE FROM public.exam_submissions WHERE student_id = p_user_id;
+  DELETE FROM public.homework_submissions WHERE student_id = p_user_id;
+  DELETE FROM public.student_transport WHERE student_id = p_user_id;
   DELETE FROM public.drivers WHERE profile_id = p_user_id;
   DELETE FROM public.profiles WHERE id = p_user_id;
+  
+  -- Also delete from auth.users if exists
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'users') THEN
+    DELETE FROM auth.users WHERE id = p_user_id;
+  END IF;
 
   RETURN jsonb_build_object(
     'success', true,

@@ -1,12 +1,12 @@
 """EduSHAMIIT API - End-to-End Test Suite (all endpoints)"""
-import sys, requests
+import os, sys, requests
 try:
     sys.stdout.reconfigure(encoding='utf-8')
 except AttributeError:
     pass
 from datetime import datetime, timedelta
 
-BASE_URL = "http://127.0.0.1:80"
+BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8082")
 STUDENT_CREDS = {"email": "naresh.king88898@gmail.com", "password": "naresh@1A"}
 TEACHER_CREDS = {"email": "nehaupadhyay9119@gmail.com", "password": "naresh@1A"}
 
@@ -128,37 +128,47 @@ if TEACHER_REFRESH:
 resp = requests.post(f"{BASE_URL}/api/auth/login", json={"email": "wrong@test.com", "password": "badpass"})
 check("POST /api/auth/login (bad creds -> 401)", resp, expected_status=401, check_success=False)
 
+import subprocess
+
+def run_sql(sql_cmd):
+    cmd = [
+        "docker", "exec", "-e", "PGPASSWORD=eduSHAMIIT2026_pg",
+        "supabase-db", "psql", "-U", "supabase_admin", "-d", "postgres", "-c", sql_cmd
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    return res
+
 # User Registration and OTP recovery endpoints
+import uuid
+temp_email = f"testrec_{uuid.uuid4().hex[:6]}@gmail.com"
 reg_payload = {
-    "email": "testrecovery_temp@gmail.com",
-    "password": "TempPassword1A",
+    "email": temp_email,
+    "password": "TempPassword1A@",
     "school_id": STUDENT_SCHOOL_ID,
     "full_name": "Temp Test User",
     "role": "student",
     "class_name": "10A"
 }
-# Pre-cleanup in case a previous run didn't clean up
-requests.delete(f"{BASE_URL}/api/auth/user/testrecovery_temp@gmail.com")
 
 resp_reg = requests.post(f"{BASE_URL}/api/auth/register", json=reg_payload)
 check("POST /api/auth/register (temp user)", resp_reg)
 
-resp_otp = requests.post(f"{BASE_URL}/api/auth/send-otp", json={"identifier": "testrecovery_temp@gmail.com"})
+resp_otp = requests.post(f"{BASE_URL}/api/auth/send-otp", json={"identifier": temp_email})
 check("POST /api/auth/send-otp", resp_otp)
 
 check("POST /api/auth/verify-otp (bad otp -> 400)", requests.post(f"{BASE_URL}/api/auth/verify-otp", json={
-    "identifier": "testrecovery_temp@gmail.com",
+    "identifier": temp_email,
     "otp": "000000"
 }), expected_status=400, check_success=False)
 
 check("POST /api/auth/reset-password (bad otp -> 400)", requests.post(f"{BASE_URL}/api/auth/reset-password", json={
-    "identifier": "testrecovery_temp@gmail.com",
+    "identifier": temp_email,
     "otp": "000000",
-    "new_password": "NewPassword1A"
+    "new_password": "NewPassword1A@"
 }), expected_status=400, check_success=False)
 
 # Developer cleanup of temp user
-check("DELETE /api/auth/user/{identifier} (cleanup)", requests.delete(f"{BASE_URL}/api/auth/user/testrecovery_temp@gmail.com"))
+check("DELETE /api/auth/user/{identifier} (cleanup)", requests.delete(f"{BASE_URL}/api/auth/user/{temp_email}"))
 
 if not STUDENT_TOKEN:
     print("\n[ERROR] No student token – check credentials / server. Aborting.")
@@ -925,23 +935,16 @@ section("10. ADMIN ENDPOINTS")
 import subprocess
 import uuid
 
-def run_sql(sql_cmd):
-    cmd = [
-        "docker", "exec", "-e", "PGPASSWORD=eduSHAMIIT2026_pg",
-        "supabase-db", "psql", "-U", "supabase_admin", "-d", "postgres", "-c", sql_cmd
-    ]
-    res = subprocess.run(cmd, capture_output=True, text=True)
-    return res
-
 # Setup temp student_admin user
 sa_reg_data = {
     "email": "temp_student_admin@gmail.com",
-    "password": "TempPassword1A",
+    "password": "TempPassword1A@",
     "school_id": STUDENT_SCHOOL_ID,
     "full_name": "Temp Student Admin",
     "role": "student",
     "class_name": "10A"
 }
+run_sql("DELETE FROM profiles WHERE email = 'temp_student_admin@gmail.com'; DELETE FROM auth.users WHERE email = 'temp_student_admin@gmail.com';")
 requests.delete(f"{BASE_URL}/api/auth/user/temp_student_admin@gmail.com")
 resp_sa_reg = requests.post(f"{BASE_URL}/api/auth/register", json=sa_reg_data)
 if resp_sa_reg.status_code == 200:
@@ -953,12 +956,13 @@ else:
 # Setup temp teacher_admin user
 ta_reg_data = {
     "email": "temp_teacher_admin@gmail.com",
-    "password": "TempPassword1A",
+    "password": "TempPassword1A@",
     "school_id": STUDENT_SCHOOL_ID,
     "full_name": "Temp Teacher Admin",
     "role": "teacher",
     "class_name": "10A"
 }
+run_sql("DELETE FROM profiles WHERE email = 'temp_teacher_admin@gmail.com'; DELETE FROM auth.users WHERE email = 'temp_teacher_admin@gmail.com';")
 requests.delete(f"{BASE_URL}/api/auth/user/temp_teacher_admin@gmail.com")
 resp_ta_reg = requests.post(f"{BASE_URL}/api/auth/register", json=ta_reg_data)
 if resp_ta_reg.status_code == 200:
@@ -968,12 +972,12 @@ else:
     warn("Skipping teacher admin registration - already exists or failed")
 
 # Logins
-resp_sa_login = requests.post(f"{BASE_URL}/api/auth/login", json={"email": "temp_student_admin@gmail.com", "password": "TempPassword1A"})
+resp_sa_login = requests.post(f"{BASE_URL}/api/auth/login", json={"email": "temp_student_admin@gmail.com", "password": "TempPassword1A@"})
 b_sa = check("POST /api/auth/login (student_admin)", resp_sa_login)
 SA_TOKEN = (b_sa.get("data") or {}).get("token", "")
 SA = {"Authorization": f"Bearer {SA_TOKEN}"} if SA_TOKEN else None
 
-resp_ta_login = requests.post(f"{BASE_URL}/api/auth/login", json={"email": "temp_teacher_admin@gmail.com", "password": "TempPassword1A"})
+resp_ta_login = requests.post(f"{BASE_URL}/api/auth/login", json={"email": "temp_teacher_admin@gmail.com", "password": "TempPassword1A@"})
 b_ta = check("POST /api/auth/login (teacher_admin)", resp_ta_login)
 TA_TOKEN = (b_ta.get("data") or {}).get("token", "")
 TA = {"Authorization": f"Bearer {TA_TOKEN}"} if TA_TOKEN else None

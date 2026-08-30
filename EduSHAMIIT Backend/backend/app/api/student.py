@@ -1122,13 +1122,23 @@ async def student_fees(status: Optional[str] = None, user=Depends(get_current_us
 @router.get("/transport")
 async def student_transport(user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    transport = (await sb.table("student_transport").select("*, transport_routes(*), transport_route_stops(stop_name)").eq("school_id", school_id).eq("student_id", user["id"]).maybe_single().aexecute()).data
+    try:
+        transport_res = await sb.table("student_transport").select("*, transport_routes(*), transport_route_stops(stop_name)").eq("school_id", school_id).eq("student_id", user["id"]).maybe_single().aexecute()
+        transport = transport_res.data
+    except Exception:
+        transport = None
+
+    if not transport:
+        return {"success": True, "school_id": school_id, "data": {"route": None, "your_stop": None, "live_location": None}}
+
     bus_location = None
     try:
-        bus_location = (await sb.table("vehicle_trips").select("*").eq("school_id", school_id).eq("route_id", transport["route_id"]).order("created_at", ascending=False).limit(1).maybe_single().aexecute()).data
+        if transport.get("route_id"):
+            loc_res = await sb.table("vehicle_trips").select("*").eq("school_id", school_id).eq("route_id", transport["route_id"]).order("created_at", ascending=False).limit(1).maybe_single().aexecute()
+            bus_location = loc_res.data
     except Exception:
         pass
-    return {"success": True, "school_id": school_id, "data": {"route": transport.get("transport_routes"), "your_stop": transport.get("transport_route_stops", {}).get("stop_name"), "live_location": bus_location}}
+    return {"success": True, "school_id": school_id, "data": {"route": transport.get("transport_routes"), "your_stop": (transport.get("transport_route_stops") or {}).get("stop_name"), "live_location": bus_location}}
 
 
 @router.get("/transport/route")
@@ -1308,16 +1318,23 @@ async def student_notices(category: str = "All", user=Depends(get_current_user),
             student_class = profile_res.data.get("class")
             
     query = sb.table("notices").select("*").eq("school_id", school_id).eq("status", "published")
-    
-    if student_class:
-        query = query.or_(f'target_audience.eq.all,target_audience.eq.students,target_classes.cs.{{"{student_class}"}}')
-    else:
-        query = query.or_('target_audience.eq.all,target_audience.eq.students')
         
     if category and category.lower() != "all":
         query = query.ilike("category", category)
         
-    notices = (await query.order("published_at", ascending=False).limit(20).aexecute()).data or []
+    notices_raw = (await query.order("published_at", ascending=False).limit(50).aexecute()).data or []
+    notices = []
+    for n in notices_raw:
+        aud = (n.get("target_audience") or "").lower()
+        t_classes = n.get("target_classes") or []
+        if isinstance(t_classes, str):
+            try:
+                import json
+                t_classes = json.loads(t_classes)
+            except Exception:
+                t_classes = [t_classes]
+        if aud in ("all", "students", "") or not aud or (student_class and student_class in t_classes):
+            notices.append(n)
     
     # Enrich notices with registrations count and student registration status
     notice_ids = [n["id"] for n in notices if n.get("id")]
