@@ -168,12 +168,42 @@ async def get_current_user(request: Request) -> dict:
         raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
 
 
-async def require_school_id(user: dict = Depends(get_current_user)) -> str:
-    """Dependency to extract and validate school_id from JWT."""
+async def require_school_id(request: Request, user: dict = Depends(get_current_user)) -> str:
+    """Dependency to extract and validate school_id from headers, query params, JWT, or database profiles."""
+    # 1. Check Header or Query parameter first
+    req_school_id = request.headers.get("X-School-Id") or request.query_params.get("school_id")
+    if req_school_id and req_school_id.strip():
+        return req_school_id.strip()
+
+    # 2. Check JWT user context
     school_id = user.get("school_id")
-    if not school_id:
-        raise HTTPException(status_code=400, detail="school_id required")
-    return school_id
+    if school_id and str(school_id).strip():
+        return str(school_id).strip()
+
+    # 3. Dynamic lookup from profiles table
+    user_id = user.get("id")
+    if user_id:
+        try:
+            from app.services.supabase_client import get_supabase
+            sb = get_supabase()
+            p_res = await sb.table("profiles").select("school_id, role").eq("id", user_id).maybe_single().aexecute()
+            if p_res.data and p_res.data.get("school_id"):
+                resolved_id = str(p_res.data["school_id"])
+                user["school_id"] = resolved_id
+                return resolved_id
+            
+            # 4. Super Admin fallback: if super admin has no specific school_id, default to first active school
+            user_role = (user.get("role") or (p_res.data.get("role") if p_res.data else "")).lower()
+            if user_role in ["super_admin", "owner", "admin"]:
+                first_school = await sb.table("schools").select("id").order("created_at").limit(1).maybe_single().aexecute()
+                if first_school.data and first_school.data.get("id"):
+                    resolved_id = str(first_school.data["id"])
+                    user["school_id"] = resolved_id
+                    return resolved_id
+        except Exception:
+            pass
+
+    raise HTTPException(status_code=400, detail="school_id required")
 
 
 async def get_current_user_optional(request: Request) -> Optional[dict]:
