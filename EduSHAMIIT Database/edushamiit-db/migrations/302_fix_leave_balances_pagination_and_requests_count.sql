@@ -3,6 +3,9 @@
 -- ============================================================================
 
 -- 1. Optimized fn_get_leave_dashboard_and_requests with filtered total_count
+DROP FUNCTION IF EXISTS public.fn_get_leave_dashboard_and_requests(UUID, UUID, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, DATE, DATE, INT, INT, UUID);
+DROP FUNCTION IF EXISTS public.fn_get_leave_dashboard_and_requests(UUID, UUID, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, DATE, DATE, INT, INT);
+DROP FUNCTION IF EXISTS public.fn_get_leave_dashboard_and_requests(UUID, UUID, VARCHAR, VARCHAR, VARCHAR, VARCHAR, TEXT, DATE, DATE, INT, INT, UUID);
 CREATE OR REPLACE FUNCTION public.fn_get_leave_dashboard_and_requests(
     p_school_id UUID,
     p_user_id UUID DEFAULT NULL,
@@ -203,6 +206,8 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
 -- 2. Stored Procedure: fn_get_leave_balances_paginated
+DROP FUNCTION IF EXISTS public.fn_get_leave_balances_paginated(UUID, VARCHAR, VARCHAR, VARCHAR, VARCHAR, INT, INT);
+DROP FUNCTION IF EXISTS public.fn_get_leave_balances_paginated(UUID, VARCHAR, VARCHAR, VARCHAR, TEXT, INT, INT);
 CREATE OR REPLACE FUNCTION public.fn_get_leave_balances_paginated(
     p_school_id UUID,
     p_academic_year VARCHAR DEFAULT '2026-2027',

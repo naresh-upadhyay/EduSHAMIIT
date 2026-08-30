@@ -48,52 +48,62 @@ SET rule_type = 'science_prodigy',
 WHERE id = 'd91a6bb0-fde9-409d-a2f5-c19b823b057b';
 
 
--- 5. Maths Top Scorer (Maths Average >= 90%)
-INSERT INTO public.achievements (id, school_id, name, description, icon, xp_reward, rarity, criteria, rule_type, rule_params)
-VALUES (
-  '30000000-0000-0000-0000-000000000007',
-  '11111111-1111-1111-1111-111111111111',
-  'Maths Top Scorer',
-  'Get at least 90% average in Mathematics',
-  '📐',
-  350,
-  'rare',
-  'Maths Average >= 90%',
-  'subject_average',
-  '{"subject_name": "Mathematics", "min_average": 90.0}'::jsonb
-)
-ON CONFLICT (id) DO UPDATE SET
-  rule_type = EXCLUDED.rule_type,
-  rule_params = EXCLUDED.rule_params,
-  name = EXCLUDED.name,
-  description = EXCLUDED.description,
-  icon = EXCLUDED.icon,
-  xp_reward = EXCLUDED.xp_reward,
-  rarity = EXCLUDED.rarity,
-  criteria = EXCLUDED.criteria;
+-- 5. Maths Top Scorer & Gold Medal Achievements (Dynamic School Lookup)
+DO $$
+DECLARE
+  v_school_id UUID;
+BEGIN
+  SELECT school_id INTO v_school_id FROM public.profiles WHERE email = 'shamiitltd@gmail.com' LIMIT 1;
+  IF v_school_id IS NULL THEN
+    SELECT id INTO v_school_id FROM public.schools ORDER BY created_at ASC LIMIT 1;
+  END IF;
+  IF v_school_id IS NOT NULL THEN
+    INSERT INTO public.achievements (id, school_id, name, description, icon, xp_reward, rarity, criteria, rule_type, rule_params)
+    VALUES (
+      '30000000-0000-0000-0000-000000000007',
+      v_school_id,
+      'Maths Top Scorer',
+      'Get at least 90% average in Mathematics',
+      '📐',
+      350,
+      'rare',
+      'Maths Average >= 90%',
+      'subject_average',
+      '{"subject_name": "Mathematics", "min_average": 90.0}'::jsonb
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      rule_type = EXCLUDED.rule_type,
+      rule_params = EXCLUDED.rule_params,
+      name = EXCLUDED.name,
+      description = EXCLUDED.description,
+      icon = EXCLUDED.icon,
+      xp_reward = EXCLUDED.xp_reward,
+      rarity = EXCLUDED.rarity,
+      criteria = EXCLUDED.criteria;
 
--- 6. Gold Medal (Class Topper)
-INSERT INTO public.achievements (id, school_id, name, description, icon, xp_reward, rarity, criteria, rule_type, rule_params)
-VALUES (
-  '30000000-0000-0000-0000-000000000008',
-  '11111111-1111-1111-1111-111111111111',
-  'Gold Medal',
-  'Achieve the maximum combined average in your class',
-  '🥇',
-  1000,
-  'epic',
-  'Maximum combined average in class',
-  'class_topper',
-  '{}'::jsonb
-)
-ON CONFLICT (id) DO UPDATE SET
-  rule_type = EXCLUDED.rule_type,
-  rule_params = EXCLUDED.rule_params,
-  name = EXCLUDED.name,
-  description = EXCLUDED.description,
-  icon = EXCLUDED.icon,
-  xp_reward = EXCLUDED.xp_reward,
-  rarity = EXCLUDED.rarity,
-  criteria = EXCLUDED.criteria;
+    INSERT INTO public.achievements (id, school_id, name, description, icon, xp_reward, rarity, criteria, rule_type, rule_params)
+    VALUES (
+      '30000000-0000-0000-0000-000000000008',
+      v_school_id,
+      'Gold Medal',
+      'Achieve the maximum combined average in your class',
+      '🥇',
+      1000,
+      'epic',
+      'Maximum combined average in class',
+      'class_topper',
+      '{}'::jsonb
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      rule_type = EXCLUDED.rule_type,
+      rule_params = EXCLUDED.rule_params,
+      name = EXCLUDED.name,
+      description = EXCLUDED.description,
+      icon = EXCLUDED.icon,
+      xp_reward = EXCLUDED.xp_reward,
+      rarity = EXCLUDED.rarity,
+      criteria = EXCLUDED.criteria;
+  END IF;
+END $$;
 
 -- RESET ROLE; -- commented out for cloud migrations (non-superuser)

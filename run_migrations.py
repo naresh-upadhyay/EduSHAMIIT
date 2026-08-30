@@ -337,6 +337,7 @@ Examples:
     parser.add_argument("--seed", action="store_true", help="Run seed scripts only")
     parser.add_argument("--verify", action="store_true", help="Run schema and lookup verification only")
     parser.add_argument("--dry-run", action="store_true", help="List pending migrations without executing")
+    parser.add_argument("--reapply", action="store_true", help="Clear schema_migrations tracking and re-run all migrations idempotently")
     return parser.parse_args()
 
 
@@ -350,6 +351,11 @@ def main():
     start_time = time.time()
     runner = MigrationRunner(dsn=args.dsn, docker_container=args.docker)
     runner.initialize()
+    runner.ensure_tracking_table()
+
+    if args.reapply:
+        print("🔄 Clearing schema_migrations tracking table to re-apply all migrations...")
+        runner.exec_sql("DELETE FROM public.schema_migrations;")
 
     if args.verify:
         runner.verify_migration_216()
@@ -365,7 +371,6 @@ def main():
         runner.close()
         return
 
-    runner.ensure_tracking_table()
     applied = runner.get_applied_migrations()
 
     # Find all .sql files in migrations directory, sorted by filename

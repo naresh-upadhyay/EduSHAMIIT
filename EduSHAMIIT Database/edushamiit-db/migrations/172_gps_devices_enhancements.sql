@@ -8,9 +8,10 @@ ALTER TABLE gps_devices
 
 DELETE FROM gps_devices;
 
--- Seeding loop for 56 devices
+-- Seeding loop for 56 devices dynamically
 DO $$
 DECLARE
+  v_school_id UUID;
   i INT := 1;
   v_status TEXT;
   v_expiry DATE;
@@ -19,7 +20,13 @@ DECLARE
   v_last_seen TIMESTAMPTZ;
   v_route_ids UUID[] := ARRAY[]::UUID[];
   v_route_count INT;
+  v_veh_id UUID;
 BEGIN
+  SELECT id INTO v_school_id FROM public.schools ORDER BY created_at ASC LIMIT 1;
+  IF v_school_id IS NULL THEN
+    RETURN;
+  END IF;
+
   -- Collect all route IDs
   SELECT array_agg(id) INTO v_route_ids FROM bus_routes;
   v_route_count := array_length(v_route_ids, 1);
@@ -55,6 +62,12 @@ BEGIN
       v_expiry := CURRENT_DATE + (100 + i * 3)::int;
     END IF;
 
+    IF v_route_count IS NOT NULL AND v_route_count > 0 THEN
+      v_veh_id := v_route_ids[(i % v_route_count) + 1];
+    ELSE
+      v_veh_id := NULL;
+    END IF;
+
     INSERT INTO gps_devices (
       id,
       school_id,
@@ -75,14 +88,14 @@ BEGIN
       current_location
     ) VALUES (
       gen_random_uuid(),
-      '11111111-1111-1111-1111-111111111111',
+      v_school_id,
       'GPSD-' || (1000 + i)::text,
       (ARRAY['GT06N', 'GV57', 'GV300'])[floor(random()*3)::int + 1],
       '+91987654' || lpad((3210 + i)::text, 4, '0'),
       (ARRAY['Jio', 'Airtel', 'Vi'])[floor(random()*3)::int + 1],
       v_status,
       CURRENT_DATE - INTERVAL '1 year',
-      v_route_ids[(i % v_route_count) + 1],
+      v_veh_id,
       '862345065432' || lpad((100 + i)::text, 3, '0'),
       v_battery,
       v_signal,

@@ -1,5 +1,7 @@
--- Migration 220: Assign Route Students and Stops
--- Ensures all transport routes have complete stops and assigned student profiles with non-null transport_stop_id
+-- Ensure student_transport columns exist
+ALTER TABLE student_transport
+  ADD COLUMN IF NOT EXISTS transport_route_id UUID REFERENCES transport_routes(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS transport_stop_id UUID REFERENCES transport_route_stops(id) ON DELETE SET NULL;
 
 DO $$
 DECLARE

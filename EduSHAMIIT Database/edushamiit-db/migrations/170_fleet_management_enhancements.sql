@@ -1,6 +1,6 @@
 -- Fleet Management Schema Enhancements to match designs
 
-SET ROLE supabase_admin;
+-- SET ROLE supabase_admin; -- commented out for cloud/container compatibility
 
 -- Categories enhancements
 ALTER TABLE vehicle_categories
@@ -30,7 +30,7 @@ ALTER TABLE gps_devices
   ADD COLUMN IF NOT EXISTS last_seen          TIMESTAMPTZ DEFAULT NOW(),
   ADD COLUMN IF NOT EXISTS firmware_version    TEXT DEFAULT 'GTO6N_V7.2.1';
 
-RESET ROLE;
+-- RESET ROLE;
 
 -- Clear previous seeds to avoid duplicates, then seed high-fidelity mock data
 DELETE FROM vehicle_documents;

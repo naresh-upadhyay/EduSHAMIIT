@@ -4,6 +4,7 @@
 -- SET ROLE supabase_admin; -- commented out for cloud migrations (non-superuser)
 
 -- 1. Teacher Classes with Student Counts (Fixes N+1 problem)
+DROP FUNCTION IF EXISTS get_teacher_classes_with_counts(UUID, UUID);
 CREATE OR REPLACE FUNCTION get_teacher_classes_with_counts(p_school_id UUID, p_teacher_id UUID)
 RETURNS TABLE (class TEXT, student_count BIGINT) AS $$
 BEGIN
@@ -19,6 +20,7 @@ BEGIN
 END; $$ LANGUAGE plpgsql;
 
 -- 2. Teacher Dashboard Summary (Consolidates 6+ queries)
+DROP FUNCTION IF EXISTS get_teacher_dashboard_summary(UUID, UUID, INT);
 CREATE OR REPLACE FUNCTION get_teacher_dashboard_summary(p_school_id UUID, p_teacher_id UUID, p_day_of_week INT)
 RETURNS JSONB AS $$
 DECLARE
@@ -67,6 +69,7 @@ BEGIN
 END; $$ LANGUAGE plpgsql;
 
 -- 3. Student Dashboard Summary (Consolidates 7+ queries)
+DROP FUNCTION IF EXISTS get_student_dashboard_summary(UUID, UUID, INT);
 CREATE OR REPLACE FUNCTION get_student_dashboard_summary(p_school_id UUID, p_student_id UUID, p_day_of_week INT)
 RETURNS JSONB AS $$
 DECLARE

@@ -6,6 +6,8 @@
 --   'paused', 'completed', 'scheduled') directly from database.
 -- ============================================================================
 
+DROP FUNCTION IF EXISTS public.fn_get_schedule_details(UUID, UUID, DATE);
+DROP FUNCTION IF EXISTS public.fn_get_schedule_details;
 CREATE OR REPLACE FUNCTION public.fn_get_schedule_details(
     p_schedule_id UUID,
     p_school_id UUID DEFAULT NULL,

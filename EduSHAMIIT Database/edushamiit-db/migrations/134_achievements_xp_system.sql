@@ -35,15 +35,26 @@ BEGIN
 END
 $$;
 
--- Insert or update default templates
-INSERT INTO achievements (id, school_id, name, description, icon, xp_reward, rarity, criteria) VALUES
-  ('30000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'Academic Excellence', 'Score 90%+ in any examination', '🏆', 500, 'rare', 'Score >= 90% in exam'),
-  ('30000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', '18-Day Streak', 'Maintain learning streak for 18 days', '🔥', 300, 'uncommon', 'Streak >= 18 days'),
-  ('30000000-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111', 'Zero Late Submissions', 'Grade 5 homeworks on time', '✅', 200, 'common', '5 graded homeworks'),
-  ('30000000-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111111', 'Perfect Attendance', 'Attend at least 10 classes', '📅', 400, 'rare', 'Attendance >= 10 classes')
-ON CONFLICT (id) DO UPDATE SET 
-  name = EXCLUDED.name, 
-  description = EXCLUDED.description, 
-  icon = EXCLUDED.icon, 
-  xp_reward = EXCLUDED.xp_reward, 
-  criteria = EXCLUDED.criteria;
+-- Insert or update default templates dynamically for top school
+DO $$
+DECLARE
+  v_school_id UUID;
+BEGIN
+  SELECT school_id INTO v_school_id FROM public.profiles WHERE email = 'shamiitltd@gmail.com' LIMIT 1;
+  IF v_school_id IS NULL THEN
+    SELECT id INTO v_school_id FROM public.schools ORDER BY created_at ASC LIMIT 1;
+  END IF;
+  IF v_school_id IS NOT NULL THEN
+    INSERT INTO achievements (id, school_id, name, description, icon, xp_reward, rarity, criteria) VALUES
+      ('30000000-0000-0000-0000-000000000002', v_school_id, 'Academic Excellence', 'Score 90%+ in any examination', '🏆', 500, 'rare', 'Score >= 90% in exam'),
+      ('30000000-0000-0000-0000-000000000003', v_school_id, '18-Day Streak', 'Maintain learning streak for 18 days', '🔥', 300, 'uncommon', 'Streak >= 18 days'),
+      ('30000000-0000-0000-0000-000000000004', v_school_id, 'Zero Late Submissions', 'Grade 5 homeworks on time', '✅', 200, 'common', '5 graded homeworks'),
+      ('30000000-0000-0000-0000-000000000005', v_school_id, 'Perfect Attendance', 'Attend at least 10 classes', '📅', 400, 'rare', 'Attendance >= 10 classes')
+    ON CONFLICT (id) DO UPDATE SET 
+      name = EXCLUDED.name, 
+      description = EXCLUDED.description, 
+      icon = EXCLUDED.icon, 
+      xp_reward = EXCLUDED.xp_reward, 
+      criteria = EXCLUDED.criteria;
+  END IF;
+END $$;

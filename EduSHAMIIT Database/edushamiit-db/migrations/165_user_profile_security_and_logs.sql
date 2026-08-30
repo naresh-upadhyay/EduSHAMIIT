@@ -20,22 +20,46 @@ ALTER TABLE public.user_active_sessions ADD COLUMN IF NOT EXISTS ip_address VARC
 ALTER TABLE public.user_active_sessions ADD COLUMN IF NOT EXISTS location VARCHAR(150) DEFAULT 'Unknown Location';
 ALTER TABLE public.user_active_sessions ADD COLUMN IF NOT EXISTS last_active TIMESTAMP WITH TIME ZONE DEFAULT NOW();
 
--- Clear and insert mock active sessions for testing matching the screenshot
-DELETE FROM public.user_active_sessions WHERE user_id = '903fd71c-a497-4665-b5c5-279d880e7461';
+-- Seed mock active sessions and audit logs dynamically for top admin user
+DO $$
+DECLARE
+  v_user RECORD;
+BEGIN
+  SELECT id, email, full_name, role, school_id INTO v_user
+  FROM public.profiles
+  WHERE email = 'shamiitltd@gmail.com'
+  LIMIT 1;
 
-INSERT INTO public.user_active_sessions (id, user_id, token, device_name, browser_name, ip_address, location, last_active, expires_at, created_at)
-VALUES
-(gen_random_uuid(), '903fd71c-a497-4665-b5c5-279d880e7461', 'sess_win', 'Windows', 'Chrome', '192.168.1.45', 'Noida, India', NOW(), NOW() + INTERVAL '30 days', NOW()),
-(gen_random_uuid(), '903fd71c-a497-4665-b5c5-279d880e7461', 'sess_mac', 'MacOS', 'Safari', '192.168.1.45', 'Noida, India', NOW() - INTERVAL '1 hour', NOW() + INTERVAL '30 days', NOW() - INTERVAL '1 hour'),
-(gen_random_uuid(), '903fd71c-a497-4665-b5c5-279d880e7461', 'sess_and', 'Android', 'Chrome', '192.168.1.45', 'Delhi, India', NOW() - INTERVAL '3 hours', NOW() + INTERVAL '30 days', NOW() - INTERVAL '3 hours'),
-(gen_random_uuid(), '903fd71c-a497-4665-b5c5-279d880e7461', 'sess_ios', 'iOS', 'Safari', '192.168.1.45', 'Noida, India', NOW() - INTERVAL '24 hours', NOW() + INTERVAL '30 days', NOW() - INTERVAL '24 hours');
+  IF v_user.id IS NULL THEN
+    SELECT id, email, full_name, role, school_id INTO v_user
+    FROM public.profiles
+    WHERE role IN ('super_admin', 'admin')
+    ORDER BY created_at ASC LIMIT 1;
+  END IF;
 
--- Ensure some recent audit activity exists for this super admin
-DELETE FROM public.audit_logs WHERE user_email = 'superadmin@school.com';
+  IF v_user.id IS NULL THEN
+    SELECT id, email, full_name, role, school_id INTO v_user
+    FROM public.profiles
+    ORDER BY created_at ASC LIMIT 1;
+  END IF;
 
-INSERT INTO public.audit_logs (id, school_id, user_id, user_email, user_name, user_role, event_type, module, action, resource, resource_type, ip_address, status, created_at)
-VALUES
-(gen_random_uuid(), NULL, '903fd71c-a497-4665-b5c5-279d880e7461', 'superadmin@school.com', 'Super Admin', 'super_admin', 'Login', 'Authentication', 'Logged in to the system', '-', '-', '192.168.1.45', 'Success', NOW() - INTERVAL '10 minutes'),
-(gen_random_uuid(), NULL, '903fd71c-a497-4665-b5c5-279d880e7461', 'superadmin@school.com', 'Super Admin', 'super_admin', 'Update', 'Profile', 'Updated profile information', 'User: Super Admin', 'User', '192.168.1.45', 'Success', NOW() - INTERVAL '40 minutes'),
-(gen_random_uuid(), NULL, '903fd71c-a497-4665-b5c5-279d880e7461', 'superadmin@school.com', 'Super Admin', 'super_admin', 'Update', 'Security', 'Password changed successfully', 'User: Super Admin', 'User', '192.168.1.45', 'Success', NOW() - INTERVAL '2 days'),
-(gen_random_uuid(), NULL, '903fd71c-a497-4665-b5c5-279d880e7461', 'superadmin@school.com', 'Super Admin', 'super_admin', 'Logout', 'Authentication', 'Logged out from system', '-', '-', '192.168.1.45', 'Success', NOW() - INTERVAL '3 days');
+  IF v_user.id IS NOT NULL THEN
+    DELETE FROM public.user_active_sessions WHERE user_id = v_user.id;
+
+    INSERT INTO public.user_active_sessions (id, user_id, token, device_name, browser_name, ip_address, location, last_active, expires_at, created_at)
+    VALUES
+    (gen_random_uuid(), v_user.id, 'sess_win', 'Windows', 'Chrome', '192.168.1.45', 'Noida, India', NOW(), NOW() + INTERVAL '30 days', NOW()),
+    (gen_random_uuid(), v_user.id, 'sess_mac', 'MacOS', 'Safari', '192.168.1.45', 'Noida, India', NOW() - INTERVAL '1 hour', NOW() + INTERVAL '30 days', NOW() - INTERVAL '1 hour'),
+    (gen_random_uuid(), v_user.id, 'sess_and', 'Android', 'Chrome', '192.168.1.45', 'Delhi, India', NOW() - INTERVAL '3 hours', NOW() + INTERVAL '30 days', NOW() - INTERVAL '3 hours'),
+    (gen_random_uuid(), v_user.id, 'sess_ios', 'iOS', 'Safari', '192.168.1.45', 'Noida, India', NOW() - INTERVAL '24 hours', NOW() + INTERVAL '30 days', NOW() - INTERVAL '24 hours');
+
+    DELETE FROM public.audit_logs WHERE user_email = v_user.email;
+
+    INSERT INTO public.audit_logs (id, school_id, user_id, user_email, user_name, user_role, event_type, module, action, resource, resource_type, ip_address, status, created_at)
+    VALUES
+    (gen_random_uuid(), v_user.school_id, v_user.id, v_user.email, v_user.full_name, v_user.role, 'Login', 'Authentication', 'Logged in to the system', '-', '-', '192.168.1.45', 'Success', NOW() - INTERVAL '10 minutes'),
+    (gen_random_uuid(), v_user.school_id, v_user.id, v_user.email, v_user.full_name, v_user.role, 'Update', 'Profile', 'Updated profile information', 'User: ' || v_user.full_name, 'User', '192.168.1.45', 'Success', NOW() - INTERVAL '40 minutes'),
+    (gen_random_uuid(), v_user.school_id, v_user.id, v_user.email, v_user.full_name, v_user.role, 'Update', 'Security', 'Password changed successfully', 'User: ' || v_user.full_name, 'User', '192.168.1.45', 'Success', NOW() - INTERVAL '2 days'),
+    (gen_random_uuid(), v_user.school_id, v_user.id, v_user.email, v_user.full_name, v_user.role, 'Logout', 'Authentication', 'Logged out from system', '-', '-', '192.168.1.45', 'Success', NOW() - INTERVAL '3 days');
+  END IF;
+END $$;

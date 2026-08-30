@@ -28,9 +28,10 @@ SELECT
   id, 
   school_id, 
   bus_number, 
-  capacity, 
+  COALESCE(total_capacity, 52), 
   COALESCE(status, 'Active')
 FROM public.bus_routes
+WHERE bus_number IS NOT NULL
 ON CONFLICT (school_id, vehicle_no) DO UPDATE 
 SET seating_capacity = EXCLUDED.seating_capacity;
 

@@ -26,6 +26,15 @@ CREATE TABLE IF NOT EXISTS drivers (
   updated_at          TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Ensure columns exist if table was already created in a post-206 schema
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS photo_url TEXT;
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS date_of_birth DATE;
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS blood_group TEXT;
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS address TEXT;
+
 -- Index
 CREATE INDEX IF NOT EXISTS idx_drivers_school ON drivers(school_id);
 CREATE INDEX IF NOT EXISTS idx_drivers_vehicle ON drivers(assigned_vehicle_id);
@@ -33,10 +42,10 @@ CREATE INDEX IF NOT EXISTS idx_drivers_vehicle ON drivers(assigned_vehicle_id);
 -- Clean old data if any
 DELETE FROM drivers;
 
--- Seed the specific 8 drivers from the mockup
+-- Seed the specific 8 drivers from the mockup dynamically
 DO $$
 DECLARE
-  v_school_id UUID := '11111111-1111-1111-1111-111111111111';
+  v_school_id UUID;
   v_v1 UUID; v_v2 UUID; v_v3 UUID; v_v4 UUID; v_v5 UUID;
   v_route_ids UUID[] := ARRAY[]::UUID[];
   v_route_count INT;
@@ -45,13 +54,22 @@ DECLARE
   v_veh_id UUID;
   v_license_type TEXT;
 BEGIN
+  SELECT id INTO v_school_id FROM public.schools ORDER BY created_at ASC LIMIT 1;
+  IF v_school_id IS NULL THEN
+    RETURN;
+  END IF;
+
   -- Get some vehicle/route IDs
-  SELECT array_agg(id) INTO v_route_ids FROM bus_routes;
-  v_route_count := array_length(v_route_ids, 1);
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'bus_routes') THEN
+    SELECT array_agg(id) INTO v_route_ids FROM bus_routes;
+  ELSIF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'vehicles') THEN
+    SELECT array_agg(id) INTO v_route_ids FROM vehicles;
+  END IF;
+  v_route_count := COALESCE(array_length(v_route_ids, 1), 0);
 
   -- 1. Ramesh Kumar (DRV001)
   INSERT INTO drivers (school_id, driver_code, name, email, phone, license_no, license_type, license_issue_date, license_expiry_date, issuing_authority, experience_years, status, assigned_vehicle_id, date_of_birth, blood_group, aadhar_no, address, joined_date)
-  VALUES (v_school_id, 'DRV001', 'Ramesh Kumar', 'ramesh.kumar@gmail.com', '9876543210', 'UP16 20210012345', 'LMV', '2021-01-10', '2031-01-09', 'RTO, Noida, UP', 8, 'On Duty', v_route_ids[1], '1987-03-12', 'B+', 'XXXX XXXX 5678', 'Sector 62, Noida, UP', '2018-01-15');
+  VALUES (v_school_id, 'DRV001', 'Ramesh Kumar', 'ramesh.kumar@gmail.com', '9876543210', 'UP16 20210012345', 'LMV', '2021-01-10', '2031-01-09', 'RTO, Noida, UP', 8, 'On Duty', CASE WHEN v_route_count >= 1 THEN v_route_ids[1] ELSE NULL END, '1987-03-12', 'B+', 'XXXX XXXX 5678', 'Sector 62, Noida, UP', '2018-01-15');
 
   -- 2. Sandeep Singh (DRV002)
   INSERT INTO drivers (school_id, driver_code, name, email, phone, license_no, license_type, license_issue_date, license_expiry_date, issuing_authority, experience_years, status, assigned_vehicle_id, date_of_birth, blood_group, aadhar_no, address, joined_date)
@@ -89,7 +107,7 @@ BEGIN
   FOR i IN 9..68 LOOP
     IF i <= 45 THEN
       v_status := 'On Duty';
-      v_veh_id := v_route_ids[(i % v_route_count) + 1];
+      v_veh_id := CASE WHEN v_route_count IS NOT NULL AND v_route_count > 0 THEN v_route_ids[(i % v_route_count) + 1] ELSE NULL END;
     ELSIF i <= 49 THEN
       v_status := 'On Leave';
       v_veh_id := NULL;

@@ -1,11 +1,11 @@
-SET ROLE supabase_admin;
+-- SET ROLE supabase_admin; -- commented out for cloud/container compatibility
 
 -- 1. Alter student_transport to support transport_routes and transport_route_stops
 ALTER TABLE student_transport
   ADD COLUMN IF NOT EXISTS transport_route_id UUID REFERENCES transport_routes(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS transport_stop_id UUID REFERENCES transport_route_stops(id) ON DELETE SET NULL;
 
-RESET ROLE;
+-- RESET ROLE;
 
 -- 2. Create student_trip_logs table
 CREATE TABLE IF NOT EXISTS student_trip_logs (
@@ -34,10 +34,10 @@ CREATE TABLE IF NOT EXISTS trip_stop_logs (
 
 CREATE INDEX IF NOT EXISTS idx_trip_stop_logs_trip ON trip_stop_logs(trip_id);
 
--- 4. Seed students for Noida Route 101
+-- 4. Seed students for Noida Route 101 dynamically
 DO $$
 DECLARE
-  v_school_id UUID := '11111111-1111-1111-1111-111111111111';
+  v_school_id UUID;
   v_route_id UUID;
   r_student RECORD;
   v_stops UUID[];
@@ -45,8 +45,16 @@ DECLARE
   i INT := 1;
   v_selected_stop UUID;
 BEGIN
+  SELECT id INTO v_school_id FROM public.schools ORDER BY created_at ASC LIMIT 1;
+  IF v_school_id IS NULL THEN
+    RETURN;
+  END IF;
+
   -- Get the route ID of Noida Route 101 (Morning)
   SELECT id INTO v_route_id FROM transport_routes WHERE route_code = 'RT-001' LIMIT 1;
+  IF v_route_id IS NULL THEN
+    SELECT id INTO v_route_id FROM transport_routes LIMIT 1;
+  END IF;
   
   IF v_route_id IS NOT NULL THEN
     -- Get stops of Noida Route 101 sorted by order
@@ -60,12 +68,10 @@ BEGIN
       -- Assign up to 35 students to Route 101 stops
       FOR r_student IN (
         SELECT id FROM profiles 
-        WHERE role = 'student' AND school_id = v_school_id
+        WHERE (role = 'student' OR role IS NULL) AND (school_id = v_school_id OR school_id IS NULL)
         LIMIT 35
       ) LOOP
-        -- Select a stop cyclically (excluding the first stop which is Start Point and last stop which is End Point, if possible, to be realistic)
-        -- Route has 14 stops. Let's distribute across stops 2 to 13.
-        v_selected_stop := v_stops[((i % (v_stop_count - 2)) + 2)];
+        v_selected_stop := CASE WHEN v_stop_count > 2 THEN v_stops[((i % (v_stop_count - 2)) + 2)] ELSE v_stops[1] END;
         
         INSERT INTO student_transport (school_id, student_id, transport_route_id, transport_stop_id, seat_no)
         VALUES (

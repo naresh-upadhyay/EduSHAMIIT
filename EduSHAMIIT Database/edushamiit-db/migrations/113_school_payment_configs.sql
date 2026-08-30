@@ -11,15 +11,34 @@ CREATE TABLE IF NOT EXISTS school_payment_configs (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Seed configurations for both schools
-INSERT INTO school_payment_configs (school_id, upi_id, bank_name, account_number, ifsc_code, account_holder_name) VALUES
-  ('11111111-1111-1111-1111-111111111111', 'shami.academy@okaxis', 'State Bank of India', '39871234567', 'SBIN0001234', 'Shami Innovation Academy'),
-  ('22222222-2222-2222-2222-222222222222', 'edushamiit@okhdfc', 'HDFC Bank', '50100234567890', 'HDFC0000123', 'EduSHAMIIT International School')
-ON CONFLICT (school_id) DO NOTHING;
+-- Seed configurations dynamically for all schools that exist
+DO $$
+DECLARE
+  v_school RECORD;
+  v_idx INT := 1;
+BEGIN
+  FOR v_school IN SELECT id, name FROM public.schools ORDER BY created_at ASC LOOP
+    IF v_idx = 1 THEN
+      INSERT INTO school_payment_configs (school_id, upi_id, bank_name, account_number, ifsc_code, account_holder_name)
+      VALUES (v_school.id, 'shami.academy@okaxis', 'State Bank of India', '39871234567', 'SBIN0001234', COALESCE(v_school.name, 'Shami Innovation Academy'))
+      ON CONFLICT (school_id) DO NOTHING;
+    ELSIF v_idx = 2 THEN
+      INSERT INTO school_payment_configs (school_id, upi_id, bank_name, account_number, ifsc_code, account_holder_name)
+      VALUES (v_school.id, 'edushamiit@okhdfc', 'HDFC Bank', '50100234567890', 'HDFC0000123', COALESCE(v_school.name, 'EduSHAMIIT International School'))
+      ON CONFLICT (school_id) DO NOTHING;
+    ELSE
+      INSERT INTO school_payment_configs (school_id, upi_id, bank_name, account_number, ifsc_code, account_holder_name)
+      VALUES (v_school.id, 'payment.' || v_idx || '@oksbi', 'State Bank of India', '501000' || v_idx, 'SBIN0001234', COALESCE(v_school.name, 'School ' || v_idx))
+      ON CONFLICT (school_id) DO NOTHING;
+    END IF;
+    v_idx := v_idx + 1;
+  END LOOP;
+END $$;
 
 -- Enable RLS
 ALTER TABLE school_payment_configs ENABLE ROW LEVEL SECURITY;
 
 -- Allow select to authenticated users
+DROP POLICY IF EXISTS "select_school_payment_configs" ON school_payment_configs;
 CREATE POLICY "select_school_payment_configs" ON school_payment_configs
   FOR SELECT USING (true);

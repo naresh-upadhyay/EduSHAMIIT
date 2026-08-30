@@ -1,34 +1,64 @@
--- Run as postgres, temporarily set role to supabase_admin to alter tables
-SET ROLE supabase_admin;
+-- Make table alterations resilient to post-216 renames
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'bus_routes') THEN
+    ALTER TABLE bus_routes
+      ADD COLUMN IF NOT EXISTS vehicle_type        TEXT DEFAULT 'Bus',
+      ADD COLUMN IF NOT EXISTS registration_no     TEXT,
+      ADD COLUMN IF NOT EXISTS model               TEXT,
+      ADD COLUMN IF NOT EXISTS year_of_mfg         INT,
+      ADD COLUMN IF NOT EXISTS fuel_type           TEXT DEFAULT 'Diesel',
+      ADD COLUMN IF NOT EXISTS last_service_date   DATE,
+      ADD COLUMN IF NOT EXISTS insurance_expiry    DATE,
+      ADD COLUMN IF NOT EXISTS fitness_expiry      DATE,
+      ADD COLUMN IF NOT EXISTS gps_device_id       TEXT,
+      ADD COLUMN IF NOT EXISTS live_status         TEXT DEFAULT 'offline',
+      ADD COLUMN IF NOT EXISTS delay_minutes       INT DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS students_on_board   INT DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS driver_license_no   TEXT,
+      ADD COLUMN IF NOT EXISTS driver_photo_url    TEXT,
+      ADD COLUMN IF NOT EXISTS assistant_name      TEXT,
+      ADD COLUMN IF NOT EXISTS assistant_phone     TEXT,
+      ADD COLUMN IF NOT EXISTS notes               TEXT,
+      ADD COLUMN IF NOT EXISTS updated_at          TIMESTAMPTZ DEFAULT NOW();
+  ELSIF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'vehicles') THEN
+    ALTER TABLE vehicles
+      ADD COLUMN IF NOT EXISTS vehicle_type        TEXT DEFAULT 'Bus',
+      ADD COLUMN IF NOT EXISTS registration_no     TEXT,
+      ADD COLUMN IF NOT EXISTS model               TEXT,
+      ADD COLUMN IF NOT EXISTS year_of_mfg         INT,
+      ADD COLUMN IF NOT EXISTS fuel_type           TEXT DEFAULT 'Diesel',
+      ADD COLUMN IF NOT EXISTS last_service_date   DATE,
+      ADD COLUMN IF NOT EXISTS insurance_expiry    DATE,
+      ADD COLUMN IF NOT EXISTS fitness_expiry      DATE,
+      ADD COLUMN IF NOT EXISTS gps_device_id       TEXT,
+      ADD COLUMN IF NOT EXISTS live_status         TEXT DEFAULT 'offline',
+      ADD COLUMN IF NOT EXISTS delay_minutes       INT DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS students_on_board   INT DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS driver_license_no   TEXT,
+      ADD COLUMN IF NOT EXISTS driver_photo_url    TEXT,
+      ADD COLUMN IF NOT EXISTS assistant_name      TEXT,
+      ADD COLUMN IF NOT EXISTS assistant_phone     TEXT,
+      ADD COLUMN IF NOT EXISTS notes               TEXT,
+      ADD COLUMN IF NOT EXISTS updated_at          TIMESTAMPTZ DEFAULT NOW();
+  END IF;
 
-ALTER TABLE bus_routes
-  ADD COLUMN IF NOT EXISTS vehicle_type        TEXT DEFAULT 'Bus',
-  ADD COLUMN IF NOT EXISTS registration_no     TEXT,
-  ADD COLUMN IF NOT EXISTS model               TEXT,
-  ADD COLUMN IF NOT EXISTS year_of_mfg         INT,
-  ADD COLUMN IF NOT EXISTS fuel_type           TEXT DEFAULT 'Diesel',
-  ADD COLUMN IF NOT EXISTS last_service_date   DATE,
-  ADD COLUMN IF NOT EXISTS insurance_expiry    DATE,
-  ADD COLUMN IF NOT EXISTS fitness_expiry      DATE,
-  ADD COLUMN IF NOT EXISTS gps_device_id       TEXT,
-  ADD COLUMN IF NOT EXISTS live_status         TEXT DEFAULT 'offline',
-  ADD COLUMN IF NOT EXISTS delay_minutes       INT DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS students_on_board   INT DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS driver_license_no   TEXT,
-  ADD COLUMN IF NOT EXISTS driver_photo_url    TEXT,
-  ADD COLUMN IF NOT EXISTS assistant_name      TEXT,
-  ADD COLUMN IF NOT EXISTS assistant_phone     TEXT,
-  ADD COLUMN IF NOT EXISTS notes               TEXT,
-  ADD COLUMN IF NOT EXISTS updated_at          TIMESTAMPTZ DEFAULT NOW();
-
-ALTER TABLE bus_locations
-  ADD COLUMN IF NOT EXISTS accuracy_m      DECIMAL(8,2),
-  ADD COLUMN IF NOT EXISTS engine_on       BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS odometer_km     DECIMAL(10,2),
-  ADD COLUMN IF NOT EXISTS altitude_m      DECIMAL(8,2),
-  ADD COLUMN IF NOT EXISTS signal_strength TEXT DEFAULT 'good';
-
-RESET ROLE;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'bus_locations') THEN
+    ALTER TABLE bus_locations
+      ADD COLUMN IF NOT EXISTS accuracy_m      DECIMAL(8,2),
+      ADD COLUMN IF NOT EXISTS engine_on       BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS odometer_km     DECIMAL(10,2),
+      ADD COLUMN IF NOT EXISTS altitude_m      DECIMAL(8,2),
+      ADD COLUMN IF NOT EXISTS signal_strength TEXT DEFAULT 'good';
+  ELSIF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'vehicle_locations') THEN
+    ALTER TABLE vehicle_locations
+      ADD COLUMN IF NOT EXISTS accuracy_m      DECIMAL(8,2),
+      ADD COLUMN IF NOT EXISTS engine_on       BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS odometer_km     DECIMAL(10,2),
+      ADD COLUMN IF NOT EXISTS altitude_m      DECIMAL(8,2),
+      ADD COLUMN IF NOT EXISTS signal_strength TEXT DEFAULT 'good';
+  END IF;
+END $$;
 
 -- Now create tables and function as postgres (they don't have ownership restrictions)
 CREATE TABLE IF NOT EXISTS vehicle_trips (
@@ -74,6 +104,7 @@ CREATE INDEX IF NOT EXISTS idx_vehicle_alerts_route_id   ON vehicle_live_alerts(
 CREATE INDEX IF NOT EXISTS idx_vehicle_alerts_severity   ON vehicle_live_alerts(severity);
 CREATE INDEX IF NOT EXISTS idx_vehicle_alerts_created_at ON vehicle_live_alerts(created_at DESC);
 
+DROP FUNCTION IF EXISTS public.get_vehicle_dashboard_summary(UUID);
 CREATE OR REPLACE FUNCTION public.get_vehicle_dashboard_summary(p_school_id UUID DEFAULT NULL)
 RETURNS JSON
 LANGUAGE plpgsql
@@ -138,8 +169,8 @@ BEGIN
 END;
 $$;
 
--- Sample data: update bus_routes (now as supabase_admin)
-SET ROLE supabase_admin;
+-- Sample data: update bus_routes
+-- SET ROLE supabase_admin;
 UPDATE bus_routes SET
   live_status        = (ARRAY['on_route','at_school','returning','delayed','offline','idle'])[floor(random()*6)::int + 1],
   vehicle_type       = 'Bus',
@@ -150,7 +181,7 @@ UPDATE bus_routes SET
   model              = (ARRAY['Tata Starbus','Ashok Leyland Eagle','Force Traveller','Mahindra Supro'])[floor(random()*4)::int + 1],
   updated_at         = NOW() - (random()*interval '10 minutes');
 
-RESET ROLE;
+-- RESET ROLE;
 
 -- Sample trips (as postgres since vehicle_trips is owned by postgres)
 INSERT INTO vehicle_trips (id, school_id, route_id, trip_type, status, scheduled_start, actual_start, students_count, distance_km, delay_minutes)

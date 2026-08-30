@@ -3,6 +3,7 @@
 
 -- SET ROLE supabase_admin; -- commented out for cloud migrations (non-superuser)
 
+DROP FUNCTION IF EXISTS public.get_teacher_dashboard_summary(UUID, UUID, INT);
 CREATE OR REPLACE FUNCTION public.get_teacher_dashboard_summary(p_school_id UUID, p_teacher_id UUID, p_day_of_week INT)
 RETURNS JSONB AS $$
 DECLARE

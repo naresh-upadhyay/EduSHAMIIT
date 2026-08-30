@@ -95,7 +95,7 @@ BEGIN
   END IF;
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'blocked_users') THEN
     CREATE INDEX IF NOT EXISTS idx_block_users_blocker ON public.blocked_users(blocker_id);
-    CREATE INDEX IF NOT EXISTS idx_block_users_blocked ON public.blocked_users(blocked_user_id);
+    CREATE INDEX IF NOT EXISTS idx_block_users_blocked ON public.blocked_users(blocked_id);
   END IF;
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ai_chat_history') THEN
     CREATE INDEX IF NOT EXISTS idx_ai_chat_hist_user ON public.ai_chat_history(user_id);
@@ -133,11 +133,17 @@ BEGIN
     CREATE INDEX IF NOT EXISTS idx_gps_dev_school ON public.gps_devices(school_id);
   END IF;
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'driver_assignments') THEN
-    CREATE INDEX IF NOT EXISTS idx_drv_assign_veh ON public.driver_assignments(vehicle_id);
-    CREATE INDEX IF NOT EXISTS idx_drv_assign_route ON public.driver_assignments(route_id);
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'driver_assignments' AND column_name = 'vehicle_id') THEN
+      CREATE INDEX IF NOT EXISTS idx_drv_assign_veh ON public.driver_assignments(vehicle_id);
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'driver_assignments' AND column_name = 'route_id') THEN
+      CREATE INDEX IF NOT EXISTS idx_drv_assign_route ON public.driver_assignments(route_id);
+    END IF;
   END IF;
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'driver_violations') THEN
-    CREATE INDEX IF NOT EXISTS idx_drv_viol_veh ON public.driver_violations(vehicle_id);
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'driver_violations' AND column_name = 'vehicle_id') THEN
+      CREATE INDEX IF NOT EXISTS idx_drv_viol_veh ON public.driver_violations(vehicle_id);
+    END IF;
   END IF;
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'student_trip_logs') THEN
     CREATE INDEX IF NOT EXISTS idx_stu_trip_log_school ON public.student_trip_logs(school_id);

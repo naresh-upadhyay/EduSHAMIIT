@@ -1,7 +1,68 @@
--- Migration: 176_driver_assignments_training_violations_enhanced.sql
--- Description: Enhance tables with missing columns and seed high-fidelity mockup data.
+-- Ensure tables exist
+CREATE TABLE IF NOT EXISTS driver_assignments (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id           UUID REFERENCES schools(id) ON DELETE CASCADE,
+  driver_id           UUID REFERENCES drivers(id) ON DELETE CASCADE,
+  vehicle_id          UUID,
+  route_id            UUID,
+  assignment_type     TEXT DEFAULT 'Route',
+  start_date          DATE DEFAULT CURRENT_DATE,
+  end_date            DATE,
+  shift               TEXT DEFAULT 'Morning Shift',
+  status              TEXT NOT NULL DEFAULT 'Active',
+  created_by          TEXT,
+  notes               TEXT,
+  created_at          TIMESTAMPTZ DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
 
-SET ROLE supabase_admin;
+ALTER TABLE driver_assignments ADD COLUMN IF NOT EXISTS vehicle_id UUID;
+ALTER TABLE driver_assignments ADD COLUMN IF NOT EXISTS route_id UUID;
+
+CREATE TABLE IF NOT EXISTS driver_training (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id           UUID REFERENCES schools(id) ON DELETE CASCADE,
+  driver_id           UUID REFERENCES drivers(id) ON DELETE CASCADE,
+  training_program    TEXT NOT NULL DEFAULT 'Defensive Driving',
+  training_type       TEXT NOT NULL DEFAULT 'Safety',
+  provider            TEXT NOT NULL DEFAULT 'Transport Dept',
+  start_date          DATE NOT NULL DEFAULT CURRENT_DATE,
+  end_date            DATE,
+  status              TEXT NOT NULL DEFAULT 'In Progress',
+  certificate_url     TEXT,
+  next_due_date       DATE,
+  created_at          TIMESTAMPTZ DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS driver_violations (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id           UUID REFERENCES schools(id) ON DELETE CASCADE,
+  driver_id           UUID REFERENCES drivers(id) ON DELETE CASCADE,
+  vehicle_id          UUID,
+  route_id            UUID,
+  violation_type      TEXT NOT NULL DEFAULT 'Speeding',
+  severity            TEXT NOT NULL DEFAULT 'Minor',
+  description         TEXT,
+  violation_date      DATE NOT NULL DEFAULT CURRENT_DATE,
+  status              TEXT NOT NULL DEFAULT 'Pending',
+  fine_amount         DECIMAL(10,2) DEFAULT 0.00,
+  action_taken        TEXT,
+  created_at          TIMESTAMPTZ DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE driver_violations ADD COLUMN IF NOT EXISTS vehicle_id UUID;
+ALTER TABLE driver_violations ADD COLUMN IF NOT EXISTS route_id UUID;
+
+-- Ensure drivers table has required columns if running on post-206 schema
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS photo_url TEXT;
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS date_of_birth DATE;
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS blood_group TEXT;
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS address TEXT;
 
 -- 1. Schema Enhancements
 ALTER TABLE driver_assignments
@@ -16,31 +77,36 @@ ALTER TABLE driver_training
   ADD COLUMN IF NOT EXISTS start_time TEXT DEFAULT '09:00 AM',
   ADD COLUMN IF NOT EXISTS end_time TEXT DEFAULT '05:00 PM';
 
-RESET ROLE;
-
 -- 2. Clear out existing assignments, training, and violations to prevent duplicates
 DELETE FROM driver_assignments;
 DELETE FROM driver_training;
 DELETE FROM driver_violations;
 
--- 3. Ensure Route/Vehicle mappings exist in bus_routes
--- We need the exact vehicles and routes shown in the mockup
-INSERT INTO bus_routes (id, school_id, route_name, bus_number, total_capacity, status, vehicle_type)
-VALUES
-  ('a1111111-1111-1111-1111-111111111111', '11111111-1111-1111-1111-111111111111', 'Route 101', 'UP16 ET 1234', 52, 'active', 'AC Bus'),
-  ('a2222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111', 'Route 102', 'UP16 ET 5678', 52, 'active', 'AC Bus'),
-  ('a3333333-3333-3333-3333-333333333333', '11111111-1111-1111-1111-111111111111', 'Route 105', 'UP16 ET 9101', 60, 'active', 'Non AC Bus'),
-  ('a4444444-4444-4444-4444-444444444444', '11111111-1111-1111-1111-111111111111', 'Route 108', 'UP16 ET 1122', 52, 'active', 'AC Bus'),
-  ('a5555555-5555-5555-5555-555555555555', '11111111-1111-1111-1111-111111111111', 'Route 103', 'UP16 ET 3344', 32, 'active', 'Mini Bus'),
-  ('a6666666-6666-6666-6666-666666666666', '11111111-1111-1111-1111-111111111111', 'Route 104', 'UP16 ET 7788', 52, 'active', 'AC Bus'),
-  ('a7777777-7777-7777-7777-777777777777', '11111111-1111-1111-1111-111111111111', 'Route 107', 'UP16 ET 8899', 32, 'active', 'Mini Bus'),
-  ('a8888888-8888-8888-8888-888888888888', '11111111-1111-1111-1111-111111111111', 'Route 101', 'UP16 ET 2468', 52, 'active', 'AC Bus'),
-  ('a9999999-9999-9999-9999-999999999999', '11111111-1111-1111-1111-111111111111', 'Route 106', 'UP16 ET 1357', 60, 'active', 'Non AC Bus'),
-  ('a1010101-1010-1010-1010-101010101010', '11111111-1111-1111-1111-111111111111', 'Route 109', 'UP16 ET 9753', 32, 'active', 'Mini Bus')
-ON CONFLICT (id) DO UPDATE SET 
-  route_name = EXCLUDED.route_name,
-  bus_number = EXCLUDED.bus_number,
-  vehicle_type = EXCLUDED.vehicle_type;
+-- 3. Ensure Route/Vehicle mappings exist in bus_routes dynamically
+DO $$
+DECLARE
+  v_school_id UUID;
+BEGIN
+  SELECT id INTO v_school_id FROM public.schools ORDER BY created_at ASC LIMIT 1;
+  IF v_school_id IS NOT NULL THEN
+    INSERT INTO bus_routes (id, school_id, route_name, bus_number, total_capacity, status, vehicle_type)
+    VALUES
+      ('a1111111-1111-1111-1111-111111111111', v_school_id, 'Route 101', 'UP16 ET 1234', 52, 'active', 'AC Bus'),
+      ('a2222222-2222-2222-2222-222222222222', v_school_id, 'Route 102', 'UP16 ET 5678', 52, 'active', 'AC Bus'),
+      ('a3333333-3333-3333-3333-333333333333', v_school_id, 'Route 105', 'UP16 ET 9101', 60, 'active', 'Non AC Bus'),
+      ('a4444444-4444-4444-4444-444444444444', v_school_id, 'Route 108', 'UP16 ET 1122', 52, 'active', 'AC Bus'),
+      ('a5555555-5555-5555-5555-555555555555', v_school_id, 'Route 103', 'UP16 ET 3344', 32, 'active', 'Mini Bus'),
+      ('a6666666-6666-6666-6666-666666666666', v_school_id, 'Route 104', 'UP16 ET 7788', 52, 'active', 'AC Bus'),
+      ('a7777777-7777-7777-7777-777777777777', v_school_id, 'Route 107', 'UP16 ET 8899', 32, 'active', 'Mini Bus'),
+      ('a8888888-8888-8888-8888-888888888888', v_school_id, 'Route 101', 'UP16 ET 2468', 52, 'active', 'AC Bus'),
+      ('a9999999-9999-9999-9999-999999999999', v_school_id, 'Route 106', 'UP16 ET 1357', 60, 'active', 'Non AC Bus'),
+      ('a1010101-1010-1010-1010-101010101010', v_school_id, 'Route 109', 'UP16 ET 9753', 32, 'active', 'Mini Bus')
+    ON CONFLICT (id) DO UPDATE SET 
+      route_name = EXCLUDED.route_name,
+      bus_number = EXCLUDED.bus_number,
+      vehicle_type = EXCLUDED.vehicle_type;
+  END IF;
+END $$;
 
 -- 4. Update core driver details to match screenshots
 UPDATE drivers SET name = 'Ramesh Kumar', email = 'ramesh.kumar@gmail.com', phone = '9876543210' WHERE driver_code = 'DRV001';
@@ -54,16 +120,16 @@ UPDATE drivers SET name = 'Rohit Kumar', email = 'rohit.kumar@gmail.com', phone 
 UPDATE drivers SET name = 'Manoj Verma', email = 'manoj.verma@gmail.com', phone = '9871122334' WHERE driver_code = 'DRV009';
 UPDATE drivers SET name = 'Deepak Sharma', email = 'deepak.sharma@gmail.com', phone = '9899112233' WHERE driver_code = 'DRV010';
 
--- 5. Seed Core Mockup Data
+-- 5. Seed Core Mockup Data Dynamically
 DO $$
 DECLARE
-  v_school_id UUID := '11111111-1111-1111-1111-111111111111';
+  v_school_id UUID;
   v_drv001 UUID; v_drv002 UUID; v_drv003 UUID; v_drv004 UUID; v_drv005 UUID;
   v_drv006 UUID; v_drv007 UUID; v_drv008 UUID; v_drv009 UUID; v_drv010 UUID;
   v_other_drivers UUID[];
-  v_driver_count INT;
+  v_driver_count INT := 0;
   v_routes UUID[];
-  v_route_count INT;
+  v_route_count INT := 0;
   i INT;
   v_did UUID;
   v_rid UUID;
@@ -72,7 +138,24 @@ DECLARE
   v_severity TEXT;
   v_fine NUMERIC;
 BEGIN
-  -- Get core driver IDs
+  SELECT id INTO v_school_id FROM public.schools ORDER BY created_at ASC LIMIT 1;
+  IF v_school_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  -- Get all driver IDs for random distribution
+  SELECT array_agg(id) INTO v_other_drivers FROM drivers;
+  v_driver_count := cardinality(v_other_drivers);
+
+  -- Get route/vehicle IDs
+  SELECT array_agg(id) INTO v_routes FROM bus_routes;
+  v_route_count := cardinality(v_routes);
+
+  IF v_driver_count = 0 OR v_route_count = 0 THEN
+    RETURN;
+  END IF;
+
+  -- Get core driver IDs with fallbacks
   SELECT id INTO v_drv001 FROM drivers WHERE driver_code = 'DRV001';
   SELECT id INTO v_drv002 FROM drivers WHERE driver_code = 'DRV002';
   SELECT id INTO v_drv003 FROM drivers WHERE driver_code = 'DRV003';
@@ -84,13 +167,16 @@ BEGIN
   SELECT id INTO v_drv009 FROM drivers WHERE driver_code = 'DRV009';
   SELECT id INTO v_drv010 FROM drivers WHERE driver_code = 'DRV010';
 
-  -- Get all driver IDs for random distribution
-  SELECT array_agg(id) INTO v_other_drivers FROM drivers;
-  v_driver_count := cardinality(v_other_drivers);
-
-  -- Get route/vehicle IDs
-  SELECT array_agg(id) INTO v_routes FROM bus_routes;
-  v_route_count := cardinality(v_routes);
+  IF v_drv001 IS NULL THEN v_drv001 := v_other_drivers[1]; END IF;
+  IF v_drv002 IS NULL THEN v_drv002 := v_other_drivers[((1) % v_driver_count) + 1]; END IF;
+  IF v_drv003 IS NULL THEN v_drv003 := v_other_drivers[((2) % v_driver_count) + 1]; END IF;
+  IF v_drv004 IS NULL THEN v_drv004 := v_other_drivers[((3) % v_driver_count) + 1]; END IF;
+  IF v_drv005 IS NULL THEN v_drv005 := v_other_drivers[((4) % v_driver_count) + 1]; END IF;
+  IF v_drv006 IS NULL THEN v_drv006 := v_other_drivers[((5) % v_driver_count) + 1]; END IF;
+  IF v_drv007 IS NULL THEN v_drv007 := v_other_drivers[((6) % v_driver_count) + 1]; END IF;
+  IF v_drv008 IS NULL THEN v_drv008 := v_other_drivers[((7) % v_driver_count) + 1]; END IF;
+  IF v_drv009 IS NULL THEN v_drv009 := v_other_drivers[((8) % v_driver_count) + 1]; END IF;
+  IF v_drv010 IS NULL THEN v_drv010 := v_other_drivers[((9) % v_driver_count) + 1]; END IF;
 
   -- ========================================================
   -- SEEDING ASSIGNMENTS (Total: 86)
