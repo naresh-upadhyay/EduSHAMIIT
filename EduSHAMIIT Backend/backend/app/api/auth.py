@@ -1523,7 +1523,7 @@ async def list_users(
         sb = get_supabase()
         
         # We start by querying the profiles table and joining the schools table to fetch school name and subscription status.
-        query = sb.table("profiles").select("*, schools(name, subscription_status)")
+        query = sb.table("profiles").select("*, schools:schools!profiles_school_id_fkey(name, subscription_status)")
         
         caller_role = user.get("role", "").lower()
         if caller_role != "super_admin":
