@@ -2441,6 +2441,36 @@ class _AdminSystemConfigScreenState
                 setState(() {
                   _appearanceSettings['theme'] = val;
                 });
+                // Live preview: immediately update system configuration provider
+                final current = ref.read(systemConfigProvider);
+                if (current != null) {
+                  ref.read(systemConfigProvider.notifier).updateConfig(
+                    SystemConfig(
+                      systemName: current.systemName,
+                      systemTitle: current.systemTitle,
+                      systemLogo: current.systemLogo,
+                      favicon: current.favicon,
+                      primaryColor: _appearanceSettings['primary_color'] ?? current.primaryColor,
+                      theme: val,
+                      loginPageMessage: current.loginPageMessage,
+                      loginTitle: current.loginTitle,
+                      loginSubtitle: current.loginSubtitle,
+                      loginDesc: current.loginDesc,
+                      loginFeature1: current.loginFeature1,
+                      loginFeature2: current.loginFeature2,
+                      loginFeature3: current.loginFeature3,
+                      loginFeature4: current.loginFeature4,
+                      loginIllustration: current.loginIllustration,
+                      forgotPasswordIllustration: current.forgotPasswordIllustration,
+                      resetPasswordIllustration: current.resetPasswordIllustration,
+                      otpVerificationIllustration: current.otpVerificationIllustration,
+                      contactEmail: current.contactEmail,
+                      contactPhone: current.contactPhone,
+                      contactAddress: current.contactAddress,
+                      liveChatInfo: current.liveChatInfo,
+                    ),
+                  );
+                }
               }
             },
             isDark,
@@ -2470,6 +2500,36 @@ class _AdminSystemConfigScreenState
                   setState(() {
                     _appearanceSettings['primary_color'] = hex;
                   });
+                  // Live preview primary color
+                  final current = ref.read(systemConfigProvider);
+                  if (current != null) {
+                    ref.read(systemConfigProvider.notifier).updateConfig(
+                      SystemConfig(
+                        systemName: current.systemName,
+                        systemTitle: current.systemTitle,
+                        systemLogo: current.systemLogo,
+                        favicon: current.favicon,
+                        primaryColor: hex,
+                        theme: _appearanceSettings['theme'] ?? current.theme,
+                        loginPageMessage: current.loginPageMessage,
+                        loginTitle: current.loginTitle,
+                        loginSubtitle: current.loginSubtitle,
+                        loginDesc: current.loginDesc,
+                        loginFeature1: current.loginFeature1,
+                        loginFeature2: current.loginFeature2,
+                        loginFeature3: current.loginFeature3,
+                        loginFeature4: current.loginFeature4,
+                        loginIllustration: current.loginIllustration,
+                        forgotPasswordIllustration: current.forgotPasswordIllustration,
+                        resetPasswordIllustration: current.resetPasswordIllustration,
+                        otpVerificationIllustration: current.otpVerificationIllustration,
+                        contactEmail: current.contactEmail,
+                        contactPhone: current.contactPhone,
+                        contactAddress: current.contactAddress,
+                        liveChatInfo: current.liveChatInfo,
+                      ),
+                    );
+                  }
                 },
                 child: Container(
                   width: 32,
