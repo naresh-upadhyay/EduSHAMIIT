@@ -34,18 +34,21 @@ def run_tests():
     })
     logger.info("[PASS] Logged in as Super Admin via JWT")
 
-    # Step 2: Discover Class 5 and Section NEWSUB2
-    classes_res = session.get(f"{API_BASE_URL}/api/classes?academic_year=2026-27")
+    # Step 2: Discover Class and Section with sections
+    classes_res = session.get(f"{API_BASE_URL}/api/classes")
     assert classes_res.status_code == 200, f"Failed: {classes_res.text}"
     c_data = classes_res.json().get("data", {}).get("classes", [])
-    class_5 = next((c for c in c_data if "5" in str(c.get("name", "")).lower()), None)
-    assert class_5 is not None, "Class 5 not found"
-    class_id = class_5["id"]
-
-    newsub2 = next((s for s in class_5.get("sections", []) if "newsub2" in str(s.get("name", "")).lower()), None)
-    assert newsub2 is not None, "Section NEWSUB2 not found"
-    section_id = newsub2["id"]
-    logger.info(f"[PASS] Discovered Class 5 ({class_id}) Section NEWSUB2 ({section_id})")
+    target_class = None
+    target_section = None
+    for c in c_data:
+        if c.get("sections"):
+            target_class = c
+            target_section = c["sections"][0]
+            break
+    assert target_class is not None, "Class with sections not found"
+    class_id = target_class["id"]
+    section_id = target_section["id"]
+    logger.info(f"[PASS] Discovered Class '{target_class.get('name')}' ({class_id}) Section '{target_section.get('name')}' ({section_id})")
 
     # Step 3: Fetch initial roster
     roster_res = session.get(f"{API_BASE_URL}/api/attendance/roster", params={

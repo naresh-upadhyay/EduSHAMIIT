@@ -90,31 +90,29 @@ BEGIN
         ),
         '[]'::JSONB
     ) INTO v_students
-    FROM (
-        SELECT p.*
-        FROM public.profiles p
-        WHERE p.school_id = p_school_id
-          AND (
-              LOWER(p.role) = 'student' 
-              OR p.role IS NULL 
-              OR LOWER(p.role) NOT IN ('teacher', 'faculty', 'staff', 'admin', 'principal', 'super_admin', 'superadmin', 'driver')
-          )
-          AND (
-              p_search = '' 
-              OR p.full_name ILIKE '%' || p_search || '%' 
-              OR p.email ILIKE '%' || p_search || '%'
-              OR p.admission_number ILIKE '%' || p_search || '%'
-          )
-        ORDER BY p.full_name ASC
-        LIMIT p_limit
-    ) p
+    FROM public.profiles p
     LEFT JOIN public.student_class_assignments sca 
         ON sca.student_id = p.id 
        AND sca.school_id = p_school_id 
        AND sca.academic_year = p_academic_year 
        AND sca.status = 'ACTIVE'
     LEFT JOIN public.academic_classes c ON c.id = sca.class_id
-    LEFT JOIN public.academic_sections s ON s.id = sca.section_id;
+    LEFT JOIN public.academic_sections s ON s.id = sca.section_id
+    WHERE p.school_id = p_school_id
+      AND (
+          LOWER(p.role) = 'student' 
+          OR p.role IS NULL 
+          OR LOWER(p.role) NOT IN ('teacher', 'faculty', 'staff', 'admin', 'principal', 'super_admin', 'superadmin', 'driver')
+      )
+      AND (
+          p_search = '' 
+          OR p.full_name ILIKE '%' || p_search || '%' 
+          OR p.email ILIKE '%' || p_search || '%'
+          OR p.admission_number ILIKE '%' || p_search || '%'
+      )
+      AND (p_class_id IS NULL OR sca.class_id = p_class_id)
+      AND (p_section_id IS NULL OR sca.section_id = p_section_id)
+    LIMIT p_limit;
 
     RETURN jsonb_build_object('success', TRUE, 'data', v_students);
 END;

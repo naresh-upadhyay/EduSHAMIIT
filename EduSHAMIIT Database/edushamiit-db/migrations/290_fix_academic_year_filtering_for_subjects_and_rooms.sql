@@ -8,6 +8,8 @@
 -- Drop old overloads cleanly
 DROP FUNCTION IF EXISTS public.fn_get_academic_subjects(UUID, TEXT, VARCHAR, VARCHAR, UUID, INT, INT, VARCHAR, VARCHAR, UUID, VARCHAR);
 DROP FUNCTION IF EXISTS public.fn_get_academic_subjects(UUID, TEXT, VARCHAR, VARCHAR, UUID, INT, INT, VARCHAR, VARCHAR, UUID);
+DROP FUNCTION IF EXISTS public.fn_get_academic_subjects(UUID, TEXT, VARCHAR, VARCHAR, INT, INT, VARCHAR, VARCHAR, UUID);
+DROP FUNCTION IF EXISTS public.fn_get_academic_subjects(UUID, TEXT, VARCHAR, VARCHAR, INT, INT, VARCHAR, VARCHAR);
 DROP FUNCTION IF EXISTS public.fn_get_academic_rooms(UUID, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, INT, INT, VARCHAR, VARCHAR, VARCHAR);
 DROP FUNCTION IF EXISTS public.fn_get_academic_rooms(UUID, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, INT, INT, VARCHAR, VARCHAR);
 
@@ -72,6 +74,14 @@ BEGIN
                 AND sst.teacher_id = p_teacher_id 
                 AND sst.status = 'ACTIVE'
                 AND (p_academic_year IS NULL OR p_academic_year = '' OR sst.academic_year = p_academic_year)
+          )
+          OR EXISTS (
+              SELECT 1 FROM public.class_teacher_assignments cta
+              JOIN public.class_subject_assignments csa ON csa.class_id = cta.class_id
+              WHERE csa.subject_id = s.id
+                AND cta.teacher_id = p_teacher_id
+                AND (p_academic_year IS NULL OR p_academic_year = '' OR cta.academic_year = p_academic_year)
+                AND (p_academic_year IS NULL OR p_academic_year = '' OR csa.academic_year = p_academic_year)
           )
       )
       AND (
@@ -185,6 +195,14 @@ BEGIN
                     AND sst.status = 'ACTIVE'
                     AND (p_academic_year IS NULL OR p_academic_year = '' OR sst.academic_year = p_academic_year)
               )
+              OR EXISTS (
+                  SELECT 1 FROM public.class_teacher_assignments cta
+                  JOIN public.class_subject_assignments csa ON csa.class_id = cta.class_id
+                  WHERE csa.subject_id = s.id
+                    AND cta.teacher_id = p_teacher_id
+                    AND (p_academic_year IS NULL OR p_academic_year = '' OR cta.academic_year = p_academic_year)
+                    AND (p_academic_year IS NULL OR p_academic_year = '' OR csa.academic_year = p_academic_year)
+              )
           )
           AND (
               p_search = '' 
@@ -237,7 +255,31 @@ AS $$
 BEGIN
     RETURN public.fn_get_academic_subjects(
         p_school_id, p_search, p_type, p_status, p_class_id,
-        p_page, p_page_size, p_sort_by, p_sort_order, p_teacher_id, '2026-27'
+        p_page, p_page_size, p_sort_by, p_sort_order, p_teacher_id, '2026-27'::VARCHAR
+    );
+END;
+$$;
+
+-- 2B. Backwards-compatible 9-parameter overload
+CREATE OR REPLACE FUNCTION public.fn_get_academic_subjects(
+    p_school_id UUID,
+    p_search TEXT,
+    p_type VARCHAR,
+    p_status VARCHAR,
+    p_page INT,
+    p_page_size INT,
+    p_sort_by VARCHAR,
+    p_sort_order VARCHAR,
+    p_teacher_id UUID
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    RETURN public.fn_get_academic_subjects(
+        p_school_id, p_search, p_type, p_status, NULL::UUID,
+        p_page, p_page_size, p_sort_by, p_sort_order, p_teacher_id, '2026-27'::VARCHAR
     );
 END;
 $$;

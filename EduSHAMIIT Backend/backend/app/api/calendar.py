@@ -1226,12 +1226,13 @@ async def get_calendar_transport_routes(user=Depends(get_current_user)):
         sql = """
             SELECT tr.id, tr.route_code, tr.route_name, tr.area_zone, tr.distance_km,
                    tr.start_time, tr.end_time, tr.vehicle_id, tr.driver_id, tr.status,
-                   v.bus_number, v.registration_no, v.capacity,
-                   d.name AS driver_name, d.phone AS driver_phone, d.driver_code, d.profile_id AS driver_profile_id,
+                   COALESCE(v.vehicle_no, '') AS bus_number, COALESCE(v.vehicle_no, '') AS registration_no, COALESCE(v.seating_capacity, 0) AS capacity,
+                   COALESCE(dp.full_name, d.driver_code, '') AS driver_name, COALESCE(dp.phone, '') AS driver_phone, d.driver_code, d.profile_id AS driver_profile_id,
                    (SELECT COUNT(*) FROM public.transport_route_stops WHERE route_id = tr.id) AS stops_count
             FROM public.transport_routes tr
             LEFT JOIN public.vehicles v ON v.id = tr.vehicle_id
             LEFT JOIN public.drivers d ON d.id = tr.driver_id
+            LEFT JOIN public.profiles dp ON dp.id = d.profile_id
             WHERE tr.school_id = %s AND tr.status != 'Inactive'
             ORDER BY tr.route_name ASC
         """
@@ -1428,8 +1429,8 @@ async def get_schedules(
                p.full_name AS organizer_name,
                p.avatar_url AS organizer_avatar,
                tr.route_name, tr.route_code, tr.start_time AS route_start_time, tr.end_time AS route_end_time,
-               v.bus_number, v.registration_no,
-               d.name AS driver_name,
+               COALESCE(v.vehicle_no, '') AS bus_number, COALESCE(v.vehicle_no, '') AS registration_no,
+               COALESCE(dp.full_name, d.driver_code, '') AS driver_name,
                (
                     SELECT vt.id FROM public.vehicle_trips vt
                     WHERE vt.schedule_id = s.id
@@ -1552,6 +1553,7 @@ async def get_schedules(
         LEFT JOIN public.transport_routes tr ON tr.id = s.route_id
         LEFT JOIN public.vehicles v ON v.id = tr.vehicle_id
         LEFT JOIN public.drivers d ON d.id = tr.driver_id
+        LEFT JOIN public.profiles dp ON dp.id = d.profile_id
         WHERE {where_clause}
         ORDER BY s.start_time ASC
         LIMIT %s
@@ -1634,9 +1636,9 @@ async def get_schedules(
                 SELECT s.*, sr.frequency, sr.interval, sr.days_of_week, sr.end_type, sr.end_count, sr.end_date as rec_end_date, sr.exceptions,
                        c.name AS calendar_name, c.color AS calendar_color, c.type AS calendar_type,
                        p.full_name AS organizer_name, p.avatar_url AS organizer_avatar,
-                       tr.route_name, tr.route_code, tr.start_time AS route_start_time, tr.end_time AS route_end_time,
-                       v.bus_number, v.registration_no,
-                       d.name AS driver_name,
+                tr.route_name, tr.route_code, tr.start_time AS route_start_time, tr.end_time AS route_end_time,
+                COALESCE(v.vehicle_no, '') AS bus_number, COALESCE(v.vehicle_no, '') AS registration_no,
+                COALESCE(dp.full_name, d.driver_code, '') AS driver_name,
                        (
                            SELECT json_agg(json_build_object(
                                'id', sp.id,
@@ -1706,6 +1708,7 @@ async def get_schedules(
                 LEFT JOIN public.transport_routes tr ON tr.id = s.route_id
                 LEFT JOIN public.vehicles v ON v.id = tr.vehicle_id
                 LEFT JOIN public.drivers d ON d.id = tr.driver_id
+                LEFT JOIN public.profiles dp ON dp.id = d.profile_id
                 WHERE {rec_where}
             """
             rec_rows = await exec_sql(rec_sql, tuple(rec_params))
@@ -2014,8 +2017,28 @@ async def create_schedule(req: ScheduleCreateRequest, user=Depends(get_current_u
         req_dict["end_date"] = req.recurrence.end_date
         if req.is_recurring is not None:
             req_dict["is_recurring"] = req.is_recurring
-        else:
-            req_dict["is_recurring"] = req.recurrence.frequency != "none"
+    target_classes = list(req_dict.get("target_classes") or [])
+    target_class_sections = list(req_dict.get("target_class_sections") or [])
+    target_roles = list(req_dict.get("target_roles") or [])
+    target_user_ids = list(req_dict.get("target_user_ids") or [])
+
+    if req.participants:
+        for p in req.participants:
+            p_dict = p.dict() if hasattr(p, "dict") else (p if isinstance(p, dict) else {})
+            if p_dict.get("target_class") and p_dict["target_class"] not in target_classes:
+                target_classes.append(p_dict["target_class"])
+            if p_dict.get("target_class_section") and p_dict["target_class_section"] not in target_class_sections:
+                target_class_sections.append(p_dict["target_class_section"])
+            if p_dict.get("target_role") and p_dict["target_role"] not in target_roles:
+                target_roles.append(p_dict["target_role"])
+            if p_dict.get("user_id") and p_dict["user_id"] not in target_user_ids:
+                target_user_ids.append(p_dict["user_id"])
+
+    req_dict["target_classes"] = target_classes
+    req_dict["target_class_sections"] = target_class_sections
+    req_dict["target_roles"] = target_roles
+    req_dict["target_user_ids"] = target_user_ids
+
     payload_json = json.dumps(req_dict, default=str)
 
     rows = await exec_sql(
@@ -2118,10 +2141,32 @@ async def update_schedule(
         req_dict["end_type"] = req.recurrence.end_type
         req_dict["end_count"] = req.recurrence.end_count
         req_dict["end_date"] = req.recurrence.end_date
-        if req.is_recurring is not None:
-            req_dict["is_recurring"] = req.is_recurring
-        else:
-            req_dict["is_recurring"] = req.recurrence.frequency != "none"
+    target_classes = list(req_dict.get("target_classes") or [])
+    target_class_sections = list(req_dict.get("target_class_sections") or [])
+    target_roles = list(req_dict.get("target_roles") or [])
+    target_user_ids = list(req_dict.get("target_user_ids") or [])
+
+    if req.participants:
+        for p in req.participants:
+            p_dict = p.dict() if hasattr(p, "dict") else (p if isinstance(p, dict) else {})
+            if p_dict.get("target_class") and p_dict["target_class"] not in target_classes:
+                target_classes.append(p_dict["target_class"])
+            if p_dict.get("target_class_section") and p_dict["target_class_section"] not in target_class_sections:
+                target_class_sections.append(p_dict["target_class_section"])
+            if p_dict.get("target_role") and p_dict["target_role"] not in target_roles:
+                target_roles.append(p_dict["target_role"])
+            if p_dict.get("user_id") and p_dict["user_id"] not in target_user_ids:
+                target_user_ids.append(p_dict["user_id"])
+
+    if target_classes:
+        req_dict["target_classes"] = target_classes
+    if target_class_sections:
+        req_dict["target_class_sections"] = target_class_sections
+    if target_roles:
+        req_dict["target_roles"] = target_roles
+    if target_user_ids:
+        req_dict["target_user_ids"] = target_user_ids
+
     payload_json = json.dumps(req_dict, default=str)
 
     clean_scope = "entire_series"
@@ -2824,16 +2869,17 @@ async def get_assignable_transport_routes(user=Depends(get_current_user)):
     sql = f"""
         SELECT tr.id, tr.route_name, tr.route_code, tr.start_time, tr.end_time, tr.status,
                tr.vehicle_id, tr.driver_id, tr.school_id,
-               v.bus_number, v.registration_no,
-               d.name AS driver_name, d.phone AS driver_phone, d.profile_id AS driver_profile_id,
+               COALESCE(v.vehicle_no, '') AS bus_number, COALESCE(v.vehicle_no, '') AS registration_no,
+               COALESCE(dp.full_name, d.driver_code, '') AS driver_name, COALESCE(dp.phone, '') AS driver_phone, d.profile_id AS driver_profile_id,
                (
                    SELECT COUNT(*) 
                    FROM public.transport_route_stops trs 
                    WHERE trs.route_id = tr.id
                ) AS stops_count
         FROM public.transport_routes tr
-        INNER JOIN public.vehicles v ON v.id = tr.vehicle_id
-        INNER JOIN public.drivers d ON d.id = tr.driver_id
+        LEFT JOIN public.vehicles v ON v.id = tr.vehicle_id
+        LEFT JOIN public.drivers d ON d.id = tr.driver_id
+        LEFT JOIN public.profiles dp ON dp.id = d.profile_id
         WHERE {where_clause}
         ORDER BY tr.route_name ASC
     """

@@ -30,15 +30,19 @@ async def run_strict_role_scoping_tests():
     school_id = "11111111-1111-1111-1111-111111111111"
 
     # Fetch users of different roles
-    admin_res = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE full_name ILIKE '%King Doe%' LIMIT 1;")
+    admin_res = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE school_id = %s AND role IN ('admin', 'super_admin') LIMIT 1;", (school_id,))
     admin_id = str(admin_res[0]["id"])
     admin_user = {"id": admin_id, "role": "super_admin", "school_id": school_id, "permissions": ["*"]}
 
-    driver_res = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE role = 'driver' LIMIT 1;")
+    driver_res = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE school_id = %s AND role = 'driver' LIMIT 1;", (school_id,))
+    if not driver_res:
+        driver_res = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE role = 'driver' LIMIT 1;")
     driver_id = str(driver_res[0]["id"])
     driver_user = {"id": driver_id, "role": "driver", "school_id": school_id, "permissions": ["attendance.leave.view"]}
 
-    teacher_res = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE full_name ILIKE '%Lakshmi Nair%' LIMIT 1;")
+    teacher_res = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE school_id = %s AND role = 'teacher' LIMIT 1;", (school_id,))
+    if not teacher_res:
+        teacher_res = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE role = 'teacher' LIMIT 1;")
     teacher_id = str(teacher_res[0]["id"])
     teacher_user = {"id": teacher_id, "role": "teacher", "school_id": school_id, "permissions": ["attendance.leave.view"]}
 

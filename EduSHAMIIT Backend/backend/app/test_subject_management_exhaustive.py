@@ -12,18 +12,20 @@ Covers:
 """
 
 import requests
+import os
+import requests
 import json
 import uuid
 import sys
+from jose import jwt
 
-BASE_URL = "http://localhost:8082/api/classes"
+BASE_URL = os.environ.get("CLASSES_API_URL", "http://localhost:8000/api/classes")
 JWT_SECRET = "super-secret-jwt-token-with-at-least-32-characters-long"
-ADMIN_PROFILE_ID = "1ba9ee65-52cd-4c7d-b6bb-1c8291a2f825"
+ADMIN_PROFILE_ID = "38a93170-997b-4b4c-bc8e-256b93169c23"
 SCHOOL_ID = "11111111-1111-1111-1111-111111111111"
 
 def get_token():
     try:
-        import jwt
         token = jwt.encode(
             {
                 "sub": ADMIN_PROFILE_ID,

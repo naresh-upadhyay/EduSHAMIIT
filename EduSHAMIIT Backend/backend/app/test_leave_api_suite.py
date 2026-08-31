@@ -32,7 +32,9 @@ async def run_api_tests():
     logger.info("================================================================================")
 
     school_id = "11111111-1111-1111-1111-111111111111"
-    admin_res = await exec_sql("SELECT id FROM public.profiles WHERE full_name ILIKE '%King Doe%' LIMIT 1;")
+    admin_res = await exec_sql("SELECT id FROM public.profiles WHERE school_id = %s AND role IN ('admin', 'super_admin') LIMIT 1;", (school_id,))
+    if not admin_res:
+        admin_res = await exec_sql("SELECT id FROM public.profiles WHERE role IN ('admin', 'super_admin') LIMIT 1;")
     admin_id = str(admin_res[0]["id"])
     admin_user = {"id": admin_id, "role": "super_admin", "school_id": school_id, "permissions": ["*"]}
 

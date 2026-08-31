@@ -30,11 +30,11 @@ async def run_tests():
     logger.info(f"Using School: {school_name} ({school_id})")
 
     # 2. Get a test organizer user
-    users = await exec_sql("SELECT id, email, full_name FROM public.profiles WHERE school_id = %s LIMIT 1;", (school_id,))
+    users = await exec_sql("SELECT id, email, full_name, role FROM public.profiles WHERE school_id = %s AND role IN ('admin', 'super_admin') LIMIT 1;", (school_id,))
     if not users:
-        users = await exec_sql("SELECT id, email, full_name FROM public.profiles LIMIT 1;")
+        users = await exec_sql("SELECT id, email, full_name, role FROM public.profiles LIMIT 1;")
     organizer_id = str(users[0]["id"])
-    organizer_user = {"id": organizer_id, "school_id": school_id, "role": "admin"}
+    organizer_user = {"id": organizer_id, "school_id": school_id, "role": "super_admin", "permissions": ["*"]}
     logger.info(f"Using Organizer: {users[0].get('full_name')} ({organizer_id})")
 
     # 3. Test FastAPI endpoint get_assignable_roles

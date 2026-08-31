@@ -428,10 +428,13 @@ $$;
 
 
 -- Step 6: Function - Get Academic Class Detail with Hierarchy-Synced Statuses
+DROP FUNCTION IF EXISTS public.fn_get_academic_class_detail(UUID, UUID);
+DROP FUNCTION IF EXISTS public.fn_get_academic_class_detail(UUID, UUID, UUID);
+DROP FUNCTION IF EXISTS public.fn_get_academic_class_detail(UUID, UUID, UUID, TEXT);
 CREATE OR REPLACE FUNCTION public.fn_get_academic_class_detail(
     p_school_id UUID,
     p_class_id UUID,
-    p_requesting_user_id UUID,
+    p_requesting_user_id UUID DEFAULT NULL,
     p_requesting_role TEXT DEFAULT NULL
 )
 RETURNS JSONB
@@ -451,6 +454,7 @@ DECLARE
     v_opt_subs INT := 0;
     v_total_subs INT := 0;
     v_is_teacher_assigned BOOLEAN := FALSE;
+    v_user_role TEXT;
 BEGIN
     SELECT * INTO v_class
     FROM public.academic_classes
@@ -461,17 +465,20 @@ BEGIN
     END IF;
 
     -- Security check for Teacher role
-    IF p_requesting_role = 'Teacher' THEN
-        SELECT EXISTS(
-            SELECT 1 FROM public.class_teacher_assignments
-            WHERE class_id = p_class_id AND teacher_id = p_requesting_user_id
-            UNION
-            SELECT 1 FROM public.section_subject_teachers
-            WHERE class_id = p_class_id AND teacher_id = p_requesting_user_id AND status = 'ACTIVE'
-        ) INTO v_is_teacher_assigned;
+    IF p_requesting_user_id IS NOT NULL THEN
+        SELECT role INTO v_user_role FROM public.profiles WHERE id = p_requesting_user_id;
+        IF p_requesting_role ILIKE '%teacher%' OR v_user_role ILIKE '%teacher%' THEN
+            SELECT EXISTS(
+                SELECT 1 FROM public.class_teacher_assignments
+                WHERE class_id = p_class_id AND teacher_id = p_requesting_user_id
+                UNION
+                SELECT 1 FROM public.section_subject_teachers
+                WHERE class_id = p_class_id AND teacher_id = p_requesting_user_id AND status = 'ACTIVE'
+            ) INTO v_is_teacher_assigned;
 
-        IF NOT v_is_teacher_assigned THEN
-            RETURN jsonb_build_object('success', FALSE, 'error', 'Unauthorized: You are not assigned to this class', 'code', 403);
+            IF NOT v_is_teacher_assigned THEN
+                RETURN jsonb_build_object('success', FALSE, 'error', 'Unauthorized: You are not assigned to this class', 'code', 403);
+            END IF;
         END IF;
     END IF;
 
@@ -518,6 +525,14 @@ BEGIN
                     FROM public.class_subject_assignments csa
                     WHERE (csa.section_id = s.id OR (csa.class_id = p_class_id AND csa.section_id IS NULL))
                       AND csa.school_id = p_school_id
+                      AND (csa.status = 'ACTIVE' OR csa.status IS NULL)
+                ),
+                'assigned_subject_ids', (
+                    SELECT COALESCE(jsonb_agg(DISTINCT csa.subject_id), '[]'::JSONB)
+                    FROM public.class_subject_assignments csa
+                    WHERE (csa.section_id = s.id OR (csa.class_id = p_class_id AND csa.section_id IS NULL))
+                      AND csa.school_id = p_school_id
+                      AND (csa.status = 'ACTIVE' OR csa.status IS NULL)
                 )
             ) ORDER BY s.name ASC
         ),
@@ -590,7 +605,7 @@ BEGIN
             sub.icon,
             sub.is_optional,
             CASE 
-                WHEN bool_or(csa.status = 'ACTIVE') THEN 'ACTIVE'
+                WHEN bool_or(csa.status = 'ACTIVE' OR csa.status IS NULL) THEN 'ACTIVE'
                 ELSE 'INACTIVE'
             END AS assignment_status,
             COALESCE(
@@ -605,6 +620,7 @@ BEGIN
         LEFT JOIN public.academic_sections sec ON sec.id = csa.section_id
         WHERE csa.class_id = p_class_id 
           AND csa.school_id = p_school_id
+          AND (csa.status = 'ACTIVE' OR csa.status IS NULL)
           AND (v_class.status = 'ARCHIVED' OR sub.deleted_at IS NULL)
         GROUP BY sub.id, sub.name, sub.code, sub.type, sub.description, sub.color, sub.icon, sub.is_optional
     ) s_agg;

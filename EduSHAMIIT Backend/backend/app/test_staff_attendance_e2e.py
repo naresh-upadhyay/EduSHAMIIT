@@ -38,8 +38,13 @@ async def run_tests():
         "school_id": school_id
     }
 
-    # Fetch 2 staff members
-    staff_rows = await exec_sql("SELECT id, full_name FROM public.profiles WHERE role IN ('teacher', 'faculty', 'instructor', 'staff') LIMIT 2;")
+    # Fetch 2 staff members belonging to this school
+    staff_rows = await exec_sql("SELECT id, full_name FROM public.profiles WHERE school_id = %s AND role IN ('teacher', 'faculty', 'instructor', 'staff') LIMIT 2;", (school_id,))
+    if len(staff_rows) < 2:
+        staff_rows = await exec_sql("SELECT id, full_name FROM public.profiles WHERE role IN ('teacher', 'faculty', 'instructor', 'staff') LIMIT 2;")
+        for s in staff_rows:
+            await exec_sql("UPDATE public.profiles SET school_id = %s WHERE id = %s;", (school_id, str(s["id"])))
+
     assert len(staff_rows) >= 2, "Need at least 2 staff profiles for testing"
     emp1_id = str(staff_rows[0]["id"])
     emp1_name = staff_rows[0]["full_name"]
@@ -47,9 +52,9 @@ async def run_tests():
     emp2_name = staff_rows[1]["full_name"]
 
     # Assign emp1 to report to manager_id
-    await exec_sql("UPDATE public.profiles SET manager_id = %s::UUID WHERE id = %s::UUID;", (manager_id, emp1_id))
+    await exec_sql("UPDATE public.profiles SET school_id = %s, manager_id = %s::UUID WHERE id = %s::UUID;", (school_id, manager_id, emp1_id))
     # Ensure emp2 does NOT report to manager_id
-    await exec_sql("UPDATE public.profiles SET manager_id = NULL WHERE id = %s::UUID;", (emp2_id,))
+    await exec_sql("UPDATE public.profiles SET school_id = %s, manager_id = NULL WHERE id = %s::UUID;", (school_id, emp2_id))
 
     logger.info(f"Using Manager: {manager_name} ({manager_id})")
     logger.info(f"Direct Report: {emp1_name} ({emp1_id})")
@@ -86,7 +91,7 @@ async def run_tests():
         current_user=admin_dict,
         school_id=school_id
     )
-    all_staff_ids = [s["employee_id"] for s in all_roster["data"]["staff"]]
+    all_staff_ids = [str(s.get("employee_id") or s.get("id") or s.get("user_id")) for s in all_roster["data"]["staff"]]
     logger.info(f"Total All Staff in Roster: {len(all_staff_ids)}")
     assert emp1_id in all_staff_ids
     assert emp2_id in all_staff_ids
@@ -104,7 +109,7 @@ async def run_tests():
         current_user=admin_dict,
         school_id=school_id
     )
-    my_staff_ids = [s["employee_id"] for s in my_roster["data"]["staff"]]
+    my_staff_ids = [str(s.get("employee_id") or s.get("id") or s.get("user_id")) for s in my_roster["data"]["staff"]]
     logger.info(f"Total Direct Reports in Roster: {len(my_staff_ids)}")
     assert emp1_id in my_staff_ids
     assert emp2_id not in my_staff_ids, "Non-direct report should not appear when filtered by manager"

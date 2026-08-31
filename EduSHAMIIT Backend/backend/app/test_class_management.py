@@ -130,8 +130,8 @@ def main():
 
     try:
         print("\n[Phase 1] Environment & Multi-Tenant Setup...")
-        run_query("INSERT INTO public.schools (id, name, address) VALUES (%s, %s, %s);", (school_a_id, "Apex International School", "Sector 62, Noida"), fetch=False)
-        run_query("INSERT INTO public.schools (id, name, address) VALUES (%s, %s, %s);", (school_b_id, "Beacon Academy", "MG Road, Gurgaon"), fetch=False)
+        run_query("INSERT INTO public.schools (id, name, address) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING;", (school_a_id, f"Apex International School {school_a_id[:6]}", "Sector 62, Noida"), fetch=False)
+        run_query("INSERT INTO public.schools (id, name, address) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING;", (school_b_id, f"Beacon Academy {school_b_id[:6]}", "MG Road, Gurgaon"), fetch=False)
 
         # Profiles in School A
         run_query("INSERT INTO public.profiles (id, user_id, school_id, email, full_name, role, employee_id) VALUES (%s, %s, %s, %s, %s, %s, %s);", 

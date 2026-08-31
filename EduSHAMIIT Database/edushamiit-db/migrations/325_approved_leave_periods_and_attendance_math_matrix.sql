@@ -1217,6 +1217,30 @@ BEGIN
     SELECT COALESCE(public.fn_get_class_academic_periods_for_date(p_school_id, p_date, p_class_id, p_section_id)->'data'->'schedules', '[]'::JSONB)
     INTO v_schedules_json;
 
+    -- If no academic calendar schedules exist, synthesize periods from existing attendance_period_records
+    IF jsonb_array_length(v_schedules_json) = 0 THEN
+        SELECT COALESCE(jsonb_agg(
+            jsonb_build_object(
+                'period_number', p_num,
+                'period_label', 'P' || p_num,
+                'section_period_number', p_num,
+                'section_period_label', 'P' || p_num,
+                'section_id', p_section_id,
+                'subject_id', NULL,
+                'schedule_id', NULL
+            ) ORDER BY p_num ASC
+        ), '[]'::jsonb)
+        INTO v_schedules_json
+        FROM (
+            SELECT DISTINCT period_number AS p_num
+            FROM public.attendance_period_records
+            WHERE school_id = p_school_id
+              AND class_id = p_class_id
+              AND (p_section_id IS NULL OR section_id = p_section_id OR section_id IS NULL)
+              AND attendance_date = p_date
+        ) dist_p;
+    END IF;
+
     -- Check if all-day attendance for this class/section/date is locked
     SELECT 
         COALESCE(BOOL_OR(a.is_locked), FALSE),
@@ -1430,12 +1454,11 @@ BEGIN
                     WHERE a.school_id = p_school_id
                       AND a.student_id = pb.student_id
                       AND a.attendance_date = p_date
-                      AND (
-                          (s_elem->>'schedule_id' IS NOT NULL AND a.schedule_id = (s_elem->>'schedule_id')::UUID)
-                          OR (s_elem->>'subject_id' IS NOT NULL AND a.subject_id = (s_elem->>'subject_id')::UUID)
-                          OR a.period_number = COALESCE((s_elem->>'section_period_number')::INT, (s_elem->>'period_number')::INT)
-                      )
-                    ORDER BY a.updated_at DESC
+                      AND a.period_number = COALESCE((s_elem->>'section_period_number')::INT, (s_elem->>'period_number')::INT)
+                    ORDER BY 
+                        CASE WHEN s_elem->>'schedule_id' IS NOT NULL AND a.schedule_id = (s_elem->>'schedule_id')::UUID THEN 1 ELSE 2 END,
+                        CASE WHEN s_elem->>'subject_id' IS NOT NULL AND a.subject_id = (s_elem->>'subject_id')::UUID THEN 1 ELSE 2 END,
+                        a.updated_at DESC
                     LIMIT 1
                 ) apr ON TRUE
                 WHERE (

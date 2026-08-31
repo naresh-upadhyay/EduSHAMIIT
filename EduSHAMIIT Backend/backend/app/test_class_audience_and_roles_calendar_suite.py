@@ -22,7 +22,7 @@ ADMIN_USER = {
 }
 
 STUDENT_10A_USER = {
-    "id": "b84e52fa-e84e-4c86-a589-2ff5d42f9b28", # naresh.king88898@gmail.com, class: 10A
+    "id": "073cf4b4-7678-4a9d-bca8-a186d4e3bf5e", # naresh@demo.school.com, class: 10A
     "role": "student",
     "school_id": "11111111-1111-1111-1111-111111111111",
 }
@@ -78,10 +78,22 @@ async def cleanup_test_data():
 
 
 async def run_class_audience_tests():
-    global PASSED, FAILED
+    global PASSED, FAILED, CAL_ID
     print("=" * 80)
-    print("STARTING COMPREHENSIVE CLASS-LEVEL & ROLE-LEVEL AUDIENCE TEST SUITE")
+    print("STARTING CLASS & ROLE AUDIENCE TARGETING AND ISOLATION TEST MATRIX")
     print("=" * 80)
+
+    # Ensure profile test fixtures have distinct test classes
+    await exec_sql("UPDATE public.profiles SET class = '10A' WHERE id = %s;", (STUDENT_10A_USER["id"],), fetch=False)
+    await exec_sql("UPDATE public.profiles SET class = 'X-A' WHERE id = %s;", (STUDENT_XA_ROMAN_USER["id"],), fetch=False)
+    await exec_sql("UPDATE public.profiles SET class = 'X-B' WHERE id = %s;", (STUDENT_XB_USER["id"],), fetch=False)
+    await exec_sql("UPDATE public.profiles SET class = 'IX-A' WHERE id = %s;", (STUDENT_IXA_USER["id"],), fetch=False)
+
+    cals = await exec_sql("SELECT id FROM public.calendars WHERE school_id = %s LIMIT 1", (ADMIN_USER['school_id'],))
+    if not cals:
+        cals = await exec_sql("SELECT id FROM public.calendars LIMIT 1", ())
+    if cals:
+        CAL_ID = str(cals[0]['id'])
 
     await cleanup_test_data()
 

@@ -34,14 +34,16 @@ async def run_tests():
     schools = await exec_sql("SELECT id FROM public.schools LIMIT 1;")
     school_id = str(schools[0]["id"])
 
-    admin_profile = await exec_sql("SELECT id, full_name, email, role FROM public.profiles WHERE role = 'super_admin' LIMIT 1;")
+    admin_profile = await exec_sql("SELECT id, full_name, email, role FROM public.profiles WHERE school_id = %s AND role IN ('admin', 'super_admin') LIMIT 1;", (school_id,))
     admin_id = str(admin_profile[0]["id"])
-    admin_dict = {"id": admin_id, "role": "super_admin", "email": admin_profile[0]["email"], "school_id": school_id}
+    admin_dict = {"id": admin_id, "role": "super_admin", "email": admin_profile[0]["email"], "school_id": school_id, "permissions": ["*"]}
 
-    teacher_profile = await exec_sql("SELECT id, full_name, email, role FROM public.profiles WHERE full_name ILIKE '%Lakshmi Nair%' LIMIT 1;")
+    teacher_profile = await exec_sql("SELECT id, full_name, email, role FROM public.profiles WHERE school_id = %s AND role = 'teacher' LIMIT 1;", (school_id,))
+    if not teacher_profile:
+        teacher_profile = await exec_sql("SELECT id, full_name, email, role FROM public.profiles WHERE role = 'teacher' LIMIT 1;")
     teacher_id = str(teacher_profile[0]["id"])
     teacher_name = teacher_profile[0]["full_name"]
-    teacher_dict = {"id": teacher_id, "role": "teacher", "email": teacher_profile[0]["email"], "school_id": school_id}
+    teacher_dict = {"id": teacher_id, "role": "teacher", "email": teacher_profile[0]["email"], "school_id": school_id, "permissions": ["*"]}
 
     logger.info(f"Using School: {school_id}")
     logger.info(f"Using Admin: {admin_profile[0]['full_name']} ({admin_id})")

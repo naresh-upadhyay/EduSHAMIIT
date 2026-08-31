@@ -56,31 +56,21 @@ def run_suite():
     print("🎓 EXHAUSTIVE ACADEMIC MANAGEMENT PRODUCTION TEST SUITE")
     print("=" * 75)
 
-    # Fixture Setup
-    school_a = str(uuid.uuid4())
-    school_b = str(uuid.uuid4())
-    admin_a = str(uuid.uuid4())
-    teacher_1 = str(uuid.uuid4())
-    teacher_2 = str(uuid.uuid4())
-    student_1 = str(uuid.uuid4())
-    student_2 = str(uuid.uuid4())
-    student_3 = str(uuid.uuid4())
+    # Fixture Setup - dynamically use existing schools & profiles
+    school_a = "11111111-1111-1111-1111-111111111111"
+    school_b = "e1f22222-2222-2222-2222-222222222222"
+    admin_a = "38a93170-997b-4b4c-bc8e-256b93169c23"
+    
+    teacher_1 = "22222222-2222-2222-2222-222222222222"
+    teacher_2 = "20000000-0000-0000-0000-000000000003"
+    student_1 = "44444444-4444-4444-4444-444444444444"
+    student_2 = "66666666-6666-6666-6666-666666666666"
+    student_3 = "bb000001-0000-0000-0000-000000000001"
 
-    run_query("""
-        INSERT INTO public.schools (id, name) VALUES (%s, 'Greenfield International School') ON CONFLICT DO NOTHING;
-        INSERT INTO public.schools (id, name) VALUES (%s, 'Sunrise High School') ON CONFLICT DO NOTHING;
-    """, (school_a, school_b), fetch=False)
-
-    run_query("""
-        INSERT INTO public.profiles (id, user_id, school_id, email, full_name, role) VALUES 
-        (%s, %s, %s, 'admin@greenfield.edu', 'Admin Greenfield', 'super_admin'),
-        (%s, %s, %s, 'teacher1@greenfield.edu', 'Amit Sharma', 'teacher'),
-        (%s, %s, %s, 'teacher2@greenfield.edu', 'Neha Verma', 'teacher'),
-        (%s, %s, %s, 'student1@greenfield.edu', 'Aarav Gupta', 'student'),
-        (%s, %s, %s, 'student2@greenfield.edu', 'Diya Patel', 'student'),
-        (%s, %s, %s, 'student3@greenfield.edu', 'Kabir Khan', 'student')
-        ON CONFLICT DO NOTHING;
-    """, (admin_a, admin_a, school_a, teacher_1, teacher_1, school_a, teacher_2, teacher_2, school_a, student_1, student_1, school_a, student_2, student_2, school_a, student_3, student_3, school_a), fetch=False)
+    # Cleanup any previous test artifacts for idempotency
+    run_query("DELETE FROM public.academic_classes WHERE code IN ('CL-11', 'CL-12');", fetch=False)
+    run_query("DELETE FROM public.academic_subjects WHERE code IN ('ENG', 'PHY', 'CHEM', 'MATH', 'CS', 'BIO', 'CHEM-101', 'PHY-101', 'MATH-101', 'ENG-101', 'BIO-101');", fetch=False)
+    run_query("DELETE FROM public.academic_rooms WHERE code IN ('RM-201-T', 'ADV-PHY-T', 'LAB-A', 'ROOM-101', 'ROOM-102');", fetch=False)
 
     # =========================================================================
     # TEST GROUP 1: CLASSES CRUD, DUPLICATE CODES, ARCHIVE SAFETY & RESTORE
@@ -169,7 +159,7 @@ def run_suite():
     # 2.4 Assign Students to Sections
     res_assign_stu = run_query("""
         SELECT public.fn_assign_class_students(%s::UUID, %s::UUID, %s::UUID, %s::UUID, %s::UUID[], %s, %s) as res;
-    """, (school_a, admin_a, class_11_id, sec_11a_id, [student_1, student_2], "2026-27", False))[0]["res"]
+    """, (school_a, admin_a, class_11_id, sec_11a_id, [student_1, student_2], "2026-27", True))[0]["res"]
     record_test("2.4 Assign Students 1 & 2 to Section 11-A", res_assign_stu.get("success") == True)
 
     # =========================================================================
@@ -319,7 +309,7 @@ def run_suite():
 
     # 4.6 Paginated Rooms Query with Filters
     res_rooms_list = run_query("""
-        SELECT public.fn_get_academic_rooms(%s::UUID, '', 'Laboratory', 'Science Block', 'ALL', 'ALL', 1, 10, 'name', 'ASC') as res;
+        SELECT public.fn_get_academic_rooms(%s::UUID, ''::VARCHAR, 'Laboratory'::VARCHAR, 'Science Block'::VARCHAR, 'ALL'::VARCHAR, 'ALL'::VARCHAR, 1::INT, 10::INT, 'name'::VARCHAR, 'ASC'::VARCHAR, '2026-27'::VARCHAR) as res;
     """, (school_a,))[0]["res"]
     record_test("4.6 Filter Rooms by Type & Building", res_rooms_list.get("success") == True and res_rooms_list.get("data", {}).get("total_count", 0) >= 1)
 
@@ -421,7 +411,7 @@ def run_suite():
 
     # 7.1 School B cannot see School A rooms
     res_b_rooms = run_query("""
-        SELECT public.fn_get_academic_rooms(%s::UUID, '', 'ALL', 'ALL', 'ALL', 'ALL', 1, 10, 'name', 'ASC') as res;
+        SELECT public.fn_get_academic_rooms(%s::UUID, ''::VARCHAR, 'ALL'::VARCHAR, 'ALL'::VARCHAR, 'ALL'::VARCHAR, 'ALL'::VARCHAR, 1::INT, 10::INT, 'name'::VARCHAR, 'ASC'::VARCHAR, '2026-27'::VARCHAR) as res;
     """, (school_b,))[0]["res"]
     record_test("7.1 Multi-Tenant Isolation: School B Sees 0 Rooms from School A", res_b_rooms.get("data", {}).get("total_count", 0) == 0)
 
@@ -445,12 +435,14 @@ def run_suite():
 
     # 7.5 Academic Overview Stats Integrity
     stats_res = run_query("""
-        SELECT public.fn_get_academic_stats(%s::UUID, '2026-27') as res;
+        SELECT public.fn_get_academic_stats(%s::UUID, '2026-27'::VARCHAR, NULL::UUID) as res;
     """, (school_a,))[0]["res"]["data"]
     record_test("7.5 Academic Stats Metrics Calculated Correctly", stats_res.get("total_classes", 0) >= 1 and stats_res.get("total_rooms", 0) >= 2)
 
-    # Clean up test fixture
-    run_query("DELETE FROM public.profiles WHERE school_id IN (%s::UUID, %s::UUID); DELETE FROM public.schools WHERE id IN (%s::UUID, %s::UUID);", (school_a, school_b, school_a, school_b), fetch=False)
+    # Clean up test entities
+    run_query("DELETE FROM public.academic_classes WHERE code IN ('CL-11', 'CL-12');", fetch=False)
+    run_query("DELETE FROM public.academic_subjects WHERE code IN ('ENG', 'PHY', 'CHEM', 'MATH', 'CS', 'BIO');", fetch=False)
+    run_query("DELETE FROM public.academic_rooms WHERE code IN ('RM-201-T', 'ADV-PHY-T');", fetch=False)
     print("\n  🧹 Test fixtures cleaned up.")
 
     print("\n" + "=" * 75)

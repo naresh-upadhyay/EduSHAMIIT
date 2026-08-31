@@ -898,6 +898,7 @@ DECLARE
     v_participants JSONB := '[]'::jsonb;
     v_resources JSONB := '[]'::jsonb;
     v_reminders JSONB := '[]'::jsonb;
+    v_comments JSONB := '[]'::jsonb;
     v_recurrence JSONB := NULL;
     v_res JSONB;
     v_trip_id UUID;
@@ -916,6 +917,24 @@ BEGIN
 
     SELECT * INTO v_cal FROM public.calendars WHERE id = v_sched.calendar_id;
     SELECT * INTO v_org FROM public.profiles WHERE id = v_sched.organizer_id;
+
+    -- Comments aggregation
+    SELECT COALESCE(jsonb_agg(
+        jsonb_build_object(
+            'id', sc.id,
+            'schedule_id', sc.schedule_id,
+            'user_id', sc.user_id,
+            'comment_text', sc.comment_text,
+            'user_name', p.full_name,
+            'user_avatar', p.avatar_url,
+            'created_at', sc.created_at,
+            'updated_at', sc.updated_at
+        ) ORDER BY sc.created_at ASC
+    ), '[]'::jsonb)
+    INTO v_comments
+    FROM public.schedule_comments sc
+    LEFT JOIN public.profiles p ON p.id = sc.user_id
+    WHERE sc.schedule_id = p_schedule_id OR (v_sched.recurring_parent_id IS NOT NULL AND sc.schedule_id = v_sched.recurring_parent_id);
 
     -- Participants aggregation: Deduplicated, with clear full_name for group and individual items
     SELECT COALESCE(jsonb_agg(
@@ -1038,7 +1057,8 @@ BEGIN
         'participants', v_participants,
         'resources', v_resources,
         'reminders', v_reminders,
-        'recurrence', v_recurrence
+        'recurrence', v_recurrence,
+        'comments', v_comments
     );
 
     RETURN jsonb_build_object(

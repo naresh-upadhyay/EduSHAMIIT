@@ -48,10 +48,19 @@ async def cleanup_test_data():
 
 
 async def run_all_tests():
-    global PASSED, FAILED
+    global PASSED, FAILED, CAL_ID, ROUTE_ID
     print("=" * 80)
     print("STARTING EXHAUSTIVE ALL-SCENARIOS TEST SUITE (CALENDAR, RECURRENCE, TIMEZONE, TRIPS)")
     print("=" * 80)
+
+    cals = await exec_sql("SELECT id FROM public.calendars WHERE school_id = %s LIMIT 1", (USER['school_id'],))
+    if not cals:
+        cals = await exec_sql("SELECT id FROM public.calendars LIMIT 1", ())
+    if cals:
+        CAL_ID = str(cals[0]['id'])
+    routes = await exec_sql("SELECT id FROM public.transport_routes LIMIT 1", ())
+    if routes:
+        ROUTE_ID = str(routes[0]['id'])
 
     await cleanup_test_data()
 

@@ -32,12 +32,17 @@ async def run_tests():
     # Clean test leaves
     await exec_sql("DELETE FROM public.leave_applications WHERE reason ILIKE '[TEST_ABSORB]%';")
 
+    lt_rows = await exec_sql("SELECT name, code FROM public.leave_types WHERE school_id = %s LIMIT 1;", (school_id,))
+    if not lt_rows:
+        lt_rows = await exec_sql("SELECT name, code FROM public.leave_types LIMIT 1;")
+    target_leave_type = lt_rows[0]["name"] if lt_rows else "Casual Leave"
+
     # Step 1: Apply Leave Request 1 (03 Nov to 05 Nov -> 3 billable days)
     logger.info("\n--- STEP 1: Apply Request 1 (03 Nov to 05 Nov) ---")
     res1 = await apply_leave(
         ApplyLeaveRequest(
             applicant_id=admin_id,
-            leave_type="MONK",
+            leave_type=target_leave_type,
             start_date="2026-11-03",
             end_date="2026-11-05",
             reason="[TEST_ABSORB] Short leave",
@@ -54,7 +59,7 @@ async def run_tests():
     res2 = await apply_leave(
         ApplyLeaveRequest(
             applicant_id=admin_id,
-            leave_type="MONK",
+            leave_type=target_leave_type,
             start_date="2026-11-02",
             end_date="2026-11-08",
             reason="[TEST_ABSORB] Superset leave",

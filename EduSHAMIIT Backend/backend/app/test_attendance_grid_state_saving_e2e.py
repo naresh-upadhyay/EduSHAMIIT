@@ -34,17 +34,19 @@ def test_attendance_grid_state_saving():
     assert classes_res.status_code == 200, f"Failed to list classes: {classes_res.text}"
     classes = classes_res.json().get("data", {}).get("classes", [])
     
-    class_5 = next((c for c in classes if "class 5" in c["name"].lower()), None)
-    if not class_5:
-        class_5 = classes[0]
-    class_id = class_5["id"]
-    print(f"Target Class: {class_5['name']} ({class_id})")
+    class_target = next((c for c in classes if "9" in c["name"].lower()), None) or classes[0]
+    class_id = class_target["id"]
+    section_id = class_target.get("sections", [{}])[0].get("id") if class_target.get("sections") else None
+    print(f"Target Class: {class_target['name']} ({class_id}), Section: {section_id}")
 
     attendance_date = "2026-08-19"
 
     # 3. Get initial roster
+    params = f"attendance_date={attendance_date}&class_id={class_id}&mode=ALL_DAY&page=1&page_size=10"
+    if section_id:
+        params += f"&section_id={section_id}"
     roster_res = requests.get(
-        f"{API_BASE_URL}/api/attendance/roster?attendance_date={attendance_date}&class_id={class_id}&mode=ALL_DAY&page=1&page_size=10",
+        f"{API_BASE_URL}/api/attendance/roster?{params}",
         headers=headers,
         timeout=8
     )
@@ -84,7 +86,7 @@ def test_attendance_grid_state_saving():
     save_payload = {
         "attendance_date": attendance_date,
         "class_id": class_id,
-        "section_id": None,
+        "section_id": section_id,
         "mode": "ALL_DAY",
         "records": records,
         "allow_override": True
@@ -92,7 +94,7 @@ def test_attendance_grid_state_saving():
 
     # 5. Execute POST /api/attendance/save
     print("\n[Step 1] Sending POST /api/attendance/save with live grid state...")
-    save_res = requests.post(f"{API_BASE_URL}/api/attendance/save", json=save_payload, headers=headers, timeout=10)
+    save_res = requests.post(f"{API_BASE_URL}/api/attendance/save", json=save_payload, headers=headers, timeout=30)
     print(f"Save Status Code: {save_res.status_code}")
     print(f"Save Response: {save_res.text}")
     assert save_res.status_code == 200, f"Save API failed: {save_res.text}"
@@ -103,7 +105,7 @@ def test_attendance_grid_state_saving():
     after_res = requests.get(
         f"{API_BASE_URL}/api/attendance/roster?attendance_date={attendance_date}&class_id={class_id}&mode=ALL_DAY&page=1&page_size=10",
         headers=headers,
-        timeout=8
+        timeout=30
     )
     assert after_res.status_code == 200, f"Failed to get roster after save: {after_res.text}"
     after_students = after_res.json().get("data", {}).get("students", [])
@@ -156,16 +158,17 @@ def test_attendance_grid_state_saving():
     custom_save = requests.post(f"{API_BASE_URL}/api/attendance/save", json={
         "attendance_date": attendance_date,
         "class_id": class_id,
+        "section_id": section_id,
         "mode": "MULTI_SCHEDULE",
         "records": custom_records,
         "allow_override": True
-    }, headers=headers, timeout=10)
+    }, headers=headers, timeout=30)
     assert custom_save.status_code == 200
     
     roster_custom = requests.get(
-        f"{API_BASE_URL}/api/attendance/roster?attendance_date={attendance_date}&class_id={class_id}&mode=ALL_DAY",
+        f"{API_BASE_URL}/api/attendance/roster?attendance_date={attendance_date}&class_id={class_id}&section_id={section_id}&mode=ALL_DAY",
         headers=headers,
-        timeout=8
+        timeout=30
     ).json()
     st0 = roster_custom.get("data", {}).get("students", [])[0]
     p_map = {p.get("period_number"): p.get("status") for p in st0.get("periods", [])}

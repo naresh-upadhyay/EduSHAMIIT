@@ -32,7 +32,7 @@ from datetime import date, datetime, timedelta
 from jose import jwt
 from app.config import settings
 
-API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8082")
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8000")
 
 test_results = []
 passed_count = 0

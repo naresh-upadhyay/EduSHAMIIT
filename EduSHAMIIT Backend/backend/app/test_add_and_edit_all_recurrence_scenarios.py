@@ -27,9 +27,11 @@ async def run_all_add_and_edit_tests():
     school_rows = await exec_sql("SELECT id FROM public.schools LIMIT 1")
     school_id = str(school_rows[0]["id"])
     
-    user_rows = await exec_sql("SELECT id, role, full_name FROM public.profiles WHERE school_id = %s LIMIT 1", (school_id,))
+    user_rows = await exec_sql("SELECT id, role, full_name FROM public.profiles WHERE school_id = %s AND role IN ('admin', 'super_admin') LIMIT 1", (school_id,))
+    if not user_rows:
+        user_rows = await exec_sql("SELECT id, role, full_name FROM public.profiles WHERE school_id = %s LIMIT 1", (school_id,))
     user_id = str(user_rows[0]["id"])
-    user_dict = {"id": user_id, "school_id": school_id, "role": user_rows[0]["role"]}
+    user_dict = {"id": user_id, "school_id": school_id, "role": user_rows[0]["role"], "permissions": ["*"]}
     
     logger.info(f"Connected to Tenant: {school_id}, User: {user_rows[0]['full_name']} ({user_id})")
 

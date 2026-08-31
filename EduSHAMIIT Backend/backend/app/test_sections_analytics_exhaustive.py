@@ -1,13 +1,14 @@
 import sys
+import os
 import requests
 import json
 import uuid
-import jwt
+from jose import jwt
 
-BASE_URL = "http://localhost:8082/api/classes"
+BASE_URL = os.environ.get("CLASSES_API_URL", "http://localhost:8000/api/classes")
 JWT_SECRET = "super-secret-jwt-token-with-at-least-32-characters-long"
 SCHOOL_ID = "11111111-1111-1111-1111-111111111111"
-USER_ID = "1ba9ee65-52cd-4c7d-b6bb-1c8291a2f825"
+USER_ID = "38a93170-997b-4b4c-bc8e-256b93169c23"
 
 def get_auth_headers():
     token = jwt.encode({

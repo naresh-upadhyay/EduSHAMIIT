@@ -18,7 +18,9 @@ async def run_all_tests():
         return
     school_id = str(school_rows[0]["id"])
     
-    user_rows = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE school_id = %s LIMIT 1", (school_id,))
+    user_rows = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE school_id = %s AND role IN ('admin', 'super_admin') LIMIT 1", (school_id,))
+    if not user_rows:
+        user_rows = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE school_id = %s LIMIT 1", (school_id,))
     if not user_rows:
         logger.error("No user found in database")
         return

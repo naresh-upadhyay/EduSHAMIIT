@@ -27,7 +27,7 @@ from app.api.calendar import (
 )
 
 SCHOOL_ID = "11111111-1111-1111-1111-111111111111"
-ADMIN_USER = {"id": "38a93170-997b-4b4c-bc8e-256b93169c23", "role": "super_admin", "school_id": SCHOOL_ID}
+ADMIN_USER = {"id": "38a93170-997b-4b4c-bc8e-256b93169c23", "role": "super_admin", "school_id": SCHOOL_ID, "permissions": ["*"]}
 DRIVER_USER = {"id": "33d93277-35a4-4b33-bdf1-9bf0f3c8b45a", "role": "driver", "school_id": SCHOOL_ID}
 TEACHER_USER = {"id": "22222222-2222-2222-2222-222222222222", "role": "teacher", "school_id": SCHOOL_ID}
 

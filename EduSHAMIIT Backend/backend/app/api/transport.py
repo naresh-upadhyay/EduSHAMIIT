@@ -3575,11 +3575,15 @@ async def get_trip_state(trip_id: str, user=Depends(require_driver_or_admin)):
             
     students = []
     if actual_route_id:
-        st_res = await sb.table("student_transport").select("*, profiles(*)").eq("transport_route_id", actual_route_id).aexecute()
-        student_assignments = st_res.data or []
-        if not student_assignments and route_id:
-            st_res2 = await sb.table("student_transport").select("*, profiles(*)").or_(f"route_id.eq.{route_id},transport_route_id.eq.{route_id}").aexecute()
-            student_assignments = st_res2.data or []
+        try:
+            student_assignments = await exec_sql("""
+                SELECT st.*, row_to_json(p.*) AS profiles
+                FROM public.student_transport st
+                LEFT JOIN public.profiles p ON p.id = st.student_id
+                WHERE st.transport_route_id = %s OR st.route_id = %s;
+            """, (actual_route_id, actual_route_id))
+        except Exception:
+            student_assignments = []
         
         st_logs_res = await sb.table("student_trip_logs").select("*").or_(f"trip_id.eq.{actual_trip_id},trip_id.eq.{trip_id}").aexecute()
         st_logs_map = {l["student_id"]: l for l in (st_logs_res.data or [])}

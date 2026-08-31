@@ -13,7 +13,7 @@ from psycopg2.extras import RealDictCursor
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
-    "postgresql://postgres:eduSHAMIIT2026_pg@supabase-db:5432/postgres"
+    "postgresql://postgres:eduSHAMIIT2026_pg@db:5432/postgres"
 )
 
 def get_db():
@@ -50,17 +50,25 @@ def run_tests():
     teacher_id = str(uuid.uuid4())
     student_10a_id = str(uuid.uuid4())
     student_9b_id = str(uuid.uuid4())
+    other_user_id = str(uuid.uuid4())
+
+    run_id = uuid.uuid4().hex[:8]
+    email_admin = f"notice_admin_{run_id}@example.internal"
+    email_principal = f"notice_principal_{run_id}@example.internal"
+    email_teacher = f"notice_teacher_{run_id}@example.internal"
+    email_s10a = f"notice_s10a_{run_id}@example.internal"
+    email_s9b = f"notice_s9b_{run_id}@example.internal"
 
     exec_sql(conn, """
         INSERT INTO public.profiles (id, user_id, school_id, email, full_name, role, class)
         VALUES 
-            (%s, %s, %s, 'notice_admin@test.com', 'Admin Test', 'admin', NULL),
-            (%s, %s, %s, 'notice_principal@test.com', 'Principal Test', 'principal', NULL),
-            (%s, %s, %s, 'notice_teacher@test.com', 'Teacher Test', 'teacher', NULL),
-            (%s, %s, %s, 'notice_student10a@test.com', 'Student 10A Test', 'student', 'Class 10A'),
-            (%s, %s, %s, 'notice_student9b@test.com', 'Student 9B Test', 'student', 'Class 9B')
+            (%s, %s, %s, %s, 'Admin Test', 'admin', NULL),
+            (%s, %s, %s, %s, 'Principal Test', 'principal', NULL),
+            (%s, %s, %s, %s, 'Teacher Test', 'teacher', NULL),
+            (%s, %s, %s, %s, 'Student 10A Test', 'student', 'Class 10A'),
+            (%s, %s, %s, %s, 'Student 9B Test', 'student', 'Class 9B')
         ON CONFLICT (id) DO NOTHING;
-    """, (admin_id, admin_id, school_id, principal_id, principal_id, school_id, teacher_id, teacher_id, school_id, student_10a_id, student_10a_id, school_id, student_9b_id, student_9b_id, school_id), fetch=False)
+    """, (admin_id, admin_id, school_id, email_admin, principal_id, principal_id, school_id, email_principal, teacher_id, teacher_id, school_id, email_teacher, student_10a_id, student_10a_id, school_id, email_s10a, student_9b_id, student_9b_id, school_id, email_s9b), fetch=False)
 
     passed_count = 0
     total_count = 0
@@ -208,9 +216,11 @@ def run_tests():
         # TEST 10: Multi-Tenant Isolation
         print("\n--- 10. MULTI-TENANT ISOLATION ---")
         other_school_id = str(uuid.uuid4())
-        exec_sql(conn, "INSERT INTO public.schools (id, name) VALUES (%s, 'Other Academy') ON CONFLICT DO NOTHING;", (other_school_id,), fetch=False)
+        other_school_code = f"OTH_{run_id[:4]}".upper()
+        exec_sql(conn, "INSERT INTO public.schools (id, name, code) VALUES (%s, 'Other Academy', %s) ON CONFLICT DO NOTHING;", (other_school_id, other_school_code), fetch=False)
         other_user_id = str(uuid.uuid4())
-        exec_sql(conn, "INSERT INTO public.profiles (id, user_id, school_id, email, full_name, role) VALUES (%s, %s, %s, 'other_student@test.com', 'Other Student', 'student') ON CONFLICT DO NOTHING;", (other_user_id, other_user_id, other_school_id), fetch=False)
+        other_email = f"other_student_{run_id}@example.internal"
+        exec_sql(conn, "INSERT INTO public.profiles (id, user_id, school_id, email, full_name, role) VALUES (%s, %s, %s, %s, 'Other Student', 'student') ON CONFLICT DO NOTHING;", (other_user_id, other_user_id, other_school_id, other_email), fetch=False)
 
         # TEST 10: Dynamic Roles and Classes Metadata Retrieval
         print("\n--- 10. DYNAMIC METADATA (ROLES & CLASSES FROM DB) ---")
@@ -222,9 +232,14 @@ def run_tests():
 
     finally:
         # Clean up test notices and audit logs
-        exec_sql(conn, "DELETE FROM public.notices WHERE school_id = %s;", (school_id,), fetch=False)
-        exec_sql(conn, "DELETE FROM public.profiles WHERE email LIKE '%%@test.com';", fetch=False)
-        conn.close()
+        try:
+            exec_sql(conn, "DELETE FROM public.notices WHERE school_id = %s;", (school_id,), fetch=False)
+            exec_sql(conn, "DELETE FROM public.profiles WHERE id IN (%s, %s, %s, %s, %s, %s);", (admin_id, principal_id, teacher_id, student_10a_id, student_9b_id, other_user_id), fetch=False)
+            exec_sql(conn, "DELETE FROM public.schools WHERE id = %s;", (other_school_id,), fetch=False)
+        except Exception:
+            pass
+        finally:
+            conn.close()
 
     print("\n================================================================================")
     print(f"📊 TEST SUITE SUMMARY: {passed_count}/{total_count} PASSED ({(passed_count/total_count*100):.1f}%)")

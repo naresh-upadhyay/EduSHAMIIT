@@ -12,14 +12,20 @@ async def run():
     # 1. Clean
     await exec_sql("DELETE FROM public.schedules WHERE title LIKE %s", ('%TEST_TRIP_RECUR%',), fetch=False)
 
-    # 2. Get route
+    # 2. Get route and calendar
     routes = await exec_sql("SELECT id FROM public.transport_routes LIMIT 1", ())
     route_id = str(routes[0]['id']) if routes else None
     print("Using Transport Route ID:", route_id)
 
+    cals = await exec_sql("SELECT id FROM public.calendars WHERE school_id = %s LIMIT 1", (user['school_id'],))
+    cal_id = str(cals[0]['id']) if cals else None
+    if not cal_id:
+        cals_any = await exec_sql("SELECT id FROM public.calendars LIMIT 1", ())
+        cal_id = str(cals_any[0]['id']) if cals_any else 'a95ead3e-4d13-46e5-af94-e4a3c545b4f6'
+
     # 3. Create single schedule with route
     req = ScheduleCreateRequest(
-        calendar_id='a95ead3e-4d13-46e5-af94-e4a3c545b4f6',
+        calendar_id=cal_id,
         title='TEST_TRIP_RECUR_Event',
         start_time='2026-08-10T03:00:00.000',
         end_time='2026-08-10T04:00:00.000',

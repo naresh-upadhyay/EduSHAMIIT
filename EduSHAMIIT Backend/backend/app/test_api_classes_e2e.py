@@ -7,11 +7,17 @@ import os
 import requests
 import json
 import uuid
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from jose import jwt
 from app.config import settings
 
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:eduSHAMIIT2026_pg@supabase-db:5432/postgres")
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8000")
 JWT_SECRET = getattr(settings, "JWT_SECRET", "super-secret-jwt-token-key-for-edushamiit-backend-auth")
+
+def get_db():
+    return psycopg2.connect(DATABASE_URL)
 
 def get_test_token(user_id: str, school_id: str, role: str = "super_admin", email: str = "admin@school.com"):
     payload = {
@@ -41,9 +47,17 @@ def run_e2e_tests():
     print("🌐 RUNNING FULL E2E HTTP API TEST SUITE: ACADEMIC CLASS MANAGEMENT")
     print("=" * 70)
 
-    school_id = "11111111-1111-1111-1111-111111111111"
-    user_id = "38a93170-997b-4b4c-bc8e-256b93169c23"
-    token = get_test_token(user_id, school_id, "super_admin", "mathematicsking888@gmail.com")
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT id, school_id, role, email FROM public.profiles WHERE school_id IS NOT NULL ORDER BY (role = 'super_admin') DESC LIMIT 1;")
+    user_row = cur.fetchone()
+    school_id = str(user_row["school_id"])
+    user_id = str(user_row["id"])
+    role = user_row.get("role") or "super_admin"
+    email = user_row.get("email") or "admin@school.com"
+    cur.close()
+    conn.close()
+    token = get_test_token(user_id, school_id, role, email)
 
     headers = {
         "Authorization": f"Bearer {token}",

@@ -28,6 +28,14 @@ async def clean_all_test_data():
     )
 
 async def run_all_scenarios():
+    global CALENDAR_ID, ROUTE_ID
+    cals = await exec_sql("SELECT id FROM public.calendars WHERE school_id = %s LIMIT 1", (USER['school_id'],))
+    if cals:
+        CALENDAR_ID = str(cals[0]['id'])
+    routes = await exec_sql("SELECT id FROM public.transport_routes LIMIT 1", ())
+    if routes:
+        ROUTE_ID = str(routes[0]['id'])
+
     await clean_all_test_data()
     print("=================================================================")
     print("RUNNING 45+ MASSIVE EXHAUSTIVE CALENDAR RECURRENCE, CRUD & CANCEL SCENARIOS")

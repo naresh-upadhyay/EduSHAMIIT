@@ -48,10 +48,18 @@ def run_e2e_tests():
     print("🌐 RUNNING FULL E2E HTTP API TEST SUITE (FASTAPI CONTAINER)")
     print("=" * 70)
 
-    # 1. Obtain Real User Context (King Doe / School 11111111-1111-1111-1111-111111111111)
-    school_id = "11111111-1111-1111-1111-111111111111"
-    user_id = "38a93170-997b-4b4c-bc8e-256b93169c23" # King Doe
-    token = get_test_token(user_id, school_id, "super_admin", "mathematicsking888@gmail.com")
+    # 1. Obtain Real User Context from database
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT id, school_id, role, email FROM public.profiles WHERE school_id IS NOT NULL ORDER BY (role = 'super_admin') DESC LIMIT 1;")
+    user_row = cur.fetchone()
+    school_id = str(user_row["school_id"])
+    user_id = str(user_row["id"])
+    role = user_row.get("role") or "super_admin"
+    email = user_row.get("email") or "admin@school.com"
+    cur.close()
+    conn.close()
+    token = get_test_token(user_id, school_id, role, email)
 
     headers = {
         "Authorization": f"Bearer {token}",

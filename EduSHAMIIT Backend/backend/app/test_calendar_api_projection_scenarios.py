@@ -24,9 +24,11 @@ async def run_api_projection_tests():
     school_rows = await exec_sql("SELECT id FROM public.schools LIMIT 1")
     school_id = str(school_rows[0]["id"])
     
-    user_rows = await exec_sql("SELECT id, role FROM public.profiles WHERE school_id = %s LIMIT 1", (school_id,))
+    user_rows = await exec_sql("SELECT id, role FROM public.profiles WHERE school_id = %s AND role IN ('admin', 'super_admin') LIMIT 1", (school_id,))
+    if not user_rows:
+        user_rows = await exec_sql("SELECT id, role FROM public.profiles WHERE school_id = %s LIMIT 1", (school_id,))
     user_id = str(user_rows[0]["id"])
-    user_dict = {"id": user_id, "school_id": school_id, "role": user_rows[0]["role"]}
+    user_dict = {"id": user_id, "school_id": school_id, "role": user_rows[0]["role"], "permissions": ["*"]}
     
     created_schedule_ids = []
 

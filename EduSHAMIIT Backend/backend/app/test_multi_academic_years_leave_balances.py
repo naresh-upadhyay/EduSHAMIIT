@@ -23,7 +23,9 @@ async def run_multi_academic_years_tests():
     logger.info("================================================================================")
 
     school_id = "11111111-1111-1111-1111-111111111111"
-    user_res = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE full_name ILIKE '%Lakshmi Nair%' LIMIT 1;")
+    user_res = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE school_id = %s AND role = 'teacher' LIMIT 1;", (school_id,))
+    if not user_res:
+        user_res = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE school_id = %s LIMIT 1;", (school_id,))
     user_id = str(user_res[0]["id"])
     current_user = {
         "id": user_id,
@@ -31,8 +33,11 @@ async def run_multi_academic_years_tests():
         "school_id": school_id,
         "permissions": ["*"]
     }
+    
+    admin_res = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE school_id = %s AND role IN ('admin', 'super_admin') LIMIT 1;", (school_id,))
+    admin_id = str(admin_res[0]["id"]) if admin_res else user_id
     admin_user = {
-        "id": "0b34bfcc-108b-4825-a9b7-80bfa5494dad",
+        "id": admin_id,
         "role": "super_admin",
         "school_id": school_id,
         "permissions": ["*"]
