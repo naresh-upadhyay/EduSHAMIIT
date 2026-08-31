@@ -56,7 +56,9 @@ BEGIN
       BEGIN
         INSERT INTO auth.users (
           id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
-          raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+          raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+          confirmation_token, recovery_token, email_change_token_new, email_change,
+          email_change_token_current, phone_change, phone_change_token, reauthentication_token
         ) VALUES (
           v_admin_id,
           '00000000-0000-0000-0000-000000000000',
@@ -68,8 +70,16 @@ BEGIN
           '{"provider":"email","providers":["email"]}'::jsonb,
           '{"role":"super_admin","full_name":"EduSHAMIIT Super Admin"}'::jsonb,
           NOW(),
-          NOW()
-        ) ON CONFLICT (id) DO NOTHING;
+          NOW(),
+          '', '', '', '', '', '', '', ''
+        ) ON CONFLICT (id) DO UPDATE SET
+          confirmation_token = COALESCE(auth.users.confirmation_token, ''),
+          recovery_token = COALESCE(auth.users.recovery_token, ''),
+          email_change_token_new = COALESCE(auth.users.email_change_token_new, ''),
+          email_change = COALESCE(auth.users.email_change, ''),
+          phone_change = COALESCE(auth.users.phone_change, ''),
+          phone_change_token = COALESCE(auth.users.phone_change_token, ''),
+          reauthentication_token = COALESCE(auth.users.reauthentication_token, '');
       EXCEPTION WHEN OTHERS THEN
         NULL;
       END;

@@ -18,7 +18,7 @@ import math
 # ─────────────────────────────────────────────────────────────────────────────
 # Configuration
 # ─────────────────────────────────────────────────────────────────────────────
-BASE_URL     = os.environ.get("BACKEND_URL", "http://127.0.0.1:80")
+BASE_URL     = os.environ.get("BACKEND_URL", "http://127.0.0.1:8082")
 API_BASE     = f"{BASE_URL}/api"
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "http://127.0.0.1:8000")
 SUPABASE_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
