@@ -445,6 +445,18 @@ final routerProvider = Provider<GoRouter>((ref) {
           pageBuilder: (_, __) => const NoTransitionPage(child: ClassManagementScreen()),
         ),
         GoRoute(
+          path: '/teacher/library',
+          pageBuilder: (_, __) => const NoTransitionPage(child: LibraryManagementScreen()),
+        ),
+        GoRoute(
+          path: '/academic/library',
+          pageBuilder: (_, __) => const NoTransitionPage(child: LibraryManagementScreen()),
+        ),
+        GoRoute(
+          path: '/library',
+          pageBuilder: (_, __) => const NoTransitionPage(child: LibraryManagementScreen()),
+        ),
+        GoRoute(
           path: '/teacher/my-classes/:classId/subjects',
           pageBuilder: (context, state) {
             final classId = state.pathParameters['classId']!;

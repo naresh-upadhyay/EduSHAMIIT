@@ -307,6 +307,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/classes',
             pageBuilder: (_, __) => const NoTransitionPage(child: ClassManagementScreen()),
           ),
+          GoRoute(
+            path: '/admin/library',
+            pageBuilder: (_, __) => const NoTransitionPage(child: LibraryManagementScreen()),
+          ),
+          GoRoute(
+            path: '/library',
+            pageBuilder: (_, __) => const NoTransitionPage(child: LibraryManagementScreen()),
+          ),
           // Sub-routes for the operational tabs
           GoRoute(
             path: '/admin/finance',
@@ -444,6 +452,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/attendance',
             pageBuilder: (_, __) => const NoTransitionPage(child: AttendanceManagementScreen()),
+          ),
+          GoRoute(
+            path: '/admin/library',
+            pageBuilder: (_, __) => const NoTransitionPage(child: LibraryManagementScreen()),
+          ),
+          GoRoute(
+            path: '/library',
+            pageBuilder: (_, __) => const NoTransitionPage(child: LibraryManagementScreen()),
           ),
           GoRoute(
             path: '/admin/parent-requests',

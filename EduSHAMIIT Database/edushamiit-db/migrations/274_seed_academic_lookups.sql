@@ -193,18 +193,21 @@ BEGIN
                 ON CONFLICT (lookup_key_id, value_code) WHERE deleted_at IS NULL DO NOTHING;
             END IF;
 
-            -- 10. ACADEMIC_YEAR
+            -- 10. FINANCIAL_YEAR
             INSERT INTO public.lookup_keys (school_id, key_name, key_code, description, key_type, icon, status, created_by)
-            VALUES (s.id, 'Academic Year', 'ACADEMIC_YEAR', 'Academic session years with effective date spans.', 'SYSTEM', 'calendar_today_rounded', 'ACTIVE', admin_id)
+            VALUES (s.id, 'Financial Year', 'FINANCIAL_YEAR', 'Fiscal budgeting and institutional procurement years.', 'SYSTEM', 'calendar_today_rounded', 'ACTIVE', admin_id)
             ON CONFLICT (school_id, key_code) WHERE deleted_at IS NULL DO UPDATE SET key_name = EXCLUDED.key_name
             RETURNING id INTO v_key_id;
 
             IF v_key_id IS NOT NULL THEN
                 INSERT INTO public.lookup_values (lookup_key_id, school_id, value_name, value_code, description, status, sort_order, created_by) VALUES
-                    (v_key_id, s.id, '2024-25', '2024_25', '2024-04-01 00:00:00 to 2025-03-31 23:59:59', 'INACTIVE', 1, admin_id),
-                    (v_key_id, s.id, '2025-26', '2025_26', '2025-04-01 00:00:00 to 2026-03-31 23:59:59', 'ACTIVE', 2, admin_id),
-                    (v_key_id, s.id, '2026-27', '2026_27', '2026-04-01 00:00:00 to 2027-03-31 23:59:59', 'ACTIVE', 3, admin_id),
-                    (v_key_id, s.id, '2027-28', '2027_28', '2027-04-01 00:00:00 to 2028-03-31 23:59:59', 'ACTIVE', 4, admin_id)
+                    (v_key_id, s.id, '2026-27', 'FY_2026_27', '2026-04-01 to 2027-03-31', 'ACTIVE', 1, admin_id),
+                    (v_key_id, s.id, '2025-26', 'FY_2025_26', '2025-04-01 to 2026-03-31', 'ACTIVE', 2, admin_id),
+                    (v_key_id, s.id, '2024-25', 'FY_2024_25', '2024-04-01 to 2025-03-31', 'ACTIVE', 3, admin_id),
+                    (v_key_id, s.id, '2023-24', 'FY_2023_24', '2023-04-01 to 2024-03-31', 'ACTIVE', 4, admin_id),
+                    (v_key_id, s.id, '2022-23', 'FY_2022_23', '2022-04-01 to 2023-03-31', 'ACTIVE', 5, admin_id),
+                    (v_key_id, s.id, '2021-22', 'FY_2021_22', '2021-04-01 to 2022-03-31', 'ACTIVE', 6, admin_id),
+                    (v_key_id, s.id, '2020-21', 'FY_2020_21', '2020-04-01 to 2021-03-31', 'ACTIVE', 7, admin_id)
                 ON CONFLICT (lookup_key_id, value_code) WHERE deleted_at IS NULL DO NOTHING;
             END IF;
 

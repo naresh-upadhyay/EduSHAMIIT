@@ -5,7 +5,7 @@ import os
 import time
 import asyncio
 
-from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, students_admin, teachers_admin, documents, calls, live_classes, superadmin, audit_logs, tickets, announcements, system_config, insights, contact, alerts, transport, gis, calendar, notices, lookups, classes, attendance
+from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, students_admin, teachers_admin, documents, calls, live_classes, superadmin, audit_logs, tickets, announcements, system_config, insights, contact, alerts, transport, gis, calendar, notices, lookups, classes, attendance, library
 
 
 @asynccontextmanager
@@ -431,6 +431,9 @@ app.include_router(classes.router, prefix="/api", tags=["Academic Class Manageme
 app.include_router(attendance.router, prefix="/api/attendance", tags=["Attendance Management"])
 app.include_router(attendance.router, prefix="/api/v1/attendance", tags=["Attendance Management v1"])
 app.include_router(attendance.router, prefix="/api", tags=["Attendance Management Core"])
+app.include_router(library.router, prefix="/api/library", tags=["Library Management"])
+app.include_router(library.router, prefix="/api/v1/library", tags=["Library Management v1"])
+app.include_router(library.router, prefix="/api", tags=["Library Management Core"])
 
 
 @app.get("/health")

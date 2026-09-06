@@ -106,6 +106,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         route: '/admin/attendance',
         section: NavSection.organization),
     _NavItem(
+        icon: Icons.local_library_outlined,
+        label: 'Library Management',
+        route: '/admin/library',
+        section: NavSection.organization),
+    _NavItem(
         icon: Icons.admin_panel_settings_outlined,
         label: 'Manage Roles',
         route: '/admin/roles',
@@ -332,6 +337,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/users' ||
                item.route == '/admin/classes' ||
                item.route == '/admin/attendance' ||
+               item.route == '/admin/library' ||
                item.route == '/admin/infra' ||
                item.route == '/admin/roles' ||
                item.route == '/admin/config' ||
@@ -360,6 +366,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/users' ||
                item.route == '/admin/classes' ||
                item.route == '/admin/attendance' ||
+               item.route == '/admin/library' ||
                item.route == '/admin/roles' ||
                item.route == '/admin/lookups' ||
                item.route == '/admin/finance' ||
@@ -379,6 +386,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/route-management' ||
                item.route == '/admin/trips-schedule' ||
                item.route == '/admin/stops';
+      } else if (role == 'librarian') {
+        return item.route == '/admin/dashboard' ||
+               item.route == '/admin/calendar' ||
+               item.route == '/admin/library' ||
+               item.route == '/admin/alerts-notifications' ||
+               item.route == '/admin/emergency' ||
+               item.route == '/admin/my-profile';
       } else if (role == 'transport') {
         return item.route == '/admin/dashboard' ||
                item.route == '/admin/calendar' ||

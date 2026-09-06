@@ -106,3 +106,22 @@ export 'screens/attendance/widgets/attendance_settings_tab.dart';
 export 'screens/attendance/widgets/drawers/student_attendance_drawer.dart';
 export 'screens/attendance/widgets/dialogs/attendance_override_dialog.dart';
 export 'screens/attendance/widgets/dialogs/attendance_confirmation_dialog.dart';
+
+// Shared Library Management Module
+export 'screens/library/library_management_screen.dart';
+export 'screens/library/models/book_models.dart';
+export 'screens/library/providers/book_provider.dart';
+export 'screens/library/services/library_api_service.dart';
+export 'screens/library/widgets/book_header_bar.dart';
+export 'screens/library/widgets/book_kpi_cards.dart';
+export 'screens/library/widgets/book_filter_bar.dart';
+export 'screens/library/widgets/book_table.dart';
+export 'screens/library/widgets/book_details_drawer.dart';
+export 'screens/library/widgets/dialogs/add_edit_book_dialog.dart';
+export 'screens/library/widgets/dialogs/add_copy_dialog.dart';
+export 'screens/library/widgets/dialogs/barcode_qr_dialog.dart';
+export 'screens/library/widgets/dialogs/import_books_dialog.dart';
+export 'screens/library/widgets/dialogs/scan_book_dialog.dart';
+export 'screens/library/widgets/dialogs/advanced_filter_dialog.dart';
+export 'screens/library/widgets/dialogs/bulk_operations_dialog.dart';
+

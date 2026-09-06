@@ -63,6 +63,10 @@ class TeacherShellScaffold extends ConsumerWidget {
         icon: Icons.videocam_rounded,
         label: 'Live Classes',
         route: '/teacher/live-classes'),
+    _NavItem(
+        icon: Icons.local_library_rounded,
+        label: 'Library',
+        route: '/teacher/library'),
 
     _NavItem(
         icon: Icons.people_rounded,

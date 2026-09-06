@@ -9,3 +9,17 @@ void jsAlert(String message) {
 void startWebRingtone() {}
 
 void stopWebRingtone() {}
+ 
+void printBookLabelHtml({
+  required String title,
+  required String isbn,
+  required String barcode,
+  required String accessionNumber,
+}) {
+  debugPrint('[Print Label Stub]: $title - $barcode');
+}
+
+void downloadFileWeb(String url, String filename) {
+  debugPrint('[Download File Stub]: $url -> $filename');
+}
+

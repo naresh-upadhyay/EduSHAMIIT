@@ -89,6 +89,7 @@ class AcademicLookupHelper {
   /// Preload all academic lookup keys in parallel
   Future<void> preloadAllAcademicLookups() async {
     await Future.wait([
+      getActiveLookup('FINANCIAL_YEAR'),
       getActiveLookup('ROOM_TYPE'),
       getActiveLookup('ROOM_STATUS'),
       getActiveLookup('CAMPUS_BUILDING'),
@@ -104,6 +105,17 @@ class AcademicLookupHelper {
 
   List<AcademicLookupItem> _getDefaultLookups(String keyCode) {
     switch (keyCode) {
+      case 'FINANCIAL_YEAR':
+        return const [
+          AcademicLookupItem(id: '1', code: 'FY_2026_27', label: '2026-27'),
+          AcademicLookupItem(id: '2', code: 'FY_2025_26', label: '2025-26'),
+          AcademicLookupItem(id: '3', code: 'FY_2024_25', label: '2024-25'),
+          AcademicLookupItem(id: '4', code: 'FY_2023_24', label: '2023-24'),
+          AcademicLookupItem(id: '5', code: 'FY_2022_23', label: '2022-23'),
+          AcademicLookupItem(id: '6', code: 'FY_2021_22', label: '2021-22'),
+          AcademicLookupItem(id: '7', code: 'FY_2020_21', label: '2020-21'),
+        ];
+
       case 'DEPARTMENT':
       case 'DEPARTMENTS':
         return const [

@@ -27,7 +27,7 @@ class _ClassHeaderBarState extends ConsumerState<ClassHeaderBar> {
   }
 
   Future<void> _loadAcademicYears() async {
-    final list = await AcademicLookupHelper.instance.getActiveLookup('ACADEMIC_YEAR');
+    final list = await AcademicLookupHelper.instance.getActiveLookup('FINANCIAL_YEAR');
     if (mounted) {
       setState(() {
         _academicYears = list;
@@ -45,13 +45,11 @@ class _ClassHeaderBarState extends ConsumerState<ClassHeaderBar> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final availableYearLabels = _academicYears.isNotEmpty
-        ? _academicYears.map((y) => y.label).toList()
-        : const ['2026-27', '2025-26', '2027-28'];
+    final availableYearLabels = _academicYears.map((y) => y.label).toList();
 
     final selectedYear = availableYearLabels.contains(state.academicYear)
         ? state.academicYear
-        : availableYearLabels.first;
+        : (availableYearLabels.isNotEmpty ? availableYearLabels.first : state.academicYear);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
