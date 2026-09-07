@@ -3442,6 +3442,36 @@ class ProcessLibraryRequestModel(BaseModel):
     copy_id: Optional[str] = None
 
 
+class RaiseIssueRequestModel(BaseModel):
+    book_id: str
+    required_by: Optional[str] = None
+    reason: Optional[str] = None
+    notes: Optional[str] = None
+    preferred_format: Optional[str] = "Physical"
+
+
+class ProcessIssueRequestModel(BaseModel):
+    action: str  # 'ISSUE', 'WAITING', 'REJECT'
+    copy_id: Optional[str] = None
+    copy_barcode: Optional[str] = None
+    issue_date: Optional[str] = None
+    due_date: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class RequestRenewModel(BaseModel):
+    reason: Optional[str] = None
+    new_due_date: Optional[str] = None
+
+
+class RequestReturnModel(BaseModel):
+    reason: Optional[str] = None
+
+
+class RejectBorrowRequestModel(BaseModel):
+    notes: Optional[str] = None
+
+
 class CirculationBulkActionRequest(BaseModel):
     borrow_ids: List[str]
     action: str  # 'SEND_REMINDER', 'MARK_REVIEWED'
@@ -3455,8 +3485,13 @@ async def get_circulation_stats(
     current_user: Dict[str, Any] = Depends(get_current_user),
 ):
     """Retrieve real-time aggregated metrics for the Issue / Return circulation dashboard."""
+    user_id = current_user.get("id")
+    role = current_user.get("role", "student")
     try:
-        res = await exec_sql("SELECT public.fn_library_get_circulation_stats(%s::uuid) AS stats;", (school_id,))
+        res = await exec_sql(
+            "SELECT public.fn_library_get_circulation_stats(%s::uuid, %s::uuid, %s) AS stats;",
+            (school_id, user_id, role)
+        )
         stats = res[0]["stats"] if (res and res[0].get("stats")) else {}
         return {"success": True, "data": _serialize_datetime(stats)}
     except Exception as e:
@@ -3550,6 +3585,8 @@ async def list_transactions(
     current_user: Dict[str, Any] = Depends(get_current_user),
 ):
     """List paginated circulation transactions with subtabs, searching, and filters."""
+    user_id = current_user.get("id")
+    role = current_user.get("role", "student")
     subtab_val = subtab if isinstance(subtab, str) else "ALL"
     status_val = status if isinstance(status, str) else "ALL"
     tx_type_val = transaction_type if isinstance(transaction_type, str) else "ALL"
@@ -3581,13 +3618,13 @@ async def list_transactions(
             SELECT public.fn_library_list_transactions(
                 %s::uuid, %s::text, %s::text, %s::text, %s::text, %s::text,
                 %s::date, %s::date, %s::int, %s::int, %s::text, %s::text,
-                %s::text, %s::text, %s::text
+                %s::text, %s::text, %s::text, %s::uuid, %s::text
             ) AS result;
             """,
             (
                 school_id, search_val, search_in_val, subtab_val.upper(), status_val.upper(),
                 tx_type_val, d_from, d_to, page, page_size, sort_by_val, sort_order_val,
-                fine_status_val, member_role_val, date_field_val
+                fine_status_val, member_role_val, date_field_val, user_id, role
             )
         )
 
@@ -3605,6 +3642,237 @@ async def list_transactions(
     except Exception as e:
         logger.exception("Error in list_transactions: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/transactions/raise-issue-request")
+async def raise_book_issue_request(
+    payload: RaiseIssueRequestModel,
+    school_id: str = Depends(require_school_id),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
+    """Raise a book issue borrow request from Books catalogue or Circulation tab."""
+    user_id = current_user.get("id")
+    req_date = None
+    if payload.required_by and payload.required_by.strip():
+        try:
+            req_date = date.fromisoformat(payload.required_by.strip())
+        except ValueError:
+            pass
+
+    try:
+        res = await exec_sql(
+            """
+            SELECT public.fn_library_raise_issue_request(
+                %s::uuid, %s::uuid, %s::uuid, %s::date, %s, %s, %s
+            ) AS result;
+            """,
+            (
+                school_id, user_id, payload.book_id, req_date,
+                payload.reason, payload.notes, payload.preferred_format
+            )
+        )
+        result = res[0]["result"] if (res and res[0].get("result")) else {}
+        return {"success": True, "message": result.get("message", "Book issue request submitted successfully."), "data": result}
+    except Exception as e:
+        logger.exception("Error in raise_book_issue_request: %s", e)
+        err_msg = str(e)
+        for line in err_msg.split("\n"):
+            if "EXCEPTION" in line or "RAISE" in line or "not found" in line:
+                clean_err = line.replace("ERROR:", "").replace("PL/pgSQL function", "").strip()
+                raise HTTPException(status_code=400, detail=clean_err)
+        raise HTTPException(status_code=400, detail=err_msg)
+
+
+@router.post("/transactions/{borrow_id}/process-request")
+async def process_issue_request(
+    borrow_id: str,
+    payload: ProcessIssueRequestModel,
+    school_id: str = Depends(require_school_id),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
+    """Librarian approves issue request with status (WAITING or ISSUED) or rejects it."""
+    user_id = current_user.get("id")
+    
+    iss_date = None
+    if payload.issue_date and payload.issue_date.strip():
+        try:
+            iss_date = date.fromisoformat(payload.issue_date.strip())
+        except ValueError:
+            pass
+
+    due_d = None
+    if payload.due_date and payload.due_date.strip():
+        try:
+            due_d = date.fromisoformat(payload.due_date.strip())
+        except ValueError:
+            pass
+
+    target_copy_id = payload.copy_id
+    if not target_copy_id and payload.copy_barcode and payload.copy_barcode.strip():
+        bc = payload.copy_barcode.strip()
+        copy_row = await exec_sql(
+            """
+            SELECT id FROM public.library_book_copies 
+            WHERE school_id = %s::uuid AND (barcode = %s OR accession_number = %s) AND is_deleted IS NOT TRUE
+            LIMIT 1;
+            """,
+            (school_id, bc, bc)
+        )
+        if copy_row and len(copy_row) > 0:
+            target_copy_id = str(copy_row[0]["id"])
+        else:
+            raise HTTPException(status_code=400, detail=f"Physical copy with barcode or accession number '{bc}' not found.")
+
+    try:
+        res = await exec_sql(
+            """
+            SELECT public.fn_library_process_issue_request(
+                %s::uuid, %s::uuid, %s, %s::uuid, %s::date, %s::date, %s::uuid, %s
+            ) AS result;
+            """,
+            (
+                school_id, borrow_id, payload.action.upper(),
+                target_copy_id, iss_date, due_d, user_id, payload.notes
+            )
+        )
+        result = res[0]["result"] if (res and res[0].get("result")) else {}
+        return {"success": True, "message": result.get("message", "Request processed successfully."), "data": result}
+    except Exception as e:
+        logger.exception("Error in process_issue_request: %s", e)
+        err_msg = str(e)
+        for line in err_msg.split("\n"):
+            if "No available physical copies" in line or "Cannot renew" in line or "Invalid action" in line:
+                raise HTTPException(status_code=400, detail=line.replace("ERROR:", "").strip())
+        raise HTTPException(status_code=400, detail=err_msg)
+
+
+@router.post("/transactions/{borrow_id}/request-renew")
+async def user_request_renew_loan(
+    borrow_id: str,
+    payload: RequestRenewModel,
+    school_id: str = Depends(require_school_id),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
+    """Student or Teacher raises a loan renewal request for librarian approval."""
+    user_id = current_user.get("id")
+    new_due = None
+    if payload.new_due_date and payload.new_due_date.strip():
+        try:
+            new_due = date.fromisoformat(payload.new_due_date.strip())
+        except ValueError:
+            pass
+
+    try:
+        res = await exec_sql(
+            """
+            SELECT public.fn_library_raise_renew_request(
+                %s::uuid, %s::uuid, %s::uuid, %s, %s::date
+            ) AS result;
+            """,
+            (school_id, borrow_id, user_id, payload.reason, new_due)
+        )
+        result = res[0]["result"] if (res and res[0].get("result")) else {}
+        return {"success": True, "message": result.get("message", "Renewal request submitted successfully."), "data": result}
+    except Exception as e:
+        logger.exception("Error in user_request_renew_loan: %s", e)
+        err_msg = str(e)
+        for line in err_msg.split("\n"):
+            if "renewal limit" in line or "Cannot renew" in line:
+                raise HTTPException(status_code=400, detail=line.replace("ERROR:", "").strip())
+        raise HTTPException(status_code=400, detail=err_msg)
+
+
+@router.post("/transactions/{borrow_id}/request-return")
+async def user_request_return_loan(
+    borrow_id: str,
+    payload: RequestReturnModel,
+    school_id: str = Depends(require_school_id),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
+    """Student or Teacher raises a book return request for librarian physical receipt & inspection."""
+    user_id = current_user.get("id")
+    try:
+        res = await exec_sql(
+            """
+            SELECT public.fn_library_raise_return_request(
+                %s::uuid, %s::uuid, %s::uuid, %s
+            ) AS result;
+            """,
+            (school_id, borrow_id, user_id, payload.reason)
+        )
+        result = res[0]["result"] if (res and res[0].get("result")) else {}
+        return {"success": True, "message": result.get("message", "Return request submitted successfully."), "data": result}
+    except Exception as e:
+        logger.exception("Error in user_request_return_loan: %s", e)
+        err_msg = str(e)
+        for line in err_msg.split("\n"):
+            if "Cannot request return" in line or "already pending" in line:
+                raise HTTPException(status_code=400, detail=line.replace("ERROR:", "").strip())
+        raise HTTPException(status_code=400, detail=err_msg)
+
+
+@router.post("/transactions/{borrow_id}/reject-request")
+async def reject_borrow_request(
+    borrow_id: str,
+    payload: RejectBorrowRequestModel,
+    school_id: str = Depends(require_school_id),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
+    """Librarian rejects a pending issue, renewal, or return circulation request."""
+    user_id = current_user.get("id")
+    try:
+        res = await exec_sql(
+            """
+            SELECT public.fn_library_reject_borrow_request(
+                %s::uuid, %s::uuid, %s::uuid, %s
+            ) AS result;
+            """,
+            (school_id, borrow_id, user_id, payload.notes)
+        )
+        result = res[0]["result"] if (res and res[0].get("result")) else {}
+        return {"success": True, "message": result.get("message", "Request rejected successfully."), "data": result}
+    except Exception as e:
+        logger.exception("Error in reject_borrow_request: %s", e)
+        err_msg = str(e)
+        for line in err_msg.split("\n"):
+            if "not found" in line or "Cannot reject" in line:
+                raise HTTPException(status_code=400, detail=line.replace("ERROR:", "").strip())
+        raise HTTPException(status_code=400, detail=err_msg)
+
+
+@router.delete("/transactions/{borrow_id}")
+async def delete_borrow_transaction(
+    borrow_id: str,
+    school_id: str = Depends(require_school_id),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
+    """Delete or cancel a borrow / renewal / return circulation request.
+    Allowed only if no librarian action has been taken (status is PENDING, REQUESTED, NEW, PENDING_RENEW, PENDING_RETURN).
+    """
+    user_id = current_user.get("id")
+    try:
+        res = await exec_sql(
+            """
+            SELECT public.fn_library_delete_borrow_request(
+                %s::uuid, %s::uuid, %s::uuid
+            ) AS result;
+            """,
+            (school_id, borrow_id, user_id)
+        )
+        result = res[0]["result"] if (res and res[0].get("result")) else {}
+        return {
+            "success": True,
+            "message": result.get("message", "Borrow request deleted successfully."),
+            "data": result
+        }
+    except Exception as e:
+        logger.exception("Error deleting borrow request: %s", e)
+        err_msg = str(e)
+        for line in err_msg.split("\n"):
+            if "Cannot delete request" in line or "Not authorized" in line or "Borrow request not found" in line:
+                raise HTTPException(status_code=400, detail=line.replace("ERROR:", "").strip())
+        raise HTTPException(status_code=400, detail=err_msg)
+
 
 
 
@@ -4592,6 +4860,41 @@ async def bulk_requests_action(
         "failed_count": len(errors),
         "errors": errors
     }
+
+
+@router.delete("/requests/{request_id}")
+async def delete_library_request(
+    request_id: str,
+    school_id: str = Depends(require_school_id),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
+    """Delete an acquisition/general library request.
+    Allowed only if no librarian action has been taken (status is NEW or PENDING).
+    """
+    user_id = current_user.get("id")
+    try:
+        res = await exec_sql(
+            """
+            SELECT public.fn_library_delete_request(
+                %s::uuid, %s::uuid, %s::uuid
+            ) AS result;
+            """,
+            (school_id, request_id, user_id)
+        )
+        result = res[0]["result"] if (res and res[0].get("result")) else {}
+        return {
+            "success": True,
+            "message": result.get("message", "Request deleted successfully."),
+            "data": result
+        }
+    except Exception as e:
+        logger.exception("Error deleting library request: %s", e)
+        err_msg = str(e)
+        for line in err_msg.split("\n"):
+            if "Cannot delete request" in line or "Not authorized" in line or "Request not found" in line:
+                raise HTTPException(status_code=400, detail=line.replace("ERROR:", "").strip())
+        raise HTTPException(status_code=400, detail=err_msg)
+
 
 
 

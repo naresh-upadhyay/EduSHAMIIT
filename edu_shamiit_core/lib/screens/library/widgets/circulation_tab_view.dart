@@ -9,15 +9,17 @@ import 'circulation_side_panels.dart';
 import 'circulation_table.dart';
 import 'circulation_details_drawer.dart';
 
+import 'package:edu_shamiit_core/providers/role_provider.dart';
+
 class CirculationTabView extends ConsumerWidget {
   const CirculationTabView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isLibraryAdmin = ref.watch(isLibraryAdminProvider);
     final state = ref.watch(circulationProvider);
     final notifier = ref.read(circulationProvider.notifier);
     final isDesktop = Responsive.isDesktop(context);
-
 
     // Toast/SnackBar feedback
     ref.listen<CirculationState>(circulationProvider, (previous, next) {
@@ -59,61 +61,71 @@ class CirculationTabView extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 1. 6 KPI Cards Row
+                // 1. KPI Cards Row
                 const CirculationKpiCards(),
 
-
-                // 3. Middle Section: Quick Cards + Filters + Side Panels
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isDesktop ? 28 : 16,
-                    vertical: 8,
-                  ),
-                  child: isDesktop
-                      ? const Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Left & Center Column: Quick Issue/Return & Search/Filters
-                            Expanded(
-                              flex: 5,
-                              child: Column(
-                                children: [
-                                  CirculationQuickIssueReturnCard(),
-                                  SizedBox(height: 14),
-                                  CirculationFilterSearchCard(),
-                                ],
+                // 2. Middle Section:
+                if (isLibraryAdmin) ...[
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isDesktop ? 28 : 16,
+                      vertical: 8,
+                    ),
+                    child: isDesktop
+                        ? const Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Left & Center Column: Quick Issue/Return & Search/Filters
+                              Expanded(
+                                flex: 5,
+                                child: Column(
+                                  children: [
+                                    CirculationQuickIssueReturnCard(),
+                                    SizedBox(height: 14),
+                                    CirculationFilterSearchCard(),
+                                  ],
+                                ),
                               ),
-                            ),
-                            SizedBox(width: 14),
+                              SizedBox(width: 14),
 
-                            // Middle Right Column: Raise Request & Scan Cards
-                            Expanded(
-                              flex: 3,
-                              child: CirculationQuickActionCards(),
-                            ),
-                            SizedBox(width: 14),
+                              // Middle Right Column: Raise Request & Scan Cards
+                              Expanded(
+                                flex: 3,
+                                child: CirculationQuickActionCards(),
+                              ),
+                              SizedBox(width: 14),
 
-                            // Far Right Column: Today's Activity + Overdue + Quick Actions
-                            Expanded(
-                              flex: 3,
-                              child: CirculationRightPanel(),
-                            ),
-                          ],
-                        )
-                      : const Column(
-                          children: [
-                            CirculationQuickIssueReturnCard(),
-                            SizedBox(height: 12),
-                            CirculationFilterSearchCard(),
-                            SizedBox(height: 12),
-                            CirculationQuickActionCards(),
-                            SizedBox(height: 12),
-                            CirculationRightPanel(),
-                          ],
-                        ),
-                ),
+                              // Far Right Column: Today's Activity + Overdue Summary
+                              Expanded(
+                                flex: 3,
+                                child: CirculationRightPanel(),
+                              ),
+                            ],
+                          )
+                        : const Column(
+                            children: [
+                              CirculationQuickIssueReturnCard(),
+                              SizedBox(height: 12),
+                              CirculationFilterSearchCard(),
+                              SizedBox(height: 12),
+                              CirculationQuickActionCards(),
+                              SizedBox(height: 12),
+                              CirculationRightPanel(),
+                            ],
+                          ),
+                  ),
+                ] else ...[
+                  // Non-Admin User View: Filter & Search Bar
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isDesktop ? 28 : 16,
+                      vertical: 8,
+                    ),
+                    child: const CirculationFilterSearchCard(),
+                  ),
+                ],
 
-                // 4. Main Circulation Transactions Table
+                // 3. Main Circulation Transactions Table
                 Padding(
                   padding: EdgeInsets.fromLTRB(
                     isDesktop ? 28 : 16,

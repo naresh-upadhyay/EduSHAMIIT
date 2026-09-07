@@ -19,6 +19,12 @@ void main() async {
   final container = ProviderContainer();
   // Await auth restoration before the app UI starts
   await container.read(authProvider.notifier).initialize();
+  final authState = container.read(authProvider);
+  if (authState.role != UserRole.unknown) {
+    container.read(roleProvider.notifier).setRole(authState.role);
+  } else if (authState.userData?['role'] != null) {
+    container.read(roleProvider.notifier).setRoleFromString(authState.userData!['role'].toString());
+  }
 
   runApp(
     UncontrolledProviderScope(

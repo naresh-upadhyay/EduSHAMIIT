@@ -558,7 +558,172 @@ class CirculationNotifier extends StateNotifier<CirculationState> {
     }
   }
 
+  /// User (Student/Teacher) raises an issue request for a book
+  Future<bool> raiseIssueRequest({
+    required String bookId,
+    String? requiredBy,
+    String? reason,
+    String? notes,
+    String preferredFormat = 'Physical',
+  }) async {
+    state = state.copyWith(isActionLoading: true);
+    try {
+      final res = await _apiService.raiseIssueRequest(
+        bookId: bookId,
+        requiredBy: requiredBy,
+        reason: reason,
+        notes: notes,
+        preferredFormat: preferredFormat,
+      );
+      state = state.copyWith(
+        isActionLoading: false,
+        successMessage: res['message']?.toString() ?? 'Book issue request submitted successfully.',
+      );
+      await Future.wait([fetchStats(), fetchTransactions(resetPage: true), fetchActivities()]);
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isActionLoading: false,
+        errorMessage: e.toString().replaceAll("Exception:", "").trim(),
+      );
+      return false;
+    }
+  }
+
+  /// Librarian processes an issue request (marks ISSUED with copy/dates, or WAITING with reason, or REJECT)
+  Future<bool> processIssueRequest(
+    String borrowId, {
+    required String action,
+    String? copyId,
+    String? copyBarcode,
+    String? issueDate,
+    String? dueDate,
+    String? notes,
+  }) async {
+    state = state.copyWith(isActionLoading: true);
+    try {
+      final res = await _apiService.processIssueRequest(
+        borrowId,
+        action: action,
+        copyId: copyId,
+        copyBarcode: copyBarcode,
+        issueDate: issueDate,
+        dueDate: dueDate,
+        notes: notes,
+      );
+      state = state.copyWith(
+        isActionLoading: false,
+        successMessage: res['message']?.toString() ?? 'Request processed successfully.',
+      );
+      await Future.wait([fetchStats(), fetchTransactions(resetPage: true), fetchActivities()]);
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isActionLoading: false,
+        errorMessage: e.toString().replaceAll("Exception:", "").trim(),
+      );
+      return false;
+    }
+  }
+
+  /// User raises loan renewal request for librarian approval
+  Future<bool> requestRenewLoan(
+    String borrowId, {
+    String? reason,
+    String? newDueDate,
+  }) async {
+    state = state.copyWith(isActionLoading: true);
+    try {
+      final res = await _apiService.requestRenewLoan(
+        borrowId,
+        reason: reason,
+        newDueDate: newDueDate,
+      );
+      state = state.copyWith(
+        isActionLoading: false,
+        successMessage: res['message']?.toString() ?? 'Loan renewal request submitted successfully.',
+      );
+      await Future.wait([fetchStats(), fetchTransactions(resetPage: true), fetchActivities()]);
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isActionLoading: false,
+        errorMessage: e.toString().replaceAll("Exception:", "").trim(),
+      );
+      return false;
+    }
+  }
+
+  /// User raises loan return request for librarian physical receipt & inspection
+  Future<bool> requestReturnLoan(
+    String borrowId, {
+    String? reason,
+  }) async {
+    state = state.copyWith(isActionLoading: true);
+    try {
+      final res = await _apiService.requestReturnLoan(
+        borrowId,
+        reason: reason,
+      );
+      state = state.copyWith(
+        isActionLoading: false,
+        successMessage: res['message']?.toString() ?? 'Book return request submitted successfully.',
+      );
+      await Future.wait([fetchStats(), fetchTransactions(resetPage: true), fetchActivities()]);
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isActionLoading: false,
+        errorMessage: e.toString().replaceAll("Exception:", "").trim(),
+      );
+      return false;
+    }
+  }
+
+  /// Librarian rejects an issue, renewal, or return circulation request
+  Future<bool> rejectBorrowRequest(
+    String borrowId, {
+    String? notes,
+  }) async {
+    state = state.copyWith(isActionLoading: true);
+    try {
+      final res = await _apiService.rejectBorrowRequest(
+        borrowId,
+        notes: notes,
+      );
+      state = state.copyWith(
+        isActionLoading: false,
+        successMessage: res['message']?.toString() ?? 'Request rejected successfully.',
+      );
+      await Future.wait([fetchStats(), fetchTransactions(resetPage: true), fetchActivities()]);
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isActionLoading: false,
+        errorMessage: e.toString().replaceAll("Exception:", "").trim(),
+      );
+      return false;
+    }
+  }
+
+  Future<bool> deleteBorrowRequest(String borrowId) async {
+    state = state.copyWith(isActionLoading: true);
+    try {
+      await _apiService.deleteBorrowRequest(borrowId);
+      await Future.wait([fetchStats(), fetchTransactions(), fetchActivities()]);
+      state = state.copyWith(isActionLoading: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isActionLoading: false,
+        errorMessage: e.toString().replaceAll("Exception:", "").trim(),
+      );
+      rethrow;
+    }
+  }
+
   Future<bool> bulkAction(String action, [Map<String, dynamic>? params]) async {
+
     if (state.selectedBorrowIds.isEmpty) return false;
     state = state.copyWith(isActionLoading: true);
     try {

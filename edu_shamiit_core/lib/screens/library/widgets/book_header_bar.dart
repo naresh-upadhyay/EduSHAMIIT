@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../providers/role_provider.dart';
 import '../providers/book_provider.dart';
 import 'dialogs/add_edit_book_dialog.dart';
 import 'dialogs/import_books_dialog.dart';
@@ -14,6 +15,8 @@ class BookHeaderBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(bookProvider);
     final notifier = ref.read(bookProvider.notifier);
+    final roleState = ref.watch(roleProvider);
+    final isLibraryAdmin = ref.watch(isLibraryAdminProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final isDesktop = Responsive.isDesktop(context);
@@ -93,61 +96,63 @@ class BookHeaderBar extends ConsumerWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Primary Add Book Button
-              ElevatedButton.icon(
-                icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text(
-                  'Add Book',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366F1), // Royal Purple / Indigo
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isDesktop ? 16 : 12,
-                    vertical: isDesktop ? 12 : 10,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) => const AddEditBookDialog(),
-                  );
-                },
-              ),
-
-              if (isDesktop) ...[
-                const SizedBox(width: 10),
-
-                // Import Button
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.file_upload_outlined, size: 17),
+              if (isLibraryAdmin) ...[
+                // Primary Add Book Button
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.add_rounded, size: 18),
                   label: const Text(
-                    'Import',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    'Add Book',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
                   ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
-                    backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    side: BorderSide(
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6366F1), // Royal Purple / Indigo
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isDesktop ? 16 : 12,
+                      vertical: isDesktop ? 12 : 10,
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   onPressed: () {
                     showDialog(
                       context: context,
-                      builder: (_) => const ImportBooksDialog(),
+                      builder: (_) => const AddEditBookDialog(),
                     );
                   },
                 ),
 
+                if (isDesktop) ...[
+                  const SizedBox(width: 10),
+
+                  // Import Button
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.file_upload_outlined, size: 17),
+                    label: const Text(
+                      'Import',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
+                      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      side: BorderSide(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => const ImportBooksDialog(),
+                      );
+                    },
+                  ),
+                ],
                 const SizedBox(width: 10),
+              ],
 
                 // Export Button
                 OutlinedButton.icon(
@@ -190,7 +195,6 @@ class BookHeaderBar extends ConsumerWidget {
                     }
                   },
                 ),
-              ],
 
               const SizedBox(width: 8),
 

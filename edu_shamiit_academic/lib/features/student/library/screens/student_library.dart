@@ -350,7 +350,9 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
       AzureGridColumn<LibraryBook>(
         label: 'Format',
         width: 100.0,
-        cellBuilder: (bk) => Text(bk.isDigital ? 'PDF' : 'Physical'),
+        cellBuilder: (bk) => Text(bk.hasBothEditions
+            ? 'Physical + Digital'
+            : (bk.hasDigitalEdition ? 'eBook / Digital' : 'Physical')),
       ),
       AzureGridColumn<LibraryBook>(
         label: 'Action',
@@ -439,7 +441,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
         } else if (_selectedTab == 1) {
           tabContent = AzureGrid<LibraryBook>(
             title: 'Browse Library Books',
-            items: libraryState.books.where((b) => !b.isDigital).toList(),
+            items: libraryState.books.where((b) => b.hasPhysicalEdition).toList(),
             columns: browseColumns,
             searchMatcher: (bk) =>
                 '${bk.title} ${bk.author} ${bk.isbn} ${bk.category}',
@@ -450,7 +452,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
         } else if (_selectedTab == 2) {
           tabContent = AzureGrid<LibraryBook>(
             title: 'Digital Library',
-            items: libraryState.books.where((b) => b.isDigital).toList(),
+            items: libraryState.books.where((b) => b.hasDigitalEdition).toList(),
             columns: digitalColumns,
             searchMatcher: (bk) => '${bk.title} ${bk.author} ${bk.category}',
             onRefresh: () =>
@@ -1054,7 +1056,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
   }
 
   List<Widget> _buildBrowseTab(LibraryState state) {
-    final physicalBooks = state.books.where((b) => !b.isDigital).toList();
+    final physicalBooks = state.books.where((b) => b.hasPhysicalEdition).toList();
 
     return [
       _buildAIPicksCard(state.recommendations),
@@ -1182,7 +1184,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
   }
 
   List<Widget> _buildDigitalTab(LibraryState state) {
-    final digitalBooks = state.books.where((b) => b.isDigital).toList();
+    final digitalBooks = state.books.where((b) => b.hasDigitalEdition).toList();
 
     if (digitalBooks.isEmpty) {
       return [
@@ -1790,7 +1792,9 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        book.isDigital ? '💻' : '📕',
+                        book.hasBothEditions
+                            ? '📚'
+                            : (book.hasDigitalEdition ? '💻' : '📕'),
                         style: const TextStyle(fontSize: 24),
                       ),
                     ),
@@ -1851,21 +1855,37 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                                 Icons.shelves,
                                 'Shelf: ${book.shelfLocation}',
                                 const Color(0xFFD97706)),
-                          _buildDetailChip(
-                            book.isDigital
-                                ? Icons.cloud_done_outlined
-                                : Icons.inventory_2_outlined,
-                            book.isDigital
-                                ? 'Digital eBook'
-                                : (book.availableCopies > 0
-                                    ? 'In Stock (${book.availableCopies} available)'
-                                    : 'Out of Stock'),
-                            book.isDigital
-                                ? const Color(0xFF0D9488)
-                                : (book.availableCopies > 0
-                                    ? const Color(0xFF059669)
-                                    : const Color(0xFFDC2626)),
-                          ),
+                          if (book.hasBothEditions) ...[
+                            _buildDetailChip(
+                              Icons.inventory_2_outlined,
+                              book.availableCopies > 0
+                                  ? 'Physical: ${book.availableCopies} available'
+                                  : 'Physical: Out of Stock',
+                              book.availableCopies > 0
+                                  ? const Color(0xFF059669)
+                                  : const Color(0xFFDC2626),
+                            ),
+                            _buildDetailChip(
+                              Icons.cloud_done_outlined,
+                              'Digital Edition Available',
+                              const Color(0xFF0D9488),
+                            ),
+                          ] else if (book.hasDigitalEdition)
+                            _buildDetailChip(
+                              Icons.cloud_done_outlined,
+                              'Digital Edition',
+                              const Color(0xFF0D9488),
+                            )
+                          else
+                            _buildDetailChip(
+                              Icons.inventory_2_outlined,
+                              book.availableCopies > 0
+                                  ? 'In Stock (${book.availableCopies} available)'
+                                  : 'Out of Stock',
+                              book.availableCopies > 0
+                                  ? const Color(0xFF059669)
+                                  : const Color(0xFFDC2626),
+                            ),
                         ],
                       ),
                       const SizedBox(height: 20),
@@ -1968,11 +1988,11 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                         ),
                       ),
                     ),
-                    if (!book.isDigital &&
+                    if (book.hasPhysicalEdition &&
                         book.availableCopies > 0 &&
                         !_isAlreadyBorrowed(book))
                       const SizedBox(width: 8),
-                    if (!book.isDigital &&
+                    if (book.hasPhysicalEdition &&
                         book.availableCopies > 0 &&
                         !_isAlreadyBorrowed(book))
                       ElevatedButton(
@@ -1989,13 +2009,13 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: const Text(
-                          'Borrow Book',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                        child: Text(
+                          book.hasDigitalEdition ? 'Borrow Hardcopy' : 'Borrow Book',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
-                    if (book.isDigital) const SizedBox(width: 8),
-                    if (book.isDigital)
+                    if (book.hasDigitalEdition) const SizedBox(width: 8),
+                    if (book.hasDigitalEdition)
                       ElevatedButton(
                         onPressed: () {
                           Navigator.pop(ctx);

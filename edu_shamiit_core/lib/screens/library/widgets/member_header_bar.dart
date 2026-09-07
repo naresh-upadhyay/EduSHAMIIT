@@ -5,6 +5,7 @@ import 'dialogs/add_member_dialog.dart';
 import 'dialogs/import_members_dialog.dart';
 import 'dialogs/bulk_members_dialog.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
+import 'package:edu_shamiit_core/providers/role_provider.dart';
 
 class MemberHeaderBar extends ConsumerWidget {
   const MemberHeaderBar({super.key});
@@ -13,6 +14,7 @@ class MemberHeaderBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(memberProvider);
     final notifier = ref.read(memberProvider.notifier);
+    final isLibraryAdmin = ref.watch(isLibraryAdminProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final isDesktop = Responsive.isDesktop(context);
@@ -87,42 +89,44 @@ class MemberHeaderBar extends ConsumerWidget {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              // + Add Member Button
-              ElevatedButton.icon(
-                icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text('Add Member', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366F1),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              if (isLibraryAdmin) ...[
+                // + Add Member Button
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Add Member', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6366F1),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => const AddMemberDialog(),
+                    );
+                  },
                 ),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) => const AddMemberDialog(),
-                  );
-                },
-              ),
 
-              // Import Button
-              OutlinedButton.icon(
-                icon: const Icon(Icons.file_upload_outlined, size: 16),
-                label: const Text('Import', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
-                  side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                // Import Button
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.file_upload_outlined, size: 16),
+                  label: const Text('Import', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
+                    side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => const ImportMembersDialog(),
+                    );
+                  },
                 ),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) => const ImportMembersDialog(),
-                  );
-                },
-              ),
+              ],
 
               // Export Button
               OutlinedButton.icon(
@@ -139,62 +143,58 @@ class MemberHeaderBar extends ConsumerWidget {
                 },
               ),
 
-              // More Actions Menu Button
-              PopupMenuButton<String>(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                    borderRadius: BorderRadius.circular(8),
+              if (isLibraryAdmin) ...[
+                // More Actions Menu Button
+                PopupMenuButton<String>(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.more_vert_rounded,
+                      size: 18,
+                      color: isDark ? Colors.white : const Color(0xFF334155),
+                    ),
                   ),
-                  child: Icon(
-                    Icons.more_vert_rounded,
-                    size: 18,
-                    color: isDark ? Colors.white : const Color(0xFF334155),
-                  ),
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  onSelected: (val) {
+                    if (val == 'bulk' && state.selectedMemberIds.isNotEmpty) {
+                      showDialog(
+                        context: context,
+                        builder: (_) => const BulkMembersDialog(),
+                      );
+                    } else if (val == 'refresh') {
+                      notifier.fetchMembers(resetPage: true);
+                    }
+                  },
+                  itemBuilder: (ctx) => [
+                    const PopupMenuItem(
+                      value: 'bulk',
+                      child: Row(
+                        children: [
+                          Icon(Icons.checklist_rounded, size: 18, color: Color(0xFF6366F1)),
+                          SizedBox(width: 10),
+                          Text('Bulk Member Actions', style: TextStyle(fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem(
+                      value: 'refresh',
+                      child: Row(
+                        children: [
+                          Icon(Icons.refresh_rounded, size: 18),
+                          SizedBox(width: 10),
+                          Text('Refresh Data', style: TextStyle(fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                onSelected: (val) {
-                  if (val == 'bulk' && state.selectedMemberIds.isNotEmpty) {
-                    showDialog(
-                      context: context,
-                      builder: (_) => const BulkMembersDialog(),
-                    );
-                  } else if (val == 'refresh') {
-                    notifier.fetchMembers(resetPage: true);
-                    notifier.fetchStats();
-                  }
-                },
-                itemBuilder: (ctx) => [
-                  PopupMenuItem(
-                    value: 'bulk',
-                    enabled: state.selectedMemberIds.isNotEmpty,
-                    child: Row(
-                      children: [
-                        const Icon(Icons.checklist_rtl_rounded, size: 18, color: Color(0xFF6366F1)),
-                        const SizedBox(width: 10),
-                        Text(
-                          state.selectedMemberIds.isNotEmpty
-                              ? 'Bulk Actions (${state.selectedMemberIds.length})'
-                              : 'Bulk Actions (Select rows)',
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'refresh',
-                    child: Row(
-                      children: [
-                        Icon(Icons.refresh_rounded, size: 18),
-                        SizedBox(width: 10),
-                        Text('Refresh Data', style: TextStyle(fontSize: 13)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ],
           ),
         ],

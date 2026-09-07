@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/request_models.dart';
 import '../providers/request_provider.dart';
 import 'dialogs/process_request_dialog.dart';
+import 'package:edu_shamiit_core/providers/role_provider.dart';
 
 class RequestDetailsDrawer extends ConsumerStatefulWidget {
   final VoidCallback onClose;
@@ -802,6 +803,9 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer> wit
     LibraryRequestItem req,
     RequestNotifier notifier,
   ) {
+    final isLibraryAdmin = ref.watch(isLibraryAdminProvider);
+    if (!isLibraryAdmin) return const SizedBox.shrink();
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(

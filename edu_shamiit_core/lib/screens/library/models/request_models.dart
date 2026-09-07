@@ -134,7 +134,7 @@ class LibraryRequestItem {
       status: (json['status']?.toString() ?? 'NEW').toUpperCase(),
       availabilityStatus: json['availability_status']?.toString() ?? 'AVAILABLE',
       approvalStatus: json['approval_status']?.toString() ?? 'NOT_REQUIRED',
-      requesterId: json['requester_user_id']?.toString() ?? json['student_id']?.toString(),
+      requesterId: json['requester_id']?.toString() ?? json['requester_user_id']?.toString() ?? json['student_id']?.toString(),
       requesterName: json['requester_name']?.toString() ?? 'Library Member',
       requesterRole: json['requester_role']?.toString() ?? 'student',
       requesterClass: json['requester_class']?.toString() ?? 'N/A',

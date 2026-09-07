@@ -102,6 +102,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           token: token,
           userData: userData,
         );
+        ref.read(roleProvider.notifier).setRole(role);
         // Initialize CallService for incoming call listener via callback
         final userId = userData?['id'] as String? ?? '';
         if (userId.isNotEmpty) {
@@ -298,6 +299,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await Supabase.instance.client.auth.signOut();
     } catch (_) {}
     await _clearSession();
+    ref.read(roleProvider.notifier).reset();
     state = AuthState();
   }
 

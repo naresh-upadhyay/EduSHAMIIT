@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'auth_provider.dart';
 
 /// User role enumeration
 enum UserRole {
@@ -72,11 +73,17 @@ extension UserRoleExtension on UserRole {
       case 'teacher':
         return UserRole.teacher;
       case 'admin':
+      case 'administrator':
+      case 'institution_admin':
+      case 'institutionadmin':
+      case 'school_admin':
         return UserRole.admin;
       case 'parent':
         return UserRole.parent;
       case 'super_admin':
       case 'superadmin':
+      case 'super admin':
+      case 'super-admin':
         return UserRole.superAdmin;
       case 'director':
         return UserRole.director;
@@ -89,6 +96,7 @@ extension UserRoleExtension on UserRole {
       case 'transport':
         return UserRole.transport;
       case 'library':
+      case 'librarian':
         return UserRole.library;
       case 'security':
         return UserRole.security;
@@ -151,6 +159,10 @@ class RoleState {
   bool get isHostel => role == UserRole.hostel;
   bool get isExamCtrl => role == UserRole.examCtrl;
   bool get isAuthenticated => role != UserRole.unknown;
+
+  /// Returns true if the user role is an administrative role or librarian with full CRUD permissions
+  bool get isLibraryAdmin =>
+      isSuperAdmin || isAdmin || isDirector || isPrincipal || isLibrary;
 }
 
 /// Role provider notifier
@@ -183,7 +195,47 @@ class RoleNotifier extends StateNotifier<RoleState> {
   }
 }
 
-/// Role provider
+/// Role provider - synchronized with authProvider
 final roleProvider = StateNotifierProvider<RoleNotifier, RoleState>((ref) {
-  return RoleNotifier();
+  final notifier = RoleNotifier();
+
+  final authState = ref.watch(authProvider);
+  if (authState.role != UserRole.unknown) {
+    notifier.setRole(authState.role);
+  } else if (authState.userData?['role'] != null) {
+    notifier.setRoleFromString(authState.userData!['role'].toString());
+  } else if (!authState.isAuthenticated) {
+    notifier.reset();
+  }
+
+  return notifier;
+});
+
+/// Dedicated provider to check if the current user has library administrative & full CRUD permissions
+final isLibraryAdminProvider = Provider<bool>((ref) {
+  final roleState = ref.watch(roleProvider);
+  if (roleState.isLibraryAdmin) return true;
+
+  final authState = ref.watch(authProvider);
+  if (authState.role == UserRole.superAdmin ||
+      authState.role == UserRole.admin ||
+      authState.role == UserRole.director ||
+      authState.role == UserRole.principal ||
+      authState.role == UserRole.library) {
+    return true;
+  }
+
+  final roleStr = authState.userData?['role']?.toString().toLowerCase().trim() ?? '';
+  return roleStr == 'super_admin' ||
+      roleStr == 'superadmin' ||
+      roleStr == 'super admin' ||
+      roleStr == 'super-admin' ||
+      roleStr == 'admin' ||
+      roleStr == 'administrator' ||
+      roleStr == 'institution_admin' ||
+      roleStr == 'school_admin' ||
+      roleStr == 'principal' ||
+      roleStr == 'director' ||
+      roleStr == 'library' ||
+      roleStr == 'librarian';
 });

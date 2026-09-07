@@ -180,12 +180,6 @@ class _VideobookPlayerDialogState extends ConsumerState<VideobookPlayerDialog> {
     });
   }
 
-  String _formatTime(double totalSec) {
-    final mins = (totalSec / 60).floor();
-    final secs = (totalSec % 60).floor();
-    return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
-  }
-
   @override
   Widget build(BuildContext context) {
     final activeAsset = (_videoAssets.isNotEmpty && _selectedAssetIndex >= 0 && _selectedAssetIndex < _videoAssets.length)

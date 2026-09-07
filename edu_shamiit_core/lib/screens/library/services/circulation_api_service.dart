@@ -132,6 +132,80 @@ class CirculationApiService {
     return await _api.post('/library/transactions/$borrowId/renew', body);
   }
 
+  /// Raise a book issue request from catalog or circulation tab
+  Future<Map<String, dynamic>> raiseIssueRequest({
+    required String bookId,
+    String? requiredBy,
+    String? reason,
+    String? notes,
+    String preferredFormat = 'Physical',
+  }) async {
+    final body = {
+      'book_id': bookId,
+      if (requiredBy != null && requiredBy.isNotEmpty) 'required_by': requiredBy,
+      if (reason != null && reason.isNotEmpty) 'reason': reason,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+      'preferred_format': preferredFormat,
+    };
+    return await _api.post('/library/transactions/raise-issue-request', body);
+  }
+
+  /// Librarian processes an issue request (marks as ISSUED with copy assignment, or WAITING with reason, or REJECT)
+  Future<Map<String, dynamic>> processIssueRequest(
+    String borrowId, {
+    required String action, // 'ISSUE', 'WAITING', 'REJECT'
+    String? copyId,
+    String? copyBarcode,
+    String? issueDate,
+    String? dueDate,
+    String? notes,
+  }) async {
+    final body = {
+      'action': action,
+      if (copyId != null && copyId.isNotEmpty) 'copy_id': copyId,
+      if (copyBarcode != null && copyBarcode.isNotEmpty) 'copy_barcode': copyBarcode,
+      if (issueDate != null && issueDate.isNotEmpty) 'issue_date': issueDate,
+      if (dueDate != null && dueDate.isNotEmpty) 'due_date': dueDate,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+    };
+    return await _api.post('/library/transactions/$borrowId/process-request', body);
+  }
+
+  /// User raises a loan renewal request for librarian approval
+  Future<Map<String, dynamic>> requestRenewLoan(
+    String borrowId, {
+    String? reason,
+    String? newDueDate,
+  }) async {
+    final body = {
+      if (reason != null && reason.isNotEmpty) 'reason': reason,
+      if (newDueDate != null && newDueDate.isNotEmpty) 'new_due_date': newDueDate,
+    };
+    return await _api.post('/library/transactions/$borrowId/request-renew', body);
+  }
+
+  /// User raises loan return request for librarian physical receipt & inspection
+  Future<Map<String, dynamic>> requestReturnLoan(
+    String borrowId, {
+    String? reason,
+  }) async {
+    final body = {
+      if (reason != null && reason.isNotEmpty) 'reason': reason,
+    };
+    return await _api.post('/library/transactions/$borrowId/request-return', body);
+  }
+
+  /// Librarian rejects an issue, renewal, or return request
+  Future<Map<String, dynamic>> rejectBorrowRequest(
+    String borrowId, {
+    String? notes,
+  }) async {
+    final body = {
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+    };
+    return await _api.post('/library/transactions/$borrowId/reject-request', body);
+  }
+
   /// Perform bulk action across selected transactions
   Future<Map<String, dynamic>> bulkAction({
     required List<String> borrowIds,
@@ -237,5 +311,12 @@ class CirculationApiService {
     };
     return await _api.post('/library/fines/$fineId/waive', body);
   }
+
+  /// Delete / cancel a borrow request
+  Future<Map<String, dynamic>> deleteBorrowRequest(String borrowId) async {
+    final res = await _api.delete('/library/transactions/$borrowId');
+    return res;
+  }
 }
+
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_core/providers/role_provider.dart';
 import '../models/book_models.dart';
 import '../providers/book_provider.dart';
 import 'dialogs/add_edit_book_dialog.dart';
@@ -9,6 +10,7 @@ import 'dialogs/ebook_reader_dialog.dart';
 import 'dialogs/audiobook_player_dialog.dart';
 import 'dialogs/videobook_player_dialog.dart';
 import 'dialogs/request_digital_access_dialog.dart';
+import 'dialogs/raise_book_issue_request_dialog.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
 import 'package:edu_shamiit_core/config/app_config.dart';
 
@@ -429,37 +431,79 @@ class _BookTableState extends ConsumerState<BookTable> {
                   SizedBox(
                     width: double.infinity,
                     height: 32,
-                    child: book.isDigital
-                        ? ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: formatColor,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              padding: EdgeInsets.zero,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            onPressed: () => _openDigitalViewer(context, book),
-                            icon: Icon(
-                              book.isAudiobook ? Icons.headphones : (book.isVideoBook ? Icons.play_arrow : Icons.auto_stories),
-                              size: 14,
-                            ),
-                            label: Text(
-                              book.isAudiobook ? 'Listen Now' : (book.isVideoBook ? 'Watch Lecture' : 'Read Now'),
-                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
-                            ),
+                    child: (book.hasBothEditions && book.isUnrestrictedDigital)
+                        ? Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: formatColor,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: EdgeInsets.zero,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                  onPressed: () => _openDigitalViewer(context, book),
+                                  icon: Icon(
+                                    book.isAudiobook ? Icons.headphones : (book.isVideoBook ? Icons.play_arrow : Icons.auto_stories),
+                                    size: 13,
+                                  ),
+                                  label: Text(
+                                    book.isAudiobook ? 'Listen' : (book.isVideoBook ? 'Watch' : 'Read'),
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                  onPressed: () => notifier.selectBookForDrawer(book.id),
+                                  child: Text(
+                                    '${book.availableCopies} Copies',
+                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF334155)),
+                                  ),
+                                ),
+                              ),
+                            ],
                           )
-                        : OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            onPressed: () => notifier.selectBookForDrawer(book.id),
-                            child: Text(
-                              '${book.availableCopies} Available',
-                              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF334155)),
-                            ),
-                          ),
+                        : (book.hasDigitalEdition && book.isUnrestrictedDigital)
+                            ? ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: formatColor,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: EdgeInsets.zero,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                onPressed: () => _openDigitalViewer(context, book),
+                                icon: Icon(
+                                  book.isAudiobook ? Icons.headphones : (book.isVideoBook ? Icons.play_arrow : Icons.auto_stories),
+                                  size: 14,
+                                ),
+                                label: Text(
+                                  book.isAudiobook ? 'Listen Now' : (book.isVideoBook ? 'Watch Lecture' : 'Read Now'),
+                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+                                ),
+                              )
+                            : OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                onPressed: () => notifier.selectBookForDrawer(book.id),
+                                child: Text(
+                                  book.hasPhysicalEdition
+                                      ? '${book.availableCopies} Available'
+                                      : (book.hasDigitalEdition ? 'Restricted Access' : 'View Details'),
+                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF334155)),
+                                ),
+                              ),
                   ),
                 ],
               ),
@@ -546,7 +590,7 @@ class _BookTableState extends ConsumerState<BookTable> {
           const SizedBox(width: 12),
           Expanded(flex: 10, child: _buildHeaderCell('Status', isDark)),
           const SizedBox(width: 12),
-          SizedBox(width: 140, child: _buildHeaderCell('Actions', isDark, alignment: Alignment.centerRight)),
+          SizedBox(width: 175, child: _buildHeaderCell('Actions', isDark, alignment: Alignment.centerRight)),
         ],
       ),
     );
@@ -569,6 +613,8 @@ class _BookTableState extends ConsumerState<BookTable> {
 
   Widget _buildTableRow(BookModel book, BookState state, BookNotifier notifier, bool isDark) {
     final isDrawerActive = state.selectedBook?.id == book.id && state.isDrawerOpen;
+    final roleState = ref.watch(roleProvider);
+    final isLibraryAdmin = ref.watch(isLibraryAdminProvider);
 
     Color formatColor = const Color(0xFF6366F1);
     if (book.isAudiobook) {
@@ -655,19 +701,25 @@ class _BookTableState extends ConsumerState<BookTable> {
                   flex: 16,
                   child: Text(
                     book.author,
-                    style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155)),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(width: 12),
 
-                // Category
+                // Category & Subject
                 Expanded(
                   flex: 14,
                   child: Text(
                     book.categoryName,
-                    style: TextStyle(fontSize: 12.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -677,25 +729,24 @@ class _BookTableState extends ConsumerState<BookTable> {
                 // Access / DRM
                 Expanded(
                   flex: 16,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: book.requiresPermission ? Colors.amber.withOpacity(0.15) : const Color(0xFF10B981).withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          book.requiresPermission ? '🔒 Permission Required' : '🌐 Open Access',
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700,
-                            color: book.requiresPermission ? Colors.amber[800] : const Color(0xFF10B981),
-                          ),
-                        ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: book.requiresPermission
+                          ? Colors.amber.withOpacity(0.15)
+                          : const Color(0xFF10B981).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      book.requiresPermission ? '🔒 Permission Req.' : '🌐 Open Access',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: book.requiresPermission ? Colors.amber[800] : const Color(0xFF10B981),
                       ),
-                    ],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -703,20 +754,40 @@ class _BookTableState extends ConsumerState<BookTable> {
                 // Copies
                 Expanded(
                   flex: 8,
-                  child: Text('${book.totalCopies}', style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                  child: Text(
+                    '${book.totalCopies}',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 12),
 
                 // Available
                 Expanded(
                   flex: 8,
-                  child: Text(
-                    '${book.availableCopies}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: book.availableCopies > 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                    ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: book.availableCopies > 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        '${book.availableCopies}',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: book.availableCopies > 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -730,80 +801,120 @@ class _BookTableState extends ConsumerState<BookTable> {
 
                 // Actions
                 SizedBox(
-                  width: 140,
+                  width: 175,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      // Quick Stream Action Button if Digital
-                      if (book.isDigital)
+                      // Quick Stream Action Button if Digital (Direct access if unrestricted, or for librarians)
+                      if (book.hasDigitalEdition && (book.isUnrestrictedDigital || isLibraryAdmin))
                         IconButton(
                           icon: Icon(
                             book.isAudiobook ? Icons.headphones : (book.isVideoBook ? Icons.play_circle_fill : Icons.menu_book),
                             size: 18,
                             color: const Color(0xFF6366F1),
                           ),
-                          tooltip: book.isAudiobook ? 'Listen In-App' : (book.isVideoBook ? 'Watch In-App' : 'Read eBook In-App'),
+                          tooltip: book.isAudiobook ? 'Direct Access: Listen In-App' : (book.isVideoBook ? 'Direct Access: Watch In-App' : 'Direct Access: Read eBook In-App'),
                           onPressed: () => _openDigitalViewer(context, book),
                           splashRadius: 18,
                           constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
                           padding: EdgeInsets.zero,
                         ),
 
-                      // Manage Digital Access Button
-                      IconButton(
-                        icon: const Icon(Icons.admin_panel_settings_outlined, size: 18),
-                        tooltip: 'Manage Digital Permissions',
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                        onPressed: () => notifier.openAccessDrawer(book),
-                        splashRadius: 18,
-                        constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-                        padding: EdgeInsets.zero,
-                      ),
+                      if (isLibraryAdmin) ...[
+                        // Manage Digital Access Button
+                        IconButton(
+                          icon: const Icon(Icons.admin_panel_settings_outlined, size: 18),
+                          tooltip: 'Manage Digital Permissions',
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          onPressed: () => notifier.openAccessDrawer(book),
+                          splashRadius: 18,
+                          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                          padding: EdgeInsets.zero,
+                        ),
 
-                      // Edit Button
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined, size: 18),
-                        tooltip: 'Edit Publication',
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (_) => AddEditBookDialog(book: book),
-                          );
-                        },
-                        splashRadius: 18,
-                        constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-                        padding: EdgeInsets.zero,
-                      ),
-
-                      // More Actions
-                      PopupMenuButton<String>(
-                        icon: Icon(Icons.more_vert_rounded, size: 18, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                        onSelected: (val) {
-                          if (val == 'copies') {
-                            showDialog(context: context, builder: (_) => AddCopyDialog(book: book));
-                          } else if (val == 'barcode') {
+                        // Edit Button
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          tooltip: 'Edit Publication',
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          onPressed: () {
                             showDialog(
                               context: context,
-                              builder: (_) => BarcodeQrDialog(
-                                title: book.title,
-                                isbn: book.displayIsbn,
-                                barcode: book.primaryBarcode ?? (book.primaryAccessionNumber ?? 'BC000001'),
-                                accessionNumber: book.primaryAccessionNumber ?? (book.primaryBarcode ?? 'ACC-0001'),
-                              ),
+                              builder: (_) => AddEditBookDialog(book: book),
                             );
-                          } else if (val == 'archive') {
-                            notifier.archiveBook(book.id);
-                          }
-                        },
-                        itemBuilder: (context) => [
-                          const PopupMenuItem(value: 'copies', child: Text('Manage Physical Copies')),
-                          const PopupMenuItem(value: 'barcode', child: Text('Print Barcodes / Labels')),
-                          const PopupMenuItem(value: 'archive', child: Text('Archive Title', style: TextStyle(color: Colors.red))),
-                        ],
-                      ),
+                          },
+                          splashRadius: 18,
+                          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                          padding: EdgeInsets.zero,
+                        ),
+
+                        // More Actions
+                        PopupMenuButton<String>(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                          icon: Icon(Icons.more_vert_rounded, size: 18, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          onSelected: (val) {
+                            if (val == 'copies') {
+                              showDialog(context: context, builder: (_) => AddCopyDialog(book: book));
+                            } else if (val == 'barcode') {
+                              showDialog(
+                                context: context,
+                                builder: (_) => BarcodeQrDialog(
+                                  title: book.title,
+                                  isbn: book.displayIsbn,
+                                  barcode: book.primaryBarcode ?? (book.primaryAccessionNumber ?? 'BC000001'),
+                                  accessionNumber: book.primaryAccessionNumber ?? (book.primaryBarcode ?? 'ACC-0001'),
+                                ),
+                              );
+                            } else if (val == 'archive') {
+                              notifier.archiveBook(book.id);
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(value: 'copies', child: Text('Manage Physical Copies')),
+                            const PopupMenuItem(value: 'barcode', child: Text('Print Barcodes / Labels')),
+                            const PopupMenuItem(value: 'archive', child: Text('Archive Title', style: TextStyle(color: Colors.red))),
+                          ],
+                        ),
+                      ] else ...[
+                        // Non-admin roles: Request button for physical hardcopy or restricted digital
+                        if (book.hasPhysicalEdition)
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.bookmark_add_rounded, size: 14),
+                            label: const Text('Request Hardcopy', style: TextStyle(fontSize: 11)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF6366F1),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                              minimumSize: const Size(0, 30),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            ),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) => RaiseBookIssueRequestDialog(book: book),
+                              );
+                            },
+                          )
+                        else if (book.hasDigitalEdition && !book.isUnrestrictedDigital)
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.lock_open_rounded, size: 14),
+                            label: const Text('Request Access', style: TextStyle(fontSize: 11)),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                              minimumSize: const Size(0, 30),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            ),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) => RaiseBookIssueRequestDialog(book: book),
+                              );
+                            },
+                          ),
+                      ],
                     ],
                   ),
                 ),

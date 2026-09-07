@@ -853,6 +853,12 @@ class LibraryBook {
       'recommendation_reason': recommendationReason,
     };
   }
+
+  bool get hasPhysicalEdition => totalCopies > 0;
+  bool get hasDigitalEdition =>
+      isDigital || (digitalUrl != null && digitalUrl!.trim().isNotEmpty);
+  bool get hasBothEditions => hasPhysicalEdition && hasDigitalEdition;
+  bool get isUnrestrictedDigital => hasDigitalEdition;
 }
 
 /// Live class model (student view)

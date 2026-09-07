@@ -31,8 +31,12 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
 
   // Step 2: Book & Copy
   final TextEditingController _bookSearchCtrl = TextEditingController();
+  final TextEditingController _copyBarcodeCtrl = TextEditingController();
   BookModel? _selectedBook;
   BookCopyModel? _selectedCopy;
+  List<BookCopyModel> _bookCopies = [];
+  bool _isLoadingCopies = false;
+  String _issueEditionType = 'PHYSICAL'; // 'PHYSICAL' or 'DIGITAL'
 
   // Step 3: Due Date & Notes
   DateTime _dueDate = DateTime.now().add(const Duration(days: 14));
@@ -51,10 +55,31 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
     }
   }
 
+  Future<void> _loadCopiesForBook(String bookId) async {
+    setState(() => _isLoadingCopies = true);
+    try {
+      final copies = await ref.read(libraryApiServiceProvider).fetchBookCopies(bookId);
+      final avail = copies.where((c) => c.status.toUpperCase() == 'AVAILABLE' || c.status.toUpperCase() == 'ACTIVE').toList();
+      if (mounted) {
+        setState(() {
+          _bookCopies = avail;
+          _isLoadingCopies = false;
+          if (_selectedCopy == null && avail.isNotEmpty) {
+            _selectedCopy = avail.first;
+            _copyBarcodeCtrl.text = avail.first.barcode;
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingCopies = false);
+    }
+  }
+
   @override
   void dispose() {
     _memberSearchCtrl.dispose();
     _bookSearchCtrl.dispose();
+    _copyBarcodeCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
   }
@@ -150,7 +175,9 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
                       foregroundColor: Colors.white,
                     ),
                     onPressed: (_currentStep == 0 && _selectedMember != null) ||
-                            (_currentStep == 1 && _selectedBook != null)
+                            (_currentStep == 1 &&
+                                _selectedBook != null &&
+                                (_issueEditionType == 'DIGITAL' || _selectedCopy != null || _copyBarcodeCtrl.text.trim().isNotEmpty))
                         ? () => setState(() => _currentStep++)
                         : null,
                     child: const Text('Next Step'),
@@ -312,16 +339,23 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
                   itemBuilder: (ctx, i) {
                     final b = filteredBooks[i];
                     final isSelected = _selectedBook?.id == b.id;
-                    final available = b.availableCopies > 0;
+                    final available = b.hasDigitalEdition || b.availableCopies > 0;
 
                     return ListTile(
                       selected: isSelected,
                       selectedTileColor: const Color(0xFF6366F1).withValues(alpha: 0.1),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       enabled: available,
-                      leading: const Icon(Icons.menu_book_rounded, color: Color(0xFF6366F1)),
+                      leading: Icon(
+                        b.hasDigitalEdition ? Icons.cloud_done_rounded : Icons.menu_book_rounded,
+                        color: const Color(0xFF6366F1),
+                      ),
                       title: Text(b.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                      subtitle: Text('${b.author} • Available: ${b.availableCopies}/${b.totalCopies}'),
+                      subtitle: Text(
+                        b.hasDigitalEdition && !b.hasPhysicalEdition
+                            ? '${b.author} • Digital Edition (eBook/Audio/Video)'
+                            : '${b.author} • Available: ${b.availableCopies}/${b.totalCopies}${b.hasDigitalEdition ? " + Digital" : ""}',
+                      ),
                       trailing: isSelected ? const Icon(Icons.check_circle, color: Color(0xFF6366F1)) : null,
 
                       onTap: available
@@ -329,13 +363,127 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
                               setState(() {
                                 _selectedBook = b;
                                 _selectedCopy = null;
+                                _copyBarcodeCtrl.clear();
+                                if (b.hasDigitalEdition && !b.hasPhysicalEdition) {
+                                  _issueEditionType = 'DIGITAL';
+                                } else if (b.hasBothEditions) {
+                                  _issueEditionType = b.availableCopies > 0 ? 'PHYSICAL' : 'DIGITAL';
+                                } else {
+                                  _issueEditionType = 'PHYSICAL';
+                                }
                               });
+                              if (_issueEditionType == 'PHYSICAL') {
+                                _loadCopiesForBook(b.id);
+                              }
                             }
                           : null,
                     );
                   },
                 ),
         ),
+
+        // Selected Book Edition & Barcode Section
+        if (_selectedBook != null) ...[
+          const SizedBox(height: 14),
+          if (_selectedBook!.hasBothEditions) ...[
+            Row(
+              children: [
+                const Text('Issue Edition: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                ChoiceChip(
+                  selected: _issueEditionType == 'PHYSICAL',
+                  label: const Text('Physical Copy'),
+                  avatar: const Icon(Icons.book_rounded, size: 14),
+                  selectedColor: const Color(0xFF6366F1).withOpacity(0.2),
+                  onSelected: (val) {
+                    if (val) {
+                      setState(() => _issueEditionType = 'PHYSICAL');
+                      _loadCopiesForBook(_selectedBook!.id);
+                    }
+                  },
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  selected: _issueEditionType == 'DIGITAL',
+                  label: const Text('Digital Edition'),
+                  avatar: const Icon(Icons.cloud_done_rounded, size: 14),
+                  selectedColor: const Color(0xFF10B981).withOpacity(0.2),
+                  onSelected: (val) {
+                    if (val) setState(() => _issueEditionType = 'DIGITAL');
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+          ],
+          if (_issueEditionType == 'DIGITAL') ...[
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withOpacity(0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.25)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.cloud_done_rounded, size: 18, color: Color(0xFF10B981)),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Digital Edition Selected (eBook / Video / Audio). No barcode or physical copy allocation required.',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF047857), fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            TextField(
+              controller: _copyBarcodeCtrl,
+              style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w700, fontSize: 13),
+              decoration: InputDecoration(
+                labelText: 'Physical Copy Barcode / Accession No. *',
+                hintText: 'Enter or scan physical copy barcode...',
+                prefixIcon: const Icon(Icons.qr_code_scanner_rounded, size: 18, color: Color(0xFF6366F1)),
+                filled: true,
+                fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+              onChanged: (val) {
+                final match = _bookCopies.where((c) =>
+                    c.barcode.trim().toLowerCase() == val.trim().toLowerCase() ||
+                    c.accessionNumber.trim().toLowerCase() == val.trim().toLowerCase()).firstOrNull;
+                if (match != null) {
+                  setState(() => _selectedCopy = match);
+                }
+              },
+            ),
+            if (_isLoadingCopies) ...[
+              const SizedBox(height: 6),
+              const LinearProgressIndicator(minHeight: 2),
+            ] else if (_bookCopies.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: _bookCopies.map((copy) {
+                  final isSelected = _selectedCopy?.id == copy.id || _copyBarcodeCtrl.text.trim() == copy.barcode;
+                  return ChoiceChip(
+                    selected: isSelected,
+                    selectedColor: const Color(0xFF6366F1).withOpacity(0.2),
+                    label: Text('${copy.barcode} (Copy #${copy.copyNumber})', style: const TextStyle(fontSize: 11)),
+                    onSelected: (val) {
+                      setState(() {
+                        _selectedCopy = copy;
+                        _copyBarcodeCtrl.text = copy.barcode;
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+            ],
+          ],
+        ],
       ],
     );
   }
@@ -357,6 +505,13 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
 
               const SizedBox(height: 6),
               _buildConfirmRow('Book:', _selectedBook?.title ?? '—'),
+              const SizedBox(height: 6),
+              _buildConfirmRow(
+                'Edition / Format:',
+                _issueEditionType == 'DIGITAL'
+                    ? 'Digital Edition (No Barcode)'
+                    : 'Physical Copy (${_copyBarcodeCtrl.text.isNotEmpty ? _copyBarcodeCtrl.text : (_selectedCopy?.barcode ?? "Selected")})',
+              ),
               const SizedBox(height: 6),
               _buildConfirmRow('Issue Date:', DateFormat('dd MMM yyyy').format(DateTime.now())),
             ],
@@ -430,12 +585,15 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
     if (_selectedMember == null || _selectedBook == null) return;
     setState(() => _isSubmitting = true);
 
+    final isDigital = _issueEditionType == 'DIGITAL' ||
+        (_selectedBook != null && _selectedBook!.hasDigitalEdition && !_selectedBook!.hasPhysicalEdition);
+
     final success = await ref.read(circulationProvider.notifier).issueBooks(
       memberId: _selectedMember!.id,
       items: [
         {
           'book_id': _selectedBook!.id,
-          'copy_id': _selectedCopy?.id,
+          'copy_id': isDigital ? null : _selectedCopy?.id,
           'due_date': DateFormat('yyyy-MM-dd').format(_dueDate),
         }
       ],

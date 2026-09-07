@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_core/providers/role_provider.dart';
+import 'package:edu_shamiit_core/providers/auth_provider.dart';
 import '../models/circulation_models.dart';
 import '../providers/circulation_provider.dart';
 import 'dialogs/quick_return_dialog.dart';
 import 'dialogs/renew_book_dialog.dart';
 import 'dialogs/fine_collection_dialog.dart';
+import 'dialogs/process_issue_request_dialog.dart';
+import 'dialogs/request_renew_dialog.dart';
+import 'dialogs/request_return_dialog.dart';
 
 class CirculationTable extends ConsumerStatefulWidget {
   const CirculationTable({super.key});
@@ -24,6 +29,12 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
 
   @override
   Widget build(BuildContext context) {
+    final isLibraryAdmin = ref.watch(isLibraryAdminProvider);
+    final authState = ref.watch(authProvider);
+    final currentUserId = authState.userData?['id']?.toString() ??
+        authState.userData?['profile_id']?.toString() ??
+        authState.userData?['user_id']?.toString();
+
     final state = ref.watch(circulationProvider);
     final notifier = ref.read(circulationProvider.notifier);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -80,8 +91,9 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
                           Divider(height: 1, thickness: 1, color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
                           ...state.transactions.map((tx) {
                             final isSelected = state.selectedBorrowIds.contains(tx.id);
-                            return _buildTableRow(context, tx, isSelected, notifier, isDark);
+                            return _buildTableRow(context, tx, isSelected, notifier, isDark, isLibraryAdmin, currentUserId);
                           }),
+
                         ],
                       ),
                     ),
@@ -113,22 +125,22 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
           SizedBox(
             width: 28,
             child: Checkbox(
-              value: state.transactions.isNotEmpty && state.selectedBorrowIds.length == state.transactions.length,
+              value: state.selectedBorrowIds.length == state.transactions.length && state.transactions.isNotEmpty,
               onChanged: (val) => notifier.selectAll(val ?? false),
             ),
           ),
           const SizedBox(width: 8),
 
           // 2. Transaction ID (flex: 13)
-          Expanded(flex: 13, child: _buildSortHeader('Transaction ID', 'transaction_code', state, notifier)),
+          Expanded(flex: 13, child: _buildSortHeader('Txn Code', 'transaction_code', state, notifier)),
           const SizedBox(width: 10),
 
           // 3. Member (flex: 18)
-          Expanded(flex: 18, child: _buildSortHeader('Member', 'member_name', state, notifier)),
+          Expanded(flex: 18, child: _buildSortHeader('Borrower / Member', 'member_name', state, notifier)),
           const SizedBox(width: 10),
 
           // 4. Book (flex: 20)
-          Expanded(flex: 20, child: _buildSortHeader('Book', 'book_title', state, notifier)),
+          Expanded(flex: 20, child: _buildSortHeader('Book Title', 'book_title', state, notifier)),
           const SizedBox(width: 10),
 
           // 5. Issue Date (flex: 11)
@@ -155,9 +167,9 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
           Expanded(flex: 11, child: _buildSortHeader('Type', 'transaction_type', state, notifier)),
           const SizedBox(width: 10),
 
-          // 11. Actions (width: 140)
+          // 11. Actions (width: 150)
           const SizedBox(
-            width: 140,
+            width: 150,
             child: Align(
               alignment: Alignment.centerRight,
               child: Text(
@@ -166,6 +178,7 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
               ),
             ),
           ),
+
         ],
       ),
     );
@@ -177,8 +190,18 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
     bool isSelected,
     CirculationNotifier notifier,
     bool isDark,
+    bool isLibraryAdmin,
+    String? currentUserId,
   ) {
+    final isPendingWithoutAction = ['PENDING', 'REQUESTED', 'NEW', 'PENDING_RENEW', 'PENDING_RETURN'].contains(tx.status.toUpperCase());
+    final isCreator = currentUserId != null &&
+        tx.memberUserId != null &&
+        currentUserId.trim().isNotEmpty &&
+        tx.memberUserId!.trim().toLowerCase() == currentUserId.trim().toLowerCase();
+    final canDeleteBorrow = isPendingWithoutAction && isCreator;
+
     return Container(
+
       decoration: BoxDecoration(
         color: isSelected
             ? const Color(0xFF6366F1).withValues(alpha: isDark ? 0.16 : 0.06)
@@ -375,39 +398,124 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
               ),
               const SizedBox(width: 10),
 
-              // 11. Actions (width: 140)
+              // 11. Actions (width: 150)
               SizedBox(
-                width: 140,
+                width: 150,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    if (tx.status == 'ISSUED' || tx.status == 'OVERDUE' || tx.status == 'RENEWED') ...[
-                      // Return Icon Button
+                    if (canDeleteBorrow)
                       IconButton(
-                        icon: const Icon(Icons.keyboard_return_rounded, size: 16, color: Color(0xFF10B981)),
-                        tooltip: 'Return Book',
+                        icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFEF4444)),
+                        tooltip: 'Delete / Cancel Request',
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (_) => QuickReturnDialog(initialBarcodeQuery: tx.copyBarcode),
-                          );
-                        },
+                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        onPressed: () => _confirmDeleteBorrow(context, tx, notifier),
                       ),
-                      // Renew Icon Button
-                      IconButton(
-                        icon: const Icon(Icons.autorenew_rounded, size: 16, color: Color(0xFF8B5CF6)),
-                        tooltip: 'Renew Book',
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (_) => RenewBookDialog(transaction: tx),
-                          );
-                        },
-                      ),
+                    if (isLibraryAdmin) ...[
+
+                      // Librarian Actions: Process Request to Issue
+                      if (tx.transactionType.toUpperCase() == 'REQUEST_TO_ISSUE' ||
+                          ['PENDING', 'WAITING', 'REQUESTED'].contains(tx.status.toUpperCase()))
+                        IconButton(
+                          icon: const Icon(Icons.assignment_turned_in_rounded, size: 18, color: Color(0xFF10B981)),
+                          tooltip: 'Process / Issue Request',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (_) => ProcessIssueRequestDialog(transaction: tx),
+                            );
+                          },
+                        ),
+                      // Librarian Actions: Process Renewal Request
+                      if (tx.transactionType.toUpperCase() == 'RENEW_REQUEST' ||
+                          tx.status.toUpperCase() == 'PENDING_RENEW')
+                        IconButton(
+                          icon: const Icon(Icons.autorenew_rounded, size: 18, color: Color(0xFF8B5CF6)),
+                          tooltip: 'Process / Renew Book',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (_) => RenewBookDialog(transaction: tx),
+                            );
+                          },
+                        ),
+                      // Librarian Actions: Process Return Request
+                      if (tx.transactionType.toUpperCase() == 'RETURN_REQUEST' ||
+                          tx.status.toUpperCase() == 'PENDING_RETURN')
+                        IconButton(
+                          icon: const Icon(Icons.keyboard_return_rounded, size: 18, color: Color(0xFF10B981)),
+                          tooltip: 'Process / Return Book',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (_) => QuickReturnDialog(
+                                initialBarcodeQuery: tx.copyBarcode,
+                                transaction: tx,
+                              ),
+                            );
+                          },
+                        ),
+                      if (['ISSUED', 'BORROWED', 'OVERDUE', 'RENEWED'].contains(tx.status.toUpperCase())) ...[
+                        // Return Icon Button
+                        IconButton(
+                          icon: const Icon(Icons.keyboard_return_rounded, size: 16, color: Color(0xFF10B981)),
+                          tooltip: 'Return Book',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (_) => QuickReturnDialog(
+                                initialBarcodeQuery: tx.copyBarcode,
+                                transaction: tx,
+                              ),
+                            );
+                          },
+                        ),
+                        // Renew Icon Button
+                        IconButton(
+                          icon: const Icon(Icons.autorenew_rounded, size: 16, color: Color(0xFF8B5CF6)),
+                          tooltip: 'Renew Book',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (_) => RenewBookDialog(transaction: tx),
+                            );
+                          },
+                        ),
+                      ],
+                    ] else ...[
+                      // Student / Teacher / Non-Admin Actions: Only for actively issued/borrowed/overdue/renewed
+                      if (['ISSUED', 'BORROWED', 'OVERDUE', 'RENEWED'].contains(tx.status.toUpperCase())) ...[
+                        IconButton(
+                          icon: const Icon(Icons.autorenew_rounded, size: 18, color: Color(0xFF8B5CF6)),
+                          tooltip: 'Request Renewal',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (_) => RequestRenewDialog(transaction: tx),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.keyboard_return_rounded, size: 18, color: Color(0xFF10B981)),
+                          tooltip: 'Request Return',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                          onPressed: () => _confirmRequestReturn(context, tx, notifier),
+                        ),
+                      ],
                     ],
                     // View Details
                     IconButton(
@@ -417,24 +525,26 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
                       constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
                       onPressed: () => notifier.openDetails(tx),
                     ),
-                    // More Actions Menu
-                    PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert_rounded, size: 16, color: Color(0xFF94A3B8)),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                      onSelected: (val) {
-                        if (val == 'fine') {
-                          showDialog(context: context, builder: (_) => FineCollectionDialog(memberId: tx.memberId));
-                        } else if (val == 'details') {
-                          notifier.openDetails(tx);
-                        }
-                      },
-                      itemBuilder: (ctx) => [
-                        const PopupMenuItem(value: 'details', child: Text('View Details Drawer')),
-                        if (tx.fineAmount > 0)
-                          const PopupMenuItem(value: 'fine', child: Text('Collect / Settle Fine')),
-                      ],
-                    ),
+                    if (isLibraryAdmin) ...[
+                      // More Actions Menu (Fine collection, etc.)
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert_rounded, size: 16, color: Color(0xFF94A3B8)),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        onSelected: (val) {
+                          if (val == 'fine') {
+                            showDialog(context: context, builder: (_) => FineCollectionDialog(memberId: tx.memberId));
+                          } else if (val == 'details') {
+                            notifier.openDetails(tx);
+                          }
+                        },
+                        itemBuilder: (ctx) => [
+                          const PopupMenuItem(value: 'details', child: Text('View Details Drawer')),
+                          if (tx.fineAmount > 0)
+                            const PopupMenuItem(value: 'fine', child: Text('Collect / Settle Fine')),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -482,6 +592,7 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
                       (key == 'ISSUED' && state.subtab == 'ISSUED_TODAY') ||
                       (key == 'RETURNED' && state.subtab == 'RETURNED_TODAY') ||
                       (key == 'ALL' && state.subtab == 'FINES');
+                  final count = state.subtabCounts[key] ?? state.subtabCounts[key.toUpperCase()];
 
                   return InkWell(
                     onTap: () => notifier.setSubtab(key),
@@ -496,15 +607,42 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
                           ),
                         ),
                       ),
-                      child: Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
-                          color: isActive
-                              ? (isDark ? Colors.white : const Color(0xFF0F172A))
-                              : const Color(0xFF94A3B8),
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            label,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+                              color: isActive
+                                  ? (isDark ? Colors.white : const Color(0xFF0F172A))
+                                  : const Color(0xFF94A3B8),
+                            ),
+                          ),
+                          if (count != null) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: isActive
+                                    ? const Color(0xFF6366F1).withValues(alpha: 0.15)
+                                    : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '$count',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: isActive
+                                      ? const Color(0xFF6366F1)
+                                      : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   );
@@ -588,22 +726,27 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
   }
 
   Widget _buildStatusBadge(String status) {
+    final s = status.toUpperCase();
     Color bg = const Color(0xFF3B82F6).withValues(alpha: 0.12);
     Color fg = const Color(0xFF3B82F6);
 
-    if (status == 'RETURNED') {
+    if (s == 'RETURNED') {
       bg = const Color(0xFF10B981).withValues(alpha: 0.12);
       fg = const Color(0xFF10B981);
-    } else if (status == 'OVERDUE' || status == 'LOST') {
+    } else if (s == 'OVERDUE' || s == 'LOST' || s == 'REJECTED') {
       bg = const Color(0xFFEF4444).withValues(alpha: 0.12);
       fg = const Color(0xFFEF4444);
-    } else if (status == 'RENEWED') {
+    } else if (s == 'RENEWED') {
       bg = const Color(0xFF8B5CF6).withValues(alpha: 0.12);
       fg = const Color(0xFF8B5CF6);
-    } else if (status == 'DAMAGED' || status == 'PENDING') {
+    } else if (s == 'DAMAGED' || s == 'PENDING' || s == 'WAITING' || s == 'REQUESTED' || s == 'PENDING_RENEW' || s == 'PENDING_RETURN') {
       bg = const Color(0xFFF59E0B).withValues(alpha: 0.12);
       fg = const Color(0xFFF59E0B);
     }
+
+    String displayLabel = s;
+    if (s == 'PENDING_RENEW') displayLabel = 'RENEW REQ';
+    if (s == 'PENDING_RETURN') displayLabel = 'RETURN REQ';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -612,16 +755,18 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        status,
+        displayLabel,
         style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: fg),
       ),
     );
   }
 
   IconData _getTypeIcon(String type) {
-    if (type == 'REQUEST_APPROVED') return Icons.check_circle_outline_rounded;
-    if (type == 'MANUAL_RETURN') return Icons.assignment_return_outlined;
-    if (type == 'RENEWED') return Icons.autorenew_rounded;
+    final t = type.toUpperCase();
+    if (t == 'REQUEST_APPROVED') return Icons.check_circle_outline_rounded;
+    if (t.contains('RETURN')) return Icons.assignment_return_outlined;
+    if (t.contains('RENEW')) return Icons.autorenew_rounded;
+    if (t.contains('ISSUE') || t.contains('REQUEST')) return Icons.outbox_rounded;
     return Icons.menu_book_rounded;
   }
 
@@ -713,4 +858,130 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
       ),
     );
   }
+
+  Future<void> _confirmDeleteBorrow(
+    BuildContext context,
+    LibraryTransactionModel tx,
+    CirculationNotifier notifier,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEE2E2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Delete Borrow Request',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Are you sure you want to cancel and delete this circulation request? This action cannot be undone.',
+              style: TextStyle(fontSize: 13.5, color: Color(0xFF475569), height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.book_rounded, size: 18, color: Color(0xFF64748B)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          tx.transactionCode,
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF94A3B8)),
+                        ),
+                        Text(
+                          tx.bookTitle,
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        await notifier.deleteBorrowRequest(tx.id);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Borrow request ${tx.transactionCode} deleted successfully.'),
+              backgroundColor: const Color(0xFF10B981),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          final errorText = e.toString().replaceAll(RegExp(r'^(ApiException:|Exception:|\s*Api)+', caseSensitive: false), '').trim();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorText.isNotEmpty ? errorText : 'Failed to delete borrow request.'),
+              backgroundColor: const Color(0xFFEF4444),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _confirmRequestReturn(
+    BuildContext context,
+    LibraryTransactionModel tx,
+    CirculationNotifier notifier,
+  ) async {
+    await RequestReturnDialog.show(context, transaction: tx);
+  }
 }
+
+

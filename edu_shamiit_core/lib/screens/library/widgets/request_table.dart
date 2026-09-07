@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import '../models/request_models.dart';
 import '../providers/request_provider.dart';
 import 'dialogs/process_request_dialog.dart';
+import 'package:edu_shamiit_core/providers/role_provider.dart';
+import 'package:edu_shamiit_core/providers/auth_provider.dart';
 
 class RequestTable extends ConsumerWidget {
   final Function(String requestId)? onViewRequest;
@@ -17,6 +19,11 @@ class RequestTable extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(requestProvider);
     final notifier = ref.read(requestProvider.notifier);
+    final isLibraryAdmin = ref.watch(isLibraryAdminProvider);
+    final authState = ref.watch(authProvider);
+    final currentUserId = authState.userData?['id']?.toString() ??
+        authState.userData?['profile_id']?.toString() ??
+        authState.userData?['user_id']?.toString();
 
     if (state.isLoading && state.items.isEmpty) {
       return Container(
@@ -117,7 +124,7 @@ class RequestTable extends ConsumerWidget {
                   children: [
                     _buildTableHeader(),
                     const Divider(height: 1, thickness: 1, color: Color(0xFFE2E8F0)),
-                    ...state.items.map((item) => _buildTableRow(context, item, ref, notifier)),
+                    ...state.items.map((item) => _buildTableRow(context, item, ref, notifier, isLibraryAdmin, currentUserId)),
                   ],
                 ),
               ),
@@ -157,7 +164,7 @@ class RequestTable extends ConsumerWidget {
           Expanded(flex: 14, child: Text('Last Updated', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569)))),
           SizedBox(width: 10),
           SizedBox(
-            width: 110,
+            width: 130,
             child: Align(
               alignment: Alignment.centerRight,
               child: Text('Actions', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
@@ -173,8 +180,18 @@ class RequestTable extends ConsumerWidget {
     LibraryRequestItem item,
     WidgetRef ref,
     RequestNotifier notifier,
+    bool isLibraryAdmin,
+    String? currentUserId,
   ) {
     final dateFormat = DateFormat('dd MMM yyyy hh:mm a');
+    final isPendingWithoutAction = item.status == 'NEW' || item.status == 'PENDING';
+    final isCreator = currentUserId != null &&
+        item.requesterId != null &&
+        currentUserId.trim().isNotEmpty &&
+        item.requesterId!.trim().toLowerCase() == currentUserId.trim().toLowerCase();
+    final canDelete = isPendingWithoutAction && isCreator;
+
+
 
     return Container(
       decoration: const BoxDecoration(
@@ -375,9 +392,9 @@ class RequestTable extends ConsumerWidget {
               ),
               const SizedBox(width: 10),
 
-              // 9. Actions (width: 110)
+              // 9. Actions (width: 130)
               SizedBox(
-                width: 110,
+                width: 130,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -385,106 +402,132 @@ class RequestTable extends ConsumerWidget {
                       icon: const Icon(Icons.visibility_outlined, size: 18, color: Color(0xFF64748B)),
                       tooltip: 'View Request Details',
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                       onPressed: () {
                         notifier.openRequestDetail(item.id);
                         onViewRequest?.call(item.id);
                       },
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.edit_note_rounded, size: 20, color: Color(0xFF2563EB)),
-                      tooltip: 'Process Request Status',
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (ctx) => ProcessRequestDialog(request: item),
-                        );
-                      },
-                    ),
-                    PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert_rounded, size: 18, color: Color(0xFF64748B)),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      onSelected: (val) async {
-                        if (val == 'view') {
-                          notifier.openRequestDetail(item.id);
-                          onViewRequest?.call(item.id);
-                        } else if (val == 'activate') {
-                          await notifier.transitionStatus(requestId: item.id, toStatus: 'ACTIVE');
-                        } else if (val == 'resolve') {
-                          await notifier.transitionStatus(requestId: item.id, toStatus: 'RESOLVED', comment: 'Resource ready for pickup');
-                        } else if (val == 'reject') {
+                    if (canDelete)
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFEF4444)),
+                        tooltip: 'Delete Request',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        onPressed: () => _confirmDeleteRequest(context, item, notifier),
+                      ),
+                    if (isLibraryAdmin) ...[
+                      IconButton(
+                        icon: const Icon(Icons.edit_note_rounded, size: 20, color: Color(0xFF2563EB)),
+                        tooltip: 'Process Request Status',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        onPressed: () {
                           showDialog(
                             context: context,
-                            builder: (ctx) => ProcessRequestDialog(request: item, initialAction: 'REJECT'),
+                            builder: (ctx) => ProcessRequestDialog(request: item),
                           );
-                        } else if (val == 'cancel') {
-                          await notifier.transitionStatus(requestId: item.id, toStatus: 'CANCELED', reason: 'Canceled by staff');
-                        }
-                      },
-                      itemBuilder: (ctx) => [
-                        const PopupMenuItem(
-                          value: 'view',
-                          child: Row(
-                            children: [
-                              Icon(Icons.visibility_rounded, size: 16, color: Color(0xFF475569)),
-                              SizedBox(width: 8),
-                              Text('View Details', style: TextStyle(fontSize: 13)),
-                            ],
-                          ),
-                        ),
-                        if (item.status == 'NEW' || item.status == 'PENDING')
+                        },
+                      ),
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert_rounded, size: 18, color: Color(0xFF64748B)),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        onSelected: (val) async {
+                          if (val == 'view') {
+                            notifier.openRequestDetail(item.id);
+                            onViewRequest?.call(item.id);
+                          } else if (val == 'activate') {
+                            await notifier.transitionStatus(requestId: item.id, toStatus: 'ACTIVE');
+                          } else if (val == 'resolve') {
+                            await notifier.transitionStatus(requestId: item.id, toStatus: 'RESOLVED', comment: 'Resource ready for pickup');
+                          } else if (val == 'reject') {
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => ProcessRequestDialog(request: item, initialAction: 'REJECT'),
+                            );
+                          } else if (val == 'cancel') {
+                            await notifier.transitionStatus(requestId: item.id, toStatus: 'CANCELED', reason: 'Canceled by staff');
+                          } else if (val == 'delete') {
+                            _confirmDeleteRequest(context, item, notifier);
+                          }
+                        },
+                        itemBuilder: (ctx) => [
                           const PopupMenuItem(
-                            value: 'activate',
+                            value: 'view',
                             child: Row(
                               children: [
-                                Icon(Icons.play_arrow_rounded, size: 16, color: Color(0xFF2563EB)),
+                                Icon(Icons.visibility_rounded, size: 16, color: Color(0xFF475569)),
                                 SizedBox(width: 8),
-                                Text('Mark Active', style: TextStyle(fontSize: 13)),
+                                Text('View Details', style: TextStyle(fontSize: 13)),
                               ],
                             ),
                           ),
-                        if (item.status == 'ACTIVE' || item.status == 'IN_PROGRESS')
-                          const PopupMenuItem(
-                            value: 'resolve',
-                            child: Row(
-                              children: [
-                                Icon(Icons.check_circle_outline_rounded, size: 16, color: Color(0xFF10B981)),
-                                SizedBox(width: 8),
-                                Text('Mark Resolved', style: TextStyle(fontSize: 13)),
-                              ],
+                          if (item.status == 'NEW' || item.status == 'PENDING') ...[
+                            const PopupMenuItem(
+                              value: 'activate',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.play_arrow_rounded, size: 16, color: Color(0xFF2563EB)),
+                                  SizedBox(width: 8),
+                                  Text('Mark Active', style: TextStyle(fontSize: 13)),
+                                ],
+                              ),
                             ),
-                          ),
-                        if (item.status != 'COMPLETED' && item.status != 'REJECTED' && item.status != 'CANCELED') ...[
-                          const PopupMenuItem(
-                            value: 'reject',
-                            child: Row(
-                              children: [
-                                Icon(Icons.block_rounded, size: 16, color: Color(0xFFEF4444)),
-                                SizedBox(width: 8),
-                                Text('Reject Request', style: TextStyle(fontSize: 13, color: Color(0xFFEF4444))),
-                              ],
+                            if (canDelete)
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
+                                    SizedBox(width: 8),
+                                    Text('Delete Request', style: TextStyle(fontSize: 13, color: Color(0xFFEF4444))),
+                                  ],
+                                ),
+                              ),
+                          ],
+
+                          if (item.status == 'ACTIVE' || item.status == 'IN_PROGRESS')
+                            const PopupMenuItem(
+                              value: 'resolve',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.check_circle_outline_rounded, size: 16, color: Color(0xFF10B981)),
+                                  SizedBox(width: 8),
+                                  Text('Mark Resolved', style: TextStyle(fontSize: 13)),
+                                ],
+                              ),
                             ),
-                          ),
-                          const PopupMenuItem(
-                            value: 'cancel',
-                            child: Row(
-                              children: [
-                                Icon(Icons.cancel_outlined, size: 16, color: Color(0xFF64748B)),
-                                SizedBox(width: 8),
-                                Text('Cancel Request', style: TextStyle(fontSize: 13)),
-                              ],
+                          if (item.status != 'COMPLETED' && item.status != 'REJECTED' && item.status != 'CANCELED') ...[
+                            const PopupMenuItem(
+                              value: 'reject',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.block_rounded, size: 16, color: Color(0xFFEF4444)),
+                                  SizedBox(width: 8),
+                                  Text('Reject Request', style: TextStyle(fontSize: 13, color: Color(0xFFEF4444))),
+                                ],
+                              ),
                             ),
-                          ),
+                            const PopupMenuItem(
+                              value: 'cancel',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.cancel_outlined, size: 16, color: Color(0xFF64748B)),
+                                  SizedBox(width: 8),
+                                  Text('Cancel Request', style: TextStyle(fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
-                    ),
+                      ),
+                    ],
                   ],
                 ),
               ),
+
             ],
           ),
         ),
@@ -796,4 +839,121 @@ class RequestTable extends ConsumerWidget {
       ),
     );
   }
+
+  Future<void> _confirmDeleteRequest(
+    BuildContext context,
+    LibraryRequestItem item,
+    RequestNotifier notifier,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEE2E2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Delete Request',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Are you sure you want to delete this library request? This action cannot be undone.',
+              style: TextStyle(fontSize: 13.5, color: Color(0xFF475569), height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.bookmark_border_rounded, size: 18, color: Color(0xFF64748B)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.requestNumber,
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF94A3B8)),
+                        ),
+                        Text(
+                          item.title,
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        await notifier.deleteRequest(item.id);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Request ${item.requestNumber} deleted successfully.'),
+              backgroundColor: const Color(0xFF10B981),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          final errorText = e.toString().replaceAll(RegExp(r'^(ApiException:|Exception:|\s*Api)+', caseSensitive: false), '').trim();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorText.isNotEmpty ? errorText : 'Failed to delete request.'),
+              backgroundColor: const Color(0xFFEF4444),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    }
+  }
 }
+

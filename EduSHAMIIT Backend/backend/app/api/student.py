@@ -2812,7 +2812,7 @@ async def borrow_book(
 
     # If digital, borrow is instantly active and doesn't decrement copy count
     is_digital = book.get("is_digital", False)
-    status = "borrowed" if is_digital else "requested"
+    status = "ISSUED" if is_digital else "WAITING"
     
     # Check available copies for physical books
     if not is_digital and book.get("available_copies", 0) <= 0:
@@ -2821,12 +2821,23 @@ async def borrow_book(
     # Create borrow record
     now_dt = datetime.now(timezone.utc)
     due_dt = now_dt + timedelta(days=14)
+    import random
+    txn_num = f"TXN-REQ-{random.randint(1000, 9999)}"
+
+    # Check member profile mapping
+    member_res = await sb.table("library_members").select("id").eq("profile_id", user["id"]).eq("school_id", school_id).maybe_single().aexecute()
+    member_id = member_res.data.get("id") if member_res.data else None
     
     borrow_data = {
         "school_id": school_id,
         "book_id": book_id,
         "student_id": user["id"],
+        "member_id": member_id,
+        "transaction_code": txn_num,
+        "transaction_type": "REQUEST_TO_ISSUE" if not is_digital else "DIGITAL_ISSUE",
+        "issue_date": now_dt.date().isoformat(),
         "borrowed_at": now_dt.isoformat(),
+        "due_date": due_dt.date().isoformat(),
         "due_at": due_dt.isoformat(),
         "renewals_used": 0,
         "max_renewals": 2,
@@ -2863,7 +2874,7 @@ async def renew_borrow(
     if borrow["student_id"] != user["id"]:
         raise HTTPException(status_code=403, detail="Not authorized to renew this book")
         
-    if borrow["status"] != "borrowed":
+    if borrow["status"].upper() not in ["ISSUED", "BORROWED", "RENEWED"]:
         raise HTTPException(status_code=400, detail=f"Cannot renew book with status '{borrow['status']}'")
         
     if borrow.get("renewals_used", 0) >= borrow.get("max_renewals", 2):
@@ -2877,7 +2888,8 @@ async def renew_borrow(
             .update({
                 "renewals_used": borrow["renewals_used"] + 1,
                 "due_at": new_due.isoformat(),
-                "status": "borrowed"
+                "due_date": new_due.date().isoformat(),
+                "status": "RENEWED"
             })\
             .eq("id", borrow_id)\
             .aexecute()
@@ -2887,9 +2899,12 @@ async def renew_borrow(
             "data": update_res.data[0]
         }
 
-    # For physical books, set to pending_renew
+    # For physical books, set to pending_renew / RENEW_REQUEST
     update_res = await sb.table("library_borrows")\
-        .update({"status": "pending_renew"})\
+        .update({
+            "status": "pending_renew",
+            "transaction_type": "RENEW_REQUEST"
+        })\
         .eq("id", borrow_id)\
         .aexecute()
         
@@ -2918,15 +2933,17 @@ async def return_borrow(
     if borrow["student_id"] != user["id"]:
         raise HTTPException(status_code=403, detail="Not authorized to return this book")
         
-    if borrow["status"] not in ["borrowed", "pending_renew"]:
-        raise HTTPException(status_code=400, detail=f"Cannot return book with status '{borrow['status']}'")
+    if borrow["status"].upper() not in ["ISSUED", "BORROWED", "RENEWED", "OVERDUE"]:
+        raise HTTPException(status_code=400, detail=f"Book must be in an issued state before requesting return (current status: '{borrow['status']}')")
 
     # If digital, auto-approve return instantly
     book = borrow.get("library_books") or {}
     if book.get("is_digital", False):
         update_res = await sb.table("library_borrows")\
             .update({
-                "status": "returned",
+                "status": "RETURNED",
+                "is_returned": True,
+                "return_date": datetime.now(timezone.utc).date().isoformat(),
                 "returned_at": datetime.now(timezone.utc).isoformat()
             })\
             .eq("id", borrow_id)\
@@ -2937,16 +2954,18 @@ async def return_borrow(
             "data": update_res.data[0]
         }
 
-    # For physical books, set status to pending_return
-    update_res = await sb.table("library_borrows")\
-        .update({"status": "pending_return"})\
-        .eq("id", borrow_id)\
-        .aexecute()
-        
+    # For physical books, use fn_library_raise_return_request to log activity and transition state
+    res = await exec_sql(
+        """
+        SELECT public.fn_library_raise_return_request(%s::uuid, %s::uuid, %s::uuid, %s) AS result;
+        """,
+        (school_id, borrow_id, user["id"], "Requested via student portal")
+    )
+    result = res[0]["result"] if (res and res[0].get("result")) else {}
     return {
         "success": True,
-        "message": "Return request submitted to librarian. Please return the physical book.",
-        "data": update_res.data[0]
+        "message": result.get("message", "Return request submitted to librarian. Please return the physical book."),
+        "data": result
     }
 
 
@@ -2968,11 +2987,13 @@ async def submit_acquisition_request(
     request_data = {
         "school_id": school_id,
         "student_id": user["id"],
+        "requester_user_id": user["id"],
         "title": title,
         "author": author,
         "isbn": isbn,
         "reason": reason,
-        "status": "pending"
+        "request_type": "Book",
+        "status": "NEW"
     }
     
     insert_res = await sb.table("library_requests").insert(request_data).aexecute()

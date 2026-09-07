@@ -180,6 +180,12 @@ class BookModel {
   bool get isResearchPaper => bookTypeName.toLowerCase().contains('research') || bookTypeName.toLowerCase().contains('paper');
   bool get isPhysical => bookTypeName.toLowerCase().contains('physical') || bookTypeName.toLowerCase().contains('paperback') || bookTypeName.toLowerCase().contains('hardcover') || (!isAudiobook && !isVideoBook && !isEBook && !bookTypeName.toLowerCase().contains('digital'));
 
+  // Dual-Edition Availability Helpers
+  bool get hasPhysicalEdition => totalCopies > 0 || isPhysical;
+  bool get hasDigitalEdition => isDigital || digitalFiles.isNotEmpty || isEBook || isAudiobook || isVideoBook;
+  bool get hasBothEditions => hasPhysicalEdition && hasDigitalEdition;
+  bool get isUnrestrictedDigital => hasDigitalEdition && (!requiresPermission && digitalVisibility.toUpperCase() != 'RESTRICTED');
+
   String get formattedRating => rating > 0 ? rating.toStringAsFixed(1) : 'New';
   String get formattedReadTime {
     final totalSec = totalReadingSeconds + totalListeningSeconds + totalWatchingSeconds;
@@ -214,9 +220,7 @@ class BookModel {
 
     final String bTypeName = json['book_type_name']?.toString() ?? 'Physical Book';
     final String typeLower = bTypeName.toLowerCase();
-    final bool isPurePhysical = typeLower.contains('physical') || typeLower.contains('paperback') || typeLower.contains('hardcover');
-    final bool computedIsDigital = !isPurePhysical && (
-        json['is_digital'] == true ||
+    final bool computedIsDigital = json['is_digital'] == true ||
         json['is_digital']?.toString().toLowerCase() == 'true' ||
         json['is_digital']?.toString() == 't' ||
         json['is_digital']?.toString() == '1' ||
@@ -225,8 +229,7 @@ class BookModel {
         typeLower.contains('audio') ||
         typeLower.contains('video') ||
         typeLower.contains('digital') ||
-        parsedFiles.isNotEmpty
-    );
+        parsedFiles.isNotEmpty;
 
     return BookModel(
       id: json['id']?.toString() ?? '',

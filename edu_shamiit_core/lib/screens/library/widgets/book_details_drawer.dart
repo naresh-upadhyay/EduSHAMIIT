@@ -10,6 +10,8 @@ import 'dialogs/barcode_qr_dialog.dart';
 import 'dialogs/ebook_reader_dialog.dart';
 import 'dialogs/audiobook_player_dialog.dart';
 import 'dialogs/videobook_player_dialog.dart';
+import 'dialogs/raise_book_issue_request_dialog.dart';
+import 'package:edu_shamiit_core/providers/role_provider.dart';
 import 'package:edu_shamiit_core/config/app_config.dart';
 
 class BookDetailsDrawer extends ConsumerStatefulWidget {
@@ -30,10 +32,12 @@ class _BookDetailsDrawerState extends ConsumerState<BookDetailsDrawer> {
     final book = state.selectedBook;
     final copies = state.selectedBookCopies;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final screenWidth = MediaQuery.of(context).size.width;
+    final roleState = ref.watch(roleProvider);
+    final isLibraryAdmin = ref.watch(isLibraryAdminProvider);
 
     if (book == null) return const SizedBox.shrink();
 
+    final screenWidth = MediaQuery.of(context).size.width;
     // Dynamically size drawer based on available screen width
     final drawerWidth = screenWidth < 500 ? screenWidth : (screenWidth < 900 ? 430.0 : 470.0);
 
@@ -76,7 +80,7 @@ class _BookDetailsDrawerState extends ConsumerState<BookDetailsDrawer> {
                   if (!book.isDigital || copies.isNotEmpty) ...[
                     const Divider(height: 30),
                     // Physical Copies Section with Responsive Table and Zero-Overflow Actions
-                    _buildCopiesSection(book, copies, notifier, isDark),
+                    _buildCopiesSection(book, copies, notifier, isDark, isLibraryAdmin),
                   ],
 
 
@@ -94,8 +98,8 @@ class _BookDetailsDrawerState extends ConsumerState<BookDetailsDrawer> {
             ),
           ),
 
-          // 3. Bottom Actions Footer Bar ([Edit Book] [Add Copy])
-          _buildBottomActionBar(book, notifier, isDark),
+          // 3. Bottom Actions Footer Bar
+          _buildBottomActionBar(book, notifier, isDark, isLibraryAdmin),
         ],
       ),
     );
@@ -511,7 +515,7 @@ class _BookDetailsDrawerState extends ConsumerState<BookDetailsDrawer> {
     );
   }
 
-  Widget _buildCopiesSection(BookModel book, List<BookCopyModel> copies, BookNotifier notifier, bool isDark) {
+  Widget _buildCopiesSection(BookModel book, List<BookCopyModel> copies, BookNotifier notifier, bool isDark, bool isLibraryAdmin) {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -527,20 +531,21 @@ class _BookDetailsDrawerState extends ConsumerState<BookDetailsDrawer> {
                 color: isDark ? Colors.white : const Color(0xFF0F172A),
               ),
             ),
-            TextButton.icon(
-              icon: const Icon(Icons.add_rounded, size: 16),
-              label: const Text('Add Copy', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF6366F1),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            if (isLibraryAdmin)
+              TextButton.icon(
+                icon: const Icon(Icons.add_rounded, size: 16),
+                label: const Text('Add Copy', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF6366F1),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                ),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => AddCopyDialog(book: book),
+                  );
+                },
               ),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (_) => AddCopyDialog(book: book),
-                );
-              },
-            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -563,14 +568,16 @@ class _BookDetailsDrawerState extends ConsumerState<BookDetailsDrawer> {
                     'No physical copies recorded yet.',
                     style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
                   ),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.add_rounded, size: 14),
-                    label: const Text('Add First Copy', style: TextStyle(fontSize: 12)),
-                    onPressed: () {
-                      showDialog(context: context, builder: (_) => AddCopyDialog(book: book));
-                    },
-                  ),
+                  if (isLibraryAdmin) ...[
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.add_rounded, size: 14),
+                      label: const Text('Add First Copy', style: TextStyle(fontSize: 12)),
+                      onPressed: () {
+                        showDialog(context: context, builder: (_) => AddCopyDialog(book: book));
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -591,12 +598,13 @@ class _BookDetailsDrawerState extends ConsumerState<BookDetailsDrawer> {
                     color: isDark ? const Color(0xFF0F172A).withOpacity(0.5) : const Color(0xFFF1F5F9),
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Expanded(flex: 30, child: Text('Barcode / Acc', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)))),
-                      Expanded(flex: 26, child: Text('Location', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)))),
-                      Expanded(flex: 22, child: Text('Status', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)))),
-                      SizedBox(width: 60, child: Text('Actions', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)))),
+                      const Expanded(flex: 30, child: Text('Barcode / Acc', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)))),
+                      const Expanded(flex: 26, child: Text('Location', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)))),
+                      const Expanded(flex: 22, child: Text('Status', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)))),
+                      if (isLibraryAdmin)
+                        const SizedBox(width: 60, child: Text('Actions', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)))),
                     ],
                   ),
                 ),
@@ -678,86 +686,87 @@ class _BookDetailsDrawerState extends ConsumerState<BookDetailsDrawer> {
                           ),
 
                           // Actions - Zero Overflow Custom Action Icons
-                          SizedBox(
-                            width: 60,
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerRight,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // Edit Copy
-                                  Tooltip(
-                                    message: 'Edit Copy',
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(4),
-                                      onTap: () {
-                                        showDialog(
-                                          context: context,
-                                          builder: (_) => EditCopyDialog(book: book, copy: copy),
-                                        );
-                                      },
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(2),
-                                        child: Icon(
-                                          Icons.edit_outlined,
-                                          size: 14,
-                                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 2),
-
-                                  // Print Barcode / QR Label
-                                  Tooltip(
-                                    message: 'Print Barcode',
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(4),
-                                      onTap: () {
-                                        showDialog(
-                                          context: context,
-                                          builder: (_) => BarcodeQrDialog(
-                                            title: '${book.title} (Copy #${copy.copyNumber})',
-                                            isbn: book.displayIsbn,
-                                            barcode: copy.barcode,
-                                            accessionNumber: copy.accessionNumber,
+                          if (isLibraryAdmin)
+                            SizedBox(
+                              width: 60,
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerRight,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Edit Copy
+                                    Tooltip(
+                                      message: 'Edit Copy',
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(4),
+                                        onTap: () {
+                                          showDialog(
+                                            context: context,
+                                            builder: (_) => EditCopyDialog(book: book, copy: copy),
+                                          );
+                                        },
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(2),
+                                          child: Icon(
+                                            Icons.edit_outlined,
+                                            size: 14,
+                                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                                           ),
-                                        );
-                                      },
-                                      child: const Padding(
-                                        padding: EdgeInsets.all(2),
-                                        child: Icon(
-                                          Icons.qr_code_rounded,
-                                          size: 14,
-                                          color: Color(0xFF3B82F6),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 2),
+                                    const SizedBox(width: 2),
 
-                                  // Delete / Archive Copy
-                                  Tooltip(
-                                    message: 'Delete Copy',
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(4),
-                                      onTap: () => _confirmDeleteCopy(context, book, copy, notifier),
-                                      child: const Padding(
-                                        padding: EdgeInsets.all(2),
-                                        child: Icon(
-                                          Icons.delete_outline_rounded,
-                                          size: 14,
-                                          color: Color(0xFFEF4444),
+                                    // Print Barcode / QR Label
+                                    Tooltip(
+                                      message: 'Print Barcode',
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(4),
+                                        onTap: () {
+                                          showDialog(
+                                            context: context,
+                                            builder: (_) => BarcodeQrDialog(
+                                              title: '${book.title} (Copy #${copy.copyNumber})',
+                                              isbn: book.displayIsbn,
+                                              barcode: copy.barcode,
+                                              accessionNumber: copy.accessionNumber,
+                                            ),
+                                          );
+                                        },
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(2),
+                                          child: Icon(
+                                            Icons.qr_code_rounded,
+                                            size: 14,
+                                            color: Color(0xFF3B82F6),
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 2),
+
+                                    // Delete / Archive Copy
+                                    Tooltip(
+                                      message: 'Delete Copy',
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(4),
+                                        onTap: () => _confirmDeleteCopy(context, book, copy, notifier),
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(2),
+                                          child: Icon(
+                                            Icons.delete_outline_rounded,
+                                            size: 14,
+                                            color: Color(0xFFEF4444),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
                         ],
                       ),
                     );
@@ -837,7 +846,7 @@ class _BookDetailsDrawerState extends ConsumerState<BookDetailsDrawer> {
     );
   }
 
-  Widget _buildBottomActionBar(BookModel book, BookNotifier notifier, bool isDark) {
+  Widget _buildBottomActionBar(BookModel book, BookNotifier notifier, bool isDark, bool isLibraryAdmin) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
@@ -848,50 +857,134 @@ class _BookDetailsDrawerState extends ConsumerState<BookDetailsDrawer> {
           ),
         ),
       ),
-      child: Row(
-        children: [
-          // Edit Book Button (Outlined)
-          Expanded(
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.edit_outlined, size: 16),
-              label: const Text('Edit Book', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
-                side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (_) => AddEditBookDialog(book: book),
-                );
-              },
+      child: isLibraryAdmin
+          ? Row(
+              children: [
+                // Edit Book Button (Outlined)
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text('Edit Book', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
+                      side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => AddEditBookDialog(book: book),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Add Copy Button (Solid Purple)
+                Expanded(
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.add_rounded, size: 17),
+                    label: const Text('Add Copy', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6366F1),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => AddCopyDialog(book: book),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                // Dual edition or single edition actions for non-admin users
+                if (book.hasDigitalEdition && book.isUnrestrictedDigital) ...[
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: Icon(
+                        book.isAudiobook ? Icons.headphones : (book.isVideoBook ? Icons.play_arrow : Icons.auto_stories),
+                        size: 16,
+                      ),
+                      label: Text(
+                        book.isAudiobook ? 'Listen Now' : (book.isVideoBook ? 'Watch Lecture' : 'Read Now'),
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        ref.read(bookProvider.notifier).fetchDigitalStreamToken(book.id).then((res) {
+                          final token = res['data']?['token']?.toString() ?? '';
+                          final wm = res['data']?['watermark_text']?.toString() ?? 'EduSHAMIIT';
+                          if (book.isAudiobook) {
+                            AudiobookPlayerDialog.show(context, book: book, streamToken: token, watermarkText: wm);
+                          } else if (book.isVideoBook) {
+                            VideobookPlayerDialog.show(context, book: book, streamToken: token, watermarkText: wm);
+                          } else {
+                            EbookReaderDialog.show(context, book: book, streamToken: token, watermarkText: wm);
+                          }
+                        });
+                      },
+                    ),
+                  ),
+                  if (book.hasPhysicalEdition) const SizedBox(width: 10),
+                ],
+                if (book.hasPhysicalEdition)
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.bookmark_add_rounded, size: 16),
+                      label: Text(
+                        book.availableCopies > 0 ? 'Request Hardcopy' : 'Reserve Hardcopy',
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6366F1),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (_) => RaiseBookIssueRequestDialog(book: book),
+                        );
+                      },
+                    ),
+                  )
+                else if (book.hasDigitalEdition && !book.isUnrestrictedDigital)
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.lock_open_rounded, size: 16),
+                      label: const Text('Request Digital Access', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6366F1),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (_) => RaiseBookIssueRequestDialog(book: book),
+                        );
+                      },
+                    ),
+                  ),
+              ],
             ),
-          ),
-          const SizedBox(width: 10),
-          // Add Copy Button (Solid Purple)
-          Expanded(
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.add_rounded, size: 17),
-              label: const Text('Add Copy', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6366F1),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (_) => AddCopyDialog(book: book),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
     );
   }
 

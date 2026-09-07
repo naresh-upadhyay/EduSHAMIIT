@@ -206,6 +206,13 @@ class RequestApiService {
   String getExportCsvUrl() {
     return '${AppConfig.apiBaseUrl}/library/requests/export';
   }
+
+  /// Delete library request
+  Future<Map<String, dynamic>> deleteRequest(String requestId) async {
+    final res = await _api.delete('/library/requests/$requestId');
+    return res;
+  }
 }
+
 
 

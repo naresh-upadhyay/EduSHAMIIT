@@ -203,6 +203,18 @@ class _RenewBookDialogState extends ConsumerState<RenewBookDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                if (_selectedTx?.status.toUpperCase() == 'PENDING_RENEW' ||
+                    _selectedTx?.transactionType.toUpperCase() == 'RENEW_REQUEST') ...[
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFFEF4444)),
+                    label: const Text('Reject Renewal', style: TextStyle(color: Color(0xFFEF4444), fontSize: 13, fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFFEF4444)),
+                    ),
+                    onPressed: _isSubmitting ? null : _handleRejectRenewal,
+                  ),
+                  const SizedBox(width: 12),
+                ],
                 OutlinedButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Cancel'),
@@ -212,7 +224,7 @@ class _RenewBookDialogState extends ConsumerState<RenewBookDialog> {
                   icon: const Icon(Icons.autorenew_rounded, size: 16),
                   label: _isSubmitting
                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('Confirm Renewal'),
+                      : Text(_selectedTx?.status.toUpperCase() == 'PENDING_RENEW' ? 'Approve Renewal' : 'Confirm Renewal'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF8B5CF6),
                     foregroundColor: Colors.white,
@@ -225,6 +237,24 @@ class _RenewBookDialogState extends ConsumerState<RenewBookDialog> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleRejectRenewal() async {
+    if (_selectedTx == null) return;
+    setState(() => _isSubmitting = true);
+    final success = await ref.read(circulationProvider.notifier).rejectBorrowRequest(
+      _selectedTx!.id,
+      notes: _reasonCtrl.text.trim().isNotEmpty ? _reasonCtrl.text.trim() : 'Renewal request rejected by librarian',
+    );
+    if (mounted) {
+      setState(() => _isSubmitting = false);
+      if (success) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Renewal request rejected. Book remains with existing due date.'), backgroundColor: Color(0xFF10B981)),
+        );
+      }
+    }
   }
 
   Widget _buildRow(String label, String value, {bool isBold = false}) {

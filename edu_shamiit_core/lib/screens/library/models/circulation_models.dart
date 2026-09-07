@@ -51,7 +51,9 @@ class LibraryTransactionModel {
   final String id;
   final String transactionCode;
   final String memberId;
+  final String? memberUserId;
   final String memberName;
+
   final String memberCode;
   final String memberType;
   final String memberRole;
@@ -94,6 +96,7 @@ class LibraryTransactionModel {
     required this.id,
     required this.transactionCode,
     required this.memberId,
+    this.memberUserId,
     required this.memberName,
     required this.memberCode,
     required this.memberType,
@@ -146,7 +149,9 @@ class LibraryTransactionModel {
       id: json['id']?.toString() ?? '',
       transactionCode: json['transaction_code']?.toString() ?? 'TXN-0000',
       memberId: json['member_id']?.toString() ?? '',
+      memberUserId: json['member_user_id']?.toString() ?? json['profile_id']?.toString() ?? json['student_id']?.toString(),
       memberName: json['member_name']?.toString() ?? 'Unknown Member',
+
       memberCode: json['member_code']?.toString() ?? 'N/A',
       memberType: json['member_type']?.toString() ?? 'Student',
       memberRole: json['member_role']?.toString() ?? 'Student',
@@ -192,10 +197,16 @@ class LibraryTransactionModel {
   }
 
   String get displayTransactionType {
-    if (transactionType == 'REQUEST_APPROVED') return 'Request Approved';
-    if (transactionType == 'MANUAL_RETURN') return 'Manual Return';
-    if (transactionType == 'RENEWED') return 'Renewed';
-    if (transactionType == 'LOST_DAMAGED') return 'Lost / Damaged';
+    final s = status.toUpperCase();
+    final t = transactionType.toUpperCase();
+    if (s == 'PENDING_RETURN' || t == 'RETURN_REQUEST') return 'Return Request';
+    if (s == 'PENDING_RENEW' || t == 'RENEW_REQUEST') return 'Renew Request';
+    if (s == 'PENDING' || s == 'WAITING' || s == 'REQUESTED' || t == 'REQUEST_TO_ISSUE') return 'Issue Request';
+    if (t == 'REQUEST_APPROVED') return 'Request Approved';
+    if (s == 'RENEWED' || t == 'RENEWED') return 'Renewed';
+    if (s == 'RETURNED' || t == 'MANUAL_RETURN') return 'Returned';
+    if (s == 'LOST' || s == 'DAMAGED' || t == 'LOST_DAMAGED') return 'Lost / Damaged';
+    if (t.contains('REQUEST')) return 'Request';
     return 'Manual Issue';
   }
 }

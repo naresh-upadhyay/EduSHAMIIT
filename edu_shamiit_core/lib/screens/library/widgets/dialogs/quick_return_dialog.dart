@@ -7,8 +7,9 @@ import '../../models/circulation_models.dart';
 
 class QuickReturnDialog extends ConsumerStatefulWidget {
   final String? initialBarcodeQuery;
+  final LibraryTransactionModel? transaction;
 
-  const QuickReturnDialog({super.key, this.initialBarcodeQuery});
+  const QuickReturnDialog({super.key, this.initialBarcodeQuery, this.transaction});
 
   @override
   ConsumerState<QuickReturnDialog> createState() => _QuickReturnDialogState();
@@ -30,7 +31,13 @@ class _QuickReturnDialogState extends ConsumerState<QuickReturnDialog> {
   @override
   void initState() {
     super.initState();
-    if (widget.initialBarcodeQuery != null && widget.initialBarcodeQuery!.isNotEmpty) {
+    if (widget.transaction != null) {
+      _matchedTransaction = widget.transaction;
+      _collectFine = widget.transaction!.fineAmount > 0;
+      _lookupCtrl.text = widget.transaction!.copyBarcode != 'N/A'
+          ? widget.transaction!.copyBarcode
+          : widget.transaction!.transactionCode;
+    } else if (widget.initialBarcodeQuery != null && widget.initialBarcodeQuery!.isNotEmpty) {
       _lookupCtrl.text = widget.initialBarcodeQuery!;
       _performLookup(widget.initialBarcodeQuery!);
     }
@@ -303,16 +310,27 @@ class _QuickReturnDialogState extends ConsumerState<QuickReturnDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                if (_matchedTransaction?.status.toUpperCase() == 'PENDING_RETURN') ...[
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFFEF4444)),
+                    label: const Text('Reject Request', style: TextStyle(color: Color(0xFFEF4444), fontSize: 13, fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFFEF4444)),
+                    ),
+                    onPressed: _isSubmitting ? null : _handleRejectReturn,
+                  ),
+                  const SizedBox(width: 12),
+                ],
                 OutlinedButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Cancel'),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton.icon(
-                  icon: const Icon(Icons.check_rounded, size: 16),
+                  icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
                   label: _isSubmitting
                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('Confirm Return'),
+                      : Text(_matchedTransaction?.status.toUpperCase() == 'PENDING_RETURN' ? 'Accept & Return' : 'Confirm Return'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF10B981),
                     foregroundColor: Colors.white,
@@ -325,6 +343,24 @@ class _QuickReturnDialogState extends ConsumerState<QuickReturnDialog> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleRejectReturn() async {
+    if (_matchedTransaction == null) return;
+    setState(() => _isSubmitting = true);
+    final success = await ref.read(circulationProvider.notifier).rejectBorrowRequest(
+      _matchedTransaction!.id,
+      notes: _notesCtrl.text.trim().isNotEmpty ? _notesCtrl.text.trim() : 'Return request rejected by librarian',
+    );
+    if (mounted) {
+      setState(() => _isSubmitting = false);
+      if (success) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Return request rejected. Book loan remains active.'), backgroundColor: Color(0xFF10B981)),
+        );
+      }
+    }
   }
 
   Widget _buildRow(String label, String value, {bool isBold = false, Color? color}) {

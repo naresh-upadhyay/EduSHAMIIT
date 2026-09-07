@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../providers/role_provider.dart';
 import '../providers/circulation_provider.dart';
 import 'dialogs/quick_return_dialog.dart';
 import 'dialogs/renew_book_dialog.dart';
 import 'dialogs/fine_collection_dialog.dart';
+import 'dialogs/request_renew_dialog.dart';
+import 'dialogs/request_return_dialog.dart';
+import 'dialogs/process_issue_request_dialog.dart';
 
 class CirculationDetailsDrawer extends ConsumerWidget {
   const CirculationDetailsDrawer({super.key});
@@ -14,6 +18,7 @@ class CirculationDetailsDrawer extends ConsumerWidget {
     final state = ref.watch(circulationProvider);
     final notifier = ref.read(circulationProvider.notifier);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isLibraryAdmin = ref.watch(isLibraryAdminProvider);
 
     final data = state.selectedTransaction;
     if (data == null) {
@@ -31,6 +36,7 @@ class CirculationDetailsDrawer extends ConsumerWidget {
     final timeline = data['timeline'] is List ? (data['timeline'] as List) : <dynamic>[];
 
     final status = (data['status']?.toString() ?? 'ISSUED').toUpperCase();
+    final matchedTx = state.transactions.where((t) => t.id == data['id']?.toString()).firstOrNull;
 
     return Container(
       width: 440,
@@ -273,60 +279,171 @@ class CirculationDetailsDrawer extends ConsumerWidget {
               runSpacing: 10,
               alignment: WrapAlignment.end,
               children: [
-                if (status == 'ISSUED' || status == 'OVERDUE' || status == 'RENEWED') ...[
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.keyboard_return_rounded, size: 16),
-                    label: const Text('Return Book', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF10B981),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                if (isLibraryAdmin) ...[
+                  if (status == 'PENDING_RETURN')
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.keyboard_return_rounded, size: 16),
+                      label: const Text('Process Return Request', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        notifier.closeDrawer();
+                        final matchedTx = state.transactions.where((t) => t.id == data['id']?.toString()).firstOrNull;
+                        showDialog(
+                          context: context,
+                          builder: (_) => QuickReturnDialog(
+                            initialBarcodeQuery: copy['barcode']?.toString(),
+                            transaction: matchedTx,
+                          ),
+                        );
+                      },
                     ),
-                    onPressed: () {
-                      notifier.closeDrawer();
-                      showDialog(
-                        context: context,
-                        builder: (_) => QuickReturnDialog(initialBarcodeQuery: copy['barcode']?.toString()),
-                      );
-                    },
-                  ),
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.autorenew_rounded, size: 16),
-                    label: const Text('Renew Loan', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF8B5CF6),
-                      side: const BorderSide(color: Color(0xFF8B5CF6)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  if (status == 'PENDING_RENEW')
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.autorenew_rounded, size: 16),
+                      label: const Text('Process Renewal Request', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF8B5CF6),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        notifier.closeDrawer();
+                        final matchedTx = state.transactions.where((t) => t.id == data['id']?.toString()).firstOrNull;
+                        showDialog(
+                          context: context,
+                          builder: (_) => RenewBookDialog(
+                            transaction: matchedTx,
+                            borrowId: data['id']?.toString(),
+                          ),
+                        );
+                      },
                     ),
-                    onPressed: () {
-                      notifier.closeDrawer();
-                      showDialog(
-                        context: context,
-                        builder: (_) => RenewBookDialog(borrowId: data['id']?.toString()),
-                      );
-                    },
-                  ),
+                  if ((status == 'PENDING' || status == 'WAITING' || status == 'REQUESTED') && matchedTx != null)
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.assignment_turned_in_rounded, size: 16),
+                      label: const Text('Process Issue Request', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        notifier.closeDrawer();
+                        showDialog(
+                          context: context,
+                          builder: (_) => ProcessIssueRequestDialog(transaction: matchedTx),
+                        );
+                      },
+                    ),
+                  if (['ISSUED', 'BORROWED', 'OVERDUE', 'RENEWED'].contains(status)) ...[
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.keyboard_return_rounded, size: 16),
+                      label: const Text('Return Book', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        notifier.closeDrawer();
+                        showDialog(
+                          context: context,
+                          builder: (_) => QuickReturnDialog(
+                            initialBarcodeQuery: copy['barcode']?.toString(),
+                            transaction: matchedTx,
+                          ),
+                        );
+                      },
+                    ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.autorenew_rounded, size: 16),
+                      label: const Text('Renew Loan', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF8B5CF6),
+                        side: const BorderSide(color: Color(0xFF8B5CF6)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        notifier.closeDrawer();
+                        showDialog(
+                          context: context,
+                          builder: (_) => RenewBookDialog(
+                            transaction: matchedTx,
+                            borrowId: data['id']?.toString(),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                  if (fine['amount'] != null && (fine['outstanding_amount'] as num? ?? 0) > 0)
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.currency_rupee_rounded, size: 16),
+                      label: const Text('Collect Fine', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFEF4444),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        notifier.closeDrawer();
+                        showDialog(
+                          context: context,
+                          builder: (_) => FineCollectionDialog(
+                            fineId: fine['id']?.toString(),
+                            memberId: member['id']?.toString(),
+                          ),
+                        );
+                      },
+                    ),
+                ] else ...[
+                  if (['ISSUED', 'BORROWED', 'OVERDUE', 'RENEWED'].contains(status) && matchedTx != null) ...[
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.autorenew_rounded, size: 16),
+                      label: const Text('Request Renewal', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF8B5CF6),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        notifier.closeDrawer();
+                        showDialog(
+                          context: context,
+                          builder: (_) => RequestRenewDialog(transaction: matchedTx),
+                        );
+                      },
+                    ),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.keyboard_return_rounded, size: 16),
+                      label: const Text('Request Return', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        notifier.closeDrawer();
+                        RequestReturnDialog.show(
+                          context,
+                          transaction: matchedTx,
+                          borrowId: data['id']?.toString(),
+                          rawTransactionData: data,
+                        );
+                      },
+                    ),
+                  ],
                 ],
-                if (fine['amount'] != null && (fine['outstanding_amount'] as num? ?? 0) > 0)
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.currency_rupee_rounded, size: 16),
-                    label: const Text('Collect Fine', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFEF4444),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    onPressed: () {
-                      notifier.closeDrawer();
-                      showDialog(
-                        context: context,
-                        builder: (_) => FineCollectionDialog(
-                          fineId: fine['id']?.toString(),
-                          memberId: member['id']?.toString(),
-                        ),
-                      );
-                    },
+                OutlinedButton(
+                  onPressed: () => notifier.closeDrawer(),
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
+                  child: const Text('Close', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                ),
               ],
             ),
           ),
@@ -380,19 +497,27 @@ class CirculationDetailsDrawer extends ConsumerWidget {
   }
 
   Widget _buildStatusBadge(String status) {
+    final s = status.toUpperCase();
     Color bg = const Color(0xFF3B82F6).withValues(alpha: 0.12);
     Color fg = const Color(0xFF3B82F6);
 
-    if (status == 'RETURNED') {
+    if (s == 'RETURNED') {
       bg = const Color(0xFF10B981).withValues(alpha: 0.12);
       fg = const Color(0xFF10B981);
-    } else if (status == 'OVERDUE' || status == 'LOST') {
+    } else if (s == 'OVERDUE' || s == 'LOST' || s == 'REJECTED') {
       bg = const Color(0xFFEF4444).withValues(alpha: 0.12);
       fg = const Color(0xFFEF4444);
-    } else if (status == 'RENEWED') {
+    } else if (s == 'RENEWED') {
       bg = const Color(0xFF8B5CF6).withValues(alpha: 0.12);
       fg = const Color(0xFF8B5CF6);
+    } else if (s == 'DAMAGED' || s == 'PENDING' || s == 'WAITING' || s == 'REQUESTED' || s == 'PENDING_RENEW' || s == 'PENDING_RETURN') {
+      bg = const Color(0xFFF59E0B).withValues(alpha: 0.12);
+      fg = const Color(0xFFF59E0B);
     }
+
+    String displayLabel = s;
+    if (s == 'PENDING_RENEW') displayLabel = 'RENEW REQ';
+    if (s == 'PENDING_RETURN') displayLabel = 'RETURN REQ';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -401,7 +526,7 @@ class CirculationDetailsDrawer extends ConsumerWidget {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        status,
+        displayLabel,
         style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: fg),
       ),
     );

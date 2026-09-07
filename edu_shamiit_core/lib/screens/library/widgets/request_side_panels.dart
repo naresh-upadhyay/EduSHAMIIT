@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/request_models.dart';
 import '../providers/request_provider.dart';
-import 'dialogs/create_request_dialog.dart';
 
 class RequestSidePanels extends ConsumerWidget {
   final Function(String requestId)? onViewRequest;
@@ -35,10 +34,6 @@ class RequestSidePanels extends ConsumerWidget {
 
           // Panel 3: Recent Requests Feed
           _buildRecentRequestsCard(context, kpis.recentRequests, notifier),
-          const SizedBox(height: 18),
-
-          // Panel 4: Quick Actions 4-Tile Grid
-          _buildQuickActionsGrid(context, notifier),
         ],
       ),
     );
@@ -423,111 +418,6 @@ class RequestSidePanels extends ConsumerWidget {
       child: Text(
         status.replaceAll('_', ' '),
         style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: color),
-      ),
-    );
-  }
-
-  Widget _buildQuickActionsGrid(BuildContext context, RequestNotifier notifier) {
-    final actions = [
-      {
-        'title': 'New Request',
-        'icon': Icons.add_circle_outline_rounded,
-        'color': const Color(0xFF2563EB),
-        'bg': const Color(0xFFEFF6FF),
-        'onTap': () => showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (ctx) => const CreateRequestDialog(),
-        ),
-      },
-      {
-        'title': 'My Requests',
-        'icon': Icons.person_outline_rounded,
-        'color': const Color(0xFF7C3AED),
-        'bg': const Color(0xFFF5F3FF),
-        'onTap': () => notifier.setSubtab('MY_REQUESTS'),
-      },
-      {
-        'title': 'Review Queue',
-        'icon': Icons.rule_folder_outlined,
-        'color': const Color(0xFF059669),
-        'bg': const Color(0xFFECFDF5),
-        'onTap': () => notifier.setSubtab('NEEDS_REVIEW'),
-      },
-      {
-        'title': 'Cancellation',
-        'icon': Icons.cancel_outlined,
-        'color': const Color(0xFFDC2626),
-        'bg': const Color(0xFFFEF2F2),
-        'onTap': () => notifier.setStatusFilter('CANCELED'),
-      },
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6, offset: const Offset(0, 2)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Quick Actions',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF1E293B),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: 1.5,
-            children: actions.map((item) {
-              return Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: item['onTap'] as VoidCallback,
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: item['bg'] as Color,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: (item['color'] as Color).withOpacity(0.2)),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(item['icon'] as IconData, size: 20, color: item['color'] as Color),
-                        const SizedBox(height: 6),
-                        Text(
-                          item['title'] as String,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: item['color'] as Color,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
       ),
     );
   }

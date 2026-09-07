@@ -266,7 +266,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
         GoRoute(
           path: '/student/library',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentLibrary()),
+          pageBuilder: (_, __) => const NoTransitionPage(child: LibraryManagementScreen()),
         ),
         GoRoute(
           path: '/student/courses',

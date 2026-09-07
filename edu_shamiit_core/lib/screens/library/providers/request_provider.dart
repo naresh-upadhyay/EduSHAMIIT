@@ -434,6 +434,23 @@ class RequestNotifier extends StateNotifier<RequestState> {
     }
   }
 
+  Future<bool> deleteRequest(String requestId) async {
+    state = state.copyWith(isProcessing: true);
+    try {
+      await _api.deleteRequest(requestId);
+      await Future.wait([
+        fetchKpis(),
+        loadRequests(),
+      ]);
+      state = state.copyWith(isProcessing: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isProcessing: false);
+      rethrow;
+    }
+  }
+
+
 
   Future<Map<String, dynamic>> performBulkAction({
     required String action,

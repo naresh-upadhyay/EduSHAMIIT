@@ -7,6 +7,7 @@ import 'dialogs/edit_member_dialog.dart';
 import 'dialogs/renew_membership_dialog.dart';
 import 'dialogs/suspend_member_dialog.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
+import 'package:edu_shamiit_core/providers/role_provider.dart';
 
 class MemberTable extends ConsumerStatefulWidget {
   const MemberTable({super.key});
@@ -317,6 +318,7 @@ class _MemberTableState extends ConsumerState<MemberTable> {
   Widget _buildTableRow(LibraryMemberModel member, MemberState state, MemberNotifier notifier, bool isDark) {
     final isDrawerActive = state.selectedMember?.id == member.id && state.isDrawerOpen;
     final currencyFormatter = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 2);
+    final isLibraryAdmin = ref.watch(isLibraryAdminProvider);
 
     return Container(
       decoration: BoxDecoration(
@@ -503,96 +505,98 @@ class _MemberTableState extends ConsumerState<MemberTable> {
                           onPressed: () => notifier.openMemberDetails(member),
                         ),
                       ),
-                      // Edit Parameters
-                      Tooltip(
-                        message: 'Edit Member',
-                        child: IconButton(
-                          icon: const Icon(Icons.edit_outlined, size: 17),
-                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      if (isLibraryAdmin) ...[
+                        // Edit Parameters
+                        Tooltip(
+                          message: 'Edit Member',
+                          child: IconButton(
+                            icon: const Icon(Icons.edit_outlined, size: 17),
+                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) => EditMemberDialog(member: member),
+                              );
+                            },
+                          ),
+                        ),
+                        // More Popup Menu
+                        PopupMenuButton<String>(
+                          icon: Icon(
+                            Icons.more_vert_rounded,
+                            size: 17,
+                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          ),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (_) => EditMemberDialog(member: member),
-                            );
+                          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          onSelected: (action) {
+                            if (action == 'renew') {
+                              showDialog(
+                                context: context,
+                                builder: (_) => RenewMembershipDialog(member: member),
+                              );
+                            } else if (action == 'suspend') {
+                              showDialog(
+                                context: context,
+                                builder: (_) => SuspendMemberDialog(member: member),
+                              );
+                            } else if (action == 'activate') {
+                              notifier.activateMember(member.id);
+                            } else if (action == 'delete') {
+                              _confirmDeleteMember(context, member, notifier);
+                            }
                           },
-                        ),
-                      ),
-                      // More Popup Menu
-                      PopupMenuButton<String>(
-                        icon: Icon(
-                          Icons.more_vert_rounded,
-                          size: 17,
-                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        onSelected: (action) {
-                          if (action == 'renew') {
-                            showDialog(
-                              context: context,
-                              builder: (_) => RenewMembershipDialog(member: member),
-                            );
-                          } else if (action == 'suspend') {
-                            showDialog(
-                              context: context,
-                              builder: (_) => SuspendMemberDialog(member: member),
-                            );
-                          } else if (action == 'activate') {
-                            notifier.activateMember(member.id);
-                          } else if (action == 'delete') {
-                            _confirmDeleteMember(context, member, notifier);
-                          }
-                        },
-                        itemBuilder: (ctx) => [
-                          const PopupMenuItem(
-                            value: 'renew',
-                            child: Row(
-                              children: [
-                                Icon(Icons.autorenew_rounded, size: 16, color: Color(0xFF10B981)),
-                                SizedBox(width: 8),
-                                Text('Renew Membership', style: TextStyle(fontSize: 12.5)),
-                              ],
-                            ),
-                          ),
-                          if (member.isActive)
+                          itemBuilder: (ctx) => [
                             const PopupMenuItem(
-                              value: 'suspend',
+                              value: 'renew',
                               child: Row(
                                 children: [
-                                  Icon(Icons.block_rounded, size: 16, color: Color(0xFFEF4444)),
+                                  Icon(Icons.autorenew_rounded, size: 16, color: Color(0xFF10B981)),
                                   SizedBox(width: 8),
-                                  Text('Suspend Member', style: TextStyle(fontSize: 12.5)),
-                                ],
-                              ),
-                            )
-                          else
-                            const PopupMenuItem(
-                              value: 'activate',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.check_circle_outline_rounded, size: 16, color: Color(0xFF10B981)),
-                                  SizedBox(width: 8),
-                                  Text('Activate Member', style: TextStyle(fontSize: 12.5)),
+                                  Text('Renew Membership', style: TextStyle(fontSize: 12.5)),
                                 ],
                               ),
                             ),
-                          const PopupMenuDivider(),
-                          const PopupMenuItem(
-                            value: 'delete',
-                            child: Row(
-                              children: [
-                                Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
-                                SizedBox(width: 8),
-                                Text('Archive / Delete', style: TextStyle(fontSize: 12.5, color: Color(0xFFEF4444))),
-                              ],
+                            if (member.isActive)
+                              const PopupMenuItem(
+                                value: 'suspend',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.block_rounded, size: 16, color: Color(0xFFEF4444)),
+                                    SizedBox(width: 8),
+                                    Text('Suspend Member', style: TextStyle(fontSize: 12.5)),
+                                  ],
+                                ),
+                              )
+                            else
+                              const PopupMenuItem(
+                                value: 'activate',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.check_circle_outline_rounded, size: 16, color: Color(0xFF10B981)),
+                                    SizedBox(width: 8),
+                                    Text('Activate Member', style: TextStyle(fontSize: 12.5)),
+                                  ],
+                                ),
+                              ),
+                            const PopupMenuDivider(),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
+                                  SizedBox(width: 8),
+                                  Text('Archive / Delete', style: TextStyle(fontSize: 12.5, color: Color(0xFFEF4444))),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),

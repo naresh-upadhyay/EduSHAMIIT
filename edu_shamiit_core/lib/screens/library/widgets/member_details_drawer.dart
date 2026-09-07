@@ -5,6 +5,7 @@ import '../models/member_models.dart';
 import '../providers/member_provider.dart';
 import 'dialogs/edit_member_dialog.dart';
 import 'dialogs/renew_membership_dialog.dart';
+import 'package:edu_shamiit_core/providers/role_provider.dart';
 
 class MemberDetailsDrawer extends ConsumerStatefulWidget {
   const MemberDetailsDrawer({super.key});
@@ -575,25 +576,26 @@ class _MemberDetailsDrawerState extends ConsumerState<MemberDetailsDrawer> with 
                 color: isDark ? Colors.white : const Color(0xFF0F172A),
               ),
             ),
-            InkWell(
-              onTap: () {
-                showDialog(
-                  context: context,
-                  builder: (_) => EditMemberDialog(member: member),
-                );
-              },
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.edit_outlined, size: 14, color: Color(0xFF6366F1)),
-                  SizedBox(width: 4),
-                  Text(
-                    'Edit',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6366F1)),
-                  ),
-                ],
+            if (ref.watch(isLibraryAdminProvider))
+              InkWell(
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => EditMemberDialog(member: member),
+                  );
+                },
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.edit_outlined, size: 14, color: Color(0xFF6366F1)),
+                    SizedBox(width: 4),
+                    Text(
+                      'Edit',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6366F1)),
+                    ),
+                  ],
+                ),
               ),
-            ),
           ],
         ),
         const SizedBox(height: 10),
@@ -613,6 +615,10 @@ class _MemberDetailsDrawerState extends ConsumerState<MemberDetailsDrawer> with 
     MemberNotifier notifier,
     bool isDark,
   ) {
+    if (!ref.watch(isLibraryAdminProvider)) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
