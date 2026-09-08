@@ -5,7 +5,7 @@ import os
 import time
 import asyncio
 
-from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, v1_payments, v1_edushamiit_pay, students_admin, teachers_admin, documents, calls, live_classes, superadmin, audit_logs, tickets, announcements, system_config, insights, contact, alerts, transport, gis, calendar, notices, lookups, classes, attendance, finance
+from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, v1_payments, v1_edushamiit_pay, v1_payment_gateways, students_admin, teachers_admin, documents, calls, live_classes, superadmin, audit_logs, tickets, announcements, system_config, insights, contact, alerts, transport, gis, calendar, notices, lookups, classes, attendance, finance
 
 
 @asynccontextmanager
@@ -436,6 +436,7 @@ app.include_router(finance.router, prefix="/api/finance", tags=["Finance Managem
 app.include_router(finance.router, prefix="/api/v1/finance", tags=["Finance Management v1"])
 app.include_router(finance.router, prefix="/api", tags=["Finance Management Core"])
 app.include_router(v1_edushamiit_pay.router)
+app.include_router(v1_payment_gateways.router)
 
 
 @app.get("/health")

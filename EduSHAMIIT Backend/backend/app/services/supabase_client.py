@@ -541,12 +541,17 @@ class QueryResult:
 
     def __init__(self, data, headers=None, is_single=False, is_maybe_single=False):
         self.headers = headers or {}
-        # Extract count if present in headers (Content-Range: 0-9/100)
         self.count = None
-        content_range = self.headers.get("Content-Range")
+        content_range = None
+        for k, v in self.headers.items():
+            if str(k).lower() == "content-range":
+                content_range = v
+                break
         if content_range and "/" in content_range:
             try:
-                self.count = int(content_range.split("/")[-1])
+                val = content_range.split("/")[-1].strip()
+                if val != "*":
+                    self.count = int(val)
             except ValueError:
                 pass
 

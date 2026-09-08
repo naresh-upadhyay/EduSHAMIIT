@@ -226,6 +226,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         label: 'EduSHAMIIT Pay',
         route: '/admin/payments',
         section: NavSection.financeManagement),
+    _NavItem(
+        icon: Icons.hub_outlined,
+        label: 'Payment Gateways',
+        route: '/admin/payment-gateways',
+        section: NavSection.financeManagement),
   ];
 
 
@@ -352,6 +357,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/contact-queries' ||
                item.route == '/admin/my-profile' ||
                item.route.startsWith('/admin/finance') ||
+               item.route.startsWith('/admin/payment') ||
                item.route == '/admin/defaulters' ||
                item.route == '/admin/vehicle-dashboard' ||
                item.route.startsWith('/admin/fleet') ||
@@ -368,7 +374,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/attendance' ||
                item.route == '/admin/roles' ||
                item.route == '/admin/lookups' ||
-               item.route == '/admin/finance' ||
+               item.route.startsWith('/admin/finance') ||
+               item.route.startsWith('/admin/payment') ||
                item.route == '/admin/defaulters' ||
                item.route == '/admin/staff' ||
                item.route == '/admin/admissions' ||

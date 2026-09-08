@@ -876,7 +876,7 @@ async def list_payments(
         effective_school_id = user["school_id"]
 
     try:
-        query = sb.table("payment_orders").select("*")
+        query = sb.table("payment_orders").select("*").count("exact")
         if effective_school_id:
             query = query.eq("school_id", effective_school_id)
         if status and status.upper() != "ALL":
@@ -914,7 +914,20 @@ async def list_payments(
 
         res = await query.aexecute()
         items = res.data or []
-        total = res.count if hasattr(res, "count") and res.count is not None else len(items)
+        total = res.count if hasattr(res, "count") and res.count is not None else None
+        if total is None:
+            try:
+                c_query = sb.table("payment_orders").select("id")
+                if effective_school_id:
+                    c_query = c_query.eq("school_id", effective_school_id)
+                if status and status.upper() != "ALL":
+                    c_query = c_query.eq("status", status.upper())
+                if gateway and gateway.upper() != "ALL":
+                    c_query = c_query.eq("provider", gateway.upper())
+                c_res = await c_query.aexecute()
+                total = len(c_res.data) if c_res and c_res.data else len(items)
+            except Exception:
+                total = len(items)
 
         for item in items:
             if "credentials" in item:
@@ -1074,10 +1087,22 @@ async def reconcile_payment(
     user_id = user.get("id") if user else None
 
     order = None
+    is_uuid = False
     try:
-        order_res = await sb.table("payment_orders").select("id, transaction_id, school_id, status, amount, reconciliation_status").or_(
-            f"id.eq.{payment_id},transaction_id.eq.{payment_id}"
-        ).maybe_single().aexecute()
+        uuid.UUID(str(payment_id))
+        is_uuid = True
+    except Exception:
+        pass
+
+    try:
+        if is_uuid:
+            order_res = await sb.table("payment_orders").select("id, transaction_id, school_id, status, amount, reconciliation_status").or_(
+                f"id.eq.{payment_id},transaction_id.eq.{payment_id}"
+            ).maybe_single().aexecute()
+        else:
+            order_res = await sb.table("payment_orders").select("id, transaction_id, school_id, status, amount, reconciliation_status").eq(
+                "transaction_id", payment_id
+            ).maybe_single().aexecute()
         if order_res and order_res.data:
             order = order_res.data
     except Exception:

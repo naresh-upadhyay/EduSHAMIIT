@@ -338,6 +338,18 @@ final routerProvider = Provider<GoRouter>((ref) {
             pageBuilder: (_, __) => const NoTransitionPage(child: PaymentEnginePaymentsScreen()),
           ),
           GoRoute(
+            path: '/admin/payment-gateways',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PaymentGatewayIntegrationScreen()),
+          ),
+          GoRoute(
+            path: '/admin/payment-engine/gateways',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PaymentGatewayIntegrationScreen()),
+          ),
+          GoRoute(
+            path: '/payment-gateways',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PaymentGatewayIntegrationScreen()),
+          ),
+          GoRoute(
             path: '/admin/defaulters',
             pageBuilder: (_, __) => const NoTransitionPage(child: DefaultersTab()),
           ),

@@ -616,11 +616,21 @@ class PaymentService:
 
         # 1. Fetch order
         order = None
+        is_uuid = False
         try:
-            order_res = await sb.table("payment_orders").select("*").or_(
-                f"id.eq.{payment_order_id_or_txn},transaction_id.eq.{payment_order_id_or_txn}"
-            ).maybe_single().aexecute()
-            if order_res.data:
+            uuid.UUID(str(payment_order_id_or_txn))
+            is_uuid = True
+        except Exception:
+            pass
+
+        try:
+            if is_uuid:
+                order_res = await sb.table("payment_orders").select("*").or_(
+                    f"id.eq.{payment_order_id_or_txn},transaction_id.eq.{payment_order_id_or_txn}"
+                ).maybe_single().aexecute()
+            else:
+                order_res = await sb.table("payment_orders").select("*").eq("transaction_id", payment_order_id_or_txn).maybe_single().aexecute()
+            if order_res and order_res.data:
                 order = order_res.data
         except Exception:
             pass
@@ -646,6 +656,7 @@ class PaymentService:
                 "success": True,
                 "status": "SUCCESS",
                 "verified": True,
+                "receipt_number": order.get("receipt_number") or f"RCP-{order.get('transaction_id', '0000')}",
                 "message": "Payment already verified and fulfilled",
                 "order": order
             }
@@ -995,8 +1006,10 @@ class PaymentService:
             "success": True,
             "refund_reference": refund_ref,
             "amount": amount,
+            "refunded_amount": amount,
             "total_refunded": new_total_refunded,
             "remaining_refundable": new_refundable,
+            "remaining_refundable_amount": new_refundable,
             "status": new_status,
             "refund_status": "SUCCESS"
         }
@@ -1014,11 +1027,21 @@ class PaymentService:
         """
         sb = get_supabase()
         order = None
+        is_uuid = False
         try:
-            res = await sb.table("payment_orders").select("*").or_(
-                f"id.eq.{payment_order_id_or_txn},transaction_id.eq.{payment_order_id_or_txn}"
-            ).maybe_single().aexecute()
-            if res.data:
+            uuid.UUID(str(payment_order_id_or_txn))
+            is_uuid = True
+        except Exception:
+            pass
+
+        try:
+            if is_uuid:
+                res = await sb.table("payment_orders").select("*").or_(
+                    f"id.eq.{payment_order_id_or_txn},transaction_id.eq.{payment_order_id_or_txn}"
+                ).maybe_single().aexecute()
+            else:
+                res = await sb.table("payment_orders").select("*").eq("transaction_id", payment_order_id_or_txn).maybe_single().aexecute()
+            if res and res.data:
                 order = res.data
         except Exception:
             pass
@@ -1209,20 +1232,34 @@ class PaymentService:
         return timeline
 
     @classmethod
-    async def get_payment_details(cls, payment_order_id_or_txn: str) -> Optional[Dict[str, Any]]:
+    async def get_payment_details(cls, payment_order_id_or_txn: str, school_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Fetch unified payment detail model with payer, attempts, timeline, and masked technical data."""
         sb = get_supabase()
         order = None
+        is_uuid = False
         try:
-            res = await sb.table("payment_orders").select("*").or_(
-                f"id.eq.{payment_order_id_or_txn},transaction_id.eq.{payment_order_id_or_txn}"
-            ).maybe_single().aexecute()
-            if res.data:
-                order = res.data
+            uuid.UUID(str(payment_order_id_or_txn))
+            is_uuid = True
         except Exception:
             pass
 
+        try:
+            if is_uuid:
+                res = await sb.table("payment_orders").select("*").or_(
+                    f"id.eq.{payment_order_id_or_txn},transaction_id.eq.{payment_order_id_or_txn}"
+                ).maybe_single().aexecute()
+            else:
+                res = await sb.table("payment_orders").select("*").eq("transaction_id", payment_order_id_or_txn).maybe_single().aexecute()
+            if res and res.data:
+                order = res.data
+        except Exception as e:
+            logger.warning(f"Error querying payment order in get_payment_details: {e}")
+
         if not order:
+            return None
+
+        if school_id and order.get("school_id") and order.get("school_id") != school_id:
+            logger.warning(f"Tenant isolation mismatch for order {order.get('id')}: order.school_id={order.get('school_id')} != req.school_id={school_id}")
             return None
 
         order_id = order.get("id")
@@ -1472,7 +1509,7 @@ class PaymentService:
         # Record Attempt #1
         attempt_record = {
             "id": attempt_id,
-            "order_id": order_id,
+            "payment_order_id": order_id,
             "transaction_id": txn_id,
             "attempt_number": 1,
             "provider": gateway,
@@ -1506,6 +1543,7 @@ class PaymentService:
 
         return {
             "success": True,
+            "id": order_id,
             "payment_id": order_id,
             "transaction_id": txn_id,
             "attempt_id": attempt_id,
@@ -1649,11 +1687,20 @@ class PaymentService:
         Enforces tenant isolation.
         """
         sb = cls._get_sb()
-        order = None
+        is_uuid = False
         try:
-            order_res = await sb.table("payment_orders").select("*").or_(
-                f"id.eq.{payment_id},transaction_id.eq.{payment_id}"
-            ).maybe_single().aexecute()
+            uuid.UUID(str(payment_id))
+            is_uuid = True
+        except Exception:
+            pass
+
+        try:
+            if is_uuid:
+                order_res = await sb.table("payment_orders").select("*").or_(
+                    f"id.eq.{payment_id},transaction_id.eq.{payment_id}"
+                ).maybe_single().aexecute()
+            else:
+                order_res = await sb.table("payment_orders").select("*").eq("transaction_id", payment_id).maybe_single().aexecute()
             if order_res and order_res.data:
                 order = order_res.data
         except Exception as e:
@@ -1674,7 +1721,9 @@ class PaymentService:
         # Fetch attempts
         attempts = []
         try:
-            att_res = await sb.table("payment_attempts").select("*").eq("order_id", real_order_id).order("attempt_number").aexecute()
+            att_res = await sb.table("payment_attempts").select("*").or_(
+                f"payment_order_id.eq.{real_order_id},transaction_id.eq.{order.get('transaction_id')}"
+            ).order("attempt_number").aexecute()
             attempts = att_res.data or []
         except Exception:
             pass
@@ -1702,6 +1751,14 @@ class PaymentService:
         refundable_balance = float(order.get("refundable_amount") if order.get("refundable_amount") is not None else (paid_amt - total_refunded))
 
         return {
+            "id": order.get("id"),
+            "transaction_id": order.get("transaction_id"),
+            "order_id": order.get("id"),
+            "amount": paid_amt,
+            "currency": order.get("currency", "INR"),
+            "status": order.get("status"),
+            "settlement_status": order.get("settlement_status", "PENDING"),
+            "created_at": order.get("created_at"),
             "payment_summary": {
                 "transaction_id": order.get("transaction_id"),
                 "order_id": order.get("id"),
