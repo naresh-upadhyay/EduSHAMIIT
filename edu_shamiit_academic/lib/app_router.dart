@@ -609,8 +609,17 @@ final routerProvider = Provider<GoRouter>((ref) {
             return NoTransitionPage(child: TeacherMessaging(initialChatId: chatId));
           },
         ),
+        GoRoute(
+          path: '/academic/finance',
+          pageBuilder: (_, __) => const NoTransitionPage(child: FinanceManagementScreen()),
+        ),
+        GoRoute(
+          path: '/finance',
+          pageBuilder: (_, __) => const NoTransitionPage(child: FinanceManagementScreen()),
+        ),
       ],
     ),
   ],
 );
+
 });

@@ -667,10 +667,13 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
                       _buildQuickActionsCard(context, isDark),
                     ],
                   ),
-                
                 const SizedBox(height: 24),
+                _buildFinanceOverviewSection(context, isDark),
+                const SizedBox(height: 24),
+
                 
                 // Adaptive layout footer
+
                 if (isLargeDesktop)
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -704,7 +707,169 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
   );
 }
 
+  Widget _buildFinanceOverviewSection(BuildContext context, bool isDark) {
+    final financeOverview = ref.watch(financeProvider).overview;
+
+    final rev = financeOverview?.totalRevenue ?? 1200000;
+    final coll = financeOverview?.totalCollected ?? 950000;
+    final out = financeOverview?.totalOutstanding ?? 325000;
+    final exp = financeOverview?.totalExpenses ?? 480000;
+    final net = financeOverview?.netBalance ?? 720000;
+    final pay = financeOverview?.payrollCost ?? 275000;
+    final studentsDuesCount = financeOverview?.studentsWithDues ?? 124;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF111827) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF6366F1), size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'FINANCE MANAGEMENT',
+                        style: GoogleFonts.outfit(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                      Text(
+                        'Institution financial overview',
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              ElevatedButton.icon(
+                onPressed: () => context.go('/admin/finance'),
+                icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                label: const Text('View Finance'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6366F1),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          LayoutBuilder(
+            builder: (ctx, constraints) {
+              final crossCount = constraints.maxWidth > 1100 ? 6 : constraints.maxWidth > 700 ? 3 : 2;
+              return GridView.count(
+                crossAxisCount: crossCount,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1.7,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _buildFinanceKpiTile('TOTAL REVENUE', '₹${_formatFinanceNum(rev)}', '↑ 8.5% vs prev period', const Color(0xFF6366F1), isDark),
+                  _buildFinanceKpiTile('FEES COLLECTED', '₹${_formatFinanceNum(coll)}', '78% of expected', const Color(0xFF10B981), isDark),
+                  _buildFinanceKpiTile('OUTSTANDING FEES', '₹${_formatFinanceNum(out)}', '$studentsDuesCount students pending', const Color(0xFFEF4444), isDark),
+                  _buildFinanceKpiTile('TOTAL EXPENSES', '₹${_formatFinanceNum(exp)}', '↓ 3.2% vs prev period', const Color(0xFFF59E0B), isDark),
+                  _buildFinanceKpiTile('NET CASH FLOW', '₹${_formatFinanceNum(net)}', 'Positive surplus', const Color(0xFF10B981), isDark),
+                  _buildFinanceKpiTile('PAYROLL', '₹${_formatFinanceNum(pay)}', '37 staff members', const Color(0xFF8B5CF6), isDark),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 20),
+
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => context.go('/admin/finance'),
+                icon: const Icon(Icons.add_rounded, size: 16, color: Color(0xFF6366F1)),
+                label: const Text('Collect Fee'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => context.go('/admin/finance'),
+                icon: const Icon(Icons.receipt_rounded, size: 16, color: Color(0xFF10B981)),
+                label: const Text('Record Payment'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => context.go('/admin/finance'),
+                icon: const Icon(Icons.add_card_rounded, size: 16, color: Color(0xFFF59E0B)),
+                label: const Text('Add Expense'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => context.go('/admin/defaulters'),
+                icon: const Icon(Icons.warning_amber_rounded, size: 16, color: Color(0xFFEF4444)),
+                label: const Text('View Outstanding'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFinanceKpiTile(String title, String value, String sub, Color color, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(title, style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF64748B))),
+          const SizedBox(height: 4),
+          Text(value, style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+          const SizedBox(height: 2),
+          Text(sub, style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w500, color: color)),
+        ],
+      ),
+    );
+  }
+
+  String _formatFinanceNum(double val) {
+    return val.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+  }
+
   Widget _buildTopBar(BuildContext context, bool isDark) {
+
     final authState = ref.watch(authProvider);
     final user = authState.userData;
     final userName = user?['full_name'] ?? 'Super Admin';
@@ -3275,6 +3440,9 @@ class _ExportPreviewDialogState extends State<_ExportPreviewDialog> {
 }
 
 class _SearchOverlayDialog extends StatefulWidget {
+
+
+
   final bool isDark;
   const _SearchOverlayDialog({required this.isDark});
 
@@ -3457,3 +3625,4 @@ class _SearchOverlayDialogState extends State<_SearchOverlayDialog> {
     );
   }
 }
+

@@ -35,36 +35,24 @@ def validate_email(email: str) -> str:
     return email
 
 
-def get_security_settings(school_id: Optional[str] = None) -> dict:
-    import psycopg2
-    from app.config import settings
-    
+async def get_security_settings(school_id: Optional[str] = None) -> dict:
     default_settings = {
         "password_policy": "Strong",
         "session_limit": 5,
         "failed_attempts_lockout": 5
     }
-    
     try:
-        conn = psycopg2.connect(settings.DATABASE_URL, connect_timeout=3)
-        with conn.cursor() as cur:
-            if school_id:
-                cur.execute(
-                    "SELECT security_settings FROM public.system_configurations WHERE school_id = %s LIMIT 1",
-                    (school_id,)
-                )
-                row = cur.fetchone()
-                if row and row[0]:
-                    return row[0]
-            
-            cur.execute(
-                "SELECT security_settings FROM public.system_configurations WHERE school_id IS NULL LIMIT 1"
-            )
-            row = cur.fetchone()
-            if row and row[0]:
-                return row[0]
+        sb = get_supabase()
+        if school_id:
+            res = await sb.table("system_configurations").select("security_settings").eq("school_id", school_id).maybe_single().aexecute()
+            if res.data and res.data.get("security_settings"):
+                return res.data["security_settings"]
+        
+        res = await sb.table("system_configurations").select("security_settings").is_("school_id", "null").maybe_single().aexecute()
+        if res.data and res.data.get("security_settings"):
+            return res.data["security_settings"]
     except Exception as e:
-        logging.warning(f"Error fetching security settings synchronously: {e}")
+        logging.warning(f"Error fetching security settings: {e}")
     return default_settings
 
 
@@ -226,7 +214,7 @@ async def login(request: LoginRequest, raw_req: Request):
         # Check lockout status first
         profile_check = await sb.table("profiles").select("*").eq("email", email).maybe_single().aexecute()
         p_check = profile_check.data
-        sec_settings = get_security_settings(p_check.get("school_id") if p_check else None)
+        sec_settings = await get_security_settings(p_check.get("school_id") if p_check else None)
         lockout_limit = int(sec_settings.get("failed_attempts_lockout") or 5)
 
         if p_check:
@@ -473,7 +461,7 @@ async def register(request: RegisterRequest):
             school_id = None
 
         # Validate password complexity
-        sec_settings = get_security_settings(school_id)
+        sec_settings = await get_security_settings(school_id)
         validate_password_complexity(request.password, sec_settings.get("password_policy", "Strong"))
 
         # Check if email already registered in profiles
@@ -537,6 +525,38 @@ async def register(request: RegisterRequest):
         raise HTTPException(status_code=400, detail=f"Registration failed: {str(e)}")
 
 
+@router.get("/check-availability",
+    summary="Check Email / Phone Availability",
+    description="Check if an email or mobile phone number is already registered"
+)
+async def check_availability(email: Optional[str] = None, phone: Optional[str] = None):
+    try:
+        sb = get_supabase()
+        email_available = True
+        phone_available = True
+
+        if email:
+            existing_email = await sb.table("profiles").select("id").eq("email", email.strip()).maybe_single().aexecute()
+            if existing_email.data:
+                email_available = False
+
+        if phone:
+            digits_only = re.sub(r"\D", "", phone)
+            existing_phone = await sb.table("profiles").select("id").eq("phone", digits_only).maybe_single().aexecute()
+            if existing_phone.data:
+                phone_available = False
+
+        return {
+            "success": True,
+            "data": {
+                "email_available": email_available,
+                "phone_available": phone_available
+            }
+        }
+    except Exception:
+        return {"success": True, "data": {"email_available": True, "phone_available": True}}
+
+
 @router.get("/plans",
     summary="Get subscription plans",
     description="List all available subscription plans for onboarding"
@@ -555,7 +575,7 @@ async def list_public_plans():
     summary="Onboard a new school",
     description="Register a new school, its initial admin, and setup subscription/payment"
 )
-async def onboard_school(request: OnboardSchoolRequest):
+async def onboard_school(request: OnboardSchoolRequest, req_context: Request):
     try:
         sb = get_supabase()
         
@@ -568,13 +588,13 @@ async def onboard_school(request: OnboardSchoolRequest):
         if len(request.password) < 6:
             raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
             
-        # 3. Create a new school in schools table with subscription_status = 'new'
+        # 3. Create a new school in schools table with subscription_status = 'pending_payment'
         school_data = {
             "name": request.school_name,
             "address": request.school_address,
             "phone": request.school_phone,
             "board": request.board,
-            "subscription_status": "new",
+            "subscription_status": "pending_payment",
             "subscription_tier": request.plan_code,
             "owner_name": request.full_name,
             "owner_email": request.email,
@@ -619,24 +639,34 @@ async def onboard_school(request: OnboardSchoolRequest):
             "monthly_limit": 5000,
             "emails_sent": 0
         }).aexecute()
+
+        # 7. Create PayU Payment Order via PaymentService
+        from app.services.payment.payment_service import PaymentService
+        host = str(req_context.base_url).rstrip("/")
         
-        # 7. Insert payment record
-        await sb.table("payments").insert({
-            "school_id": school_id,
-            "amount": request.payment_amount,
-            "payment_method": request.payment_method,
-            "status": "success",
-            "description": f"Subscription payment for plan: {request.plan_code} ({request.billing_cycle})",
-            "initiated_by": user_id,
-            "transaction_id": f"TXN-{uuid.uuid4().hex[:8].upper()}"
-        }).aexecute()
-        
+        order_data = await PaymentService.create_payment_order(
+            school_id=school_id,
+            user_id=user_id,
+            plan_code=request.plan_code,
+            billing_cycle=request.billing_cycle,
+            customer_name=request.full_name,
+            customer_email=request.email,
+            customer_phone=request.school_phone,
+            purpose="SCHOOL_REGISTRATION",
+            callback_base_url=host
+        )
+
         return {
             "success": True,
-            "message": "School registered successfully. Pending superadmin approval.",
+            "message": "School registered successfully. Please complete payment to activate subscription.",
             "data": {
                 "school_id": school_id,
-                "user_id": user_id
+                "user_id": user_id,
+                "payment_id": order_data.get("payment_id"),
+                "transaction_id": order_data.get("transaction_id"),
+                "checkout_url": order_data.get("checkout_url"),
+                "amount": order_data.get("amount"),
+                "status": order_data.get("status")
             }
         }
     except HTTPException:

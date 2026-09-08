@@ -137,6 +137,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: '/get-started/payment-processing',
+        builder: (context, state) {
+          final paymentId = state.uri.queryParameters['payment_id'];
+          final txnId = state.uri.queryParameters['txnId'];
+          final status = state.uri.queryParameters['status'];
+          return PaymentProcessingScreen(
+            paymentId: paymentId,
+            transactionId: txnId,
+            initialStatus: status,
+          );
+        },
+      ),
+      GoRoute(
         path: '/faq',
         builder: (context, state) {
           final config = ref.read(systemConfigProvider);
@@ -311,6 +324,18 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/admin/finance',
             pageBuilder: (_, __) => const NoTransitionPage(child: FinanceTab()),
+          ),
+          GoRoute(
+            path: '/admin/payments',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PaymentEnginePaymentsScreen()),
+          ),
+          GoRoute(
+            path: '/admin/payment-engine',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PaymentEnginePaymentsScreen()),
+          ),
+          GoRoute(
+            path: '/admin/payment-engine/payments',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PaymentEnginePaymentsScreen()),
           ),
           GoRoute(
             path: '/admin/defaulters',
