@@ -156,9 +156,11 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to initiate payment retry.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to initiate payment retry.')),
+        );
+      }
     } finally {
       setState(() {
         _isLoading = false;
@@ -245,6 +247,11 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
     }
 
     if (_status == 'SUCCESS') {
+      final amount = _paymentData?['amount'] != null ? '₹${_paymentData!['amount']}' : (_receiptData?['amount'] != null ? '₹${_receiptData!['amount']}' : '₹0.00');
+      final invoice = _paymentData?['invoice_id'] ?? _paymentData?['order_id'] ?? '-';
+      final date = _paymentData?['created_at'] ?? _paymentData?['verified_at'] ?? DateTime.now().toIso8601String().substring(0, 10);
+      final method = _paymentData?['payment_method'] ?? 'PayU Hosted Checkout';
+
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -277,7 +284,7 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              'Subscription Active',
+              'Status: Verified & Settled',
               style: GoogleFonts.dmSans(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -287,21 +294,97 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
           ),
           const SizedBox(height: 24),
           _buildInfoRow('Transaction ID', widget.transactionId ?? _paymentData?['transaction_id'] ?? '-'),
-          _buildInfoRow('Receipt Number', _receiptData?['receipt_number'] ?? 'Generated'),
-          _buildInfoRow('Payment Provider', 'PayU Hosted Gateway'),
-          _buildInfoRow('Status', 'Verified SUCCESS', isHighlight: true),
+          _buildInfoRow('Amount Paid', amount, isHighlight: true),
+          _buildInfoRow('Invoice / Order', invoice),
+          _buildInfoRow('Payment Method', method),
+          _buildInfoRow('Date', date),
+          _buildInfoRow('Receipt Number', _receiptData?['receipt_number'] ?? _paymentData?['receipt_number'] ?? 'Auto-Generated'),
           const SizedBox(height: 32),
-          ElevatedButton(
-            onPressed: () => context.go('/login'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6366F1),
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 50),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Viewing verified official payment receipt...')),
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.receipt_rounded, size: 16),
+                  label: Text('View Receipt', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => context.go('/admin/payments'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6366F1),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: Text('Back to Dashboard', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    if (_status == 'PENDING' || _status == 'PROCESSING' || _status == 'AWAITING') {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: Color(0xFFEFF6FF),
+              shape: BoxShape.circle,
             ),
-            child: Text(
-              'Proceed to Login & Launch ERP',
-              style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.bold),
+            child: const Icon(
+              Icons.hourglass_top_rounded,
+              color: Color(0xFF3B82F6),
+              size: 64,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Payment Processing',
+            style: GoogleFonts.outfit(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'We are waiting for confirmation from the payment gateway.\nIf your account has been debited, verification will complete shortly.',
+            style: GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF64748B)),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          if (widget.transactionId != null)
+            _buildInfoRow('Transaction ID', widget.transactionId!),
+          _buildInfoRow('Status', 'Gateway Verification Pending'),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _verifyPaymentStatus,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3B82F6),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              icon: const Icon(Icons.sync_rounded, size: 18),
+              label: Text('Check Payment Status', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold)),
             ),
           ),
         ],
@@ -336,7 +419,7 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          _errorMessage ?? 'The payment could not be processed. No funds were debited.',
+          _errorMessage ?? 'The payment was declined or failed verification. No funds were debited.',
           style: GoogleFonts.dmSans(
             fontSize: 13,
             color: const Color(0xFF64748B),
@@ -352,13 +435,13 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: () => context.go('/get-started'),
+                onPressed: () => context.go('/admin/payments'),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   side: const BorderSide(color: Color(0xFFCBD5E1)),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                child: Text('Back to Plans', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF475569))),
+                child: Text('Back', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF475569))),
               ),
             ),
             const SizedBox(width: 12),

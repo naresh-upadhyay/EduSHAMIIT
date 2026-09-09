@@ -191,44 +191,6 @@ async def list_student_fee_invoices(
     except Exception:
         pass
 
-    if not invoices:
-        # Provide sample institutional fee invoices for testing
-        invoices = [
-            {
-                "id": "INV-001",
-                "invoice_number": "FEE-2026-000125",
-                "fee_head": "Tuition Fee (Q1)",
-                "amount_demand": 18000.0,
-                "amount_payable": 18000.0,
-                "amount_paid": 0.0,
-                "amount_balance": 18000.0,
-                "due_date": "2026-09-30",
-                "status": "unpaid"
-            },
-            {
-                "id": "INV-002",
-                "invoice_number": "FEE-2026-000126",
-                "fee_head": "Transport & Bus Fee",
-                "amount_demand": 5000.0,
-                "amount_payable": 5000.0,
-                "amount_paid": 0.0,
-                "amount_balance": 5000.0,
-                "due_date": "2026-09-30",
-                "status": "unpaid"
-            },
-            {
-                "id": "INV-003",
-                "invoice_number": "FEE-2026-000127",
-                "fee_head": "Activity & Lab Fee",
-                "amount_demand": 2000.0,
-                "amount_payable": 2000.0,
-                "amount_paid": 0.0,
-                "amount_balance": 2000.0,
-                "due_date": "2026-10-15",
-                "status": "unpaid"
-            }
-        ]
-
     return {"success": True, "data": {"invoices": invoices}}
 
 
@@ -265,14 +227,11 @@ async def check_fee_payment_status(payment_id: str):
     except Exception:
         pass
 
-    return {
-        "success": True,
-        "data": {
-            "id": payment_id,
-            "status": "SUCCESS",
-            "message": "Payment verified"
-        }
-    }
+    order = PaymentService._memory_orders.get(payment_id)
+    if order:
+        return {"success": True, "data": order}
+
+    raise HTTPException(status_code=404, detail=f"Payment order '{payment_id}' not found")
 
 
 # =========================================================================
@@ -312,20 +271,35 @@ async def get_receipt(payment_id: str):
     except Exception:
         pass
 
-    # Dynamic fallback receipt
-    return {
-        "success": True,
-        "data": {
-            "receipt_number": f"RCP-202609-{uuid.uuid4().hex[:6].upper()}",
-            "amount": 25000.0,
-            "currency": "INR",
-            "customer_name": "Valued Parent",
-            "payment_method": "UPI (Dynamic QR)",
-            "transaction_id": payment_id,
-            "status": "SUCCESS",
-            "date": datetime.now(timezone.utc).isoformat()
+    # Check if payment order exists and is verified
+    order = None
+    try:
+        o_res = await sb.table("payment_orders").select("*").or_(
+            f"id.eq.{payment_id},transaction_id.eq.{payment_id}"
+        ).maybe_single().aexecute()
+        if o_res and o_res.data:
+            order = o_res.data
+    except Exception:
+        pass
+    if not order:
+        order = PaymentService._memory_orders.get(payment_id)
+
+    if order and order.get("status") in ("SUCCESS", "PARTIALLY_REFUNDED", "REFUNDED"):
+        return {
+            "success": True,
+            "data": {
+                "receipt_number": f"RCP-{order.get('transaction_id', payment_id)}",
+                "amount": float(order.get("amount", 0)),
+                "currency": order.get("currency", "INR"),
+                "customer_name": order.get("customer_name", "Payer"),
+                "payment_method": order.get("payment_method", "ONLINE"),
+                "transaction_id": order.get("transaction_id", payment_id),
+                "status": order.get("status"),
+                "date": order.get("paid_at") or order.get("created_at") or datetime.now(timezone.utc).isoformat()
+            }
         }
-    }
+
+    raise HTTPException(status_code=404, detail="Verified payment receipt not found for this transaction")
 
 
 # =========================================================================
@@ -362,34 +336,45 @@ async def get_school_admin_dashboard(school_id: Optional[str] = None):
         pass
 
     today_date = datetime.now(timezone.utc).date()
-    today_collection = sum(float(o["amount"]) for o in orders if o.get("status") == "SUCCESS")
-    pending_count = sum(1 for o in orders if o.get("status") == "PENDING")
+    today_str = today_date.isoformat()
+    today_orders = [o for o in orders if str(o.get("created_at", "")).startswith(today_str) and o.get("status") == "SUCCESS"]
+    today_collection = sum(float(o.get("amount") or 0) for o in today_orders)
+
+    this_month_prefix = today_date.strftime("%Y-%m")
+    month_orders = [o for o in orders if str(o.get("created_at", "")).startswith(this_month_prefix) and o.get("status") == "SUCCESS"]
+    month_collection = sum(float(o.get("amount") or 0) for o in month_orders)
+
+    total_collected = sum(float(o.get("amount") or 0) for o in orders if o.get("status") == "SUCCESS")
+    pending_count = sum(1 for o in orders if o.get("status") in ("PENDING", "INITIATED", "PROCESSING"))
     success_count = sum(1 for o in orders if o.get("status") == "SUCCESS")
-    failed_count = sum(1 for o in orders if o.get("status") == "FAILED")
+    failed_count = sum(1 for o in orders if o.get("status") in ("FAILED", "CANCELLED"))
     refund_count = sum(1 for o in orders if "REFUND" in str(o.get("status", "")))
     unreconciled_count = sum(1 for o in orders if o.get("reconciliation_status") in ("UNRECONCILED", "EXCEPTION"))
+
+    total_txns = len(orders)
+    success_rate = round((success_count / total_txns * 100) if total_txns > 0 else 0.0, 1)
 
     return {
         "success": True,
         "data": {
             "kpis": {
-                "today_collection": today_collection if today_collection > 0 else 45000.0,
-                "this_month": today_collection * 6 if today_collection > 0 else 270000.0,
-                "total_collected": today_collection * 25 if today_collection > 0 else 1125000.0,
-                "outstanding_receivables": 345000.0,
-                "successful_payments": max(success_count, 48),
-                "pending_payments": max(pending_count, 3),
-                "failed_payments": max(failed_count, 2),
-                "refunds": max(refund_count, 1),
-                "unreconciled_count": max(unreconciled_count, 2),
-                "success_rate": 96.4
+                "today_collection": round(today_collection, 2),
+                "this_month": round(month_collection, 2),
+                "total_collected": round(total_collected, 2),
+                "outstanding_receivables": 0.0,
+                "successful_payments": success_count,
+                "pending_payments": pending_count,
+                "failed_payments": failed_count,
+                "refunds": refund_count,
+                "unreconciled_count": unreconciled_count,
+                "success_rate": success_rate
             },
             "settlement": {
-                "status": "SETTLED",
+                "status": "SETTLED" if today_collection > 0 else "NO_ACTIVITY",
                 "bank_name": "State Bank of India",
                 "account_masked": "••••••••4589",
                 "last_settlement_date": today_date.isoformat(),
-                "net_amount": today_collection or 45000.0
+                "net_amount": round(today_collection, 2)
             }
         }
     }
@@ -417,47 +402,6 @@ async def list_school_transactions(
         transactions = res.data or []
     except Exception:
         pass
-
-    if not transactions:
-        # Fallback rich transactions
-        transactions = [
-            {
-                "id": str(uuid.uuid4()),
-                "transaction_id": "SCHFEE-TXN-20260903-0001",
-                "ecosystem": "SCHOOL_FEE",
-                "customer_name": "Rahul Sharma",
-                "purpose": "Tuition Fee (Q1)",
-                "amount": 18000.0,
-                "status": "SUCCESS",
-                "payment_mode": "UPI (PhonePe)",
-                "settlement_status": "SETTLED",
-                "created_at": datetime.now(timezone.utc).isoformat()
-            },
-            {
-                "id": str(uuid.uuid4()),
-                "transaction_id": "SCHFEE-TXN-20260903-0002",
-                "ecosystem": "SCHOOL_FEE",
-                "customer_name": "Priya Patel",
-                "purpose": "Transport Fee",
-                "amount": 5000.0,
-                "status": "SUCCESS",
-                "payment_mode": "UPI (GPay)",
-                "settlement_status": "SETTLED",
-                "created_at": datetime.now(timezone.utc).isoformat()
-            },
-            {
-                "id": str(uuid.uuid4()),
-                "transaction_id": "SCHFEE-TXN-20260903-0003",
-                "ecosystem": "SCHOOL_FEE",
-                "customer_name": "Amit Kumar",
-                "purpose": "Activity Fee",
-                "amount": 2000.0,
-                "status": "PENDING",
-                "payment_mode": "UPI (Dynamic QR)",
-                "settlement_status": "PENDING",
-                "created_at": datetime.now(timezone.utc).isoformat()
-            }
-        ]
 
     return {"success": True, "data": {"transactions": transactions}}
 
@@ -541,26 +485,44 @@ async def get_superadmin_overview():
     """
     CRITICAL: Segregates EduSHAMIIT Subscription Revenue from School Fee Collections.
     """
+    sb = get_supabase()
+    sub_orders = []
+    fee_orders = []
+    try:
+        res = await sb.table("payment_orders").select("amount, ecosystem, status, created_at, school_id").aexecute()
+        all_orders = res.data or []
+        sub_orders = [o for o in all_orders if o.get("ecosystem") == "SUBSCRIPTION" and o.get("status") == "SUCCESS"]
+        fee_orders = [o for o in all_orders if o.get("ecosystem") == "SCHOOL_FEE" and o.get("status") == "SUCCESS"]
+    except Exception:
+        pass
+
+    today_prefix = datetime.now(timezone.utc).strftime("%Y-%m")
+    sub_total = sum(float(o.get("amount") or 0) for o in sub_orders)
+    sub_month = sum(float(o.get("amount") or 0) for o in sub_orders if str(o.get("created_at", "")).startswith(today_prefix))
+    active_schools = len({o.get("school_id") for o in sub_orders if o.get("school_id")})
+
+    fee_total = sum(float(o.get("amount") or 0) for o in fee_orders)
+    fee_month = sum(float(o.get("amount") or 0) for o in fee_orders if str(o.get("created_at", "")).startswith(today_prefix))
+
     return {
         "success": True,
         "data": {
             "corporate_subscription_revenue": {
-                "total_subscription_revenue": 4500000.0,
-                "this_month": 350000.0,
-                "active_schools": 34,
+                "total_subscription_revenue": round(sub_total, 2),
+                "this_month": round(sub_month, 2),
+                "active_schools": active_schools,
                 "settlement_status": "SETTLED_TO_EDUSHAMIIT_CORP"
             },
             "school_student_fee_collections": {
-                "total_student_fees_processed": 48500000.0,
-                "this_month": 4200000.0,
+                "total_student_fees_processed": round(fee_total, 2),
+                "this_month": round(fee_month, 2),
                 "settlement_status": "DIRECT_SETTLED_TO_SCHOOL_BANKS",
                 "zero_commission_compliance": True
             },
             "provider_health": [
-                {"provider": "MOCK_SANDBOX", "status": "ONLINE", "uptime": "99.99%", "avg_latency_ms": 45},
-                {"provider": "PAYU", "status": "ONLINE", "uptime": "99.95%", "avg_latency_ms": 180},
+                {"provider": "PAYU", "status": "ONLINE", "uptime": "100%", "avg_latency_ms": 120},
                 {"provider": "SBI_EPAY", "status": "STANDBY", "uptime": "99.8%", "avg_latency_ms": 250},
-                {"provider": "CASHFREE", "status": "ONLINE", "uptime": "99.9%", "avg_latency_ms": 120}
+                {"provider": "CASHFREE", "status": "STANDBY", "uptime": "99.9%", "avg_latency_ms": 140}
             ]
         }
     }

@@ -4,8 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:edu_shamiit_core/config/app_config.dart';
 import 'payment_gateway_integration_screen.dart';
+import 'edushamiit_pay_dashboard_screen.dart';
+import 'edushamiit_pay_transactions_screen.dart';
+import 'edushamiit_pay_reconciliation_screen.dart';
+import 'edushamiit_pay_merchant_settings_screen.dart';
 
 class PaymentEnginePaymentsScreen extends StatefulWidget {
   final String? schoolId;
@@ -45,15 +50,15 @@ class _PaymentEnginePaymentsScreenState
   int _totalPages = 1;
 
   // Selected Row & Details Panel
-  final Set<String> _selectedPaymentIds = {'TXN202609030002'};
+  final Set<String> _selectedPaymentIds = {};
   Map<String, dynamic>? _activePaymentDetail;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   // Filter State (2-row panel)
   bool _showFilters = true;
-  String _filterFinancialPeriod = '03 Sep 2026 - 03 Sep 2026';
-  String? _filterStartDate = '2026-09-03';
-  String? _filterEndDate = '2026-09-03';
+  String _filterFinancialPeriod = 'All Dates';
+  String? _filterStartDate;
+  String? _filterEndDate;
   String _filterPaymentType = 'ALL';
   String _filterStatus = 'ALL';
   String _filterGateway = 'ALL';
@@ -71,12 +76,17 @@ class _PaymentEnginePaymentsScreenState
   final String _sortBy = 'created_at';
   final String _sortOrder = 'desc';
 
+  // Webhook Stream State
+  bool _isLoadingWebhooks = false;
+  List<dynamic> _webhooks = [];
+
   @override
   void initState() {
     super.initState();
     _activeNavTab = widget.initialNavTab;
     _fetchSummary();
-    _fetchPayments(initialSelectTxnId: 'TXN202609030002');
+    _fetchPayments();
+    if (_activeNavTab == 4) _fetchWebhooks();
   }
 
   @override
@@ -93,6 +103,17 @@ class _PaymentEnginePaymentsScreenState
   // API CALLS (Connected to Real Backend)
   // =========================================================================
 
+  /// Returns auth headers including Bearer token from shared prefs.
+  Future<Map<String, String>> _authHeaders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    return {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
+
   Future<void> _fetchSummary() async {
     setState(() => _isLoadingSummary = true);
     try {
@@ -106,19 +127,51 @@ class _PaymentEnginePaymentsScreenState
         uri = uri.replace(queryParameters: queryParams);
       }
 
-      final res = await http.get(uri);
+      final res = await http.get(uri, headers: await _authHeaders());
       if (res.statusCode == 200) {
         final body = json.decode(res.body);
         if (body['success'] == true && mounted) {
+          final rawData = body['data'];
           setState(() {
-            _summaryData = body['data'] ?? {};
+            _summaryData = (rawData is Map) ? Map<String, dynamic>.from(rawData) : <String, dynamic>{};
           });
         }
+      } else if (res.statusCode == 401) {
+        debugPrint('Payment summary: Unauthorized — token may be expired');
       }
     } catch (e) {
       debugPrint('Error fetching payment summary: $e');
     } finally {
       if (mounted) setState(() => _isLoadingSummary = false);
+    }
+  }
+
+  Future<void> _fetchWebhooks() async {
+    setState(() => _isLoadingWebhooks = true);
+    try {
+      // Use the real payment-gateways webhook events endpoint (auth-protected)
+      var uri = Uri.parse('${AppConfig.apiBaseUrl}/v1/payment-gateways/webhooks');
+      final queryParams = <String, String>{'limit': '50'};
+      if (widget.schoolId != null) queryParams['school_id'] = widget.schoolId!;
+      uri = uri.replace(queryParameters: queryParams);
+      final res = await http.get(uri, headers: await _authHeaders());
+      if (res.statusCode == 200) {
+        final body = json.decode(res.body);
+        if (body['success'] == true && mounted) {
+          final rawList = body['data'];
+          setState(() {
+            _webhooks = (rawList is List) ? rawList : [];
+          });
+        }
+      } else if (res.statusCode == 401) {
+        debugPrint('Webhooks: Unauthorized — token may be expired');
+      } else {
+        debugPrint('Webhooks endpoint returned HTTP ${res.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error fetching webhooks: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingWebhooks = false);
     }
   }
 
@@ -171,7 +224,7 @@ class _PaymentEnginePaymentsScreenState
       final uri = Uri.parse('${AppConfig.apiBaseUrl}/v1/edushamiit-pay/payments')
           .replace(queryParameters: queryParams);
 
-      final res = await http.get(uri);
+      final res = await http.get(uri, headers: await _authHeaders());
       if (res.statusCode == 200) {
         final body = json.decode(res.body);
         if (body['success'] == true && mounted) {
@@ -183,15 +236,17 @@ class _PaymentEnginePaymentsScreenState
             _totalPages = data['total_pages'] ?? 1;
           });
 
-          // Auto-select initial transaction if requested or first load
+          // Auto-select initial transaction if requested or first real transaction
           if (initialSelectTxnId != null) {
             final match = items.firstWhere(
               (it) => it['transaction_id'] == initialSelectTxnId || it['id'] == initialSelectTxnId,
-              orElse: () => items.isNotEmpty ? (items.length > 1 ? items[1] : items[0]) : null,
+              orElse: () => items.isNotEmpty ? items.first : null,
             );
             if (match != null) {
               _selectPayment(match, openDrawerOnMobile: false);
             }
+          } else if (items.isNotEmpty && _activePaymentDetail == null) {
+            _selectPayment(items.first, openDrawerOnMobile: false);
           }
         }
       }
@@ -209,14 +264,17 @@ class _PaymentEnginePaymentsScreenState
     }
     try {
       final uri = Uri.parse('${AppConfig.apiBaseUrl}/v1/edushamiit-pay/payments/$paymentId');
-      final res = await http.get(uri);
+      final res = await http.get(uri, headers: await _authHeaders());
       if (res.statusCode == 200) {
         final body = json.decode(res.body);
         if (body['success'] == true && mounted) {
+          final rawData = body['data'];
           setState(() {
-            _activePaymentDetail = body['data'];
+            _activePaymentDetail = (rawData is Map) ? Map<String, dynamic>.from(rawData) : null;
           });
         }
+      } else if (res.statusCode == 401) {
+        debugPrint('Payment detail: Unauthorized — token may be expired');
       }
     } catch (e) {
       debugPrint('Error fetching payment detail: $e');
@@ -225,14 +283,14 @@ class _PaymentEnginePaymentsScreenState
     }
   }
 
-  void _selectPayment(Map<String, dynamic> payment, {bool openDrawerOnMobile = true}) {
-    final txnId = payment['transaction_id'] ?? payment['id'] ?? '';
+  void _selectPayment(Map<dynamic, dynamic> payment, {bool openDrawerOnMobile = true}) {
+    final txnId = payment['transaction_id']?.toString() ?? payment['id']?.toString() ?? '';
     setState(() {
       _selectedPaymentIds.clear();
       if (txnId.isNotEmpty) {
         _selectedPaymentIds.add(txnId);
       }
-      _activePaymentDetail = payment;
+      _activePaymentDetail = (payment is Map) ? Map<String, dynamic>.from(payment) : null;
     });
     if (txnId.isNotEmpty) {
       _fetchPaymentDetail(txnId, openDrawerOnMobile: openDrawerOnMobile);
@@ -364,9 +422,12 @@ class _PaymentEnginePaymentsScreenState
                   child: const Icon(Icons.add_card_rounded, color: Color(0xFF4F46E5)),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  'Create Payment Order',
-                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+                Expanded(
+                  child: Text(
+                    'Create Payment Order',
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),
@@ -565,7 +626,13 @@ class _PaymentEnginePaymentsScreenState
               children: [
                 const Icon(Icons.refresh_rounded, color: Color(0xFFF59E0B)),
                 const SizedBox(width: 10),
-                Text('Retry Payment Attempt', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: Text(
+                    'Retry Payment Attempt',
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
             content: SizedBox(
@@ -658,7 +725,13 @@ class _PaymentEnginePaymentsScreenState
             children: [
               const Icon(Icons.reply_rounded, color: Color(0xFFEF4444)),
               const SizedBox(width: 10),
-              Text('Initiate Payment Refund', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+              Expanded(
+                child: Text(
+                  'Initiate Payment Refund',
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
           content: SizedBox(
@@ -963,22 +1036,34 @@ class _PaymentEnginePaymentsScreenState
               child: _buildPaymentDetailPanel(isInline: false),
             )
           : null,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Section: Title & Sub-tabs & Action controls
-            _buildTopNavigationHeader(),
-            const SizedBox(height: 20),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
+            child: _buildTopNavigationHeader(),
+          ),
+          Expanded(
+            child: _buildActiveTabContent(isWide),
+          ),
+        ],
+      ),
+    );
+  }
 
-            if (_activeNavTab == 2) ...[
-              PaymentGatewayIntegrationScreen(
-                schoolId: widget.schoolId,
-                schoolName: widget.schoolName,
-                isEmbedded: true,
-              ),
-            ] else ...[
+  Widget _buildActiveTabContent(bool isWide) {
+    switch (_activeNavTab) {
+      case 0:
+        return EduSHAMIITPayDashboardScreen(
+          schoolId: widget.schoolId,
+          schoolName: widget.schoolName,
+        );
+      case 1:
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               // 6 Real KPI Summary Cards matching Screenshot
               _buildKpiSummaryGrid(),
               const SizedBox(height: 20),
@@ -1006,9 +1091,301 @@ class _PaymentEnginePaymentsScreenState
                 )
               else
                 _buildTransactionWorkspaceCard(),
+              const SizedBox(height: 32),
             ],
+          ),
+        );
+      case 2:
+        return PaymentGatewayIntegrationScreen(
+          schoolId: widget.schoolId,
+          schoolName: widget.schoolName,
+          isEmbedded: true,
+          showSidebar: false,
+        );
+      case 3:
+        return EduSHAMIITPayTransactionsScreen(
+          schoolId: widget.schoolId,
+        );
+      case 4:
+        return _buildWebhooksView();
+      case 5:
+        return EduSHAMIITPayReconciliationScreen(
+          schoolId: widget.schoolId,
+        );
+      case 6:
+        return EduSHAMIITPayMerchantSettingsScreen(
+          schoolId: widget.schoolId,
+        );
+      default:
+        return Center(
+          child: Text(
+            'Tab $_activeNavTab not found',
+            style: GoogleFonts.dmSans(color: const Color(0xFF64748B)),
+          ),
+        );
+    }
+  }
+
+  Widget _buildWebhooksView() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.webhook, color: Color(0xFF4F46E5), size: 22),
+                        ),
+                        const SizedBox(width: 14),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Payment Gateway Webhook Stream',
+                              style: GoogleFonts.outfit(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Authoritative server-to-server gateway notifications, HMAC/hash validation audit logs & state reconciliation',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 12,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _isLoadingWebhooks ? null : _fetchWebhooks,
+                      icon: _isLoadingWebhooks
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.refresh, size: 16),
+                      label: const Text('Refresh'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4F46E5),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                const SizedBox(height: 16),
+
+                if (_isLoadingWebhooks)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: Center(
+                      child: CircularProgressIndicator(color: Color(0xFF4F46E5)),
+                    ),
+                  )
+                else if (_webhooks.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4F46E5).withValues(alpha: 0.08),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.sync_alt, size: 36, color: Color(0xFF4F46E5)),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            'No Webhook Events Recorded',
+                            style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Inbound payment webhooks from PayU and other configured providers will appear here automatically with validated payload digests.',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF64748B)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: DataTable(
+                      headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                      headingTextStyle: GoogleFonts.dmSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF475569),
+                      ),
+                      dataTextStyle: GoogleFonts.dmSans(
+                        fontSize: 12,
+                        color: const Color(0xFF1E293B),
+                      ),
+                      columns: const [
+                        DataColumn(label: Text('Event ID')),
+                        DataColumn(label: Text('Gateway')),
+                        DataColumn(label: Text('Event Type')),
+                        DataColumn(label: Text('Transaction / Order ID')),
+                        DataColumn(label: Text('Status')),
+                        DataColumn(label: Text('Received At')),
+                        DataColumn(label: Text('Actions')),
+                      ],
+                      rows: _webhooks.map((wh) {
+                        final eventId = wh['id'] ?? wh['event_id'] ?? 'WH-${wh['gateway_event_id'] ?? 'N/A'}';
+                        final gateway = wh['gateway_code'] ?? wh['gateway'] ?? 'PAYU';
+                        final eventType = wh['event_type'] ?? 'payment.status';
+                        final orderId = wh['order_id'] ?? wh['payment_order_id'] ?? wh['transaction_id'] ?? '-';
+                        final status = (wh['processing_status'] ?? wh['status'] ?? 'PROCESSED').toString().toUpperCase();
+                        final receivedAt = _formatDateTime(wh['received_at'] ?? wh['created_at']);
+
+                        Color statusBg;
+                        Color statusFg;
+                        if (status == 'PROCESSED' || status == 'SUCCESS') {
+                          statusBg = const Color(0xFFECFDF5);
+                          statusFg = const Color(0xFF059669);
+                        } else if (status == 'FAILED' || status == 'INVALID_HASH') {
+                          statusBg = const Color(0xFFFEF2F2);
+                          statusFg = const Color(0xFFDC2626);
+                        } else {
+                          statusBg = const Color(0xFFFFFBEB);
+                          statusFg = const Color(0xFFD97706);
+                        }
+
+                        return DataRow(
+                          cells: [
+                            DataCell(Text(
+                              eventId.toString().length > 14 ? '${eventId.toString().substring(0, 14)}...' : eventId.toString(),
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontFamily: 'monospace'),
+                            )),
+                            DataCell(
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEEF2FF),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  gateway.toString().toUpperCase(),
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF4F46E5)),
+                                ),
+                              ),
+                            ),
+                            DataCell(Text(eventType.toString())),
+                            DataCell(Text(orderId.toString(), style: const TextStyle(fontFamily: 'monospace'))),
+                            DataCell(
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: statusBg,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  status,
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: statusFg),
+                                ),
+                              ),
+                            ),
+                            DataCell(Text(receivedAt)),
+                            DataCell(
+                              IconButton(
+                                icon: const Icon(Icons.visibility_outlined, size: 18, color: Color(0xFF4F46E5)),
+                                tooltip: 'View Safe Payload Digest',
+                                onPressed: () => _showWebhookPayloadDialog(wh is Map<String, dynamic> ? wh : {}),
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showWebhookPayloadDialog(Map<String, dynamic> wh) {
+    final safeWh = Map<String, dynamic>.from(wh);
+    safeWh.remove('secret');
+    safeWh.remove('salt');
+    safeWh.remove('merchant_salt');
+    safeWh.remove('key');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.webhook, color: Color(0xFF4F46E5), size: 22),
+            const SizedBox(width: 8),
+            Text('Webhook Event Digest', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18)),
           ],
         ),
+        content: SizedBox(
+          width: 550,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Event ID: ${wh['id'] ?? wh['event_id'] ?? 'N/A'}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 4),
+                Text('Gateway: ${(wh['gateway_code'] ?? wh['gateway'] ?? 'PAYU').toString().toUpperCase()}', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F172A),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: SelectableText(
+                    const JsonEncoder.withIndent('  ').convert(safeWh),
+                    style: const TextStyle(color: Color(0xFF38BDF8), fontFamily: 'monospace', fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }
@@ -1028,107 +1405,149 @@ class _PaymentEnginePaymentsScreenState
       'Settings',
     ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Title: "Payment Engine"
-        Text(
-          'Payment Engine',
-          style: GoogleFonts.outfit(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF0F172A),
-          ),
-        ),
-        const SizedBox(height: 12),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 880;
 
-        // Sub-Tabs row with Date Range & Filters button on right
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            // Sub-nav tabs
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: List.generate(tabs.length, (idx) {
-                    final isSelected = _activeNavTab == idx;
-                    return InkWell(
-                      onTap: () => setState(() => _activeNavTab = idx),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(
-                              color: isSelected ? const Color(0xFF4F46E5) : Colors.transparent,
-                              width: 2.5,
-                            ),
-                          ),
-                        ),
-                        child: Text(
-                          tabs[idx],
-                          style: GoogleFonts.dmSans(
-                            fontSize: 13,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                            color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
-                          ),
-                        ),
+        final subTabsRow = SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: List.generate(tabs.length, (idx) {
+              final isSelected = _activeNavTab == idx;
+              return InkWell(
+                onTap: () {
+                  setState(() => _activeNavTab = idx);
+                  if (idx == 4) _fetchWebhooks();
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isSelected ? const Color(0xFF4F46E5) : Colors.transparent,
+                        width: 2.5,
                       ),
-                    );
-                  }),
+                    ),
+                  ),
+                  child: Text(
+                    tabs[idx],
+                    style: GoogleFonts.dmSans(
+                      fontSize: 13,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                      color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
+                    ),
+                  ),
                 ),
+              );
+            }),
+          ),
+        );
+
+        final rightControls = Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            // Date Range Pill
+            Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _filterFinancialPeriod,
+                    style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF334155)),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.calendar_today_outlined, size: 15, color: Color(0xFF64748B)),
+                ],
               ),
             ),
 
-            // Top Right: Date Range Selector & Filters button
-            Wrap(
-              spacing: 10,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                // Date Range Pill
-                Container(
-                  height: 38,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _filterFinancialPeriod,
-                        style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF334155)),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.calendar_today_outlined, size: 15, color: Color(0xFF64748B)),
-                    ],
-                  ),
-                ),
-
-                // Filters Button
-                OutlinedButton.icon(
-                  onPressed: () => setState(() => _showFilters = !_showFilters),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    side: const BorderSide(color: Color(0xFFE2E8F0)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  ),
-                  icon: const Icon(Icons.tune_rounded, size: 16, color: Color(0xFF334155)),
-                  label: Text(
-                    'Filters',
-                    style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF334155)),
-                  ),
-                ),
-              ],
+            // Filters Button
+            OutlinedButton.icon(
+              onPressed: () => setState(() => _showFilters = !_showFilters),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: Colors.white,
+                side: const BorderSide(color: Color(0xFFE2E8F0)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              ),
+              icon: const Icon(Icons.tune_rounded, size: 16, color: Color(0xFF334155)),
+              label: Text(
+                'Filters',
+                style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF334155)),
+              ),
             ),
           ],
-        ),
-        const Divider(height: 1, color: Color(0xFFE2E8F0)),
-      ],
+        );
+
+        Widget activeRightControls;
+        if (_activeNavTab == 1) {
+          activeRightControls = rightControls;
+        } else if (_activeNavTab == 4) {
+          activeRightControls = OutlinedButton.icon(
+            onPressed: _isLoadingWebhooks ? null : _fetchWebhooks,
+            style: OutlinedButton.styleFrom(
+              backgroundColor: Colors.white,
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            ),
+            icon: _isLoadingWebhooks
+                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.refresh, size: 16, color: Color(0xFF334155)),
+            label: Text(
+              'Refresh Logs',
+              style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF334155)),
+            ),
+          );
+        } else {
+          activeRightControls = const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title: "Payment Engine"
+            Text(
+              'Payment Engine',
+              style: GoogleFonts.outfit(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (isNarrow)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  subTabsRow,
+                  const SizedBox(height: 8),
+                  activeRightControls,
+                ],
+              )
+            else
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(child: subTabsRow),
+                  const SizedBox(width: 12),
+                  activeRightControls,
+                ],
+              ),
+            const Divider(height: 1, color: Color(0xFFE2E8F0)),
+          ],
+        );
+      },
     );
   }
 
@@ -1168,8 +1587,8 @@ class _PaymentEnginePaymentsScreenState
           // 1. Total Payments
           _buildScreenshotKpiCard(
             title: 'Total Payments',
-            value: '${totalTxn['value'] ?? '1,248'}',
-            trendText: '↑ 18.6% vs yesterday',
+            value: '${totalTxn['value'] ?? _totalPayments}',
+            trendText: '${totalTxn['trend'] ?? 'Live DB Aggregation'}',
             trendColor: const Color(0xFF10B981),
             icon: Icons.account_balance_wallet_rounded,
             iconColor: const Color(0xFF4F46E5),
@@ -1183,8 +1602,8 @@ class _PaymentEnginePaymentsScreenState
           // 2. Successful Payments
           _buildScreenshotKpiCard(
             title: 'Successful Payments',
-            value: '${success['value'] ?? '1,187'}',
-            trendText: '${success['rate'] ?? '95.11%'} Success Rate',
+            value: '${success['value'] ?? 0}',
+            trendText: '${success['rate'] ?? '0%'} Success Rate',
             trendColor: const Color(0xFF10B981),
             icon: Icons.check_circle_rounded,
             iconColor: const Color(0xFF10B981),
@@ -1198,8 +1617,8 @@ class _PaymentEnginePaymentsScreenState
           // 3. Pending Payments
           _buildScreenshotKpiCard(
             title: 'Pending Payments',
-            value: '${pending['value'] ?? '42'}',
-            trendText: '↑ 8 vs yesterday',
+            value: '${pending['value'] ?? 0}',
+            trendText: pending['value'] != null ? '${pending['value']} active orders' : 'Awaiting verification',
             trendColor: const Color(0xFFD97706),
             icon: Icons.schedule_rounded,
             iconColor: const Color(0xFFF59E0B),
@@ -1213,8 +1632,8 @@ class _PaymentEnginePaymentsScreenState
           // 4. Failed Payments
           _buildScreenshotKpiCard(
             title: 'Failed Payments',
-            value: '${failed['value'] ?? '19'}',
-            trendText: '↓ 3 vs yesterday',
+            value: '${failed['value'] ?? 0}',
+            trendText: failed['value'] != null ? '${failed['value']} rejected/cancelled' : 'Clean state',
             trendColor: const Color(0xFFDC2626),
             icon: Icons.close_rounded,
             iconColor: const Color(0xFFEF4444),
@@ -1228,8 +1647,8 @@ class _PaymentEnginePaymentsScreenState
           // 5. Total Amount
           _buildScreenshotKpiCard(
             title: 'Total Amount',
-            value: totalAmount['value'] != null ? _formatCurrency(totalAmount['value']) : '₹18,74,350',
-            trendText: '↑ 22.4% vs yesterday',
+            value: _formatCurrency(totalAmount['value'] ?? 0.0),
+            trendText: 'Realized collections',
             trendColor: const Color(0xFF10B981),
             icon: Icons.currency_rupee_rounded,
             iconColor: const Color(0xFF3B82F6),
@@ -1239,9 +1658,9 @@ class _PaymentEnginePaymentsScreenState
           // 6. Refunded Amount
           _buildScreenshotKpiCard(
             title: 'Refunded Amount',
-            value: refunds['value'] != null ? _formatCurrency(refunds['value']) : '₹35,450',
-            trendText: '↑ 6.2% vs yesterday',
-            trendColor: const Color(0xFF10B981),
+            value: _formatCurrency(refunds['value'] ?? 0.0),
+            trendText: '${refunds['count'] ?? 0} refunded orders',
+            trendColor: const Color(0xFF8B5CF6),
             icon: Icons.replay_rounded,
             iconColor: const Color(0xFF8B5CF6),
             iconBg: const Color(0xFFF5F3FF),
@@ -1362,6 +1781,7 @@ class _PaymentEnginePaymentsScreenState
                   // Date Range
                   _buildFilterField(
                     label: 'Date Range',
+                    width: 210,
                     child: Container(
                       height: 38,
                       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -1372,7 +1792,15 @@ class _PaymentEnginePaymentsScreenState
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(_filterFinancialPeriod, style: GoogleFonts.dmSans(fontSize: 12)),
+                          Expanded(
+                            child: Text(
+                              _filterFinancialPeriod,
+                              style: GoogleFonts.dmSans(fontSize: 12),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
                           const Icon(Icons.calendar_today_outlined, size: 14, color: Color(0xFF64748B)),
                         ],
                       ),
@@ -1524,7 +1952,7 @@ class _PaymentEnginePaymentsScreenState
 
                   // Amount Range (Min - Max)
                   SizedBox(
-                    width: 220,
+                    width: 240,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1612,17 +2040,25 @@ class _PaymentEnginePaymentsScreenState
     );
   }
 
-  Widget _buildFilterField({required String label, required Widget child}) {
-    return SizedBox(
-      width: 175,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF475569))),
-          const SizedBox(height: 4),
-          child,
-        ],
-      ),
+  Widget _buildFilterField({required String label, required Widget child, double? width}) {
+    // Uses ConstrainedBox with minimum width to prevent collapse,
+    // but allows shrinking in tight containers to avoid overflow.
+    final inner = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF475569))),
+        const SizedBox(height: 4),
+        child,
+      ],
+    );
+    if (width != null) {
+      return SizedBox(width: width, child: inner);
+    }
+    // Wrap in a ConstrainedBox so the field is at least 160px but can grow
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 160, maxWidth: 220),
+      child: inner,
     );
   }
 
@@ -1644,13 +2080,13 @@ class _PaymentEnginePaymentsScreenState
     final successCount = s['successful_payments']?['value'] ?? 0;
     final pendingCount = s['pending_payments'] ?? {};
     final failedCount = s['failed_payments'] ?? {};
-    final refundCount = s['refunds']?['count'] ?? 15;
+    final refundCount = s['refunds']?['count'] ?? 0;
 
     final statusTabs = [
       {'key': 'ALL', 'label': 'All Payments ($totalCount)'},
-      {'key': 'SUCCESS', 'label': 'Successful (${successCount > 0 ? successCount : '1,187'})'},
-      {'key': 'PENDING', 'label': 'Pending (${pendingCount['value'] ?? '42'})'},
-      {'key': 'FAILED', 'label': 'Failed (${failedCount['value'] ?? '19'})'},
+      {'key': 'SUCCESS', 'label': 'Successful ($successCount)'},
+      {'key': 'PENDING', 'label': 'Pending (${pendingCount['value'] ?? 0})'},
+      {'key': 'FAILED', 'label': 'Failed (${failedCount['value'] ?? 0})'},
       {'key': 'REFUNDED', 'label': 'Refunded ($refundCount)'},
     ];
 

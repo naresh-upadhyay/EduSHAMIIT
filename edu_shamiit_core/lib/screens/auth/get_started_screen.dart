@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:edu_shamiit_core/config/app_config.dart';
 import 'package:edu_shamiit_core/utils/validators.dart';
 import 'package:edu_shamiit_core/utils/phone_input_formatter.dart';
+import 'package:edu_shamiit_core/utils/payu_checkout_helper.dart';
 
 class SharedGetStartedScreen extends StatefulWidget {
   final String? systemName;
@@ -338,23 +339,33 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
       final data = json.decode(response.body);
       if (response.statusCode == 200 && data['success'] == true) {
         final resData = data['data'] ?? {};
-        final checkoutUrl = resData['checkout_url'];
-        final txnId = resData['transaction_id'];
-        final paymentId = resData['payment_id'];
+        final checkoutUrl = resData['checkout_url']?.toString();
+        final txnId = resData['transaction_id']?.toString();
+        final paymentId = resData['payment_id']?.toString();
+        final params = resData['params'] != null
+            ? Map<String, dynamic>.from(resData['params'])
+            : <String, dynamic>{};
 
-        if (checkoutUrl != null && checkoutUrl.toString().isNotEmpty) {
-          final uri = Uri.parse(checkoutUrl.toString());
-          if (await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (checkoutUrl != null && checkoutUrl.isNotEmpty && params.isNotEmpty) {
+          // Trigger genuine PayU Hosted Checkout form POST
+          submitPayUHostedCheckout(
+            checkoutUrl: checkoutUrl,
+            params: params,
+          );
+        } else {
+          if (mounted) {
+            context.go('/get-started/payment-processing?payment_id=${paymentId ?? ''}&txnId=${txnId ?? ''}');
           }
         }
-
-        if (mounted) {
-          context.go('/get-started/payment-processing?payment_id=${paymentId ?? ''}&txnId=${txnId ?? ''}');
-        }
       } else {
-        _showErrorSnackBar(
-            data['detail'] ?? 'Registration failed. Please try again.');
+        final detail = data['detail'];
+        String errMsg = 'Registration failed. Please try again.';
+        if (detail is Map) {
+          errMsg = detail['message']?.toString() ?? errMsg;
+        } else if (detail != null) {
+          errMsg = detail.toString();
+        }
+        _showErrorSnackBar(errMsg);
       }
     } catch (e) {
       _showErrorSnackBar('Network error occurred. Please try again.');

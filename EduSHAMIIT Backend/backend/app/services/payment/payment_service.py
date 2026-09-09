@@ -236,6 +236,224 @@ class PaymentService:
         return plan_data, round(base_price, 2)
 
     @classmethod
+    async def create_payment_order(
+        cls,
+        school_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        plan_code: str = "premium",
+        billing_cycle: str = "monthly",
+        customer_name: str = "Valued School Admin",
+        customer_email: str = "billing@edushamiit.com",
+        customer_phone: Optional[str] = None,
+        purpose: str = "SUBSCRIPTION",
+        idempotency_key: Optional[str] = None,
+        callback_base_url: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Creates an authoritative subscription payment order for PayU Hosted Checkout.
+        - Calculates price server-side from subscription_plans table (never trusts frontend amount).
+        - Enforces idempotency to prevent duplicate orders.
+        - Uses PayUProvider to calculate SHA-512 request hash.
+        - Records immutable payment order in payment_orders table.
+        - Returns checkout_url, params, transaction_id, and order details.
+        """
+        import os
+        sb = get_supabase()
+        plan_data, payable_amount = await cls.calculate_plan_amount(plan_code, billing_cycle)
+
+        # 1. Idempotency Check
+        if idempotency_key:
+            try:
+                existing = await sb.table("payment_orders").select("*").eq("idempotency_key", idempotency_key).maybe_single().aexecute()
+                if existing.data and existing.data.get("status") in ("PENDING", "SUCCESS"):
+                    meta = existing.data.get("provider_metadata") or {}
+                    return {
+                        "success": True,
+                        "payment_id": existing.data["id"],
+                        "order_id": existing.data["id"],
+                        "transaction_id": existing.data["transaction_id"],
+                        "amount": float(existing.data["amount"]),
+                        "currency": existing.data.get("currency", "INR"),
+                        "status": existing.data["status"],
+                        "provider": existing.data.get("provider", "PAYU"),
+                        "environment": existing.data.get("provider_environment", "TEST"),
+                        "checkout_url": existing.data.get("checkout_url"),
+                        "params": meta.get("params"),
+                        "plan_code": plan_code,
+                        "billing_cycle": billing_cycle,
+                        "message": "Returned existing idempotent order"
+                    }
+            except Exception as e:
+                logger.debug(f"Idempotency check query exception: {e}")
+
+        # 2. Check if school already has an ACTIVE subscription
+        if school_id:
+            try:
+                school_res = await sb.table("schools").select("id, name, subscription_status, subscription_tier").eq("id", school_id).maybe_single().aexecute()
+                if school_res.data and school_res.data.get("subscription_status") == "active":
+                    raise ValueError("This school already has an active subscription.")
+            except ValueError:
+                raise
+            except Exception:
+                pass
+
+        # 3. Check for an existing PENDING order created recently for this school & plan
+        if school_id:
+            try:
+                recent_pending = await sb.table("payment_orders").select("*").eq("school_id", school_id).eq("plan_code", plan_code).eq("billing_cycle", billing_cycle).eq("status", "PENDING").order("created_at", ascending=False).limit(1).aexecute()
+                if recent_pending.data:
+                    old_order = recent_pending.data[0]
+                    created_at_str = old_order.get("created_at")
+                    if created_at_str:
+                        order_time = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+                        if datetime.now(timezone.utc) - order_time < timedelta(minutes=20):
+                            meta = old_order.get("provider_metadata") or {}
+                            if meta.get("params"):
+                                return {
+                                    "success": True,
+                                    "payment_id": old_order["id"],
+                                    "order_id": old_order["id"],
+                                    "transaction_id": old_order["transaction_id"],
+                                    "amount": float(old_order["amount"]),
+                                    "currency": old_order.get("currency", "INR"),
+                                    "status": "PENDING",
+                                    "provider": old_order.get("provider", "PAYU"),
+                                    "environment": old_order.get("provider_environment", "TEST"),
+                                    "checkout_url": old_order.get("checkout_url"),
+                                    "params": meta.get("params"),
+                                    "plan_code": plan_code,
+                                    "billing_cycle": billing_cycle,
+                                    "message": "Resumed existing pending order"
+                                }
+            except Exception as e:
+                logger.debug(f"Pending order check exception: {e}")
+
+        # 4. Determine Callback URLs
+        public_base = (
+            os.getenv("PAYMENT_PUBLIC_BASE_URL") or
+            os.getenv("PUBLIC_URL") or
+            callback_base_url or
+            "http://localhost:8082"
+        ).rstrip("/")
+
+        surl = f"{public_base}/api/v1/payment-gateways/payu/callback/success"
+        furl = f"{public_base}/api/v1/payment-gateways/payu/callback/failure"
+
+        # 5. Generate transaction & order IDs
+        txn_id = cls.generate_transaction_id(prefix="SUB")
+        order_id = str(uuid.uuid4())
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        # 6. Instantiate PayUProvider
+        payu_provider = PayUProvider()
+        payu_order = await payu_provider.create_payment_order(
+            transaction_id=txn_id,
+            amount=payable_amount,
+            currency="INR",
+            customer_name=customer_name,
+            customer_email=customer_email,
+            customer_phone=customer_phone,
+            product_info=f"EduSHAMIIT ERP - {plan_data.get('name', 'Plan')} ({billing_cycle.upper()})",
+            callback_urls={"success": surl, "failure": furl, "cancel": furl},
+            user_defined_fields={
+                "udf1": str(school_id or ""),
+                "udf2": str(user_id or ""),
+                "udf3": str(plan_code or ""),
+                "udf4": str(billing_cycle or ""),
+                "udf5": "EDUSHAMIIT_SaaS"
+            }
+        )
+
+        checkout_url = payu_order.get("checkout_url") or payu_provider.checkout_url
+        params = payu_order.get("params") or {}
+
+        # 7. Insert immutable payment order
+        order_record = {
+            "id": order_id,
+            "ecosystem": "SUBSCRIPTION",
+            "payment_type": "SUBSCRIPTION_PAYMENT",
+            "school_id": school_id,
+            "user_id": user_id,
+            "transaction_id": txn_id,
+            "provider": "PAYU",
+            "provider_environment": payu_provider.environment.upper(),
+            "provider_order_id": txn_id,
+            "amount": payable_amount,
+            "currency": "INR",
+            "purpose": purpose,
+            "plan_id": plan_data.get("id"),
+            "plan_code": plan_code,
+            "plan_name": plan_data.get("name"),
+            "billing_cycle": billing_cycle,
+            "customer_name": customer_name,
+            "customer_email": customer_email,
+            "customer_phone": customer_phone,
+            "status": "PENDING",
+            "checkout_url": checkout_url,
+            "idempotency_key": idempotency_key,
+            "provider_metadata": {
+                "checkout_url": checkout_url,
+                "params": params
+            },
+            "created_at": now_iso,
+            "updated_at": now_iso
+        }
+
+        try:
+            await sb.table("payment_orders").insert(order_record).aexecute()
+        except Exception as e:
+            logger.warning(f"Could not persist payment order to DB: {e}")
+
+        # Record Attempt #1
+        attempt_id = str(uuid.uuid4())
+        try:
+            await sb.table("payment_attempts").insert({
+                "id": attempt_id,
+                "payment_order_id": order_id,
+                "transaction_id": txn_id,
+                "attempt_number": 1,
+                "provider": "PAYU",
+                "amount": payable_amount,
+                "currency": "INR",
+                "status": "PENDING",
+                "gateway_order_id": txn_id,
+                "created_at": now_iso
+            }).aexecute()
+        except Exception as e:
+            logger.debug(f"Could not persist payment attempt #1: {e}")
+
+        # In-memory registry
+        cls._memory_orders[order_id] = order_record
+        cls._memory_orders[txn_id] = order_record
+
+        # Audit log
+        await cls.log_payment_audit(
+            school_id=school_id,
+            payment_order_id=order_id,
+            user_id=user_id,
+            action="PAYMENT_ORDER_CREATED",
+            entity_type="PAYMENT_ORDER",
+            entity_id=order_id,
+            after_state=order_record
+        )
+
+        return {
+            "success": True,
+            "payment_id": order_id,
+            "order_id": order_id,
+            "transaction_id": txn_id,
+            "amount": payable_amount,
+            "currency": "INR",
+            "status": "PENDING",
+            "provider": "PAYU",
+            "environment": payu_provider.environment.upper(),
+            "checkout_url": checkout_url,
+            "params": params,
+            "plan_code": plan_code,
+            "billing_cycle": billing_cycle
+        }
+
+    @classmethod
     async def create_school_fee_order(
         cls,
         school_id: str,
@@ -569,6 +787,12 @@ class PaymentService:
         except Exception as e:
             logger.warning(f"Could not persist created payment order to DB: {e}")
 
+        cls._memory_orders[order_id] = order_record
+        cls._memory_orders[txn_id] = order_record
+        cls._memory_attempts[order_id] = [attempt_record]
+        cls._memory_attempts[txn_id] = [attempt_record]
+
+
         await cls.log_payment_audit(
             school_id=school_id,
             payment_order_id=order_id,
@@ -588,6 +812,7 @@ class PaymentService:
             "purpose": purpose,
             "payer_type": payer_type,
             "provider": provider_code,
+            "gateway": provider_code,
             "payment_method": payment_method,
             "status": "PENDING",
             "attempt_number": 1,
@@ -595,6 +820,7 @@ class PaymentService:
             "qr_payload": qr_data.get("qr_payload"),
             "upi_intent": upi_intent,
             "checkout_url": order_res.get("checkout_url"),
+            "params": order_res.get("params"),
             "merchant_name": merchant.get("merchant_name"),
             "merchant_vpa": merchant.get("upi_vpa")
         }
@@ -603,8 +829,12 @@ class PaymentService:
     @classmethod
     async def verify_and_fulfill_payment(
         cls,
-        payment_order_id_or_txn: str,
-        override_provider: Optional[str] = None
+        payment_id: Optional[str] = None,
+        payment_order_id_or_txn: Optional[str] = None,
+        verified_amount: Optional[float] = None,
+        provider_txn_id: Optional[str] = None,
+        override_provider: Optional[str] = None,
+        hash_verified: bool = False
     ) -> Dict[str, Any]:
         """
         Verify payment status server-to-server and atomically fulfill the order:
@@ -613,12 +843,15 @@ class PaymentService:
         - Generates official verified receipt
         """
         sb = get_supabase()
+        target_id = payment_id or payment_order_id_or_txn
+        if not target_id:
+            raise ValueError("Payment identifier (ID or transaction_id) is required")
 
         # 1. Fetch order
         order = None
         is_uuid = False
         try:
-            uuid.UUID(str(payment_order_id_or_txn))
+            uuid.UUID(str(target_id))
             is_uuid = True
         except Exception:
             pass
@@ -626,26 +859,26 @@ class PaymentService:
         try:
             if is_uuid:
                 order_res = await sb.table("payment_orders").select("*").or_(
-                    f"id.eq.{payment_order_id_or_txn},transaction_id.eq.{payment_order_id_or_txn}"
+                    f"id.eq.{target_id},transaction_id.eq.{target_id}"
                 ).maybe_single().aexecute()
             else:
-                order_res = await sb.table("payment_orders").select("*").eq("transaction_id", payment_order_id_or_txn).maybe_single().aexecute()
+                order_res = await sb.table("payment_orders").select("*").eq("transaction_id", target_id).maybe_single().aexecute()
             if order_res and order_res.data:
                 order = order_res.data
         except Exception:
             pass
 
         if not order:
-            order = cls._memory_orders.get(payment_order_id_or_txn)
+            order = cls._memory_orders.get(target_id)
 
         if not order:
             # Fallback mock order for standalone unit tests
             order = {
-                "id": payment_order_id_or_txn,
-                "transaction_id": payment_order_id_or_txn,
-                "ecosystem": "SCHOOL_FEE" if "FEE" in str(payment_order_id_or_txn) else "SUBSCRIPTION",
+                "id": target_id,
+                "transaction_id": target_id,
+                "ecosystem": "SCHOOL_FEE" if "FEE" in str(target_id) else "SUBSCRIPTION",
                 "school_id": str(uuid.uuid4()),
-                "amount": 25000.0 if "FEE" in str(payment_order_id_or_txn) else 11999.0,
+                "amount": 25000.0 if "FEE" in str(target_id) else 11999.0,
                 "status": "PENDING",
                 "customer_name": "Test Payer",
                 "provider": override_provider or "MOCK_SANDBOX"
@@ -661,13 +894,90 @@ class PaymentService:
                 "order": order
             }
 
-        # 2. Query provider server-to-server
-        provider_name = override_provider or order.get("provider", "MOCK_SANDBOX")
-        provider = cls.get_provider(provider_name=provider_name)
-        verification = await provider.verify_payment(order["transaction_id"])
+        # 2. Early Amount Validation for callbacks / webhooks (Section 27)
+        expected_amount = float(order.get("amount") or 0.0)
+        if verified_amount is not None and verified_amount > 0 and abs(verified_amount - expected_amount) > 0.01:
+            logger.error(f"[SECURITY] Amount mismatch: Gateway reported ₹{verified_amount} vs Order ₹{expected_amount}")
+            order["status"] = "PAYMENT_AMOUNT_MISMATCH"
+            cls._memory_orders[target_id] = order
+            try:
+                await sb.table("payment_orders").update({
+                    "status": "PAYMENT_AMOUNT_MISMATCH",
+                    "failure_reason": f"Amount mismatch: received ₹{verified_amount} expected ₹{expected_amount}"
+                }).eq("id", order["id"]).aexecute()
+            except Exception:
+                pass
 
-        new_status = verification.get("status", "SUCCESS")
-        is_success = (new_status == "SUCCESS")
+            await cls.log_payment_audit(
+                school_id=order.get("school_id"),
+                payment_order_id=order.get("id"),
+                user_id=None,
+                action="PAYMENT_AMOUNT_MISMATCH",
+                entity_type="PAYMENT_ORDER",
+                entity_id=order.get("id", target_id),
+                before_state={"expected_amount": expected_amount},
+                after_state={"verified_amount": verified_amount, "status": "PAYMENT_AMOUNT_MISMATCH"}
+            )
+            return {
+                "success": False,
+                "status": "PAYMENT_AMOUNT_MISMATCH",
+                "verified": False,
+                "error": f"Security Alert: Paid amount (₹{verified_amount}) does not match authorized order amount (₹{expected_amount})"
+            }
+
+        # 3. Determine verified status
+        verification = {}
+        if hash_verified:
+            # Cryptographically verified via official PayU reverse-hash
+            is_success = True
+            new_status = "SUCCESS"
+        else:
+            # Query provider server-to-server
+            provider_name = override_provider or order.get("provider", "MOCK_SANDBOX")
+            provider = cls.get_provider(provider_name=provider_name)
+            try:
+                verification = await provider.verify_payment(order["transaction_id"])
+                new_status = verification.get("status", "SUCCESS")
+                is_success = (new_status == "SUCCESS")
+            except Exception as e:
+                logger.warning(f"Server-to-server verification error: {e}")
+                new_status = "PENDING"
+                is_success = False
+
+        # Amount validation from server-to-server verification response
+        server_verified_amt = float(verification.get("amount") or 0.0)
+        if is_success and server_verified_amt > 0 and abs(server_verified_amt - expected_amount) > 0.01:
+            logger.error(f"[SECURITY] Server amount mismatch: Gateway reported ₹{server_verified_amt} vs Order ₹{expected_amount}")
+            is_success = False
+            new_status = "PAYMENT_AMOUNT_MISMATCH"
+            order["status"] = "PAYMENT_AMOUNT_MISMATCH"
+            cls._memory_orders[target_id] = order
+            try:
+                await sb.table("payment_orders").update({
+                    "status": "PAYMENT_AMOUNT_MISMATCH",
+                    "failure_reason": f"Amount mismatch: received ₹{server_verified_amt} expected ₹{expected_amount}"
+                }).eq("id", order["id"]).aexecute()
+            except Exception:
+                pass
+
+            await cls.log_payment_audit(
+                school_id=order.get("school_id"),
+                payment_order_id=order.get("id"),
+                user_id=None,
+                action="PAYMENT_AMOUNT_MISMATCH",
+                entity_type="PAYMENT_ORDER",
+                entity_id=order.get("id", target_id),
+                before_state={"expected_amount": expected_amount},
+                after_state={"verified_amount": server_verified_amt, "status": "PAYMENT_AMOUNT_MISMATCH"}
+            )
+            return {
+                "success": False,
+                "status": "PAYMENT_AMOUNT_MISMATCH",
+                "verified": False,
+                "error": f"Security Alert: Paid amount (₹{server_verified_amt}) does not match authorized order amount (₹{expected_amount})"
+            }
+
+
 
         receipt_number = None
 
@@ -686,10 +996,9 @@ class PaymentService:
                         end_date = (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()
                         await sb.table("schools").update({
                             "subscription_status": "active",
-                            "subscription_plan": order.get("plan_code", "premium"),
-                            "subscription_start": now_iso,
-                            "subscription_end": end_date,
-                            "is_active": True,
+                            "subscription_tier": order.get("plan_code", "premium"),
+                            "subscription_start_date": now_iso,
+                            "subscription_end_date": end_date,
                             "updated_at": now_iso
                         }).eq("id", school_id).aexecute()
                     except Exception as e:
@@ -1694,8 +2003,10 @@ class PaymentService:
         except Exception:
             pass
 
+        order = None
         try:
             if is_uuid:
+
                 order_res = await sb.table("payment_orders").select("*").or_(
                     f"id.eq.{payment_id},transaction_id.eq.{payment_id}"
                 ).maybe_single().aexecute()

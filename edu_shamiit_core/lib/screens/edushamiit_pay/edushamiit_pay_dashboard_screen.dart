@@ -45,28 +45,16 @@ class _EduSHAMIITPayDashboardScreenState extends State<EduSHAMIITPayDashboardScr
           _kpis = data['kpis'] ?? {};
           _settlement = data['settlement'] ?? {};
         });
+      } else {
+        setState(() {
+          _kpis = {};
+          _settlement = {};
+        });
       }
     } catch (_) {
-      // Fallback sample dashboard data
       setState(() {
-        _kpis = {
-          'today_collection': 45000.0,
-          'this_month': 270000.0,
-          'total_collected': 1125000.0,
-          'outstanding_receivables': 345000.0,
-          'successful_payments': 48,
-          'pending_payments': 3,
-          'failed_payments': 2,
-          'refunds': 1,
-          'unreconciled_count': 2,
-          'success_rate': 96.4
-        };
-        _settlement = {
-          'status': 'SETTLED',
-          'bank_name': 'State Bank of India',
-          'account_masked': '••••••••4589',
-          'net_amount': 45000.0
-        };
+        _kpis = {};
+        _settlement = {};
       });
     }
 

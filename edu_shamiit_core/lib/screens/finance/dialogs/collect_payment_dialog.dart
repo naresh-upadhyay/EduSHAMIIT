@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:edu_shamiit_core/config/app_config.dart';
+import 'package:edu_shamiit_core/utils/payu_checkout_helper.dart';
 import '../providers/finance_provider.dart';
 import '../services/finance_api_service.dart';
 
@@ -18,8 +22,7 @@ class CollectPaymentDialog extends ConsumerStatefulWidget {
 }
 
 class _CollectPaymentDialogState extends ConsumerState<CollectPaymentDialog> {
-  int _step = 1;
-  String _paymentMode = 'upi';
+  String _paymentMode = 'payu';
   final _amountController = TextEditingController(text: '20000');
   final _bankNameController = TextEditingController();
   final _refNoController = TextEditingController();
@@ -109,6 +112,7 @@ class _CollectPaymentDialogState extends ConsumerState<CollectPaymentDialog> {
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     ),
                     items: const [
+                      DropdownMenuItem(value: 'payu', child: Text('PayU Online (UPI / Card / NetBanking)')),
                       DropdownMenuItem(value: 'upi', child: Text('UPI / QR Code')),
                       DropdownMenuItem(value: 'cash', child: Text('Cash Counter')),
                       DropdownMenuItem(value: 'card', child: Text('Credit / Debit Card')),
@@ -117,7 +121,7 @@ class _CollectPaymentDialogState extends ConsumerState<CollectPaymentDialog> {
                       DropdownMenuItem(value: 'dd', child: Text('Demand Draft (DD)')),
                       DropdownMenuItem(value: 'bank_transfer', child: Text('Bank Transfer (NEFT/RTGS)')),
                     ],
-                    onChanged: (val) => setState(() => _paymentMode = val ?? 'upi'),
+                    onChanged: (val) => setState(() => _paymentMode = val ?? 'payu'),
                   ),
                   const SizedBox(height: 16),
 
@@ -177,7 +181,7 @@ class _CollectPaymentDialogState extends ConsumerState<CollectPaymentDialog> {
                         ),
                         child: _isSubmitting
                             ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : const Text('Process Payment & Generate Receipt'),
+                            : Text(_paymentMode == 'payu' ? 'Launch PayU Checkout' : 'Process Payment & Generate Receipt'),
                       ),
                     ],
                   ),
@@ -281,6 +285,67 @@ class _CollectPaymentDialogState extends ConsumerState<CollectPaymentDialog> {
 
     setState(() => _isSubmitting = true);
 
+    if (_paymentMode == 'payu') {
+      try {
+        final res = await http.post(
+          Uri.parse('${AppConfig.apiBaseUrl}/v1/payments'),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            'gateway': 'PAYU',
+            'amount': amt,
+            'currency': 'INR',
+            'student_id': widget.studentId,
+            'invoice_id': widget.invoiceId,
+            'customer_name': 'Student',
+            'customer_email': 'student@edushamiit.org',
+            'product_info': 'School Fee Collection',
+            'payment_type': 'SCHOOL_FEE',
+          }),
+        );
+
+        final body = json.decode(res.body);
+        if (res.statusCode == 200 && body['success'] == true) {
+          final data = body['data'] ?? {};
+          final txnId = data['transaction_id'] ?? data['id'];
+          final checkoutUrl = data['checkout_url'];
+          final params = data['params'] != null ? Map<String, dynamic>.from(data['params']) : <String, dynamic>{};
+
+          if (checkoutUrl != null && params.isNotEmpty) {
+            submitPayUHostedCheckout(checkoutUrl: checkoutUrl, params: params);
+          }
+
+          setState(() {
+            _isSubmitting = false;
+            _receiptResult = {
+              'receipt_number': 'PENDING-PAYU-CLEARANCE',
+              'transaction_id': txnId,
+              'amount_paid': amt,
+              'payment_mode': 'PayU Hosted Checkout',
+              'paid_at': 'PayU Checkout Redirected',
+            };
+          });
+          ref.read(financeProvider.notifier).loadAll();
+          return;
+        } else {
+          setState(() => _isSubmitting = false);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(body['detail'] ?? body['message'] ?? 'Failed to initiate PayU payment.')),
+            );
+          }
+          return;
+        }
+      } catch (e) {
+        setState(() => _isSubmitting = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error initiating PayU checkout: $e')),
+          );
+        }
+        return;
+      }
+    }
+
     final payload = {
       'student_id': widget.studentId ?? 'fd07808f-0e55-4247-8b65-5d352f33d501',
       'payment_mode': _paymentMode,
@@ -298,13 +363,15 @@ class _CollectPaymentDialogState extends ConsumerState<CollectPaymentDialog> {
 
     setState(() {
       _isSubmitting = false;
-      _receiptResult = result ?? {
-        'receipt_number': 'RC-20260901-8899',
-        'transaction_id': 'TXN-8899',
-        'amount_paid': amt,
-        'payment_mode': _paymentMode,
-        'paid_at': 'Just now',
-      };
+      if (result != null) {
+        _receiptResult = result;
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Payment collection failed on server. Please verify data.')),
+          );
+        }
+      }
     });
 
     ref.read(financeProvider.notifier).loadAll();

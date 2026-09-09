@@ -4,6 +4,22 @@ import '../models/finance_models.dart';
 class FinanceApiService {
   final ApiService _api = ApiService();
 
+  /// Safely converts a JSON value to Map<String, dynamic>.
+  /// Handles Flutter Web's LinkedHashMap<dynamic, dynamic> from jsonDecode.
+  static Map<String, dynamic> _safeMap(dynamic raw) {
+    if (raw == null) return {};
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return {};
+  }
+
+  /// Safely converts a JSON value to List<dynamic>.
+  static List<dynamic> _safeList(dynamic raw) {
+    if (raw == null) return [];
+    if (raw is List) return raw;
+    return [];
+  }
+
   /// Fetch Finance Overview Data
   Future<FinanceOverviewData?> getOverview({String? academicYear}) async {
     try {
@@ -13,7 +29,7 @@ class FinanceApiService {
       }
       final res = await _api.get('/finance/overview', query: query);
       if (res['success'] == true && res['data'] != null) {
-        return FinanceOverviewData.fromJson(res['data'] as Map<String, dynamic>);
+        return FinanceOverviewData.fromJson(_safeMap(res['data']));
       }
     } catch (e) {
       print('Error fetching finance overview: $e');
@@ -44,9 +60,9 @@ class FinanceApiService {
 
       final res = await _api.get('/finance/fees/ledger', query: query);
       if (res['success'] == true && res['data'] != null) {
-        final data = res['data'] as Map<String, dynamic>;
-        final itemsRaw = (data['items'] as List? ?? []);
-        final items = itemsRaw.map((e) => FeeLedgerItem.fromJson(e as Map<String, dynamic>)).toList();
+        final data = _safeMap(res['data']);
+        final itemsRaw = _safeList(data['items']);
+        final items = itemsRaw.map((e) => FeeLedgerItem.fromJson(_safeMap(e))).toList();
         return {
           'items': items,
           'total': data['total'] ?? 0,
@@ -65,7 +81,7 @@ class FinanceApiService {
     try {
       final res = await _api.get('/finance/students/$studentId/account');
       if (res['success'] == true && res['data'] != null) {
-        return StudentFeeAccountData.fromJson(res['data'] as Map<String, dynamic>);
+        return StudentFeeAccountData.fromJson(_safeMap(res['data']));
       }
     } catch (e) {
       print('Error fetching student fee account: $e');
@@ -80,7 +96,7 @@ class FinanceApiService {
       if (academicYear != null && academicYear.isNotEmpty) query['academic_year'] = academicYear;
       final res = await _api.get('/finance/fee-structures', query: query);
       if (res['success'] == true && res['data'] is List) {
-        return (res['data'] as List).map((e) => FeeStructureModel.fromJson(e)).toList();
+        return _safeList(res['data']).map((e) => FeeStructureModel.fromJson(_safeMap(e))).toList();
       }
     } catch (e) {
       print('Error fetching fee structures: $e');
@@ -115,7 +131,7 @@ class FinanceApiService {
     try {
       final res = await _api.post('/finance/payments/collect', payload);
       if (res['success'] == true && res['data'] != null) {
-        return res['data'] as Map<String, dynamic>;
+        return _safeMap(res['data']);
       }
     } catch (e) {
       print('Error collecting payment: $e');
@@ -165,7 +181,7 @@ class FinanceApiService {
     try {
       final res = await _api.get('/finance/search', query: {'q': query});
       if (res['success'] == true && res['data'] != null) {
-        return res['data'] as Map<String, dynamic>;
+        return _safeMap(res['data']);
       }
     } catch (e) {
       print('Error performing global finance search: $e');
@@ -178,7 +194,7 @@ class FinanceApiService {
     try {
       final res = await _api.get('/finance/accounts');
       if (res['success'] == true && res['data'] != null) {
-        return (res['data'] as List).map((e) => ChartOfAccount.fromJson(e)).toList();
+        return _safeList(res['data']).map((e) => ChartOfAccount.fromJson(_safeMap(e))).toList();
       }
     } catch (e) {
       print('Error loading chart of accounts: $e');
@@ -224,7 +240,7 @@ class FinanceApiService {
     try {
       final res = await _api.get('/finance/payroll/payslips');
       if (res['success'] == true && res['data'] != null) {
-        return (res['data'] as List).map((e) => StaffPayslip.fromJson(e)).toList();
+        return _safeList(res['data']).map((e) => StaffPayslip.fromJson(_safeMap(e))).toList();
       }
     } catch (e) {
       print('Error loading payslips: $e');
@@ -237,7 +253,7 @@ class FinanceApiService {
     try {
       final res = await _api.get('/finance/expenses');
       if (res['success'] == true && res['data'] != null) {
-        return (res['data'] as List).map((e) => ExpenseModel.fromJson(e)).toList();
+        return _safeList(res['data']).map((e) => ExpenseModel.fromJson(_safeMap(e))).toList();
       }
     } catch (e) {
       print('Error loading expenses: $e');
@@ -261,7 +277,7 @@ class FinanceApiService {
     try {
       final res = await _api.get('/finance/vendors');
       if (res['success'] == true && res['data'] != null) {
-        return (res['data'] as List).map((e) => VendorModel.fromJson(e)).toList();
+        return _safeList(res['data']).map((e) => VendorModel.fromJson(_safeMap(e))).toList();
       }
     } catch (e) {
       print('Error loading vendors: $e');
@@ -274,7 +290,7 @@ class FinanceApiService {
     try {
       final res = await _api.get('/finance/banks');
       if (res['success'] == true && res['data'] != null) {
-        return (res['data'] as List).map((e) => BankAccountModel.fromJson(e)).toList();
+        return _safeList(res['data']).map((e) => BankAccountModel.fromJson(_safeMap(e))).toList();
       }
     } catch (e) {
       print('Error loading bank accounts: $e');
@@ -298,7 +314,7 @@ class FinanceApiService {
     try {
       final res = await _api.get('/finance/reports/profit-loss', query: {'financial_year': year});
       if (res['success'] == true && res['data'] != null) {
-        return res['data'] as Map<String, dynamic>;
+        return _safeMap(res['data']);
       }
     } catch (e) {
       print('Error generating P&L report: $e');
@@ -306,4 +322,3 @@ class FinanceApiService {
     return {};
   }
 }
-

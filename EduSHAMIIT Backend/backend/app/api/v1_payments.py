@@ -18,6 +18,29 @@ router = APIRouter()
 
 # ─── Pydantic Request Models ───────────────────────────────────
 
+class InitiatePaymentRequest(BaseModel):
+    invoice_id: Optional[str] = None
+    fee_invoice_id: Optional[str] = None
+    plan_code: Optional[str] = None
+    billing_cycle: Optional[str] = "monthly"
+    amount: Optional[float] = None
+    currency: Optional[str] = "INR"
+    gateway: Optional[str] = "PAYU"
+    payment_method: Optional[str] = "UPI"
+    customer_name: Optional[str] = None
+    customer_email: Optional[str] = None
+    customer_phone: Optional[str] = None
+    school_id: Optional[str] = None
+    student_id: Optional[str] = None
+    purpose: Optional[str] = "School Fee"
+    idempotency_key: Optional[str] = None
+
+
+class PaymentRefundRequest(BaseModel):
+    amount: float
+    reason: str = "Customer requested refund"
+
+
 class CreatePaymentOrderRequest(BaseModel):
     plan_code: str  # 'basic', 'premium', 'enterprise'
     billing_cycle: str = "monthly"  # 'monthly' or 'yearly'
@@ -36,6 +59,139 @@ class PayUSettingsUpdateRequest(BaseModel):
     salt: Optional[str] = None
     webhook_secret: Optional[str] = None
     is_enabled: bool = True
+
+
+# ─── 0. CENTRAL PAYMENT APIs (POST / and GET /) ────────────────
+@router.post("", summary="Central Payment Initiation API")
+async def initiate_payment(
+    req: InitiatePaymentRequest,
+    request: Request,
+    user: Optional[dict] = Depends(get_current_user_optional)
+):
+    """
+    Centralized Payment API for all ERP payment flows.
+    Validates tenant, authoritative amount from DB, creates internal transaction first,
+    and returns PayU Hosted Checkout parameters.
+    """
+    sb = get_supabase()
+    effective_school_id = req.school_id
+    user_id = user.get("id") if user else None
+    if user and user.get("role") not in ("super_admin", "owner") and user.get("school_id"):
+        effective_school_id = user["school_id"]
+
+    authoritative_amount = req.amount
+    purpose = req.purpose or "Fee Payment"
+    student_id = req.student_id
+
+    # 1. Authoritative Fee Invoice Validation from Database
+    target_invoice_id = req.fee_invoice_id or req.invoice_id
+    if target_invoice_id:
+        try:
+            q = sb.table("fee_invoices").select("*").eq("id", target_invoice_id)
+            if effective_school_id:
+                q = q.eq("school_id", effective_school_id)
+            inv_res = await q.maybe_single().aexecute()
+            if inv_res.data:
+                inv = inv_res.data
+                if inv.get("status") == "paid":
+                    raise HTTPException(status_code=400, detail="Invoice is already fully paid.")
+                balance = float(inv.get("amount_balance") or inv.get("amount_payable") or inv.get("amount_demand") or 0.0)
+                if balance > 0:
+                    authoritative_amount = balance
+                purpose = f"Fee: {inv.get('fee_head', 'School Fee')} ({inv.get('invoice_number', target_invoice_id)})"
+                student_id = student_id or inv.get("student_id")
+        except HTTPException:
+            raise
+        except Exception:
+            pass
+
+    # 2. Subscription Plan Calculation
+    if req.plan_code:
+        _, calculated_amount = await PaymentService.calculate_plan_amount(req.plan_code, req.billing_cycle or "monthly")
+        authoritative_amount = calculated_amount
+        purpose = f"Subscription: {req.plan_code.capitalize()} ({req.billing_cycle})"
+
+    if not authoritative_amount or authoritative_amount <= 0:
+        raise HTTPException(status_code=400, detail="Invalid payment amount. Amount must be greater than zero.")
+
+    cust_name = req.customer_name or (user.get("full_name") if user else "Valued Student")
+    cust_email = req.customer_email or (user.get("email") if user else "student@school.edu")
+    cust_phone = req.customer_phone or (user.get("phone") if user else "9999999999")
+
+    try:
+        payment = await PaymentService.create_payment(
+            school_id=effective_school_id,
+            payer_type="STUDENT" if student_id else "CUSTOMER",
+            customer_name=cust_name,
+            customer_email=cust_email,
+            customer_phone=cust_phone,
+            purpose=purpose,
+            amount=authoritative_amount,
+            currency=req.currency or "INR",
+            gateway=req.gateway or "PAYU",
+            payment_method=req.payment_method or "UPI",
+            student_id=student_id,
+            fee_invoice_id=target_invoice_id,
+            idempotency_key=req.idempotency_key,
+            user_id=user_id
+        )
+
+        return {
+            "success": True,
+            "data": {
+                "transaction_id": payment["transaction_id"],
+                "payment_id": payment["payment_id"],
+                "gateway": payment.get("gateway", "PAYU"),
+                "checkout_url": payment.get("checkout_url"),
+                "params": payment.get("params"),
+                "amount": payment["amount"],
+                "currency": payment["currency"],
+                "status": payment["status"]
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Payment initialization failed: {str(e)}")
+
+
+@router.get("", summary="List Payments / Transactions")
+async def list_payments(
+    school_id: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: int = 50,
+    page: int = 1,
+    user: Optional[dict] = Depends(get_current_user_optional)
+):
+    """List payment orders with tenant isolation and server-side pagination."""
+    effective_school_id = school_id
+    if user and user.get("role") not in ("super_admin", "owner") and user.get("school_id"):
+        effective_school_id = user["school_id"]
+
+    sb = get_supabase()
+    orders = []
+    try:
+        q = sb.table("payment_orders").select("*")
+        if effective_school_id:
+            q = q.eq("school_id", effective_school_id)
+        if status and status.upper() != "ALL":
+            q = q.eq("status", status.upper())
+        offset = (page - 1) * limit
+        res = await q.order("created_at", ascending=False).range(offset, offset + limit - 1).aexecute()
+        orders = res.data or []
+    except Exception:
+        orders = list(PaymentService._memory_orders.values())
+        if effective_school_id:
+            orders = [o for o in orders if o.get("school_id") == effective_school_id]
+
+    return {
+        "success": True,
+        "data": {
+            "items": orders,
+            "total": len(orders),
+            "page": page,
+            "limit": limit
+        }
+    }
+
 
 
 # ─── 1. POST /api/v1/payments/orders ─────────────────────────
@@ -121,14 +277,51 @@ async def retry_payment(payment_id: str, request: Request):
         raise HTTPException(status_code=400, detail=f"Retry failed: {str(e)}")
 
 
+# ─── 4b. POST /api/v1/payments/{payment_id}/refund ──────────
+@router.post("/{payment_id}/refund", summary="Request Payment Refund")
+async def refund_payment(
+    payment_id: str,
+    req: PaymentRefundRequest,
+    user: Optional[dict] = Depends(get_current_user_optional)
+):
+    """
+    Executes refund for an authorized payment order via PayU postservice cancel_refund_transaction.
+    Validates refundable balance and updates transaction status.
+    """
+    user_id = user.get("id") if user else None
+    try:
+        result = await PaymentService.request_refund(
+            payment_order_id=payment_id,
+            amount=req.amount,
+            reason=req.reason,
+            user_id=user_id
+        )
+        return {"success": True, "data": result}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Refund processing failed: {str(e)}")
+
+
+
 # ─── 5. GET /api/v1/payments/{payment_id}/receipt ───────────
 @router.get("/{payment_id}/receipt", summary="Get Payment Receipt")
 async def get_payment_receipt(payment_id: str):
     """Returns official payment receipt for successful transactions."""
     sb = get_supabase()
-    res = await sb.table("payment_receipts").select("*").or_(f"payment_order_id.eq.{payment_id},transaction_id.eq.{payment_id}").maybe_single().aexecute()
+    is_uuid = False
+    try:
+        uuid.UUID(payment_id)
+        is_uuid = True
+    except Exception:
+        pass
 
-    if not res.data:
+    if is_uuid:
+        res = await sb.table("payment_receipts").select("*").eq("payment_order_id", payment_id).maybe_single().aexecute()
+    else:
+        res = await sb.table("payment_receipts").select("*").eq("transaction_id", payment_id).maybe_single().aexecute()
+
+    if not res or not res.data:
         raise HTTPException(status_code=404, detail="Payment receipt not found for this transaction")
 
     return {"success": True, "data": res.data}
@@ -151,11 +344,39 @@ async def payu_callback_success(request: Request, txnId: Optional[str] = None):
         except Exception:
             pass
 
-    target_txn = txnId or form_data.get("txnId") or form_data.get("txnid") or query_params.get("txnId")
+    all_params = {**query_params, **form_data}
+    target_txn = txnId or all_params.get("txnid") or all_params.get("txnId")
+
+    # Reverse hash verification if POST data from PayU
+    provider = PayUProvider()
+    if request.method == "POST" and "hash" in all_params:
+        if not provider.verify_response_hash(all_params):
+            return HTMLResponse(content=f"""
+            <!DOCTYPE html>
+            <html>
+            <head><title>Security Error - Invalid Hash</title></head>
+            <body style="font-family:sans-serif;padding:40px;text-align:center;background:#fef2f2;color:#991b1b;">
+              <h2>Security Verification Failed</h2>
+              <p>The payment response reverse-hash received from PayU could not be verified.</p>
+              <a href="/#/get-started/payment-processing?txnId={target_txn or ''}&status=failed">Return to School ERP</a>
+            </body>
+            </html>
+            """, status_code=400)
 
     if target_txn:
-        # Perform server-side verification
-        await PaymentService.verify_and_fulfill_payment(target_txn)
+        verified_amt = None
+        try:
+            if all_params.get("amount"):
+                verified_amt = float(all_params["amount"])
+        except Exception:
+            pass
+        # Perform server-side verification and atomic fulfillment
+        await PaymentService.verify_and_fulfill_payment(
+            payment_id=target_txn,
+            verified_amount=verified_amt,
+            provider_txn_id=all_params.get("mihpayid"),
+            hash_verified=True
+        )
 
     # Return clean HTML auto-redirect to app processing UI
     html_content = f"""

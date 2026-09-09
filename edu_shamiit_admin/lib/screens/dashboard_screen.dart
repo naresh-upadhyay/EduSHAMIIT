@@ -226,11 +226,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         label: 'EduSHAMIIT Pay',
         route: '/admin/payments',
         section: NavSection.financeManagement),
-    _NavItem(
-        icon: Icons.hub_outlined,
-        label: 'Payment Gateways',
-        route: '/admin/payment-gateways',
-        section: NavSection.financeManagement),
   ];
 
 

@@ -487,6 +487,7 @@ services:
       dockerfile: Dockerfile
     container_name: edushamiit-api
     restart: unless-stopped
+    command: ["gunicorn", "app.main:app", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--workers", "1", "--timeout", "180", "--keep-alive", "5", "--access-logfile", "-"]
     env_file: ./.env
     environment:
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}

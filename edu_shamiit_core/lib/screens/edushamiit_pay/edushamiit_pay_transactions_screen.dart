@@ -42,60 +42,14 @@ class _EduSHAMIITPayTransactionsScreenState extends State<EduSHAMIITPayTransacti
         setState(() {
           _transactions = body['data']['transactions'] ?? [];
         });
+      } else {
+        setState(() {
+          _transactions = [];
+        });
       }
     } catch (_) {
-      // Fallback transactions for testing
       setState(() {
-        _transactions = [
-          {
-            'id': 'TXN-001',
-            'transaction_id': 'SCHFEE-TXN-20260903-0001',
-            'ecosystem': 'SCHOOL_FEE',
-            'customer_name': 'Rahul Sharma',
-            'purpose': 'Tuition Fee (Q1)',
-            'amount': 18000.0,
-            'status': 'SUCCESS',
-            'payment_mode': 'UPI (PhonePe)',
-            'settlement_status': 'SETTLED',
-            'created_at': '2026-09-03 10:15 AM'
-          },
-          {
-            'id': 'TXN-002',
-            'transaction_id': 'SCHFEE-TXN-20260903-0002',
-            'ecosystem': 'SCHOOL_FEE',
-            'customer_name': 'Priya Patel',
-            'purpose': 'Transport Fee',
-            'amount': 5000.0,
-            'status': 'SUCCESS',
-            'payment_mode': 'UPI (GPay)',
-            'settlement_status': 'SETTLED',
-            'created_at': '2026-09-03 11:30 AM'
-          },
-          {
-            'id': 'TXN-003',
-            'transaction_id': 'SCHFEE-TXN-20260903-0003',
-            'ecosystem': 'SCHOOL_FEE',
-            'customer_name': 'Amit Kumar',
-            'purpose': 'Activity Fee',
-            'amount': 2000.0,
-            'status': 'PENDING',
-            'payment_mode': 'UPI (Dynamic QR)',
-            'settlement_status': 'PENDING',
-            'created_at': '2026-09-03 01:20 PM'
-          },
-          {
-            'id': 'TXN-004',
-            'transaction_id': 'SCHFEE-TXN-20260903-0004',
-            'ecosystem': 'SCHOOL_FEE',
-            'customer_name': 'Neha Verma',
-            'purpose': 'Hostel Fee',
-            'amount': 35000.0,
-            'status': 'SUCCESS',
-            'payment_mode': 'NetBanking',
-            'settlement_status': 'SETTLED',
-            'created_at': '2026-09-02 04:45 PM'
-          }
-        ];
+        _transactions = [];
       });
     }
     setState(() => _isLoading = false);

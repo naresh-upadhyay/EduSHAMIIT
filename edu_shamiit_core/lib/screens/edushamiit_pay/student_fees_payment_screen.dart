@@ -54,52 +54,14 @@ class _StudentFeesPaymentScreenState extends State<StudentFeesPaymentScreen> wit
         setState(() {
           _invoices = body['data']['invoices'] ?? [];
         });
+      } else {
+        setState(() {
+          _invoices = [];
+        });
       }
     } catch (_) {
-      // Sample fallback invoices
       setState(() {
-        _invoices = [
-          {
-            'id': 'INV-001',
-            'invoice_number': 'FEE-2026-000125',
-            'fee_head': 'Tuition Fee (Quarter 1)',
-            'amount_payable': 18000.0,
-            'amount_paid': 0.0,
-            'amount_balance': 18000.0,
-            'due_date': '2026-09-30',
-            'status': 'unpaid'
-          },
-          {
-            'id': 'INV-002',
-            'invoice_number': 'FEE-2026-000126',
-            'fee_head': 'Transport & Bus Fee (Sep)',
-            'amount_payable': 5000.0,
-            'amount_paid': 0.0,
-            'amount_balance': 5000.0,
-            'due_date': '2026-09-30',
-            'status': 'unpaid'
-          },
-          {
-            'id': 'INV-003',
-            'invoice_number': 'FEE-2026-000127',
-            'fee_head': 'Annual Lab & Activity Fee',
-            'amount_payable': 2000.0,
-            'amount_paid': 0.0,
-            'amount_balance': 2000.0,
-            'due_date': '2026-10-15',
-            'status': 'unpaid'
-          },
-          {
-            'id': 'INV-004',
-            'invoice_number': 'FEE-2026-000088',
-            'fee_head': 'Admission & Registration Fee',
-            'amount_payable': 12000.0,
-            'amount_paid': 12000.0,
-            'amount_balance': 0.0,
-            'due_date': '2026-04-10',
-            'status': 'paid'
-          },
-        ];
+        _invoices = [];
       });
     }
     setState(() => _isLoading = false);

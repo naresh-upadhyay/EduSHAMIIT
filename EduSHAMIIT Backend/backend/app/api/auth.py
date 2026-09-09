@@ -22,6 +22,7 @@ import re
 from app.middleware.auth import get_current_user
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 JWT_SECRET = settings.SUPABASE_JWT_SECRET or settings.JWT_SECRET
 JWT_ALGORITHM = "HS256"
@@ -579,78 +580,194 @@ async def onboard_school(request: OnboardSchoolRequest, req_context: Request):
     try:
         sb = get_supabase()
         
-        # 1. Check if email already registered
-        existing = await sb.table("profiles").select("id").eq("email", request.email).maybe_single().aexecute()
-        if existing.data:
-            raise HTTPException(status_code=400, detail="Email already exists")
-            
-        # 2. Validate password complexity
-        if len(request.password) < 6:
-            raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
-            
-        # 3. Create a new school in schools table with subscription_status = 'pending_payment'
-        school_data = {
-            "name": request.school_name,
-            "address": request.school_address,
-            "phone": request.school_phone,
-            "board": request.board,
-            "subscription_status": "pending_payment",
-            "subscription_tier": request.plan_code,
-            "owner_name": request.full_name,
-            "owner_email": request.email,
-            "subscription_start_date": datetime.now(timezone.utc).isoformat(),
-            "subscription_end_date": (datetime.now(timezone.utc) + timedelta(days=365)).isoformat() if request.billing_cycle == "yearly" else (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
-        }
-        
-        school_res = await sb.table("schools").insert(school_data).aexecute()
-        if not school_res.data:
-            raise Exception("Failed to create school record")
-            
-        new_school = school_res.data[0]
-        school_id = new_school["id"]
-        
-        # 4. Create the admin user in Supabase auth
-        auth_response = await sb.auth().admin_create_user({
-            "email": request.email,
-            "password": request.password,
-            "app_metadata": {
-                "role": "admin"
-            }
-        })
-        user_id = auth_response.user.id
-        
-        # 5. Insert profile
-        generated_user_id = f"ADM-{uuid.uuid4().hex[:6].upper()}"
-        await sb.table("profiles").insert({
-            "id": user_id,
-            "school_id": school_id,
-            "user_id": generated_user_id,
-            "full_name": request.full_name,
-            "email": request.email,
-            "role": "admin",
-        }).aexecute()
-        
-        # 6. Insert mail subscription
-        await sb.table("school_mail_subscriptions").insert({
-            "school_id": school_id,
-            "enabled": True,
-            "pricing_model": "per_email",
-            "rate_per_unit": 0.10,
-            "monthly_limit": 5000,
-            "emails_sent": 0
-        }).aexecute()
+        # 1. Normalize school name canonically (trim, collapse whitespace)
+        raw_school_name = (request.school_name or "").strip()
+        if not raw_school_name:
+            raise HTTPException(status_code=400, detail="School name is required")
+        canonical_school_name = " ".join(raw_school_name.split())
+        user_email = (request.email or "").strip().lower()
+        if not user_email:
+            raise HTTPException(status_code=400, detail="Email is required")
 
-        # 7. Create PayU Payment Order via PaymentService
+        # 2. Check for existing school matching normalized name
+        existing_school = None
+        try:
+            # Query by case-insensitive name match
+            res = await sb.table("schools").select("*").ilike("name", canonical_school_name).maybe_single().aexecute()
+            if res and res.data:
+                existing_school = res.data
+        except Exception as e:
+            logger.debug(f"Error checking existing school by name: {e}")
+
+        # Fallback search across schools if exact ilike missed whitespace variation
+        if not existing_school:
+            try:
+                all_schools_res = await sb.table("schools").select("id, name, subscription_status, subscription_tier, owner_email, owner_name, board, phone, address").aexecute()
+                for sch in (all_schools_res.data or []):
+                    sch_canonical = " ".join((sch.get("name") or "").strip().split()).lower()
+                    if sch_canonical == canonical_school_name.lower():
+                        existing_school = sch
+                        break
+            except Exception as e:
+                logger.debug(f"Fallback school match error: {e}")
+
+        school_id = None
+        user_id = None
+
+        if existing_school:
+            # Handle Case C: Already active subscription
+            if existing_school.get("subscription_status") == "active":
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"'{existing_school.get('name')}' already has an active subscription. Please log in to your account."
+                )
+
+            # Handle Case D: School belongs to a different owner email
+            school_owner_email = (existing_school.get("owner_email") or "").strip().lower()
+            if school_owner_email and school_owner_email != user_email:
+                raise HTTPException(
+                    status_code=409,
+                    detail="A school with this name is already registered. If you are the owner, please use your registered email or contact support."
+                )
+
+            # Handle Case A/B: Existing customer returning to continue onboarding
+            school_id = existing_school["id"]
+            logger.info(f"[Onboarding] Safely reusing existing school '{canonical_school_name}' ({school_id}) for {user_email}")
+
+            # Update school metadata if provided
+            await sb.table("schools").update({
+                "subscription_tier": request.plan_code,
+                "owner_name": request.full_name or existing_school.get("owner_name"),
+                "owner_email": user_email,
+                "phone": request.school_phone or existing_school.get("phone"),
+                "address": request.school_address or existing_school.get("address"),
+                "board": request.board or existing_school.get("board"),
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }).eq("id", school_id).aexecute()
+
+            # Check if user profile already exists for this email
+            profile_res = await sb.table("profiles").select("*").eq("email", user_email).maybe_single().aexecute()
+            if profile_res.data:
+                user_id = profile_res.data["id"]
+                # Ensure profile is linked to this school
+                if profile_res.data.get("school_id") != school_id:
+                    await sb.table("profiles").update({"school_id": school_id}).eq("id", user_id).aexecute()
+            else:
+                # Create user in auth and profile
+                try:
+                    auth_response = await sb.auth().admin_create_user({
+                        "email": user_email,
+                        "password": request.password,
+                        "app_metadata": {"role": "admin"}
+                    })
+                    user_id = auth_response.user.id
+                except Exception:
+                    user_id = str(uuid.uuid4())
+
+                generated_user_id = f"ADM-{uuid.uuid4().hex[:6].upper()}"
+                await sb.table("profiles").insert({
+                    "id": user_id,
+                    "school_id": school_id,
+                    "user_id": generated_user_id,
+                    "full_name": request.full_name,
+                    "email": user_email,
+                    "role": "admin",
+                }).aexecute()
+
+            # Ensure mail subscription exists
+            mail_sub = await sb.table("school_mail_subscriptions").select("id").eq("school_id", school_id).maybe_single().aexecute()
+            if not mail_sub.data:
+                await sb.table("school_mail_subscriptions").insert({
+                    "school_id": school_id,
+                    "enabled": True,
+                    "pricing_model": "per_email",
+                    "rate_per_unit": 0.10,
+                    "monthly_limit": 5000,
+                    "emails_sent": 0
+                }).aexecute()
+
+        else:
+            # 3. New School Flow: Check if email already registered
+            existing_profile = await sb.table("profiles").select("id").eq("email", user_email).maybe_single().aexecute()
+            if existing_profile.data:
+                raise HTTPException(status_code=400, detail="An account with this email already exists. Please log in or use another email.")
+
+            if len(request.password) < 6:
+                raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+
+            # Insert new school record
+            school_data = {
+                "name": canonical_school_name,
+                "address": request.school_address,
+                "phone": request.school_phone,
+                "board": request.board,
+                "subscription_status": "pending_payment",
+                "subscription_tier": request.plan_code,
+                "owner_name": request.full_name,
+                "owner_email": user_email,
+                "subscription_start_date": datetime.now(timezone.utc).isoformat(),
+                "subscription_end_date": (datetime.now(timezone.utc) + timedelta(days=365)).isoformat() if request.billing_cycle == "yearly" else (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+            }
+
+            try:
+                school_res = await sb.table("schools").insert(school_data).aexecute()
+                if not school_res.data:
+                    raise Exception("Failed to create school record")
+                new_school = school_res.data[0]
+                school_id = new_school["id"]
+            except Exception as e:
+                # Concurrent race condition safety (uq_schools_lower_name constraint)
+                if "uq_schools_lower_name" in str(e) or "23505" in str(e):
+                    conflict_res = await sb.table("schools").select("*").ilike("name", canonical_school_name).maybe_single().aexecute()
+                    if conflict_res.data:
+                        school_id = conflict_res.data["id"]
+                    else:
+                        raise HTTPException(status_code=409, detail="A school with this name was just registered.")
+                else:
+                    raise
+
+            # Create admin user in Supabase auth
+            auth_response = await sb.auth().admin_create_user({
+                "email": user_email,
+                "password": request.password,
+                "app_metadata": {
+                    "role": "admin"
+                }
+            })
+            user_id = auth_response.user.id
+
+            # Insert profile
+            generated_user_id = f"ADM-{uuid.uuid4().hex[:6].upper()}"
+            await sb.table("profiles").insert({
+                "id": user_id,
+                "school_id": school_id,
+                "user_id": generated_user_id,
+                "full_name": request.full_name,
+                "email": user_email,
+                "role": "admin",
+            }).aexecute()
+
+            # Insert mail subscription
+            await sb.table("school_mail_subscriptions").insert({
+                "school_id": school_id,
+                "enabled": True,
+                "pricing_model": "per_email",
+                "rate_per_unit": 0.10,
+                "monthly_limit": 5000,
+                "emails_sent": 0
+            }).aexecute()
+
+        # 4. Create or reuse PayU Payment Order via PaymentService
         from app.services.payment.payment_service import PaymentService
         host = str(req_context.base_url).rstrip("/")
-        
+
         order_data = await PaymentService.create_payment_order(
             school_id=school_id,
             user_id=user_id,
             plan_code=request.plan_code,
             billing_cycle=request.billing_cycle,
             customer_name=request.full_name,
-            customer_email=request.email,
+            customer_email=user_email,
             customer_phone=request.school_phone,
             purpose="SCHOOL_REGISTRATION",
             callback_base_url=host
@@ -663,8 +780,10 @@ async def onboard_school(request: OnboardSchoolRequest, req_context: Request):
                 "school_id": school_id,
                 "user_id": user_id,
                 "payment_id": order_data.get("payment_id"),
+                "order_id": order_data.get("order_id"),
                 "transaction_id": order_data.get("transaction_id"),
                 "checkout_url": order_data.get("checkout_url"),
+                "params": order_data.get("params"),
                 "amount": order_data.get("amount"),
                 "status": order_data.get("status")
             }
@@ -672,6 +791,7 @@ async def onboard_school(request: OnboardSchoolRequest, req_context: Request):
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"[Onboarding Exception] {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Onboarding failed: {str(e)}")
 
 

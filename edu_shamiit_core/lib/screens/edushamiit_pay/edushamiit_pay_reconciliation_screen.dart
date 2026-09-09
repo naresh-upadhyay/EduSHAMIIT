@@ -20,42 +20,24 @@ class _EduSHAMIITPayReconciliationScreenState extends State<EduSHAMIITPayReconci
   @override
   void initState() {
     super.initState();
-    _loadSampleBatches();
+    _fetchBatches();
   }
 
-  void _loadSampleBatches() {
-    setState(() {
-      _reconBatches = [
-        {
-          'code': 'REC-20260903-A101',
-          'date': '2026-09-03',
-          'erp_records': 48,
-          'matched': 48,
-          'discrepancies': 0,
-          'status': 'COMPLETED',
-          'amount': 45000.0,
-        },
-        {
-          'code': 'REC-20260902-B202',
-          'date': '2026-09-02',
-          'erp_records': 52,
-          'matched': 51,
-          'discrepancies': 1,
-          'status': 'DISCREPANCIES_FOUND',
-          'amount': 68500.0,
-          'exception': 'AMOUNT_MISMATCH: Bank settlement ₹5,000 vs ERP ₹5,500'
-        },
-        {
-          'code': 'REC-20260901-C303',
-          'date': '2026-09-01',
-          'erp_records': 39,
-          'matched': 39,
-          'discrepancies': 0,
-          'status': 'COMPLETED',
-          'amount': 39000.0,
-        },
-      ];
-    });
+  Future<void> _fetchBatches() async {
+    try {
+      final res = await http.get(Uri.parse('${AppConfig.apiBaseUrl}/v1/edushamiit-pay/payments/reconciliation'));
+      if (res.statusCode == 200) {
+        final body = json.decode(res.body);
+        final items = body['data']?['items'] ?? [];
+        setState(() {
+          _reconBatches = items;
+        });
+      }
+    } catch (_) {
+      setState(() {
+        _reconBatches = [];
+      });
+    }
   }
 
   Future<void> _runReconciliation() async {
@@ -69,21 +51,25 @@ class _EduSHAMIITPayReconciliationScreenState extends State<EduSHAMIITPayReconci
           _reconBatches.insert(0, {
             'code': data['reconciliation_code'] ?? 'REC-NEW',
             'date': 'Today',
-            'erp_records': data['total_erp_records'] ?? 48,
-            'matched': data['matched_count'] ?? 48,
+            'erp_records': data['total_erp_records'] ?? 0,
+            'matched': data['matched_count'] ?? 0,
             'discrepancies': data['discrepancy_count'] ?? 0,
             'status': data['status'] ?? 'COMPLETED',
-            'amount': 45000.0
+            'amount': data['reconciled_amount'] ?? 0.0
           });
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Daily reconciliation completed successfully! 100% matched.')),
+            const SnackBar(content: Text('Daily reconciliation completed successfully!')),
           );
         }
       }
-    } catch (_) {
-      _loadSampleBatches();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Reconciliation check completed: $e')),
+        );
+      }
     }
     setState(() => _isRunning = false);
   }

@@ -631,11 +631,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
         GoRoute(
           path: '/academic/payment-gateways',
-          pageBuilder: (_, __) => const NoTransitionPage(child: PaymentGatewayIntegrationScreen()),
+          pageBuilder: (_, __) => const NoTransitionPage(child: PaymentEnginePaymentsScreen(initialNavTab: 2)),
         ),
         GoRoute(
           path: '/payment-gateways',
-          pageBuilder: (_, __) => const NoTransitionPage(child: PaymentGatewayIntegrationScreen()),
+          pageBuilder: (_, __) => const NoTransitionPage(child: PaymentEnginePaymentsScreen(initialNavTab: 2)),
         ),
       ],
     ),

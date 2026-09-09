@@ -127,6 +127,14 @@ class SandboxProvider(PaymentProvider):
         elif "EXPR" in transaction_id.upper():
             status = "EXPIRED"
 
+        amt = 25000.00 if "FEE" in transaction_id else 11999.00
+        try:
+            from .payment_service import PaymentService
+            if transaction_id in PaymentService._memory_orders:
+                amt = float(PaymentService._memory_orders[transaction_id].get("amount") or amt)
+        except Exception:
+            pass
+
         return {
             "success": True,
             "provider": "MOCK_SANDBOX",
@@ -134,11 +142,12 @@ class SandboxProvider(PaymentProvider):
             "provider_payment_id": f"SANDBOX-PAY-{uuid.uuid4().hex[:10].upper()}",
             "status": status,
             "verified": (status == "SUCCESS"),
-            "amount": 25000.00 if "FEE" in transaction_id else 11999.00,
+            "amount": amt,
             "currency": "INR",
             "bank_ref_no": f"UTR{uuid.uuid4().hex[:12].upper()}",
             "verified_at": datetime.now(timezone.utc).isoformat()
         }
+
 
     async def get_payment_status(self, transaction_id: str) -> Dict[str, Any]:
         return await self.verify_payment(transaction_id)

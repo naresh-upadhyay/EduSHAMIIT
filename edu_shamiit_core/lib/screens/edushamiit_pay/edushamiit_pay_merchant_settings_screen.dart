@@ -18,17 +18,17 @@ class _EduSHAMIITPayMerchantSettingsScreenState extends State<EduSHAMIITPayMerch
   bool _isSaving = false;
   bool _obscureSecret = true;
 
-  String _providerCode = 'MOCK_SANDBOX';
-  String _environment = 'SANDBOX';
-  final _merchantNameCtrl = TextEditingController(text: 'Delhi Public School Acquiring Account');
-  final _merchantIdCtrl = TextEditingController(text: 'DPS-ACQ-2026');
-  final _vpaCtrl = TextEditingController(text: 'dps.rkpuram@sbi');
-  final _bankNameCtrl = TextEditingController(text: 'State Bank of India');
-  final _accNoCtrl = TextEditingController(text: '00000045892341');
-  final _ifscCtrl = TextEditingController(text: 'SBIN0001234');
-  final _holderCtrl = TextEditingController(text: 'DPS School Managing Committee');
-  final _apiKeyCtrl = TextEditingController(text: 'KEY_DPS_TEST_123');
-  final _apiSecretCtrl = TextEditingController(text: 'SECRET_DPS_TEST_456');
+  String _providerCode = 'PAYU';
+  String _environment = 'TEST';
+  final _merchantNameCtrl = TextEditingController();
+  final _merchantIdCtrl = TextEditingController();
+  final _vpaCtrl = TextEditingController();
+  final _bankNameCtrl = TextEditingController();
+  final _accNoCtrl = TextEditingController();
+  final _ifscCtrl = TextEditingController();
+  final _holderCtrl = TextEditingController();
+  final _apiKeyCtrl = TextEditingController();
+  final _apiSecretCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -222,7 +222,7 @@ class _EduSHAMIITPayMerchantSettingsScreenState extends State<EduSHAMIITPayMerch
                           children: [
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: _providerCode,
+                                initialValue: _providerCode,
                                 decoration: const InputDecoration(labelText: 'Gateway Provider', border: OutlineInputBorder()),
                                 items: const [
                                   DropdownMenuItem(value: 'MOCK_SANDBOX', child: Text('Sandbox Mock Simulator (All Edge Cases)')),
@@ -240,7 +240,7 @@ class _EduSHAMIITPayMerchantSettingsScreenState extends State<EduSHAMIITPayMerch
                             const SizedBox(width: 16),
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: _environment,
+                                initialValue: _environment,
                                 decoration: const InputDecoration(labelText: 'Environment', border: OutlineInputBorder()),
                                 items: const [
                                   DropdownMenuItem(value: 'SANDBOX', child: Text('Sandbox / Test')),
