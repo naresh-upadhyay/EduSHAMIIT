@@ -2,6 +2,11 @@
 -- Description: Add missing columns and seed 56 GPS devices matching the mockup stats.
 
 ALTER TABLE gps_devices
+  ADD COLUMN IF NOT EXISTS imei_no TEXT,
+  ADD COLUMN IF NOT EXISTS battery_level INT DEFAULT 100,
+  ADD COLUMN IF NOT EXISTS signal_strength_pct INT DEFAULT 100,
+  ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS firmware_version TEXT DEFAULT 'GTO6N_V7.2.1',
   ADD COLUMN IF NOT EXISTS expiry_date DATE,
   ADD COLUMN IF NOT EXISTS installed_by TEXT DEFAULT 'Transport Manager',
   ADD COLUMN IF NOT EXISTS current_location TEXT DEFAULT 'Sector 62, Noida, UP';

@@ -152,7 +152,11 @@ CREATE INDEX IF NOT EXISTS idx_salary_month_str        ON salary (month_str, sch
 -- 11. profiles — update check constraint to allow new roles
 -- -------------------------------------------------------
 ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
-ALTER TABLE profiles ADD CONSTRAINT profiles_role_check CHECK (role IN ('student', 'parent', 'teacher', 'admin', 'student_admin', 'teacher_admin'));
+ALTER TABLE profiles ADD CONSTRAINT profiles_role_check CHECK (role IN (
+    'student', 'parent', 'teacher', 'admin', 'student_admin', 'teacher_admin',
+    'driver', 'superadmin', 'principal', 'accountant', 'librarian', 'staff',
+    'clerk', 'guard', 'bus_driver', 'system_admin', 'support', 'director'
+)) NOT VALID;
 
 -- -------------------------------------------------------
 -- Done — Migration 096 complete

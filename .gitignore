@@ -33,3 +33,7 @@ nginx/certs/
 *.pdf
 **/*.pdf
 volumes/**/*.pdf
+
+# Archives
+*.zip
+!edu_shamiit_academic/assets/fonts/*.zip

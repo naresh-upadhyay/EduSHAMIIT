@@ -5,7 +5,9 @@ ALTER TABLE vehicle_documents
   ADD COLUMN IF NOT EXISTS document_name TEXT,
   ADD COLUMN IF NOT EXISTS remarks TEXT,
   ADD COLUMN IF NOT EXISTS policy_no TEXT,
-  ADD COLUMN IF NOT EXISTS provider TEXT;
+  ADD COLUMN IF NOT EXISTS provider TEXT,
+  ADD COLUMN IF NOT EXISTS uploaded_by TEXT DEFAULT 'Transport Manager',
+  ADD COLUMN IF NOT EXISTS uploaded_on TIMESTAMPTZ DEFAULT NOW();
 
 -- Clear old vehicle documents
 DELETE FROM vehicle_documents;

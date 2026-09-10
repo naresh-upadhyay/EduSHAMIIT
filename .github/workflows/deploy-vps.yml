@@ -19,6 +19,7 @@ jobs:
 
       - name: Zip Repository
         run: |
+          rm -f project.zip
           zip -r project.zip . -x "*.git*" "*.github*" "*.idea*" "*.vscode*" "node_modules/*" "build/*" "project.zip"
 
       - name: Upload and Deploy
@@ -41,5 +42,6 @@ jobs:
             docker cp /root/app/run_migrations.py edushamiit-api:/app/run_migrations.py && \
             docker cp "/root/app/EduSHAMIIT Database" edushamiit-api:/app/ && \
             docker exec edushamiit-api pip install psycopg2-binary && \
-            docker exec edushamiit-api python3 /app/run_migrations.py "postgresql://postgres:eduSHAMIIT2026_pg@db:5432/postgres" --reapply
+            (docker exec edushamiit-api python3 /app/run_migrations.py "postgresql://supabase_admin:eduSHAMIIT2026_pg@db:5432/postgres" --reapply || \
+             docker exec edushamiit-api python3 /app/run_migrations.py "postgresql://postgres:eduSHAMIIT2026_pg@db:5432/postgres" --reapply)
           '
