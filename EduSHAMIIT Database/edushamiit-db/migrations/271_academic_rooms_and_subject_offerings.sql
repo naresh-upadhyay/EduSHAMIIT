@@ -382,6 +382,7 @@ $$;
 
 
 -- B. Function: Get Paginated Rooms List with Filters & Dynamic Current Allocations
+DROP FUNCTION IF EXISTS public.fn_get_academic_rooms CASCADE;
 CREATE OR REPLACE FUNCTION public.fn_get_academic_rooms(
     p_school_id UUID,
     p_search VARCHAR DEFAULT '',

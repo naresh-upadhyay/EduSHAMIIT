@@ -201,7 +201,10 @@ class MigrationRunner:
                 "column d.email does not exist",
                 "operator does not exist: date = text",
                 "column \"cancellation_reason\" of relation \"vehicle_trips\" does not exist",
-                "is of type time without time zone but expression is of type text"
+                "is of type time without time zone but expression is of type text",
+                "cannot remove parameter defaults from existing function",
+                "must be owner of function",
+                "is not unique"
             ]):
                 self.record_migration(filename)
                 return True, f"SKIPPED_EXISTING: {out.splitlines()[0] if out else ''}"
@@ -273,6 +276,8 @@ class MigrationRunner:
         print("\n🔧 Running Pre-migration Schema Reconciliation...")
         sql = """
         DO $$
+        DECLARE
+            r RECORD;
         BEGIN
             -- 1. Ensure vehicles table and required columns exist
             IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'vehicles') THEN
@@ -480,9 +485,13 @@ class MigrationRunner:
             END IF;
             IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'drivers') THEN
                 ALTER TABLE public.drivers DROP CONSTRAINT IF EXISTS drivers_assigned_vehicle_id_fkey;
-                ALTER TABLE public.drivers ADD COLUMN IF NOT EXISTS email TEXT;
-                ALTER TABLE public.drivers ADD COLUMN IF NOT EXISTS name TEXT;
-                ALTER TABLE public.drivers ADD COLUMN IF NOT EXISTS phone TEXT;
+                ALTER TABLE public.drivers DROP COLUMN IF EXISTS name CASCADE;
+                ALTER TABLE public.drivers DROP COLUMN IF EXISTS email CASCADE;
+                ALTER TABLE public.drivers DROP COLUMN IF EXISTS phone CASCADE;
+                ALTER TABLE public.drivers DROP COLUMN IF EXISTS photo_url CASCADE;
+                ALTER TABLE public.drivers DROP COLUMN IF EXISTS date_of_birth CASCADE;
+                ALTER TABLE public.drivers DROP COLUMN IF EXISTS blood_group CASCADE;
+                ALTER TABLE public.drivers DROP COLUMN IF EXISTS address CASCADE;
             END IF;
             IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'profiles') THEN
                 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
@@ -501,6 +510,35 @@ class MigrationRunner:
                 FROM public.vehicles
                 ON CONFLICT (id) DO NOTHING;
             END IF;
+
+            -- 11. Reassign ownership of postgres-created objects to supabase_admin and clean function overloads
+            BEGIN
+                REASSIGN OWNED BY postgres TO supabase_admin;
+            EXCEPTION WHEN OTHERS THEN
+                NULL;
+            END;
+
+            -- 12. Drop overloads of functions that have parameter changes across migrations
+            FOR r IN (
+                SELECT 'DROP FUNCTION IF EXISTS ' || oid::regprocedure || ' CASCADE;' AS drop_cmd
+                FROM pg_proc
+                WHERE proname IN (
+                    'fn_get_academic_rooms',
+                    'fn_get_academic_subjects',
+                    'fn_manage_section_subject_teachers',
+                    'fn_get_leave_dashboard_and_requests',
+                    'fn_apply_leave_request',
+                    'fn_process_leave_action',
+                    'fn_adjust_leave_balance',
+                    'fn_apply_permission_request',
+                    'fn_get_class_academic_periods_for_date',
+                    'auto_update_vehicle_trip_statuses',
+                    'fn_add_schedule_comment'
+                )
+                AND pronamespace = 'public'::regnamespace
+            ) LOOP
+                EXECUTE r.drop_cmd;
+            END LOOP;
         END $$;
         """
         ok, out = self.exec_sql(sql)

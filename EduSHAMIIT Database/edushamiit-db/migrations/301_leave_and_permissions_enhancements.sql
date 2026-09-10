@@ -233,6 +233,7 @@ END $$;
 -- ============================================================================
 -- 7. STORED PROCEDURE: fn_get_leave_dashboard_and_requests
 -- ============================================================================
+DROP FUNCTION IF EXISTS public.fn_get_leave_dashboard_and_requests CASCADE;
 CREATE OR REPLACE FUNCTION public.fn_get_leave_dashboard_and_requests(
     p_school_id UUID,
     p_user_id UUID DEFAULT NULL,
@@ -412,6 +413,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- ============================================================================
 -- 8. STORED PROCEDURE: fn_apply_leave_request
 -- ============================================================================
+DROP FUNCTION IF EXISTS public.fn_apply_leave_request CASCADE;
 CREATE OR REPLACE FUNCTION public.fn_apply_leave_request(
     p_school_id UUID,
     p_applicant_id UUID,
@@ -503,6 +505,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- ============================================================================
 -- 9. STORED PROCEDURE: fn_process_leave_action
 -- ============================================================================
+DROP FUNCTION IF EXISTS public.fn_process_leave_action CASCADE;
 CREATE OR REPLACE FUNCTION public.fn_process_leave_action(
     p_school_id UUID,
     p_leave_id UUID,
@@ -622,6 +625,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- ============================================================================
 -- 10. STORED PROCEDURE: fn_adjust_leave_balance
 -- ============================================================================
+DROP FUNCTION IF EXISTS public.fn_adjust_leave_balance CASCADE;
 CREATE OR REPLACE FUNCTION public.fn_adjust_leave_balance(
     p_school_id UUID,
     p_user_id UUID,
@@ -673,6 +677,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- ============================================================================
 -- 11. STORED PROCEDURE: fn_apply_permission_request
 -- ============================================================================
+DROP FUNCTION IF EXISTS public.fn_apply_permission_request CASCADE;
 CREATE OR REPLACE FUNCTION public.fn_apply_permission_request(
     p_school_id UUID,
     p_applicant_id UUID,
