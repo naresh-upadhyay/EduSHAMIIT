@@ -61,32 +61,10 @@ class _PayrollManagementViewState extends ConsumerState<PayrollManagementView> {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Staff Payroll & Salary Processing',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      fontFamily: 'Outfit',
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Manage staff salary structures, monthly payroll runs, allowances and net disbursements.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                    ),
-                  ),
-                ],
-              ),
-              ElevatedButton.icon(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 620;
+              final button = ElevatedButton.icon(
                 onPressed: _isProcessing ? null : _runMonthlyPayroll,
                 icon: _isProcessing
                     ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
@@ -98,8 +76,67 @@ class _PayrollManagementViewState extends ConsumerState<PayrollManagementView> {
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-              ),
-            ],
+              );
+
+              if (isNarrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Staff Payroll & Salary Processing',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        fontFamily: 'Outfit',
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Manage staff salary structures, monthly payroll runs, allowances and net disbursements.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    button,
+                  ],
+                );
+              }
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Staff Payroll & Salary Processing',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            fontFamily: 'Outfit',
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Manage staff salary structures, monthly payroll runs, allowances and net disbursements.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  button,
+                ],
+              );
+            },
           ),
         ),
         const SizedBox(height: 20),

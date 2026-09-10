@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/finance_provider.dart';
@@ -27,9 +28,10 @@ class StudentFeeAccountDrawer extends ConsumerWidget {
     final summary = account.summary;
     final breakdown = account.feeBreakdown;
     final history = account.paymentHistory;
+    final screenWidth = MediaQuery.of(context).size.width;
 
     return Container(
-      width: 480,
+      width: min(480.0, screenWidth * 0.95),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         boxShadow: [

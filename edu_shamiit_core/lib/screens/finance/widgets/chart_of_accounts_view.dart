@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/finance_api_service.dart';
@@ -41,27 +42,34 @@ class _ChartOfAccountsViewState extends ConsumerState<ChartOfAccountsView> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Post Journal Entry (Debit = Credit)'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DropdownButtonFormField<String>(
-              value: drAcc,
-              decoration: const InputDecoration(labelText: 'Debit Account (DR)'),
-              items: _accounts.map((a) => DropdownMenuItem(value: a.id, child: Text('${a.accountCode} - ${a.accountName}'))).toList(),
-              onChanged: (v) => drAcc = v!,
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: min(450.0, MediaQuery.of(context).size.width - 32)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: drAcc,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Debit Account (DR)'),
+                  items: _accounts.map((a) => DropdownMenuItem(value: a.id, child: Text('${a.accountCode} - ${a.accountName}', overflow: TextOverflow.ellipsis, maxLines: 1))).toList(),
+                  onChanged: (v) => drAcc = v!,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: crAcc,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Credit Account (CR)'),
+                  items: _accounts.map((a) => DropdownMenuItem(value: a.id, child: Text('${a.accountCode} - ${a.accountName}', overflow: TextOverflow.ellipsis, maxLines: 1))).toList(),
+                  onChanged: (v) => crAcc = v!,
+                ),
+                const SizedBox(height: 12),
+                TextField(controller: amtCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Amount (₹)')),
+                const SizedBox(height: 12),
+                TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Narration / Description')),
+              ],
             ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              value: crAcc,
-              decoration: const InputDecoration(labelText: 'Credit Account (CR)'),
-              items: _accounts.map((a) => DropdownMenuItem(value: a.id, child: Text('${a.accountCode} - ${a.accountName}'))).toList(),
-              onChanged: (v) => crAcc = v!,
-            ),
-            const SizedBox(height: 12),
-            TextField(controller: amtCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Amount (₹)')),
-            const SizedBox(height: 12),
-            TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Narration / Description')),
-          ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),

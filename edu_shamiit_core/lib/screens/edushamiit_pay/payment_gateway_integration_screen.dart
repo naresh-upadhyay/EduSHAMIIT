@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -877,82 +878,115 @@ class _PaymentGatewayIntegrationScreenState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Section Title & Filters Toolbar
-        Row(
-          children: [
-            Text(
-              'Payment Providers',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF0F172A),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEEF2FF),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '${filteredGateways.length} Channels',
-                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF4F46E5)),
-              ),
-            ),
-            const Spacer(),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 620;
 
-            // Status Filter Dropdown
-            Container(
-              height: 34,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _statusFilter,
-                  style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF334155)),
-                  items: const [
-                    DropdownMenuItem(value: 'ALL', child: Text('All Status')),
-                    DropdownMenuItem(value: 'CONNECTED', child: Text('Connected')),
-                    DropdownMenuItem(value: 'ACTIVE', child: Text('Active')),
-                    DropdownMenuItem(value: 'NOT_CONFIGURED', child: Text('Not Configured')),
-                    DropdownMenuItem(value: 'DISABLED', child: Text('Disabled')),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) setState(() => _statusFilter = val);
-                  },
+            final titlePart = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Payment Providers',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF0F172A),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 8),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEEF2FF),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${filteredGateways.length} Channels',
+                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF4F46E5)),
+                  ),
+                ),
+              ],
+            );
 
-            // Sort Dropdown
-            Container(
-              height: 34,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _sortBy,
-                  style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF334155)),
-                  items: const [
-                    DropdownMenuItem(value: 'NAME', child: Text('Sort: Name')),
-                    DropdownMenuItem(value: 'TRANSACTIONS', child: Text('Sort: Transactions')),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) setState(() => _sortBy = val);
-                  },
+            final dropdowns = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Status Filter Dropdown
+                Container(
+                  height: 34,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _statusFilter,
+                      style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF334155)),
+                      items: const [
+                        DropdownMenuItem(value: 'ALL', child: Text('All Status', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'CONNECTED', child: Text('Connected', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'ACTIVE', child: Text('Active', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'NOT_CONFIGURED', child: Text('Not Configured', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'DISABLED', child: Text('Disabled', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) setState(() => _statusFilter = val);
+                      },
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
+                const SizedBox(width: 8),
+
+                // Sort Dropdown
+                Container(
+                  height: 34,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _sortBy,
+                      style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF334155)),
+                      items: const [
+                        DropdownMenuItem(value: 'NAME', child: Text('Sort: Name', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'TRANSACTIONS', child: Text('Sort: Transactions', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) setState(() => _sortBy = val);
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            );
+
+            if (isNarrow) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  titlePart,
+                  const SizedBox(height: 10),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: dropdowns,
+                  ),
+                ],
+              );
+            }
+
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                titlePart,
+                dropdowns,
+              ],
+            );
+          },
         ),
         const SizedBox(height: 14),
 
@@ -2065,45 +2099,53 @@ class _PaymentGatewayIntegrationScreenState
         builder: (context, setModalState) {
           return AlertDialog(
             title: Text('Create Routing Rule', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  initialValue: pType,
-                  decoration: const InputDecoration(labelText: 'Payment Type'),
-                  items: const [
-                    DropdownMenuItem(value: 'SCHOOL_FEE', child: Text('School Fee')),
-                    DropdownMenuItem(value: 'SUBSCRIPTION', child: Text('ERP Subscription')),
-                    DropdownMenuItem(value: 'ADMISSION', child: Text('Admission Fee')),
-                    DropdownMenuItem(value: 'TRANSPORT', child: Text('Transport Fee')),
-                  ],
-                  onChanged: (val) => setModalState(() => pType = val!),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: pMethod,
-                  decoration: const InputDecoration(labelText: 'Payment Method'),
-                  items: const [
-                    DropdownMenuItem(value: 'UPI', child: Text('UPI')),
-                    DropdownMenuItem(value: 'CARD', child: Text('Cards')),
-                    DropdownMenuItem(value: 'NET_BANKING', child: Text('Net Banking')),
-                    DropdownMenuItem(value: 'ALL', child: Text('All Methods')),
-                  ],
-                  onChanged: (val) => setModalState(() => pMethod = val!),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedGwId,
-                  decoration: const InputDecoration(labelText: 'Target Gateway'),
-                  items: _gateways.map<DropdownMenuItem<String>>((g) {
-                    return DropdownMenuItem(
-                      value: g['id'],
-                      child: Text(g['display_name'] ?? g['provider']),
-                    );
-                  }).toList(),
-                  onChanged: (val) => setModalState(() => selectedGwId = val),
-                ),
-              ],
+            content: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: min(440.0, MediaQuery.of(context).size.width - 32),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: pType,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Payment Type'),
+                    items: const [
+                      DropdownMenuItem(value: 'SCHOOL_FEE', child: Text('School Fee', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                      DropdownMenuItem(value: 'SUBSCRIPTION', child: Text('ERP Subscription', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                      DropdownMenuItem(value: 'ADMISSION', child: Text('Admission Fee', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                      DropdownMenuItem(value: 'TRANSPORT', child: Text('Transport Fee', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                    ],
+                    onChanged: (val) => setModalState(() => pType = val!),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: pMethod,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Payment Method'),
+                    items: const [
+                      DropdownMenuItem(value: 'UPI', child: Text('UPI', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                      DropdownMenuItem(value: 'CARD', child: Text('Cards', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                      DropdownMenuItem(value: 'NET_BANKING', child: Text('Net Banking', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                      DropdownMenuItem(value: 'ALL', child: Text('All Methods', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                    ],
+                    onChanged: (val) => setModalState(() => pMethod = val!),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedGwId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Target Gateway'),
+                    items: _gateways.map<DropdownMenuItem<String>>((g) {
+                      return DropdownMenuItem(
+                        value: g['id'],
+                        child: Text(g['display_name'] ?? g['provider'], overflow: TextOverflow.ellipsis, maxLines: 1),
+                      );
+                    }).toList(),
+                    onChanged: (val) => setModalState(() => selectedGwId = val),
+                  ),
+                ],
+              ),
             ),
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),

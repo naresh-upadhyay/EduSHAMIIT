@@ -69,6 +69,68 @@ ALTER TABLE public.drivers DROP COLUMN IF EXISTS date_of_birth CASCADE;
 ALTER TABLE public.drivers DROP COLUMN IF EXISTS blood_group CASCADE;
 ALTER TABLE public.drivers DROP COLUMN IF EXISTS address CASCADE;
 
+-- Align sync_profile_to_driver() trigger function with normalized drivers schema (SSOT: profiles)
+CREATE OR REPLACE FUNCTION public.sync_profile_to_driver()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_driver_code TEXT;
+BEGIN
+  IF (TG_OP = 'INSERT' OR TG_OP = 'UPDATE') THEN
+    IF LOWER(COALESCE(NEW.role, '')) IN ('driver', 'bus_driver') THEN
+      v_driver_code := COALESCE(NEW.user_id, 'DRV' || UPPER(SUBSTRING(REPLACE(NEW.id::text, '-', ''), 1, 6)));
+
+      IF EXISTS (SELECT 1 FROM public.drivers WHERE profile_id = NEW.id) THEN
+        UPDATE public.drivers SET
+          school_id = NEW.school_id,
+          status = CASE WHEN NEW.status = 'Inactive' THEN 'Inactive' ELSE status END,
+          updated_at = NOW()
+        WHERE profile_id = NEW.id;
+      ELSE
+        INSERT INTO public.drivers (
+          id,
+          school_id,
+          driver_code,
+          license_no,
+          license_type,
+          license_issue_date,
+          license_expiry_date,
+          issuing_authority,
+          experience_years,
+          status,
+          joined_date,
+          profile_id
+        ) VALUES (
+          gen_random_uuid(),
+          NEW.school_id,
+          v_driver_code,
+          'UP16 ' || TO_CHAR(CURRENT_DATE, 'YYYY') || LPAD((FLOOR(RANDOM() * 89999 + 10000))::INT::text, 5, '0'),
+          'LMV',
+          CURRENT_DATE - INTERVAL '3 years',
+          CURRENT_DATE + INTERVAL '7 years',
+          'RTO, Noida, UP',
+          5,
+          CASE WHEN NEW.status = 'Inactive' THEN 'Inactive' ELSE 'Active' END,
+          COALESCE(NEW.created_at::date, CURRENT_DATE),
+          NEW.id
+        )
+        ON CONFLICT (profile_id) DO UPDATE SET
+          school_id = EXCLUDED.school_id,
+          status = EXCLUDED.status,
+          updated_at = NOW();
+      END IF;
+    END IF;
+    RETURN NEW;
+  ELSIF (TG_OP = 'DELETE') THEN
+    DELETE FROM public.drivers WHERE profile_id = OLD.id;
+    RETURN OLD;
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
 
 -- ──────────────────────────────────────────────
 -- 4. CLEANUP VIEWS NO LONGER NEEDED

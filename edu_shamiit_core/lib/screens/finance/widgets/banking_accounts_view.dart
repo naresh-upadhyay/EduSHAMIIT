@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/finance_api_service.dart';
@@ -40,25 +41,32 @@ class _BankingAccountsViewState extends ConsumerState<BankingAccountsView> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Internal Fund Transfer'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DropdownButtonFormField<String>(
-              value: fromId,
-              decoration: const InputDecoration(labelText: 'From Account'),
-              items: _accounts.map((a) => DropdownMenuItem(value: a.id, child: Text(a.accountName))).toList(),
-              onChanged: (val) => fromId = val!,
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: min(450.0, MediaQuery.of(ctx).size.width - 32)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: fromId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'From Account'),
+                  items: _accounts.map((a) => DropdownMenuItem(value: a.id, child: Text(a.accountName, overflow: TextOverflow.ellipsis, maxLines: 1))).toList(),
+                  onChanged: (val) => fromId = val!,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: toId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'To Account'),
+                  items: _accounts.map((a) => DropdownMenuItem(value: a.id, child: Text(a.accountName, overflow: TextOverflow.ellipsis, maxLines: 1))).toList(),
+                  onChanged: (val) => toId = val!,
+                ),
+                const SizedBox(height: 12),
+                TextField(controller: amtCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Amount (₹)')),
+              ],
             ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              value: toId,
-              decoration: const InputDecoration(labelText: 'To Account'),
-              items: _accounts.map((a) => DropdownMenuItem(value: a.id, child: Text(a.accountName))).toList(),
-              onChanged: (val) => toId = val!,
-            ),
-            const SizedBox(height: 12),
-            TextField(controller: amtCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Amount (₹)')),
-          ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),

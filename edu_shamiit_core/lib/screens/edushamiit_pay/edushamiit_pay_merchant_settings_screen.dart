@@ -161,12 +161,28 @@ class _EduSHAMIITPayMerchantSettingsScreenState extends State<EduSHAMIITPayMerch
                       children: [
                         TextField(controller: _bankNameCtrl, decoration: const InputDecoration(labelText: 'Bank Name', border: OutlineInputBorder())),
                         const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(child: TextField(controller: _accNoCtrl, decoration: const InputDecoration(labelText: 'Account Number', border: OutlineInputBorder()))),
-                            const SizedBox(width: 16),
-                            Expanded(child: TextField(controller: _ifscCtrl, decoration: const InputDecoration(labelText: 'IFSC Code', border: OutlineInputBorder()))),
-                          ],
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isNarrow = constraints.maxWidth < 500;
+                            final accField = TextField(controller: _accNoCtrl, decoration: const InputDecoration(labelText: 'Account Number', border: OutlineInputBorder()));
+                            final ifscField = TextField(controller: _ifscCtrl, decoration: const InputDecoration(labelText: 'IFSC Code', border: OutlineInputBorder()));
+                            if (isNarrow) {
+                              return Column(
+                                children: [
+                                  accField,
+                                  const SizedBox(height: 16),
+                                  ifscField,
+                                ],
+                              );
+                            }
+                            return Row(
+                              children: [
+                                Expanded(child: accField),
+                                const SizedBox(width: 16),
+                                Expanded(child: ifscField),
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 16),
                         TextField(controller: _holderCtrl, decoration: const InputDecoration(labelText: 'Account Holder / Legal Entity Name', border: OutlineInputBorder())),
@@ -218,40 +234,57 @@ class _EduSHAMIITPayMerchantSettingsScreenState extends State<EduSHAMIITPayMerch
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                initialValue: _providerCode,
-                                decoration: const InputDecoration(labelText: 'Gateway Provider', border: OutlineInputBorder()),
-                                items: const [
-                                  DropdownMenuItem(value: 'MOCK_SANDBOX', child: Text('Sandbox Mock Simulator (All Edge Cases)')),
-                                  DropdownMenuItem(value: 'PAYU', child: Text('PayU Hosted Checkout v2')),
-                                  DropdownMenuItem(value: 'CASHFREE', child: Text('Cashfree Payment Gateway')),
-                                  DropdownMenuItem(value: 'SBI_EPAY', child: Text('SBI ePay (Bank Direct)')),
-                                  DropdownMenuItem(value: 'ICICI_EAZYPAY', child: Text('ICICI Eazypay (Bank Direct)')),
-                                  DropdownMenuItem(value: 'HDFC_SMARTHUB', child: Text('HDFC SmartHub (Bank Direct)')),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isNarrow = constraints.maxWidth < 620;
+                            final providerDropdown = DropdownButtonFormField<String>(
+                              initialValue: _providerCode,
+                              isExpanded: true,
+                              decoration: const InputDecoration(labelText: 'Gateway Provider', border: OutlineInputBorder()),
+                              items: const [
+                                DropdownMenuItem(value: 'MOCK_SANDBOX', child: Text('Sandbox Mock Simulator (All Edge Cases)', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                                DropdownMenuItem(value: 'PAYU', child: Text('PayU Hosted Checkout v2', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                                DropdownMenuItem(value: 'CASHFREE', child: Text('Cashfree Payment Gateway', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                                DropdownMenuItem(value: 'SBI_EPAY', child: Text('SBI ePay (Bank Direct)', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                                DropdownMenuItem(value: 'ICICI_EAZYPAY', child: Text('ICICI Eazypay (Bank Direct)', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                                DropdownMenuItem(value: 'HDFC_SMARTHUB', child: Text('HDFC SmartHub (Bank Direct)', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                              ],
+                              onChanged: (v) {
+                                if (v != null) setState(() => _providerCode = v);
+                              },
+                            );
+
+                            final envDropdown = DropdownButtonFormField<String>(
+                              initialValue: _environment,
+                              isExpanded: true,
+                              decoration: const InputDecoration(labelText: 'Environment', border: OutlineInputBorder()),
+                              items: const [
+                                DropdownMenuItem(value: 'SANDBOX', child: Text('Sandbox / Test', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                                DropdownMenuItem(value: 'PRODUCTION', child: Text('Production (Live)', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                              ],
+                              onChanged: (v) {
+                                if (v != null) setState(() => _environment = v);
+                              },
+                            );
+
+                            if (isNarrow) {
+                              return Column(
+                                children: [
+                                  providerDropdown,
+                                  const SizedBox(height: 16),
+                                  envDropdown,
                                 ],
-                                onChanged: (v) {
-                                  if (v != null) setState(() => _providerCode = v);
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                initialValue: _environment,
-                                decoration: const InputDecoration(labelText: 'Environment', border: OutlineInputBorder()),
-                                items: const [
-                                  DropdownMenuItem(value: 'SANDBOX', child: Text('Sandbox / Test')),
-                                  DropdownMenuItem(value: 'PRODUCTION', child: Text('Production (Live)')),
-                                ],
-                                onChanged: (v) {
-                                  if (v != null) setState(() => _environment = v);
-                                },
-                              ),
-                            ),
-                          ],
+                              );
+                            }
+
+                            return Row(
+                              children: [
+                                Expanded(child: providerDropdown),
+                                const SizedBox(width: 16),
+                                Expanded(child: envDropdown),
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 16),
                         TextField(controller: _merchantIdCtrl, decoration: const InputDecoration(labelText: 'Merchant Identifier / Client ID', border: OutlineInputBorder())),

@@ -28,6 +28,7 @@ jobs:
 
           ssh -o StrictHostKeyChecking=no root@${{ secrets.VPS_HOST }} '
             cd /root/app && \
+            rm -rf "/root/app/EduSHAMIIT Database" && \
             unzip -o project.zip && \
             rm project.zip && \
             find /root/app -type f -name "*.sh" -exec chmod +x {} + && \
@@ -36,8 +37,9 @@ jobs:
             export NGINX_SSL_KEY_PATH=/home/user/conf/web/eduapi.shamiit.com/ssl/eduapi.shamiit.com.key && \
             docker compose down && \
             docker compose up -d --build && \
+            docker exec edushamiit-api rm -rf "/app/EduSHAMIIT Database" && \
             docker cp /root/app/run_migrations.py edushamiit-api:/app/run_migrations.py && \
             docker cp "/root/app/EduSHAMIIT Database" edushamiit-api:/app/ && \
             docker exec edushamiit-api pip install psycopg2-binary && \
-            docker exec edushamiit-api python3 /app/run_migrations.py "postgresql://postgres:eduSHAMIIT2026_pg@db:5432/postgres"
+            docker exec edushamiit-api python3 /app/run_migrations.py "postgresql://postgres:eduSHAMIIT2026_pg@db:5432/postgres" --reapply
           '

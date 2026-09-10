@@ -82,18 +82,30 @@ class _EduSHAMIITPayReconciliationScreenState extends State<EduSHAMIITPayReconci
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Text('Settlement & Reconciliation', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        title: Text(
+          'Settlement & Reconciliation',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: ElevatedButton.icon(
-              onPressed: _isRunning ? null : _runReconciliation,
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1), foregroundColor: Colors.white),
-              icon: _isRunning
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.play_arrow_rounded, size: 18),
-              label: Text(_isRunning ? 'Reconciling...' : 'Run Daily Reconciliation'),
-            ),
+            child: MediaQuery.sizeOf(context).width < 600
+                ? IconButton(
+                    onPressed: _isRunning ? null : _runReconciliation,
+                    tooltip: 'Run Daily Reconciliation',
+                    icon: _isRunning
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF6366F1)))
+                        : const Icon(Icons.play_arrow_rounded, color: Color(0xFF6366F1)),
+                  )
+                : ElevatedButton.icon(
+                    onPressed: _isRunning ? null : _runReconciliation,
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1), foregroundColor: Colors.white),
+                    icon: _isRunning
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.play_arrow_rounded, size: 18),
+                    label: Text(_isRunning ? 'Reconciling...' : 'Run Daily Reconciliation'),
+                  ),
           ),
         ],
       ),
@@ -189,14 +201,13 @@ class _EduSHAMIITPayReconciliationScreenState extends State<EduSHAMIITPayReconci
                         ],
                       ),
                       const SizedBox(height: 12),
-                      Row(
+                      Wrap(
+                        spacing: 24,
+                        runSpacing: 12,
                         children: [
                           _buildMiniStat('Total Records', '${b['erp_records']}'),
-                          const SizedBox(width: 24),
                           _buildMiniStat('Matched', '${b['matched']}'),
-                          const SizedBox(width: 24),
                           _buildMiniStat('Discrepancies', '${b['discrepancies']}', isError: !isClean),
-                          const SizedBox(width: 24),
                           _buildMiniStat('Batch Amount', '₹${((b['amount'] ?? 0) as num).toInt()}'),
                         ],
                       ),

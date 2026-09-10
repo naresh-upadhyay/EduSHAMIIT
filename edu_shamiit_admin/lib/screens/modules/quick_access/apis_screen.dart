@@ -181,9 +181,6 @@ class _ApisScreenState extends State<ApisScreen> {
     final endIndex = (startIndex + _pageSize) > totalRecords ? totalRecords : (startIndex + _pageSize);
     final paginatedApis = (startIndex < totalRecords) ? filteredApis.sublist(startIndex, endIndex) : [];
 
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= 1100;
-
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
@@ -224,75 +221,81 @@ class _ApisScreenState extends State<ApisScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                     );
-            }
+            },
           ),
           const SizedBox(width: 16),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // KPI Cards row
-            _buildKpiGrid(isDesktop, theme, isDark),
-            const SizedBox(height: 24),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth >= 1050;
 
-            // Analytics Section (Charts)
-            if (isDesktop)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 3, child: _buildTrafficOverviewChart(theme, isDark)),
-                  const SizedBox(width: 24),
-                  Expanded(flex: 2, child: _buildCategoryDoughnutChart(theme, isDark)),
-                ],
-              )
-            else
-              Column(
-                children: [
-                  _buildTrafficOverviewChart(theme, isDark),
-                  const SizedBox(height: 24),
-                  _buildCategoryDoughnutChart(theme, isDark),
-                ],
-              ),
-            const SizedBox(height: 24),
+          return SingleChildScrollView(
+            padding: EdgeInsets.all(constraints.maxWidth < 600 ? 14.0 : 24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // KPI Cards row
+                _buildKpiGrid(theme, isDark),
+                const SizedBox(height: 24),
 
-            // Main Content Split (Table + Sidebar)
-            if (isDesktop)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 3, child: _buildRegisteredApisTable(paginatedApis, totalRecords, totalPages, startIndex, endIndex, theme, isDark)),
-                  const SizedBox(width: 24),
-                  Expanded(
-                    flex: 1,
-                    child: Column(
-                      children: [
-                        _buildGatewayStatusCard(theme, isDark),
-                        const SizedBox(height: 20),
-                        _buildQuickActionsCard(theme, isDark),
-                        const SizedBox(height: 20),
-                        _buildRecentActivityCard(theme, isDark),
-                      ],
-                    ),
+                // Analytics Section (Charts)
+                if (isDesktop)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 3, child: _buildTrafficOverviewChart(theme, isDark)),
+                      const SizedBox(width: 24),
+                      Expanded(flex: 2, child: _buildCategoryDoughnutChart(theme, isDark)),
+                    ],
                   )
-                ],
-              )
-            else
-              Column(
-                children: [
-                  _buildRegisteredApisTable(paginatedApis, totalRecords, totalPages, startIndex, endIndex, theme, isDark),
-                  const SizedBox(height: 24),
-                  _buildGatewayStatusCard(theme, isDark),
-                  const SizedBox(height: 20),
-                  _buildQuickActionsCard(theme, isDark),
-                  const SizedBox(height: 20),
-                  _buildRecentActivityCard(theme, isDark),
-                ],
-              ),
-          ],
-        ),
+                else
+                  Column(
+                    children: [
+                      _buildTrafficOverviewChart(theme, isDark),
+                      const SizedBox(height: 24),
+                      _buildCategoryDoughnutChart(theme, isDark),
+                    ],
+                  ),
+                const SizedBox(height: 24),
+
+                // Main Content Split (Table + Sidebar)
+                if (isDesktop)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 3, child: _buildRegisteredApisTable(paginatedApis, totalRecords, totalPages, startIndex, endIndex, theme, isDark)),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        flex: 1,
+                        child: Column(
+                          children: [
+                            _buildGatewayStatusCard(theme, isDark),
+                            const SizedBox(height: 20),
+                            _buildQuickActionsCard(theme, isDark),
+                            const SizedBox(height: 20),
+                            _buildRecentActivityCard(theme, isDark),
+                          ],
+                        ),
+                      )
+                    ],
+                  )
+                else
+                  Column(
+                    children: [
+                      _buildRegisteredApisTable(paginatedApis, totalRecords, totalPages, startIndex, endIndex, theme, isDark),
+                      const SizedBox(height: 24),
+                      _buildGatewayStatusCard(theme, isDark),
+                      const SizedBox(height: 20),
+                      _buildQuickActionsCard(theme, isDark),
+                      const SizedBox(height: 20),
+                      _buildRecentActivityCard(theme, isDark),
+                    ],
+                  ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -301,7 +304,7 @@ class _ApisScreenState extends State<ApisScreen> {
   // SUB-WIDGET BUILDERS
   // =========================================================================
 
-  Widget _buildKpiGrid(bool isDesktop, ThemeData theme, bool isDark) {
+  Widget _buildKpiGrid(ThemeData theme, bool isDark) {
     final cards = [
       _buildKpiCard(
         'Total APIs',
@@ -350,17 +353,29 @@ class _ApisScreenState extends State<ApisScreen> {
       ),
     ];
 
-    if (isDesktop) {
-      return Row(
-        children: cards.map((c) => Expanded(child: Padding(padding: const EdgeInsets.only(right: 12), child: c))).toList(),
-      );
-    } else {
-      return Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: cards.map((c) => SizedBox(width: 170, child: c)).toList(),
-      );
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        int crossAxisCount;
+        if (w >= 1200) {
+          crossAxisCount = 5;
+        } else if (w >= 800) {
+          crossAxisCount = 3;
+        } else if (w >= 500) {
+          crossAxisCount = 2;
+        } else {
+          crossAxisCount = 1;
+        }
+
+        final itemWidth = (w - (crossAxisCount - 1) * 12) / crossAxisCount;
+
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: cards.map((c) => SizedBox(width: itemWidth, child: c)).toList(),
+        );
+      },
+    );
   }
 
   Widget _buildKpiCard(String title, String value, String subtext, IconData icon, Color color, ThemeData theme, bool isDark) {
@@ -770,10 +785,9 @@ class _ApisScreenState extends State<ApisScreen> {
           const SizedBox(height: 16),
 
           // Filters Bar
-          Builder(
-            builder: (context) {
-              final width = MediaQuery.of(context).size.width;
-              final isMobileFilters = width < 700;
+          LayoutBuilder(
+            builder: (context, fConstraints) {
+              final isMobileFilters = fConstraints.maxWidth < 650;
               
               final searchField = TextField(
                 onChanged: (val) {
@@ -853,16 +867,13 @@ class _ApisScreenState extends State<ApisScreen> {
                         statusDropdown,
                       ],
                     );
-            }
+            },
           ),
           const SizedBox(height: 16),
 
-          // Table Header & Rows wrapped in Horizontal Scroll on Mobile
-          Builder(
-            builder: (context) {
-              final width = MediaQuery.of(context).size.width;
-              final isMobileTable = width < 900;
-              
+          // Table Header & Rows wrapped in Horizontal Scroll with exact bounds
+          LayoutBuilder(
+            builder: (context, tblConstraints) {
               final tableContent = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -899,29 +910,30 @@ class _ApisScreenState extends State<ApisScreen> {
                 ],
               );
 
-              return isMobileTable
-                  ? SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SizedBox(
-                        width: 850,
-                        child: tableContent,
-                      ),
-                    )
-                  : tableContent;
-            }
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minWidth: 850,
+                    maxWidth: max(850.0, tblConstraints.maxWidth),
+                  ),
+                  child: tableContent,
+                ),
+              );
+            },
           ),
 
           const SizedBox(height: 16),
 
-          // Pagination Bar
-          Builder(
-            builder: (context) {
-              final width = MediaQuery.of(context).size.width;
-              final isMobilePagination = width < 600;
+          // Pagination Bar (Responsive & Windowed to prevent any RenderFlex overflow)
+          LayoutBuilder(
+            builder: (context, pConstraints) {
+              final isMobilePagination = pConstraints.maxWidth < 620;
               
               final showingText = Text(
                 "Showing ${startIndex + 1} to $endIndex of $totalRecords APIs",
                 style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
+                overflow: TextOverflow.ellipsis,
               );
 
               final pageSizeSelector = Row(
@@ -970,6 +982,16 @@ class _ApisScreenState extends State<ApisScreen> {
                 ],
               );
 
+              // Windowed page list to avoid hundreds of buttons
+              List<int> visiblePages = [];
+              if (totalPages <= 5) {
+                visiblePages = List.generate(totalPages, (i) => i);
+              } else {
+                int start = max(0, min(_currentPage - 2, totalPages - 5));
+                int end = min(totalPages, start + 5);
+                visiblePages = List.generate(end - start, (i) => start + i);
+              }
+
               final navigationControls = Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -985,7 +1007,7 @@ class _ApisScreenState extends State<ApisScreen> {
                     color: isDark ? Colors.white : const Color(0xFF0F172A),
                     disabledColor: isDark ? Colors.white24 : Colors.black26,
                   ),
-                  ...List.generate(totalPages, (index) {
+                  ...visiblePages.map((index) {
                     final isCurrent = index == _currentPage;
                     return InkWell(
                       onTap: () {
@@ -994,7 +1016,7 @@ class _ApisScreenState extends State<ApisScreen> {
                         });
                       },
                       child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: isCurrent ? const Color(0xFF4F46E5) : Colors.transparent,
@@ -1028,32 +1050,41 @@ class _ApisScreenState extends State<ApisScreen> {
 
               return isMobilePagination
                   ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            showingText,
+                            Flexible(child: showingText),
+                            const SizedBox(width: 8),
                             pageSizeSelector,
                           ],
                         ),
                         const SizedBox(height: 10),
-                        navigationControls,
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: navigationControls,
+                        ),
                       ],
                     )
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            showingText,
-                            const SizedBox(width: 16),
-                            pageSizeSelector,
-                          ],
+                        Flexible(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(child: showingText),
+                              const SizedBox(width: 16),
+                              pageSizeSelector,
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         navigationControls,
                       ],
                     );
-            }
+            },
           ),
         ],
       ),
@@ -1135,6 +1166,8 @@ class _ApisScreenState extends State<ApisScreen> {
                         children: [
                           Text(
                             api['api_name']?.toString() ?? '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: isDark ? Colors.white : const Color(0xFF0F172A),
                               fontSize: 12,

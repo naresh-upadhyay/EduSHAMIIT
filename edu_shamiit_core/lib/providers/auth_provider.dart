@@ -138,7 +138,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       ).timeout(AppConfig.apiTimeout);
 
       debugPrint('[AuthProvider] Response status: ${response.statusCode}');
-      debugPrint('[AuthProvider] Response body: ${response.body}');
+      // SENSITIVE CREDENTIAL CLEANUP: Never log response.body containing JWT/Supabase/refresh tokens
+      debugPrint('[AuthProvider] Login response received (credentials secured)');
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
 

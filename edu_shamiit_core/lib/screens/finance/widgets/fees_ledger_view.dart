@@ -208,17 +208,19 @@ class FeesLedgerView extends ConsumerWidget {
             decoration: BoxDecoration(
               border: Border(top: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0))),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
+            child: LayoutBuilder(
+              builder: (context, pConstraints) {
+                final isNarrow = pConstraints.maxWidth < 480;
+                final countText = Text(
                   'Showing ${state.ledgerItems.length} of ${state.totalLedgerItems} invoices',
                   style: TextStyle(
                     fontSize: 13,
                     color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                   ),
-                ),
-                Row(
+                  overflow: TextOverflow.ellipsis,
+                );
+                final buttons = Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
                       icon: const Icon(Icons.chevron_left_rounded),
@@ -233,8 +235,26 @@ class FeesLedgerView extends ConsumerWidget {
                       onPressed: state.currentPage < state.totalLedgerPages ? () => notifier.setPage(state.currentPage + 1) : null,
                     ),
                   ],
-                ),
-              ],
+                );
+
+                if (isNarrow) {
+                  return Column(
+                    children: [
+                      countText,
+                      const SizedBox(height: 8),
+                      buttons,
+                    ],
+                  );
+                }
+
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(child: countText),
+                    buttons,
+                  ],
+                );
+              },
             ),
           ),
         ],

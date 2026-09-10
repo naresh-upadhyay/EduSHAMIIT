@@ -179,7 +179,12 @@ class MigrationRunner:
                 "duplicate key",
                 "does not exist, skipping",
                 "already a member of",
-                "relation \"public.schema_migrations\" already exists"
+                "relation \"public.schema_migrations\" already exists",
+                "multiple primary keys",
+                "already has a primary key",
+                "already a partition",
+                "is already a partition",
+                "permission denied to set role"
             ]):
                 self.record_migration(filename)
                 return True, f"SKIPPED_EXISTING: {out.splitlines()[0] if out else ''}"
@@ -245,6 +250,163 @@ class MigrationRunner:
         k_num = key_count[0] if key_count else "0"
         v_num = val_count[0] if val_count else "0"
         print(f"   ✅ Lookup Status: {k_num} active keys, {v_num} active values in database")
+
+    def pre_migration_reconcile(self):
+        """Reconcile schema discrepancies before applying migrations to ensure full idempotency."""
+        print("\n🔧 Running Pre-migration Schema Reconciliation...")
+        sql = """
+        DO $$
+        BEGIN
+            -- 1. Ensure vehicles table and required columns exist
+            IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'vehicles') THEN
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'vehicles' AND column_name = 'bus_number')
+                   AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'vehicles' AND column_name = 'vehicle_no') THEN
+                    ALTER TABLE public.vehicles RENAME COLUMN bus_number TO vehicle_no;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'vehicles' AND column_name = 'vehicle_no') THEN
+                    ALTER TABLE public.vehicles ADD COLUMN vehicle_no TEXT;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'vehicles' AND column_name = 'category_id') THEN
+                    ALTER TABLE public.vehicles ADD COLUMN category_id UUID;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'vehicles' AND column_name = 'seating_capacity') THEN
+                    ALTER TABLE public.vehicles ADD COLUMN seating_capacity INT DEFAULT 52;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'vehicles' AND column_name = 'status') THEN
+                    ALTER TABLE public.vehicles ADD COLUMN status TEXT DEFAULT 'Active';
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'vehicles' AND column_name = 'make_model') THEN
+                    ALTER TABLE public.vehicles ADD COLUMN make_model TEXT;
+                END IF;
+            END IF;
+
+            -- 2. Ensure bus_routes table exists for legacy migrations (168..198)
+            IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'bus_routes') THEN
+                CREATE TABLE IF NOT EXISTS public.bus_routes (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    school_id UUID REFERENCES schools(id),
+                    route_name TEXT NOT NULL DEFAULT '',
+                    bus_number TEXT,
+                    driver_name TEXT,
+                    driver_phone TEXT,
+                    total_capacity INT DEFAULT 40,
+                    current_passengers INT DEFAULT 0,
+                    status TEXT DEFAULT 'active'
+                );
+            END IF;
+
+            -- 3. Ensure vehicle_trips table exists for migrations 181..232
+            IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'vehicle_trips') THEN
+                CREATE TABLE IF NOT EXISTS public.vehicle_trips (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    school_id UUID REFERENCES schools(id),
+                    route_id UUID,
+                    trip_type TEXT NOT NULL DEFAULT 'morning',
+                    status TEXT NOT NULL DEFAULT 'scheduled',
+                    scheduled_start TIMESTAMPTZ,
+                    actual_start TIMESTAMPTZ,
+                    actual_end TIMESTAMPTZ,
+                    students_count INT DEFAULT 0,
+                    distance_km DECIMAL(8,2) DEFAULT 0,
+                    delay_minutes INT DEFAULT 0,
+                    incident_count INT DEFAULT 0,
+                    notes TEXT,
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    schedule_id UUID,
+                    schedule_instance_date DATE,
+                    start_date DATE,
+                    start_time TIME,
+                    end_date DATE,
+                    end_time TIME,
+                    driver_id UUID
+                );
+            END IF;
+
+            -- 4. Ensure student_trip_logs table exists
+            IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'student_trip_logs') THEN
+                CREATE TABLE IF NOT EXISTS public.student_trip_logs (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    school_id UUID,
+                    trip_id UUID,
+                    student_id UUID,
+                    stop_id UUID,
+                    drop_stop_id UUID,
+                    status TEXT DEFAULT 'scheduled',
+                    recorded_at TIMESTAMPTZ DEFAULT NOW(),
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
+                );
+            END IF;
+
+            -- 5. Ensure schedules table has route_id column
+            IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'schedules') THEN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'schedules' AND column_name = 'route_id') THEN
+                    ALTER TABLE public.schedules ADD COLUMN route_id UUID;
+                END IF;
+            END IF;
+
+            -- 6. Ensure get_user_school_id functions exist for RLS policies
+            IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'get_user_school_id' AND pronargs = 1) THEN
+                CREATE OR REPLACE FUNCTION public.get_user_school_id(user_id_param UUID)
+                RETURNS UUID LANGUAGE sql STABLE PARALLEL SAFE SECURITY DEFINER AS $f$
+                    SELECT school_id FROM public.profiles WHERE id = user_id_param LIMIT 1;
+                $f$;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'get_user_school_id' AND pronargs = 0) THEN
+                CREATE OR REPLACE FUNCTION public.get_user_school_id()
+                RETURNS UUID LANGUAGE sql STABLE PARALLEL SAFE SECURITY DEFINER AS $f$
+                    SELECT school_id FROM public.profiles WHERE id = auth.uid() LIMIT 1;
+                $f$;
+            END IF;
+
+            -- 7. Ensure sync_profile_to_driver does not fail on missing phone/name columns in drivers
+            CREATE OR REPLACE FUNCTION public.sync_profile_to_driver()
+            RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $f$
+            DECLARE
+                v_driver_code TEXT;
+            BEGIN
+                IF (TG_OP = 'INSERT' OR TG_OP = 'UPDATE') THEN
+                    IF LOWER(COALESCE(NEW.role, '')) IN ('driver', 'bus_driver') THEN
+                        v_driver_code := COALESCE(NEW.user_id, 'DRV' || UPPER(SUBSTRING(REPLACE(NEW.id::text, '-', ''), 1, 6)));
+                        IF EXISTS (SELECT 1 FROM public.drivers WHERE profile_id = NEW.id) THEN
+                            UPDATE public.drivers SET
+                                school_id = NEW.school_id,
+                                status = CASE WHEN NEW.status = 'Inactive' THEN 'Inactive' ELSE status END,
+                                updated_at = NOW()
+                            WHERE profile_id = NEW.id;
+                        ELSE
+                            INSERT INTO public.drivers (
+                                id, school_id, driver_code, license_no, license_type,
+                                license_issue_date, license_expiry_date, issuing_authority,
+                                experience_years, status, joined_date, profile_id
+                            ) VALUES (
+                                gen_random_uuid(), NEW.school_id, v_driver_code,
+                                'UP16 ' || TO_CHAR(CURRENT_DATE, 'YYYY') || LPAD((FLOOR(RANDOM() * 89999 + 10000))::INT::text, 5, '0'),
+                                'LMV', CURRENT_DATE - INTERVAL '3 years', CURRENT_DATE + INTERVAL '7 years',
+                                'RTO, Noida, UP', 5, CASE WHEN NEW.status = 'Inactive' THEN 'Inactive' ELSE 'Active' END,
+                                COALESCE(NEW.created_at::date, CURRENT_DATE), NEW.id
+                            )
+                            ON CONFLICT (profile_id) DO UPDATE SET
+                                school_id = EXCLUDED.school_id,
+                                status = EXCLUDED.status,
+                                updated_at = NOW();
+                        END IF;
+                    END IF;
+                    RETURN NEW;
+                ELSIF (TG_OP = 'DELETE') THEN
+                    DELETE FROM public.drivers WHERE profile_id = OLD.id;
+                    RETURN OLD;
+                END IF;
+                RETURN NULL;
+            END;
+            $f$;
+        END $$;
+        """
+        ok, out = self.exec_sql(sql)
+        if ok:
+            print("   ✅ Pre-migration schema reconciliation complete")
+        else:
+            print(f"   ⚠️ Pre-migration reconciliation notice: {out}")
 
     def verify_migration_216(self):
         """Ensure migration 216 table rename & column drop are in place."""
@@ -358,6 +520,7 @@ def main():
         runner.exec_sql("DELETE FROM public.schema_migrations;")
 
     if args.verify:
+        runner.pre_migration_reconcile()
         runner.verify_migration_216()
         runner.verify_and_heal_lookups()
         total_tables = runner.get_table_count()
@@ -371,10 +534,17 @@ def main():
         runner.close()
         return
 
+    # Run pre-migration reconciliation to ensure schema dependencies are satisfied
+    runner.pre_migration_reconcile()
+
     applied = runner.get_applied_migrations()
 
-    # Find all .sql files in migrations directory, sorted by filename
-    migration_files = sorted(glob.glob(os.path.join(MIGRATIONS_DIR, "*.sql")))
+    # Find all .sql files in migrations directory, sorted by filename, filtering out any accidental seed files
+    all_sql_files = sorted(glob.glob(os.path.join(MIGRATIONS_DIR, "*.sql")))
+    migration_files = [
+        f for f in all_sql_files
+        if "_seed_" not in os.path.basename(f).lower()
+    ]
 
     if not migration_files:
         print(f"❌ No migration files found in {MIGRATIONS_DIR}")

@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -34,160 +35,232 @@ class _CollectPaymentDialogState extends ConsumerState<CollectPaymentDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: 540,
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: min(540.0, screenWidth - 32),
+          maxHeight: screenHeight * 0.90,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Modal Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Modal Header
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.payment_rounded, color: Color(0xFF6366F1), size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Flexible(
+                            child: Text(
+                              _receiptResult != null ? 'Payment Receipt' : 'Collect Student Payment',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                fontFamily: 'Outfit',
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                        ],
                       ),
-                      child: const Icon(Icons.payment_rounded, color: Color(0xFF6366F1), size: 20),
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      _receiptResult != null ? 'Payment Receipt' : 'Collect Student Payment',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        fontFamily: 'Outfit',
-                      ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
+                const SizedBox(height: 20),
+
+                if (_receiptResult != null)
+                  _buildReceiptStep(isDark)
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Amount Field
+                      const Text('Payment Amount (₹)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _amountController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          prefixText: '₹ ',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Payment Mode Dropdown
+                      const Text('Payment Mode', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<String>(
+                        value: _paymentMode,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'payu',
+                            child: Text('PayU Online (UPI / Card / NetBanking)', overflow: TextOverflow.ellipsis, maxLines: 1),
+                          ),
+                          DropdownMenuItem(
+                            value: 'upi',
+                            child: Text('UPI / QR Code', overflow: TextOverflow.ellipsis, maxLines: 1),
+                          ),
+                          DropdownMenuItem(
+                            value: 'cash',
+                            child: Text('Cash Counter', overflow: TextOverflow.ellipsis, maxLines: 1),
+                          ),
+                          DropdownMenuItem(
+                            value: 'card',
+                            child: Text('Credit / Debit Card', overflow: TextOverflow.ellipsis, maxLines: 1),
+                          ),
+                          DropdownMenuItem(
+                            value: 'netbanking',
+                            child: Text('Net Banking', overflow: TextOverflow.ellipsis, maxLines: 1),
+                          ),
+                          DropdownMenuItem(
+                            value: 'cheque',
+                            child: Text('Cheque', overflow: TextOverflow.ellipsis, maxLines: 1),
+                          ),
+                          DropdownMenuItem(
+                            value: 'dd',
+                            child: Text('Demand Draft (DD)', overflow: TextOverflow.ellipsis, maxLines: 1),
+                          ),
+                          DropdownMenuItem(
+                            value: 'bank_transfer',
+                            child: Text('Bank Transfer (NEFT/RTGS)', overflow: TextOverflow.ellipsis, maxLines: 1),
+                          ),
+                        ],
+                        onChanged: (val) => setState(() => _paymentMode = val ?? 'payu'),
+                      ),
+                      const SizedBox(height: 16),
+
+                      if (_paymentMode == 'cheque' || _paymentMode == 'dd' || _paymentMode == 'bank_transfer') ...[
+                        LayoutBuilder(
+                          builder: (context, fieldConstraints) {
+                            final isNarrow = fieldConstraints.maxWidth < 400;
+                            if (isNarrow) {
+                              return Column(
+                                children: [
+                                  TextField(
+                                    controller: _bankNameController,
+                                    decoration: InputDecoration(
+                                      labelText: 'Bank Name',
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  TextField(
+                                    controller: _refNoController,
+                                    decoration: InputDecoration(
+                                      labelText: 'Ref / Cheque No.',
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }
+                            return Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _bankNameController,
+                                    decoration: InputDecoration(
+                                      labelText: 'Bank Name',
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _refNoController,
+                                    decoration: InputDecoration(
+                                      labelText: 'Ref / Cheque No.',
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Remarks Field
+                      TextField(
+                        controller: _remarksController,
+                        decoration: InputDecoration(
+                          labelText: 'Remarks / Internal Notes',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Submit Actions
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 12,
+                        runSpacing: 10,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('Cancel'),
+                          ),
+                          ElevatedButton(
+                            onPressed: _isSubmitting ? null : _submitPayment,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF6366F1),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: _isSubmitting
+                                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : Text(
+                                    _paymentMode == 'payu' ? 'Launch PayU Checkout' : 'Process Payment & Generate Receipt',
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
               ],
             ),
-            const SizedBox(height: 20),
-
-            if (_receiptResult != null)
-              _buildReceiptStep(isDark)
-            else
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Amount Field
-                  const Text('Payment Amount (₹)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _amountController,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      prefixText: '₹ ',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Payment Mode Dropdown
-                  const Text('Payment Mode', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    value: _paymentMode,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 'payu', child: Text('PayU Online (UPI / Card / NetBanking)')),
-                      DropdownMenuItem(value: 'upi', child: Text('UPI / QR Code')),
-                      DropdownMenuItem(value: 'cash', child: Text('Cash Counter')),
-                      DropdownMenuItem(value: 'card', child: Text('Credit / Debit Card')),
-                      DropdownMenuItem(value: 'netbanking', child: Text('Net Banking')),
-                      DropdownMenuItem(value: 'cheque', child: Text('Cheque')),
-                      DropdownMenuItem(value: 'dd', child: Text('Demand Draft (DD)')),
-                      DropdownMenuItem(value: 'bank_transfer', child: Text('Bank Transfer (NEFT/RTGS)')),
-                    ],
-                    onChanged: (val) => setState(() => _paymentMode = val ?? 'payu'),
-                  ),
-                  const SizedBox(height: 16),
-
-                  if (_paymentMode == 'cheque' || _paymentMode == 'dd' || _paymentMode == 'bank_transfer') ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _bankNameController,
-                            decoration: InputDecoration(
-                              labelText: 'Bank Name',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: _refNoController,
-                            decoration: InputDecoration(
-                              labelText: 'Ref / Cheque No.',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Remarks Field
-                  TextField(
-                    controller: _remarksController,
-                    decoration: InputDecoration(
-                      labelText: 'Remarks / Internal Notes',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Submit Actions
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Cancel'),
-                      ),
-                      const SizedBox(width: 12),
-                      ElevatedButton(
-                        onPressed: _isSubmitting ? null : _submitPayment,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6366F1),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        child: _isSubmitting
-                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : Text(_paymentMode == 'payu' ? 'Launch PayU Checkout' : 'Process Payment & Generate Receipt'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-          ],
+          ),
         ),
       ),
     );
@@ -247,15 +320,17 @@ class _CollectPaymentDialogState extends ConsumerState<CollectPaymentDialog> {
         ),
         const SizedBox(height: 24),
 
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
+        Wrap(
+          alignment: WrapAlignment.end,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 10,
           children: [
             OutlinedButton.icon(
               onPressed: () {},
               icon: const Icon(Icons.print_rounded, size: 16),
               label: const Text('Print Receipt'),
             ),
-            const SizedBox(width: 12),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Done'),

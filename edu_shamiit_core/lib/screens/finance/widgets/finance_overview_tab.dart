@@ -158,21 +158,26 @@ class FinanceOverviewTab extends ConsumerWidget {
           LayoutBuilder(
             builder: (context, constraints) {
               final isWide = constraints.maxWidth > 900;
-              final children = [
-                Expanded(
-                  flex: isWide ? 5 : 1,
-                  child: _buildFeeHeadCollectionCard(context, overview, isDark),
-                ),
-                if (isWide) const SizedBox(width: 24) else const SizedBox(height: 24),
-                Expanded(
-                  flex: isWide ? 4 : 1,
-                  child: _buildDuesAgingCard(context, overview, isDark, ref),
-                ),
-              ];
+              final feeCard = _buildFeeHeadCollectionCard(context, overview, isDark);
+              final duesCard = _buildDuesAgingCard(context, overview, isDark, ref);
 
               return isWide
-                  ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: children)
-                  : Column(children: children);
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(flex: 5, child: feeCard),
+                        const SizedBox(width: 24),
+                        Expanded(flex: 4, child: duesCard),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        feeCard,
+                        const SizedBox(height: 24),
+                        duesCard,
+                      ],
+                    );
             },
           ),
         ],
@@ -310,14 +315,18 @@ class FinanceOverviewTab extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 16),
-          Table(
-            columnWidths: const {
-              0: FlexColumnWidth(2),
-              1: FlexColumnWidth(1.5),
-              2: FlexColumnWidth(1),
-              3: FlexColumnWidth(1.5),
-            },
-            children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 440),
+              child: Table(
+                columnWidths: const {
+                  0: FlexColumnWidth(2),
+                  1: FlexColumnWidth(1.5),
+                  2: FlexColumnWidth(1),
+                  3: FlexColumnWidth(1.5),
+                },
+                children: [
               TableRow(
                 decoration: BoxDecoration(
                   border: Border(bottom: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0))),
@@ -344,9 +353,11 @@ class FinanceOverviewTab extends ConsumerWidget {
               ),
             ],
           ),
-        ],
+        ),
       ),
-    );
+    ],
+  ),
+);
   }
 
   Widget _buildDuesAgingCard(

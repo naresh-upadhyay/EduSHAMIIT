@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -290,7 +291,7 @@ class _PaymentEnginePaymentsScreenState
       if (txnId.isNotEmpty) {
         _selectedPaymentIds.add(txnId);
       }
-      _activePaymentDetail = (payment is Map) ? Map<String, dynamic>.from(payment) : null;
+      _activePaymentDetail = Map<String, dynamic>.from(payment);
     });
     if (txnId.isNotEmpty) {
       _fetchPaymentDetail(txnId, openDrawerOnMobile: openDrawerOnMobile);
@@ -431,126 +432,128 @@ class _PaymentEnginePaymentsScreenState
                 ),
               ],
             ),
-            content: SizedBox(
-              width: 540,
+            content: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: min(540.0, MediaQuery.of(context).size.width - 32),
+              ),
               child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Initiate an enterprise payment transaction via EduSHAMIIT Pay engine.',
-                      style: GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF64748B)),
-                    ),
-                    const SizedBox(height: 18),
+                child: LayoutBuilder(
+                  builder: (context, dlgConstraints) {
+                    final isSingleCol = dlgConstraints.maxWidth < 460;
 
-                    Row(
+                    Widget rowOrCol(Widget left, Widget right) {
+                      if (isSingleCol) {
+                        return Column(
+                          children: [
+                            left,
+                            const SizedBox(height: 12),
+                            right,
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: left),
+                          const SizedBox(width: 12),
+                          Expanded(child: right),
+                        ],
+                      );
+                    }
+
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
+                        Text(
+                          'Initiate an enterprise payment transaction via EduSHAMIIT Pay engine.',
+                          style: GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF64748B)),
+                        ),
+                        const SizedBox(height: 18),
+
+                        rowOrCol(
+                          DropdownButtonFormField<String>(
                             initialValue: payerType,
+                            isExpanded: true,
                             decoration: const InputDecoration(labelText: 'Payer Type *', border: OutlineInputBorder()),
                             items: const [
-                              DropdownMenuItem(value: 'STUDENT', child: Text('Student')),
-                              DropdownMenuItem(value: 'PARENT', child: Text('Parent')),
-                              DropdownMenuItem(value: 'SCHOOL', child: Text('School Authority')),
-                              DropdownMenuItem(value: 'CUSTOMER', child: Text('Corporate / Other')),
+                              DropdownMenuItem(value: 'STUDENT', child: Text('Student', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                              DropdownMenuItem(value: 'PARENT', child: Text('Parent', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                              DropdownMenuItem(value: 'SCHOOL', child: Text('School Authority', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                              DropdownMenuItem(value: 'CUSTOMER', child: Text('Corporate / Other', overflow: TextOverflow.ellipsis, maxLines: 1)),
                             ],
                             onChanged: (v) => setDlgState(() => payerType = v!),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
+                          TextField(
                             controller: classCtrl,
                             decoration: const InputDecoration(labelText: 'Class / Department', border: OutlineInputBorder()),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
+                        const SizedBox(height: 12),
 
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
+                        rowOrCol(
+                          TextField(
                             controller: nameCtrl,
                             decoration: const InputDecoration(labelText: 'Payer Name *', hintText: 'e.g. Rahul Sharma', border: OutlineInputBorder()),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
+                          TextField(
                             controller: emailCtrl,
                             decoration: const InputDecoration(labelText: 'Payer Email *', hintText: 'e.g. rahul@example.com', border: OutlineInputBorder()),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
+                        const SizedBox(height: 12),
 
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
+                        rowOrCol(
+                          TextField(
                             controller: phoneCtrl,
                             decoration: const InputDecoration(labelText: 'Phone', hintText: '9876543210', border: OutlineInputBorder()),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
+                          DropdownButtonFormField<String>(
                             initialValue: purpose,
+                            isExpanded: true,
                             decoration: const InputDecoration(labelText: 'Purpose *', border: OutlineInputBorder()),
                             items: const [
-                              DropdownMenuItem(value: 'Student Fee', child: Text('Student Fee')),
-                              DropdownMenuItem(value: 'Tuition Fee', child: Text('Tuition Fee')),
-                              DropdownMenuItem(value: 'School ERP Subscription', child: Text('ERP Subscription')),
-                              DropdownMenuItem(value: 'Admission Fee', child: Text('Admission Fee')),
-                              DropdownMenuItem(value: 'Transport Fee', child: Text('Transport Fee')),
-                              DropdownMenuItem(value: 'Examination Fee', child: Text('Examination Fee')),
-                              DropdownMenuItem(value: 'Library Fee', child: Text('Library Fee')),
-                              DropdownMenuItem(value: 'Hostel Fee', child: Text('Hostel Fee')),
+                              DropdownMenuItem(value: 'Student Fee', child: Text('Student Fee', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                              DropdownMenuItem(value: 'Tuition Fee', child: Text('Tuition Fee', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                              DropdownMenuItem(value: 'School ERP Subscription', child: Text('ERP Subscription', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                              DropdownMenuItem(value: 'Admission Fee', child: Text('Admission Fee', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                              DropdownMenuItem(value: 'Transport Fee', child: Text('Transport Fee', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                              DropdownMenuItem(value: 'Examination Fee', child: Text('Examination Fee', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                              DropdownMenuItem(value: 'Library Fee', child: Text('Library Fee', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                              DropdownMenuItem(value: 'Hostel Fee', child: Text('Hostel Fee', overflow: TextOverflow.ellipsis, maxLines: 1)),
                             ],
                             onChanged: (v) => setDlgState(() => purpose = v!),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
+                        const SizedBox(height: 12),
 
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
+                        rowOrCol(
+                          TextField(
                             controller: amountCtrl,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             decoration: const InputDecoration(labelText: 'Amount (₹) *', prefixText: '₹ ', border: OutlineInputBorder()),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
+                          DropdownButtonFormField<String>(
                             initialValue: gateway,
+                            isExpanded: true,
                             decoration: const InputDecoration(labelText: 'Gateway *', border: OutlineInputBorder()),
                             items: const [
-                              DropdownMenuItem(value: 'SBI_EPAY', child: Text('SBI UPI (ePay)')),
-                              DropdownMenuItem(value: 'ICICI_EAZYPAY', child: Text('ICICI UPI (Eazypay)')),
-                              DropdownMenuItem(value: 'HDFC_SMARTHUB', child: Text('HDFC UPI (SmartHub)')),
-                              DropdownMenuItem(value: 'MOCK_SANDBOX', child: Text('Mock Sandbox')),
+                              DropdownMenuItem(value: 'SBI_EPAY', child: Text('SBI UPI (ePay)', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                              DropdownMenuItem(value: 'ICICI_EAZYPAY', child: Text('ICICI UPI (Eazypay)', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                              DropdownMenuItem(value: 'HDFC_SMARTHUB', child: Text('HDFC UPI (SmartHub)', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                              DropdownMenuItem(value: 'MOCK_SANDBOX', child: Text('Mock Sandbox', overflow: TextOverflow.ellipsis, maxLines: 1)),
                             ],
                             onChanged: (v) => setDlgState(() => gateway = v!),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
+                        const SizedBox(height: 12),
 
-                    TextField(
-                      controller: descCtrl,
-                      decoration: const InputDecoration(labelText: 'Description / Invoice Ref', hintText: 'e.g. FEE-2026-000995', border: OutlineInputBorder()),
-                    ),
-                  ],
+                        TextField(
+                          controller: descCtrl,
+                          decoration: const InputDecoration(labelText: 'Description / Invoice Ref', hintText: 'e.g. FEE-2026-000995', border: OutlineInputBorder()),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -635,8 +638,10 @@ class _PaymentEnginePaymentsScreenState
                 ),
               ],
             ),
-            content: SizedBox(
-              width: 440,
+            content: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: min(440.0, MediaQuery.of(context).size.width - 32),
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -648,12 +653,13 @@ class _PaymentEnginePaymentsScreenState
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     initialValue: selectedGateway,
+                    isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Acquiring Gateway', border: OutlineInputBorder()),
                     items: const [
-                      DropdownMenuItem(value: 'SBI_EPAY', child: Text('SBI UPI (ePay)')),
-                      DropdownMenuItem(value: 'ICICI_EAZYPAY', child: Text('ICICI UPI (Eazypay)')),
-                      DropdownMenuItem(value: 'HDFC_SMARTHUB', child: Text('HDFC UPI (SmartHub)')),
-                      DropdownMenuItem(value: 'MOCK_SANDBOX', child: Text('Mock Sandbox')),
+                      DropdownMenuItem(value: 'SBI_EPAY', child: Text('SBI UPI (ePay)', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                      DropdownMenuItem(value: 'ICICI_EAZYPAY', child: Text('ICICI UPI (Eazypay)', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                      DropdownMenuItem(value: 'HDFC_SMARTHUB', child: Text('HDFC UPI (SmartHub)', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                      DropdownMenuItem(value: 'MOCK_SANDBOX', child: Text('Mock Sandbox', overflow: TextOverflow.ellipsis, maxLines: 1)),
                     ],
                     onChanged: (v) => setDlgState(() => selectedGateway = v!),
                   ),
@@ -943,11 +949,19 @@ class _PaymentEnginePaymentsScreenState
               children: [
                 const Icon(Icons.fact_check_outlined, color: Color(0xFF4F46E5)),
                 const SizedBox(width: 10),
-                Text('Manual Bank Reconciliation', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: Text(
+                    'Manual Bank Reconciliation',
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
-            content: SizedBox(
-              width: 420,
+            content: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: min(420.0, MediaQuery.of(context).size.width - 32),
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -958,11 +972,12 @@ class _PaymentEnginePaymentsScreenState
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     initialValue: status,
+                    isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
                     items: const [
-                      DropdownMenuItem(value: 'MATCHED', child: Text('MATCHED (Verified with Bank)')),
-                      DropdownMenuItem(value: 'RESOLVED', child: Text('RESOLVED (Manual Clearance)')),
-                      DropdownMenuItem(value: 'MISMATCH', child: Text('MISMATCH (Discrepancy)')),
+                      DropdownMenuItem(value: 'MATCHED', child: Text('MATCHED (Verified with Bank)', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                      DropdownMenuItem(value: 'RESOLVED', child: Text('RESOLVED (Manual Clearance)', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                      DropdownMenuItem(value: 'MISMATCH', child: Text('MISMATCH (Discrepancy)', overflow: TextOverflow.ellipsis, maxLines: 1)),
                     ],
                     onChanged: (v) => setDlgState(() => status = v!),
                   ),
@@ -1025,29 +1040,34 @@ class _PaymentEnginePaymentsScreenState
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final screenWidth = MediaQuery.of(context).size.width;
-    final isWide = screenWidth >= 1150;
 
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-      endDrawer: !isWide && _activePaymentDetail != null
-          ? Drawer(
-              width: 400,
-              child: _buildPaymentDetailPanel(isInline: false),
-            )
-          : null,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
-            child: _buildTopNavigationHeader(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 1050;
+
+        return Scaffold(
+          key: _scaffoldKey,
+          backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+          endDrawer: !isWide && _activePaymentDetail != null
+              ? Drawer(
+                  width: min(400.0, screenWidth * 0.85),
+                  child: _buildPaymentDetailPanel(isInline: false),
+                )
+              : null,
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
+                child: _buildTopNavigationHeader(),
+              ),
+              Expanded(
+                child: _buildActiveTabContent(isWide),
+              ),
+            ],
           ),
-          Expanded(
-            child: _buildActiveTabContent(isWide),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -1812,17 +1832,18 @@ class _PaymentEnginePaymentsScreenState
                     label: 'Payment Type',
                     child: DropdownButtonFormField<String>(
                       initialValue: _filterPaymentType,
+                      isExpanded: true,
                       isDense: true,
                       decoration: _filterInputDecoration(),
                       items: const [
-                        DropdownMenuItem(value: 'ALL', child: Text('All Types')),
-                        DropdownMenuItem(value: 'Student Fee', child: Text('Student Fee')),
-                        DropdownMenuItem(value: 'Tuition Fee', child: Text('Tuition Fee')),
-                        DropdownMenuItem(value: 'School ERP Subscription', child: Text('ERP Subscription')),
-                        DropdownMenuItem(value: 'Admission Fee', child: Text('Admission Fee')),
-                        DropdownMenuItem(value: 'Transport Fee', child: Text('Transport Fee')),
-                        DropdownMenuItem(value: 'Examination Fee', child: Text('Examination Fee')),
-                        DropdownMenuItem(value: 'Library Fee', child: Text('Library Fee')),
+                        DropdownMenuItem(value: 'ALL', child: Text('All Types', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'Student Fee', child: Text('Student Fee', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'Tuition Fee', child: Text('Tuition Fee', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'School ERP Subscription', child: Text('ERP Subscription', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'Admission Fee', child: Text('Admission Fee', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'Transport Fee', child: Text('Transport Fee', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'Examination Fee', child: Text('Examination Fee', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'Library Fee', child: Text('Library Fee', overflow: TextOverflow.ellipsis, maxLines: 1)),
                       ],
                       onChanged: (v) => setState(() => _filterPaymentType = v!),
                     ),
@@ -1833,14 +1854,15 @@ class _PaymentEnginePaymentsScreenState
                     label: 'Status',
                     child: DropdownButtonFormField<String>(
                       initialValue: _filterStatus,
+                      isExpanded: true,
                       isDense: true,
                       decoration: _filterInputDecoration(),
                       items: const [
-                        DropdownMenuItem(value: 'ALL', child: Text('All Status')),
-                        DropdownMenuItem(value: 'SUCCESS', child: Text('Success')),
-                        DropdownMenuItem(value: 'PENDING', child: Text('Pending')),
-                        DropdownMenuItem(value: 'FAILED', child: Text('Failed')),
-                        DropdownMenuItem(value: 'REFUNDED', child: Text('Refunded')),
+                        DropdownMenuItem(value: 'ALL', child: Text('All Status', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'SUCCESS', child: Text('Success', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'PENDING', child: Text('Pending', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'FAILED', child: Text('Failed', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'REFUNDED', child: Text('Refunded', overflow: TextOverflow.ellipsis, maxLines: 1)),
                       ],
                       onChanged: (v) => setState(() => _filterStatus = v!),
                     ),
@@ -1851,14 +1873,15 @@ class _PaymentEnginePaymentsScreenState
                     label: 'Gateway',
                     child: DropdownButtonFormField<String>(
                       initialValue: _filterGateway,
+                      isExpanded: true,
                       isDense: true,
                       decoration: _filterInputDecoration(),
                       items: const [
-                        DropdownMenuItem(value: 'ALL', child: Text('All Gateways')),
-                        DropdownMenuItem(value: 'SBI_EPAY', child: Text('SBI UPI')),
-                        DropdownMenuItem(value: 'ICICI_EAZYPAY', child: Text('ICICI UPI')),
-                        DropdownMenuItem(value: 'HDFC_SMARTHUB', child: Text('HDFC UPI')),
-                        DropdownMenuItem(value: 'MOCK_SANDBOX', child: Text('Mock Sandbox')),
+                        DropdownMenuItem(value: 'ALL', child: Text('All Gateways', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'SBI_EPAY', child: Text('SBI UPI', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'ICICI_EAZYPAY', child: Text('ICICI UPI', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'HDFC_SMARTHUB', child: Text('HDFC UPI', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'MOCK_SANDBOX', child: Text('Mock Sandbox', overflow: TextOverflow.ellipsis, maxLines: 1)),
                       ],
                       onChanged: (v) => setState(() => _filterGateway = v!),
                     ),
@@ -1869,15 +1892,16 @@ class _PaymentEnginePaymentsScreenState
                     label: 'Payment Method',
                     child: DropdownButtonFormField<String>(
                       initialValue: _filterPaymentMethod,
+                      isExpanded: true,
                       isDense: true,
                       decoration: _filterInputDecoration(),
                       items: const [
-                        DropdownMenuItem(value: 'ALL', child: Text('All Methods')),
-                        DropdownMenuItem(value: 'UPI PhonePe', child: Text('UPI (PhonePe)')),
-                        DropdownMenuItem(value: 'UPI Google Pay', child: Text('UPI (Google Pay)')),
-                        DropdownMenuItem(value: 'UPI BHIM', child: Text('UPI (BHIM)')),
-                        DropdownMenuItem(value: 'Card', child: Text('Card')),
-                        DropdownMenuItem(value: 'Net Banking', child: Text('Net Banking')),
+                        DropdownMenuItem(value: 'ALL', child: Text('All Methods', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'UPI PhonePe', child: Text('UPI (PhonePe)', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'UPI Google Pay', child: Text('UPI (Google Pay)', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'UPI BHIM', child: Text('UPI (BHIM)', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'Card', child: Text('Card', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'Net Banking', child: Text('Net Banking', overflow: TextOverflow.ellipsis, maxLines: 1)),
                       ],
                       onChanged: (v) => setState(() => _filterPaymentMethod = v!),
                     ),
@@ -1901,12 +1925,13 @@ class _PaymentEnginePaymentsScreenState
                     label: 'School / Institute',
                     child: DropdownButtonFormField<String>(
                       initialValue: _filterSchool,
+                      isExpanded: true,
                       isDense: true,
                       decoration: _filterInputDecoration(),
                       items: const [
-                        DropdownMenuItem(value: 'ALL', child: Text('All Schools')),
-                        DropdownMenuItem(value: 'e1f11111-1111-1111-1111-111111111111', child: Text('Greenfield Public School')),
-                        DropdownMenuItem(value: 'e1f22222-2222-2222-2222-222222222222', child: Text('Delhi Model Academy')),
+                        DropdownMenuItem(value: 'ALL', child: Text('All Schools', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'e1f11111-1111-1111-1111-111111111111', child: Text('Greenfield Public School', overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        DropdownMenuItem(value: 'e1f22222-2222-2222-2222-222222222222', child: Text('Delhi Model Academy', overflow: TextOverflow.ellipsis, maxLines: 1)),
                       ],
                       onChanged: (v) => setState(() => _filterSchool = v!),
                     ),
@@ -2263,11 +2288,16 @@ class _PaymentEnginePaymentsScreenState
 
               // TXN ID
               DataCell(
-                InkWell(
-                  onTap: () => _selectPayment(p),
-                  child: Text(
-                    txnId,
-                    style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF334155)),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 160),
+                  child: InkWell(
+                    onTap: () => _selectPayment(p),
+                    child: Text(
+                      txnId,
+                      style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF334155)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
               ),
@@ -2286,21 +2316,29 @@ class _PaymentEnginePaymentsScreenState
 
               // STUDENT / CUSTOMER (2 lines: Name bold, Class subtitle)
               DataCell(
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(p['customer_name'] ?? 'Payer', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A))),
-                    Text(studentClass, style: GoogleFonts.dmSans(fontSize: 11, color: const Color(0xFF64748B))),
-                  ],
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 180),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(p['customer_name'] ?? 'Payer', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(studentClass, style: GoogleFonts.dmSans(fontSize: 11, color: const Color(0xFF64748B)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
                 ),
               ),
 
               // INVOICE / REF
               DataCell(
-                Text(
-                  p['reference_number'] ?? p['fee_invoice_id'] ?? 'FEE-2026-000985',
-                  style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF64748B)),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 160),
+                  child: Text(
+                    p['reference_number'] ?? p['fee_invoice_id'] ?? 'FEE-2026-000985',
+                    style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF64748B)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
 
@@ -2861,142 +2899,165 @@ class _PaymentEnginePaymentsScreenState
     final startItem = _totalPayments == 0 ? 0 : (_currentPage - 1) * _pageSize + 1;
     final endItem = (_currentPage * _pageSize > _totalPayments) ? _totalPayments : _currentPage * _pageSize;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Showing $startItem to $endItem of $_totalPayments entries',
-            style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF64748B)),
-          ),
-          Row(
-            children: [
-              // Page Numbers: < [1] 2 3 4 5 ... 125 >
-              OutlinedButton(
-                onPressed: _currentPage > 1
-                    ? () {
-                        setState(() => _currentPage--);
-                        _fetchPayments();
-                      }
-                    : null,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(28, 28),
-                  padding: EdgeInsets.zero,
-                  side: const BorderSide(color: Color(0xFFE2E8F0)),
-                ),
-                child: const Icon(Icons.chevron_left_rounded, size: 16),
-              ),
-              const SizedBox(width: 6),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 640;
 
-              ...List.generate(
-                _totalPages > 5 ? 5 : _totalPages,
-                (idx) {
-                  final pageNum = idx + 1;
-                  final isActive = _currentPage == pageNum;
-                  return InkWell(
-                    onTap: () {
-                      setState(() => _currentPage = pageNum);
+        final showingText = Text(
+          'Showing $startItem to $endItem of $_totalPayments entries',
+          style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF64748B)),
+        );
+
+        final controls = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Page Numbers: < [1] 2 3 4 5 ... 125 >
+            OutlinedButton(
+              onPressed: _currentPage > 1
+                  ? () {
+                      setState(() => _currentPage--);
                       _fetchPayments();
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: isActive ? const Color(0xFF4F46E5) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '$pageNum',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 12,
-                          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                          color: isActive ? Colors.white : const Color(0xFF475569),
-                        ),
-                      ),
-                    ),
-                  );
-                },
+                    }
+                  : null,
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(28, 28),
+                padding: EdgeInsets.zero,
+                side: const BorderSide(color: Color(0xFFE2E8F0)),
               ),
+              child: const Icon(Icons.chevron_left_rounded, size: 16),
+            ),
+            const SizedBox(width: 6),
 
-              if (_totalPages > 5) ...[
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4),
-                  child: Text('...', style: TextStyle(color: Color(0xFF94A3B8))),
-                ),
-                InkWell(
+            ...List.generate(
+              _totalPages > 5 ? 5 : _totalPages,
+              (idx) {
+                final pageNum = idx + 1;
+                final isActive = _currentPage == pageNum;
+                return InkWell(
                   onTap: () {
-                    setState(() => _currentPage = _totalPages);
+                    setState(() => _currentPage = pageNum);
                     _fetchPayments();
                   },
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 3),
                     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                     decoration: BoxDecoration(
-                      color: _currentPage == _totalPages ? const Color(0xFF4F46E5) : Colors.transparent,
+                      color: isActive ? const Color(0xFF4F46E5) : Colors.transparent,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      '$_totalPages',
+                      '$pageNum',
                       style: GoogleFonts.dmSans(
                         fontSize: 12,
-                        fontWeight: _currentPage == _totalPages ? FontWeight.bold : FontWeight.normal,
-                        color: _currentPage == _totalPages ? Colors.white : const Color(0xFF475569),
+                        fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                        color: isActive ? Colors.white : const Color(0xFF475569),
                       ),
                     ),
                   ),
-                ),
-              ],
+                );
+              },
+            ),
 
-              const SizedBox(width: 6),
-              OutlinedButton(
-                onPressed: _currentPage < _totalPages
-                    ? () {
-                        setState(() => _currentPage++);
-                        _fetchPayments();
-                      }
-                    : null,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(28, 28),
-                  padding: EdgeInsets.zero,
-                  side: const BorderSide(color: Color(0xFFE2E8F0)),
-                ),
-                child: const Icon(Icons.chevron_right_rounded, size: 16),
+            if (_totalPages > 5) ...[
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Text('...', style: TextStyle(color: Color(0xFF94A3B8))),
               ),
-              const SizedBox(width: 14),
-
-              // Rows per page dropdown: 10 / page ⌄
-              Container(
-                height: 32,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: _pageSize,
-                    items: const [
-                      DropdownMenuItem(value: 10, child: Text('10 / page', style: TextStyle(fontSize: 12))),
-                      DropdownMenuItem(value: 25, child: Text('25 / page', style: TextStyle(fontSize: 12))),
-                      DropdownMenuItem(value: 50, child: Text('50 / page', style: TextStyle(fontSize: 12))),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() {
-                          _pageSize = val;
-                          _currentPage = 1;
-                        });
-                        _fetchPayments();
-                      }
-                    },
+              InkWell(
+                onTap: () {
+                  setState(() => _currentPage = _totalPages);
+                  _fetchPayments();
+                },
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: _currentPage == _totalPages ? const Color(0xFF4F46E5) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '$_totalPages',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      fontWeight: _currentPage == _totalPages ? FontWeight.bold : FontWeight.normal,
+                      color: _currentPage == _totalPages ? Colors.white : const Color(0xFF475569),
+                    ),
                   ),
                 ),
               ),
             ],
-          ),
-        ],
-      ),
+
+            const SizedBox(width: 6),
+            OutlinedButton(
+              onPressed: _currentPage < _totalPages
+                  ? () {
+                      setState(() => _currentPage++);
+                      _fetchPayments();
+                    }
+                  : null,
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(28, 28),
+                padding: EdgeInsets.zero,
+                side: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              child: const Icon(Icons.chevron_right_rounded, size: 16),
+            ),
+            const SizedBox(width: 14),
+
+            // Rows per page dropdown: 10 / page ⌄
+            Container(
+              height: 32,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  value: _pageSize,
+                  items: const [
+                    DropdownMenuItem(value: 10, child: Text('10 / page', style: TextStyle(fontSize: 12))),
+                    DropdownMenuItem(value: 25, child: Text('25 / page', style: TextStyle(fontSize: 12))),
+                    DropdownMenuItem(value: 50, child: Text('50 / page', style: TextStyle(fontSize: 12))),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _pageSize = val;
+                        _currentPage = 1;
+                      });
+                      _fetchPayments();
+                    }
+                  },
+                ),
+              ),
+            ),
+          ],
+        );
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: isNarrow
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    showingText,
+                    const SizedBox(height: 10),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: controls,
+                    ),
+                  ],
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    showingText,
+                    controls,
+                  ],
+                ),
+        );
+      },
     );
   }
 
@@ -3010,8 +3071,17 @@ class _PaymentEnginePaymentsScreenState
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF64748B))),
           Flexible(
+            flex: 2,
+            child: Text(
+              label,
+              style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF64748B)),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            flex: 3,
             child: Text(
               value,
               textAlign: TextAlign.right,
@@ -3020,6 +3090,7 @@ class _PaymentEnginePaymentsScreenState
                 fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
                 color: isBold ? const Color(0xFF0F172A) : const Color(0xFF334155),
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

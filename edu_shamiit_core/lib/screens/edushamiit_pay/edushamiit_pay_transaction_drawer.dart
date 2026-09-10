@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
@@ -46,23 +47,28 @@ class _EduSHAMIITPayTransactionDrawerState extends State<EduSHAMIITPayTransactio
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Initiate Payment Refund', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Transaction: ${widget.transaction['transaction_id']}', style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF64748B))),
-            const SizedBox(height: 16),
-            TextField(
-              controller: amountCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Refund Amount (₹)', border: OutlineInputBorder()),
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: min(420.0, MediaQuery.of(ctx).size.width - 32)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Transaction: ${widget.transaction['transaction_id']}', style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF64748B))),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: amountCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Refund Amount (₹)', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: reasonCtrl,
+                  decoration: const InputDecoration(labelText: 'Reason for Refund', hintText: 'e.g. Excess payment, Admission withdrawal', border: OutlineInputBorder()),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: reasonCtrl,
-              decoration: const InputDecoration(labelText: 'Reason for Refund', hintText: 'e.g. Excess payment, Admission withdrawal', border: OutlineInputBorder()),
-            ),
-          ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
@@ -99,7 +105,7 @@ class _EduSHAMIITPayTransactionDrawerState extends State<EduSHAMIITPayTransactio
     final isSuccess = t['status'] == 'SUCCESS';
 
     return Drawer(
-      width: 480,
+      width: min(480.0, MediaQuery.of(context).size.width * 0.9),
       child: Scaffold(
         appBar: AppBar(
           title: Text('Transaction Details', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16)),

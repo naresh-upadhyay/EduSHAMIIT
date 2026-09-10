@@ -1,7 +1,7 @@
 -- Migration: 180_seed_live_tracking_locations.sql
 -- Description: Seed high-fidelity locations for all vehicles to enable real-time tracking on the map.
 
-SET ROLE supabase_admin;
+-- SET ROLE supabase_admin; -- commented out for cloud/container compatibility
 
 -- Delete old locations
 DELETE FROM bus_locations;
@@ -41,4 +41,4 @@ SELECT
 FROM bus_routes
 WHERE id NOT IN (SELECT DISTINCT vehicle_id FROM transport_routes WHERE vehicle_id IS NOT NULL);
 
-RESET ROLE;
+-- RESET ROLE; -- commented out for cloud/container compatibility

@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
@@ -158,18 +159,28 @@ class _EduSHAMIITPayFeeCheckoutDialogState extends State<EduSHAMIITPayFeeCheckou
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        width: 500,
-        padding: const EdgeInsets.all(28),
-        child: _isSuccess
-            ? _buildSuccessView()
-            : _isFailed
-                ? _buildFailedView()
-                : _isRedirected
-                    ? _buildAwaitingView()
-                    : _buildInitialView(),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: min(500.0, screenWidth - 32),
+          maxHeight: screenHeight * 0.90,
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(28),
+          child: SingleChildScrollView(
+            child: _isSuccess
+                ? _buildSuccessView()
+                : _isFailed
+                    ? _buildFailedView()
+                    : _isRedirected
+                        ? _buildAwaitingView()
+                        : _buildInitialView(),
+          ),
+        ),
       ),
     );
   }
@@ -183,12 +194,24 @@ class _EduSHAMIITPayFeeCheckoutDialogState extends State<EduSHAMIITPayFeeCheckou
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(widget.feeHead, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
-                Text('${widget.invoiceNumber} • ${widget.studentName}', style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF64748B))),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.feeHead,
+                    style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  Text(
+                    '${widget.invoiceNumber} • ${widget.studentName}',
+                    style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF64748B)),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ],
+              ),
             ),
             IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
           ],
@@ -205,7 +228,10 @@ class _EduSHAMIITPayFeeCheckoutDialogState extends State<EduSHAMIITPayFeeCheckou
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Total Amount Payable:', style: GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF475569))),
+              Flexible(
+                child: Text('Total Amount Payable:', style: GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF475569))),
+              ),
+              const SizedBox(width: 8),
               Text(
                 '₹${widget.amount.toInt()}',
                 style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
@@ -226,7 +252,10 @@ class _EduSHAMIITPayFeeCheckoutDialogState extends State<EduSHAMIITPayFeeCheckou
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 4,
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -236,7 +265,6 @@ class _EduSHAMIITPayFeeCheckoutDialogState extends State<EduSHAMIITPayFeeCheckou
                     ),
                     child: Text('ACTIVE GATEWAY', style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF059669))),
                   ),
-                  const SizedBox(width: 8),
                   Text('PayU Hosted Checkout', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14)),
                 ],
               ),
@@ -267,9 +295,12 @@ class _EduSHAMIITPayFeeCheckoutDialogState extends State<EduSHAMIITPayFeeCheckou
           children: [
             const Icon(Icons.lock_rounded, size: 14, color: Color(0xFF10B981)),
             const SizedBox(width: 6),
-            Text(
-              '256-Bit SSL Encrypted • SHA-512 Hash Verified • RBI Compliant',
-              style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF059669)),
+            Flexible(
+              child: Text(
+                '256-Bit SSL Encrypted • SHA-512 Hash Verified • RBI Compliant',
+                style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF059669)),
+                textAlign: TextAlign.center,
+              ),
             ),
           ],
         ),

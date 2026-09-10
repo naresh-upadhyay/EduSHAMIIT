@@ -240,51 +240,53 @@ class _EduSHAMIITPayDashboardScreenState extends State<EduSHAMIITPayDashboardScr
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 650;
+          final iconBox = Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: const Color(0xFF10B981).withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.verified_rounded, color: Color(0xFF10B981), size: 28),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'Direct Bank Settlement',
-                      style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.bold),
+          );
+
+          final details = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  Text(
+                    'Direct Bank Settlement',
+                    style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF10B981).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        'Zero Platform Intermediary',
-                        style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF059669)),
-                      ),
+                    child: Text(
+                      'Zero Platform Intermediary',
+                      style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF059669)),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '100% of student fee collections settle directly into ${_settlement['bank_name'] ?? 'School Bank'} (${_settlement['account_masked'] ?? '••••4589'}). Never routed into EduSHAMIIT corporate.',
-                  style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF64748B)),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '100% of student fee collections settle directly into ${_settlement['bank_name'] ?? 'School Bank'} (${_settlement['account_masked'] ?? '••••4589'}). Never routed into EduSHAMIIT corporate.',
+                style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF64748B)),
+              ),
+            ],
+          );
+
+          final amountCol = Column(
+            crossAxisAlignment: isNarrow ? CrossAxisAlignment.start : CrossAxisAlignment.end,
             children: [
               Text(
                 'Today Net Settled',
@@ -295,8 +297,38 @@ class _EduSHAMIITPayDashboardScreenState extends State<EduSHAMIITPayDashboardScr
                 style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: const Color(0xFF10B981)),
               ),
             ],
-          ),
-        ],
+          );
+
+          if (isNarrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    iconBox,
+                    const SizedBox(width: 14),
+                    Expanded(child: details),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                const Divider(height: 1),
+                const SizedBox(height: 10),
+                amountCol,
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              iconBox,
+              const SizedBox(width: 16),
+              Expanded(child: details),
+              const SizedBox(width: 16),
+              amountCol,
+            ],
+          );
+        },
       ),
     );
   }
@@ -371,57 +403,67 @@ class _EduSHAMIITPayDashboardScreenState extends State<EduSHAMIITPayDashboardScr
   }
 
   Widget _buildAnalyticsRow(bool isDark) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Fee Type Breakdown
-        Expanded(
-          flex: 3,
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Collections by Fee Head', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                _buildProgressLine('Tuition Fee', 0.65, '₹731,250', const Color(0xFF6366F1)),
-                _buildProgressLine('Transport & Bus Fee', 0.20, '₹225,000', const Color(0xFF3B82F6)),
-                _buildProgressLine('Activity & Labs Fee', 0.10, '₹112,500', const Color(0xFF10B981)),
-                _buildProgressLine('Library & Exams Fee', 0.05, '₹56,250', const Color(0xFFF59E0B)),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 20),
-        // Payment Mode Breakdown
-        Expanded(
-          flex: 2,
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Payment Methods', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                _buildProgressLine('UPI (Dynamic QR & Intent)', 0.72, '72%', const Color(0xFF10B981)),
-                _buildProgressLine('Credit / Debit Cards', 0.18, '18%', const Color(0xFF6366F1)),
-                _buildProgressLine('NetBanking', 0.08, '8%', const Color(0xFF3B82F6)),
-                _buildProgressLine('Offline Cheque/Cash', 0.02, '2%', const Color(0xFF64748B)),
-              ],
-            ),
-          ),
-        ),
-      ],
+    final feeCard = Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Collections by Fee Head', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          _buildProgressLine('Tuition Fee', 0.65, '₹731,250', const Color(0xFF6366F1)),
+          _buildProgressLine('Transport & Bus Fee', 0.20, '₹225,000', const Color(0xFF3B82F6)),
+          _buildProgressLine('Activity & Labs Fee', 0.10, '₹112,500', const Color(0xFF10B981)),
+          _buildProgressLine('Library & Exams Fee', 0.05, '₹56,250', const Color(0xFFF59E0B)),
+        ],
+      ),
+    );
+
+    final paymentCard = Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Payment Methods', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          _buildProgressLine('UPI (Dynamic QR & Intent)', 0.72, '72%', const Color(0xFF10B981)),
+          _buildProgressLine('Credit / Debit Cards', 0.18, '18%', const Color(0xFF6366F1)),
+          _buildProgressLine('NetBanking', 0.08, '8%', const Color(0xFF3B82F6)),
+          _buildProgressLine('Offline Cheque/Cash', 0.02, '2%', const Color(0xFF64748B)),
+        ],
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 850;
+        if (isWide) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 3, child: feeCard),
+              const SizedBox(width: 20),
+              Expanded(flex: 2, child: paymentCard),
+            ],
+          );
+        }
+        return Column(
+          children: [
+            feeCard,
+            const SizedBox(height: 20),
+            paymentCard,
+          ],
+        );
+      },
     );
   }
 
@@ -471,47 +513,53 @@ class _EduSHAMIITPayDashboardScreenState extends State<EduSHAMIITPayDashboardScr
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
-      child: DataTable(
-        columns: const [
-          DataColumn(label: Text('Transaction Ref')),
-          DataColumn(label: Text('Student Name')),
-          DataColumn(label: Text('Purpose')),
-          DataColumn(label: Text('Amount')),
-          DataColumn(label: Text('Method')),
-          DataColumn(label: Text('Status')),
-          DataColumn(label: Text('Settlement')),
-        ],
-        rows: _recentTransactions.map((t) {
-          final isSuccess = t['status'] == 'SUCCESS';
-          return DataRow(
-            cells: [
-              DataCell(Text(t['transaction_id'] ?? 'TXN', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 12))),
-              DataCell(Text(t['customer_name'] ?? 'Student', style: GoogleFonts.dmSans(fontSize: 12))),
-              DataCell(Text(t['purpose'] ?? 'Fee', style: GoogleFonts.dmSans(fontSize: 12))),
-              DataCell(Text('₹${((t['amount'] ?? 0.0) as num).toInt()}', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13))),
-              DataCell(Text(t['payment_mode'] ?? 'UPI', style: GoogleFonts.dmSans(fontSize: 12))),
-              DataCell(
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: (isSuccess ? const Color(0xFF10B981) : const Color(0xFFF59E0B)).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    t['status'] ?? 'PENDING',
-                    style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.bold, color: isSuccess ? const Color(0xFF059669) : const Color(0xFFD97706)),
-                  ),
-                ),
-              ),
-              DataCell(
-                Text(
-                  t['settlement_status'] ?? 'SETTLED',
-                  style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF059669)),
-                ),
-              ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 700),
+          child: DataTable(
+            columns: const [
+              DataColumn(label: Text('Transaction Ref')),
+              DataColumn(label: Text('Student Name')),
+              DataColumn(label: Text('Purpose')),
+              DataColumn(label: Text('Amount')),
+              DataColumn(label: Text('Method')),
+              DataColumn(label: Text('Status')),
+              DataColumn(label: Text('Settlement')),
             ],
-          );
-        }).toList(),
+            rows: _recentTransactions.map((t) {
+              final isSuccess = t['status'] == 'SUCCESS';
+              return DataRow(
+                cells: [
+                  DataCell(Text(t['transaction_id'] ?? 'TXN', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 12))),
+                  DataCell(Text(t['customer_name'] ?? 'Student', style: GoogleFonts.dmSans(fontSize: 12))),
+                  DataCell(Text(t['purpose'] ?? 'Fee', style: GoogleFonts.dmSans(fontSize: 12))),
+                  DataCell(Text('₹${((t['amount'] ?? 0.0) as num).toInt()}', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13))),
+                  DataCell(Text(t['payment_mode'] ?? 'UPI', style: GoogleFonts.dmSans(fontSize: 12))),
+                  DataCell(
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: (isSuccess ? const Color(0xFF10B981) : const Color(0xFFF59E0B)).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        t['status'] ?? 'PENDING',
+                        style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.bold, color: isSuccess ? const Color(0xFF059669) : const Color(0xFFD97706)),
+                      ),
+                    ),
+                  ),
+                  DataCell(
+                    Text(
+                      t['settlement_status'] ?? 'SETTLED',
+                      style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF059669)),
+                    ),
+                  ),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
       ),
     );
   }
