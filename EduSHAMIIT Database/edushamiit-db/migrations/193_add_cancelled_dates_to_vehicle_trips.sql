@@ -2,7 +2,8 @@
 -- Description: Add cancelled_dates array column to vehicle_trips for granular single-date cancellation tracking without destroying multi-day schedules
 
 ALTER TABLE public.vehicle_trips
-  ADD COLUMN IF NOT EXISTS cancelled_dates text[] DEFAULT '{}';
+  ADD COLUMN IF NOT EXISTS cancelled_dates text[] DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS cancellation_reason text;
 
 -- Update trigger / auto status function to respect cancelled_dates
 CREATE OR REPLACE FUNCTION auto_update_vehicle_trip_statuses()

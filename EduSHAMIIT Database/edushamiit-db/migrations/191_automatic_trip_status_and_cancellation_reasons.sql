@@ -11,14 +11,14 @@ BEGIN
   -- 1. Today trips: mark in_progress (Ongoing) if not cancelled or completed
   UPDATE public.vehicle_trips
   SET status = 'in_progress'
-  WHERE (start_date = CURRENT_DATE::text OR scheduled_start::date = CURRENT_DATE)
+  WHERE (start_date::text = CURRENT_DATE::text OR scheduled_start::date = CURRENT_DATE)
     AND LOWER(status) NOT IN ('cancelled', 'completed');
 
   -- 2. Future trips: mark scheduled if not cancelled
   UPDATE public.vehicle_trips
   SET status = 'scheduled'
   WHERE (
-    (start_date IS NOT NULL AND start_date::date > CURRENT_DATE) OR
+    (start_date IS NOT NULL AND start_date::text::date > CURRENT_DATE) OR
     (scheduled_start IS NOT NULL AND scheduled_start::date > CURRENT_DATE)
   ) AND LOWER(status) NOT IN ('cancelled');
 
@@ -26,7 +26,7 @@ BEGIN
   UPDATE public.vehicle_trips
   SET status = 'completed'
   WHERE (
-    (start_date IS NOT NULL AND start_date::date < CURRENT_DATE) OR
+    (start_date IS NOT NULL AND start_date::text::date < CURRENT_DATE) OR
     (scheduled_start IS NOT NULL AND scheduled_start::date < CURRENT_DATE)
   ) AND LOWER(status) IN ('scheduled', 'in_progress');
 END;

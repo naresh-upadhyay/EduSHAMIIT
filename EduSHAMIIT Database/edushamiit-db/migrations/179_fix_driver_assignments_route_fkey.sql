@@ -15,6 +15,16 @@ ALTER TABLE driver_assignments
   REFERENCES transport_routes(id) 
   ON DELETE SET NULL;
 
+-- Ensure assignment columns exist
+ALTER TABLE driver_assignments
+  ADD COLUMN IF NOT EXISTS start_time text DEFAULT '06:30 AM',
+  ADD COLUMN IF NOT EXISTS end_time text DEFAULT '09:30 AM',
+  ADD COLUMN IF NOT EXISTS days text DEFAULT 'Mon,Tue,Wed,Thu,Fri',
+  ADD COLUMN IF NOT EXISTS distance numeric(10,2) DEFAULT 15.00,
+  ADD COLUMN IF NOT EXISTS estimated_duration text DEFAULT '45 mins',
+  ADD COLUMN IF NOT EXISTS total_stops integer DEFAULT 10,
+  ADD COLUMN IF NOT EXISTS created_by text DEFAULT 'Transport Manager';
+
 -- 4. Re-seed active assignments from transport_routes
 INSERT INTO driver_assignments (school_id, driver_id, vehicle_id, route_id, assignment_type, start_date, shift, status, created_by, notes, start_time, end_time, days, distance, estimated_duration, total_stops)
 SELECT 

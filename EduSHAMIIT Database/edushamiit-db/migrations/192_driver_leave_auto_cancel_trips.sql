@@ -1,6 +1,8 @@
 -- Migration: 192_driver_leave_auto_cancel_trips.sql
 -- Description: Automatically mark trips as cancelled if assigned driver has approved/pending leave in leave_applications
 
+ALTER TABLE public.vehicle_trips ADD COLUMN IF NOT EXISTS cancellation_reason text;
+
 CREATE OR REPLACE FUNCTION auto_update_vehicle_trip_statuses()
 RETURNS void AS $$
 BEGIN
