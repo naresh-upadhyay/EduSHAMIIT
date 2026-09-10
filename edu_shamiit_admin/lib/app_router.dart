@@ -137,6 +137,66 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: '/get-started/payment-processing',
+        builder: (context, state) {
+          final paymentId = state.uri.queryParameters['payment_id'];
+          final txnId = state.uri.queryParameters['txnId'];
+          final status = state.uri.queryParameters['status'];
+          return PaymentProcessingScreen(
+            paymentId: paymentId,
+            transactionId: txnId,
+            initialStatus: status,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/payment/success',
+        builder: (context, state) {
+          final paymentId = state.uri.queryParameters['payment_id'] ?? state.uri.queryParameters['id'];
+          final txnId = state.uri.queryParameters['txnId'] ?? state.uri.queryParameters['txnid'];
+          return PaymentProcessingScreen(
+            paymentId: paymentId,
+            transactionId: txnId,
+            initialStatus: 'SUCCESS',
+          );
+        },
+      ),
+      GoRoute(
+        path: '/payment/failure',
+        builder: (context, state) {
+          final paymentId = state.uri.queryParameters['payment_id'] ?? state.uri.queryParameters['id'];
+          final txnId = state.uri.queryParameters['txnId'] ?? state.uri.queryParameters['txnid'];
+          return PaymentProcessingScreen(
+            paymentId: paymentId,
+            transactionId: txnId,
+            initialStatus: 'FAILED',
+          );
+        },
+      ),
+      GoRoute(
+        path: '/payment/processing',
+        builder: (context, state) {
+          final paymentId = state.uri.queryParameters['payment_id'] ?? state.uri.queryParameters['id'];
+          final txnId = state.uri.queryParameters['txnId'] ?? state.uri.queryParameters['txnid'];
+          return PaymentProcessingScreen(
+            paymentId: paymentId,
+            transactionId: txnId,
+            initialStatus: 'PENDING',
+          );
+        },
+      ),
+      GoRoute(
+        path: '/payment/status',
+        builder: (context, state) {
+          final paymentId = state.uri.queryParameters['payment_id'] ?? state.uri.queryParameters['id'];
+          final txnId = state.uri.queryParameters['txnId'] ?? state.uri.queryParameters['txnid'];
+          return PaymentProcessingScreen(
+            paymentId: paymentId,
+            transactionId: txnId,
+          );
+        },
+      ),
+      GoRoute(
         path: '/faq',
         builder: (context, state) {
           final config = ref.read(systemConfigProvider);
@@ -311,6 +371,30 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/admin/finance',
             pageBuilder: (_, __) => const NoTransitionPage(child: FinanceTab()),
+          ),
+          GoRoute(
+            path: '/admin/payments',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PaymentEnginePaymentsScreen()),
+          ),
+          GoRoute(
+            path: '/admin/payment-engine',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PaymentEnginePaymentsScreen()),
+          ),
+          GoRoute(
+            path: '/admin/payment-engine/payments',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PaymentEnginePaymentsScreen()),
+          ),
+          GoRoute(
+            path: '/admin/payment-gateways',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PaymentEnginePaymentsScreen(initialNavTab: 2)),
+          ),
+          GoRoute(
+            path: '/admin/payment-engine/gateways',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PaymentEnginePaymentsScreen(initialNavTab: 2)),
+          ),
+          GoRoute(
+            path: '/payment-gateways',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PaymentEnginePaymentsScreen(initialNavTab: 2)),
           ),
           GoRoute(
             path: '/admin/defaulters',

@@ -609,8 +609,37 @@ final routerProvider = Provider<GoRouter>((ref) {
             return NoTransitionPage(child: TeacherMessaging(initialChatId: chatId));
           },
         ),
+        GoRoute(
+          path: '/academic/finance',
+          pageBuilder: (_, __) => const NoTransitionPage(child: FinanceManagementScreen()),
+        ),
+        GoRoute(
+          path: '/finance',
+          pageBuilder: (_, __) => const NoTransitionPage(child: FinanceManagementScreen()),
+        ),
+        GoRoute(
+          path: '/academic/payments',
+          pageBuilder: (_, __) => const NoTransitionPage(child: PaymentEnginePaymentsScreen()),
+        ),
+        GoRoute(
+          path: '/payments',
+          pageBuilder: (_, __) => const NoTransitionPage(child: PaymentEnginePaymentsScreen()),
+        ),
+        GoRoute(
+          path: '/payment-engine/payments',
+          pageBuilder: (_, __) => const NoTransitionPage(child: PaymentEnginePaymentsScreen()),
+        ),
+        GoRoute(
+          path: '/academic/payment-gateways',
+          pageBuilder: (_, __) => const NoTransitionPage(child: PaymentEnginePaymentsScreen(initialNavTab: 2)),
+        ),
+        GoRoute(
+          path: '/payment-gateways',
+          pageBuilder: (_, __) => const NoTransitionPage(child: PaymentEnginePaymentsScreen(initialNavTab: 2)),
+        ),
       ],
     ),
   ],
 );
+
 });

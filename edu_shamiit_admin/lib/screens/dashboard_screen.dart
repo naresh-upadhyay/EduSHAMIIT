@@ -133,17 +133,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         route: '/admin/contact-queries',
         section: NavSection.operations),
 
-    // Finance console
-    _NavItem(
-        icon: Icons.payments_outlined,
-        label: 'Financial Suite',
-        route: '/admin/finance',
-        section: NavSection.finance),
-    _NavItem(
-        icon: Icons.warning_amber_rounded,
-        label: 'Fee Defaulters',
-        route: '/admin/defaulters',
-        section: NavSection.finance),
 
     // Security & Guard log consoles
     _NavItem(
@@ -225,7 +214,21 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         label: 'Route Management',
         route: '/admin/route-management',
         section: NavSection.fleetManagement),
+
+    // Finance Management (Directly BELOW Fleet Management)
+    _NavItem(
+        icon: Icons.account_balance_wallet_rounded,
+        label: 'Finance Management',
+        route: '/admin/finance',
+        section: NavSection.financeManagement),
+    _NavItem(
+        icon: Icons.payments_outlined,
+        label: 'EduSHAMIIT Pay',
+        route: '/admin/payments',
+        section: NavSection.financeManagement),
   ];
+
+
 
   List<dynamic> _modules = [];
   Map<String, dynamic> _schoolToggles = {};
@@ -348,12 +351,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/support' ||
                item.route == '/admin/contact-queries' ||
                item.route == '/admin/my-profile' ||
+               item.route.startsWith('/admin/finance') ||
+               item.route.startsWith('/admin/payment') ||
+               item.route == '/admin/defaulters' ||
                item.route == '/admin/vehicle-dashboard' ||
                item.route.startsWith('/admin/fleet') ||
                item.route == '/admin/driver-management' ||
                item.route == '/admin/route-management' ||
                item.route == '/admin/trips-schedule' ||
                item.route == '/admin/stops';
+
       } else if (role == 'director' || role == 'principal') {
         return item.route == '/admin/dashboard' ||
                item.route == '/admin/calendar' ||
@@ -362,7 +369,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/attendance' ||
                item.route == '/admin/roles' ||
                item.route == '/admin/lookups' ||
-               item.route == '/admin/finance' ||
+               item.route.startsWith('/admin/finance') ||
+               item.route.startsWith('/admin/payment') ||
                item.route == '/admin/defaulters' ||
                item.route == '/admin/staff' ||
                item.route == '/admin/admissions' ||
@@ -467,9 +475,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                   case NavSection.operations:
                                     headerText = 'OPERATIONS';
                                     break;
-                                  case NavSection.finance:
-                                    headerText = 'FINANCE';
-                                    break;
                                   case NavSection.security:
                                     headerText = 'SECURITY & CONTROL';
                                     break;
@@ -479,7 +484,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                   case NavSection.fleetManagement:
                                     headerText = 'FLEET MANAGEMENT';
                                     break;
+                                  case NavSection.financeManagement:
+                                    headerText = 'FINANCE MANAGEMENT';
+                                    break;
                                 }
+
 
                                 header = Padding(
                                   padding: EdgeInsets.only(
@@ -522,6 +531,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
                               if (item.label == 'Route Management') {
                                 final expandableTile = _buildExpandableRouteTile(isDark, showLabels, location);
+                                if (header != null) {
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [header, expandableTile],
+                                  );
+                                }
+                                return expandableTile;
+                              }
+
+                              if (item.label == 'Finance Management') {
+                                final expandableTile = _buildExpandableFinanceTile(isDark, showLabels, location);
                                 if (header != null) {
                                   return Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -945,6 +965,52 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   bool _isFleetExpanded = true;
   bool _isDriverExpanded = true;
   bool _isRouteExpanded = true;
+  bool _isFinanceExpanded = true;
+
+  Widget _buildExpandableFinanceTile(bool isDark, bool showLabels, String location) {
+    final currentUrl = kIsWeb ? html.window.location.href : location;
+    final isFinanceRoute = location.startsWith('/admin/finance') || location.startsWith('/admin/defaulters') || currentUrl.contains('/admin/finance') || currentUrl.contains('/admin/defaulters');
+    final activeTab = int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
+    final isDefaulters = location.startsWith('/admin/defaulters') || currentUrl.contains('/admin/defaulters');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSidebarTile(
+          item: const _NavItem(
+            icon: Icons.account_balance_wallet_rounded,
+            label: 'Finance Management',
+            route: '/admin/finance',
+            section: NavSection.financeManagement,
+          ),
+          isSelected: isFinanceRoute && !_isFinanceExpanded,
+          isDark: isDark,
+          showLabels: showLabels,
+          onTap: () {
+            setState(() {
+              _isFinanceExpanded = !_isFinanceExpanded;
+            });
+          },
+          trailing: showLabels
+              ? Icon(
+                  _isFinanceExpanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
+                  color: isFinanceRoute
+                      ? const Color(0xFF4F46E5)
+                      : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                  size: 16,
+                )
+              : null,
+        ),
+        if (_isFinanceExpanded && showLabels) ...[
+          _buildSubTile('Overview', '/admin/finance', 0, isFinanceRoute && activeTab == 0, isDark),
+          _buildSubTile('Revenue', '/admin/finance', 1, isFinanceRoute && activeTab == 1, isDark),
+          _buildSubTile('Fee Collection', '/admin/finance', 2, isFinanceRoute && activeTab == 2, isDark),
+          _buildSubTile('Expenses', '/admin/finance', 3, isFinanceRoute && activeTab == 3, isDark),
+          _buildSubTile('Payroll', '/admin/finance', 4, isFinanceRoute && activeTab == 4, isDark),
+        ],
+      ],
+    );
+  }
 
   Widget _buildExpandableFleetTile(bool isDark, bool showLabels, String location) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
@@ -1132,7 +1198,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 }
 
-enum NavSection { overview, general, organization, operations, finance, security, systemDev, fleetManagement }
+enum NavSection { overview, general, organization, operations, security, systemDev, fleetManagement, financeManagement }
 
 class _NavItem {
   final IconData icon;

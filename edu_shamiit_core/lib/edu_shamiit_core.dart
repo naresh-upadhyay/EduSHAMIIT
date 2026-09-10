@@ -42,6 +42,7 @@ export 'providers/teacher_profile_provider.dart';
 // Utils
 export 'utils/responsive.dart';
 export 'utils/validators.dart';
+export 'utils/phone_input_formatter.dart';
 export 'utils/date_formatter.dart';
 export 'utils/math_formatter.dart';
 export 'utils/l10n.dart';
@@ -65,6 +66,10 @@ export 'screens/auth/home_screen.dart';
 export 'screens/auth/privacy_policy_screen.dart';
 export 'screens/auth/terms_conditions_screen.dart';
 export 'screens/auth/get_started_screen.dart';
+export 'screens/auth/payment_processing_screen.dart';
+export 'screens/admin/payment_transactions_screen.dart';
+export 'screens/admin/payment_details_drawer.dart';
+export 'screens/admin/payment_gateway_settings_screen.dart';
 export 'screens/auth/faq_screen.dart';
 export 'screens/auth/user_guides_screen.dart';
 export 'screens/auth/help_center_screen.dart';
@@ -106,3 +111,35 @@ export 'screens/attendance/widgets/attendance_settings_tab.dart';
 export 'screens/attendance/widgets/drawers/student_attendance_drawer.dart';
 export 'screens/attendance/widgets/dialogs/attendance_override_dialog.dart';
 export 'screens/attendance/widgets/dialogs/attendance_confirmation_dialog.dart';
+
+// Shared Finance & Fees Management Module
+export 'screens/finance/finance_management_screen.dart';
+export 'screens/finance/fees_management_tab.dart';
+export 'screens/finance/models/finance_models.dart';
+export 'screens/finance/providers/finance_provider.dart';
+export 'screens/finance/services/finance_api_service.dart';
+export 'screens/finance/widgets/finance_overview_tab.dart';
+export 'screens/finance/widgets/revenue_management_view.dart';
+export 'screens/finance/widgets/fees_ledger_view.dart';
+export 'screens/finance/widgets/fee_structures_view.dart';
+export 'screens/finance/widgets/outstanding_defaulters_view.dart';
+export 'screens/finance/widgets/payroll_management_view.dart';
+export 'screens/finance/widgets/expense_management_view.dart';
+export 'screens/finance/widgets/banking_accounts_view.dart';
+export 'screens/finance/widgets/chart_of_accounts_view.dart';
+export 'screens/finance/widgets/financial_reports_view.dart';
+export 'screens/finance/drawers/student_fee_account_drawer.dart';
+export 'screens/finance/dialogs/collect_payment_dialog.dart';
+
+// Shared EDU SHAMIIT PAY Module
+export 'screens/edushamiit_pay/edushamiit_pay_dashboard_screen.dart';
+export 'screens/edushamiit_pay/edushamiit_pay_transactions_screen.dart';
+export 'screens/edushamiit_pay/edushamiit_pay_transaction_drawer.dart';
+export 'screens/edushamiit_pay/edushamiit_pay_reconciliation_screen.dart';
+export 'screens/edushamiit_pay/edushamiit_pay_merchant_settings_screen.dart';
+export 'screens/edushamiit_pay/student_fees_payment_screen.dart';
+export 'screens/edushamiit_pay/edushamiit_pay_fee_checkout_dialog.dart';
+export 'screens/edushamiit_pay/edushamiit_pay_corporate_screen.dart';
+export 'screens/edushamiit_pay/payment_engine_payments_screen.dart';
+export 'screens/edushamiit_pay/payment_gateway_integration_screen.dart';
+export 'utils/payu_checkout_helper.dart';

@@ -1,9 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 import 'package:edu_shamiit_core/config/app_config.dart';
+import 'package:edu_shamiit_core/utils/validators.dart';
+import 'package:edu_shamiit_core/utils/phone_input_formatter.dart';
+import 'package:edu_shamiit_core/utils/payu_checkout_helper.dart';
 
 class SharedGetStartedScreen extends StatefulWidget {
   final String? systemName;
@@ -64,14 +70,155 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
     'Punjab National Bank'
   ];
 
+  // Step 1: Real-time Touch & Focus Trackers
+  bool _nameTouched = false;
+  bool _emailTouched = false;
+  bool _phoneTouched = false;
+  bool _passwordTouched = false;
+  bool _confirmTouched = false;
+
+  final FocusNode _nameFocusNode = FocusNode();
+  final FocusNode _emailFocusNode = FocusNode();
+  final FocusNode _phoneFocusNode = FocusNode();
+  final FocusNode _passwordFocusNode = FocusNode();
+  final FocusNode _confirmFocusNode = FocusNode();
+
+  Timer? _availabilityTimer;
+  bool _isCheckingEmail = false;
+  bool? _emailAvailable;
+  bool _isCheckingPhone = false;
+  bool? _phoneAvailable;
+
   @override
   void initState() {
     super.initState();
     _fetchPlans();
+    _setupFieldListeners();
+  }
+
+  void _setupFieldListeners() {
+    _fullNameController.addListener(() {
+      if (_fullNameController.text.isNotEmpty) setState(() => _nameTouched = true);
+      setState(() {});
+    });
+
+    _emailController.addListener(() {
+      if (_emailController.text.isNotEmpty) setState(() => _emailTouched = true);
+      _onEmailChanged();
+      setState(() {});
+    });
+
+    _phoneController.addListener(() {
+      if (_phoneController.text.isNotEmpty) setState(() => _phoneTouched = true);
+      _onPhoneChanged();
+      setState(() {});
+    });
+
+    _passwordController.addListener(() {
+      if (_passwordController.text.isNotEmpty) setState(() => _passwordTouched = true);
+      setState(() {});
+    });
+
+    _confirmPasswordController.addListener(() {
+      if (_confirmPasswordController.text.isNotEmpty) setState(() => _confirmTouched = true);
+      setState(() {});
+    });
+
+    _nameFocusNode.addListener(() { if (!_nameFocusNode.hasFocus) setState(() => _nameTouched = true); });
+    _emailFocusNode.addListener(() { if (!_emailFocusNode.hasFocus) setState(() => _emailTouched = true); });
+    _phoneFocusNode.addListener(() { if (!_phoneFocusNode.hasFocus) setState(() => _phoneTouched = true); });
+    _passwordFocusNode.addListener(() { if (!_passwordFocusNode.hasFocus) setState(() => _passwordTouched = true); });
+    _confirmFocusNode.addListener(() { if (!_confirmFocusNode.hasFocus) setState(() => _confirmTouched = true); });
+  }
+
+  void _onEmailChanged() {
+    final text = _emailController.text.trim();
+    if (Validators.validateEmail(text) != null) {
+      setState(() {
+        _isCheckingEmail = false;
+        _emailAvailable = null;
+      });
+      return;
+    }
+
+    _availabilityTimer?.cancel();
+    _availabilityTimer = Timer(const Duration(milliseconds: 400), () async {
+      if (!mounted) return;
+      setState(() => _isCheckingEmail = true);
+      try {
+        final res = await http.get(Uri.parse('${AppConfig.apiBaseUrl}/auth/check-availability?email=$text'));
+        if (res.statusCode == 200 && mounted) {
+          final data = json.decode(res.body)['data'] ?? {};
+          setState(() {
+            _emailAvailable = data['email_available'] ?? true;
+            _isCheckingEmail = false;
+          });
+        } else if (mounted) {
+          setState(() => _isCheckingEmail = false);
+        }
+      } catch (e) {
+        if (mounted) setState(() => _isCheckingEmail = false);
+      }
+    });
+  }
+
+  void _onPhoneChanged() {
+    final text = _phoneController.text.replaceAll(RegExp(r'\D'), '');
+    if (Validators.validatePhone(text) != null) {
+      setState(() {
+        _isCheckingPhone = false;
+        _phoneAvailable = null;
+      });
+      return;
+    }
+
+    _availabilityTimer?.cancel();
+    _availabilityTimer = Timer(const Duration(milliseconds: 400), () async {
+      if (!mounted) return;
+      setState(() => _isCheckingPhone = true);
+      try {
+        final res = await http.get(Uri.parse('${AppConfig.apiBaseUrl}/auth/check-availability?phone=$text'));
+        if (res.statusCode == 200 && mounted) {
+          final data = json.decode(res.body)['data'] ?? {};
+          setState(() {
+            _phoneAvailable = data['phone_available'] ?? true;
+            _isCheckingPhone = false;
+          });
+        } else if (mounted) {
+          setState(() => _isCheckingPhone = false);
+        }
+      } catch (e) {
+        if (mounted) setState(() => _isCheckingPhone = false);
+      }
+    });
+  }
+
+  bool get isBasicInfoValid {
+    final nameErr = Validators.validateFullName(_fullNameController.text);
+    final emailErr = Validators.validateEmail(_emailController.text);
+    final phoneErr = Validators.validatePhone(_phoneController.text);
+    final pwdReqs = PasswordRequirements.check(_passwordController.text);
+    final confirmErr = Validators.validateConfirmPassword(_confirmPasswordController.text, _passwordController.text);
+
+    return nameErr == null &&
+        emailErr == null &&
+        _emailAvailable != false &&
+        phoneErr == null &&
+        _phoneAvailable != false &&
+        pwdReqs.isStrong &&
+        confirmErr == null &&
+        _agreeToTerms;
   }
 
   @override
   void dispose() {
+    _availabilityTimer?.cancel();
+    _nameFocusNode.dispose();
+    _emailFocusNode.dispose();
+    _phoneFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _confirmFocusNode.dispose();
+
     _fullNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
@@ -191,19 +338,43 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
 
       final data = json.decode(response.body);
       if (response.statusCode == 200 && data['success'] == true) {
-        setState(() {
-          _currentStep = 3; // Step 4 (Done)
-        });
+        final resData = data['data'] ?? {};
+        final checkoutUrl = resData['checkout_url']?.toString();
+        final txnId = resData['transaction_id']?.toString();
+        final paymentId = resData['payment_id']?.toString();
+        final params = resData['params'] != null
+            ? Map<String, dynamic>.from(resData['params'])
+            : <String, dynamic>{};
+
+        if (checkoutUrl != null && checkoutUrl.isNotEmpty && params.isNotEmpty) {
+          // Trigger genuine PayU Hosted Checkout form POST
+          submitPayUHostedCheckout(
+            checkoutUrl: checkoutUrl,
+            params: params,
+          );
+        } else {
+          if (mounted) {
+            context.go('/get-started/payment-processing?payment_id=${paymentId ?? ''}&txnId=${txnId ?? ''}');
+          }
+        }
       } else {
-        _showErrorSnackBar(
-            data['detail'] ?? 'Registration failed. Please try again.');
+        final detail = data['detail'];
+        String errMsg = 'Registration failed. Please try again.';
+        if (detail is Map) {
+          errMsg = detail['message']?.toString() ?? errMsg;
+        } else if (detail != null) {
+          errMsg = detail.toString();
+        }
+        _showErrorSnackBar(errMsg);
       }
     } catch (e) {
       _showErrorSnackBar('Network error occurred. Please try again.');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -735,51 +906,88 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
   }
 
   Widget _buildStep1BasicInfo() {
+    final nameErr = Validators.validateFullName(_fullNameController.text);
+    final emailErr = Validators.validateEmail(_emailController.text);
+    final phoneErr = Validators.validatePhone(_phoneController.text);
+    final pwdReqs = PasswordRequirements.check(_passwordController.text);
+    final confirmErr = Validators.validateConfirmPassword(_confirmPasswordController.text, _passwordController.text);
+
     return Form(
       key: _basicFormKey,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildTextField(
+          // 1. FULL NAME
+          _buildValidatedTextField(
             controller: _fullNameController,
+            focusNode: _nameFocusNode,
             label: 'Full Name',
             hint: 'Enter your full name',
             icon: Icons.person_outline,
-            validator: (value) => value == null || value.trim().isEmpty
-                ? 'Full name is required'
+            validator: Validators.validateFullName,
+            helperBadge: _nameTouched
+                ? (nameErr == null
+                    ? _buildValidationBadge(message: '✓ Looks good', isValid: true)
+                    : _buildValidationBadge(message: '✕ $nameErr', isValid: false))
                 : null,
           ),
           const SizedBox(height: 20),
-          _buildTextField(
+
+          // 2. EMAIL ADDRESS
+          _buildValidatedTextField(
             controller: _emailController,
+            focusNode: _emailFocusNode,
             label: 'Email Address',
             hint: 'Enter your email address',
             icon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
-            validator: (value) {
-              if (value == null || value.trim().isEmpty)
-                return 'Email is required';
-              if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value))
-                return 'Invalid email format';
-              return null;
-            },
+            validator: Validators.validateEmail,
+            helperBadge: _isCheckingEmail
+                ? _buildValidationBadge(message: 'Checking email availability...', isValid: false, isInfo: true)
+                : (_emailAvailable == false
+                    ? _buildValidationBadge(message: '✕ This email is already registered', isValid: false)
+                    : (_emailTouched
+                        ? (emailErr == null
+                            ? _buildValidationBadge(message: '✓ Valid & Available email address', isValid: true)
+                            : _buildValidationBadge(message: '✕ $emailErr', isValid: false))
+                        : null)),
           ),
           const SizedBox(height: 20),
-          _buildTextField(
+
+          // 3. PHONE NUMBER (STRICT NUMERIC ONLY 10-DIGIT)
+          _buildValidatedTextField(
             controller: _phoneController,
-            label: 'Phone Number',
-            hint: 'Enter your phone number',
+            focusNode: _phoneFocusNode,
+            label: 'Phone Number (10-Digit Mobile)',
+            hint: 'Enter 10-digit mobile number (e.g. 9876543210)',
             icon: Icons.phone_outlined,
-            keyboardType: TextInputType.phone,
-            validator: (value) => value == null || value.trim().isEmpty
-                ? 'Phone number is required'
-                : null,
+            keyboardType: TextInputType.number,
+            maxLength: 10,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(10),
+              PasteSanitizerFormatter(maxDigits: 10),
+            ],
+            validator: Validators.validatePhone,
+            helperBadge: _isCheckingPhone
+                ? _buildValidationBadge(message: 'Checking mobile availability...', isValid: false, isInfo: true)
+                : (_phoneAvailable == false
+                    ? _buildValidationBadge(message: '✕ This mobile number is already registered', isValid: false)
+                    : (_phoneTouched
+                        ? (phoneErr == null
+                            ? _buildValidationBadge(message: '✓ Valid 10-digit mobile number', isValid: true)
+                            : _buildValidationBadge(message: '✕ $phoneErr', isValid: false))
+                        : null)),
           ),
           const SizedBox(height: 20),
-          _buildTextField(
+
+          // 4. PASSWORD
+          _buildValidatedTextField(
             controller: _passwordController,
+            focusNode: _passwordFocusNode,
             label: 'Password',
-            hint: 'Create a password',
+            hint: 'Create a strong password',
             icon: Icons.lock_outline,
             obscureText: _obscurePassword,
             suffixIcon: IconButton(
@@ -787,19 +995,19 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                   _obscurePassword ? Icons.visibility_off : Icons.visibility,
                   color: const Color(0xFF64748B),
                   size: 18),
-              onPressed: () =>
-                  setState(() => _obscurePassword = !_obscurePassword),
+              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
             ),
-            validator: (value) {
-              if (value == null || value.isEmpty) return 'Password is required';
-              if (value.length < 6)
-                return 'Password must be at least 6 characters';
-              return null;
-            },
+            validator: Validators.validatePassword,
           ),
+          const SizedBox(height: 12),
+          // Live Password Policy Requirements Checklist
+          _buildPasswordPolicyChecklist(_passwordController.text),
           const SizedBox(height: 20),
-          _buildTextField(
+
+          // 5. CONFIRM PASSWORD
+          _buildValidatedTextField(
             controller: _confirmPasswordController,
+            focusNode: _confirmFocusNode,
             label: 'Confirm Password',
             hint: 'Confirm your password',
             icon: Icons.lock_outline,
@@ -814,15 +1022,15 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
               onPressed: () => setState(
                   () => _obscureConfirmPassword = !_obscureConfirmPassword),
             ),
-            validator: (value) {
-              if (value == null || value.isEmpty)
-                return 'Confirm password is required';
-              if (value != _passwordController.text)
-                return 'Passwords do not match';
-              return null;
-            },
+            validator: (val) => Validators.validateConfirmPassword(val, _passwordController.text),
+            helperBadge: (_confirmTouched || _confirmPasswordController.text.isNotEmpty)
+                ? (confirmErr == null
+                    ? _buildValidationBadge(message: '✓ Passwords match', isValid: true)
+                    : _buildValidationBadge(message: '✕ Passwords do not match', isValid: false))
+                : null,
           ),
           const SizedBox(height: 24),
+
           // Agreement Row
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -876,14 +1084,25 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             ],
           ),
           const SizedBox(height: 32),
+
+          // Next Button Bound to isBasicInfoValid
           ElevatedButton(
-            onPressed: () {
-              if (_basicFormKey.currentState!.validate() && _agreeToTerms) {
-                setState(() => _currentStep = 1);
-              }
-            },
+            onPressed: isBasicInfoValid
+                ? () {
+                    setState(() => _currentStep = 1);
+                  }
+                : () {
+                    setState(() {
+                      _nameTouched = true;
+                      _emailTouched = true;
+                      _phoneTouched = true;
+                      _passwordTouched = true;
+                      _confirmTouched = true;
+                    });
+                    _basicFormKey.currentState?.validate();
+                  },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6366F1),
+              backgroundColor: isBasicInfoValid ? const Color(0xFF6366F1) : const Color(0xFF94A3B8),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8)),
@@ -921,6 +1140,220 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildValidationBadge({
+    required String message,
+    required bool isValid,
+    bool isInfo = false,
+  }) {
+    Color bg;
+    Color fg;
+    if (isInfo) {
+      bg = const Color(0xFFE0E7FF);
+      fg = const Color(0xFF4338CA);
+    } else if (isValid) {
+      bg = const Color(0xFFECFDF5);
+      fg = const Color(0xFF059669);
+    } else {
+      bg = const Color(0xFFFEF2F2);
+      fg = const Color(0xFFDC2626);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              message,
+              style: GoogleFonts.dmSans(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: fg,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPasswordPolicyChecklist(String password) {
+    final reqs = PasswordRequirements.check(password);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Password Requirements',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF475569),
+                ),
+              ),
+              if (reqs.isStrong)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECFDF5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '✓ Strong Password',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF059669),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 12,
+            runSpacing: 6,
+            children: [
+              _buildPasswordRequirementItem('8+ characters', reqs.hasMin8Chars),
+              _buildPasswordRequirementItem('Uppercase letter (A-Z)', reqs.hasUppercase),
+              _buildPasswordRequirementItem('Lowercase letter (a-z)', reqs.hasLowercase),
+              _buildPasswordRequirementItem('Numeric digit (0-9)', reqs.hasNumber),
+              _buildPasswordRequirementItem(r'Special char (!@#$...)', reqs.hasSpecialChar),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPasswordRequirementItem(String label, bool isMet) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          isMet ? Icons.check_circle_rounded : Icons.cancel_outlined,
+          size: 14,
+          color: isMet ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+            fontSize: 11,
+            fontWeight: isMet ? FontWeight.bold : FontWeight.normal,
+            color: isMet ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildValidatedTextField({
+    required TextEditingController controller,
+    FocusNode? focusNode,
+    required String label,
+    required String hint,
+    required IconData icon,
+    bool obscureText = false,
+    Widget? suffixIcon,
+    Widget? helperBadge,
+    int? maxLength,
+    List<TextInputFormatter>? inputFormatters,
+    TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF0F172A),
+              ),
+            ),
+            if (maxLength != null)
+              Text(
+                '${controller.text.length} / $maxLength digits',
+                style: GoogleFonts.dmSans(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: controller.text.length == maxLength
+                      ? const Color(0xFF10B981)
+                      : const Color(0xFF64748B),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: controller,
+          focusNode: focusNode,
+          obscureText: obscureText,
+          keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          validator: validator,
+          decoration: InputDecoration(
+            hintText: hint,
+            counterText: '',
+            hintStyle: GoogleFonts.dmSans(
+                color: const Color(0xFF94A3B8), fontSize: 13),
+            prefixIcon: Icon(icon, color: const Color(0xFF94A3B8), size: 18),
+            suffixIcon: suffixIcon,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide:
+                  const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFEF4444)),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide:
+                  const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+          ),
+          style:
+              GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF0F172A)),
+        ),
+        if (helperBadge != null) helperBadge,
+      ],
     );
   }
 
@@ -1162,30 +1595,125 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             ],
           ),
           const SizedBox(height: 24),
-          Text(
-            'Select Payment Method',
-            style: GoogleFonts.outfit(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF0F172A),
+          // Order Summary Box
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'ORDER SUMMARY',
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF64748B),
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Secure Checkout',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF059669),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 24),
+                _buildSummaryLine('Selected Plan', _plans.firstWhere((p) => p['code'] == _selectedPlanCode, orElse: () => {'name': 'Plan'})['name'] ?? 'Plan'),
+                _buildSummaryLine('Billing Period', _billingCycle.toUpperCase()),
+                _buildSummaryLine('Base Amount', '₹${_calculateAmount().toInt()}'),
+                _buildSummaryLine('Taxes & Gateway Fees', 'Included (0%)'),
+                const Divider(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Final Payable Amount',
+                      style: GoogleFonts.outfit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF0F172A),
+                      ),
+                    ),
+                    Text(
+                      '₹${_calculateAmount().toInt()}',
+                      style: GoogleFonts.outfit(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF6366F1),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _buildPaymentMethodOption('upi', 'UPI', Icons.qr_code_outlined),
-              const SizedBox(width: 12),
-              _buildPaymentMethodOption(
-                  'card', 'Cards', Icons.credit_card_outlined),
-              const SizedBox(width: 12),
-              _buildPaymentMethodOption(
-                  'netbanking', 'NetBanking', Icons.account_balance_outlined),
-            ],
-          ),
           const SizedBox(height: 24),
-          // Render conditional details
-          _buildPaymentDetailsInputs(),
-          const SizedBox(height: 32),
+
+          // PayU Security Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF6366F1).withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.15)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.shield_outlined, color: Color(0xFF6366F1), size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Secure Payment powered by PayU',
+                        style: GoogleFonts.outfit(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Supports UPI, Credit/Debit Cards, NetBanking & Wallets on PayU Hosted Checkout.',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+
           // Complete Onboarding Button
           ElevatedButton(
             onPressed: _isLoading ? null : _submitOnboarding,
@@ -1193,7 +1721,7 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
               backgroundColor: const Color(0xFF6366F1),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
+                  borderRadius: BorderRadius.circular(10)),
               padding: const EdgeInsets.symmetric(vertical: 18),
             ),
             child: _isLoading
@@ -1207,12 +1735,12 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        'Pay ₹${_calculateAmount().toInt()} & Register School',
+                        'Proceed to Secure Payment (₹${_calculateAmount().toInt()})',
                         style: GoogleFonts.dmSans(
                             fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward, size: 16),
+                      const Icon(Icons.lock_outline, size: 16),
                     ],
                   ),
           ),
@@ -1225,6 +1753,19 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                 style: GoogleFonts.dmSans(
                     fontSize: 13, fontWeight: FontWeight.bold)),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryLine(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF64748B))),
+          Text(value, style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A))),
         ],
       ),
     );

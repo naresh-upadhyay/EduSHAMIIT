@@ -180,9 +180,9 @@ class ApiService {
   /// Handle HTTP response
   Map<String, dynamic> _handleResponse(http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return response.body.isEmpty
-          ? {}
-          : jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.body.isEmpty) return {};
+      final decoded = jsonDecode(response.body);
+      return (decoded is Map) ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
     } else if (response.statusCode == 401) {
       onUnauthorized?.call();
       throw ApiException('Unauthorized: Please login again');
