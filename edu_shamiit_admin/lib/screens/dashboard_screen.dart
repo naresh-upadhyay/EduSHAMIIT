@@ -96,6 +96,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         route: '/admin/users',
         section: NavSection.organization),
     _NavItem(
+        icon: Icons.badge_outlined,
+        label: 'HR Management',
+        route: '/admin/hr/overview',
+        section: NavSection.organization),
+    _NavItem(
         icon: Icons.class_outlined,
         label: 'Class Management',
         route: '/admin/classes',
@@ -335,6 +340,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/calendar' ||
                item.route == '/admin/schools' ||
                item.route == '/admin/users' ||
+               item.route.startsWith('/admin/hr') ||
                item.route == '/admin/classes' ||
                item.route == '/admin/attendance' ||
                item.route == '/admin/library' ||
@@ -364,6 +370,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         return item.route == '/admin/dashboard' ||
                item.route == '/admin/calendar' ||
                item.route == '/admin/users' ||
+               item.route.startsWith('/admin/hr') ||
                item.route == '/admin/classes' ||
                item.route == '/admin/attendance' ||
                item.route == '/admin/library' ||
@@ -386,6 +393,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/route-management' ||
                item.route == '/admin/trips-schedule' ||
                item.route == '/admin/stops';
+      } else if (role == 'hr') {
+        return item.route == '/admin/dashboard' ||
+               item.route == '/admin/calendar' ||
+               item.route.startsWith('/admin/hr') ||
+               item.route == '/admin/staff' ||
+               item.route == '/admin/alerts-notifications' ||
+               item.route == '/admin/emergency' ||
+               item.route == '/admin/my-profile';
       } else if (role == 'librarian') {
         return item.route == '/admin/dashboard' ||
                item.route == '/admin/calendar' ||

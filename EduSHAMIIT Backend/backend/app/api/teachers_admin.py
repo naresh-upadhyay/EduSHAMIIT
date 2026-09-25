@@ -111,19 +111,34 @@ async def _log_distribution(sb, school_id, sender_id, content_type, content_id, 
 @router.get("/list")
 async def list_teachers(
     search: Optional[str] = None,
+    role: Optional[str] = None,
+    department: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
     user=Depends(require_teacher_admin),
     school_id=Depends(require_school_id),
 ):
-    """List all teacher profiles."""
+    """List teacher and staff profiles."""
     sb = get_supabase()
     query = (
         sb.table("profiles")
-        .select("id, full_name, email, phone, role, avatar_url, qualification, specialization, experience_years, joining_date, bio")
+        .select("id, full_name, email, phone, role, employee_id, department, designation, avatar_url, qualification, specialization, experience_years, joining_date, bio")
         .eq("school_id", school_id)
-        .eq("role", "teacher")
     )
+    if role and role.lower() == "all":
+        query = query.in_("role", [
+            "teacher", "support", "driver", "transport", "finance", "library",
+            "security", "sports", "hr", "hostel", "admin", "principal", "director", "teacher_admin", "staff"
+        ])
+    elif role:
+        query = query.eq("role", role.lower())
+    else:
+        # Default for backward compatibility with existing teacher-specific tests
+        query = query.eq("role", "teacher")
+
+    if department and department.lower() != "all":
+        query = query.eq("department", department)
+
     if search:
         query = query.ilike("full_name", f"%{search}%")
     teachers = (await query.order("full_name").limit(limit).offset(offset).aexecute()).data

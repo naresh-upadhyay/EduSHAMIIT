@@ -70,6 +70,17 @@ class SystemConfig {
       AppConfig.footerQuickLinks = (footer['quick_links'] as List)
           .map((item) => FooterLink.fromJson(Map<String, dynamic>.from(item)))
           .toList();
+      if (!AppConfig.footerQuickLinks.any((link) =>
+          link.url.contains('careers') ||
+          link.label.toLowerCase() == 'careers')) {
+        final aboutIndex = AppConfig.footerQuickLinks.indexWhere(
+            (link) => link.label.toLowerCase().contains('about'));
+        final insertIndex = aboutIndex != -1
+            ? aboutIndex + 1
+            : AppConfig.footerQuickLinks.length;
+        AppConfig.footerQuickLinks
+            .insert(insertIndex, FooterLink(label: 'Careers', url: '/careers'));
+      }
     }
     if (footer['modules'] != null) {
       AppConfig.footerModules = (footer['modules'] as List)

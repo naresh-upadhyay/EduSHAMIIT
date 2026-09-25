@@ -260,6 +260,8 @@ class PublicFooter extends StatelessWidget {
                       onScrollToSection!('Pricing');
                     } else if (url == '/#about' && onScrollToSection != null) {
                       onScrollToSection!('About Us');
+                    } else if ((url == '/careers' || url == '/#careers') && onScrollToSection != null) {
+                      onScrollToSection!('Careers');
                     } else {
                       context.go(url);
                     }

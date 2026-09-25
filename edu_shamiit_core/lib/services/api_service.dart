@@ -106,6 +106,31 @@ class ApiService {
     }
   }
 
+  /// POST request returning raw bytes (e.g. for ZIP/PDF binary downloads)
+  Future<List<int>> postBytes(String endpoint, Map<String, dynamic> data) async {
+    try {
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}$endpoint');
+      final response = await _client
+          .post(
+            uri,
+            headers: await _headers,
+            body: jsonEncode(data),
+          )
+          .timeout(AppConfig.apiTimeout);
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return response.bodyBytes;
+      } else if (response.statusCode == 401) {
+        onUnauthorized?.call();
+        throw ApiException('Unauthorized: Please login again');
+      } else {
+        throw ApiException('Server returned error: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(e.toString().replaceAll(RegExp(r'^(ApiException:|Exception:|\s*Api)+', caseSensitive: false), '').trim());
+    }
+  }
+
   /// POST request
   Future<Map<String, dynamic>> post(
       String endpoint, Map<String, dynamic> data) async {

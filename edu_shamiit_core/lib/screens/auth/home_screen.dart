@@ -99,6 +99,8 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                   _scrollToSection(_pricingKey);
                 } else if (section == 'About Us') {
                   _scrollToSection(_aboutKey);
+                } else if (section == 'Careers') {
+                  context.go('/careers');
                 }
               },
             ),
@@ -128,6 +130,8 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                   _scrollToSection(_pricingKey);
                 } else if (section == 'About Us') {
                   _scrollToSection(_aboutKey);
+                } else if (section == 'Careers') {
+                  context.go('/careers');
                 }
               },
             ),
@@ -238,6 +242,7 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                   'Benefits', () => _scrollToSection(_benefitsKey)),
               _buildNavbarLink('Pricing', () => _scrollToSection(_pricingKey)),
               _buildNavbarLink('About Us', () => _scrollToSection(_aboutKey)),
+              _buildNavbarLink('Careers', () => context.go('/careers')),
               _buildNavbarLink('Contact Us', () => context.go('/contact')),
               const SizedBox(width: 16),
               OutlinedButton(

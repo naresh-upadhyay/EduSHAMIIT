@@ -2,17 +2,18 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
+import json
 import time
 import asyncio
 
-from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, students_admin, teachers_admin, documents, calls, live_classes, superadmin, audit_logs, tickets, announcements, system_config, insights, contact, alerts, transport, gis, calendar, notices, lookups, classes, attendance, library
+from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, students_admin, teachers_admin, documents, calls, live_classes, superadmin, audit_logs, tickets, announcements, system_config, insights, contact, alerts, transport, gis, calendar, notices, lookups, classes, attendance, library, recruitment, onboarding, hr_documents, hr_training, hr_overview
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     print("EduSHAMIIT API starting up...")
-    print("AI Assistant: Shami")
+    print("AI Assistant: Shami (Reloaded)")
     
     # Synchronize Supabase Vault secrets into environment variables and start scheduler
     try:
@@ -434,6 +435,21 @@ app.include_router(attendance.router, prefix="/api", tags=["Attendance Managemen
 app.include_router(library.router, prefix="/api/library", tags=["Library Management"])
 app.include_router(library.router, prefix="/api/v1/library", tags=["Library Management v1"])
 app.include_router(library.router, prefix="/api", tags=["Library Management Core"])
+app.include_router(recruitment.router, prefix="/api/recruitment", tags=["HR Recruitment Management"])
+app.include_router(recruitment.router, prefix="/api/v1/recruitment", tags=["HR Recruitment Management v1"])
+app.include_router(recruitment.public_router, prefix="/api/public/careers", tags=["Public Careers Portal"])
+app.include_router(recruitment.public_router, prefix="/api/v1/public/careers", tags=["Public Careers Portal v1"])
+app.include_router(recruitment.public_router, prefix="/api/recruitment/public", tags=["Public Careers Resumes Compatibility"])
+app.include_router(recruitment.public_router, prefix="/api/v1/recruitment/public", tags=["Public Careers Resumes Compatibility v1"])
+app.include_router(onboarding.router, prefix="/api/onboarding", tags=["HR Onboarding Management"])
+app.include_router(onboarding.router, prefix="/api/v1/onboarding", tags=["HR Onboarding Management v1"])
+app.include_router(hr_documents.router, prefix="/api/hr", tags=["HR Policies & Documents"])
+app.include_router(hr_documents.router, prefix="/api/v1/hr", tags=["HR Policies & Documents v1"])
+app.include_router(hr_training.router, prefix="/api/training", tags=["HR Training & Learning"])
+app.include_router(hr_training.router, prefix="/api/v1/training", tags=["HR Training & Learning v1"])
+app.include_router(hr_overview.router, prefix="/api/hr/overview", tags=["HR Overview"])
+app.include_router(hr_overview.router, prefix="/api/v1/hr/overview", tags=["HR Overview v1"])
+
 
 
 @app.get("/health")

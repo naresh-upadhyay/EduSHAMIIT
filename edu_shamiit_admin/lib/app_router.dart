@@ -25,6 +25,11 @@ import 'package:edu_shamiit_admin/screens/modules/quick_access/emergency_screen.
 import 'package:edu_shamiit_admin/screens/modules/fleet/driver_management_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/fleet/route_management_screen.dart';
 import 'package:edu_shamiit_admin/providers/system_config_provider.dart';
+import 'package:edu_shamiit_admin/screens/modules/recruit/recruitment_screen.dart';
+import 'package:edu_shamiit_admin/screens/modules/recruit/hr_overview_screen.dart';
+import 'package:edu_shamiit_admin/screens/modules/recruit/hr_onboarding_screen.dart';
+import 'package:edu_shamiit_admin/screens/modules/recruit/hr_training_screen.dart';
+import 'package:edu_shamiit_admin/screens/modules/recruit/hr_policies_screen.dart';
 
 final adminShellKey = GlobalKey<NavigatorState>(debugLabel: 'adminShell');
 
@@ -49,9 +54,12 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/',
     refreshListenable: notifier,
     redirect: (context, state) {
+      if (state.uri.path == '/' && Uri.base.hasFragment && Uri.base.fragment.startsWith('/careers')) {
+        return Uri.base.fragment;
+      }
       final authState = ref.read(authProvider);
       final loggedIn = authState.isAuthenticated;
-      final path = state.matchedLocation;
+      final path = state.uri.path;
       final isPublic = path == '/' ||
           path == '/login' ||
           path == '/forgot-password' ||
@@ -64,12 +72,16 @@ final routerProvider = Provider<GoRouter>((ref) {
           path == '/get-started' ||
           path == '/faq' ||
           path == '/user-guides' ||
-          path == '/help-center';
+          path == '/help-center' ||
+          path.startsWith('/careers');
 
       if (!loggedIn && !isPublic) {
         return '/login';
       }
       if (loggedIn && isPublic) {
+        if (path.startsWith('/careers')) {
+          return null; // Allow authenticated users to preview / view careers portal
+        }
         final role = authState.userData?['role']?.toString().toLowerCase();
         if (role == 'driver') {
           return '/driver/dashboard';
@@ -81,13 +93,15 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/',
-        builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
-          return SharedHomeScreen(
-            systemName: config?.systemName,
-            systemLogo: config?.systemLogo,
-          );
-        },
+        builder: (context, state) => Consumer(
+          builder: (context, ref, _) {
+            final config = ref.watch(systemConfigProvider);
+            return SharedHomeScreen(
+              systemName: config?.systemName,
+              systemLogo: config?.systemLogo,
+            );
+          },
+        ),
       ),
       GoRoute(
         path: '/login',
@@ -95,132 +109,184 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/contact',
-        builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
-          return SharedContactUsScreen(
-            systemName: config?.systemName,
-            systemLogo: config?.systemLogo,
-            illustrationUrl: 'assets/images/contact_illustration.png',
-          );
-        },
+        builder: (context, state) => Consumer(
+          builder: (context, ref, _) {
+            final config = ref.watch(systemConfigProvider);
+            return SharedContactUsScreen(
+              systemName: config?.systemName,
+              systemLogo: config?.systemLogo,
+              illustrationUrl: 'assets/images/contact_illustration.png',
+            );
+          },
+        ),
       ),
       GoRoute(
         path: '/privacy-policy',
-        builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
-          return SharedPrivacyPolicyScreen(
-            systemName: config?.systemName,
-            systemLogo: config?.systemLogo,
-            illustrationUrl: 'assets/images/privacy_illustration.png',
-          );
-        },
+        builder: (context, state) => Consumer(
+          builder: (context, ref, _) {
+            final config = ref.watch(systemConfigProvider);
+            return SharedPrivacyPolicyScreen(
+              systemName: config?.systemName,
+              systemLogo: config?.systemLogo,
+              illustrationUrl: 'assets/images/privacy_illustration.png',
+            );
+          },
+        ),
       ),
       GoRoute(
         path: '/terms-conditions',
-        builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
-          return SharedTermsConditionsScreen(
-            systemName: config?.systemName,
-            systemLogo: config?.systemLogo,
-            illustrationUrl: 'assets/images/terms_illustration.png',
-          );
-        },
+        builder: (context, state) => Consumer(
+          builder: (context, ref, _) {
+            final config = ref.watch(systemConfigProvider);
+            return SharedTermsConditionsScreen(
+              systemName: config?.systemName,
+              systemLogo: config?.systemLogo,
+              illustrationUrl: 'assets/images/terms_illustration.png',
+            );
+          },
+        ),
       ),
       GoRoute(
         path: '/get-started',
-        builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
-          return SharedGetStartedScreen(
-            systemName: config?.systemName,
-            systemLogo: config?.systemLogo,
-          );
-        },
+        builder: (context, state) => Consumer(
+          builder: (context, ref, _) {
+            final config = ref.watch(systemConfigProvider);
+            return SharedGetStartedScreen(
+              systemName: config?.systemName,
+              systemLogo: config?.systemLogo,
+            );
+          },
+        ),
       ),
       GoRoute(
         path: '/faq',
-        builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
-          return SharedFaqScreen(
-            systemName: config?.systemName,
-            systemLogo: config?.systemLogo,
-            illustrationUrl: 'assets/images/faq_illustration.png',
-          );
-        },
+        builder: (context, state) => Consumer(
+          builder: (context, ref, _) {
+            final config = ref.watch(systemConfigProvider);
+            return SharedFaqScreen(
+              systemName: config?.systemName,
+              systemLogo: config?.systemLogo,
+              illustrationUrl: 'assets/images/faq_illustration.png',
+            );
+          },
+        ),
       ),
       GoRoute(
         path: '/user-guides',
         builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
           final category = state.uri.queryParameters['category'];
           final article = state.uri.queryParameters['article'];
-          return SharedUserGuidesScreen(
-            systemName: config?.systemName,
-            systemLogo: config?.systemLogo,
-            illustrationUrl: 'assets/images/user_guide_illustration.png',
-            videoIllustrationUrl: 'assets/images/video_tutorials_illustration.png',
-            initialCategory: category,
-            initialArticleId: article,
+          return Consumer(
+            builder: (context, ref, _) {
+              final config = ref.watch(systemConfigProvider);
+              return SharedUserGuidesScreen(
+                systemName: config?.systemName,
+                systemLogo: config?.systemLogo,
+                illustrationUrl: 'assets/images/user_guide_illustration.png',
+                videoIllustrationUrl: 'assets/images/video_tutorials_illustration.png',
+                initialCategory: category,
+                initialArticleId: article,
+              );
+            },
           );
         },
       ),
       GoRoute(
         path: '/help-center',
+        builder: (context, state) => Consumer(
+          builder: (context, ref, _) {
+            final config = ref.watch(systemConfigProvider);
+            return SharedHelpCenterScreen(
+              systemName: config?.systemName,
+              systemLogo: config?.systemLogo,
+              illustrationUrl: 'assets/images/help_center_illustration.png',
+            );
+          },
+        ),
+      ),
+      GoRoute(
+        path: '/careers',
+        builder: (context, state) => Consumer(
+          builder: (context, ref, _) {
+            final config = ref.watch(systemConfigProvider);
+            return SharedCareersScreen(
+              systemName: config?.systemName,
+              systemLogo: config?.systemLogo,
+            );
+          },
+        ),
+      ),
+      GoRoute(
+        path: '/careers/jobs/:slug',
         builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
-          return SharedHelpCenterScreen(
-            systemName: config?.systemName,
-            systemLogo: config?.systemLogo,
-            illustrationUrl: 'assets/images/help_center_illustration.png',
+          final slug = state.pathParameters['slug'] ?? '';
+          return Consumer(
+            builder: (context, ref, _) {
+              final config = ref.watch(systemConfigProvider);
+              return SharedJobDetailsScreen(
+                slug: slug,
+                systemName: config?.systemName,
+                systemLogo: config?.systemLogo,
+              );
+            },
           );
         },
       ),
       GoRoute(
         path: '/forgot-password',
-        builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
-          return SharedForgotPasswordScreen(
-            isAdmin: true,
-            systemName: config?.systemName,
-            systemLogo: config?.systemLogo,
-            illustrationUrl: config?.forgotPasswordIllustration,
-          );
-        },
+        builder: (context, state) => Consumer(
+          builder: (context, ref, _) {
+            final config = ref.watch(systemConfigProvider);
+            return SharedForgotPasswordScreen(
+              isAdmin: true,
+              systemName: config?.systemName,
+              systemLogo: config?.systemLogo,
+              illustrationUrl: config?.forgotPasswordIllustration,
+            );
+          },
+        ),
       ),
       GoRoute(
         path: '/otp-verification',
         builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
           final args = state.extra as Map<String, dynamic>?;
           final email = args?['email'] as String? ?? '';
           final isLogin = args?['isLogin'] as bool? ?? false;
           final role = args?['role'] as UserRole?;
-          return SharedOtpVerificationScreen(
-            email: email,
-            isLogin: isLogin,
-            role: role,
-            isAdmin: true,
-            systemName: config?.systemName,
-            systemLogo: config?.systemLogo,
-            illustrationUrl: config?.otpVerificationIllustration,
+          return Consumer(
+            builder: (context, ref, _) {
+              final config = ref.watch(systemConfigProvider);
+              return SharedOtpVerificationScreen(
+                email: email,
+                isLogin: isLogin,
+                role: role,
+                isAdmin: true,
+                systemName: config?.systemName,
+                systemLogo: config?.systemLogo,
+                illustrationUrl: config?.otpVerificationIllustration,
+              );
+            },
           );
         },
       ),
       GoRoute(
         path: '/reset-password',
-        builder: (context, state) {
-          final config = ref.watch(systemConfigProvider);
-          final args = state.extra as Map<String, dynamic>?;
-          final email = args?['email'] as String? ?? '';
-          final otp = args?['otp'] as String? ?? '';
-          return SharedResetPasswordScreen(
-            email: email,
-            otp: otp,
-            isAdmin: true,
-            systemName: config?.systemName,
-            systemLogo: config?.systemLogo,
-            illustrationUrl: config?.resetPasswordIllustration,
-          );
-        },
+        builder: (context, state) => Consumer(
+          builder: (context, ref, _) {
+            final config = ref.watch(systemConfigProvider);
+            final args = state.extra as Map<String, dynamic>?;
+            final email = args?['email'] as String? ?? '';
+            final otp = args?['otp'] as String? ?? '';
+            return SharedResetPasswordScreen(
+              email: email,
+              otp: otp,
+              isAdmin: true,
+              systemName: config?.systemName,
+              systemLogo: config?.systemLogo,
+              illustrationUrl: config?.resetPasswordIllustration,
+            );
+          },
+        ),
       ),
       GoRoute(
         path: '/password-reset-success',
@@ -347,6 +413,56 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/admin/system-control',
             pageBuilder: (_, __) => const NoTransitionPage(child: SystemControlTab()),
+          ),
+
+          // HR Management Suite
+          GoRoute(
+            path: '/admin/hr',
+            redirect: (_, __) => '/admin/hr/overview',
+          ),
+          GoRoute(
+            path: '/hr',
+            redirect: (_, __) => '/admin/hr/overview',
+          ),
+          GoRoute(
+            path: '/admin/hr/overview',
+            pageBuilder: (_, __) => const NoTransitionPage(child: HROverviewScreen()),
+          ),
+          GoRoute(
+            path: '/hr/overview',
+            pageBuilder: (_, __) => const NoTransitionPage(child: HROverviewScreen()),
+          ),
+          GoRoute(
+            path: '/admin/hr/recruitment',
+            pageBuilder: (_, __) => const NoTransitionPage(child: RecruitmentScreen()),
+          ),
+          GoRoute(
+            path: '/hr/recruitment',
+            pageBuilder: (_, __) => const NoTransitionPage(child: RecruitmentScreen()),
+          ),
+          GoRoute(
+            path: '/admin/hr/onboarding',
+            pageBuilder: (_, __) => const NoTransitionPage(child: HROnboardingScreen()),
+          ),
+          GoRoute(
+            path: '/hr/onboarding',
+            pageBuilder: (_, __) => const NoTransitionPage(child: HROnboardingScreen()),
+          ),
+          GoRoute(
+            path: '/admin/hr/training',
+            pageBuilder: (_, __) => const NoTransitionPage(child: HRTrainingScreen()),
+          ),
+          GoRoute(
+            path: '/hr/training',
+            pageBuilder: (_, __) => const NoTransitionPage(child: HRTrainingScreen()),
+          ),
+          GoRoute(
+            path: '/admin/hr/policies',
+            pageBuilder: (_, __) => const NoTransitionPage(child: HRPoliciesScreen()),
+          ),
+          GoRoute(
+            path: '/hr/policies',
+            pageBuilder: (_, __) => const NoTransitionPage(child: HRPoliciesScreen()),
           ),
 
           GoRoute(

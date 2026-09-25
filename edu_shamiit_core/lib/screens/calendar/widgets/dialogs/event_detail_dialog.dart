@@ -54,11 +54,11 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
 
   void _resolveMyRSVP() {
     final user = ref.read(authProvider).userData;
-    final currentUserId = user?['id']?.toString();
-    if (currentUserId != null) {
+    final currentUserId = user?['id']?.toString().trim().toLowerCase();
+    if (currentUserId != null && currentUserId.isNotEmpty) {
       for (final p in _participants) {
-        if (p.userId == currentUserId && p.rsvpStatus != 'pending') {
-          _myRSVPStatus = p.rsvpStatus;
+        if (p.userId?.toString().trim().toLowerCase() == currentUserId) {
+          _myRSVPStatus = (p.rsvpStatus.isNotEmpty) ? p.rsvpStatus.toLowerCase() : 'pending';
           break;
         }
       }
@@ -303,28 +303,48 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
     final s = liveSchedule;
     final user = ref.watch(authProvider).userData;
     final currentUserId = user?['id']?.toString();
+    final normUserId = currentUserId?.trim().toLowerCase();
     final userRole = user?['role']?.toString().toLowerCase() ?? '';
 
     // Participant permission check
     ScheduleParticipantModel? myParticipant;
-    if (currentUserId != null && currentUserId.isNotEmpty) {
+    if (normUserId != null && normUserId.isNotEmpty) {
       try {
-        myParticipant = s.participants.firstWhere((p) => p.userId == currentUserId);
+        myParticipant = _participants.firstWhere(
+          (p) => p.userId?.toString().trim().toLowerCase() == normUserId,
+          orElse: () => s.participants.firstWhere(
+            (p) => p.userId?.toString().trim().toLowerCase() == normUserId,
+          ),
+        );
       } catch (_) {}
     }
 
     final pPerm = myParticipant?.permission.toLowerCase() ?? 'can_view';
     final hasWritePerm = pPerm == 'read_write' || pPerm == 'can_edit' || pPerm == 'can_manage';
 
-    final isOwner = s.organizerId == currentUserId ||
-        s.createdBy == currentUserId ||
-        userRole == 'super_admin' ||
-        userRole == 'admin' ||
-        userRole == 'owner' ||
-        (s.organizerId == null && s.createdBy == null);
+    final isActualCreator = (s.organizerId != null && s.organizerId!.trim().toLowerCase() == normUserId) ||
+        (s.createdBy != null && s.createdBy!.trim().toLowerCase() == normUserId);
 
-    final isOrganizer = isOwner;
+    final isAdminOrOwner = userRole == 'super_admin' ||
+        userRole == 'admin' ||
+        userRole == 'owner';
+
+    final isOwner = isActualCreator || isAdminOrOwner || (s.organizerId == null && s.createdBy == null);
     final canManage = isOwner || hasWritePerm;
+    final isOrganizer = isActualCreator || (s.organizerId == null && s.createdBy == null && isAdminOrOwner);
+
+    // Is current user an attendee / participant of this schedule?
+    final isAttendee = myParticipant != null ||
+        _participants.any((p) => p.userId?.toString().trim().toLowerCase() == normUserId) ||
+        s.participants.any((p) => p.userId?.toString().trim().toLowerCase() == normUserId);
+
+    // Show RSVP if user is an attendee, OR if user is not the actual creator (and event is not a pure holiday)
+    final showRSVP = isAttendee || (!isActualCreator && s.scheduleType.toLowerCase() != 'holiday');
+
+    // Immediate sync for RSVP status if not yet set
+    if (_myRSVPStatus == null && myParticipant != null) {
+      _myRSVPStatus = (myParticipant.rsvpStatus.isNotEmpty) ? myParticipant.rsvpStatus.toLowerCase() : 'pending';
+    }
 
     // Sync comments if live list has more comments
     if (s.comments.length > _comments.length) {
@@ -532,15 +552,15 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                   ],
 
                   // Participants & Response Breakdown
-                  if (canManage) ...[
+                  if (canManage || _participants.isNotEmpty) ...[
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isOrganizer ? 'Attendee Responses (${_participants.length})' : 'Participants & Assignments',
+                          (isOrganizer || isAdminOrOwner) ? 'Attendee Responses (${_participants.length})' : 'Participants & Assignments',
                           style: TextStyle(fontSize: (13 * ts).roundToDouble(), fontWeight: FontWeight.w800, color: const Color(0xFF0F172A)),
                         ),
-                        if (isOrganizer && _participants.isNotEmpty) ...[
+                        if (_participants.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           Wrap(
                             spacing: 4,
@@ -570,14 +590,14 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                     const SizedBox(height: 16),
                   ],
 
-                  // RSVP Response Section for Attendees
-                  if (!isOrganizer) ...[
+                  // RSVP Response Section for Attendees / Invited Users
+                  if (showRSVP) ...[
                     Row(
                       children: [
                         const Expanded(
                           child: Text('Your Response', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF64748B))),
                         ),
-                        if (_myRSVPStatus != null)
+                        if (_myRSVPStatus != null && _myRSVPStatus!.isNotEmpty)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
@@ -585,11 +605,13 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                                   ? const Color(0xFF10B981)
                                   : _myRSVPStatus == 'declined'
                                       ? const Color(0xFFEF4444)
-                                      : const Color(0xFFF59E0B),
+                                      : _myRSVPStatus == 'tentative'
+                                          ? const Color(0xFFF59E0B)
+                                          : const Color(0xFF64748B),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
-                              _myRSVPStatus!.toUpperCase(),
+                              _myRSVPStatus == 'pending' ? 'AWAITING' : _myRSVPStatus!.toUpperCase(),
                               style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
                             ),
                           ),
@@ -607,11 +629,11 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                           activeColor: const Color(0xFF10B981),
                           isMobile: isMobile,
                           onPressed: () {
-                            final currentUserId = ref.read(authProvider).userData?['id']?.toString();
+                            final currentUserId = ref.read(authProvider).userData?['id']?.toString().trim().toLowerCase();
                             setState(() {
                               _myRSVPStatus = 'accepted';
-                              if (currentUserId != null) {
-                                final idx = _participants.indexWhere((p) => p.userId == currentUserId);
+                              if (currentUserId != null && currentUserId.isNotEmpty) {
+                                final idx = _participants.indexWhere((p) => p.userId?.toString().trim().toLowerCase() == currentUserId);
                                 if (idx != -1) {
                                   _participants[idx] = ScheduleParticipantModel(
                                     id: _participants[idx].id,
@@ -628,6 +650,15 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                                     rsvpStatus: 'accepted',
                                     declineReason: null,
                                   );
+                                } else {
+                                  final u = ref.read(authProvider).userData;
+                                  _participants.add(ScheduleParticipantModel(
+                                    id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+                                    userId: currentUserId,
+                                    fullName: u?['full_name']?.toString() ?? 'You',
+                                    role: u?['role']?.toString() ?? 'Staff',
+                                    rsvpStatus: 'accepted',
+                                  ));
                                 }
                               }
                             });
@@ -641,11 +672,11 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                           activeColor: const Color(0xFFEF4444),
                           isMobile: isMobile,
                           onPressed: () {
-                            final currentUserId = ref.read(authProvider).userData?['id']?.toString();
+                            final currentUserId = ref.read(authProvider).userData?['id']?.toString().trim().toLowerCase();
                             setState(() {
                               _myRSVPStatus = 'declined';
-                              if (currentUserId != null) {
-                                final idx = _participants.indexWhere((p) => p.userId == currentUserId);
+                              if (currentUserId != null && currentUserId.isNotEmpty) {
+                                final idx = _participants.indexWhere((p) => p.userId?.toString().trim().toLowerCase() == currentUserId);
                                 if (idx != -1) {
                                   _participants[idx] = ScheduleParticipantModel(
                                     id: _participants[idx].id,
@@ -662,6 +693,16 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                                     rsvpStatus: 'declined',
                                     declineReason: 'Unavailable at this time',
                                   );
+                                } else {
+                                  final u = ref.read(authProvider).userData;
+                                  _participants.add(ScheduleParticipantModel(
+                                    id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+                                    userId: currentUserId,
+                                    fullName: u?['full_name']?.toString() ?? 'You',
+                                    role: u?['role']?.toString() ?? 'Staff',
+                                    rsvpStatus: 'declined',
+                                    declineReason: 'Unavailable at this time',
+                                  ));
                                 }
                               }
                             });
@@ -675,11 +716,11 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                           activeColor: const Color(0xFFF59E0B),
                           isMobile: isMobile,
                           onPressed: () {
-                            final currentUserId = ref.read(authProvider).userData?['id']?.toString();
+                            final currentUserId = ref.read(authProvider).userData?['id']?.toString().trim().toLowerCase();
                             setState(() {
                               _myRSVPStatus = 'tentative';
-                              if (currentUserId != null) {
-                                final idx = _participants.indexWhere((p) => p.userId == currentUserId);
+                              if (currentUserId != null && currentUserId.isNotEmpty) {
+                                final idx = _participants.indexWhere((p) => p.userId?.toString().trim().toLowerCase() == currentUserId);
                                 if (idx != -1) {
                                   _participants[idx] = ScheduleParticipantModel(
                                     id: _participants[idx].id,
@@ -696,6 +737,15 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                                     rsvpStatus: 'tentative',
                                     declineReason: null,
                                   );
+                                } else {
+                                  final u = ref.read(authProvider).userData;
+                                  _participants.add(ScheduleParticipantModel(
+                                    id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+                                    userId: currentUserId,
+                                    fullName: u?['full_name']?.toString() ?? 'You',
+                                    role: u?['role']?.toString() ?? 'Staff',
+                                    rsvpStatus: 'tentative',
+                                  ));
                                 }
                               }
                             });
@@ -1201,14 +1251,19 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
   Widget _buildAttendanceRoleBanner(BuildContext context, ScheduleModel s) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentUser = ref.watch(authProvider).userData;
-    final currentUserId = currentUser?['id']?.toString();
+    final currentUserId = currentUser?['id']?.toString().trim().toLowerCase();
     final isMobile = MediaQuery.sizeOf(context).width < 600;
     final double ts = (MediaQuery.sizeOf(context).width / 700).clamp(0.78, 1.0);
 
     ScheduleParticipantModel? myParticipant;
     if (currentUserId != null && currentUserId.isNotEmpty) {
       try {
-        myParticipant = s.participants.firstWhere((p) => p.userId == currentUserId);
+        myParticipant = _participants.firstWhere(
+          (p) => p.userId?.toString().trim().toLowerCase() == currentUserId,
+          orElse: () => s.participants.firstWhere(
+            (p) => p.userId?.toString().trim().toLowerCase() == currentUserId,
+          ),
+        );
       } catch (_) {}
     }
 

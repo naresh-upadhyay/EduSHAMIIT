@@ -17,11 +17,12 @@ BEGIN
   END IF;
 
   -- Delete cascading records
-  DELETE FROM public.user_documents WHERE user_id = p_user_id;
+  DELETE FROM public.user_documents WHERE owner_id = p_user_id;
   DELETE FROM public.user_active_sessions WHERE user_id = p_user_id;
   DELETE FROM public.group_members WHERE user_id = p_user_id;
   DELETE FROM public.notifications WHERE user_id = p_user_id;
   DELETE FROM public.drivers WHERE profile_id = p_user_id;
+  DELETE FROM public.password_resets WHERE user_id = p_user_id;
   DELETE FROM public.profiles WHERE id = p_user_id;
 
   RETURN jsonb_build_object(
@@ -58,30 +59,37 @@ DECLARE
   v_email TEXT;
   v_phone TEXT;
 BEGIN
-  -- Lookup profile by email or phone
+  -- Lookup profile by email or phone or user_id or id
   SELECT id, school_id, email, phone
   INTO v_user_id, v_school_id, v_email, v_phone
   FROM public.profiles
-  WHERE (email = p_identifier OR phone = p_identifier OR id::text = p_identifier)
+  WHERE (email = p_identifier OR phone = p_identifier OR id::text = p_identifier OR user_id = p_identifier)
   LIMIT 1;
 
   IF v_user_id IS NULL THEN
     RETURN jsonb_build_object('success', false, 'message', 'User profile not found');
   END IF;
 
-  -- Upsert password reset / OTP record
+  -- Invalidate previous pending OTPs
+  UPDATE public.password_resets
+  SET status = 'used'
+  WHERE user_id = v_user_id AND status = 'pending';
+
+  -- Insert new password reset / OTP record
   INSERT INTO public.password_resets (
     school_id,
     user_id,
-    email,
-    token,
+    otp,
+    expires_at,
+    status,
     created_at
   )
   VALUES (
     v_school_id,
     v_user_id,
-    COALESCE(v_email, p_identifier),
     p_otp_code,
+    NOW() + INTERVAL '15 minutes',
+    'pending',
     NOW()
   );
 
@@ -111,29 +119,44 @@ SECURITY DEFINER
 AS $$
 DECLARE
   v_user_id UUID;
-  v_valid BOOLEAN := FALSE;
+  v_reset_id UUID;
 BEGIN
-  -- Validate OTP matching token
-  SELECT user_id INTO v_user_id
-  FROM public.password_resets
-  WHERE (email = p_identifier OR user_id::text = p_identifier)
-    AND token = p_otp_code
-    AND created_at >= (NOW() - INTERVAL '15 minutes')
-  ORDER BY created_at DESC
+  -- Lookup profile by email or phone or user_id or id
+  SELECT id INTO v_user_id
+  FROM public.profiles
+  WHERE (email = p_identifier OR phone = p_identifier OR id::text = p_identifier OR user_id = p_identifier)
   LIMIT 1;
 
   IF v_user_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'message', 'User profile not found');
+  END IF;
+
+  -- Validate OTP matching token
+  SELECT id INTO v_reset_id
+  FROM public.password_resets
+  WHERE user_id = v_user_id
+    AND otp = p_otp_code
+    AND status IN ('pending', 'verified')
+    AND expires_at >= NOW()
+  ORDER BY created_at DESC
+  LIMIT 1;
+
+  IF v_reset_id IS NULL THEN
     RETURN jsonb_build_object('success', false, 'message', 'Invalid or expired OTP code');
   END IF;
 
   -- Reset lockout and update last login
   UPDATE public.profiles
   SET last_failed_login = NULL,
+      failed_login_attempts = 0,
+      lockout_until = NULL,
       updated_at = NOW()
   WHERE id = v_user_id;
 
-  -- Clean used OTP
-  DELETE FROM public.password_resets WHERE user_id = v_user_id;
+  -- Mark OTP as used
+  UPDATE public.password_resets
+  SET status = 'used'
+  WHERE id = v_reset_id;
 
   RETURN jsonb_build_object(
     'success', true,
@@ -191,3 +214,10 @@ BEGIN
   );
 END;
 $$;
+
+GRANT EXECUTE ON FUNCTION public.rpc_admin_delete_user_cascade(UUID) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.rpc_process_send_login_otp(TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.rpc_process_verify_login_otp(TEXT, TEXT) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.rpc_process_payment_webhook(UUID, TEXT, TEXT) TO anon, authenticated, service_role;
+
+NOTIFY pgrst, 'reload schema';

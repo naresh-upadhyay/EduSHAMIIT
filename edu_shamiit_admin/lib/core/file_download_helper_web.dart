@@ -14,3 +14,17 @@ void downloadFileImpl(String content, String fileName) {
   html.document.body!.children.remove(anchor);
   html.Url.revokeObjectUrl(url);
 }
+
+void downloadBytesImpl(List<int> bytes, String fileName, {String mimeType = 'application/pdf'}) {
+  final blob = html.Blob([bytes], mimeType);
+  final url = html.Url.createObjectUrlFromBlob(blob);
+  final anchor = html.document.createElement('a') as html.AnchorElement
+    ..href = url
+    ..style.display = 'none'
+    ..download = fileName;
+  html.document.body!.children.add(anchor);
+  anchor.click();
+  html.document.body!.children.remove(anchor);
+  html.Url.revokeObjectUrl(url);
+}
+

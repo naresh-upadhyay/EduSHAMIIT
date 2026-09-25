@@ -27,6 +27,8 @@ class _StaffTabState extends ConsumerState<StaffTab> {
     super.dispose();
   }
 
+  String _selectedRoleFilter = 'all';
+
   Future<void> _fetchTeachers() async {
     setState(() {
       _isLoading = true;
@@ -35,9 +37,15 @@ class _StaffTabState extends ConsumerState<StaffTab> {
 
     try {
       final search = _searchController.text.trim();
-      final path = search.isNotEmpty
-          ? '/admin/teachers/list?search=$search'
-          : '/admin/teachers/list';
+      final queryParams = <String>[];
+      if (search.isNotEmpty) queryParams.add('search=$search');
+      if (_selectedRoleFilter != 'all') {
+        queryParams.add('role=$_selectedRoleFilter');
+      } else {
+        queryParams.add('role=all');
+      }
+      final queryStr = queryParams.isNotEmpty ? '?${queryParams.join('&')}' : '';
+      final path = '/admin/teachers/list$queryStr';
 
       final response = await ApiService().get(path);
 
@@ -49,7 +57,7 @@ class _StaffTabState extends ConsumerState<StaffTab> {
         });
       } else {
         setState(() {
-          _errorMessage = response['detail'] ?? 'Failed to load teachers';
+          _errorMessage = response['detail'] ?? 'Failed to load staff';
           _isLoading = false;
         });
       }
@@ -292,6 +300,27 @@ class _StaffTabState extends ConsumerState<StaffTab> {
           ),
           const SizedBox(height: 24),
 
+          // Filter Chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildRoleFilterChip('all', 'All Staff'),
+                const SizedBox(width: 8),
+                _buildRoleFilterChip('teacher', 'Teachers'),
+                const SizedBox(width: 8),
+                _buildRoleFilterChip('support', 'Support Staff'),
+                const SizedBox(width: 8),
+                _buildRoleFilterChip('driver', 'Transport & Drivers'),
+                const SizedBox(width: 8),
+                _buildRoleFilterChip('finance', 'Finance & Accounts'),
+                const SizedBox(width: 8),
+                _buildRoleFilterChip('admin', 'Administrators'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
           // Content Area
           Expanded(
             child: _isLoading
@@ -301,13 +330,18 @@ class _StaffTabState extends ConsumerState<StaffTab> {
                     : _teachers.isEmpty
                         ? const Center(
                             child: Text(
-                            'No teachers found',
+                            'No staff members found matching criteria',
                             style: TextStyle(color: Color(0xFF94A3B8)),
                           ))
                         : ListView.builder(
                             itemCount: _teachers.length,
                             itemBuilder: (context, index) {
                               final teacher = _teachers[index] as Map<String, dynamic>;
+                              final roleStr = (teacher['role'] ?? 'teacher').toString();
+                              final isTeacher = roleStr == 'teacher';
+                              final deptStr = teacher['department'] ?? teacher['specialization'] ?? (isTeacher ? 'Academics' : 'Administration');
+                              final desigStr = teacher['designation'] ?? (isTeacher ? 'Teacher' : roleStr.toUpperCase());
+
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 16),
                                 padding: const EdgeInsets.all(16),
@@ -342,7 +376,7 @@ class _StaffTabState extends ConsumerState<StaffTab> {
                                             child: teacher['avatar_url'] == null ||
                                                     (!teacher['avatar_url'].toString().startsWith('http://') &&
                                                      !teacher['avatar_url'].toString().startsWith('https://'))
-                                                ? const Icon(Icons.person, color: Color(0xFF4F46E5))
+                                                ? Icon(isTeacher ? Icons.person : (roleStr == 'driver' ? Icons.directions_bus : Icons.badge_outlined), color: const Color(0xFF4F46E5))
                                                 : null,
                                           ),
                                           const SizedBox(width: 16),
@@ -350,19 +384,55 @@ class _StaffTabState extends ConsumerState<StaffTab> {
                                             child: Column(
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
-                                                Text(
-                                                  teacher['full_name'] ?? 'No Name',
-                                                  style: TextStyle(
-                                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 15,
-                                                    fontFamily: 'Outfit',
-                                                  ),
-                                                  overflow: TextOverflow.ellipsis,
+                                                Row(
+                                                  children: [
+                                                    Flexible(
+                                                      child: Text(
+                                                        teacher['full_name'] ?? 'No Name',
+                                                        style: TextStyle(
+                                                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                                          fontWeight: FontWeight.bold,
+                                                          fontSize: 15,
+                                                          fontFamily: 'Outfit',
+                                                        ),
+                                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                                                    if (teacher['employee_id'] != null) ...[
+                                                      const SizedBox(width: 8),
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                        decoration: BoxDecoration(
+                                                          color: const Color(0xFFF1F5F9),
+                                                          borderRadius: BorderRadius.circular(4),
+                                                        ),
+                                                        child: Text(
+                                                          teacher['employee_id'],
+                                                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                    const SizedBox(width: 6),
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: isTeacher ? const Color(0xFFEEF2FF) : const Color(0xFFFEF3C7),
+                                                        borderRadius: BorderRadius.circular(4),
+                                                      ),
+                                                      child: Text(
+                                                        roleStr.toUpperCase(),
+                                                        style: TextStyle(
+                                                          fontSize: 9,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: isTeacher ? const Color(0xFF4F46E5) : const Color(0xFFD97706),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                                 const SizedBox(height: 4),
                                                 Text(
-                                                  '${teacher['email']}  •  ${teacher['specialization'] ?? 'General Specialist'}',
+                                                  '${teacher['email'] ?? 'No email'}  •  $desigStr  •  $deptStr',
                                                   style: const TextStyle(
                                                     color: Color(0xFF64748B),
                                                     fontSize: 11,
@@ -377,16 +447,30 @@ class _StaffTabState extends ConsumerState<StaffTab> {
                                       ),
                                     ),
                                     const SizedBox(width: 12),
-                                    ElevatedButton.icon(
-                                      onPressed: () => _showAssignClassesDialog(teacher),
-                                      icon: const Icon(Icons.add_task_rounded, size: 16),
-                                      label: const Text('Assign Classes', style: TextStyle(fontSize: 11)),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF4F46E5),
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    if (isTeacher)
+                                      ElevatedButton.icon(
+                                        onPressed: () => _showAssignClassesDialog(teacher),
+                                        icon: const Icon(Icons.add_task_rounded, size: 16),
+                                        label: const Text('Assign Classes', style: TextStyle(fontSize: 11)),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFF4F46E5),
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        ),
+                                      )
+                                    else
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF8FAFC),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                                        ),
+                                        child: Text(
+                                          desigStr,
+                                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                                        ),
                                       ),
-                                    ),
                                   ],
                                 ),
                               );
@@ -394,6 +478,34 @@ class _StaffTabState extends ConsumerState<StaffTab> {
                           ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRoleFilterChip(String role, String label) {
+    final isSelected = _selectedRoleFilter == role;
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (val) {
+        setState(() {
+          _selectedRoleFilter = role;
+        });
+        _fetchTeachers();
+      },
+      selectedColor: const Color(0xFF4F46E5).withValues(alpha: 0.15),
+      checkmarkColor: const Color(0xFF4F46E5),
+      labelStyle: TextStyle(
+        color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
+        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+        fontSize: 12,
+      ),
+      backgroundColor: Theme.of(context).cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFFE2E8F0),
+        ),
       ),
     );
   }

@@ -56,6 +56,11 @@ class PublicDrawer extends StatelessWidget {
           section: 'About Us',
           route: '/'),
       const _DrawerItem(
+          icon: Icons.work_outline,
+          label: 'Careers',
+          section: 'Careers',
+          route: '/careers'),
+      const _DrawerItem(
           icon: Icons.mail_outline,
           label: 'Contact Us',
           section: 'Contact Us',

@@ -29,6 +29,7 @@ export 'services/websocket_service.dart';
 export 'services/biometric_service.dart';
 export 'services/tts_service.dart';
 export 'services/notification_service.dart';
+export 'services/lookup_event_bus.dart';
 
 // Providers
 export 'providers/settings_provider.dart';
@@ -45,6 +46,7 @@ export 'utils/validators.dart';
 export 'utils/date_formatter.dart';
 export 'utils/math_formatter.dart';
 export 'utils/l10n.dart';
+export 'utils/download_helper.dart';
 
 // Widgets
 export 'widgets/ai_fab.dart';
@@ -68,6 +70,8 @@ export 'screens/auth/get_started_screen.dart';
 export 'screens/auth/faq_screen.dart';
 export 'screens/auth/user_guides_screen.dart';
 export 'screens/auth/help_center_screen.dart';
+export 'screens/auth/careers_screen.dart';
+export 'screens/auth/job_details_screen.dart';
 
 // Shared Calendar Module
 export 'screens/calendar/universal_calendar_screen.dart';

@@ -15,6 +15,7 @@ class AppConfig {
     FooterLink(label: 'Modules', url: '/#modules'),
     FooterLink(label: 'Pricing', url: '/#pricing'),
     FooterLink(label: 'About Us', url: '/#about'),
+    FooterLink(label: 'Careers', url: '/careers'),
     FooterLink(label: 'Contact Us', url: '/contact'),
     FooterLink(label: 'FAQ', url: '/faq'),
     FooterLink(label: 'Help Center', url: '/help-center'),

@@ -14,7 +14,6 @@ import 'package:edu_shamiit_academic/features/student/attendance/screens/student
 import 'package:edu_shamiit_academic/features/student/fees/screens/student_fees.dart';
 import 'package:edu_shamiit_academic/features/shared/leave/screens/leave_screen.dart';
 import 'package:edu_shamiit_academic/features/student/profile/screens/student_profile.dart';
-import 'package:edu_shamiit_academic/features/student/library/screens/student_library.dart';
 import 'package:edu_shamiit_academic/features/student/courses/screens/student_courses.dart';
 import 'package:edu_shamiit_academic/features/student/courses/screens/student_course_details.dart';
 import 'package:edu_shamiit_academic/features/teacher/my_classes/screens/teacher_class_subjects.dart';
@@ -39,7 +38,6 @@ import 'package:edu_shamiit_academic/features/student/exams/screens/exam_result_
 import 'package:edu_shamiit_academic/features/student/exams/screens/exam_review_screen.dart';
 
 import 'package:edu_shamiit_academic/features/teacher/dashboard/screens/teacher_dashboard.dart';
-import 'package:edu_shamiit_academic/features/teacher/attendance/screens/teacher_attendance.dart';
 import 'package:edu_shamiit_academic/features/teacher/homework/screens/teacher_homework.dart';
 import 'package:edu_shamiit_academic/features/teacher/gradebook/screens/teacher_gradebook.dart';
 import 'package:edu_shamiit_academic/features/teacher/my_classes/screens/teacher_my_classes.dart';
@@ -91,6 +89,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/splash',
     refreshListenable: notifier,
     redirect: (context, state) {
+      if (state.uri.path == '/splash' && Uri.base.hasFragment && Uri.base.fragment.startsWith('/careers')) {
+        return Uri.base.fragment;
+      }
       final authState = ref.read(authProvider);
       final isAuth = authState.isAuthenticated;
       
@@ -101,7 +102,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isOtp = path == '/otp-verification';
       final isReset = path == '/reset-password';
       final isResetSuccess = path == '/password-reset-success';
-      final isPublic = isSplash || isLogin || isForgot || isOtp || isReset || isResetSuccess;
+      final isCareers = path.startsWith('/careers');
+      final isPublic = isSplash || isLogin || isForgot || isOtp || isReset || isResetSuccess || isCareers;
 
       // If user is NOT authenticated, and trying to access a private route, force to login
       if (!isAuth && !isPublic && !authState.isLoading) {
@@ -109,7 +111,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       // If user IS authenticated and trying to access a public route (like login), push to dashboard
-      if (isAuth && isPublic && !isSplash) {
+      if (isAuth && isPublic && !isSplash && !isCareers) {
         final role = authState.role;
         if (role.value == 'teacher') {
           return '/teacher/dashboard';
@@ -176,6 +178,16 @@ final routerProvider = Provider<GoRouter>((ref) {
     GoRoute(
       path: '/password-reset-success',
       builder: (_, __) => const SharedPasswordResetSuccessScreen(isAdmin: false),
+    ),
+    GoRoute(
+      path: '/careers',
+      builder: (_, __) => const SharedCareersScreen(),
+    ),
+    GoRoute(
+      path: '/careers/jobs/:slug',
+      builder: (_, state) => SharedJobDetailsScreen(
+        slug: state.pathParameters['slug'] ?? '',
+      ),
     ),
     GoRoute(
       path: '/settings',

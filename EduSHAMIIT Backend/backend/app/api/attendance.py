@@ -1760,6 +1760,12 @@ async def get_student_attendance_insights_profile(
         res = rows[0]["result"]
         if not res.get("success"):
             raise HTTPException(status_code=404, detail=res.get("error", "Profile not found"))
+        d = res.get("data", {})
+        if isinstance(d, dict):
+            if "stats" in d and "metrics" not in d:
+                d["metrics"] = d["stats"]
+            if "heatmap" in d and "calendar_heatmap" not in d:
+                d["calendar_heatmap"] = d["heatmap"]
         return _serialize_val(res)
 
     raise HTTPException(status_code=404, detail="Student not found")

@@ -976,7 +976,35 @@ async def verify_otp(request: VerifyOtpRequest):
         result = await sb.table("password_resets").select("*").eq("user_id", user_id).eq("otp", otp).eq("status", "pending").gte("expires_at", now).aexecute()
         
         if not result.data:
-            raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+            try:
+                existing = await sb.table("password_resets")\
+                    .select("*")\
+                    .eq("user_id", user_id)\
+                    .eq("status", "pending")\
+                    .order("created_at", ascending=False)\
+                    .limit(1)\
+                    .aexecute()
+                if existing.data and len(existing.data) > 0:
+                    rec = existing.data[0]
+                    now_dt = datetime.now(timezone.utc)
+                    exp_raw = rec["expires_at"].replace("Z", "+00:00")
+                    exp_dt = datetime.fromisoformat(exp_raw)
+                    if now_dt > exp_dt:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="This verification code has expired. Please click 'Resend OTP' to receive a fresh code."
+                        )
+                    else:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="The 6-digit OTP code entered is incorrect. Please verify the code sent to your email and try again."
+                        )
+            except HTTPException:
+                raise
+            except Exception:
+                pass
+
+            raise HTTPException(status_code=400, detail="The 6-digit OTP code entered is incorrect or expired. Please check your email and try again.")
         
         # Mark OTP as verified
         otp_record = result.data[0]
@@ -1262,11 +1290,23 @@ async def send_login_otp(request: SendLoginOtpRequest):
         
         # Generate & store OTP atomically via RPC stored procedure
         otp = generate_otp(settings.OTP_LENGTH)
-        await sb.rpc("rpc_process_send_login_otp", {
-            "p_identifier": request.identifier,
-            "p_otp_code": otp,
-            "p_ip_address": None
-        }).aexecute()
+        try:
+            await sb.rpc("rpc_process_send_login_otp", {
+                "p_identifier": request.identifier,
+                "p_otp_code": otp,
+                "p_ip_address": None
+            }).aexecute()
+        except Exception as rpc_err:
+            logging.warning(f"RPC send OTP failed, falling back to direct table write: {rpc_err}")
+            expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.OTP_EXPIRATION_MINUTES)
+            await sb.table("password_resets").update({"status": "used"}).eq("user_id", user_id).eq("status", "pending").aexecute()
+            await sb.table("password_resets").insert({
+                "school_id": user.get("school_id"),
+                "user_id": user_id,
+                "otp": otp,
+                "expires_at": expires_at.isoformat(),
+                "status": "pending"
+            }).aexecute()
 
         
         # Send mail
@@ -1322,13 +1362,77 @@ async def verify_login_otp(request: VerifyLoginOtpRequest):
             raise HTTPException(status_code=403, detail="Selected role does not match registered profile")
             
         # Verify OTP code atomically via RPC stored procedure
-        otp_res = await sb.rpc("rpc_process_verify_login_otp", {
-            "p_identifier": request.identifier,
-            "p_otp_code": request.otp
-        }).aexecute()
-        
-        if not otp_res.data or not otp_res.data.get("success"):
-            raise HTTPException(status_code=400, detail="Invalid or expired OTP code")
+        otp_valid = False
+        try:
+            otp_res = await sb.rpc("rpc_process_verify_login_otp", {
+                "p_identifier": request.identifier,
+                "p_otp_code": request.otp
+            }).aexecute()
+            
+            data = otp_res.data[0] if isinstance(otp_res.data, list) and len(otp_res.data) > 0 else otp_res.data
+            if isinstance(data, dict) and data.get("success"):
+                otp_valid = True
+        except Exception as rpc_err:
+            logging.warning(f"RPC verify OTP failed: {rpc_err}")
+            
+        if not otp_valid:
+            # Fallback to direct password_resets lookup
+            now = datetime.now(timezone.utc).isoformat()
+            direct_check = await sb.table("password_resets")\
+                .select("*")\
+                .eq("user_id", user_id)\
+                .eq("otp", request.otp)\
+                .in_("status", ["pending", "verified"])\
+                .gte("expires_at", now)\
+                .order("created_at", ascending=False)\
+                .limit(1)\
+                .aexecute()
+                
+            if direct_check.data and len(direct_check.data) > 0:
+                otp_valid = True
+                await sb.table("password_resets").update({"status": "used"}).eq("id", direct_check.data[0]["id"]).aexecute()
+                await sb.table("profiles").update({
+                    "last_failed_login": None,
+                    "failed_login_attempts": 0,
+                    "lockout_until": None,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }).eq("id", user_id).aexecute()
+
+        if not otp_valid:
+            # Differentiate between incorrect OTP and expired OTP for optimal user feedback
+            try:
+                existing = await sb.table("password_resets")\
+                    .select("*")\
+                    .eq("user_id", user_id)\
+                    .in_("status", ["pending", "verified"])\
+                    .order("created_at", ascending=False)\
+                    .limit(1)\
+                    .aexecute()
+                
+                if existing.data and len(existing.data) > 0:
+                    rec = existing.data[0]
+                    now_dt = datetime.now(timezone.utc)
+                    exp_raw = rec["expires_at"].replace("Z", "+00:00")
+                    exp_dt = datetime.fromisoformat(exp_raw)
+                    if now_dt > exp_dt:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="This verification code has expired. Please click 'Resend OTP' to receive a fresh code."
+                        )
+                    else:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="The 6-digit OTP code entered is incorrect. Please verify the code sent to your email and try again."
+                        )
+            except HTTPException:
+                raise
+            except Exception:
+                pass
+
+            raise HTTPException(
+                status_code=400,
+                detail="The 6-digit OTP code entered is incorrect or expired. Please check your email and try again."
+            )
 
         
         token = jwt.encode(

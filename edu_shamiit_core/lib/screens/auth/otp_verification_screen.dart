@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -36,7 +37,8 @@ class SharedOtpVerificationScreen extends ConsumerStatefulWidget {
 }
 
 class _SharedOtpVerificationScreenState
-    extends ConsumerState<SharedOtpVerificationScreen> {
+    extends ConsumerState<SharedOtpVerificationScreen>
+    with SingleTickerProviderStateMixin {
   final List<TextEditingController> _controllers =
       List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
@@ -45,9 +47,24 @@ class _SharedOtpVerificationScreenState
   bool _canResend = false;
   Timer? _timer;
 
+  late AnimationController _shakeController;
+  late Animation<double> _shakeAnimation;
+  String? _errorMessage;
+  bool _hasError = false;
+
   @override
   void initState() {
     super.initState();
+    _shakeController = AnimationController(
+      duration: const Duration(milliseconds: 450),
+      vsync: this,
+    );
+    _shakeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _shakeController,
+        curve: Curves.easeInOut,
+      ),
+    );
     _startTimer();
   }
 
@@ -82,6 +99,7 @@ class _SharedOtpVerificationScreenState
   @override
   void dispose() {
     _timer?.cancel();
+    _shakeController.dispose();
     for (var controller in _controllers) {
       controller.dispose();
     }
@@ -93,12 +111,24 @@ class _SharedOtpVerificationScreenState
 
   Future<void> _verifyOtp() async {
     if (_otp.length != 6) {
-      _showSnackBar('Please enter complete 6-digit OTP code', Colors.orange);
+      setState(() {
+        _errorMessage =
+            'Please enter the complete 6-digit OTP code sent to your email.';
+        _hasError = true;
+      });
+      _shakeController.forward(from: 0.0);
+      _showSnackBar(
+        'Please enter complete 6-digit OTP code',
+        const Color(0xFFD97706),
+        icon: Icons.warning_amber_rounded,
+      );
       return;
     }
 
     setState(() {
       _isLoading = true;
+      _errorMessage = null;
+      _hasError = false;
     });
 
     try {
@@ -123,9 +153,21 @@ class _SharedOtpVerificationScreenState
             }
           }
         } else {
-          final errorMessage =
-              ref.read(authProvider).error ?? 'OTP verification failed';
-          _showSnackBar(errorMessage, Colors.red);
+          final rawError = ref.read(authProvider).error;
+          final errorMsg = (rawError != null && rawError.isNotEmpty)
+              ? rawError
+              : 'The verification code you entered is invalid. Please check your email and try again.';
+
+          setState(() {
+            _errorMessage = errorMsg;
+            _hasError = true;
+          });
+          _shakeController.forward(from: 0.0);
+          _showSnackBar(
+            errorMsg,
+            const Color(0xFFDC2626),
+            icon: Icons.error_outline_rounded,
+          );
           _clearOtp();
         }
       } else {
@@ -151,13 +193,35 @@ class _SharedOtpVerificationScreenState
             },
           );
         } else {
-          _showSnackBar(data['detail'] ?? 'Invalid OTP', Colors.red);
+          final errorMsg = data['detail'] ??
+              'The 6-digit OTP code entered is incorrect. Please check your email and try again.';
+          setState(() {
+            _errorMessage = errorMsg;
+            _hasError = true;
+          });
+          _shakeController.forward(from: 0.0);
+          _showSnackBar(
+            errorMsg,
+            const Color(0xFFDC2626),
+            icon: Icons.error_outline_rounded,
+          );
           _clearOtp();
         }
       }
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('Error: ${e.toString()}', Colors.red);
+      const errorMsg =
+          'Network connection error. Please verify your connection and try again.';
+      setState(() {
+        _errorMessage = errorMsg;
+        _hasError = true;
+      });
+      _shakeController.forward(from: 0.0);
+      _showSnackBar(
+        errorMsg,
+        const Color(0xFFDC2626),
+        icon: Icons.wifi_off_rounded,
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -172,6 +236,8 @@ class _SharedOtpVerificationScreenState
 
     setState(() {
       _isLoading = true;
+      _errorMessage = null;
+      _hasError = false;
     });
 
     try {
@@ -189,14 +255,41 @@ class _SharedOtpVerificationScreenState
       if (!mounted) return;
 
       if (data['success'] == true) {
-        _showSnackBar('OTP resent successfully', Colors.green);
+        setState(() {
+          _errorMessage = null;
+          _hasError = false;
+        });
+        _showSnackBar(
+          'A fresh 6-digit OTP code has been sent to your email',
+          const Color(0xFF16A34A),
+          icon: Icons.mark_email_read_outlined,
+        );
         _startTimer();
       } else {
-        _showSnackBar(data['detail'] ?? 'Failed to resend OTP', Colors.red);
+        final errorMsg =
+            data['detail'] ?? 'Failed to resend OTP. Please try again.';
+        setState(() {
+          _errorMessage = errorMsg;
+          _hasError = true;
+        });
+        _showSnackBar(
+          errorMsg,
+          const Color(0xFFDC2626),
+          icon: Icons.error_outline_rounded,
+        );
       }
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('Network error. Please try again.', Colors.red);
+      const errorMsg = 'Network connection error. Please try again.';
+      setState(() {
+        _errorMessage = errorMsg;
+        _hasError = true;
+      });
+      _showSnackBar(
+        errorMsg,
+        const Color(0xFFDC2626),
+        icon: Icons.wifi_off_rounded,
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -215,14 +308,33 @@ class _SharedOtpVerificationScreenState
     }
   }
 
-  void _showSnackBar(String message, Color backgroundColor) {
+  void _showSnackBar(String message, Color backgroundColor,
+      {IconData icon = Icons.info_outline}) {
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content:
-            Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
+        content: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: GoogleFonts.dmSans(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
         backgroundColor: backgroundColor,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+        elevation: 6,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -729,6 +841,91 @@ class _SharedOtpVerificationScreenState
                       ),
                     ),
                     const SizedBox(height: 24),
+                    // In-Card Error Alert Banner
+                    if (_errorMessage != null) ...[
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeOut,
+                        margin: const EdgeInsets.only(bottom: 20),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: const Color(0xFFFCA5A5), width: 1.2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFEF4444)
+                                  .withValues(alpha: 0.08),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFFEE2E2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.error_outline_rounded,
+                                color: Color(0xFFDC2626),
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Incorrect Code',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFF991B1B),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _errorMessage!,
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 12,
+                                      color: const Color(0xFFB91C1C),
+                                      height: 1.35,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _errorMessage = null;
+                                  _hasError = false;
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(16),
+                              child: const Padding(
+                                padding: EdgeInsets.all(2),
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  size: 16,
+                                  color: Color(0xFF991B1B),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     // OTP Inputs
                     _buildOtpGrid(),
                     const SizedBox(height: 24),
@@ -855,61 +1052,97 @@ class _SharedOtpVerificationScreenState
   }
 
   Widget _buildOtpGrid() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: List.generate(6, (index) {
-        return SizedBox(
-          width: 44,
-          height: 44,
-          child: TextFormField(
-            controller: _controllers[index],
-            focusNode: _focusNodes[index],
-            keyboardType: TextInputType.number,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.dmSans(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF0F172A)),
-            inputFormatters: [
-              LengthLimitingTextInputFormatter(1),
-              FilteringTextInputFormatter.digitsOnly,
-            ],
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: EdgeInsets.zero,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide:
-                    const BorderSide(color: Color(0xFF6366F1), width: 1.5),
-              ),
-            ),
-            onChanged: (value) {
-              if (value.isNotEmpty) {
-                if (index < 5) {
-                  _focusNodes[index + 1].requestFocus();
-                } else {
-                  _focusNodes[index].unfocus();
-                  _verifyOtp(); // Auto-verify on final digit
-                }
-              } else {
-                if (index > 0) {
-                  _focusNodes[index - 1].requestFocus();
-                }
-              }
-              setState(() {});
-            },
-          ),
+    return AnimatedBuilder(
+      animation: _shakeAnimation,
+      builder: (context, child) {
+        final shakeOffset = sin(_shakeAnimation.value * pi * 4) * 8.0;
+        return Transform.translate(
+          offset: Offset(shakeOffset, 0),
+          child: child,
         );
-      }),
+      },
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List.generate(6, (index) {
+          final isBoxActive = _controllers[index].text.isNotEmpty;
+          return SizedBox(
+            width: 44,
+            height: 48,
+            child: TextFormField(
+              controller: _controllers[index],
+              focusNode: _focusNodes[index],
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.dmSans(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: _hasError
+                    ? const Color(0xFFDC2626)
+                    : const Color(0xFF0F172A),
+              ),
+              inputFormatters: [
+                LengthLimitingTextInputFormatter(1),
+                FilteringTextInputFormatter.digitsOnly,
+              ],
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: _hasError
+                    ? const Color(0xFFFEF2F2)
+                    : (isBoxActive ? const Color(0xFFF8FAFC) : Colors.white),
+                contentPadding: EdgeInsets.zero,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: _hasError
+                        ? const Color(0xFFEF4444)
+                        : const Color(0xFFE2E8F0),
+                    width: _hasError ? 1.5 : 1.0,
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: _hasError
+                        ? const Color(0xFFEF4444)
+                        : const Color(0xFFE2E8F0),
+                    width: _hasError ? 1.5 : 1.0,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: _hasError
+                        ? const Color(0xFFDC2626)
+                        : const Color(0xFF6366F1),
+                    width: 2.0,
+                  ),
+                ),
+              ),
+              onChanged: (value) {
+                if (_hasError || _errorMessage != null) {
+                  setState(() {
+                    _hasError = false;
+                    _errorMessage = null;
+                  });
+                }
+                if (value.isNotEmpty) {
+                  if (index < 5) {
+                    _focusNodes[index + 1].requestFocus();
+                  } else {
+                    _focusNodes[index].unfocus();
+                    _verifyOtp(); // Auto-verify on final digit
+                  }
+                } else {
+                  if (index > 0) {
+                    _focusNodes[index - 1].requestFocus();
+                  }
+                }
+                setState(() {});
+              },
+            ),
+          );
+        }),
+      ),
     );
   }
 
