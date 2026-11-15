@@ -686,8 +686,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog>
       classesList.add(_gradeLevelCtrl.text.trim());
     }
 
-    if (!categories.contains(_selectedCategory) && categories.isNotEmpty)
+    if (!categories.contains(_selectedCategory) && categories.isNotEmpty) {
       _selectedCategory = categories.first;
+    }
     if (!yearOptions.contains(_selectedFinancialYear) &&
         yearOptions.isNotEmpty) {
       _selectedFinancialYear = yearOptions.firstWhere(
@@ -695,13 +696,16 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog>
         orElse: () => yearOptions.first,
       );
     }
-    if (!languages.contains(_selectedLanguage) && languages.isNotEmpty)
+    if (!languages.contains(_selectedLanguage) && languages.isNotEmpty) {
       _selectedLanguage = languages.first;
-    if (!bookTypes.contains(_selectedBookType) && bookTypes.isNotEmpty)
+    }
+    if (!bookTypes.contains(_selectedBookType) && bookTypes.isNotEmpty) {
       _selectedBookType = bookTypes.first;
+    }
     if (!conditionOptions.contains(_selectedCondition) &&
-        conditionOptions.isNotEmpty)
+        conditionOptions.isNotEmpty) {
       _selectedCondition = conditionOptions.first;
+    }
 
     final availableRoles = state.filterOptions.roles;
     final List<String> roleCodeOptions = [];
@@ -905,9 +909,10 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog>
                                   value: _selectedFinancialYear,
                                   items: yearOptions,
                                   onChanged: (v) {
-                                    if (v != null)
+                                    if (v != null) {
                                       setState(
                                           () => _selectedFinancialYear = v);
+                                    }
                                   },
                                   isDark: isDark,
                                 ),
@@ -938,8 +943,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog>
                                   value: _selectedCategory,
                                   items: categories,
                                   onChanged: (v) {
-                                    if (v != null)
+                                    if (v != null) {
                                       setState(() => _selectedCategory = v);
+                                    }
                                   },
                                   isDark: isDark,
                                 ),
@@ -951,8 +957,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog>
                                   value: _selectedLanguage,
                                   items: languages,
                                   onChanged: (v) {
-                                    if (v != null)
+                                    if (v != null) {
                                       setState(() => _selectedLanguage = v);
+                                    }
                                   },
                                   isDark: isDark,
                                 ),
@@ -997,8 +1004,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog>
                                     'Expert'
                                   ],
                                   onChanged: (v) {
-                                    if (v != null)
+                                    if (v != null) {
                                       setState(() => _difficultyLevel = v);
+                                    }
                                   },
                                   isDark: isDark,
                                 ),
@@ -1018,8 +1026,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog>
                                           : ''),
                                   items: subjectsList,
                                   onChanged: (v) {
-                                    if (v != null)
+                                    if (v != null) {
                                       setState(() => _subjectCtrl.text = v);
+                                    }
                                   },
                                   isDark: isDark,
                                 ),
@@ -1036,8 +1045,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog>
                                           : ''),
                                   items: classesList,
                                   onChanged: (v) {
-                                    if (v != null)
+                                    if (v != null) {
                                       setState(() => _gradeLevelCtrl.text = v);
+                                    }
                                   },
                                   isDark: isDark,
                                 ),
@@ -1118,8 +1128,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog>
                                         _formatOptionLabel(code);
                                   },
                                   onChanged: (v) {
-                                    if (v != null)
+                                    if (v != null) {
                                       setState(() => _selectedCondition = v);
+                                    }
                                   },
                                   isDark: isDark,
                                 ),
@@ -1197,9 +1208,10 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog>
                                           roleDisplayMap[code] ??
                                           _formatOptionLabel(code),
                                       onChanged: (v) {
-                                        if (v != null)
+                                        if (v != null) {
                                           setState(
                                               () => _selectedTargetRole = v);
+                                        }
                                       },
                                       isDark: isDark,
                                     ),
@@ -1227,9 +1239,10 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog>
                                         '18+ Years',
                                       ],
                                       onChanged: (v) {
-                                        if (v != null)
+                                        if (v != null) {
                                           setState(
                                               () => _selectedMinAgeLimit = v);
+                                        }
                                       },
                                       isDark: isDark,
                                     ),

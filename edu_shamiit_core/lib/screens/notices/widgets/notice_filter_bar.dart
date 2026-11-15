@@ -223,8 +223,9 @@ class _NoticeFilterBarState extends ConsumerState<NoticeFilterBar> {
                               padding: const EdgeInsets.all(6),
                               constraints: const BoxConstraints(),
                               onPressed: () {
-                                if (!state.isTableView)
+                                if (!state.isTableView) {
                                   notifier.toggleViewMode();
+                                }
                               },
                             ),
                             IconButton(
@@ -243,8 +244,9 @@ class _NoticeFilterBarState extends ConsumerState<NoticeFilterBar> {
                               padding: const EdgeInsets.all(6),
                               constraints: const BoxConstraints(),
                               onPressed: () {
-                                if (state.isTableView)
+                                if (state.isTableView) {
                                   notifier.toggleViewMode();
+                                }
                               },
                             ),
                           ],

@@ -220,8 +220,9 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
                                   );
                                 }).toList(),
                                 onChanged: (val) {
-                                  if (val != null)
+                                  if (val != null) {
                                     setState(() => _membershipType = val);
+                                  }
                                 },
                               ),
                             ),
@@ -249,8 +250,9 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
                                       value: 'EXPIRED', child: Text('Expired')),
                                 ],
                                 onChanged: (val) {
-                                  if (val != null)
+                                  if (val != null) {
                                     setState(() => _status = val);
+                                  }
                                 },
                               ),
                             ),
@@ -286,8 +288,9 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
                                 firstDate: DateTime(2020),
                                 lastDate: DateTime(2035),
                               );
-                              if (picked != null)
+                              if (picked != null) {
                                 setState(() => _expiryDate = picked);
+                              }
                             },
                             child: InputDecorator(
                               decoration: _inputDecoration(isDark),

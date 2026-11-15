@@ -332,8 +332,9 @@ class _CreateEditNoticeDialogState
                                       ? categories.first
                                       : 'General'),
                               onChanged: (val) {
-                                if (val != null)
+                                if (val != null) {
                                   setState(() => _category = val);
+                                }
                               },
                               decoration:
                                   _inputDecoration('Category', '', isDark),

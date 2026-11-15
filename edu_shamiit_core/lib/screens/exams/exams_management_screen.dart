@@ -192,10 +192,12 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
       final data = await _apiService.getExamsDashboardOverview();
       if (mounted && data.isNotEmpty) {
         setState(() {
-          if (data['kpis'] is Map)
+          if (data['kpis'] is Map) {
             _kpis = Map<String, dynamic>.from(data['kpis']);
-          if (data['tab_counts'] is Map)
+          }
+          if (data['tab_counts'] is Map) {
             _tabCounts = Map<String, dynamic>.from(data['tab_counts']);
+          }
           if (data['performance_chart'] is List) {
             _performanceChart = (data['performance_chart'] as List)
                 .map((e) => Map<String, dynamic>.from(e as Map))
@@ -1545,8 +1547,9 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
                           if (val == true) {
                             for (final ex in _exams) {
                               final id = ex['id']?.toString();
-                              if (id != null && id.isNotEmpty)
+                              if (id != null && id.isNotEmpty) {
                                 _selectedExamIds.add(id);
+                              }
                             }
                           } else {
                             _selectedExamIds.clear();
@@ -2780,8 +2783,9 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
     if (exam?['target_classes'] is List) {
       for (final c in exam!['target_classes'] as List) {
         if (c is String && c.trim().isNotEmpty) selectedClasses.add(c.trim());
-        if (c is Map && c['name'] != null)
+        if (c is Map && c['name'] != null) {
           selectedClasses.add(c['name'].toString().trim());
+        }
       }
     } else if (exam?['class'] != null &&
         exam!['class'].toString().trim().isNotEmpty &&
@@ -2794,8 +2798,9 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
     if (exam?['applicable_sections'] is List) {
       for (final s in exam!['applicable_sections'] as List) {
         if (s is String && s.trim().isNotEmpty) selectedSections.add(s.trim());
-        if (s is Map && s['name'] != null)
+        if (s is Map && s['name'] != null) {
           selectedSections.add(s['name'].toString().trim());
+        }
       }
     }
 
@@ -2804,8 +2809,9 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
     final List<String> initialTargetUserIds = [];
     if (exam?['target_students'] is List) {
       for (final u in exam!['target_students'] as List) {
-        if (u is String && u.trim().isNotEmpty)
+        if (u is String && u.trim().isNotEmpty) {
           initialTargetUserIds.add(u.trim());
+        }
         if (u is Map && (u['id'] != null || u['candidate_id'] != null)) {
           initialTargetUserIds
               .add((u['id'] ?? u['candidate_id']).toString().trim());
@@ -3574,8 +3580,9 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
                                     lastDate: DateTime.now()
                                         .add(const Duration(days: 365)),
                                   );
-                                  if (d != null)
+                                  if (d != null) {
                                     setDialogState(() => selectedDate = d);
+                                  }
                                 },
                                 child: Container(
                                   height: 40,
@@ -3620,8 +3627,9 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
                                   final t = await showTimePicker(
                                       context: context,
                                       initialTime: selectedTime);
-                                  if (t != null)
+                                  if (t != null) {
                                     setDialogState(() => selectedTime = t);
+                                  }
                                 },
                                 child: Container(
                                   height: 40,

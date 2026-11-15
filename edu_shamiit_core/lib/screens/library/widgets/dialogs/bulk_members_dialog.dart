@@ -220,8 +220,9 @@ class _BulkMembersDialogState extends ConsumerState<BulkMembersDialog> {
                             );
                           }).toList(),
                           onChanged: (val) {
-                            if (val != null)
+                            if (val != null) {
                               setState(() => _targetMembershipType = val);
+                            }
                           },
                         );
                       },

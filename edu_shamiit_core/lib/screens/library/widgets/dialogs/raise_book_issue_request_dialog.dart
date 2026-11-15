@@ -313,8 +313,9 @@ class _RaiseBookIssueRequestDialogState
                                     style: const TextStyle(fontSize: 13))))
                             .toList(),
                         onChanged: (val) {
-                          if (val != null)
+                          if (val != null) {
                             setState(() => _selectedPurpose = val);
+                          }
                         },
                       ),
                       const SizedBox(height: 16),
@@ -415,8 +416,9 @@ class _RaiseBookIssueRequestDialogState
                                                   fontSize: 13))))
                                       .toList(),
                                   onChanged: (val) {
-                                    if (val != null)
+                                    if (val != null) {
                                       setState(() => _selectedFormat = val);
+                                    }
                                   },
                                 ),
                               ],

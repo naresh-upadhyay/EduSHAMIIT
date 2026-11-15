@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_core/screens/work_management/work_management_screen.dart';
 import 'package:edu_shamiit_core/screens/work_management/models/work_models.dart';
 import 'package:edu_shamiit_core/screens/work_management/widgets/drawers/work_item_detail_drawer.dart';
+import 'package:edu_shamiit_core/screens/work_management/utils/work_sprint_date_helper.dart';
 
 // Mock Http to prevent network image failures in tests
 class TestHttpOverrides extends HttpOverrides {
@@ -238,7 +239,7 @@ void main() {
       // Verify Sprint Header Card & Status
       expect(find.text('Sprint 8'), findsWidgets);
       expect(find.text('Active'), findsWidgets);
-      expect(find.textContaining('Jan 01, 2025'), findsWidgets);
+      expect(find.textContaining(WorkSprintDateHelper.currentSprintStartFmt), findsWidgets);
 
       // Verify 5 Sprint KPI Cards
       expect(find.text('Total Items'), findsOneWidget);

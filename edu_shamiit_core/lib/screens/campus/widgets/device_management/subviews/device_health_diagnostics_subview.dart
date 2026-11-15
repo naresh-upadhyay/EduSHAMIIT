@@ -591,19 +591,25 @@ class _DeviceHealthDiagnosticsSubviewState
         }
 
         if (_selectedStatus != 'All Health Status') {
-          if (d.healthStatus.toLowerCase() != _selectedStatus.toLowerCase())
+          if (d.healthStatus.toLowerCase() != _selectedStatus.toLowerCase()) {
             return false;
+          }
         }
 
         if (_selectedType != 'All Device Types') {
-          if (!d.deviceType.toLowerCase().contains(_selectedType.toLowerCase()))
+          if (!d.deviceType
+              .toLowerCase()
+              .contains(_selectedType.toLowerCase())) {
             return false;
+          }
         }
 
         if (_selectedLocation != 'All Locations') {
           if (!d.locationPath
               .toLowerCase()
-              .contains(_selectedLocation.toLowerCase())) return false;
+              .contains(_selectedLocation.toLowerCase())) {
+            return false;
+          }
         }
 
         return true;
@@ -2652,15 +2658,17 @@ class _DeviceHealthDiagnosticsSubviewState
   }
 
   IconData _getDeviceIcon(String type) {
-    if (type.contains('AC') || type.contains('HVAC'))
+    if (type.contains('AC') || type.contains('HVAC')) {
       return Icons.ac_unit_rounded;
+    }
     if (type.contains('Light')) return Icons.lightbulb_outline_rounded;
     if (type.contains('Proj')) return Icons.videocam_outlined;
     if (type.contains('Fan')) return Icons.mode_fan_off_outlined;
     if (type.contains('Disp')) return Icons.tv_rounded;
     if (type.contains('Door')) return Icons.meeting_room_outlined;
-    if (type.contains('CCTV') || type.contains('Cam'))
+    if (type.contains('CCTV') || type.contains('Cam')) {
       return Icons.camera_indoor_outlined;
+    }
     return Icons.devices_rounded;
   }
 

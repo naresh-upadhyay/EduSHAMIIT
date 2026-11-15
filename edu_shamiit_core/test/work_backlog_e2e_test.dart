@@ -299,7 +299,7 @@ void main() {
     expect(find.text('Effort & Progress'), findsOneWidget);
 
     // Find and tap close button on WorkItemDetailDrawer
-    final closeBtn = find.widgetWithTooltip(IconButton, 'Close');
+    final closeBtn = find.byTooltip('Close');
     expect(closeBtn, findsOneWidget);
     await tester.tap(closeBtn);
     await tester.pump(const Duration(milliseconds: 200));
@@ -309,7 +309,7 @@ void main() {
     expect(find.text('Effort & Progress'), findsNothing);
 
     // Tapping a story row re-opens the drawer
-    final storyRow = find.text('ST-101');
+    final storyRow = find.text('ST-301');
     expect(storyRow, findsWidgets);
     await tester.tap(storyRow.first);
     await tester.pump(const Duration(milliseconds: 200));

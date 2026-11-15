@@ -1821,31 +1821,46 @@ class RoomsTabView extends ConsumerWidget {
 
   IconData _getFacilityIcon(String fac) {
     final lower = fac.toLowerCase();
-    if (lower.contains('projector') || lower.contains('screen'))
+    if (lower.contains('projector') || lower.contains('screen')) {
       return Icons.videocam_rounded;
+    }
     if (lower.contains('smart') ||
         lower.contains('board') ||
-        lower.contains('whiteboard')) return Icons.developer_board_rounded;
+        lower.contains('whiteboard')) {
+      return Icons.developer_board_rounded;
+    }
     if (lower.contains('ac') ||
         lower.contains('air') ||
-        lower.contains('conditioning')) return Icons.ac_unit_rounded;
+        lower.contains('conditioning')) {
+      return Icons.ac_unit_rounded;
+    }
     if (lower.contains('computer') ||
         lower.contains('pc') ||
-        lower.contains('laptop')) return Icons.computer_rounded;
+        lower.contains('laptop')) {
+      return Icons.computer_rounded;
+    }
     if (lower.contains('audio') ||
         lower.contains('speaker') ||
         lower.contains('mic') ||
-        lower.contains('sound')) return Icons.volume_up_rounded;
+        lower.contains('sound')) {
+      return Icons.volume_up_rounded;
+    }
     if (lower.contains('microscope') ||
         lower.contains('lab') ||
         lower.contains('specimen') ||
-        lower.contains('fume')) return Icons.biotech_rounded;
+        lower.contains('fume')) {
+      return Icons.biotech_rounded;
+    }
     if (lower.contains('wifi') ||
         lower.contains('internet') ||
-        lower.contains('lan')) return Icons.wifi_rounded;
+        lower.contains('lan')) {
+      return Icons.wifi_rounded;
+    }
     if (lower.contains('pottery') ||
         lower.contains('easel') ||
-        lower.contains('art')) return Icons.palette_rounded;
+        lower.contains('art')) {
+      return Icons.palette_rounded;
+    }
     return Icons.check_circle_outline_rounded;
   }
 

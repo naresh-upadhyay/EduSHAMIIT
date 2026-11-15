@@ -516,8 +516,9 @@ class _ProcessIssueRequestDialogState
                                         lastDate: DateTime.now()
                                             .add(const Duration(days: 30)),
                                       );
-                                      if (picked != null)
+                                      if (picked != null) {
                                         setState(() => _issueDate = picked);
+                                      }
                                     },
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(
@@ -570,8 +571,9 @@ class _ProcessIssueRequestDialogState
                                         lastDate: _issueDate
                                             .add(const Duration(days: 180)),
                                       );
-                                      if (picked != null)
+                                      if (picked != null) {
                                         setState(() => _dueDate = picked);
+                                      }
                                     },
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(
@@ -641,8 +643,9 @@ class _ProcessIssueRequestDialogState
                                   selectedColor: const Color(0xFF6366F1)
                                       .withValues(alpha: 0.2),
                                   onSelected: (selected) {
-                                    if (selected)
+                                    if (selected) {
                                       setState(() => _issueFormat = 'PHYSICAL');
+                                    }
                                   },
                                 ),
                                 const SizedBox(width: 8),
@@ -654,8 +657,9 @@ class _ProcessIssueRequestDialogState
                                   selectedColor: const Color(0xFF10B981)
                                       .withValues(alpha: 0.2),
                                   onSelected: (selected) {
-                                    if (selected)
+                                    if (selected) {
                                       setState(() => _issueFormat = 'DIGITAL');
+                                    }
                                   },
                                 ),
                               ],
@@ -897,8 +901,9 @@ class _ProcessIssueRequestDialogState
                                       style: const TextStyle(fontSize: 12.5))))
                               .toList(),
                           onChanged: (val) {
-                            if (val != null)
+                            if (val != null) {
                               setState(() => _selectedWaitingReason = val);
+                            }
                           },
                         ),
                         const SizedBox(height: 14),

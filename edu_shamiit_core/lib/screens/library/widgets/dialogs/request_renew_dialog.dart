@@ -255,8 +255,9 @@ class _RequestRenewDialogState extends ConsumerState<RequestRenewDialog> {
                                     style: const TextStyle(fontSize: 12.5))))
                             .toList(),
                         onChanged: (val) {
-                          if (val != null)
+                          if (val != null) {
                             setState(() => _selectedReasonPreset = val);
+                          }
                         },
                       ),
                       const SizedBox(height: 14),
@@ -276,8 +277,9 @@ class _RequestRenewDialogState extends ConsumerState<RequestRenewDialog> {
                             firstDate: currentDue,
                             lastDate: currentDue.add(const Duration(days: 60)),
                           );
-                          if (picked != null)
+                          if (picked != null) {
                             setState(() => _requestedDueDate = picked);
+                          }
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(

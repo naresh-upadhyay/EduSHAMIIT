@@ -1555,14 +1555,17 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
         PopupMenuButton<String>(
           tooltip: 'More Bulk Actions',
           onSelected: (val) {
-            if (val == 'leave')
+            if (val == 'leave') {
               _handleBulkMarkAttendance(context, state, notifier,
                   AttendanceStatus.onLeave, hasSelection);
-            if (val == 'half')
+            }
+            if (val == 'half') {
               _handleBulkMarkAttendance(context, state, notifier,
                   AttendanceStatus.halfDay, hasSelection);
-            if (val == 'remark')
+            }
+            if (val == 'remark') {
               _showBulkRemarksDialog(state, notifier, hasSelection);
+            }
             if (val == 'deselect') notifier.selectAllStudents(false);
             if (val == 'reset') notifier.resetDrafts();
           },

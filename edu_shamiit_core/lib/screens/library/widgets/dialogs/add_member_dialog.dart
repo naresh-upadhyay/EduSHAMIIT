@@ -217,8 +217,9 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
 
     final eligibleCandidates = state.profileSearchResults.where((p) {
       if (p.isAlreadyMember) return false;
-      if (existingMemberNames.contains(p.fullName.trim().toLowerCase()))
+      if (existingMemberNames.contains(p.fullName.trim().toLowerCase())) {
         return false;
+      }
       if (p.email != null &&
           p.email!.trim().isNotEmpty &&
           existingMemberEmails.contains(p.email!.trim().toLowerCase())) {

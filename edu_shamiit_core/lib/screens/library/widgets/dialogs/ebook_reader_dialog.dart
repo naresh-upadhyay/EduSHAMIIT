@@ -357,8 +357,9 @@ class _EbookReaderDialogState extends ConsumerState<EbookReaderDialog> {
                     tooltip: 'EduSHAMIIT AI Document Assistant',
                     onPressed: () {
                       setState(() => _isAiSidebarOpen = !_isAiSidebarOpen);
-                      if (_isAiSidebarOpen && _aiResult.isEmpty)
+                      if (_isAiSidebarOpen && _aiResult.isEmpty) {
                         _askAiAssistant();
+                      }
                     },
                   ),
 

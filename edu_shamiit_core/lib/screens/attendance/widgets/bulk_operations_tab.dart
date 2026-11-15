@@ -122,8 +122,9 @@ class _BulkOperationsTabState extends ConsumerState<BulkOperationsTab> {
                             );
                           }).toList(),
                           onChanged: (val) {
-                            if (val != null)
+                            if (val != null) {
                               setState(() => _selectedTargetStatus = val);
+                            }
                           },
                         ),
                       ),
