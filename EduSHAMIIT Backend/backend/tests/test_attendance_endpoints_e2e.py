@@ -71,7 +71,7 @@ def run_all_scenarios():
     print("\n[Phase 1] Authenticating with Live Backend API as Super Admin...")
     try:
         secret = os.environ.get("SUPABASE_JWT_SECRET") or os.environ.get("JWT_SECRET") or "super-secret-jwt-token-with-at-least-32-characters-long"
-        user_id = "38a93170-997b-4b4c-bc8e-256b93169c23"
+        user_id = "5198c4b0-f1cb-45db-9649-41688d0438ba"
         school_id = "11111111-1111-1111-1111-111111111111"
         payload = {
             "sub": user_id,
@@ -99,20 +99,17 @@ def run_all_scenarios():
     test_student_id = None
     student_name = ""
     try:
-        classes_res = requests.get(f"{API_BASE_URL}/api/classes?academic_year=2026-27", headers=headers, timeout=8)
-        if classes_res.status_code == 200:
-            c_data = classes_res.json().get("data", {}).get("classes", [])
-            for c in c_data:
-                for s in c.get("sections", []):
-                    r = requests.get(f"{API_BASE_URL}/api/attendance/roster?attendance_date={today_str}&class_id={c['id']}&section_id={s['id']}", headers=headers, timeout=8).json()
-                    stus = r.get("data", {}).get("students", [])
-                    if stus:
-                        class_id = c["id"]
-                        section_id = s["id"]
-                        test_student_id = stus[0].get("student_id") or stus[0].get("id")
-                        student_name = stus[0].get("full_name") or "Test Student"
-                        break
-                if class_id:
+        sec_res = requests.get(f"{API_BASE_URL}/api/classes/sections/all?academic_year=2026-27", headers=headers, timeout=8)
+        if sec_res.status_code == 200:
+            all_secs = sec_res.json().get("data", {}).get("sections", [])
+            for s in all_secs:
+                r = requests.get(f"{API_BASE_URL}/api/attendance/roster?attendance_date={today_str}&class_id={s['class_id']}&section_id={s['id']}", headers=headers, timeout=8).json()
+                stus = r.get("data", {}).get("students", [])
+                if stus:
+                    class_id = s["class_id"]
+                    section_id = s["id"]
+                    test_student_id = stus[0].get("student_id") or stus[0].get("id")
+                    student_name = stus[0].get("full_name") or "Test Student"
                     break
         log_test("Discovered Active Class & Enrolled Student Context", class_id is not None and test_student_id is not None, f"Class ID: {class_id}, Section ID: {section_id}, Student: {student_name} ({test_student_id})")
     except Exception as e:
@@ -120,9 +117,9 @@ def run_all_scenarios():
 
     # Fallback IDs if no class/student populated
     if not class_id:
-        class_id = "6a4068a1-c2e8-473a-99a4-675257ba95fa"
-        section_id = "50243c6c-5641-4275-90ea-94450402fbf5"
-        test_student_id = "10000000-0000-0000-0000-000000000013"
+        class_id = "f09f1bca-a4f9-456b-bd29-7bbefe536568"
+        section_id = "785edf2c-b857-4541-911d-157585b7c232"
+        test_student_id = "10000000-0000-0000-0000-000000000001"
 
     # ------------------------------------------------------------------------
     # 3. GET /api/attendance/stats

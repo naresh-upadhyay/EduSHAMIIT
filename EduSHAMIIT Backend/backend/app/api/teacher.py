@@ -5,7 +5,7 @@ import asyncio
 import httpx
 import uuid
 
-from app.middleware.auth import get_current_user, require_school_id, require_teacher
+from app.middleware.auth import get_current_user, require_school_id, require_teacher, require_exam_access
 from app.services.supabase_client import get_supabase
 from app.cache.redis_client import get_cached, set_cached, invalidate_cache
 from app.config import settings
@@ -16,15 +16,35 @@ router = APIRouter()
 
 def _normalize_question_type(q_type):
     if not q_type:
-        return "single_select"
-    q_type_lower = str(q_type).lower().strip()
-    if q_type_lower in ("mcq", "true_false", "single_correct", "assertion_reason", "multiple_choice", "single_select"):
-        return "single_select"
-    elif q_type_lower in ("multi_select", "multi_correct"):
+        return "mcq"
+    q = str(q_type).lower().strip()
+    if q in ("single_select", "multiple_choice", "single_correct", "mcq"):
+        return "mcq"
+    if q in ("multi_select", "multi_correct"):
         return "multi_select"
-    elif q_type_lower in ("subjective", "short_answer", "long_answer", "numerical", "fill_in_the_blank", "descriptive"):
-        return "subjective"
-    return "single_select"
+    if q in ("short", "short_answer"):
+        return "short_answer"
+    if q in ("long", "long_answer", "essay"):
+        return "long_answer"
+    if q in ("true_false", "boolean"):
+        return "true_false"
+    if q in ("fill_blanks", "fill_in_the_blank", "fill_in_the_blanks", "fill_blank"):
+        return "fill_blanks"
+    if q in ("match_following", "match_the_following", "matching"):
+        return "match_following"
+    if q in ("assertion_reason", "assertion_and_reason"):
+        return "assertion_reason"
+    if q in ("case_study", "passage", "comprehension"):
+        return "case_study"
+    if q in ("numerical", "numeric", "problem"):
+        return "numerical"
+    if q in ("descriptive", "subjective"):
+        return "descriptive"
+    if q in ("diagram", "image", "diagram_image", "diagram_based", "image_based"):
+        return "diagram"
+    if q in ("practical", "oral", "viva", "activity"):
+        return "practical"
+    return q
 
 
 def _calculate_grade(pct):
@@ -98,18 +118,58 @@ async def teacher_dashboard(user=Depends(require_teacher), school_id=Depends(req
 
 
 @router.get("/classes")
-async def teacher_classes(user=Depends(require_teacher), school_id=Depends(require_school_id)):
+async def teacher_classes(user=Depends(require_exam_access), school_id=Depends(require_school_id)):
     cached = await get_cached(school_id, "teacher_classes", user["id"])
     if cached:
         return cached
 
     sb = get_supabase()
-    res = await sb.rpc("get_teacher_classes_with_counts", {
-        "p_school_id": school_id,
-        "p_teacher_id": user["id"]
-    }).aexecute()
+    if user.get("role") == "teacher":
+        res = await sb.rpc("get_teacher_classes_with_counts", {
+            "p_school_id": school_id,
+            "p_teacher_id": user["id"]
+        }).aexecute()
+        classes_data = res.data or []
+    else:
+        # Admin or management role: fetch all school classes
+        classes_res = await sb.table("classes").select("id, name, grade_level").eq("school_id", school_id).order("name").aexecute()
+        # Admin or management role: fetch all school classes from academic_classes & academic_sections (Class Management SSOT)
+        sec_res = await sb.rpc("sp_get_exam_classes_and_sections", {"p_school_id": school_id}).aexecute()
+        sec_data = (sec_res.data or {}).get("classes", []) if sec_res else []
+        classes_data = []
+        for c in (classes_res.data or []):
+            classes_data.append({
+                "id": c.get("id"),
+                "name": c.get("name"),
+                "section": "",
+                "student_count": 0,
+            })
+        for c in sec_data:
+            c_name = c.get("name", "")
+            sections = c.get("sections") or []
+            if sections:
+                for s in sections:
+                    classes_data.append({
+                        "id": s.get("id"),
+                        "class_id": c.get("id"),
+                        "name": c_name,
+                        "section": s.get("name", ""),
+                        "code": s.get("code", ""),
+                        "display_name": f"{c_name} - {s.get('name', '')}".strip(" -"),
+                        "student_count": 0,
+                    })
+            else:
+                classes_data.append({
+                    "id": c.get("id"),
+                    "class_id": c.get("id"),
+                    "name": c_name,
+                    "section": "",
+                    "code": c.get("code", ""),
+                    "display_name": c_name,
+                    "student_count": 0,
+                })
     
-    result = {"success": True, "school_id": school_id, "data": {"classes": res.data}}
+    result = {"success": True, "school_id": school_id, "data": {"classes": classes_data}}
     await set_cached(school_id, "teacher_classes", result, user["id"], ttl=300)
     return result
 
@@ -118,14 +178,14 @@ async def teacher_classes(user=Depends(require_teacher), school_id=Depends(requi
 async def teacher_subjects(
     class_name: Optional[str] = None,
     all_subjects: Optional[bool] = False,
-    user=Depends(require_teacher),
+    user=Depends(require_exam_access),
     school_id=Depends(require_school_id)
 ):
     sb = get_supabase()
     query = sb.table("subjects").select("*").eq("school_id", school_id)
     if class_name:
         query = query.eq("class", class_name)
-    elif not all_subjects:
+    elif not all_subjects and user.get("role") == "teacher":
         classes_res = await sb.table("timetable").select("class").eq("school_id", school_id).eq("teacher_id", user["id"]).aexecute()
         teacher_classes = list({row["class"] for row in classes_res.data if row.get("class")})
         if teacher_classes:
@@ -903,7 +963,8 @@ async def schedule_timetable_slot(request: dict, user=Depends(require_teacher), 
 
 
 @router.post("/exams/create")
-async def create_exam(request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+@router.post("/exams")
+async def create_exam(request: dict, user=Depends(require_exam_access), school_id=Depends(require_school_id)):
     print("Incoming create_exam payload:", request)
     sb = get_supabase()
     
@@ -930,8 +991,8 @@ async def create_exam(request: dict, user=Depends(require_teacher), school_id=De
             if subj_res_fallback.data:
                 subject_id = subj_res_fallback.data["id"]
 
-    # Verify teacher is assigned to these target classes
-    if target_classes:
+    # Verify teacher is assigned to these target classes (only strictly checked for teacher role)
+    if target_classes and user.get("role") == "teacher":
         tt_res = await sb.table("timetable").select("class").eq("school_id", school_id).eq("teacher_id", user["id"]).aexecute()
         assigned_classes = {row["class"].strip().upper() for row in (tt_res.data or []) if row.get("class")}
         for tc in target_classes:
@@ -998,7 +1059,7 @@ async def create_exam(request: dict, user=Depends(require_teacher), school_id=De
     exam = await sb.table("exams").insert({
         "school_id": school_id,
         "subject_id": subject_id,
-        "teacher_id": user["id"],
+        "teacher_id": request.get("teacher_id") or user["id"],
         "title": request.get("title"),
         "exam_type": request.get("exam_type", "offline"),
         "exam_category": request.get("exam_category") or request.get("exam_type", "Unit Test"),
@@ -1028,7 +1089,7 @@ async def create_exam(request: dict, user=Depends(require_teacher), school_id=De
 
 
 @router.post("/exams/generate-questions")
-async def generate_exam_questions(request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+async def generate_exam_questions(request: dict, user=Depends(require_exam_access), school_id=Depends(require_school_id)):
     try:
         from langchain_google_genai import ChatGoogleGenerativeAI
         import os
@@ -1239,31 +1300,33 @@ async def update_grading_config(request: dict, user=Depends(require_teacher), sc
 
 
 @router.get("/students")
-async def teacher_students(class_name: str = "", search: str = "", user=Depends(require_teacher), school_id=Depends(require_school_id)):
+async def teacher_students(class_name: str = "", search: str = "", user=Depends(require_exam_access), school_id=Depends(require_school_id)):
     cached = await get_cached(school_id, "teacher_students", f"{user['id']}_{class_name}_{search}")
     if cached:
         return cached
 
     sb = get_supabase()
+    is_teacher = user.get("role") == "teacher"
+    teacher_classes = []
     
-    # Fetch classes assigned to this teacher from timetable
-    tt_res = await sb.table("timetable").select("class").eq("school_id", school_id).eq("teacher_id", user["id"]).aexecute()
-    teacher_classes = list(dict.fromkeys(
-        row["class"] for row in (tt_res.data or []) if row.get("class")
-    ))
-    
-    if not teacher_classes:
-        # If teacher has no assigned classes, return empty student list
-        return {"success": True, "school_id": school_id, "data": {"students": []}}
+    if is_teacher:
+        # Fetch classes assigned to this teacher from timetable
+        tt_res = await sb.table("timetable").select("class").eq("school_id", school_id).eq("teacher_id", user["id"]).aexecute()
+        teacher_classes = list(dict.fromkeys(
+            row["class"] for row in (tt_res.data or []) if row.get("class")
+        ))
+        
+        if not teacher_classes:
+            # If teacher has no assigned classes, return empty student list
+            return {"success": True, "school_id": school_id, "data": {"students": []}}
         
     query = sb.table("profiles").select("id, full_name, class, roll_number, phone, email, date_of_birth, father_name, father_phone, avatar_url").eq("school_id", school_id).eq("role", "student")
     
     if class_name:
-        if class_name in teacher_classes:
-            query = query.eq("class", class_name)
-        else:
+        if is_teacher and class_name not in teacher_classes:
             return {"success": True, "school_id": school_id, "data": {"students": []}}
-    else:
+        query = query.eq("class", class_name)
+    elif is_teacher:
         query = query.in_("class", teacher_classes)
         
     students = (await query.order("class").order("roll_number").aexecute()).data
@@ -1280,7 +1343,7 @@ async def teacher_students(class_name: str = "", search: str = "", user=Depends(
     stats_query = sb.table("student_profile_stats").select("student_id, avg_score, attendance_pct, class_rank").eq("school_id", school_id)
     if class_name:
         stats_query = stats_query.eq("class", class_name)
-    else:
+    elif is_teacher:
         stats_query = stats_query.in_("class", teacher_classes)
         
     stats_res = await stats_query.aexecute()
@@ -1926,52 +1989,6 @@ async def teacher_update_settings(request: dict, user=Depends(get_current_user),
     return {"success": True, "message": "Settings updated"}
 
 
-@router.get("/messages")
-async def teacher_get_messages(user=Depends(get_current_user), school_id=Depends(require_school_id)):
-    from app.api.shared import get_messages as shared_get_messages
-    return await shared_get_messages(user, school_id)
-
-
-@router.post("/messages/send")
-async def teacher_send_message(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
-    from app.api.shared import send_message as shared_send_message
-    return await shared_send_message(request, user, school_id)
-
-
-@router.get("/messages/chat")
-async def teacher_get_chat(chat_id: str = "", user=Depends(get_current_user), school_id=Depends(require_school_id)):
-    from app.api.shared import get_chat as shared_get_chat
-    return await shared_get_chat(chat_id, user, school_id)
-
-
-@router.post("/groups/create")
-async def teacher_create_group(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
-    from app.api.shared import create_group as shared_create_group
-    return await shared_create_group(request, user, school_id)
-
-
-@router.get("/groups")
-async def teacher_get_groups(user=Depends(get_current_user), school_id=Depends(require_school_id)):
-    from app.api.shared import get_groups as shared_get_groups
-    return await shared_get_groups(user, school_id)
-
-
-@router.post("/groups/{group_id}/join")
-async def teacher_join_group(group_id: str, user=Depends(get_current_user), school_id=Depends(require_school_id)):
-    from app.api.shared import join_group as shared_join_group
-    return await shared_join_group(group_id, user, school_id)
-
-
-@router.post("/messages/upload")
-async def upload_message_file(
-    file: UploadFile = File(...),
-    user=Depends(get_current_user),
-    school_id=Depends(require_school_id)
-):
-    from app.api.shared import upload_message_file as shared_upload_message_file
-    return await shared_upload_message_file(file, user, school_id)
-
-
 @router.get("/homework")
 async def teacher_get_homework(status: str = None, user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
@@ -2058,10 +2075,23 @@ async def _auto_publish_scheduled_exams(sb, school_id: str):
 
 
 @router.get("/exams")
-async def teacher_get_exams(type: str = None, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def teacher_get_exams(
+    type: str = None,
+    class_name: str = None,
+    start_date: str = None,
+    end_date: str = None,
+    teacher_id: str = None,
+    search: str = None,
+    user=Depends(require_exam_access),
+    school_id=Depends(require_school_id)
+):
     sb = get_supabase()
     await _auto_publish_scheduled_exams(sb, school_id)
-    query = sb.table("exams").select("*, subjects(name, class)").eq("school_id", school_id).eq("teacher_id", user["id"])
+    query = sb.table("exams").select("*, subjects(name, class)").eq("school_id", school_id)
+    if user.get("role") == "teacher":
+        query = query.eq("teacher_id", user["id"])
+    elif teacher_id:
+        query = query.eq("teacher_id", teacher_id)
     exams_data = (await query.order("created_at", ascending=False).aexecute()).data
 
     exam_ids = [e["id"] for e in exams_data]
@@ -2145,7 +2175,7 @@ async def teacher_get_exams(type: str = None, user=Depends(get_current_user), sc
 
 
 @router.get("/exams/{exam_id}")
-async def teacher_get_exam_details(exam_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+async def teacher_get_exam_details(exam_id: str, user=Depends(require_exam_access), school_id=Depends(require_school_id)):
     sb = get_supabase()
     await _auto_publish_scheduled_exams(sb, school_id)
     exam_res = await sb.table("exams").select("*, subjects(name, class)").eq("id", exam_id).eq("school_id", school_id).maybe_single().aexecute()
@@ -2197,7 +2227,7 @@ async def teacher_get_exam_details(exam_id: str, user=Depends(require_teacher), 
 
 
 @router.get("/exams/{exam_id}/attendance")
-async def teacher_get_exam_attendance(exam_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+async def teacher_get_exam_attendance(exam_id: str, user=Depends(require_exam_access), school_id=Depends(require_school_id)):
     sb = get_supabase()
     # Fetch exam details
     exam_res = await sb.table("exams").select("*").eq("id", exam_id).eq("school_id", school_id).maybe_single().aexecute()
@@ -2267,7 +2297,7 @@ async def teacher_get_exam_attendance(exam_id: str, user=Depends(require_teacher
 
 
 @router.post("/exams/{exam_id}/attendance")
-async def teacher_save_exam_attendance(exam_id: str, request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+async def teacher_save_exam_attendance(exam_id: str, request: dict, user=Depends(require_exam_access), school_id=Depends(require_school_id)):
     sb = get_supabase()
     # Fetch exam details
     exam_res = await sb.table("exams").select("*").eq("id", exam_id).eq("school_id", school_id).maybe_single().aexecute()
@@ -2961,14 +2991,14 @@ async def _update_exam_questions_status(sb, exam_id: str):
                 await sb.table("exams").update({"status": target_status}).eq("id", exam_id).aexecute()
 
 @router.get("/exams/{exam_id}/questions")
-async def teacher_get_exam_questions(exam_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+async def teacher_get_exam_questions(exam_id: str, user=Depends(require_exam_access), school_id=Depends(require_school_id)):
     sb = get_supabase()
     res = await sb.table("exam_questions").select("*").eq("exam_id", exam_id).order("order_number").aexecute()
     return {"success": True, "school_id": school_id, "data": {"questions": res.data}}
 
 
 @router.post("/exams/{exam_id}/questions")
-async def teacher_add_exam_question(exam_id: str, request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+async def teacher_add_exam_question(exam_id: str, request: dict, user=Depends(require_exam_access), school_id=Depends(require_school_id)):
     sb = get_supabase()
     # Fetch current max order_number
     questions = (await sb.table("exam_questions").select("order_number").eq("exam_id", exam_id).aexecute()).data
@@ -2989,7 +3019,7 @@ async def teacher_add_exam_question(exam_id: str, request: dict, user=Depends(re
 
 
 @router.put("/exams/{exam_id}/questions/{question_id}")
-async def teacher_update_exam_question(exam_id: str, question_id: str, request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+async def teacher_update_exam_question(exam_id: str, question_id: str, request: dict, user=Depends(require_exam_access), school_id=Depends(require_school_id)):
     sb = get_supabase()
     allowed = {"question_text", "question_type", "options", "correct_answer", "marks", "order_number"}
     updates = {k: v for k, v in request.items() if k in allowed}
@@ -3001,7 +3031,7 @@ async def teacher_update_exam_question(exam_id: str, question_id: str, request: 
 
 
 @router.delete("/exams/{exam_id}/questions/{question_id}")
-async def teacher_delete_exam_question(exam_id: str, question_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+async def teacher_delete_exam_question(exam_id: str, question_id: str, user=Depends(require_exam_access), school_id=Depends(require_school_id)):
     sb = get_supabase()
     await sb.table("exam_questions").delete().eq("id", question_id).eq("exam_id", exam_id).aexecute()
     await _update_exam_questions_status(sb, exam_id)
@@ -3009,14 +3039,14 @@ async def teacher_delete_exam_question(exam_id: str, question_id: str, user=Depe
 
 
 @router.get("/exams/{exam_id}/submissions")
-async def teacher_get_exam_submissions(exam_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+async def teacher_get_exam_submissions(exam_id: str, user=Depends(require_exam_access), school_id=Depends(require_school_id)):
     sb = get_supabase()
     res = await sb.table("exam_submissions").select("*, profiles!student_id(full_name, roll_number, class)").eq("exam_id", exam_id).order("score", ascending=False).aexecute()
     return {"success": True, "school_id": school_id, "data": {"submissions": res.data}}
 
 
 @router.post("/exams/{exam_id}/submissions/{submission_id}/grade")
-async def teacher_grade_exam_submission(exam_id: str, submission_id: str, request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+async def teacher_grade_exam_submission(exam_id: str, submission_id: str, request: dict, user=Depends(require_exam_access), school_id=Depends(require_school_id)):
     sb = get_supabase()
     score = request.get("score")
     remarks = request.get("remarks", "")
@@ -3101,7 +3131,7 @@ async def teacher_grade_exam_submission(exam_id: str, submission_id: str, reques
 @router.get("/exams/{exam_id}/pdf")
 async def teacher_download_exam_pdf(
     exam_id: str,
-    user=Depends(require_teacher),
+    user=Depends(require_exam_access),
     school_id=Depends(require_school_id)
 ):
     sb = get_supabase()
@@ -3350,7 +3380,7 @@ async def teacher_download_exam_pdf(
 
 
 @router.get("/exams/{exam_id}/analytics")
-async def teacher_get_exam_analytics(exam_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+async def teacher_get_exam_analytics(exam_id: str, user=Depends(require_exam_access), school_id=Depends(require_school_id)):
     """
     Returns real analytics for a completed/graded exam:
     - Participation stats (assigned, submitted, graded)
@@ -3525,7 +3555,7 @@ async def teacher_get_exam_analytics(exam_id: str, user=Depends(require_teacher)
 
 
 @router.post("/exams/{exam_id}/results/publish")
-async def teacher_publish_exam_results(exam_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+async def teacher_publish_exam_results(exam_id: str, user=Depends(require_exam_access), school_id=Depends(require_school_id)):
     """
     Publish exam results:
     1. Compute and store class_rank for all graded submissions
@@ -3587,7 +3617,7 @@ async def teacher_publish_exam_results(exam_id: str, user=Depends(require_teache
 
 
 @router.get("/exams/{exam_id}/sessions")
-async def teacher_get_exam_sessions(exam_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+async def teacher_get_exam_sessions(exam_id: str, user=Depends(require_exam_access), school_id=Depends(require_school_id)):
     sb = get_supabase()
     res = await sb.table("exam_sessions").select("*, profiles!student_id(full_name, roll_number)").eq("exam_id", exam_id).aexecute()
     return {"success": True, "school_id": school_id, "data": {"sessions": res.data}}
@@ -3598,7 +3628,7 @@ async def teacher_proctor_action(
     exam_id: str,
     session_id: str,
     request: dict,
-    user=Depends(require_teacher),
+    user=Depends(require_exam_access),
     school_id=Depends(require_school_id)
 ):
     sb = get_supabase()
@@ -3722,6 +3752,44 @@ async def teacher_proctor_action(
     update_data["proctor_logs"] = current_logs
     
     res = await sb.table("exam_sessions").update(update_data).eq("id", session_id).aexecute()
+
+    # Instant WebSocket broadcast to candidate device
+    try:
+        from app.services.exam_monitoring_ws import exam_monitoring_ws_manager
+        cand_id = str(sess.get("student_id") or "")
+        actor_name = user.get("full_name") or user.get("email") or "Invigilator"
+        cmd_map = {
+            "warn": "warn",
+            "pause": "pause",
+            "resume": "resume",
+            "extend": "extend_time",
+            "submit": "force_submit",
+            "suspend": "terminate",
+            "force_camera": "enable_cam" if request.get("camera_active", True) else "force_disable_cam",
+            "force_mic": "unmute_mic" if request.get("mic_active", True) else "force_mute_mic",
+            "reopen": "reopen",
+        }
+        cmd = cmd_map.get(action, action)
+        if cand_id:
+            await exam_monitoring_ws_manager.broadcast(
+                exam_id=exam_id,
+                event="invigilator_command",
+                audience="candidates",
+                target_candidate_ids=[cand_id],
+                data={
+                    "command": cmd,
+                    "action_type": cmd,
+                    "message": message or update_data.get("teacher_message") or "",
+                    "reason": message or update_data.get("teacher_message") or "",
+                    "minutes": extra_minutes,
+                    "warnings_count": update_data.get("warnings_count", sess.get("warnings_count", 0)),
+                    "is_paused": update_data.get("is_paused", sess.get("is_paused", False)),
+                    "actor_name": actor_name,
+                }
+            )
+    except Exception as ws_err:
+        print("Error broadcasting ws in teacher_proctor_action:", ws_err, flush=True)
+
     return {"success": True, "data": res.data[0] if res.data else {}}
 
 
@@ -3729,7 +3797,7 @@ async def teacher_proctor_action(
 async def teacher_update_exam(
     exam_id: str,
     request: dict,
-    user=Depends(require_teacher),
+    user=Depends(require_exam_access),
     school_id=Depends(require_school_id),
 ):
     print("Incoming update_exam payload:", request)
@@ -3738,21 +3806,39 @@ async def teacher_update_exam(
     check_exam = await sb.table("exams").select("*").eq("id", exam_id).eq("school_id", school_id).maybe_single().aexecute()
     if not check_exam.data:
         raise HTTPException(status_code=404, detail="Exam not found")
-    if check_exam.data.get("teacher_id") != user["id"]:
+    if check_exam.data.get("teacher_id") != user["id"] and user.get("role") == "teacher":
         raise HTTPException(status_code=403, detail="You do not have permission to modify this exam")
 
     allowed = {
         "title", "exam_type", "exam_category", "exam_date", "start_time", "end_time", 
         "duration_minutes", "total_marks", "venue", "target_classes", "status", 
         "instructions", "syllabus", "subject_id",
+        "duration_minutes", "total_marks", "passing_marks", "venue", "target_classes", "applicable_sections", "status", 
+        "instructions", "syllabus", "subject_id", "academic_session", "exam_mode", "exam_purpose", "exam_code",
         "negative_marking", "shuffle_questions", "shuffle_options", "allow_calculator", 
         "camera_required", "mic_required", "auto_submit_on_timer",
         "passcode", "target_students", "scope", "release_time"
     }
     update_data = {k: v for k, v in request.items() if k in allowed}
 
+    if "target_classes" in request:
+        update_data["target_classes"] = request.get("target_classes") or []
+    elif "class" in request and request.get("class"):
+        update_data["target_classes"] = [request.get("class")]
+
+    if "applicable_sections" in request:
+        update_data["applicable_sections"] = request.get("applicable_sections") or []
+
+    if "target_students" in request or "target_users" in request:
+        target_studs = request.get("target_students") or request.get("target_users") or []
+        update_data["target_students"] = target_studs
+        if target_studs and not update_data.get("target_classes"):
+            update_data["scope"] = "Targeted Users"
+        elif update_data.get("target_classes"):
+            update_data["scope"] = "Target Classes"
+
     status_val = update_data.get("status")
-    if status_val in ("published", "scheduled", "ready"):
+    if request.get("enforce_question_marks") and status_val in ("published", "scheduled", "ready"):
         q_res = await sb.table("exam_questions").select("id, marks").eq("exam_id", exam_id).aexecute()
         q_data = q_res.data or []
         if not q_data:
@@ -3791,7 +3877,7 @@ async def teacher_update_exam(
                 update_data["subject_id"] = subj_res_fallback.data["id"]
 
     # Verify teacher is assigned to these target classes on update
-    if "target_classes" in update_data and update_data["target_classes"]:
+    if "target_classes" in update_data and update_data["target_classes"] and user.get("role") == "teacher":
         tt_res = await sb.table("timetable").select("class").eq("school_id", school_id).eq("teacher_id", user["id"]).aexecute()
         assigned_classes = {row["class"].strip().upper() for row in (tt_res.data or []) if row.get("class")}
         for tc in update_data["target_classes"]:
@@ -3829,10 +3915,11 @@ async def teacher_update_exam(
         return dt.astimezone(timezone.utc)
 
     start_time_raw = request.get("start_time")
-    if not start_time_raw and not check_exam.data.get("start_time"):
-        exam_date = request.get("exam_date") or check_exam.data.get("exam_date")
-        if exam_date:
-            start_time_raw = f"{exam_date}T09:00:00"
+    exam_date = request.get("exam_date") or check_exam.data.get("exam_date")
+    if start_time_raw and "T" not in str(start_time_raw) and "-" not in str(start_time_raw) and exam_date:
+        start_time_raw = f"{exam_date}T{start_time_raw}"
+    elif not start_time_raw and not check_exam.data.get("start_time") and exam_date:
+        start_time_raw = f"{exam_date}T09:00:00"
             
     if start_time_raw:
         try:
@@ -3890,15 +3977,15 @@ async def teacher_update_exam(
 @router.delete("/exams/{exam_id}")
 async def teacher_delete_exam(
     exam_id: str,
-    user=Depends(require_teacher),
+    user=Depends(require_exam_access),
     school_id=Depends(require_school_id),
 ):
     sb = get_supabase()
-    # verify teacher owns this exam
+    # verify teacher owns this exam or it is in the same school
     check_exam = await sb.table("exams").select("*").eq("id", exam_id).eq("school_id", school_id).maybe_single().aexecute()
     if not check_exam.data:
         raise HTTPException(status_code=404, detail="Exam not found")
-    if check_exam.data.get("teacher_id") != user["id"]:
+    if check_exam.data.get("teacher_id") != user["id"] and user.get("role") == "teacher":
         raise HTTPException(status_code=403, detail="You do not have permission to delete this exam")
         
     # delete associated sessions, submissions, questions to prevent foreign key errors
@@ -3913,12 +4000,27 @@ async def teacher_delete_exam(
 @router.get("/question-bank")
 async def teacher_get_question_bank(
     subject: str = None, 
+    subject_id: str = None,
     difficulty: str = None, 
-    user=Depends(require_teacher), 
+    class_name: str = None,
+    class_id: str = None,
+    chapter: str = None,
+    question_type: str = None,
+    status: str = None,
+    search: str = None,
+    tag: str = None,
+    page: int = 1,
+    page_size: int = 50,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    user=Depends(require_exam_access), 
     school_id=Depends(require_school_id)
 ):
     sb = get_supabase()
-    query = sb.table("question_bank").select("*, subjects(name)").eq("school_id", school_id)
+    # 1. Base query for active questions
+    query = sb.table("question_bank").select("*, subjects(name)").eq("school_id", school_id).is_("deleted_at", "null")
+
+    # 2. Subject filter
     if subject and subject != "All":
         subj_res = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject).aexecute()
         if subj_res.data:
@@ -3926,23 +4028,111 @@ async def teacher_get_question_bank(
             query = query.in_("subject_id", subj_ids)
         else:
             query = query.eq("subject_id", "00000000-0000-0000-0000-000000000000")
+    elif subject_id and subject_id != "All":
+        query = query.eq("subject_id", subject_id)
+
+    # 3. Class filter
+    if class_name and class_name != "All":
+        query = query.eq("class_name", class_name)
+    elif class_id and class_id != "All":
+        query = query.eq("class_id", class_id)
+
+    # 4. Chapter filter
+    if chapter and chapter != "All":
+        query = query.eq("chapter", chapter)
+
+    # 5. Difficulty filter
     if difficulty and difficulty != "All":
-        query = query.eq("difficulty", difficulty)
-    
-    res = await query.order("created_at", ascending=False).aexecute()
-    return {"success": True, "school_id": school_id, "data": {"questions": res.data or []}}
+        query = query.ilike("difficulty", difficulty)
+
+    # 6. Question type filter
+    if question_type and question_type != "All":
+        qt = question_type.lower()
+        if qt in ("mcq", "multiple choice", "multiple choice (mcq)"):
+            query = query.in_("question_type", ["mcq", "single_select", "multi_select"])
+        elif qt in ("short", "short_answer", "short answer"):
+            query = query.in_("question_type", ["short_answer", "short"])
+        elif qt in ("long", "long_answer", "long answer"):
+            query = query.in_("question_type", ["long_answer", "long"])
+        elif qt == "others":
+            query = query.not_.in_("question_type", ["mcq", "single_select", "multi_select", "short_answer", "short", "long_answer", "long"])
+        else:
+            query = query.eq("question_type", qt)
+
+    # 7. Status filter
+    if status and status != "All":
+        query = query.ilike("status", status)
+
+    # 8. Keyword search
+    if search and search.strip():
+        s = search.strip()
+        query = query.or_(f"question_text.ilike.%{s}%,question_code.ilike.%{s}%,title.ilike.%{s}%,chapter.ilike.%{s}%,topic.ilike.%{s}%")
+
+    # 9. Order
+    ascending = (sort_order.lower() == "asc")
+    query = query.order(sort_by, ascending=ascending)
+
+    # 10. Execute filtered query
+    res = await query.aexecute()
+    all_filtered = res.data or []
+    filtered_total = len(all_filtered)
+
+    # Pagination slice
+    limit = max(1, min(page_size, 200))
+    offset = (max(1, page) - 1) * limit
+    paged_questions = all_filtered[offset:offset + limit]
+
+    # 11. KPI calculation across all questions in the school
+    all_q_res = await sb.table("question_bank").select("id, question_type, difficulty, status, subject_id").eq("school_id", school_id).is_("deleted_at", "null").aexecute()
+    all_questions = all_q_res.data or []
+
+    total_count = len(all_questions)
+    mcq_count = sum(1 for q in all_questions if str(q.get("question_type", "")).lower() in ("mcq", "single_select", "multi_select"))
+    short_count = sum(1 for q in all_questions if str(q.get("question_type", "")).lower() in ("short_answer", "short"))
+    long_count = sum(1 for q in all_questions if str(q.get("question_type", "")).lower() in ("long_answer", "long"))
+    others_count = total_count - (mcq_count + short_count + long_count)
+    approved_count = sum(1 for q in all_questions if str(q.get("status", "")).lower() == "approved")
+    pending_count = sum(1 for q in all_questions if str(q.get("status", "")).lower() in ("pending_review", "pending"))
+    draft_count = sum(1 for q in all_questions if str(q.get("status", "")).lower() == "draft")
+    unique_subjects = len(set(q.get("subject_id") for q in all_questions if q.get("subject_id")))
+
+    kpis = {
+        "total": total_count,
+        "mcq": mcq_count,
+        "short_answer": short_count,
+        "long_answer": long_count,
+        "others": others_count,
+        "approved": approved_count,
+        "pending_review": pending_count,
+        "draft": draft_count,
+        "subjects_count": unique_subjects
+    }
+
+    return {
+        "success": True,
+        "school_id": school_id,
+        "data": {
+            "questions": paged_questions,
+            "total": filtered_total,
+            "page": page,
+            "page_size": limit,
+            "total_pages": max(1, (filtered_total + limit - 1) // limit),
+            "kpis": kpis
+        }
+    }
 
 
 @router.post("/question-bank")
 async def teacher_add_question_bank(
     request: dict, 
-    user=Depends(require_teacher), 
+    user=Depends(require_exam_access), 
     school_id=Depends(require_school_id)
 ):
     sb = get_supabase()
     subject_name = request.get("subject")
     subject_id = request.get("subject_id")
-    class_name = request.get("class") or request.get("class_id")
+    class_name = request.get("class_name") or request.get("class") or request.get("class_id")
+
     if not subject_id and subject_name:
         subj_query = sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name)
         if class_name:
@@ -3951,41 +4141,76 @@ async def teacher_add_question_bank(
         if subj_res.data:
             subject_id = subj_res.data["id"]
         else:
-            # Fallback to match by name and current teacher
-            subj_res_t = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).eq("teacher_id", user["id"]).limit(1).maybe_single().aexecute()
-            if subj_res_t.data:
-                subject_id = subj_res_t.data["id"]
-            else:
-                subj_res_fallback = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).limit(1).maybe_single().aexecute()
-                if subj_res_fallback.data:
-                    subject_id = subj_res_fallback.data["id"]
-            
+            subj_res_fallback = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).limit(1).maybe_single().aexecute()
+            if subj_res_fallback.data:
+                subject_id = subj_res_fallback.data["id"]
+
     if not subject_id:
         subj_res = await sb.table("subjects").select("id").eq("school_id", school_id).limit(1).maybe_single().aexecute()
         if subj_res.data:
             subject_id = subj_res.data["id"]
-            
+
+    # Generate question code if not provided
+    q_code = request.get("question_code")
+    if not q_code:
+        import random, time
+        subj_prefix = (subject_name or "QB")[:4].upper()
+        q_code = f"QB-{subj_prefix}-{random.randint(100, 999)}"
+
     new_q = {
         "school_id": school_id,
         "teacher_id": user["id"],
+        "created_by": user["id"],
         "subject_id": subject_id,
+        "class_id": request.get("class_id"),
+        "section_id": request.get("section_id"),
+        "class_name": class_name or "Class 10",
         "chapter": request.get("chapter", ""),
+        "topic": request.get("topic", ""),
+        "question_code": q_code,
+        "title": request.get("title", ""),
         "question_text": request.get("question_text"),
         "question_type": _normalize_question_type(request.get("question_type")),
         "options": request.get("options"),
         "correct_answer": request.get("correct_answer"),
         "difficulty": request.get("difficulty", "Medium"),
-        "marks": int(request.get("marks", 1) or 1)
+        "marks": int(request.get("marks", 1) or 1),
+        "negative_marks": float(request.get("negative_marks", 0.0) or 0.0),
+        "language_code": request.get("language_code", "en"),
+        "explanation": request.get("explanation", ""),
+        "model_answer": request.get("model_answer", ""),
+        "rubric": request.get("rubric") or {},
+        "tags": request.get("tags") or [],
+        "source_type": request.get("source_type", "teacher_created"),
+        "source_reference": request.get("source_reference", ""),
+        "status": request.get("status", "approved"),
+        "attachments": request.get("attachments") or [],
+        "child_questions": request.get("child_questions") or []
     }
+
     res = await sb.table("question_bank").insert(new_q).aexecute()
-    return {"success": True, "school_id": school_id, "data": res.data[0]}
+    created = res.data[0] if res.data else new_q
+
+    # Log to question_bank_history
+    try:
+        await sb.table("question_bank_history").insert({
+            "question_id": created.get("id"),
+            "school_id": school_id,
+            "action": "created",
+            "performed_by": user["id"],
+            "comments": "Question created"
+        }).aexecute()
+    except Exception:
+        pass
+
+    return {"success": True, "school_id": school_id, "data": created}
 
 
 @router.put("/question-bank/{question_id}")
 async def teacher_update_question_bank(
     question_id: str, 
     request: dict, 
-    user=Depends(require_teacher), 
+    user=Depends(require_exam_access), 
     school_id=Depends(require_school_id)
 ):
     sb = get_supabase()
@@ -3993,13 +4218,23 @@ async def teacher_update_question_bank(
     if not check_q.data:
         raise HTTPException(status_code=404, detail="Question not found")
         
-    allowed = {"question_text", "question_type", "options", "correct_answer", "difficulty", "marks", "chapter"}
+    allowed = {
+        "question_text", "question_type", "options", "correct_answer", "difficulty", "marks",
+        "negative_marks", "chapter", "topic", "class_id", "section_id", "academic_session_id",
+        "class_name", "question_code", "title", "language_code", "explanation", "model_answer",
+        "rubric", "tags", "source_type", "source_reference", "status", "rejection_reason",
+        "attachments", "child_questions", "is_active"
+    }
     updates = {k: v for k, v in request.items() if k in allowed}
     if "question_type" in updates:
         updates["question_type"] = _normalize_question_type(updates["question_type"])
+    if "marks" in updates and updates["marks"] is not None:
+        updates["marks"] = int(updates["marks"])
+    if "negative_marks" in updates and updates["negative_marks"] is not None:
+        updates["negative_marks"] = float(updates["negative_marks"])
     
     subject_name = request.get("subject")
-    class_name = request.get("class") or request.get("class_id")
+    class_name = request.get("class") or request.get("class_name")
     if subject_name:
         subj_query = sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name)
         if class_name:
@@ -4008,27 +4243,121 @@ async def teacher_update_question_bank(
         if subj_res.data:
             updates["subject_id"] = subj_res.data["id"]
         else:
-            subj_res_t = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).eq("teacher_id", user["id"]).limit(1).maybe_single().aexecute()
-            if subj_res_t.data:
-                updates["subject_id"] = subj_res_t.data["id"]
-            else:
-                subj_res_fallback = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).limit(1).maybe_single().aexecute()
-                if subj_res_fallback.data:
-                    updates["subject_id"] = subj_res_fallback.data["id"]
-            
+            subj_res_fallback = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).limit(1).maybe_single().aexecute()
+            if subj_res_fallback.data:
+                updates["subject_id"] = subj_res_fallback.data["id"]
+
+    # Increment version
+    current_ver = check_q.data.get("version_number", 1) or 1
+    updates["version_number"] = current_ver + 1
+
     res = await sb.table("question_bank").update(updates).eq("id", question_id).aexecute()
-    return {"success": True, "school_id": school_id, "data": res.data[0]}
+    updated = res.data[0] if res.data else updates
+
+    # Record snapshot in versions
+    try:
+        await sb.table("question_bank_versions").insert({
+            "question_id": question_id,
+            "school_id": school_id,
+            "version_number": current_ver,
+            "snapshot": check_q.data,
+            "changed_by": user["id"],
+            "change_summary": "Question updated"
+        }).aexecute()
+    except Exception:
+        pass
+
+    return {"success": True, "school_id": school_id, "data": updated}
 
 
 @router.delete("/question-bank/{question_id}")
 async def teacher_delete_question_bank(
     question_id: str, 
-    user=Depends(require_teacher), 
+    user=Depends(require_exam_access), 
     school_id=Depends(require_school_id)
 ):
     sb = get_supabase()
-    await sb.table("question_bank").delete().eq("id", question_id).eq("school_id", school_id).aexecute()
+    # Soft delete
+    import datetime
+    now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    await sb.table("question_bank").update({"deleted_at": now_iso, "is_active": False}).eq("id", question_id).eq("school_id", school_id).aexecute()
     return {"success": True, "school_id": school_id, "message": "Question deleted"}
+
+
+@router.post("/question-bank/{question_id}/duplicate")
+async def teacher_duplicate_question_bank(
+    question_id: str,
+    user=Depends(require_exam_access),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    original_res = await sb.table("question_bank").select("*").eq("id", question_id).eq("school_id", school_id).maybe_single().aexecute()
+    if not original_res.data:
+        raise HTTPException(status_code=404, detail="Question not found")
+    q = original_res.data
+    q_copy = dict(q)
+    q_copy.pop("id", None)
+    q_copy.pop("created_at", None)
+    q_copy.pop("updated_at", None)
+    q_copy["title"] = f"Copy of {q.get('title') or q.get('question_text', '')[:30]}"
+    q_copy["question_code"] = f"{q.get('question_code', 'QB')}-COPY"
+    q_copy["status"] = "draft"
+    q_copy["created_by"] = user["id"]
+    q_copy["teacher_id"] = user["id"]
+    q_copy["version_number"] = 1
+    q_copy["usage_count"] = 0
+    res = await sb.table("question_bank").insert(q_copy).aexecute()
+    return {"success": True, "school_id": school_id, "data": res.data[0]}
+
+
+@router.post("/question-bank/{question_id}/approve")
+async def teacher_approve_question_bank(
+    question_id: str,
+    user=Depends(require_exam_access),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    import datetime
+    now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    res = await sb.table("question_bank").update({
+        "status": "approved",
+        "approved_by": user["id"],
+        "approved_at": now_iso
+    }).eq("id", question_id).eq("school_id", school_id).aexecute()
+    return {"success": True, "school_id": school_id, "data": res.data[0] if res.data else {}}
+
+
+@router.get("/question-bank/chapters")
+async def teacher_get_question_bank_chapters(
+    subject: Optional[str] = None,
+    class_name: Optional[str] = None,
+    user=Depends(require_exam_access),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    query = sb.table("question_bank").select("chapter").eq("school_id", school_id).is_("deleted_at", "null")
+    if class_name and class_name != "All":
+        query = query.eq("class_name", class_name)
+    res = await query.aexecute()
+    chapters = sorted(list(set(row["chapter"] for row in (res.data or []) if row.get("chapter"))))
+    return {"success": True, "school_id": school_id, "data": chapters}
+
+
+@router.get("/question-bank/classes")
+async def teacher_get_question_bank_classes(
+    user=Depends(require_exam_access),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    # 1. First get classes from classes table
+    classes_res = await sb.table("classes").select("name").eq("school_id", school_id).aexecute()
+    class_names = [c["name"] for c in (classes_res.data or []) if c.get("name")]
+    # 2. Also union with distinct class_name in question_bank
+    qb_res = await sb.table("question_bank").select("class_name").eq("school_id", school_id).is_("deleted_at", "null").aexecute()
+    for row in (qb_res.data or []):
+        if row.get("class_name") and row["class_name"] not in class_names:
+            class_names.append(row["class_name"])
+    return {"success": True, "school_id": school_id, "data": sorted(class_names)}
 
 
 @router.get("/question-bank/export-template")
@@ -4132,7 +4461,7 @@ async def export_question_template(type: str = "mcq", subject: str = None):
 @router.post("/question-bank/bulk-upload")
 async def bulk_upload_questions(
     request: dict,
-    user=Depends(require_teacher),
+    user=Depends(require_exam_access),
     school_id=Depends(require_school_id)
 ):
     sb = get_supabase()
@@ -4608,4 +4937,4 @@ async def teacher_apply_penalty(request: dict, user=Depends(require_teacher), sc
 
 
 
-
+

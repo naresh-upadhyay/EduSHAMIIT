@@ -335,4 +335,295 @@ void downloadFileWeb(String url, String filename) {
   }
 }
 
+void downloadStaffPayslipHtml({required Map<String, dynamic> payslip}) {
+  try {
+    final payslipNum = payslip['payslip_number'] ?? 'payslip';
+    final html = '<html><body><h1>Payslip $payslipNum</h1><pre>$payslip</pre></body></html>';
+    final encodedHtml = Uri.encodeComponent(html);
+    js.context.callMethod('eval', [
+      '''
+      (function() {
+        const blob = new Blob([decodeURIComponent('$encodedHtml')], {type: 'text/html'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '$payslipNum.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      })();
+      '''
+    ]);
+  } catch (e) {
+    debugPrint('[JSHelper] Error downloading payslip: $e');
+  }
+}
+
+void printStaffPayslipHtml({required Map<String, dynamic> payslip}) {
+  try {
+    final payslipNum = payslip['payslip_number'] ?? 'payslip';
+    final html = '<html><body><h1>Payslip $payslipNum</h1><pre>$payslip</pre></body></html>';
+    final encodedHtml = Uri.encodeComponent(html);
+    js.context.callMethod('eval', [
+      '''
+      (function() {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(decodeURIComponent('$encodedHtml'));
+          printWindow.document.close();
+          printWindow.focus();
+          printWindow.print();
+        }
+      })();
+      '''
+    ]);
+  } catch (e) {
+    debugPrint('[JSHelper] Error printing payslip: $e');
+  }
+}
+
+void printStudentFeeReceiptHtml({
+  required String receiptNumber,
+  required String studentName,
+  String? className,
+  String? rollNumber,
+  String? roomNumber,
+  String? hostelName,
+  required double amount,
+  required String paymentMethod,
+  required String transactionRef,
+  required String paymentDate,
+  String? institutionName,
+  String? campusName,
+}) {
+  try {
+    final inst = institutionName ?? 'EduSHAMIIT';
+    final camp = campusName != null ? '<p>$campusName</p>' : '';
+    final html = '<html><body><h1>$inst</h1>$camp<h2>Fee Receipt $receiptNumber</h2><p>Student: $studentName</p><p>Amount: $amount</p><p>Date: $paymentDate</p><p>Method: $paymentMethod</p><p>Ref: $transactionRef</p></body></html>';
+    final encodedHtml = Uri.encodeComponent(html);
+    js.context.callMethod('eval', [
+      '''
+      (function() {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(decodeURIComponent('$encodedHtml'));
+          printWindow.document.close();
+          printWindow.focus();
+          printWindow.print();
+        }
+      })();
+      '''
+    ]);
+  } catch (e) {
+    debugPrint('[JSHelper] Error printing fee receipt: $e');
+  }
+}
+
+void downloadStudentFeeReceiptHtml({
+  required String receiptNumber,
+  required String studentName,
+  String? className,
+  String? rollNumber,
+  String? roomNumber,
+  String? hostelName,
+  required double amount,
+  required String paymentMethod,
+  required String transactionRef,
+  required String paymentDate,
+  String? institutionName,
+  String? campusName,
+}) {
+  try {
+    final inst = institutionName ?? 'EduSHAMIIT';
+    final camp = campusName != null ? '<p>$campusName</p>' : '';
+    final html = '<html><body><h1>$inst</h1>$camp<h2>Fee Receipt $receiptNumber</h2><p>Student: $studentName</p><p>Amount: $amount</p><p>Date: $paymentDate</p></body></html>';
+    final encodedHtml = Uri.encodeComponent(html);
+    js.context.callMethod('eval', [
+      '''
+      (function() {
+        const blob = new Blob([decodeURIComponent('$encodedHtml')], {type: 'text/html'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Receipt_$receiptNumber.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      })();
+      '''
+    ]);
+  } catch (e) {
+    debugPrint('[JSHelper] Error downloading fee receipt: $e');
+  }
+}
+
+void downloadCsvWeb(String content, String filename) {
+  try {
+    final encoded = Uri.encodeComponent(content);
+    js.context.callMethod('eval', [
+      '''
+      (function() {
+        const blob = new Blob([decodeURIComponent('$encoded')], {type: 'text/csv;charset=utf-8;'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '$filename';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      })();
+      '''
+    ]);
+  } catch (e) {
+    debugPrint('[JSHelper] Error downloading CSV: $e');
+  }
+}
+
+void printHostelGatePassHtml({
+  required String passNumber,
+  required String studentName,
+  required String requestType,
+  String? studentClass,
+  String? rollNumber,
+  String? hostelName,
+  String? roomNumber,
+  String? destination,
+  String? reason,
+  String? validFrom,
+  String? validUntil,
+  String? parentPhone,
+  bool isThermal = false,
+  String? qrBase64,
+}) {
+  try {
+    final html = '<html><body><h1>Hostel Gate Pass $passNumber</h1><p>Student: $studentName</p><p>Type: $requestType</p><p>Hostel: $hostelName Room: $roomNumber</p><p>Valid: $validFrom - $validUntil</p></body></html>';
+    final encodedHtml = Uri.encodeComponent(html);
+    js.context.callMethod('eval', [
+      '''
+      (function() {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(decodeURIComponent('$encodedHtml'));
+          printWindow.document.close();
+          printWindow.focus();
+          printWindow.print();
+        }
+      })();
+      '''
+    ]);
+  } catch (e) {
+    debugPrint('[JSHelper] Error printing gate pass: $e');
+  }
+}
+
+void printHostelReportHtml({
+  required String reportTitle,
+  required String academicYear,
+  required List<String> columns,
+  required List<Map<String, dynamic>> records,
+}) {
+  try {
+    final html = '<html><body><h1>$reportTitle</h1><p>Academic Year: $academicYear</p><p>Total Records: ${records.length}</p></body></html>';
+    final encodedHtml = Uri.encodeComponent(html);
+    js.context.callMethod('eval', [
+      '''
+      (function() {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(decodeURIComponent('$encodedHtml'));
+          printWindow.document.close();
+          printWindow.focus();
+          printWindow.print();
+        }
+      })();
+      '''
+    ]);
+  } catch (e) {
+    debugPrint('[JSHelper] Error printing hostel report: $e');
+  }
+}
+
+void printVisitorGatePassHtml({
+  required String passNumber,
+  required String visitorName,
+  required String visitorType,
+  String? phone,
+  String? destination,
+  String? hostName,
+  String? hostDepartment,
+  String? checkInAt,
+  String? validUntil,
+  String? qrBase64,
+  bool isThermal = false,
+}) {
+  try {
+    final html = '<html><body><h1>Visitor Gate Pass $passNumber</h1><p>Visitor: $visitorName ($visitorType)</p><p>Host: $hostName ($hostDepartment)</p><p>Destination: $destination</p></body></html>';
+    final encodedHtml = Uri.encodeComponent(html);
+    js.context.callMethod('eval', [
+      '''
+      (function() {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(decodeURIComponent('$encodedHtml'));
+          printWindow.document.close();
+          printWindow.focus();
+          printWindow.print();
+        }
+      })();
+      '''
+    ]);
+  } catch (e) {
+    debugPrint('[JSHelper] Error printing visitor gate pass: $e');
+  }
+}
+
+void printMultipleVisitorGatePassesHtml({
+  required List<Map<String, dynamic>> passes,
+}) {
+  try {
+    final html = '<html><body><h1>Batch Visitor Gate Passes</h1><p>Total Passes: ${passes.length}</p></body></html>';
+    final encodedHtml = Uri.encodeComponent(html);
+    js.context.callMethod('eval', [
+      '''
+      (function() {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(decodeURIComponent('$encodedHtml'));
+          printWindow.document.close();
+          printWindow.focus();
+          printWindow.print();
+        }
+      })();
+      '''
+    ]);
+  } catch (e) {
+    debugPrint('[JSHelper] Error printing multiple visitor gate passes: $e');
+  }
+}
+
+void printExecutiveSummaryHtml({
+  required dynamic report,
+}) {
+  try {
+    final html = '<html><body><h1>Executive Summary Report</h1><pre>$report</pre></body></html>';
+    final encodedHtml = Uri.encodeComponent(html);
+    js.context.callMethod('eval', [
+      '''
+      (function() {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(decodeURIComponent('$encodedHtml'));
+          printWindow.document.close();
+          printWindow.focus();
+          printWindow.print();
+        }
+      })();
+      '''
+    ]);
+  } catch (e) {
+    debugPrint('[JSHelper] Error printing executive summary: $e');
+  }
+}
+
+
 

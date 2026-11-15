@@ -2,7 +2,12 @@
 -- Description: Enable PostgreSQL pg_cron extension and schedule nightly automated execution of archive_old_audit_logs.
 
 -- 1. Enable pg_cron extension if available on PostgreSQL server / Supabase
-CREATE EXTENSION IF NOT EXISTS pg_cron;
+DO $$
+BEGIN
+  CREATE EXTENSION IF NOT EXISTS pg_cron;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'pg_cron extension not available: %', SQLERRM;
+END $$;
 
 -- 2. Schedule Nightly Automated Cleanup at 2:00 AM UTC
 DO $$
@@ -15,7 +20,7 @@ BEGIN
     PERFORM cron.schedule(
       'nightly_audit_log_cleanup',
       '0 2 * * *', -- Every night at 2:00 AM UTC
-      $$SELECT public.archive_old_audit_logs(90);$$
+      'SELECT public.archive_old_audit_logs(90);'
     );
   END IF;
 EXCEPTION WHEN OTHERS THEN

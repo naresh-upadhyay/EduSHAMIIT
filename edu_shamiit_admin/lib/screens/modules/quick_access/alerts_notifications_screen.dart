@@ -20,6 +20,62 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
   Color get _cardBg => _isDark ? const Color(0xFF13182C) : Colors.white;
   Color get _borderColor => _isDark ? Colors.white10 : const Color(0xFFE2E8F0);
   Color get _textPrimary => _isDark ? Colors.white : const Color(0xFF0F172A);
+  Color get _textSecondary => _isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+  Color get _inputBg => _isDark ? const Color(0xFF0A0D1A) : const Color(0xFFF8FAFC);
+
+  static const _accent = Color(0xFF4F46E5);
+  static const _green = Color(0xFF10B981);
+  static const _blue = Color(0xFF3B82F6);
+  static const _orange = Color(0xFFF59E0B);
+  static const _red = Color(0xFFEF4444);
+
+  String _normalizeCategory(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return "System";
+    final l = raw.trim().toLowerCase();
+    if (l.contains("inst")) return "Institutions";
+    if (l.contains("user")) return "Users";
+    if (l.contains("exam")) return "Examinations";
+    if (l.contains("pay")) return "Payments";
+    if (l.contains("sys")) return "System";
+    return "System";
+  }
+
+  String _displayCategory(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return "System";
+    final l = raw.trim().toLowerCase();
+    if (l == "system_alert" || (l.contains("sys") && l.contains("alert"))) return "System Alert";
+    return _normalizeCategory(raw);
+  }
+
+  String _normalizePriority(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return "Info";
+    final l = raw.trim().toLowerCase();
+    if (l == "critical") return "Critical";
+    if (l == "high") return "High";
+    if (l == "warning" || l == "warn") return "Warning";
+    if (l == "normal" || l == "info" || l == "low") return "Info";
+    return "Info";
+  }
+
+  String _displayPriority(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return "Info";
+    final l = raw.trim().toLowerCase();
+    if (l == "normal") return "Normal";
+    if (l == "critical") return "Critical";
+    if (l == "high") return "High";
+    if (l == "warning") return "Warning";
+    return "Info";
+  }
+
+  String _normalizeStatus(String? raw, [bool? isRead]) {
+    if (raw != null && raw.trim().isNotEmpty) {
+      final l = raw.trim().toLowerCase();
+      if (l == "resolved" || l == "completed") return "Resolved";
+      if (l == "in progress" || l == "in_progress") return "In Progress";
+      if (l == "new" || l == "unread" || l == "active") return "New";
+    }
+    return "New";
+  }
 
   bool _isLoading = true;
   List<dynamic> _alerts = [];
@@ -35,17 +91,22 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
   
   // Stats & Breakdown (mocked values or fetched from API)
   Map<String, dynamic> _stats = {
-    "total_alerts": 56,
-    "unread_alerts": 12,
-    "critical_alerts": 5,
-    "resolved_alerts": 39
+    "total_alerts": 0,
+    "unread_alerts": 0,
+    "critical_alerts": 0,
+    "high_alerts": 0,
+    "warning_alerts": 0,
+    "info_alerts": 0,
+    "resolved_alerts": 0,
+    "in_progress_alerts": 0,
+    "resolved_today_alerts": 0,
   };
   
   Map<String, dynamic> _breakdown = {
-    "critical": 5,
-    "high": 18,
-    "warning": 12,
-    "info": 21
+    "critical": 0,
+    "high": 0,
+    "warning": 0,
+    "info": 0
   };
 
   Map<String, dynamic> _settings = {
@@ -94,17 +155,40 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
           _alerts = data['alerts'] ?? [];
           _totalAlerts = data['total'] ?? 0;
           _stats = data['stats'] ?? _stats;
-          _breakdown = data['breakdown'] ?? _breakdown;
+          if (data['breakdown'] != null) {
+            _breakdown = Map<String, dynamic>.from(data['breakdown']);
+          } else {
+            int crit = 0, high = 0, warn = 0, info = 0;
+            for (var a in _alerts) {
+              final p = (a['priority'] ?? '').toString().toLowerCase();
+              if (p == 'critical') {
+                crit++;
+              } else if (p == 'high') {
+                high++;
+              } else if (p == 'warning') {
+                warn++;
+              } else {
+                info++;
+              }
+            }
+            _breakdown = {
+              "critical": crit,
+              "high": high,
+              "warning": warn,
+              "info": info
+            };
+          }
           _settings = data['settings'] ?? _settings;
         });
       }
     } catch (e) {
       debugPrint("Error fetching system alerts: $e");
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -332,44 +416,90 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
   Widget _buildMetricsGrid() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final crossCount = constraints.maxWidth < 600 ? 2 : 4;
-        return GridView.count(
-          crossAxisCount: crossCount,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          shrinkWrap: true,
-          childAspectRatio: crossCount == 2 ? 1.8 : 2.2,
-          physics: const NeverScrollableScrollPhysics(),
-          children: [
-            _buildMetricCard(
-              title: 'Total Alerts',
-              value: '${_stats['total_alerts'] ?? 0}',
-              subtitle: 'All time alerts',
-              color: const Color(0xFF8B5CF6),
-              icon: Icons.notifications_none_outlined,
-            ),
-            _buildMetricCard(
-              title: 'Unread Alerts',
-              value: '${_stats['unread_alerts'] ?? 0}',
-              subtitle: 'Require attention',
-              color: const Color(0xFF3B82F6),
-              icon: Icons.mark_email_unread_outlined,
-            ),
-            _buildMetricCard(
-              title: 'Critical Alerts',
-              value: '${_stats['critical_alerts'] ?? 0}',
-              subtitle: 'High priority issues',
-              color: const Color(0xFFEF4444),
-              icon: Icons.error_outline_rounded,
-            ),
-            _buildMetricCard(
-              title: 'Resolved Alerts',
-              value: '${_stats['resolved_alerts'] ?? 0}',
-              subtitle: 'Successfully resolved',
-              color: const Color(0xFF10B981),
-              icon: Icons.check_circle_outline_rounded,
-            ),
-          ],
+        final width = constraints.maxWidth;
+        final int cols;
+        const double spacing = 12.0;
+        if (width >= 1100) {
+          cols = 4;
+        } else if (width >= 600) {
+          cols = 2;
+        } else {
+          cols = 1;
+        }
+        final double totalSpacing = (cols - 1) * spacing;
+        final double cardWidth = ((width - totalSpacing) / cols).floorToDouble();
+
+        final cards = [
+          _buildMetricCard(
+            title: 'Total Alerts',
+            value: '${_stats['total_alerts'] ?? 0}',
+            subtitle: 'All time alerts',
+            color: const Color(0xFF8B5CF6),
+            icon: Icons.notifications_none_outlined,
+            isSelected: _selectedTab == 'All Alerts' && _selectedStatus == 'All Status',
+            onTap: () {
+              setState(() {
+                _selectedTab = 'All Alerts';
+                _selectedStatus = 'All Status';
+                _currentPage = 1;
+              });
+              _fetchAlertsData();
+            },
+          ),
+          _buildMetricCard(
+            title: 'Unread Alerts',
+            value: '${_stats['unread_alerts'] ?? 0}',
+            subtitle: 'Require attention',
+            color: const Color(0xFF3B82F6),
+            icon: Icons.mark_email_unread_outlined,
+            isSelected: _selectedTab == 'Unread',
+            onTap: () {
+              setState(() {
+                _selectedTab = 'Unread';
+                _selectedStatus = 'All Status';
+                _currentPage = 1;
+              });
+              _fetchAlertsData();
+            },
+          ),
+          _buildMetricCard(
+            title: 'Critical Alerts',
+            value: '${_stats['critical_alerts'] ?? 0}',
+            subtitle: 'High priority issues',
+            color: const Color(0xFFEF4444),
+            icon: Icons.error_outline_rounded,
+            isSelected: _selectedTab == 'Critical',
+            onTap: () {
+              setState(() {
+                _selectedTab = 'Critical';
+                _selectedStatus = 'All Status';
+                _currentPage = 1;
+              });
+              _fetchAlertsData();
+            },
+          ),
+          _buildMetricCard(
+            title: 'Resolved Alerts',
+            value: '${_stats['resolved_alerts'] ?? 0}',
+            subtitle: 'Successfully resolved',
+            color: const Color(0xFF10B981),
+            icon: Icons.check_circle_outline_rounded,
+            isSelected: _selectedTab == 'Resolved',
+            onTap: () {
+              setState(() {
+                _selectedTab = 'Resolved';
+                _selectedStatus = 'All Status';
+                _currentPage = 1;
+              });
+              _fetchAlertsData();
+            },
+          ),
+        ];
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: cards.map((c) => SizedBox(width: cardWidth, child: c)).toList(),
         );
       },
     );
@@ -381,47 +511,81 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
     required String subtitle,
     required Color color,
     required IconData icon,
+    bool isSelected = false,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _cardBg,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _borderColor),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+        hoverColor: color.withValues(alpha: 0.04),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? color.withValues(alpha: _isDark ? 0.12 : 0.06)
+                : _cardBg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? color : _borderColor,
+              width: isSelected ? 1.5 : 1.0,
             ),
-            child: Icon(icon, color: color, size: 24),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    )
+                  ]
+                : null,
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  value,
-                  style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: _textPrimary),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: isSelected ? 0.20 : 0.10),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  title,
-                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      value,
+                      style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: _textPrimary),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      title,
+                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary),
+                    ),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.inter(fontSize: 10, color: _textSecondary),
+                    ),
+                  ],
                 ),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.inter(fontSize: 10, color: Colors.grey),
+              ),
+              if (isSelected)
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check, size: 12, color: Colors.white),
                 ),
-              ],
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -435,44 +599,49 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
       alignment: WrapAlignment.spaceBetween,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        // Tabs
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: tabs.map((tab) {
-            final isSelected = _selectedTab == tab;
-            return InkWell(
-              onTap: () {
-                setState(() {
-                  _selectedTab = tab;
-                  _currentPage = 1;
-                });
-                _fetchAlertsData();
-              },
-              child: Container(
-                margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? const Color(0xFF4F46E5).withValues(alpha: 0.1)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  tab,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    color: isSelected ? const Color(0xFF4F46E5) : (_isDark ? Colors.white60 : Colors.black54),
+        // Tabs with horizontal scroll support
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: tabs.map((tab) {
+              final isSelected = _selectedTab == tab;
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    _selectedTab = tab;
+                    _currentPage = 1;
+                  });
+                  _fetchAlertsData();
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? const Color(0xFF4F46E5).withValues(alpha: 0.1)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    tab,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected ? const Color(0xFF4F46E5) : (_isDark ? Colors.white60 : Colors.black54),
+                    ),
                   ),
                 ),
-              ),
-            );
-          }).toList(),
+              );
+            }).toList(),
+          ),
         ),
 
         // Dropdowns & Search
-        Row(
-          mainAxisSize: MainAxisSize.min,
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             // Category Dropdown
             _buildDropdownFilter(
@@ -488,7 +657,6 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
                 }
               },
             ),
-            const SizedBox(width: 8),
             // Status Dropdown
             _buildDropdownFilter(
               value: _selectedStatus,
@@ -503,10 +671,9 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
                 }
               },
             ),
-            const SizedBox(width: 12),
             // Search Input
             SizedBox(
-              width: 200,
+              width: 180,
               height: 36,
               child: TextField(
                 controller: _searchController,
@@ -532,7 +699,7 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
                 },
                 onSubmitted: (val) {
                   setState(() {
-                    _searchQuery = val;
+                    _searchQuery = val.trim();
                     _currentPage = 1;
                   });
                   _fetchAlertsData();
@@ -584,6 +751,32 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
       );
     }
 
+    final tableBody = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (_selectedIds.isNotEmpty) _buildBulkActionBar(),
+        _buildTableHeader(),
+        const Divider(height: 1),
+        if (_alerts.isEmpty)
+          Container(
+            height: 200,
+            alignment: Alignment.center,
+            child: const Text('No alerts found matching filters.', style: TextStyle(color: Colors.grey)),
+          )
+        else
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _alerts.length,
+            separatorBuilder: (context, index) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final alert = _alerts[index];
+              return _buildAlertRow(alert);
+            },
+          ),
+      ],
+    );
+
     return Container(
       decoration: BoxDecoration(
         color: _cardBg,
@@ -593,34 +786,21 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Bulk Actions bar if anything selected
-          if (_selectedIds.isNotEmpty) _buildBulkActionBar(),
-          
-          // Table Headers
-          _buildTableHeader(),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 800) {
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: 800,
+                    child: tableBody,
+                  ),
+                );
+              }
+              return tableBody;
+            },
+          ),
           const Divider(height: 1),
-          
-          // Table Rows
-          if (_alerts.isEmpty)
-            Container(
-              height: 200,
-              alignment: Alignment.center,
-              child: const Text('No alerts found matching filters.', style: TextStyle(color: Colors.grey)),
-            )
-          else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _alerts.length,
-              separatorBuilder: (context, index) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final alert = _alerts[index];
-                return _buildAlertRow(alert);
-              },
-            ),
-            
-          const Divider(height: 1),
-          // Pagination Footer
           _buildTableFooter(),
         ],
       ),
@@ -668,25 +848,37 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          Checkbox(
-            value: _alerts.isNotEmpty && _selectedIds.length == _alerts.length,
-            onChanged: (val) {
-              setState(() {
-                if (val == true) {
-                  _selectedIds.addAll(_alerts.map((a) => a['id'].toString()));
-                } else {
-                  _selectedIds.clear();
-                }
-              });
-            },
+          SizedBox(
+            width: 48,
+            child: Center(
+              child: Checkbox(
+                value: _alerts.isNotEmpty && _selectedIds.length == _alerts.length,
+                activeColor: const Color(0xFF4F46E5),
+                onChanged: (val) {
+                  setState(() {
+                    if (val == true) {
+                      _selectedIds.addAll(_alerts.map((a) => a['id'].toString()));
+                    } else {
+                      _selectedIds.clear();
+                    }
+                  });
+                },
+              ),
+            ),
           ),
-          const SizedBox(width: 12),
-          const Expanded(flex: 3, child: Text('Alert Title', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-          const Expanded(flex: 2, child: Text('Category', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-          const Expanded(flex: 1, child: Text('Priority', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-          const Expanded(flex: 2, child: Text('Created At', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-          const Expanded(flex: 1, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-          const SizedBox(width: 80, child: Text('Action', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center)),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Row(
+              children: [
+                Expanded(flex: 3, child: Align(alignment: Alignment.centerLeft, child: Text('Alert Title', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+                Expanded(flex: 2, child: Center(child: Text('Category', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+                Expanded(flex: 2, child: Center(child: Text('Priority', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+                Expanded(flex: 2, child: Center(child: Text('Created At', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+                Expanded(flex: 2, child: Center(child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+              ],
+            ),
+          ),
+          const SizedBox(width: 88, child: Center(child: Text('Action', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
         ],
       ),
     );
@@ -695,6 +887,11 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
   Widget _buildAlertRow(Map<String, dynamic> alert) {
     final isSelected = _selectedIds.contains(alert['id']);
     final isUnread = !(alert['is_read'] ?? false);
+    final displayCategory = _displayCategory(alert['category']?.toString());
+    final displayPriority = _displayPriority(alert['priority']?.toString());
+    final priority = _normalizePriority(alert['priority']?.toString());
+    final status = _normalizeStatus(alert['status']?.toString(), alert['is_read'] == true);
+    final alertDesc = (alert['description'] ?? alert['message'] ?? '').toString().trim();
 
     // ── Category icon & color ──────────────────────────────────────────
     IconData categoryIcon = Icons.info_outline;
@@ -720,7 +917,6 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
     // ── Priority chip — theme-aware ────────────────────────────────────
     Color priorityBg;
     Color priorityText;
-    final priority = alert['priority'].toString();
     if (priority == 'Critical') {
       priorityBg = _isDark ? const Color(0xFFEF4444).withValues(alpha: 0.18) : const Color(0xFFFEE2E2);
       priorityText = _isDark ? const Color(0xFFFCA5A5) : const Color(0xFFEF4444);
@@ -738,7 +934,6 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
     // ── Status chip — theme-aware ──────────────────────────────────────
     Color statusBg;
     Color statusText;
-    final status = alert['status'].toString();
     if (status == 'New') {
       statusBg = _isDark ? const Color(0xFF4F46E5).withValues(alpha: 0.22) : const Color(0xFFEEF2FF);
       statusText = _isDark ? const Color(0xFFA5B4FC) : const Color(0xFF4F46E5);
@@ -754,8 +949,6 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
     }
 
     // ── Row background & left accent ───────────────────────────────────
-    //  Unread:  strong indigo-tinted row  +  3px indigo left border
-    //  Read:    transparent row           +  no border (3px transparent)
     final Color rowBg = isUnread
         ? (_isDark
             ? const Color(0xFF4F46E5).withValues(alpha: 0.10)
@@ -788,201 +981,255 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Checkbox(
-            value: isSelected,
-            activeColor: const Color(0xFF4F46E5),
-            onChanged: (val) {
-              setState(() {
-                if (val == true) {
-                  _selectedIds.add(alert['id']);
-                } else {
-                  _selectedIds.remove(alert['id']);
-                }
-              });
-            },
+          SizedBox(
+            width: 48,
+            child: Center(
+              child: Checkbox(
+                value: isSelected,
+                activeColor: const Color(0xFF4F46E5),
+                onChanged: (val) {
+                  setState(() {
+                    if (val == true) {
+                      _selectedIds.add(alert['id']);
+                    } else {
+                      _selectedIds.remove(alert['id']);
+                    }
+                  });
+                },
+              ),
+            ),
           ),
           const SizedBox(width: 8),
 
-          // ── Alert Title + description ──────────────────────────────
+          // ── Clickable Alert Row Content (tapping opens details & auto-marks as read) ──
           Expanded(
-            flex: 3,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Category icon with colored container
-                Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    color: categoryColor.withValues(alpha: _isDark ? 0.18 : 0.10),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(categoryIcon, size: 15, color: categoryColor),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+            child: InkWell(
+              onTap: () => _showViewAlertDialog(alert),
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // ── Alert Title + description ──────────────────────────────
+                    Expanded(
+                      flex: 3,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: categoryColor.withValues(alpha: _isDark ? 0.18 : 0.10),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(categoryIcon, size: 16, color: categoryColor),
+                          ),
+                          const SizedBox(width: 10),
                           Expanded(
-                            child: Text(
-                              alert['title'] ?? 'Title',
-                              style: GoogleFonts.inter(
-                                fontWeight: isUnread ? FontWeight.w700 : FontWeight.w500,
-                                fontSize: 12,
-                                color: isUnread
-                                    ? (_isDark ? const Color(0xFFC7D2FE) : const Color(0xFF3730A3))
-                                    : _textPrimary,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        alert['title'] ?? 'Title',
+                                        style: GoogleFonts.inter(
+                                          fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
+                                          fontSize: 13,
+                                          color: isUnread
+                                              ? (_isDark ? const Color(0xFFC7D2FE) : const Color(0xFF3730A3))
+                                              : _textPrimary,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (isUnread) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF4F46E5),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          'NEW',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.white,
+                                            letterSpacing: 0.6,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                if (alertDesc.isNotEmpty) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    alertDesc,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      color: _isDark
+                                          ? (isUnread ? Colors.white54 : Colors.white38)
+                                          : (isUnread ? const Color(0xFF6366F1) : Colors.grey.shade600),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
-                          if (isUnread) ...[  
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF4F46E5),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                'NEW',
-                                style: GoogleFonts.inter(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                  letterSpacing: 0.6,
-                                ),
-                              ),
-                            ),
-                          ],
                         ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        alert['description'] ?? '',
-                        style: GoogleFonts.inter(
-                          fontSize: 10,
-                          color: _isDark
-                              ? (isUnread ? Colors.white38 : Colors.white24)
-                              : (isUnread ? const Color(0xFF6366F1) : Colors.grey),
+                    ),
+
+                    // ── Category badge (CENTER ALIGNED) ─────────────────────────
+                    Expanded(
+                      flex: 2,
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: categoryColor.withValues(alpha: _isDark ? 0.15 : 0.08),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: categoryColor.withValues(alpha: _isDark ? 0.30 : 0.20),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(categoryIcon, size: 12, color: categoryColor),
+                              const SizedBox(width: 5),
+                              Text(
+                                displayCategory,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: categoryColor,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
                       ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // ── Category badge ─────────────────────────────────────────
-          Expanded(
-            flex: 2,
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: categoryColor.withValues(alpha: _isDark ? 0.15 : 0.08),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                      color: categoryColor.withValues(alpha: _isDark ? 0.30 : 0.20),
                     ),
-                  ),
-                  child: Text(
-                    alert['category'] ?? 'General',
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: categoryColor,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
 
-          // ── Priority badge ─────────────────────────────────────────
-          Expanded(
-            flex: 1,
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: priorityBg,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    priority,
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      color: priorityText,
-                      fontWeight: FontWeight.w700,
+                    // ── Priority badge (CENTER ALIGNED) ─────────────────────────
+                    Expanded(
+                      flex: 2,
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: priorityBg,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  color: priorityText,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                displayPriority,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  color: priorityText,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ],
-            ),
-          ),
 
-          // ── Created At ─────────────────────────────────────────────
-          Expanded(
-            flex: 2,
-            child: Text(
-              formattedTime,
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                color: isUnread
-                    ? (_isDark ? Colors.white54 : const Color(0xFF4F46E5).withValues(alpha: 0.7))
-                    : (_isDark ? Colors.white30 : Colors.grey),
-                fontWeight: isUnread ? FontWeight.w500 : FontWeight.normal,
+                    // ── Created At (CENTER ALIGNED) ─────────────────────────────
+                    Expanded(
+                      flex: 2,
+                      child: Center(
+                        child: Text(
+                          formattedTime,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: isUnread
+                                ? (_isDark ? Colors.white70 : const Color(0xFF4F46E5))
+                                : (_isDark ? Colors.white54 : Colors.grey.shade700),
+                            fontWeight: isUnread ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // ── Status badge (CENTER ALIGNED) ───────────────────────────
+                    Expanded(
+                      flex: 2,
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: statusBg,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  color: statusText,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                status,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  color: statusText,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
 
-          // ── Status badge ───────────────────────────────────────────
-          Expanded(
-            flex: 1,
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusBg,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    status,
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      color: statusText,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // ── Actions ────────────────────────────────────────────────
+          // ── Actions (CENTER ALIGNED) ────────────────────────────────
           SizedBox(
-            width: 80,
+            width: 88,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Eye icon: filled + indigo = unread, outline + grey = read
                 Tooltip(
-                  message: isUnread ? 'Mark as read' : 'View details',
+                  message: 'View details',
                   child: InkWell(
                     onTap: () {
                       _showViewAlertDialog(alert);
-                      if (isUnread) _toggleAlertRead(alert, forceValue: true);
                     },
                     borderRadius: BorderRadius.circular(6),
                     child: Container(
@@ -995,24 +1242,27 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Icon(
-                        isUnread ? Icons.visibility_rounded : Icons.visibility_outlined,
+                        Icons.visibility_outlined,
                         size: 16,
                         color: isUnread
                             ? const Color(0xFF6366F1)
-                            : (_isDark ? Colors.white38 : Colors.black38),
+                            : (_isDark ? Colors.white60 : Colors.black54),
                       ),
                     ),
                   ),
                 ),
+                const SizedBox(width: 4),
                 PopupMenuButton<String>(
                   icon: Icon(
                     Icons.more_vert,
                     size: 16,
-                    color: _isDark ? Colors.white54 : Colors.black54,
+                    color: _isDark ? Colors.white60 : Colors.black54,
                   ),
                   color: _isDark ? const Color(0xFF1E293B) : Colors.white,
                   onSelected: (val) {
-                    if (val == 'toggle_read') {
+                    if (val == 'view') {
+                      _showViewAlertDialog(alert);
+                    } else if (val == 'toggle_read') {
                       _toggleAlertRead(alert);
                     } else if (val == 'edit') {
                       _showEditAlertDialog(alert);
@@ -1021,6 +1271,16 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
                     }
                   },
                   itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'view',
+                      child: Row(
+                        children: [
+                          Icon(Icons.visibility_outlined, size: 14, color: Color(0xFF3B82F6)),
+                          SizedBox(width: 8),
+                          Text('View Details', style: TextStyle(fontSize: 11)),
+                        ],
+                      ),
+                    ),
                     PopupMenuItem(
                       value: 'toggle_read',
                       child: Row(
@@ -1068,60 +1328,71 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
     );
   }
 
-
   Widget _buildTableFooter() {
     final int totalPages = (_totalAlerts / _pageSize).ceil();
-    final int startItem = ((_currentPage - 1) * _pageSize) + 1;
+    final int startItem = _totalAlerts == 0 ? 0 : ((_currentPage - 1) * _pageSize) + 1;
     final int endItem = _currentPage * _pageSize > _totalAlerts ? _totalAlerts : _currentPage * _pageSize;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
+    final List<int> visiblePages = [];
+    final effectiveTotalPages = totalPages == 0 ? 1 : totalPages;
+    if (effectiveTotalPages <= 5) {
+      visiblePages.addAll(List.generate(effectiveTotalPages, (i) => i + 1));
+    } else {
+      int start = (_currentPage - 2).clamp(1, effectiveTotalPages - 4);
+      visiblePages.addAll(List.generate(5, (i) => start + i));
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 620;
+        final infoRow = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Showing $startItem to $endItem of $_totalAlerts alerts',
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              height: 28,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                border: Border.all(color: _borderColor),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  value: _pageSize,
+                  style: TextStyle(fontSize: 10, color: _isDark ? Colors.white : Colors.black87),
+                  dropdownColor: _cardBg,
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _pageSize = val;
+                        _currentPage = 1;
+                      });
+                      _fetchAlertsData();
+                    }
+                  },
+                  items: [5, 10, 20, 50, 100].map((size) {
+                    return DropdownMenuItem<int>(
+                      value: size,
+                      child: Text('$size / page'),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ],
+        );
+
+        final paginationControls = SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                'Showing $startItem to $endItem of $_totalAlerts alerts',
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                height: 28,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  border: Border.all(color: _borderColor),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: _pageSize,
-                    style: TextStyle(fontSize: 10, color: _isDark ? Colors.white : Colors.black87),
-                    dropdownColor: _cardBg,
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() {
-                          _pageSize = val;
-                          _currentPage = 1;
-                        });
-                        _fetchAlertsData();
-                      }
-                    },
-                    items: [5, 10, 20, 50, 100].map((size) {
-                      return DropdownMenuItem<int>(
-                        value: size,
-                        child: Text('$size / page'),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          Row(
-            children: [
               IconButton(
+                visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.chevron_left, size: 16),
                 onPressed: _currentPage > 1
                     ? () {
@@ -1130,40 +1401,63 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
                       }
                     : null,
               ),
-              const SizedBox(width: 4),
-              // Page Numbers
-              Row(
-                children: List.generate(totalPages == 0 ? 1 : totalPages, (index) {
-                  final pageNum = index + 1;
-                  final isCurrent = _currentPage == pageNum;
-                  return InkWell(
-                    onTap: () {
-                      setState(() => _currentPage = pageNum);
-                      _fetchAlertsData();
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: isCurrent ? const Color(0xFF4F46E5) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '$pageNum',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: isCurrent ? Colors.white : (_isDark ? Colors.white60 : Colors.black87),
-                        ),
+              ...visiblePages.map((pageNum) {
+                final isCurrent = _currentPage == pageNum;
+                return InkWell(
+                  onTap: () {
+                    setState(() => _currentPage = pageNum);
+                    _fetchAlertsData();
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: isCurrent ? const Color(0xFF4F46E5) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '$pageNum',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: isCurrent ? Colors.white : (_isDark ? Colors.white60 : Colors.black87),
                       ),
                     ),
-                  );
-                }),
-              ),
-              const SizedBox(width: 4),
+                  ),
+                );
+              }),
+              if (effectiveTotalPages > 5 && !visiblePages.contains(effectiveTotalPages)) ...[
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 2),
+                  child: Text('...', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                ),
+                InkWell(
+                  onTap: () {
+                    setState(() => _currentPage = effectiveTotalPages);
+                    _fetchAlertsData();
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: _currentPage == effectiveTotalPages ? const Color(0xFF4F46E5) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '$effectiveTotalPages',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: _currentPage == effectiveTotalPages ? Colors.white : (_isDark ? Colors.white60 : Colors.black87),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               IconButton(
+                visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.chevron_right, size: 16),
-                onPressed: _currentPage < totalPages
+                onPressed: _currentPage < effectiveTotalPages
                     ? () {
                         setState(() => _currentPage++);
                         _fetchAlertsData();
@@ -1172,8 +1466,28 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
               ),
             ],
           ),
-        ],
-      ),
+        );
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: isNarrow
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    infoRow,
+                    const SizedBox(height: 8),
+                    Center(child: paginationControls),
+                  ],
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    infoRow,
+                    paginationControls,
+                  ],
+                ),
+        );
+      },
     );
   }
 
@@ -1239,8 +1553,8 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
   }
 
   Widget _buildDonutLegendRow(String name, int val, Color color) {
-    final total = _stats['total_alerts'] != 0 ? _stats['total_alerts'] : 1;
-    final pct = ((val / total) * 100).toStringAsFixed(0);
+    final int total = ((_stats['total_alerts'] ?? 0) as num).toInt();
+    final String pct = total > 0 ? ((val / total) * 100).toStringAsFixed(0) : '0';
 
     return Row(
       children: [
@@ -1412,7 +1726,7 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
   }
 
   // ===========================================================
-  // Create / Read / Update Dialogs
+  // Create / Read / Update Dialogs (Matching Driver Management Style)
   // ===========================================================
 
   void _showCreateAlertDialog() {
@@ -1421,89 +1735,216 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
     String category = "System";
     String priority = "Critical";
     String status = "New";
+    final formKey = GlobalKey<FormState>();
 
     showDialog(
       context: context,
-      builder: (context) {
+      barrierDismissible: true,
+      builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
+            return Dialog(
               backgroundColor: _cardBg,
-              title: Text('Create New Alert', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16)),
-              content: SizedBox(
-                width: 480,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(top: 10, bottom: 4),
-                  clipBehavior: Clip.none,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextField(
-                        controller: titleController,
-                        decoration: const InputDecoration(labelText: 'Title', hintText: 'Enter alert title'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              clipBehavior: Clip.antiAlias,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 580),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // ── Header ──
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+                      color: _isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF8FAFC),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: _accent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.add_alert_rounded, color: _accent, size: 22),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Create New Alert',
+                                  style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: _textPrimary),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Broadcast a new system alert across the platform',
+                                  style: GoogleFonts.inter(fontSize: 12, color: _textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.close_rounded, size: 20, color: _textSecondary),
+                            onPressed: () => Navigator.pop(ctx),
+                            tooltip: 'Close',
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: descController,
-                        decoration: const InputDecoration(labelText: 'Description', hintText: 'Enter description text'),
-                        maxLines: 3,
+                    ),
+                    Divider(height: 1, color: _borderColor),
+
+                    // ── Body ──
+                    Padding(
+                      padding: const EdgeInsets.all(22),
+                      child: Form(
+                        key: formKey,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TextFormField(
+                              controller: titleController,
+                              style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
+                              decoration: InputDecoration(
+                                labelText: 'Alert Title *',
+                                hintText: 'e.g. Scheduled Maintenance or Examination Update',
+                                hintStyle: GoogleFonts.inter(fontSize: 12, color: _textSecondary.withValues(alpha: 0.6)),
+                                labelStyle: GoogleFonts.inter(fontSize: 12, color: _textSecondary),
+                                prefixIcon: const Icon(Icons.campaign_outlined, color: _accent, size: 20),
+                                filled: true,
+                                fillColor: _inputBg,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: _borderColor)),
+                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: _borderColor)),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _accent, width: 1.5)),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              ),
+                              validator: (val) => val == null || val.trim().isEmpty ? 'Please enter a title' : null,
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: descController,
+                              maxLines: 3,
+                              style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
+                              decoration: InputDecoration(
+                                labelText: 'Description / Message',
+                                hintText: 'Enter detailed notification message for administrators and staff...',
+                                hintStyle: GoogleFonts.inter(fontSize: 12, color: _textSecondary.withValues(alpha: 0.6)),
+                                labelStyle: GoogleFonts.inter(fontSize: 12, color: _textSecondary),
+                                prefixIcon: const Icon(Icons.notes_rounded, color: _accent, size: 20),
+                                filled: true,
+                                fillColor: _inputBg,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: _borderColor)),
+                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: _borderColor)),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _accent, width: 1.5)),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildDialogDropdown(
+                                    label: 'Category',
+                                    value: category,
+                                    icon: Icons.category_outlined,
+                                    items: ["System", "Institutions", "Users", "Examinations", "Payments"],
+                                    onChanged: (val) {
+                                      if (val != null) setDialogState(() => category = val);
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: _buildDialogDropdown(
+                                    label: 'Priority Level',
+                                    value: priority,
+                                    icon: Icons.flag_outlined,
+                                    items: ["Critical", "High", "Warning", "Info"],
+                                    onChanged: (val) {
+                                      if (val != null) setDialogState(() => priority = val);
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            _buildDialogDropdown(
+                              label: 'Initial Status',
+                              value: status,
+                              icon: Icons.timelapse_rounded,
+                              items: ["New", "In Progress", "Resolved"],
+                              onChanged: (val) {
+                                if (val != null) setDialogState(() => status = val);
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                      _buildDialogDropdown(
-                        label: 'Category',
-                        value: category,
-                        items: ["Institutions", "Users", "System", "Examinations", "Payments"],
-                        onChanged: (val) {
-                          if (val != null) setDialogState(() => category = val);
-                        },
+                    ),
+                    Divider(height: 1, color: _borderColor),
+
+                    // ── Footer ──
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      color: _isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _textSecondary,
+                              side: BorderSide(color: _borderColor),
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _accent,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              elevation: 0,
+                            ),
+                            icon: const Icon(Icons.check_circle_outline, size: 16),
+                            label: const Text('Create Alert', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            onPressed: () async {
+                              if (!formKey.currentState!.validate()) return;
+                              try {
+                                final res = await ApiService().post('/admin/system-alerts', {
+                                  "title": titleController.text.trim(),
+                                  "description": descController.text.trim(),
+                                  "category": category,
+                                  "priority": priority,
+                                  "status": status,
+                                });
+                                if (res['success'] == true) {
+                                  if (!mounted) return;
+                                  Navigator.pop(ctx);
+                                  _fetchAlertsData();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Alert created successfully!'),
+                                      backgroundColor: Color(0xFF10B981),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                debugPrint("Error creating alert: $e");
+                              }
+                            },
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                      _buildDialogDropdown(
-                        label: 'Priority',
-                        value: priority,
-                        items: ["Critical", "High", "Warning", "Info"],
-                        onChanged: (val) {
-                          if (val != null) setDialogState(() => priority = val);
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      _buildDialogDropdown(
-                        label: 'Status',
-                        value: status,
-                        items: ["New", "In Progress", "Resolved"],
-                        onChanged: (val) {
-                          if (val != null) setDialogState(() => status = val);
-                        },
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5)),
-                  onPressed: () async {
-                    if (titleController.text.trim().isEmpty) return;
-                    try {
-                      final res = await ApiService().post('/admin/system-alerts', {
-                        "title": titleController.text,
-                        "description": descController.text,
-                        "category": category,
-                        "priority": priority,
-                        "status": status
-                      });
-                      if (res['success'] == true) {
-                        Navigator.pop(context);
-                        _fetchAlertsData();
-                      }
-                    } catch (e) {
-                      debugPrint("Error creating alert: $e");
-                    }
-                  },
-                  child: const Text('Create', style: TextStyle(color: Colors.white)),
-                ),
-              ],
             );
           },
         );
@@ -1512,153 +1953,587 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
   }
 
   void _showViewAlertDialog(Map<String, dynamic> alert) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: _cardBg,
-          title: Text(alert['title'] ?? 'Alert Details', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Description:', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12)),
-              const SizedBox(height: 4),
-              Text(alert['description'] ?? 'No description provided.', style: const TextStyle(fontSize: 12)),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Category:', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12)),
-                  Text(alert['category'] ?? 'System', style: const TextStyle(fontSize: 12)),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Priority:', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12)),
-                  Text(alert['priority'] ?? 'Info', style: const TextStyle(fontSize: 12)),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Status:', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12)),
-                  Text(alert['status'] ?? 'New', style: const TextStyle(fontSize: 12)),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Read:', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12)),
-                  Text(alert['is_read'] == true ? 'Read' : 'Unread', style: const TextStyle(fontSize: 12)),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+    // Automatically mark as read if currently unread
+    if (!(alert['is_read'] ?? false)) {
+      _toggleAlertRead(alert, forceValue: true);
+    }
+    bool isRead = alert['is_read'] == true;
 
-  void _showEditAlertDialog(Map<String, dynamic> alert) {
-    final titleController = TextEditingController(text: alert['title']);
-    final descController = TextEditingController(text: alert['description']);
-    String category = alert['category'] ?? "System";
-    String priority = alert['priority'] ?? "Critical";
-    String status = alert['status'] ?? "New";
+    final alertDesc = (alert['description'] ?? alert['message'] ?? '').toString().trim();
+    final displayCategory = _displayCategory(alert['category']?.toString());
+    final displayPriority = _displayPriority(alert['priority']?.toString());
+    final priority = _normalizePriority(alert['priority']?.toString());
+    final status = _normalizeStatus(alert['status']?.toString(), alert['is_read'] == true);
+
+    final createdAt = alert['created_at'] != null
+        ? DateTime.parse(alert['created_at'])
+        : DateTime.now();
+    final localTime = createdAt.toLocal();
+    final formattedTime = DateFormat('MMMM dd, yyyy • hh:mm a').format(localTime);
+
+    // Category styling
+    IconData categoryIcon = Icons.info_outline;
+    Color categoryColor = _blue;
+    final cat = alert['category'].toString().toLowerCase();
+    if (cat.contains('inst')) {
+      categoryIcon = Icons.domain_outlined;
+      categoryColor = _red;
+    } else if (cat.contains('user')) {
+      categoryIcon = Icons.people_outline_rounded;
+      categoryColor = _orange;
+    } else if (cat.contains('sys')) {
+      categoryIcon = Icons.dns_outlined;
+      categoryColor = _blue;
+    } else if (cat.contains('exam')) {
+      categoryIcon = Icons.school_outlined;
+      categoryColor = const Color(0xFF8B5CF6);
+    } else if (cat.contains('pay')) {
+      categoryIcon = Icons.currency_rupee_rounded;
+      categoryColor = _green;
+    }
+
+    // Priority styling
+    Color priorityColor = _blue;
+    if (priority == 'Critical') {
+      priorityColor = _red;
+    } else if (priority == 'High') {
+      priorityColor = const Color(0xFFF97316);
+    } else if (priority == 'Warning') {
+      priorityColor = _orange;
+    }
+
+    // Status styling
+    Color statusColor = _accent;
+    if (status == 'Resolved') {
+      statusColor = _green;
+    } else if (status == 'In Progress') {
+      statusColor = const Color(0xFF0284C7);
+    }
 
     showDialog(
       context: context,
-      builder: (context) {
+      barrierDismissible: true,
+      builder: (ctx) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
+          builder: (dialogCtx, setDialogState) {
+            return Dialog(
               backgroundColor: _cardBg,
-              title: Text('Edit / Resolve Alert', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16)),
-              content: SizedBox(
-                width: 480,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              clipBehavior: Clip.antiAlias,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 540),
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(top: 10, bottom: 4),
-                  clipBehavior: Clip.none,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      TextField(
-                        controller: titleController,
-                        decoration: const InputDecoration(labelText: 'Title'),
+                      // ── Header ──
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+                        color: _isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF8FAFC),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: categoryColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(categoryIcon, color: categoryColor, size: 22),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    alert['title'] ?? 'Alert Details',
+                                    style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: _textPrimary),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    formattedTime,
+                                    style: GoogleFonts.inter(fontSize: 11, color: _textSecondary),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.close_rounded, size: 20, color: _textSecondary),
+                              onPressed: () => Navigator.pop(ctx),
+                              tooltip: 'Close',
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: descController,
-                        decoration: const InputDecoration(labelText: 'Description'),
-                        maxLines: 3,
+                      Divider(height: 1, color: _borderColor),
+
+                      // ── Body ──
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Message card
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: _inputBg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: _borderColor),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.format_quote_rounded, size: 16, color: _accent),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'ALERT MESSAGE',
+                                        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: _textSecondary, letterSpacing: 0.6),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    alertDesc.isNotEmpty ? alertDesc : 'No description provided.',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      height: 1.5,
+                                      color: alertDesc.isNotEmpty ? _textPrimary : _textSecondary,
+                                      fontStyle: alertDesc.isNotEmpty ? FontStyle.normal : FontStyle.italic,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Metadata Details
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: _cardBg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: _borderColor),
+                              ),
+                              child: Column(
+                                children: [
+                                  _buildDetailRowItem(
+                                    icon: Icons.category_outlined,
+                                    label: 'Category',
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: categoryColor.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: categoryColor.withValues(alpha: 0.25)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(categoryIcon, size: 12, color: categoryColor),
+                                          const SizedBox(width: 5),
+                                          Text(displayCategory, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: categoryColor)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  Divider(height: 18, color: _borderColor.withValues(alpha: 0.5)),
+                                  _buildDetailRowItem(
+                                    icon: Icons.flag_outlined,
+                                    label: 'Priority Level',
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: priorityColor.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(width: 6, height: 6, decoration: BoxDecoration(color: priorityColor, shape: BoxShape.circle)),
+                                          const SizedBox(width: 6),
+                                          Text(displayPriority, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: priorityColor)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  Divider(height: 18, color: _borderColor.withValues(alpha: 0.5)),
+                                  _buildDetailRowItem(
+                                    icon: Icons.timelapse_rounded,
+                                    label: 'Current Status',
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: statusColor.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(width: 6, height: 6, decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle)),
+                                          const SizedBox(width: 6),
+                                          Text(status, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: statusColor)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  Divider(height: 18, color: _borderColor.withValues(alpha: 0.5)),
+                                  _buildDetailRowItem(
+                                    icon: isRead ? Icons.mark_email_read_outlined : Icons.mark_email_unread_outlined,
+                                    label: 'Delivery Status',
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: isRead
+                                            ? _green.withValues(alpha: 0.12)
+                                            : _accent.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: isRead
+                                              ? _green.withValues(alpha: 0.25)
+                                              : _accent.withValues(alpha: 0.25),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            isRead ? Icons.check_circle_outline_rounded : Icons.mark_email_unread_outlined,
+                                            size: 13,
+                                            color: isRead ? _green : _accent,
+                                          ),
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            isRead ? 'Read' : 'Unread (Action Required)',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: isRead ? _green : _accent,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                      _buildDialogDropdown(
-                        label: 'Category',
-                        value: category,
-                        items: ["Institutions", "Users", "System", "Examinations", "Payments"],
-                        onChanged: (val) {
-                          if (val != null) setDialogState(() => category = val);
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      _buildDialogDropdown(
-                        label: 'Priority',
-                        value: priority,
-                        items: ["Critical", "High", "Warning", "Info"],
-                        onChanged: (val) {
-                          if (val != null) setDialogState(() => priority = val);
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      _buildDialogDropdown(
-                        label: 'Status',
-                        value: status,
-                        items: ["New", "In Progress", "Resolved"],
-                        onChanged: (val) {
-                          if (val != null) setDialogState(() => status = val);
-                        },
+                      Divider(height: 1, color: _borderColor),
+
+                      // ── Footer ──
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                        color: _isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            TextButton.icon(
+                              onPressed: () {
+                                final targetState = !isRead;
+                                setDialogState(() {
+                                  isRead = targetState;
+                                });
+                                _toggleAlertRead(alert, forceValue: targetState);
+                              },
+                              icon: Icon(
+                                isRead ? Icons.mark_email_unread_outlined : Icons.mark_email_read_outlined,
+                                size: 16,
+                                color: isRead ? _accent : _green,
+                              ),
+                              label: Text(
+                                isRead ? 'Mark as Unread' : 'Mark as Read',
+                                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: isRead ? _accent : _green),
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.orange,
+                                    side: BorderSide(color: Colors.orange.withValues(alpha: 0.4)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                  icon: const Icon(Icons.edit_outlined, size: 14),
+                                  label: const Text('Edit', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                                  onPressed: () {
+                                    Navigator.pop(ctx);
+                                    _showEditAlertDialog(alert);
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: _cardBg,
+                                    foregroundColor: _textPrimary,
+                                    side: BorderSide(color: _borderColor),
+                                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    elevation: 0,
+                                  ),
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: const Text('Close', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5)),
-                  onPressed: () async {
-                    try {
-                      final res = await ApiService().put('/admin/system-alerts/${alert['id']}', {
-                        "title": titleController.text,
-                        "description": descController.text,
-                        "category": category,
-                        "priority": priority,
-                        "status": status,
-                        "is_read": status == "Resolved" ? true : alert['is_read']
-                      });
-                      if (res['success'] == true) {
-                        Navigator.pop(context);
-                        _fetchAlertsData();
-                      }
-                    } catch (e) {
-                      debugPrint("Error updating alert: $e");
-                    }
-                  },
-                  child: const Text('Save Changes', style: TextStyle(color: Colors.white)),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRowItem({
+    required IconData icon,
+    required String label,
+    required Widget child,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: _textSecondary),
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: GoogleFonts.inter(fontSize: 12, color: _textSecondary, fontWeight: FontWeight.w500),
+        ),
+        const Spacer(),
+        child,
+      ],
+    );
+  }
+
+  void _showEditAlertDialog(Map<String, dynamic> alert) {
+    final titleController = TextEditingController(text: alert['title'] ?? '');
+    final descController = TextEditingController(text: (alert['description'] ?? alert['message'] ?? '').toString());
+    String category = _normalizeCategory(alert['category']?.toString());
+    String priority = _normalizePriority(alert['priority']?.toString());
+    String status = _normalizeStatus(alert['status']?.toString(), alert['is_read'] == true);
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              backgroundColor: _cardBg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              clipBehavior: Clip.antiAlias,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 580),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // ── Header ──
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+                      color: _isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF8FAFC),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.edit_note_rounded, color: Colors.orange, size: 22),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Edit / Resolve Alert',
+                                  style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: _textPrimary),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Update alert details, priority level, or mark as resolved',
+                                  style: GoogleFonts.inter(fontSize: 12, color: _textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.close_rounded, size: 20, color: _textSecondary),
+                            onPressed: () => Navigator.pop(ctx),
+                            tooltip: 'Close',
+                          ),
+                        ],
+                      ),
+                    ),
+                    Divider(height: 1, color: _borderColor),
+
+                    // ── Body ──
+                    Padding(
+                      padding: const EdgeInsets.all(22),
+                      child: Form(
+                        key: formKey,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TextFormField(
+                              controller: titleController,
+                              style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
+                              decoration: InputDecoration(
+                                labelText: 'Alert Title *',
+                                labelStyle: GoogleFonts.inter(fontSize: 12, color: _textSecondary),
+                                prefixIcon: const Icon(Icons.campaign_outlined, color: _accent, size: 20),
+                                filled: true,
+                                fillColor: _inputBg,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: _borderColor)),
+                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: _borderColor)),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _accent, width: 1.5)),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              ),
+                              validator: (val) => val == null || val.trim().isEmpty ? 'Please enter a title' : null,
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: descController,
+                              maxLines: 3,
+                              style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
+                              decoration: InputDecoration(
+                                labelText: 'Description / Message',
+                                labelStyle: GoogleFonts.inter(fontSize: 12, color: _textSecondary),
+                                prefixIcon: const Icon(Icons.notes_rounded, color: _accent, size: 20),
+                                filled: true,
+                                fillColor: _inputBg,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: _borderColor)),
+                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: _borderColor)),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _accent, width: 1.5)),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildDialogDropdown(
+                                    label: 'Category',
+                                    value: category,
+                                    icon: Icons.category_outlined,
+                                    items: ["System", "Institutions", "Users", "Examinations", "Payments"],
+                                    onChanged: (val) {
+                                      if (val != null) setDialogState(() => category = val);
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: _buildDialogDropdown(
+                                    label: 'Priority Level',
+                                    value: priority,
+                                    icon: Icons.flag_outlined,
+                                    items: ["Critical", "High", "Warning", "Info"],
+                                    onChanged: (val) {
+                                      if (val != null) setDialogState(() => priority = val);
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            _buildDialogDropdown(
+                              label: 'Status',
+                              value: status,
+                              icon: Icons.timelapse_rounded,
+                              items: ["New", "In Progress", "Resolved"],
+                              onChanged: (val) {
+                                if (val != null) setDialogState(() => status = val);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Divider(height: 1, color: _borderColor),
+
+                    // ── Footer ──
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      color: _isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _textSecondary,
+                              side: BorderSide(color: _borderColor),
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _accent,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              elevation: 0,
+                            ),
+                            icon: const Icon(Icons.save_rounded, size: 16),
+                            label: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            onPressed: () async {
+                              if (!formKey.currentState!.validate()) return;
+                              try {
+                                final bool newIsRead = (status == "Resolved")
+                                    ? true
+                                    : (status == "New" ? false : (alert['is_read'] ?? false));
+                                final res = await ApiService().put('/admin/system-alerts/${alert['id']}', {
+                                  "title": titleController.text.trim(),
+                                  "description": descController.text.trim(),
+                                  "category": category,
+                                  "priority": priority,
+                                  "status": status,
+                                  "is_read": newIsRead,
+                                });
+                                if (res['success'] == true) {
+                                  if (!mounted) return;
+                                  Navigator.pop(ctx);
+                                  _fetchAlertsData();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Alert updated successfully!'),
+                                      backgroundColor: Color(0xFF10B981),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                debugPrint("Error updating alert: $e");
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             );
           },
         );
@@ -1670,34 +2545,66 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
     required String label,
     required String value,
     required List<String> items,
+    required IconData icon,
     required ValueChanged<String?> onChanged,
   }) {
+    // CRITICAL: Defensive guard to ensure value exists in items
+    final safeItems = List<String>.from(items);
+    if (!safeItems.contains(value)) {
+      if (value.isNotEmpty) {
+        safeItems.insert(0, value);
+      } else if (safeItems.isNotEmpty) {
+        value = safeItems.first;
+      }
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.grey)),
-        const SizedBox(height: 4),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(6),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+            color: _textSecondary,
           ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: value,
-              isExpanded: true,
-              style: TextStyle(color: _isDark ? Colors.white : Colors.black87),
-              dropdownColor: _cardBg,
-              onChanged: onChanged,
-              items: items.map((item) {
-                return DropdownMenuItem<String>(
-                  value: item,
-                  child: Text(item),
-                );
-              }).toList(),
-            ),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: _inputBg,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _borderColor),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: _accent),
+              const SizedBox(width: 10),
+              Expanded(
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: value,
+                    isExpanded: true,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: _textPrimary,
+                    ),
+                    dropdownColor: _cardBg,
+                    icon: Icon(Icons.arrow_drop_down_rounded, color: _textSecondary),
+                    onChanged: onChanged,
+                    items: safeItems.map((item) {
+                      return DropdownMenuItem<String>(
+                        value: item,
+                        child: Text(item),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -1718,16 +2625,23 @@ class AlertsDonutPainter extends CustomPainter {
     final double warning = (breakdown['warning'] ?? 0).toDouble();
     final double info = (breakdown['info'] ?? 0).toDouble();
 
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - 10) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+
+    // Draw background track ring
+    final bgPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 9
+      ..color = isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE2E8F0);
+    canvas.drawCircle(center, radius, bgPaint);
+
     final double total = critical + high + warning + info;
     if (total == 0) return;
 
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-    final rect = Rect.fromCircle(center: center, radius: radius);
-
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 10;
+      ..strokeWidth = 9;
 
     double startAngle = -3.14159 / 2; // Start from top 12 o'clock
 

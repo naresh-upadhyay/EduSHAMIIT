@@ -2,7 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from typing import Optional, List
 from datetime import datetime
 import shutil
-import psycopg2
+try:
+    import psycopg2
+except ImportError:
+    psycopg2 = None
 import httpx
 from pydantic import BaseModel
 

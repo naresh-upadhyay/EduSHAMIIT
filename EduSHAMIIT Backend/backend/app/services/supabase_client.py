@@ -38,9 +38,16 @@ class SupabaseClient:
 
     async def get_async_client(self):
         """Get or create the async httpx client with connection pooling."""
-        if self._async_client is None or self._async_client.is_closed:
+        import asyncio
+        current_loop = asyncio.get_running_loop()
+        if (
+            self._async_client is None
+            or self._async_client.is_closed
+            or getattr(self, "_async_client_loop", None) != current_loop
+        ):
             limits = httpx.Limits(max_keepalive_connections=20, max_connections=50)
             self._async_client = httpx.AsyncClient(timeout=10.0, limits=limits)
+            self._async_client_loop = current_loop
         return self._async_client
 
     async def close(self):
@@ -230,6 +237,28 @@ class AuthClient:
             raise Exception(self._get_error_message(error, "User update failed"))
 
         return True
+
+    async def admin_get_user_by_email(self, email: str):
+        """Find an auth user by email via admin list users endpoint."""
+        self._check_key()
+        client = await self.client.get_async_client()
+        try:
+            response = await client.get(
+                f"{self.client.auth_url}/admin/users",
+                headers=self.client.headers,
+                params={"page": 1, "per_page": 50},
+                timeout=10.0
+            )
+            if response.status_code == 200:
+                data = response.json()
+                users = data.get("users", []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
+                target = (email or "").strip().lower()
+                for u in users:
+                    if u.get("email", "").strip().lower() == target:
+                        return u
+        except Exception:
+            pass
+        return None
 
 
 class AuthResponse:
@@ -635,9 +664,14 @@ async def sync_vault_secrets_to_environ():
         sb = get_supabase()
         res = await sb.rpc("get_all_decrypted_secrets").aexecute()
         if res.data:
+            synced_count = 0
             for item in res.data:
-                name = item.get("secret_name")
-                val = item.get("secret_value")
+                # Only sync global secrets to server-wide os.environ/settings
+                scope = item.get("scope", "global")
+                if scope != "global":
+                    continue
+                name = item.get("secret_key_name") or item.get("secret_name") or item.get("name")
+                val = item.get("decrypted_value") or item.get("secret_value")
                 if name and val is not None:
                     # Clean any surrounding whitespace/quotes
                     val_str = str(val).strip().strip("'\"")
@@ -646,7 +680,54 @@ async def sync_vault_secrets_to_environ():
                     # Also sync to Settings model if the attribute exists
                     if hasattr(settings, name):
                         setattr(settings, name, val_str)
-            print(f"[Vault Sync] Successfully synchronized {len(res.data)} secrets from Supabase Vault to environment.", flush=True)
+
+                    # Smart alias & compound secret mapping
+                    if name in ("SMTP_PASS", "SMTP_PASSWORD"):
+                        os.environ["SMTP_PASS"] = val_str
+                        os.environ["SMTP_PASSWORD"] = val_str
+                        if hasattr(settings, "SMTP_PASSWORD"):
+                            setattr(settings, "SMTP_PASSWORD", val_str)
+                    elif name == "JWT Signing Key":
+                        os.environ["JWT_SECRET"] = val_str
+                        if hasattr(settings, "JWT_SECRET"):
+                            setattr(settings, "JWT_SECRET", val_str)
+                    elif name == "DB Connection String":
+                        os.environ["DATABASE_URL"] = val_str
+                        if hasattr(settings, "DATABASE_URL"):
+                            setattr(settings, "DATABASE_URL", val_str)
+                    elif name in ("SMTP Credential", "SMTP_CREDENTIAL"):
+                        try:
+                            # Format: user:pass@host:port or user:pass
+                            raw = val_str
+                            host_port = None
+                            user_pass = raw
+                            if "@" in raw:
+                                user_pass, host_port = raw.split("@", 1)
+                            if ":" in user_pass:
+                                u, p = user_pass.split(":", 1)
+                                os.environ["SMTP_USER"] = u
+                                os.environ["SMTP_PASS"] = p
+                                os.environ["SMTP_PASSWORD"] = p
+                                if hasattr(settings, "SMTP_USER"):
+                                    setattr(settings, "SMTP_USER", u)
+                                if hasattr(settings, "SMTP_PASSWORD"):
+                                    setattr(settings, "SMTP_PASSWORD", p)
+                            if host_port and ":" in host_port:
+                                h, port_str = host_port.split(":", 1)
+                                os.environ["SMTP_HOST"] = h
+                                os.environ["SMTP_PORT"] = port_str
+                                if hasattr(settings, "SMTP_HOST"):
+                                    setattr(settings, "SMTP_HOST", h)
+                                if hasattr(settings, "SMTP_PORT"):
+                                    try:
+                                        setattr(settings, "SMTP_PORT", int(port_str))
+                                    except Exception:
+                                        pass
+                        except Exception:
+                            pass
+
+                    synced_count += 1
+            print(f"[Vault Sync] Successfully synchronized {synced_count} global secrets from Supabase Vault to environment.", flush=True)
             return True
         else:
             print("[Vault Sync] No secrets found in Supabase Vault.", flush=True)

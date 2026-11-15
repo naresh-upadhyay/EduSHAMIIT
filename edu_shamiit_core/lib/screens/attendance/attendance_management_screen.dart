@@ -28,7 +28,8 @@ class _AttendanceTabDef {
 }
 
 class AttendanceManagementScreen extends ConsumerStatefulWidget {
-  const AttendanceManagementScreen({super.key});
+  final int initialTab;
+  const AttendanceManagementScreen({super.key, this.initialTab = 0});
 
   @override
   ConsumerState<AttendanceManagementScreen> createState() => _AttendanceManagementScreenState();

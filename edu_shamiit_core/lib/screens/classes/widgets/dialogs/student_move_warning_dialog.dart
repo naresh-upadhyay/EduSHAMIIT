@@ -29,7 +29,7 @@ class StudentMoveWarningDialog extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 24,
               offset: const Offset(0, 10),
             ),
@@ -42,18 +42,20 @@ class StudentMoveWarningDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: const Color(0xFFF59E0B).withOpacity(0.12),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
               ),
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF59E0B).withOpacity(0.2),
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 28),
+                    child: const Icon(Icons.warning_amber_rounded,
+                        color: Color(0xFFD97706), size: 28),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -65,7 +67,8 @@ class StudentMoveWarningDialog extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : const Color(0xFF92400E),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF92400E),
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -73,7 +76,9 @@ class StudentMoveWarningDialog extends StatelessWidget {
                           'Students are already assigned to existing classes.',
                           style: TextStyle(
                             fontSize: 12,
-                            color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFFB45309),
+                            color: isDark
+                                ? const Color(0xFFCBD5E1)
+                                : const Color(0xFFB45309),
                           ),
                         ),
                       ],
@@ -96,24 +101,34 @@ class StudentMoveWarningDialog extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       height: 1.4,
-                      color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF334155),
+                      color: isDark
+                          ? const Color(0xFFE2E8F0)
+                          : const Color(0xFF334155),
                     ),
                   ),
                   const SizedBox(height: 14),
                   Container(
                     constraints: const BoxConstraints(maxHeight: 180),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      color: isDark
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      border: Border.all(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFE2E8F0)),
                     ),
                     child: ListView.separated(
-                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 6, horizontal: 10),
                       shrinkWrap: true,
                       itemCount: conflicts.length,
                       separatorBuilder: (_, __) => Divider(
                         height: 1,
-                        color: isDark ? const Color(0xFF334155).withOpacity(0.5) : const Color(0xFFE2E8F0),
+                        color: isDark
+                            ? const Color(0xFF334155).withValues(alpha: 0.5)
+                            : const Color(0xFFE2E8F0),
                       ),
                       itemBuilder: (context, index) {
                         final c = conflicts[index];
@@ -121,7 +136,8 @@ class StudentMoveWarningDialog extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Row(
                             children: [
-                              const Icon(Icons.person, size: 16, color: Color(0xFF64748B)),
+                              const Icon(Icons.person,
+                                  size: 16, color: Color(0xFF64748B)),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Column(
@@ -132,7 +148,9 @@ class StudentMoveWarningDialog extends StatelessWidget {
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
-                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
                                       ),
                                     ),
                                     Text(
@@ -146,7 +164,8 @@ class StudentMoveWarningDialog extends StatelessWidget {
                                   ],
                                 ),
                               ),
-                              const Icon(Icons.arrow_forward, size: 14, color: Color(0xFF94A3B8)),
+                              const Icon(Icons.arrow_forward,
+                                  size: 14, color: Color(0xFF94A3B8)),
                               const SizedBox(width: 6),
                               Text(
                                 targetLocation,
@@ -170,11 +189,16 @@ class StudentMoveWarningDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A).withOpacity(0.5) : const Color(0xFFF8FAFC),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                color: isDark
+                    ? const Color(0xFF0F172A).withValues(alpha: 0.5)
+                    : const Color(0xFFF8FAFC),
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(16)),
                 border: Border(
                   top: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
               ),
@@ -184,13 +208,21 @@ class StudentMoveWarningDialog extends StatelessWidget {
                   OutlinedButton(
                     onPressed: () => Navigator.of(context).pop(false),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      side: BorderSide(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFCBD5E1)),
                     ),
                     child: Text(
                       'Cancel',
-                      style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                      style: TextStyle(
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF475569)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -203,10 +235,13 @@ class StudentMoveWarningDialog extends StatelessWidget {
                       backgroundColor: const Color(0xFFF59E0B),
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text('Confirm & Move', style: TextStyle(fontWeight: FontWeight.w600)),
+                    child: const Text('Confirm & Move',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),

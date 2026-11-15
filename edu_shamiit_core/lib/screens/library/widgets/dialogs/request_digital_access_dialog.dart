@@ -20,10 +20,12 @@ class RequestDigitalAccessDialog extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<RequestDigitalAccessDialog> createState() => _RequestDigitalAccessDialogState();
+  ConsumerState<RequestDigitalAccessDialog> createState() =>
+      _RequestDigitalAccessDialogState();
 }
 
-class _RequestDigitalAccessDialogState extends ConsumerState<RequestDigitalAccessDialog> {
+class _RequestDigitalAccessDialogState
+    extends ConsumerState<RequestDigitalAccessDialog> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _reasonController = TextEditingController();
   String _accessScope = 'FULL';
@@ -40,10 +42,10 @@ class _RequestDigitalAccessDialogState extends ConsumerState<RequestDigitalAcces
 
     setState(() => _isSubmitting = true);
     final success = await ref.read(bookProvider.notifier).requestDigitalAccess(
-      widget.book.id,
-      reason: _reasonController.text.trim(),
-      accessScope: _accessScope,
-    );
+          widget.book.id,
+          reason: _reasonController.text.trim(),
+          accessScope: _accessScope,
+        );
 
     if (mounted) {
       setState(() => _isSubmitting = false);
@@ -52,7 +54,8 @@ class _RequestDigitalAccessDialogState extends ConsumerState<RequestDigitalAcces
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             backgroundColor: Color(0xFF10B981),
-            content: Text('Digital access request submitted! The librarian will review it.'),
+            content: Text(
+                'Digital access request submitted! The librarian will review it.'),
           ),
         );
       }
@@ -79,10 +82,11 @@ class _RequestDigitalAccessDialogState extends ConsumerState<RequestDigitalAcces
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4F46E5).withOpacity(0.1),
+                        color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.vpn_key, color: Color(0xFF4F46E5), size: 22),
+                      child: const Icon(Icons.vpn_key,
+                          color: Color(0xFF4F46E5), size: 22),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -91,11 +95,15 @@ class _RequestDigitalAccessDialogState extends ConsumerState<RequestDigitalAcces
                         children: [
                           const Text(
                             'Request Digital Access',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
+                            style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF1E293B)),
                           ),
                           Text(
                             widget.book.title,
-                            style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                            style: const TextStyle(
+                                fontSize: 13, color: Color(0xFF64748B)),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ],
@@ -115,12 +123,14 @@ class _RequestDigitalAccessDialogState extends ConsumerState<RequestDigitalAcces
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.info_outline, size: 18, color: Color(0xFF475569)),
+                      const Icon(Icons.info_outline,
+                          size: 18, color: Color(0xFF475569)),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'This ${widget.book.bookTypeName} requires librarian approval. Once approved, you can stream it securely in-app.',
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF334155)),
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF334155)),
                         ),
                       ),
                     ],
@@ -131,39 +141,56 @@ class _RequestDigitalAccessDialogState extends ConsumerState<RequestDigitalAcces
                 // Purpose / Reason
                 const Text(
                   'Purpose / Reason for Access *',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF334155)),
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: Color(0xFF334155)),
                 ),
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _reasonController,
                   maxLines: 3,
                   decoration: InputDecoration(
-                    hintText: 'e.g. Preparing for class assignment or academic research...',
-                    hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    hintText:
+                        'e.g. Preparing for class assignment or academic research...',
+                    hintStyle:
+                        const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
                     contentPadding: const EdgeInsets.all(12),
                   ),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Please provide a reason' : null,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Please provide a reason'
+                      : null,
                 ),
                 const SizedBox(height: 16),
 
                 // Access Scope
                 const Text(
                   'Requested Scope',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF334155)),
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: Color(0xFF334155)),
                 ),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
                   initialValue: _accessScope,
                   decoration: InputDecoration(
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
                   ),
-
                   items: const [
-                    DropdownMenuItem(value: 'FULL', child: Text('Full In-App Streaming Access')),
-                    DropdownMenuItem(value: 'READ_ONLY', child: Text('Read-Only (30 Days)')),
-                    DropdownMenuItem(value: 'CUSTOM', child: Text('Short-Term Study (7 Days)')),
+                    DropdownMenuItem(
+                        value: 'FULL',
+                        child: Text('Full In-App Streaming Access')),
+                    DropdownMenuItem(
+                        value: 'READ_ONLY', child: Text('Read-Only (30 Days)')),
+                    DropdownMenuItem(
+                        value: 'CUSTOM',
+                        child: Text('Short-Term Study (7 Days)')),
                   ],
                   onChanged: (v) {
                     if (v != null) setState(() => _accessScope = v);
@@ -176,7 +203,9 @@ class _RequestDigitalAccessDialogState extends ConsumerState<RequestDigitalAcces
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+                      onPressed: _isSubmitting
+                          ? null
+                          : () => Navigator.of(context).pop(),
                       child: const Text('Cancel'),
                     ),
                     const SizedBox(width: 12),
@@ -184,14 +213,21 @@ class _RequestDigitalAccessDialogState extends ConsumerState<RequestDigitalAcces
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF4F46E5),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
                       ),
                       onPressed: _isSubmitting ? null : _submit,
                       icon: _isSubmitting
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
                           : const Icon(Icons.send, size: 16),
-                      label: const Text('Submit Request', style: TextStyle(fontWeight: FontWeight.w700)),
+                      label: const Text('Submit Request',
+                          style: TextStyle(fontWeight: FontWeight.w700)),
                     ),
                   ],
                 ),

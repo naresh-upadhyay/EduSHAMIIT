@@ -32,7 +32,7 @@ class ArchiveConfirmationDialog extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 24,
               offset: const Offset(0, 10),
             ),
@@ -45,18 +45,20 @@ class ArchiveConfirmationDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: const Color(0xFFEF4444).withOpacity(0.12),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
               ),
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444).withOpacity(0.2),
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.archive_outlined, color: Color(0xFFDC2626), size: 26),
+                    child: const Icon(Icons.archive_outlined,
+                        color: Color(0xFFDC2626), size: 26),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -68,14 +70,17 @@ class ArchiveConfirmationDialog extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : const Color(0xFF991B1B),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF991B1B),
                           ),
                         ),
                         Text(
                           'Dependency impact check & archiving.',
                           style: TextStyle(
                             fontSize: 12,
-                            color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFFB91C1C),
+                            color: isDark
+                                ? const Color(0xFFCBD5E1)
+                                : const Color(0xFFB91C1C),
                           ),
                         ),
                       ],
@@ -106,7 +111,9 @@ class ArchiveConfirmationDialog extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       height: 1.4,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                     ),
                   ),
                   if (impactDetails != null) ...[
@@ -114,9 +121,14 @@ class ArchiveConfirmationDialog extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                        color: isDark
+                            ? const Color(0xFF0F172A)
+                            : const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                        border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0)),
                       ),
                       child: Column(
                         children: impactDetails!.entries.map((e) {
@@ -130,7 +142,9 @@ class ArchiveConfirmationDialog extends StatelessWidget {
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
-                                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B),
                                   ),
                                 ),
                                 Text(
@@ -156,11 +170,16 @@ class ArchiveConfirmationDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A).withOpacity(0.5) : const Color(0xFFF8FAFC),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                color: isDark
+                    ? const Color(0xFF0F172A).withValues(alpha: 0.5)
+                    : const Color(0xFFF8FAFC),
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(16)),
                 border: Border(
                   top: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
               ),
@@ -170,13 +189,21 @@ class ArchiveConfirmationDialog extends StatelessWidget {
                   OutlinedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      side: BorderSide(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFCBD5E1)),
                     ),
                     child: Text(
                       'Cancel',
-                      style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                      style: TextStyle(
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF475569)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -189,10 +216,13 @@ class ArchiveConfirmationDialog extends StatelessWidget {
                       backgroundColor: const Color(0xFFDC2626),
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text('Archive Item', style: TextStyle(fontWeight: FontWeight.w600)),
+                    child: const Text('Archive Item',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),

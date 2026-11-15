@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:go_router/go_router.dart';
 
 enum HRTab { overview, recruitment, onboarding, training, policies }
@@ -395,6 +396,9 @@ class HRManagementTabHeader extends StatelessWidget {
               onTap: () {
                 if (!isSelected) {
                   context.go(route);
+                  Future.microtask(() {
+                    dispatchTabChanged();
+                  });
                 }
               },
               hoverColor: const Color(0xFF4F46E5).withValues(alpha: 0.05),

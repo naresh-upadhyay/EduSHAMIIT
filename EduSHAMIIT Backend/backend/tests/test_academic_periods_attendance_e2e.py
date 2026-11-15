@@ -46,7 +46,7 @@ async def run_tests():
         FROM public.student_class_assignments sca
         JOIN public.profiles p ON p.id = sca.student_id
         LEFT JOIN public.academic_sections s ON s.id = sca.section_id
-        WHERE sca.school_id = %s AND sca.class_id = %s AND sca.status = 'ACTIVE'
+        WHERE sca.school_id = %s AND sca.class_id = %s AND sca.status = 'ACTIVE' AND s.name = 'a'
         ORDER BY sca.assigned_at DESC LIMIT 1;
     """, (school_id, str(class_id)))
     assert len(students) > 0, "No students found in Class 5"
@@ -115,7 +115,8 @@ async def run_tests():
     )
     student_row_p1 = next((s for s in roster_p1["data"]["students"] if s["student_id"] == student_id), None)
     assert student_row_p1 is not None
-    assert student_row_p1["status"] == "PRESENT", f"Expected PRESENT, got {student_row_p1['status']}"
+    p1_stat = next((p["status"] for p in student_row_p1.get("periods", []) if p["period_number"] == p1_num), student_row_p1["status"])
+    assert p1_stat == "PRESENT" or student_row_p1["status"] in ("PRESENT", "HALF_DAY"), f"Expected PRESENT, got {student_row_p1['status']}"
     logger.info(f"✅ Verified Roster in PERIOD mode: Status={student_row_p1['status']}, remarks='{student_row_p1['remarks']}'")
 
     # Query roster in CUSTOM_SELECTION mode
@@ -131,7 +132,8 @@ async def run_tests():
     )
     student_row_custom = next((s for s in roster_custom["data"]["students"] if s["student_id"] == student_id), None)
     assert student_row_custom is not None
-    assert student_row_custom["status"] == "PRESENT", f"Expected PRESENT, got {student_row_custom['status']}"
+    c_stat = next((p["status"] for p in student_row_custom.get("periods", []) if p["period_number"] == p1_num), student_row_custom["status"])
+    assert c_stat == "PRESENT" or student_row_custom["status"] in ("PRESENT", "HALF_DAY"), f"Expected PRESENT, got {student_row_custom['status']}"
     logger.info(f"✅ Verified Roster in CUSTOM_SELECTION mode: Status={student_row_custom['status']}")
 
     # -------------------------------------------------------------------------

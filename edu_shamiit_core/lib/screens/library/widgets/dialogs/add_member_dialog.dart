@@ -12,20 +12,22 @@ class AddMemberDialog extends ConsumerStatefulWidget {
 }
 
 class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
-  int _currentStep = 0; // 0: Search & Select Profile, 1: Configure Membership Parameters
+  int _currentStep =
+      0; // 0: Search & Select Profile, 1: Configure Membership Parameters
   ProfileSearchResultModel? _selectedProfile;
 
   final TextEditingController _searchCtrl = TextEditingController();
   final TextEditingController _memberCodeCtrl = TextEditingController();
-  final TextEditingController _borrowingLimitCtrl = TextEditingController(text: '3');
+  final TextEditingController _borrowingLimitCtrl =
+      TextEditingController(text: '3');
   final TextEditingController _maxDaysCtrl = TextEditingController(text: '14');
   final TextEditingController _notesCtrl = TextEditingController();
 
   String _membershipType = 'Student';
   DateTime _startDate = DateTime.now();
   DateTime _expiryDate = DateTime.now().add(const Duration(days: 365));
-  bool _renewalAllowed = true;
-  int _maxRenewals = 2;
+  final bool _renewalAllowed = true;
+  final int _maxRenewals = 2;
   String _status = 'ACTIVE';
 
   @override
@@ -54,8 +56,13 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
       _currentStep = 1;
       _membershipType = profile.role.toLowerCase() == 'teacher'
           ? 'Teacher'
-          : (profile.role.toLowerCase() == 'library' ? 'Librarian' : (profile.role.toLowerCase() == 'student' ? 'Student' : 'Staff'));
-      _borrowingLimitCtrl.text = profile.role.toLowerCase() == 'teacher' ? '5' : '3';
+          : (profile.role.toLowerCase() == 'library'
+              ? 'Librarian'
+              : (profile.role.toLowerCase() == 'student'
+                  ? 'Student'
+                  : 'Staff'));
+      _borrowingLimitCtrl.text =
+          profile.role.toLowerCase() == 'teacher' ? '5' : '3';
       _maxDaysCtrl.text = profile.role.toLowerCase() == 'teacher' ? '30' : '14';
     });
   }
@@ -78,7 +85,10 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
               padding: const EdgeInsets.fromLTRB(22, 18, 16, 16),
               decoration: BoxDecoration(
                 border: Border(
-                  bottom: BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+                  bottom: BorderSide(
+                      color: isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFE2E8F0)),
                 ),
               ),
               child: Row(
@@ -89,7 +99,8 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                       color: const Color(0xFF6366F1).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.person_add_alt_1_rounded, color: Color(0xFF6366F1), size: 20),
+                    child: const Icon(Icons.person_add_alt_1_rounded,
+                        color: Color(0xFF6366F1), size: 20),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -97,11 +108,14 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _currentStep == 0 ? 'Add Library Member — Select Profile' : 'Configure Membership Parameters',
+                          _currentStep == 0
+                              ? 'Add Library Member — Select Profile'
+                              : 'Configure Membership Parameters',
                           style: TextStyle(
                             fontSize: 15.5,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                         Text(
@@ -110,7 +124,9 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                               : 'Assign borrowing limits and membership duration.',
                           style: TextStyle(
                             fontSize: 11.5,
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ],
@@ -136,7 +152,10 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
               decoration: BoxDecoration(
                 border: Border(
-                  top: BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+                  top: BorderSide(
+                      color: isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFE2E8F0)),
                 ),
               ),
               child: Row(
@@ -157,16 +176,24 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                   if (_currentStep == 1)
                     ElevatedButton.icon(
                       icon: state.isActionLoading
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
                           : const Icon(Icons.check_rounded, size: 18),
-                      label: const Text('Create Member', style: TextStyle(fontWeight: FontWeight.w700)),
+                      label: const Text('Create Member',
+                          style: TextStyle(fontWeight: FontWeight.w700)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF6366F1),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
                       ),
-                      onPressed: state.isActionLoading ? null : _submitCreateMember,
+                      onPressed:
+                          state.isActionLoading ? null : _submitCreateMember,
                     ),
                 ],
               ),
@@ -183,14 +210,18 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
         .map((m) => m.memberName.trim().toLowerCase())
         .toSet();
     final existingMemberEmails = state.members
-        .where((m) => m.isActive && m.email != null && m.email!.trim().isNotEmpty)
+        .where(
+            (m) => m.isActive && m.email != null && m.email!.trim().isNotEmpty)
         .map((m) => m.email!.trim().toLowerCase())
         .toSet();
 
     final eligibleCandidates = state.profileSearchResults.where((p) {
       if (p.isAlreadyMember) return false;
-      if (existingMemberNames.contains(p.fullName.trim().toLowerCase())) return false;
-      if (p.email != null && p.email!.trim().isNotEmpty && existingMemberEmails.contains(p.email!.trim().toLowerCase())) {
+      if (existingMemberNames.contains(p.fullName.trim().toLowerCase()))
+        return false;
+      if (p.email != null &&
+          p.email!.trim().isNotEmpty &&
+          existingMemberEmails.contains(p.email!.trim().toLowerCase())) {
         return false;
       }
       return true;
@@ -204,16 +235,22 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
           // Search Field
           TextField(
             controller: _searchCtrl,
-            onChanged: (q) => ref.read(memberProvider.notifier).searchProfiles(q),
+            onChanged: (q) =>
+                ref.read(memberProvider.notifier).searchProfiles(q),
             decoration: InputDecoration(
-              hintText: 'Search eligible non-members by name, email, phone, roll number...',
+              hintText:
+                  'Search eligible non-members by name, email, phone, roll number...',
               hintStyle: const TextStyle(fontSize: 12.5),
               prefixIcon: const Icon(Icons.search_rounded, size: 20),
               filled: true,
-              fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+              fillColor:
+                  isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                borderSide: BorderSide(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFCBD5E1)),
               ),
               contentPadding: const EdgeInsets.symmetric(vertical: 12),
             ),
@@ -229,14 +266,19 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.person_search_rounded, size: 36, color: Color(0xFF94A3B8)),
+                            const Icon(Icons.person_search_rounded,
+                                size: 36, color: Color(0xFF94A3B8)),
                             const SizedBox(height: 8),
                             Text(
                               _searchCtrl.text.trim().isNotEmpty
                                   ? 'No eligible non-member profiles found matching search.'
                                   : 'All school profiles in the directory are already library members.',
                               textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B)),
                             ),
                           ],
                         ),
@@ -274,10 +316,12 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundColor: const Color(0xFF6366F1).withValues(alpha: isDark ? 0.2 : 0.12),
+              backgroundColor: const Color(0xFF6366F1)
+                  .withValues(alpha: isDark ? 0.2 : 0.12),
               child: Text(
                 p.fullName.isNotEmpty ? p.fullName[0].toUpperCase() : 'U',
-                style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF6366F1)),
+                style: const TextStyle(
+                    fontWeight: FontWeight.w700, color: Color(0xFF6366F1)),
               ),
             ),
             const SizedBox(width: 12),
@@ -292,19 +336,25 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                         style: TextStyle(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                          color:
+                              const Color(0xFF6366F1).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
                           p.role.toUpperCase(),
-                          style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF6366F1)),
+                          style: const TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF6366F1)),
                         ),
                       ),
                     ],
@@ -312,12 +362,20 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                   const SizedBox(height: 2),
                   Text(
                     p.classOrDeptSubtitle,
-                    style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B)),
                   ),
                   if (p.email != null)
                     Text(
                       p.email!,
-                      style: TextStyle(fontSize: 10.5, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+                      style: TextStyle(
+                          fontSize: 10.5,
+                          color: isDark
+                              ? const Color(0xFFCBD5E1)
+                              : const Color(0xFF475569)),
                     ),
                 ],
               ),
@@ -331,11 +389,15 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                 ),
                 child: Text(
                   'Member (${p.existingMemberCode ?? "Active"})',
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF10B981)),
+                  style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF10B981)),
                 ),
               )
             else
-              const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF6366F1)),
+              const Icon(Icons.arrow_forward_ios_rounded,
+                  size: 14, color: Color(0xFF6366F1)),
           ],
         ),
       ),
@@ -345,13 +407,15 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
   Widget _buildStep1ConfigureMembership(bool isDark) {
     final dateFormat = DateFormat('dd MMM yyyy');
     final memberState = ref.watch(memberProvider);
-    final availableMemberTypes = memberState.filterOptions.memberTypes.isNotEmpty
+    final availableMemberTypes = memberState
+            .filterOptions.memberTypes.isNotEmpty
         ? memberState.filterOptions.memberTypes
         : ['Student', 'Teacher', 'Staff', 'Librarian', 'Special / Research'];
 
-    final effectiveMembershipType = availableMemberTypes.contains(_membershipType)
-        ? _membershipType
-        : availableMemberTypes.first;
+    final effectiveMembershipType =
+        availableMemberTypes.contains(_membershipType)
+            ? _membershipType
+            : availableMemberTypes.first;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -362,9 +426,11 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFF6366F1).withValues(alpha: isDark ? 0.15 : 0.08),
+              color: const Color(0xFF6366F1)
+                  .withValues(alpha: isDark ? 0.15 : 0.08),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
+              border: Border.all(
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [
@@ -372,8 +438,11 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                   radius: 20,
                   backgroundColor: const Color(0xFF6366F1),
                   child: Text(
-                    _selectedProfile!.fullName.isNotEmpty ? _selectedProfile!.fullName[0].toUpperCase() : 'U',
-                    style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+                    _selectedProfile!.fullName.isNotEmpty
+                        ? _selectedProfile!.fullName[0].toUpperCase()
+                        : 'U',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, color: Colors.white),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -386,12 +455,16 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
                       Text(
                         '${_selectedProfile!.role.toUpperCase()} • ${_selectedProfile!.classOrDeptSubtitle}',
-                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF6366F1), fontWeight: FontWeight.w500),
+                        style: const TextStyle(
+                            fontSize: 11.5,
+                            color: Color(0xFF6366F1),
+                            fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
@@ -412,8 +485,9 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                 child: _buildFormField(
                   label: 'Membership Type *',
                   child: DropdownButtonFormField<String>(
-                    value: effectiveMembershipType,
-                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    initialValue: effectiveMembershipType,
+                    dropdownColor:
+                        isDark ? const Color(0xFF1E293B) : Colors.white,
                     decoration: _inputDecoration(isDark),
                     items: availableMemberTypes.map((type) {
                       return DropdownMenuItem<String>(
@@ -433,7 +507,8 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                   label: 'Member Code (Auto-assigned)',
                   child: TextField(
                     controller: _memberCodeCtrl,
-                    decoration: _inputDecoration(isDark, hint: 'e.g. LIBM-0025 (Optional)'),
+                    decoration: _inputDecoration(isDark,
+                        hint: 'e.g. LIBM-0025 (Optional)'),
                   ),
                 ),
               ),
@@ -459,7 +534,8 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                     },
                     child: InputDecorator(
                       decoration: _inputDecoration(isDark),
-                      child: Text(dateFormat.format(_startDate), style: const TextStyle(fontSize: 13)),
+                      child: Text(dateFormat.format(_startDate),
+                          style: const TextStyle(fontSize: 13)),
                     ),
                   ),
                 ),
@@ -480,7 +556,8 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                     },
                     child: InputDecorator(
                       decoration: _inputDecoration(isDark),
-                      child: Text(dateFormat.format(_expiryDate), style: const TextStyle(fontSize: 13)),
+                      child: Text(dateFormat.format(_expiryDate),
+                          style: const TextStyle(fontSize: 13)),
                     ),
                   ),
                 ),
@@ -521,7 +598,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
           _buildFormField(
             label: 'Initial Membership Status',
             child: DropdownButtonFormField<String>(
-              value: _status,
+              initialValue: _status,
               dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
               decoration: _inputDecoration(isDark),
               items: const [
@@ -542,7 +619,8 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
             child: TextField(
               controller: _notesCtrl,
               maxLines: 2,
-              decoration: _inputDecoration(isDark, hint: 'Special borrowing provisions or remarks...'),
+              decoration: _inputDecoration(isDark,
+                  hint: 'Special borrowing provisions or remarks...'),
             ),
           ),
         ],
@@ -556,7 +634,10 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+          style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF64748B)),
         ),
         const SizedBox(height: 6),
         child,
@@ -573,11 +654,13 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+        borderSide: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+        borderSide: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
     );
   }
@@ -590,7 +673,8 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
 
     final payload = {
       'profile_id': _selectedProfile!.id,
-      if (_memberCodeCtrl.text.trim().isNotEmpty) 'member_code': _memberCodeCtrl.text.trim(),
+      if (_memberCodeCtrl.text.trim().isNotEmpty)
+        'member_code': _memberCodeCtrl.text.trim(),
       'membership_type': _membershipType,
       'membership_start_date': _startDate.toIso8601String().split('T').first,
       'membership_expiry_date': _expiryDate.toIso8601String().split('T').first,
@@ -602,7 +686,8 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
       if (_notesCtrl.text.trim().isNotEmpty) 'notes': _notesCtrl.text.trim(),
     };
 
-    final success = await ref.read(memberProvider.notifier).createMember(payload);
+    final success =
+        await ref.read(memberProvider.notifier).createMember(payload);
     if (success && mounted) {
       Navigator.pop(context);
     }

@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS public.lookup_keys (
     icon VARCHAR(100) DEFAULT 'folder_outlined',
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',    -- 'ACTIVE', 'INACTIVE'
     version INTEGER NOT NULL DEFAULT 1,
-    created_by UUID NOT NULL REFERENCES public.profiles(id),
+    created_by UUID REFERENCES public.profiles(id),
     updated_by UUID REFERENCES public.profiles(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS public.lookup_values (
     description TEXT,
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE', -- 'ACTIVE', 'INACTIVE'
     sort_order INTEGER NOT NULL DEFAULT 0,
-    created_by UUID NOT NULL REFERENCES public.profiles(id),
+    created_by UUID REFERENCES public.profiles(id),
     updated_by UUID REFERENCES public.profiles(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

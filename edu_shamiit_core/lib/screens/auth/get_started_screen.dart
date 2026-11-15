@@ -757,10 +757,13 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             icon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
             validator: (value) {
-              if (value == null || value.trim().isEmpty)
+              if (value == null || value.trim().isEmpty) {
                 return 'Email is required';
-              if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value))
+              }
+              if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                  .hasMatch(value)) {
                 return 'Invalid email format';
+              }
               return null;
             },
           ),
@@ -792,8 +795,9 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             ),
             validator: (value) {
               if (value == null || value.isEmpty) return 'Password is required';
-              if (value.length < 6)
+              if (value.length < 6) {
                 return 'Password must be at least 6 characters';
+              }
               return null;
             },
           ),
@@ -815,10 +819,12 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                   () => _obscureConfirmPassword = !_obscureConfirmPassword),
             ),
             validator: (value) {
-              if (value == null || value.isEmpty)
+              if (value == null || value.isEmpty) {
                 return 'Confirm password is required';
-              if (value != _passwordController.text)
+              }
+              if (value != _passwordController.text) {
                 return 'Passwords do not match';
+              }
               return null;
             },
           ),
@@ -1282,8 +1288,9 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
         hint: 'username@upi',
         icon: Icons.qr_code,
         validator: (value) {
-          if (value == null || value.trim().isEmpty)
+          if (value == null || value.trim().isEmpty) {
             return 'UPI ID is required';
+          }
           if (!value.contains('@')) return 'Invalid UPI ID';
           return null;
         },

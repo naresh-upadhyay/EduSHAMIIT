@@ -7,7 +7,7 @@
 
 -- Ensure vehicles table has records for all bus_routes before switching FKs
 INSERT INTO public.vehicles (id, school_id, vehicle_no, seating_capacity, status)
-SELECT id, school_id, bus_number, capacity, COALESCE(status, 'Active')
+SELECT id, school_id, bus_number, COALESCE(total_capacity, 52), COALESCE(status, 'Active')
 FROM public.bus_routes
 ON CONFLICT (school_id, vehicle_no) DO NOTHING;
 
@@ -86,14 +86,18 @@ LEFT JOIN public.profiles p ON d.profile_id = p.id;
 -- 4. CONSOLIDATED UNREAD NOTIFICATIONS VIEW
 -- ──────────────────────────────────────────────
 
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS message TEXT;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS category TEXT;
+UPDATE public.notifications SET message = COALESCE(message, body), category = COALESCE(category, type);
+
 CREATE OR REPLACE VIEW public.vw_all_user_notifications AS
 SELECT 
   id,
   school_id,
   user_id,
   title,
-  message,
-  COALESCE(category, 'General') AS category,
+  COALESCE(message, body) AS message,
+  COALESCE(category, type, 'General') AS category,
   COALESCE(is_read, FALSE) AS is_read,
   created_at
 FROM public.notifications
@@ -103,7 +107,7 @@ SELECT
   school_id,
   NULL AS user_id,
   title,
-  content AS message,
+  COALESCE(description, title) AS message,
   'Announcement' AS category,
   FALSE AS is_read,
   created_at

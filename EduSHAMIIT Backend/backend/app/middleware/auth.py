@@ -1,3 +1,4 @@
+_SUPABASE_SESSION_DISABLED_UNTIL = 0.0
 from fastapi import HTTPException, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
@@ -79,6 +80,7 @@ def get_public_supabase_url(supabase_url: str) -> str:
 
 async def get_current_user(request: Request) -> dict:
     """Extract user context from JWT token with Redis caching."""
+    global _SUPABASE_SESSION_DISABLED_UNTIL
     token = None
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
@@ -100,7 +102,7 @@ async def get_current_user(request: Request) -> dict:
             "class": cached.get("class"),
             "email": cached.get("email"),
         }
-        if user["id"]:
+        if user["id"] and time.time() >= _SUPABASE_SESSION_DISABLED_UNTIL:
             try:
                 from app.services.supabase_client import get_supabase
                 sb = get_supabase()
@@ -113,7 +115,7 @@ async def get_current_user(request: Request) -> dict:
                         "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                     }).aexecute()
             except Exception:
-                pass
+                _SUPABASE_SESSION_DISABLED_UNTIL = time.time() + 300.0
             set_current_user_context(user)
             return user
 
@@ -138,19 +140,20 @@ async def get_current_user(request: Request) -> dict:
         if not user["id"]:
             raise HTTPException(status_code=401, detail="Invalid token: missing user ID")
 
-        try:
-            from app.services.supabase_client import get_supabase
-            sb = get_supabase()
-            active_check = await sb.table("user_active_sessions").select("id").eq("token", token).maybe_single().aexecute()
-            if not active_check.data:
-                # Auto-heal active session entry for valid active JWT token
-                await sb.table("user_active_sessions").upsert({
-                    "user_id": user["id"],
-                    "token": token,
-                    "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-                }).aexecute()
-        except Exception:
-            pass
+        if time.time() >= _SUPABASE_SESSION_DISABLED_UNTIL:
+            try:
+                from app.services.supabase_client import get_supabase
+                sb = get_supabase()
+                active_check = await sb.table("user_active_sessions").select("id").eq("token", token).maybe_single().aexecute()
+                if not active_check.data:
+                    # Auto-heal active session entry for valid active JWT token
+                    await sb.table("user_active_sessions").upsert({
+                        "user_id": user["id"],
+                        "token": token,
+                        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                    }).aexecute()
+            except Exception:
+                _SUPABASE_SESSION_DISABLED_UNTIL = time.time() + 300.0
 
         # 3. Cache the decoded payload for next time
         exp = payload.get("exp", 0)
@@ -278,4 +281,11 @@ require_teacher_admin = require_any_role(
     "admin", "teacher_admin", "super_admin", "director", "principal", "finance", 
     "hr", "transport", "library", "security", "sports", "support", "driver", 
     "hostel", "exam_ctrl"
+)
+
+# exam_access: teachers and administrators who manage examinations and question banks
+require_exam_access = require_any_role(
+    "teacher", "admin", "super_admin", "director", "principal", "finance", 
+    "hr", "transport", "library", "security", "sports", "support", "driver", 
+    "hostel", "exam_ctrl", "teacher_admin", "student_admin", "academic_admin"
 )

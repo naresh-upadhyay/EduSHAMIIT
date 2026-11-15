@@ -22,7 +22,11 @@ class NoticeCardView extends ConsumerWidget {
 
   bool get isAdmin {
     final r = userRole.toLowerCase();
-    return r == 'super_admin' || r == 'admin' || r == 'principal' || r == 'vice_principal' || r == 'director';
+    return r == 'super_admin' ||
+        r == 'admin' ||
+        r == 'principal' ||
+        r == 'vice_principal' ||
+        r == 'director';
   }
 
   Color _getCategoryColor(String category) {
@@ -118,7 +122,10 @@ class NoticeCardView extends ConsumerWidget {
           onTap: () {
             showDialog(
               context: context,
-              builder: (c) => NoticeDetailDialog(noticeId: notice.id, userRole: userRole, currentUserId: currentUserId),
+              builder: (c) => NoticeDetailDialog(
+                  noticeId: notice.id,
+                  userRole: userRole,
+                  currentUserId: currentUserId),
             );
           },
           borderRadius: BorderRadius.circular(12),
@@ -130,7 +137,9 @@ class NoticeCardView extends ConsumerWidget {
               border: Border.all(
                 color: isUrgentNotice
                     ? const Color(0xFFDC2626)
-                    : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                    : (isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0)),
                 width: isUrgentNotice ? 1.5 : 1.0,
               ),
               boxShadow: [
@@ -160,9 +169,12 @@ class NoticeCardView extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
-                        isUrgentNotice ? Icons.campaign_rounded : _getCategoryIcon(notice.category),
+                        isUrgentNotice
+                            ? Icons.campaign_rounded
+                            : _getCategoryIcon(notice.category),
                         size: 16,
-                        color: isUrgentNotice ? const Color(0xFFDC2626) : catColor,
+                        color:
+                            isUrgentNotice ? const Color(0xFFDC2626) : catColor,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -174,7 +186,8 @@ class NoticeCardView extends ConsumerWidget {
                         children: [
                           if (isUrgentNotice) ...[
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 5, vertical: 1.5),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFDC2626),
                                 borderRadius: BorderRadius.circular(4),
@@ -182,43 +195,61 @@ class NoticeCardView extends ConsumerWidget {
                               child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.bolt_rounded, size: 10, color: Colors.white),
+                                  Icon(Icons.bolt_rounded,
+                                      size: 10, color: Colors.white),
                                   SizedBox(width: 1),
                                   Text(
                                     'URGENT',
-                                    style: TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.w900, letterSpacing: 0.3),
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 8.5,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0.3),
                                   ),
                                 ],
                               ),
                             ),
                           ],
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               color: catColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               notice.category,
-                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: catColor),
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: catColor),
                             ),
                           ),
                           Text(
                             effectivePriority.toUpperCase(),
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: prioColor),
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: prioColor),
                           ),
                           if (notice.isNewlyPublished) ...[
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 5, vertical: 1),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFEF4444),
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: const Text('New', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                              child: const Text('New',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800)),
                             ),
                           ],
                           if (notice.isPinned) ...[
-                            const Icon(Icons.push_pin_rounded, size: 12, color: Color(0xFFF59E0B)),
+                            const Icon(Icons.push_pin_rounded,
+                                size: 12, color: Color(0xFFF59E0B)),
                           ],
                         ],
                       ),
@@ -226,19 +257,28 @@ class NoticeCardView extends ConsumerWidget {
                     const SizedBox(width: 6),
                     _buildStatusBadge(notice.status, isDark),
                     PopupMenuButton<String>(
-                      icon: Icon(Icons.more_vert_rounded, size: 18, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      icon: Icon(Icons.more_vert_rounded,
+                          size: 18,
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
                       color: isDark ? const Color(0xFF1E293B) : Colors.white,
                       onSelected: (val) {
                         if (val == 'view') {
                           showDialog(
                             context: context,
-                            builder: (c) => NoticeDetailDialog(noticeId: notice.id, userRole: userRole, currentUserId: currentUserId),
+                            builder: (c) => NoticeDetailDialog(
+                                noticeId: notice.id,
+                                userRole: userRole,
+                                currentUserId: currentUserId),
                           );
                         } else if (val == 'edit') {
                           showDialog(
                             context: context,
-                            builder: (c) => CreateEditNoticeDialog(editNotice: notice),
+                            builder: (c) =>
+                                CreateEditNoticeDialog(editNotice: notice),
                           );
                         } else if (val == 'duplicate') {
                           notifier.duplicateNotice(notice.id);
@@ -249,28 +289,56 @@ class NoticeCardView extends ConsumerWidget {
                         } else if (val == 'ack_dashboard') {
                           showDialog(
                             context: context,
-                            builder: (c) => NoticeAcknowledgementsDialog(noticeId: notice.id, title: notice.title),
+                            builder: (c) => NoticeAcknowledgementsDialog(
+                                noticeId: notice.id, title: notice.title),
                           );
                         } else if (val == 'share') {
-                          Clipboard.setData(ClipboardData(text: '${notice.title}\n\n${notice.content}'));
+                          Clipboard.setData(ClipboardData(
+                              text: '${notice.title}\n\n${notice.content}'));
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Notice copied to clipboard!')),
+                            const SnackBar(
+                                content: Text('Notice copied to clipboard!')),
                           );
                         }
                       },
                       itemBuilder: (ctx) => [
-                        const PopupMenuItem(value: 'view', child: Text('View Details', style: TextStyle(fontSize: 12))),
-                        if (notice.requiresAcknowledgement && (isAdmin || isAuthor))
-                          const PopupMenuItem(value: 'ack_dashboard', child: Text('Acknowledgements', style: TextStyle(fontSize: 12, color: Color(0xFF10B981)))),
+                        const PopupMenuItem(
+                            value: 'view',
+                            child: Text('View Details',
+                                style: TextStyle(fontSize: 12))),
+                        if (notice.requiresAcknowledgement &&
+                            (isAdmin || isAuthor))
+                          const PopupMenuItem(
+                              value: 'ack_dashboard',
+                              child: Text('Acknowledgements',
+                                  style: TextStyle(
+                                      fontSize: 12, color: Color(0xFF10B981)))),
                         if (canEdit)
-                          const PopupMenuItem(value: 'edit', child: Text('Edit Notice', style: TextStyle(fontSize: 12))),
+                          const PopupMenuItem(
+                              value: 'edit',
+                              child: Text('Edit Notice',
+                                  style: TextStyle(fontSize: 12))),
                         if (canEdit)
-                          const PopupMenuItem(value: 'duplicate', child: Text('Duplicate', style: TextStyle(fontSize: 12))),
-                        const PopupMenuItem(value: 'share', child: Text('Share', style: TextStyle(fontSize: 12))),
+                          const PopupMenuItem(
+                              value: 'duplicate',
+                              child: Text('Duplicate',
+                                  style: TextStyle(fontSize: 12))),
+                        const PopupMenuItem(
+                            value: 'share',
+                            child:
+                                Text('Share', style: TextStyle(fontSize: 12))),
                         if (canEdit)
-                          const PopupMenuItem(value: 'archive', child: Text('Archive', style: TextStyle(fontSize: 12, color: Color(0xFFF59E0B)))),
+                          const PopupMenuItem(
+                              value: 'archive',
+                              child: Text('Archive',
+                                  style: TextStyle(
+                                      fontSize: 12, color: Color(0xFFF59E0B)))),
                         if (canEdit)
-                          const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(fontSize: 12, color: Color(0xFFEF4444)))),
+                          const PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Delete',
+                                  style: TextStyle(
+                                      fontSize: 12, color: Color(0xFFEF4444)))),
                       ],
                     ),
                   ],
@@ -293,7 +361,9 @@ class NoticeCardView extends ConsumerWidget {
                   notice.content.replaceAll(RegExp(r'<[^>]*>'), ''),
                   style: TextStyle(
                     fontSize: 12,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -304,14 +374,20 @@ class NoticeCardView extends ConsumerWidget {
                 if (notice.attachments.isNotEmpty) ...[
                   Row(
                     children: [
-                      Icon(Icons.attach_file_rounded, size: 13, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      Icon(Icons.attach_file_rounded,
+                          size: 13,
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B)),
                       const SizedBox(width: 4),
                       Text(
                         '${notice.attachments.length} Attachment${notice.attachments.length > 1 ? "s" : ""}',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B),
                         ),
                       ),
                     ],
@@ -333,21 +409,36 @@ class NoticeCardView extends ConsumerWidget {
                             notice.publishedAt != null
                                 ? df.format(notice.publishedAt!.toLocal())
                                 : 'Created ${df.format(notice.createdAt.toLocal())}',
-                            style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: isDark
+                                    ? const Color(0xFF64748B)
+                                    : const Color(0xFF94A3B8)),
                           ),
                           const SizedBox(height: 2),
                           Row(
                             children: [
-                              Icon(Icons.visibility_outlined, size: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                              Icon(Icons.visibility_outlined,
+                                  size: 12,
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B)),
                               const SizedBox(width: 3),
-                              Text('${notice.viewCount}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                              Text('${notice.viewCount}',
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600)),
                               if (notice.requiresAcknowledgement) ...[
                                 const SizedBox(width: 10),
-                                Icon(Icons.check_circle_outline_rounded, size: 12, color: const Color(0xFF10B981)),
+                                const Icon(Icons.check_circle_outline_rounded,
+                                    size: 12, color: Color(0xFF10B981)),
                                 const SizedBox(width: 3),
                                 Text(
                                   '${notice.ackCount} (${notice.ackPercentage.toStringAsFixed(0)}%)',
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF10B981)),
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF10B981)),
                                 ),
                               ],
                             ],
@@ -359,15 +450,22 @@ class NoticeCardView extends ConsumerWidget {
                       onPressed: () {
                         showDialog(
                           context: context,
-                          builder: (c) => NoticeDetailDialog(noticeId: notice.id, userRole: userRole, currentUserId: currentUserId),
+                          builder: (c) => NoticeDetailDialog(
+                              noticeId: notice.id,
+                              userRole: userRole,
+                              currentUserId: currentUserId),
                         );
                       },
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 6),
                         minimumSize: const Size(60, 30),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6)),
                       ),
-                      child: const Text('View', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                      child: const Text('View',
+                          style: TextStyle(
+                              fontSize: 11, fontWeight: FontWeight.w700)),
                     ),
                   ],
                 ),
@@ -386,11 +484,11 @@ class NoticeCardView extends ConsumerWidget {
 
     switch (status.toLowerCase()) {
       case 'published':
-        bg = const Color(0xFF10B981).withOpacity(0.12);
+        bg = const Color(0xFF10B981).withValues(alpha: 0.12);
         fg = const Color(0xFF10B981);
         break;
       case 'scheduled':
-        bg = const Color(0xFF0EA5E9).withOpacity(0.12);
+        bg = const Color(0xFF0EA5E9).withValues(alpha: 0.12);
         fg = const Color(0xFF0EA5E9);
         break;
       case 'draft':
@@ -398,27 +496,30 @@ class NoticeCardView extends ConsumerWidget {
         fg = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
         break;
       case 'pending_approval':
-        bg = const Color(0xFFF59E0B).withOpacity(0.12);
+        bg = const Color(0xFFF59E0B).withValues(alpha: 0.12);
         fg = const Color(0xFFF59E0B);
         label = 'PENDING';
         break;
       case 'expired':
-        bg = const Color(0xFFEF4444).withOpacity(0.12);
+        bg = const Color(0xFFEF4444).withValues(alpha: 0.12);
         fg = const Color(0xFFEF4444);
         break;
       case 'archived':
-        bg = const Color(0xFF6B7280).withOpacity(0.12);
+        bg = const Color(0xFF6B7280).withValues(alpha: 0.12);
         fg = const Color(0xFF6B7280);
         break;
       default:
-        bg = const Color(0xFF64748B).withOpacity(0.12);
+        bg = const Color(0xFF64748B).withValues(alpha: 0.12);
         fg = const Color(0xFF64748B);
     }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(4)),
-      child: Text(label, style: TextStyle(color: fg, fontSize: 9, fontWeight: FontWeight.w800)),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(4)),
+      child: Text(label,
+          style:
+              TextStyle(color: fg, fontSize: 9, fontWeight: FontWeight.w800)),
     );
   }
 }

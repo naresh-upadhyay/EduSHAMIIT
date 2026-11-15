@@ -168,7 +168,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: PolicyAcknowledgementDialog(
-              acknowledgement: {
+              acknowledgement: const {
                 'id': 'ack-123',
                 'policy_id': 'pol-123',
                 'policy_title': 'Employee Code of Conduct',
@@ -290,9 +290,9 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: HRPoliciesScreen(
-            initialItemsForTesting: const [
+            initialItemsForTesting: [
               {
                 'id': 'test-doc-1',
                 'title': 'Laboratory Biohazard Safety Policy',
@@ -312,7 +312,7 @@ void main() {
                 'is_policy': true,
               },
             ],
-            initialSelectedIdsForTesting: const {'test-doc-1', 'test-doc-2'},
+            initialSelectedIdsForTesting: {'test-doc-1', 'test-doc-2'},
           ),
         ),
       );
@@ -429,9 +429,9 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: HRPoliciesScreen(
-            initialItemsForTesting: const [
+            initialItemsForTesting: [
               {
                 'id': 'test-doc-b',
                 'title': 'Bravo Employee Handbook',

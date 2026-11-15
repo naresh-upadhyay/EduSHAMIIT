@@ -11,7 +11,7 @@ BEGIN
     PERFORM cron.schedule(
       'weekly_db_optimization',
       '0 3 * * 0', -- Sunday at 3:00 AM UTC
-      $$SELECT public.optimize_database_bloat_and_stats();$$
+      'SELECT public.optimize_database_bloat_and_stats();'
     );
   END IF;
 EXCEPTION WHEN OTHERS THEN

@@ -7,7 +7,6 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:html' as html;
 import 'dart:convert';
 import 'dart:math' as math;
-import 'package:go_router/go_router.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class DriverManagementTab extends StatefulWidget {
@@ -85,11 +84,13 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
   static const _orange = Color(0xFFF59E0B);
   static const _red = Color(0xFFEF4444);
   static const _gray = Color(0xFF94A3B8);
-  static const _bg = Color(0xFFF8FAFC);
-  static const _cardBg = Colors.white;
-  static const _border = Color(0xFFE2E8F0);
-  static const _textPrimary = Color(0xFF0F172A);
-  static const _textSecondary = Color(0xFF64748B);
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+  Color get _bg => _isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+  Color get _cardBg => _isDark ? const Color(0xFF1E293B) : Colors.white;
+  Color get _border => _isDark ? Colors.white10 : const Color(0xFFE2E8F0);
+  Color get _textPrimary => _isDark ? Colors.white : const Color(0xFF0F172A);
+  Color get _textSecondary => _isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+  Color get _inputBg => _isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9);
 
   final Set<int> _loadedTabs = {};
   final Set<int> _visitedTabs = {};
@@ -145,8 +146,12 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
   void didUpdateWidget(DriverManagementTab oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.initialTab != oldWidget.initialTab) {
-      _tabController.animateTo(widget.initialTab);
-      _loadTabIfNeeded(widget.initialTab);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _tabController.animateTo(widget.initialTab);
+          _loadTabIfNeeded(widget.initialTab);
+        }
+      });
     }
   }
 
@@ -542,25 +547,25 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _cardBg,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: _border),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF64748B)),
+              Icon(Icons.calendar_today_rounded, size: 14, color: _textSecondary),
               const SizedBox(width: 8),
               Text(
                 dateStr,
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF334155),
+                  color: _textPrimary,
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Color(0xFF64748B)),
+              Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: _textSecondary),
             ],
           ),
         ),
@@ -617,9 +622,9 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
     return Container(
       height: 48,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _border),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
@@ -633,9 +638,9 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
           isScrollable: true,
           tabAlignment: TabAlignment.start,
           padding: EdgeInsets.zero,
-          labelColor: const Color(0xFF4F46E5), // Indigo 600
-          unselectedLabelColor: const Color(0xFF475569), // Slate 600
-          indicatorColor: const Color(0xFF4F46E5),
+          labelColor: _isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5), // Indigo 400 / 600
+          unselectedLabelColor: _textSecondary,
+          indicatorColor: _isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
           indicatorWeight: 2.5,
           indicatorSize: TabBarIndicatorSize.tab,
           labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
@@ -779,7 +784,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
         } else if (width < 1300) {
           columns = 3;
         }
-        final cardWidth = (width - ((columns - 1) * 12)) / columns;
+        final cardWidth = ((width - ((columns - 1) * 12)) / columns).floorToDouble();
         return Wrap(
           spacing: 12,
           runSpacing: 12,
@@ -862,7 +867,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
     return Container(
       height: _kCtrlH,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: _kRadius,
         border: Border.all(color: _border),
       ),
@@ -879,7 +884,8 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                 value: value,
                 isExpanded: true,
                 isDense: true,
-                icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: _textSecondary),
+                dropdownColor: _cardBg,
+                icon: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: _textSecondary),
                 style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
                 items: items,
                 onChanged: onChanged,
@@ -891,34 +897,35 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
     );
   }
 
-  /// Uniform 36px-tall search field
+  /// Uniform 36px-tall search field matching route management standard
   Widget _uSearch({required TextEditingController controller, String hint = 'Search...'}) {
-    return Container(
+    return SizedBox(
       height: _kCtrlH,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: _kRadius,
-        border: Border.all(color: _border),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Row(
-        children: [
-          const Icon(Icons.search_rounded, size: 16, color: _textSecondary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
-              decoration: InputDecoration(
-                hintText: hint,
-                hintStyle: GoogleFonts.inter(fontSize: 13, color: _textSecondary),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
+      child: TextField(
+        controller: controller,
+        textAlignVertical: TextAlignVertical.center,
+        style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: GoogleFonts.inter(fontSize: 12, color: _textSecondary),
+          prefixIcon: Icon(Icons.search_rounded, size: 18, color: _textSecondary),
+          filled: true,
+          fillColor: _inputBg,
+          isDense: true,
+          border: OutlineInputBorder(
+            borderRadius: _kRadius,
+            borderSide: BorderSide(color: _border),
           ),
-        ],
+          enabledBorder: OutlineInputBorder(
+            borderRadius: _kRadius,
+            borderSide: BorderSide(color: _border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: _kRadius,
+            borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
       ),
     );
   }
@@ -936,7 +943,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: _kRadius),
           padding: const EdgeInsets.symmetric(horizontal: 14),
-          fixedSize: Size.fromHeight(_kCtrlH),
+          fixedSize: const Size.fromHeight(_kCtrlH),
         ),
       ),
     );
@@ -952,10 +959,10 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
         label: Text('Reset', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500)),
         style: OutlinedButton.styleFrom(
           foregroundColor: _textSecondary,
-          side: const BorderSide(color: _border),
+          side: BorderSide(color: _border),
           shape: RoundedRectangleBorder(borderRadius: _kRadius),
           padding: const EdgeInsets.symmetric(horizontal: 14),
-          fixedSize: Size.fromHeight(_kCtrlH),
+          fixedSize: const Size.fromHeight(_kCtrlH),
         ),
       ),
     );
@@ -967,8 +974,8 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
       width: _kCtrlH,
       height: _kCtrlH,
       child: Material(
-        color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: _kRadius, side: const BorderSide(color: _border)),
+        color: _cardBg,
+        shape: RoundedRectangleBorder(borderRadius: _kRadius, side: BorderSide(color: _border)),
         child: InkWell(
           borderRadius: _kRadius,
           onTap: onPressed,
@@ -986,22 +993,6 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
         style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12, color: _textSecondary, letterSpacing: 0.2),
         overflow: TextOverflow.ellipsis,
         maxLines: 1,
-      ),
-    );
-  }
-
-  /// Compact 30x30 action icon button for table rows
-  Widget _actionBtn(IconData icon, Color color, String tooltip, VoidCallback onPressed) {
-    return SizedBox(
-      width: 30,
-      height: 30,
-      child: IconButton(
-        icon: Icon(icon, size: 16, color: color),
-        tooltip: tooltip,
-        onPressed: onPressed,
-        padding: EdgeInsets.zero,
-        splashRadius: 14,
-        constraints: const BoxConstraints(maxWidth: 30, maxHeight: 30),
       ),
     );
   }
@@ -1102,7 +1093,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
             constraints: const BoxConstraints(minWidth: 1000),
             child: DataTable(
               showCheckboxColumn: false,
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              headingRowColor: WidgetStateProperty.all(_isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
               horizontalMargin: 16,
               columnSpacing: 20,
               dataRowMinHeight: 52,
@@ -1279,7 +1270,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.remove_red_eye_outlined, size: 16, color: _textSecondary),
+                            icon: Icon(Icons.remove_red_eye_outlined, size: 16, color: _textSecondary),
                             onPressed: () {
                               setState(() {
                                 _selectedDriver = dev;
@@ -1393,7 +1384,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
               ),
               const SizedBox(width: 8),
               IconButton(
-                icon: const Icon(Icons.close, size: 20, color: _textSecondary),
+                icon: Icon(Icons.close, size: 20, color: _textSecondary),
                 onPressed: () => setState(() => _selectedDriver = null),
                 tooltip: 'Close details panel',
               ),
@@ -1712,10 +1703,10 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
         icon: const Icon(Icons.list_alt, size: 15),
         label: Text('View All', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500)),
         style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: _border),
+          side: BorderSide(color: _border),
           shape: RoundedRectangleBorder(borderRadius: _kRadius),
           padding: const EdgeInsets.symmetric(horizontal: 14),
-          fixedSize: Size.fromHeight(_kCtrlH),
+          fixedSize: const Size.fromHeight(_kCtrlH),
         ),
       ),
     );
@@ -1785,7 +1776,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.description_outlined, color: _textSecondary, size: 36),
+              Icon(Icons.description_outlined, color: _textSecondary, size: 36),
               const SizedBox(height: 12),
               Text('No documents found', style: GoogleFonts.inter(color: _textSecondary, fontSize: 14)),
             ],
@@ -1807,7 +1798,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
             constraints: BoxConstraints(minWidth: math.max(availableWidth, 1000)),
             child: DataTable(
               showCheckboxColumn: false,
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              headingRowColor: WidgetStateProperty.all(_isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
               dividerThickness: 1.0,
               columnSpacing: 20,
               dataRowMinHeight: 52,
@@ -2067,7 +2058,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.close, size: 20, color: _textSecondary),
+                icon: Icon(Icons.close, size: 20, color: _textSecondary),
                 onPressed: () => setState(() => _selectedDocument = null),
                 tooltip: 'Close details panel',
               ),
@@ -2600,7 +2591,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
     return Container(
       height: 36,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: _border),
       ),
@@ -2617,7 +2608,8 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                 value: value,
                 isExpanded: true,
                 isDense: true,
-                icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: _textSecondary),
+                dropdownColor: _cardBg,
+                icon: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: _textSecondary),
                 style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
                 items: items,
                 onChanged: onChanged,
@@ -2687,7 +2679,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
         label: Text('Reset', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500)),
         style: OutlinedButton.styleFrom(
           foregroundColor: _textSecondary,
-          side: const BorderSide(color: _border),
+          side: BorderSide(color: _border),
           shape: RoundedRectangleBorder(borderRadius: borderRadius),
           padding: const EdgeInsets.symmetric(horizontal: 14),
           fixedSize: const Size.fromHeight(kH),
@@ -2700,12 +2692,12 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
       width: kH,
       height: kH,
       child: Material(
-        color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: borderRadius, side: const BorderSide(color: _border)),
+        color: _cardBg,
+        shape: RoundedRectangleBorder(borderRadius: borderRadius, side: BorderSide(color: _border)),
         child: InkWell(
           borderRadius: borderRadius,
           onTap: _loadData,
-          child: const Center(child: Icon(Icons.refresh_rounded, size: 18, color: _textSecondary)),
+          child: Center(child: Icon(Icons.refresh_rounded, size: 18, color: _textSecondary)),
         ),
       ),
     );
@@ -2837,7 +2829,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
             constraints: BoxConstraints(minWidth: availableWidth > 1200 ? availableWidth : 1200),
             child: DataTable(
               showCheckboxColumn: false,
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              headingRowColor: WidgetStateProperty.all(_isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
               headingRowHeight: 44,
               dividerThickness: 0.5,
               columnSpacing: 20,
@@ -2901,7 +2893,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                   selected: isSelected,
                   color: WidgetStateProperty.resolveWith((states) {
                     if (states.contains(WidgetState.selected)) return _accent.withValues(alpha: 0.04);
-                    if (states.contains(WidgetState.hovered)) return const Color(0xFFF8FAFC);
+                    if (states.contains(WidgetState.hovered)) return _isDark ? const Color(0xFF334155) : const Color(0xFFF8FAFC);
                     return null;
                   }),
                   onSelectChanged: (val) {
@@ -3073,7 +3065,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.close, size: 20, color: _textSecondary),
+                icon: Icon(Icons.close, size: 20, color: _textSecondary),
                 onPressed: () => setState(() => _selectedDriver = null),
                 tooltip: 'Close details panel',
               ),
@@ -3409,7 +3401,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
               ),
               Row(
                 children: [
-                  const Icon(Icons.people_outline, size: 14, color: _textSecondary),
+                  Icon(Icons.people_outline, size: 14, color: _textSecondary),
                   const SizedBox(width: 4),
                   Text('$registeredCount Registered', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
                 ],
@@ -3427,14 +3419,14 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
             children: [
               Row(
                 children: [
-                  const Icon(Icons.calendar_today_outlined, size: 12, color: _textSecondary),
+                  Icon(Icons.calendar_today_outlined, size: 12, color: _textSecondary),
                   const SizedBox(width: 4),
                   Text(date, style: GoogleFonts.inter(fontSize: 11, color: _textPrimary)),
                 ],
               ),
               Row(
                 children: [
-                  const Icon(Icons.access_time_outlined, size: 12, color: _textSecondary),
+                  Icon(Icons.access_time_outlined, size: 12, color: _textSecondary),
                   const SizedBox(width: 4),
                   Text(timeSlot, style: GoogleFonts.inter(fontSize: 11, color: _textPrimary)),
                 ],
@@ -3511,7 +3503,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.school_outlined, color: _textSecondary, size: 36),
+              Icon(Icons.school_outlined, color: _textSecondary, size: 36),
               const SizedBox(height: 12),
               Text('No training records found', style: GoogleFonts.inter(color: _textSecondary, fontSize: 14)),
             ],
@@ -3529,7 +3521,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
             constraints: BoxConstraints(minWidth: math.max(availableWidth, 1000)),
             child: DataTable(
               showCheckboxColumn: false,
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              headingRowColor: WidgetStateProperty.all(_isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
               columnSpacing: 18,
               dataRowMinHeight: 52,
               dataRowMaxHeight: 56,
@@ -3632,7 +3624,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                                 );
                               },
                             )
-                          : const Text('—', style: TextStyle(color: _textSecondary)),
+                          : Text('—', style: TextStyle(color: _textSecondary)),
                     ),
                     DataCell(Text(_formatDate(train['next_due_date']))),
                     // Actions
@@ -3824,7 +3816,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                   icon: const Icon(Icons.edit_outlined, size: 14),
                   label: const Text('Edit Record', style: TextStyle(fontSize: 11)),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: _border),
+                    side: BorderSide(color: _border),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
@@ -4221,8 +4213,6 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
     final double paidPct = totalFineAmount > 0 ? (paidFineAmount / totalFineAmount * 100) : 0.0;
 
     final bool isDesktop = availableWidth > 1100;
-    int kpiColumns = isDesktop ? 5 : (availableWidth > 750 ? 3 : 1);
-    final kpiCardWidth = (availableWidth - 32 - (kpiColumns - 1) * 12) / kpiColumns;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
@@ -4358,7 +4348,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.warning_amber_rounded, color: _textSecondary, size: 36),
+              Icon(Icons.warning_amber_rounded, color: _textSecondary, size: 36),
               const SizedBox(height: 12),
               Text('No violations found', style: GoogleFonts.inter(color: _textSecondary, fontSize: 14)),
             ],
@@ -4376,7 +4366,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
             constraints: BoxConstraints(minWidth: math.max(availableWidth, 1000)),
             child: DataTable(
               showCheckboxColumn: false,
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              headingRowColor: WidgetStateProperty.all(_isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
               columnSpacing: 20,
               dataRowMinHeight: 52,
               dataRowMaxHeight: 56,
@@ -4721,7 +4711,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                   icon: const Icon(Icons.edit_outlined, size: 14),
                   label: const Text('Edit Infraction', style: TextStyle(fontSize: 11)),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: _border),
+                    side: BorderSide(color: _border),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
@@ -4795,7 +4785,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: pct,
-              backgroundColor: const Color(0xFFF1F5F9),
+              backgroundColor: _isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
               valueColor: AlwaysStoppedAnimation<Color>(color),
               minHeight: 6,
             ),
@@ -5120,10 +5110,12 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<int>(
                     value: pageSize,
+                    dropdownColor: _cardBg,
+                    style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                     items: [5, 10, 20, 50].map((size) {
                       return DropdownMenuItem<int>(
                         value: size,
-                        child: Text('$size / page', style: GoogleFonts.inter(fontSize: 12)),
+                        child: Text('$size / page', style: GoogleFonts.inter(fontSize: 12, color: _textPrimary)),
                       );
                     }).toList(),
                     onChanged: (val) {
@@ -5149,19 +5141,6 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
         ],
       ),
     );
-  }
-
-  Future<void> _selectTime(BuildContext context, TextEditingController controller) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
-    if (picked != null) {
-      final hour = picked.hourOfPeriod == 0 ? 12 : picked.hourOfPeriod;
-      final minute = picked.minute.toString().padLeft(2, '0');
-      final period = picked.period == DayPeriod.am ? 'AM' : 'PM';
-      controller.text = '${hour.toString().padLeft(2, '0')}:$minute $period';
-    }
   }
 
   void _showAllDocumentsModal({String? filterDriverId}) {

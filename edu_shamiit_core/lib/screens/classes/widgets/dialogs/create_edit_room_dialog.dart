@@ -48,12 +48,20 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
     final room = widget.existingRoom;
     _nameController = TextEditingController(text: room?.name ?? '');
     _codeController = TextEditingController(text: room?.code ?? '');
-    _capacityController = TextEditingController(text: (room?.capacity ?? 40).toString());
-    _descriptionController = TextEditingController(text: room?.description ?? '');
+    _capacityController =
+        TextEditingController(text: (room?.capacity ?? 40).toString());
+    _descriptionController =
+        TextEditingController(text: room?.description ?? '');
 
     _selectedType = room?.type ?? 'Classroom';
-    _selectedBuilding = room?.building ?? (widget.availableBuildings.isNotEmpty ? widget.availableBuildings.first : 'Academic Block A');
-    _selectedFloor = room?.floor ?? (widget.availableFloors.isNotEmpty ? widget.availableFloors.first : 'Ground Floor');
+    _selectedBuilding = room?.building ??
+        (widget.availableBuildings.isNotEmpty
+            ? widget.availableBuildings.first
+            : 'Academic Block A');
+    _selectedFloor = room?.floor ??
+        (widget.availableFloors.isNotEmpty
+            ? widget.availableFloors.first
+            : 'Ground Floor');
     _selectedStatus = room?.status ?? 'AVAILABLE';
     _selectedFacilities = List<String>.from(room?.facilities ?? []);
     _loadDynamicLookups();
@@ -79,7 +87,8 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
         // Merge loaded active facilities with any existing room facilities so none are missed
         final loadedFacilities = List<AcademicLookupItem>.from(results[4]);
         for (final fac in _selectedFacilities) {
-          if (!loadedFacilities.any((item) => item.label.toLowerCase() == fac.toLowerCase())) {
+          if (!loadedFacilities
+              .any((item) => item.label.toLowerCase() == fac.toLowerCase())) {
             loadedFacilities.add(AcademicLookupItem(
               id: fac,
               code: fac.toUpperCase().replaceAll(' ', '_'),
@@ -92,9 +101,11 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
 
         // Dynamic status match without dropping custom statuses
         if (_selectedStatus.isNotEmpty) {
-          final matchedStatus = _roomStatuses.where((s) =>
-              s.code.toUpperCase() == _selectedStatus.toUpperCase() ||
-              s.label.toUpperCase() == _selectedStatus.toUpperCase()).firstOrNull;
+          final matchedStatus = _roomStatuses
+              .where((s) =>
+                  s.code.toUpperCase() == _selectedStatus.toUpperCase() ||
+                  s.label.toUpperCase() == _selectedStatus.toUpperCase())
+              .firstOrNull;
           if (matchedStatus != null) {
             _selectedStatus = matchedStatus.code;
           } else {
@@ -107,15 +118,22 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
         }
 
         // Verify and align selections with loaded active lookups
-        if (_roomTypes.isNotEmpty && !_roomTypes.any((t) => t.label.toLowerCase() == _selectedType.toLowerCase() || t.code.toLowerCase() == _selectedType.toLowerCase())) {
+        if (_roomTypes.isNotEmpty &&
+            !_roomTypes.any((t) =>
+                t.label.toLowerCase() == _selectedType.toLowerCase() ||
+                t.code.toLowerCase() == _selectedType.toLowerCase())) {
           _selectedType = _roomTypes.first.label;
         }
 
-        if (_buildings.isNotEmpty && !_buildings.any((b) => b.label == _selectedBuilding || b.code == _selectedBuilding)) {
+        if (_buildings.isNotEmpty &&
+            !_buildings.any((b) =>
+                b.label == _selectedBuilding || b.code == _selectedBuilding)) {
           _selectedBuilding = _buildings.first.label;
         }
 
-        if (_floors.isNotEmpty && !_floors.any((f) => f.label == _selectedFloor || f.code == _selectedFloor)) {
+        if (_floors.isNotEmpty &&
+            !_floors.any(
+                (f) => f.label == _selectedFloor || f.code == _selectedFloor)) {
           _selectedFloor = _floors.first.label;
         }
       });
@@ -167,7 +185,9 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
       'capacity': cap,
       'facilities': _selectedFacilities,
       'status': _selectedStatus,
-      'description': _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+      'description': _descriptionController.text.trim().isEmpty
+          ? null
+          : _descriptionController.text.trim(),
     };
 
     final ok = await widget.onSave(payload);
@@ -196,7 +216,7 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -212,7 +232,9 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
               ),
@@ -224,7 +246,8 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF4F46E5).withOpacity(0.12),
+                          color:
+                              const Color(0xFF4F46E5).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
@@ -238,18 +261,26 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            isEditing ? 'Edit Room / Facility' : 'Add New Room / Facility',
+                            isEditing
+                                ? 'Edit Room / Facility'
+                                : 'Add New Room / Facility',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
                             ),
                           ),
                           Text(
-                            isEditing ? 'Update room capacity and equipment' : 'Configure room details and facilities',
+                            isEditing
+                                ? 'Update room capacity and equipment'
+                                : 'Configure room details and facilities',
                             style: TextStyle(
                               fontSize: 12,
-                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B),
                             ),
                           ),
                         ],
@@ -259,7 +290,9 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.close, size: 20),
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                   ),
                 ],
               ),
@@ -267,7 +300,14 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
 
             // Body
             Flexible(
-              child: SingleChildScrollView(
+              child: _isLoadingLookups
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(40),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  : SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Form(
                   key: _formKey,
@@ -285,12 +325,14 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.error_outline, color: Color(0xFFDC2626), size: 18),
+                              const Icon(Icons.error_outline,
+                                  color: Color(0xFFDC2626), size: 18),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   _errorMessage!,
-                                  style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12.5),
+                                  style: const TextStyle(
+                                      color: Color(0xFFDC2626), fontSize: 12.5),
                                 ),
                               ),
                             ],
@@ -310,8 +352,12 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                                 _buildLabel('Room Name *', isDark),
                                 TextFormField(
                                   controller: _nameController,
-                                  decoration: _inputDecoration('e.g. Physics Lab, Room 101', isDark),
-                                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                                  decoration: _inputDecoration(
+                                      'e.g. Physics Lab, Room 101', isDark),
+                                  validator: (v) =>
+                                      (v == null || v.trim().isEmpty)
+                                          ? 'Required'
+                                          : null,
                                   onChanged: _generateCodeFromName,
                                 ),
                               ],
@@ -326,8 +372,12 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                                 _buildLabel('Room Code *', isDark),
                                 TextFormField(
                                   controller: _codeController,
-                                  decoration: _inputDecoration('e.g. PHY-LAB-01', isDark),
-                                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                                  decoration: _inputDecoration(
+                                      'e.g. PHY-LAB-01', isDark),
+                                  validator: (v) =>
+                                      (v == null || v.trim().isEmpty)
+                                          ? 'Required'
+                                          : null,
                                 ),
                               ],
                             ),
@@ -346,26 +396,49 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                                 _buildLabel('Room Type', isDark),
                                 Container(
                                   height: 44,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12),
                                   decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                    color: isDark
+                                        ? const Color(0xFF0F172A)
+                                        : const Color(0xFFF8FAFC),
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                                    border: Border.all(
+                                        color: isDark
+                                            ? const Color(0xFF334155)
+                                            : const Color(0xFFCBD5E1)),
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
-                                      value: _roomTypes.any((t) => t.label.toLowerCase() == _selectedType.toLowerCase())
-                                          ? _roomTypes.firstWhere((t) => t.label.toLowerCase() == _selectedType.toLowerCase()).label
-                                          : (_roomTypes.isNotEmpty ? _roomTypes.first.label : _selectedType),
+                                      value: _roomTypes.any((t) =>
+                                              t.label.toLowerCase() ==
+                                              _selectedType.toLowerCase())
+                                          ? _roomTypes
+                                              .firstWhere((t) =>
+                                                  t.label.toLowerCase() ==
+                                                  _selectedType.toLowerCase())
+                                              .label
+                                          : (_roomTypes.isNotEmpty
+                                              ? _roomTypes.first.label
+                                              : _selectedType),
                                       isExpanded: true,
-                                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                      dropdownColor: isDark
+                                          ? const Color(0xFF1E293B)
+                                          : Colors.white,
                                       style: TextStyle(
                                         fontSize: 13,
-                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
                                       ),
-                                      items: _roomTypes.map((t) => DropdownMenuItem(value: t.label, child: Text(t.label))).toList(),
+                                      items: _roomTypes
+                                          .map((t) => DropdownMenuItem(
+                                              value: t.label,
+                                              child: Text(t.label)))
+                                          .toList(),
                                       onChanged: (v) {
-                                        if (v != null) setState(() => _selectedType = v);
+                                        if (v != null)
+                                          setState(() => _selectedType = v);
                                       },
                                     ),
                                   ),
@@ -381,28 +454,44 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                                 _buildLabel('Operational Status', isDark),
                                 Container(
                                   height: 44,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12),
                                   decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                    color: isDark
+                                        ? const Color(0xFF0F172A)
+                                        : const Color(0xFFF8FAFC),
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                                    border: Border.all(
+                                        color: isDark
+                                            ? const Color(0xFF334155)
+                                            : const Color(0xFFCBD5E1)),
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
-                                      value: _roomStatuses.any((s) => s.code == _selectedStatus)
+                                      value: _roomStatuses.any(
+                                              (s) => s.code == _selectedStatus)
                                           ? _selectedStatus
-                                          : (_roomStatuses.isNotEmpty ? _roomStatuses.first.code : 'AVAILABLE'),
+                                          : (_roomStatuses.isNotEmpty
+                                              ? _roomStatuses.first.code
+                                              : 'AVAILABLE'),
                                       isExpanded: true,
-                                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                      dropdownColor: isDark
+                                          ? const Color(0xFF1E293B)
+                                          : Colors.white,
                                       style: TextStyle(
                                         fontSize: 13,
-                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
                                       ),
                                       items: _roomStatuses
-                                          .map((s) => DropdownMenuItem(value: s.code, child: Text(s.label)))
+                                          .map((s) => DropdownMenuItem(
+                                              value: s.code,
+                                              child: Text(s.label)))
                                           .toList(),
                                       onChanged: (v) {
-                                        if (v != null) setState(() => _selectedStatus = v);
+                                        if (v != null)
+                                          setState(() => _selectedStatus = v);
                                       },
                                     ),
                                   ),
@@ -424,28 +513,44 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                                 _buildLabel('Building', isDark),
                                 Container(
                                   height: 44,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12),
                                   decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                    color: isDark
+                                        ? const Color(0xFF0F172A)
+                                        : const Color(0xFFF8FAFC),
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                                    border: Border.all(
+                                        color: isDark
+                                            ? const Color(0xFF334155)
+                                            : const Color(0xFFCBD5E1)),
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
-                                      value: _buildings.any((b) => b.label == _selectedBuilding)
+                                      value: _buildings.any((b) =>
+                                              b.label == _selectedBuilding)
                                           ? _selectedBuilding
-                                          : (_buildings.isNotEmpty ? _buildings.first.label : _selectedBuilding),
+                                          : (_buildings.isNotEmpty
+                                              ? _buildings.first.label
+                                              : _selectedBuilding),
                                       isExpanded: true,
-                                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                      dropdownColor: isDark
+                                          ? const Color(0xFF1E293B)
+                                          : Colors.white,
                                       style: TextStyle(
                                         fontSize: 13,
-                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
                                       ),
                                       items: _buildings
-                                          .map((b) => DropdownMenuItem(value: b.label, child: Text(b.label)))
+                                          .map((b) => DropdownMenuItem(
+                                              value: b.label,
+                                              child: Text(b.label)))
                                           .toList(),
                                       onChanged: (v) {
-                                        if (v != null) setState(() => _selectedBuilding = v);
+                                        if (v != null)
+                                          setState(() => _selectedBuilding = v);
                                       },
                                     ),
                                   ),
@@ -461,28 +566,44 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                                 _buildLabel('Floor', isDark),
                                 Container(
                                   height: 44,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12),
                                   decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                    color: isDark
+                                        ? const Color(0xFF0F172A)
+                                        : const Color(0xFFF8FAFC),
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                                    border: Border.all(
+                                        color: isDark
+                                            ? const Color(0xFF334155)
+                                            : const Color(0xFFCBD5E1)),
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
-                                      value: _floors.any((f) => f.label == _selectedFloor)
+                                      value: _floors.any(
+                                              (f) => f.label == _selectedFloor)
                                           ? _selectedFloor
-                                          : (_floors.isNotEmpty ? _floors.first.label : _selectedFloor),
+                                          : (_floors.isNotEmpty
+                                              ? _floors.first.label
+                                              : _selectedFloor),
                                       isExpanded: true,
-                                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                      dropdownColor: isDark
+                                          ? const Color(0xFF1E293B)
+                                          : Colors.white,
                                       style: TextStyle(
                                         fontSize: 13,
-                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
                                       ),
                                       items: _floors
-                                          .map((f) => DropdownMenuItem(value: f.label, child: Text(f.label)))
+                                          .map((f) => DropdownMenuItem(
+                                              value: f.label,
+                                              child: Text(f.label)))
                                           .toList(),
                                       onChanged: (v) {
-                                        if (v != null) setState(() => _selectedFloor = v);
+                                        if (v != null)
+                                          setState(() => _selectedFloor = v);
                                       },
                                     ),
                                   ),
@@ -499,9 +620,11 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                                 TextFormField(
                                   controller: _capacityController,
                                   keyboardType: TextInputType.number,
-                                  decoration: _inputDecoration('e.g. 40', isDark),
+                                  decoration:
+                                      _inputDecoration('e.g. 40', isDark),
                                   validator: (v) {
-                                    if (v == null || v.trim().isEmpty) return 'Required';
+                                    if (v == null || v.trim().isEmpty)
+                                      return 'Required';
                                     final n = int.tryParse(v.trim());
                                     if (n == null || n <= 0) return 'Invalid';
                                     return null;
@@ -522,12 +645,14 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                         runSpacing: 8,
                         children: _facilities.map((facItem) {
                           final fac = facItem.label;
-                          final isSelected = _selectedFacilities.any((f) => f.toLowerCase() == fac.toLowerCase());
+                          final isSelected = _selectedFacilities
+                              .any((f) => f.toLowerCase() == fac.toLowerCase());
                           return InkWell(
                             onTap: () {
                               setState(() {
                                 if (isSelected) {
-                                  _selectedFacilities.removeWhere((f) => f.toLowerCase() == fac.toLowerCase());
+                                  _selectedFacilities.removeWhere((f) =>
+                                      f.toLowerCase() == fac.toLowerCase());
                                 } else {
                                   _selectedFacilities.add(fac);
                                 }
@@ -536,16 +661,22 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                             borderRadius: BorderRadius.circular(6),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 150),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? const Color(0xFF4F46E5).withOpacity(0.12)
-                                    : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9)),
+                                    ? const Color(0xFF4F46E5)
+                                        .withValues(alpha: 0.12)
+                                    : (isDark
+                                        ? const Color(0xFF0F172A)
+                                        : const Color(0xFFF1F5F9)),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
                                   color: isSelected
                                       ? const Color(0xFF4F46E5)
-                                      : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                      : (isDark
+                                          ? const Color(0xFF334155)
+                                          : const Color(0xFFE2E8F0)),
                                   width: isSelected ? 1.5 : 1,
                                 ),
                               ),
@@ -553,17 +684,22 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   if (isSelected) ...[
-                                    const Icon(Icons.check, size: 13, color: Color(0xFF4F46E5)),
+                                    const Icon(Icons.check,
+                                        size: 13, color: Color(0xFF4F46E5)),
                                     const SizedBox(width: 4),
                                   ],
                                   Text(
                                     fac,
                                     style: TextStyle(
                                       fontSize: 11.5,
-                                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
                                       color: isSelected
                                           ? const Color(0xFF4F46E5)
-                                          : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                                          : (isDark
+                                              ? Colors.white70
+                                              : const Color(0xFF475569)),
                                     ),
                                   ),
                                 ],
@@ -579,7 +715,9 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                       TextFormField(
                         controller: _descriptionController,
                         maxLines: 3,
-                        decoration: _inputDecoration('Additional notes regarding room equipment, availability, or setup...', isDark),
+                        decoration: _inputDecoration(
+                            'Additional notes regarding room equipment, availability, or setup...',
+                            isDark),
                       ),
                     ],
                   ),
@@ -591,27 +729,41 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A).withOpacity(0.5) : const Color(0xFFF8FAFC),
+                color: isDark
+                    ? const Color(0xFF0F172A).withValues(alpha: 0.5)
+                    : const Color(0xFFF8FAFC),
                 border: Border(
                   top: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(16)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   OutlinedButton(
-                    onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+                    onPressed:
+                        _isSaving ? null : () => Navigator.of(context).pop(),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-                      side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 11),
+                      side: BorderSide(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFCBD5E1)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     child: Text(
                       'Cancel',
-                      style: TextStyle(color: isDark ? Colors.white70 : const Color(0xFF475569)),
+                      style: TextStyle(
+                          color: isDark
+                              ? Colors.white70
+                              : const Color(0xFF475569)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -620,14 +772,17 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4F46E5),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 22, vertical: 11),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     child: _isSaving
                         ? const SizedBox(
                             width: 16,
                             height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
                           )
                         : Text(isEditing ? 'Save Changes' : 'Create Room'),
                   ),
@@ -666,11 +821,13 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+        borderSide: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+        borderSide: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),

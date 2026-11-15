@@ -31,9 +31,9 @@ chrome_extra_args:
   - "--disable-ipc-flooding-protection"
 
 s3:
-  access_key: "minio_admin"
-  secret: "minio_password_2026"
+  access_key: "625729a08b95bf1b7ff351a663f3a23c"
+  secret: "850181e4652dd023b7a98c58ae0d2d34bd487ee0cc3254aed6eda37307425907"
   region: "us-east-1"
-  endpoint: "http://minio:9000"
+  endpoint: "http://storage:5000/s3"
   bucket: "live-classes"
   force_path_style: true

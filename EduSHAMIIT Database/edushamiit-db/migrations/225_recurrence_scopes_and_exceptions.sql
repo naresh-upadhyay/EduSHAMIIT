@@ -10,7 +10,11 @@
 ALTER TABLE public.schedules 
 ADD COLUMN IF NOT EXISTS recurring_parent_id UUID REFERENCES public.schedules(id) ON DELETE CASCADE,
 ADD COLUMN IF NOT EXISTS original_instance_date DATE,
-ADD COLUMN IF NOT EXISTS recurrence_exception_type VARCHAR(30) DEFAULT 'none';
+ADD COLUMN IF NOT EXISTS recurrence_exception_type VARCHAR(30) DEFAULT 'none',
+ADD COLUMN IF NOT EXISTS audience_type TEXT DEFAULT 'individual',
+ADD COLUMN IF NOT EXISTS target_roles JSONB DEFAULT '[]'::jsonb,
+ADD COLUMN IF NOT EXISTS target_classes JSONB DEFAULT '[]'::jsonb,
+ADD COLUMN IF NOT EXISTS target_user_ids JSONB DEFAULT '[]'::jsonb;
 
 -- 2. Ensure exceptions column in schedule_recurrence has proper GIN and JSONB defaults
 ALTER TABLE public.schedule_recurrence

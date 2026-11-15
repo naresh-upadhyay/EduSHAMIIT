@@ -23,10 +23,9 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
   bool _obscurePassword = true;
   bool _rememberMe = false;
   
-  // 0: Password Login, 1: OTP Login, 2: Biometric Login
+  // 0: Password Login, 1: OTP Login
   int _activeTab = 0;
   bool _isSendingOtp = false;
-  bool _isScanningBiometric = false;
   String? _warningMessage;
   String? _otpErrorText;
 
@@ -113,6 +112,8 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
           await prefs.setBool('remember_me_state', false);
         }
 
+        if (!mounted) return;
+
         setState(() {
           _warningMessage = null;
         });
@@ -132,43 +133,6 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
         _warningMessage = errorMsg;
       });
       _showSnackBar('Error: $errorMsg', Colors.red);
-    }
-  }
-
-  Future<void> _handleBiometricLogin() async {
-    final email = _emailController.text.trim();
-    if (email.isEmpty) {
-      _showSnackBar('Please enter your email address first', Colors.orange);
-      return;
-    }
-
-    setState(() {
-      _isScanningBiometric = true;
-      _warningMessage = null;
-    });
-
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (!mounted) return;
-
-    setState(() {
-      _isScanningBiometric = false;
-    });
-
-    // Simulated bypass for biometric verification
-    final success = await ref.read(authProvider.notifier).signInWithOtp(
-          email: email,
-          otp: '123456',
-        );
-
-    if (!mounted) return;
-
-    if (success) {
-      context.go('/dashboard');
-    } else {
-      setState(() {
-        _warningMessage = 'Biometric signature not registered. Please log in with password first.';
-      });
     }
   }
 

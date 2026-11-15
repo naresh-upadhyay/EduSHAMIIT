@@ -37,6 +37,8 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
+  v_new_j JSONB;
+  v_old_j JSONB;
   v_user_id UUID;
   v_school_id UUID;
   v_user_name TEXT := 'System';
@@ -46,29 +48,46 @@ DECLARE
   v_event_type TEXT;
   v_changes JSONB := '{}'::jsonb;
   v_resource TEXT := '-';
+  v_uid_text TEXT;
+  v_sch_text TEXT;
 BEGIN
-  -- Determine user_id from NEW/OLD audit columns or auth.uid()
+  -- Determine user_id and school_id safely using JSONB
   IF (TG_OP = 'DELETE') THEN
-    v_user_id := COALESCE(OLD.updated_by, OLD.created_by, auth.uid());
-    v_school_id := OLD.school_id;
+    v_old_j := to_jsonb(OLD);
+    v_uid_text := COALESCE(v_old_j->>'updated_by', v_old_j->>'created_by', v_old_j->>'user_id');
+    v_sch_text := v_old_j->>'school_id';
     v_event_type := 'Delete';
     v_action := 'Deleted Record in ' || TG_TABLE_NAME;
-    v_changes := jsonb_build_object('old_data', to_jsonb(OLD));
-    v_resource := COALESCE(OLD.id::text, '-');
+    v_changes := jsonb_build_object('old_data', v_old_j);
+    v_resource := COALESCE(v_old_j->>'id', '-');
   ELSIF (TG_OP = 'UPDATE') THEN
-    v_user_id := COALESCE(NEW.updated_by, NEW.created_by, auth.uid());
-    v_school_id := NEW.school_id;
+    v_old_j := to_jsonb(OLD);
+    v_new_j := to_jsonb(NEW);
+    v_uid_text := COALESCE(v_new_j->>'updated_by', v_new_j->>'created_by', v_new_j->>'user_id');
+    v_sch_text := COALESCE(v_new_j->>'school_id', v_old_j->>'school_id');
     v_event_type := 'Update';
     v_action := 'Updated Record in ' || TG_TABLE_NAME;
-    v_changes := jsonb_build_object('old_data', to_jsonb(OLD), 'new_data', to_jsonb(NEW));
-    v_resource := COALESCE(NEW.id::text, '-');
+    v_changes := jsonb_build_object('old_data', v_old_j, 'new_data', v_new_j);
+    v_resource := COALESCE(v_new_j->>'id', v_old_j->>'id', '-');
   ELSE -- INSERT
-    v_user_id := COALESCE(NEW.created_by, NEW.updated_by, auth.uid());
-    v_school_id := NEW.school_id;
+    v_new_j := to_jsonb(NEW);
+    v_uid_text := COALESCE(v_new_j->>'created_by', v_new_j->>'updated_by', v_new_j->>'user_id');
+    v_sch_text := v_new_j->>'school_id';
     v_event_type := 'Create';
     v_action := 'Created Record in ' || TG_TABLE_NAME;
-    v_changes := jsonb_build_object('new_data', to_jsonb(NEW));
-    v_resource := COALESCE(NEW.id::text, '-');
+    v_changes := jsonb_build_object('new_data', v_new_j);
+    v_resource := COALESCE(v_new_j->>'id', '-');
+  END IF;
+
+  -- Validate and cast UUIDs safely
+  IF v_uid_text ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+    v_user_id := v_uid_text::UUID;
+  ELSE
+    v_user_id := auth.uid();
+  END IF;
+
+  IF v_sch_text ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+    v_school_id := v_sch_text::UUID;
   END IF;
 
   -- Lookup User Profile Details if user_id is present
@@ -77,6 +96,10 @@ BEGIN
     INTO v_user_name, v_user_email, v_user_role, v_school_id
     FROM public.profiles
     WHERE id = v_user_id LIMIT 1;
+
+    IF NOT FOUND THEN
+      v_user_id := NULL;
+    END IF;
   END IF;
 
   -- Insert Audit Record asynchronously inside DB engine

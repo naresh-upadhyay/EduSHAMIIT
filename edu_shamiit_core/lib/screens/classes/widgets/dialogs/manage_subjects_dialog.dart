@@ -38,7 +38,8 @@ class _ManageSubjectsDialogState extends State<ManageSubjectsDialog> {
   @override
   void initState() {
     super.initState();
-    if (widget.initialSubjectIds != null && widget.initialSubjectIds!.isNotEmpty) {
+    if (widget.initialSubjectIds != null &&
+        widget.initialSubjectIds!.isNotEmpty) {
       _selectedSubjectIds.addAll(widget.initialSubjectIds!);
     } else {
       for (var s in widget.currentlyAssigned) {
@@ -79,7 +80,9 @@ class _ManageSubjectsDialogState extends State<ManageSubjectsDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final targetLabel = widget.sectionName != null ? '${widget.className} - Section ${widget.sectionName}' : widget.className;
+    final targetLabel = widget.sectionName != null
+        ? '${widget.className} - Section ${widget.sectionName}'
+        : widget.className;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -87,13 +90,14 @@ class _ManageSubjectsDialogState extends State<ManageSubjectsDialog> {
       backgroundColor: Colors.transparent,
       child: Container(
         width: 560,
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+        constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 24,
               offset: const Offset(0, 10),
             ),
@@ -108,7 +112,9 @@ class _ManageSubjectsDialogState extends State<ManageSubjectsDialog> {
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
               ),
@@ -117,10 +123,11 @@ class _ManageSubjectsDialogState extends State<ManageSubjectsDialog> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6366F1).withOpacity(0.1),
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.auto_stories_rounded, color: Color(0xFF6366F1), size: 22),
+                    child: const Icon(Icons.auto_stories_rounded,
+                        color: Color(0xFF6366F1), size: 22),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -132,14 +139,17 @@ class _ManageSubjectsDialogState extends State<ManageSubjectsDialog> {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                         Text(
                           'Select subjects from catalog taught in $targetLabel.',
                           style: TextStyle(
                             fontSize: 12,
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ],
@@ -147,7 +157,11 @@ class _ManageSubjectsDialogState extends State<ManageSubjectsDialog> {
                   ),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: Icon(Icons.close, size: 20, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    icon: Icon(Icons.close,
+                        size: 20,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B)),
                     splashRadius: 20,
                   ),
                 ],
@@ -163,49 +177,72 @@ class _ManageSubjectsDialogState extends State<ManageSubjectsDialog> {
                 decoration: InputDecoration(
                   hintText: 'Search subjects catalog...',
                   hintStyle: TextStyle(
-                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                    color: isDark
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF94A3B8),
                     fontSize: 13,
                   ),
                   prefixIcon: const Icon(Icons.search, size: 18),
                   filled: true,
-                  fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  fillColor: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFFF8FAFC),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                    borderSide: BorderSide(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                    borderSide: BorderSide(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0)),
                   ),
                 ),
-                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    fontSize: 13),
               ),
             ),
 
             // Subjects List
             Flexible(
               child: _isLoading
-                  ? const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()))
+                  ? const Center(
+                      child: Padding(
+                          padding: EdgeInsets.all(32),
+                          child: CircularProgressIndicator()))
                   : _catalog.isEmpty
                       ? Padding(
                           padding: const EdgeInsets.all(32),
                           child: Text(
                             'No subjects in catalog.',
-                            style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                            style: TextStyle(
+                                color: isDark
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF64748B)),
                           ),
                         )
                       : ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 8),
                           shrinkWrap: true,
                           itemCount: _catalog.length,
                           separatorBuilder: (_, __) => Divider(
                             height: 1,
-                            color: isDark ? const Color(0xFF334155).withOpacity(0.5) : const Color(0xFFE2E8F0),
+                            color: isDark
+                                ? const Color(0xFF334155).withValues(alpha: 0.5)
+                                : const Color(0xFFE2E8F0),
                           ),
                           itemBuilder: (context, index) {
                             final s = _catalog[index];
-                            final isSelected = _selectedSubjectIds.contains(s.id);
+                            final isSelected =
+                                _selectedSubjectIds.contains(s.id);
 
                             return InkWell(
                               onTap: () {
@@ -219,19 +256,27 @@ class _ManageSubjectsDialogState extends State<ManageSubjectsDialog> {
                               },
                               borderRadius: BorderRadius.circular(8),
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 8, horizontal: 8),
                                 child: Row(
                                   children: [
                                     Container(
                                       width: 32,
                                       height: 32,
                                       decoration: BoxDecoration(
-                                        color: s.subjectColor.withOpacity(0.15),
+                                        color: s.subjectColor
+                                            .withValues(alpha: 0.15),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       alignment: Alignment.center,
                                       child: Text(
-                                        s.code.isNotEmpty ? s.code.substring(0, s.code.length > 2 ? 2 : s.code.length) : 'S',
+                                        s.code.isNotEmpty
+                                            ? s.code.substring(
+                                                0,
+                                                s.code.length > 2
+                                                    ? 2
+                                                    : s.code.length)
+                                            : 'S',
                                         style: TextStyle(
                                           color: s.subjectColor,
                                           fontWeight: FontWeight.w700,
@@ -242,21 +287,28 @@ class _ManageSubjectsDialogState extends State<ManageSubjectsDialog> {
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             s.name,
                                             style: TextStyle(
                                               fontSize: 13.5,
                                               fontWeight: FontWeight.w600,
-                                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                              color: isDark
+                                                  ? Colors.white
+                                                  : const Color(0xFF0F172A),
                                             ),
                                           ),
                                           Text(
-                                            s.code.isNotEmpty ? '${s.type} • Code: ${s.code}' : s.type,
+                                            s.code.isNotEmpty
+                                                ? '${s.type} • Code: ${s.code}'
+                                                : s.type,
                                             style: TextStyle(
                                               fontSize: 11.5,
-                                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                              color: isDark
+                                                  ? const Color(0xFF94A3B8)
+                                                  : const Color(0xFF64748B),
                                             ),
                                           ),
                                         ],
@@ -265,7 +317,9 @@ class _ManageSubjectsDialogState extends State<ManageSubjectsDialog> {
                                     Checkbox(
                                       value: isSelected,
                                       activeColor: const Color(0xFF4F46E5),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(4)),
                                       onChanged: (val) {
                                         setState(() {
                                           if (val == true) {
@@ -288,11 +342,16 @@ class _ManageSubjectsDialogState extends State<ManageSubjectsDialog> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A).withOpacity(0.5) : const Color(0xFFF8FAFC),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                color: isDark
+                    ? const Color(0xFF0F172A).withValues(alpha: 0.5)
+                    : const Color(0xFFF8FAFC),
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(16)),
                 border: Border(
                   top: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
               ),
@@ -304,21 +363,33 @@ class _ManageSubjectsDialogState extends State<ManageSubjectsDialog> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                     ),
                   ),
                   Row(
                     children: [
                       OutlinedButton(
-                        onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+                        onPressed: _isSaving
+                            ? null
+                            : () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                          side: BorderSide(
+                              color: isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFCBD5E1)),
                         ),
                         child: Text(
                           'Cancel',
-                          style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                          style: TextStyle(
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF475569)),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -328,16 +399,20 @@ class _ManageSubjectsDialogState extends State<ManageSubjectsDialog> {
                           backgroundColor: const Color(0xFF4F46E5),
                           foregroundColor: Colors.white,
                           elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
                         child: _isSaving
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
                               )
-                            : const Text('Save Subjects', style: TextStyle(fontWeight: FontWeight.w600)),
+                            : const Text('Save Subjects',
+                                style: TextStyle(fontWeight: FontWeight.w600)),
                       ),
                     ],
                   ),

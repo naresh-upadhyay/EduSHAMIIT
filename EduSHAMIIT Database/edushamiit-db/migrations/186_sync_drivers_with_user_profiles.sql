@@ -3,6 +3,9 @@
 
 -- 1. Add profile_id column to drivers table if not exists
 ALTER TABLE drivers ADD COLUMN IF NOT EXISTS profile_id UUID UNIQUE REFERENCES profiles(id) ON DELETE CASCADE;
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS date_of_birth DATE;
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS blood_group TEXT;
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS address TEXT;
 CREATE INDEX IF NOT EXISTS idx_drivers_profile_id ON drivers(profile_id);
 
 -- 2. First, link any existing drivers to profiles by email if matching

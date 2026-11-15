@@ -140,3 +140,64 @@ BEGIN
     );
 END;
 $$;
+
+-- 4. Update fn_archive_academic_room to remove references to dropped room_allocations
+CREATE OR REPLACE FUNCTION public.fn_archive_academic_room(
+    p_school_id UUID,
+    p_user_id UUID,
+    p_room_id UUID,
+    p_force BOOLEAN DEFAULT FALSE
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_room RECORD;
+    v_sections_count INT := 0;
+BEGIN
+    SELECT * INTO v_room
+    FROM public.academic_rooms
+    WHERE id = p_room_id AND school_id = p_school_id AND deleted_at IS NULL;
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', FALSE, 'error', 'Room not found', 'code', 404);
+    END IF;
+
+    SELECT COUNT(*) INTO v_sections_count
+    FROM public.academic_sections
+    WHERE room_id = p_room_id AND deleted_at IS NULL;
+
+    IF v_sections_count > 0 AND NOT p_force THEN
+        RETURN jsonb_build_object(
+            'success', FALSE,
+            'error', 'Cannot archive room. It is currently assigned as default room to ' || v_sections_count || ' section(s).',
+            'code', 400,
+            'impact', jsonb_build_object(
+                'sections_count', v_sections_count,
+                'allocations_count', 0
+            )
+        );
+    END IF;
+
+    -- If force, unassign from sections
+    IF p_force THEN
+        UPDATE public.academic_sections 
+        SET room_id = NULL, updated_at = NOW() 
+        WHERE room_id = p_room_id;
+    END IF;
+
+    UPDATE public.academic_rooms SET
+        status = 'INACTIVE',
+        deleted_at = NOW(),
+        deleted_by = p_user_id
+    WHERE id = p_room_id;
+
+    PERFORM public.fn_record_class_audit(
+        p_school_id, p_user_id, 'ROOM_ARCHIVED', 'ARCHIVE', 'Room ' || v_room.name, 'academic_rooms', p_room_id,
+        jsonb_build_object('force', p_force, 'unassigned_sections', v_sections_count)
+    );
+
+    RETURN jsonb_build_object('success', TRUE, 'message', 'Room archived successfully');
+END;
+$$;

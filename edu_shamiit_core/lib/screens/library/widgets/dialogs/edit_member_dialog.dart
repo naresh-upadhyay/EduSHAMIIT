@@ -26,12 +26,15 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
   @override
   void initState() {
     super.initState();
-    _borrowingLimitCtrl = TextEditingController(text: '${widget.member.borrowingLimit}');
-    _maxDaysCtrl = TextEditingController(text: '${widget.member.maxIssueDurationDays}');
+    _borrowingLimitCtrl =
+        TextEditingController(text: '${widget.member.borrowingLimit}');
+    _maxDaysCtrl =
+        TextEditingController(text: '${widget.member.maxIssueDurationDays}');
     _notesCtrl = TextEditingController(text: widget.member.notes ?? '');
 
     _membershipType = widget.member.membershipType;
-    _expiryDate = widget.member.membershipExpiryDate ?? DateTime.now().add(const Duration(days: 365));
+    _expiryDate = widget.member.membershipExpiryDate ??
+        DateTime.now().add(const Duration(days: 365));
     _renewalAllowed = widget.member.renewalAllowed;
     _maxRenewals = widget.member.maxRenewals;
     _status = widget.member.status;
@@ -66,7 +69,10 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
               padding: const EdgeInsets.fromLTRB(22, 18, 16, 16),
               decoration: BoxDecoration(
                 border: Border(
-                  bottom: BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+                  bottom: BorderSide(
+                      color: isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFE2E8F0)),
                 ),
               ),
               child: Row(
@@ -77,7 +83,8 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
                       color: const Color(0xFF6366F1).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.edit_note_rounded, color: Color(0xFF6366F1), size: 20),
+                    child: const Icon(Icons.edit_note_rounded,
+                        color: Color(0xFF6366F1), size: 20),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -89,7 +96,8 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
                           style: TextStyle(
                             fontSize: 15.5,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                         Text(
@@ -97,7 +105,9 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
                           style: TextStyle(
                             fontSize: 11.5,
                             fontFamily: 'monospace',
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ],
@@ -121,18 +131,28 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                      color: isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      border: Border.all(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFE2E8F0)),
                     ),
                     child: Row(
                       children: [
                         CircleAvatar(
                           radius: 16,
-                          backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                          backgroundColor:
+                              const Color(0xFF6366F1).withValues(alpha: 0.15),
                           child: Text(
-                            widget.member.memberName.isNotEmpty ? widget.member.memberName[0].toUpperCase() : 'M',
-                            style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF6366F1)),
+                            widget.member.memberName.isNotEmpty
+                                ? widget.member.memberName[0].toUpperCase()
+                                : 'M',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF6366F1)),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -142,11 +162,16 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
                             children: [
                               Text(
                                 '${widget.member.memberName} (${widget.member.role ?? "Patron"})',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                                style: const TextStyle(
+                                    fontSize: 13, fontWeight: FontWeight.w700),
                               ),
                               Text(
                                 '${widget.member.classOrDepartment} • ${widget.member.email ?? ""}',
-                                style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B)),
                               ),
                             ],
                           ),
@@ -160,12 +185,22 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
                   Builder(
                     builder: (context) {
                       final memberState = ref.watch(memberProvider);
-                      final availableMemberTypes = memberState.filterOptions.memberTypes.isNotEmpty
-                          ? memberState.filterOptions.memberTypes
-                          : ['Student', 'Teacher', 'Staff', 'Librarian', 'Special / Research'];
-                      final effectiveType = availableMemberTypes.contains(_membershipType)
-                          ? _membershipType
-                          : (availableMemberTypes.isNotEmpty ? availableMemberTypes.first : _membershipType);
+                      final availableMemberTypes =
+                          memberState.filterOptions.memberTypes.isNotEmpty
+                              ? memberState.filterOptions.memberTypes
+                              : [
+                                  'Student',
+                                  'Teacher',
+                                  'Staff',
+                                  'Librarian',
+                                  'Special / Research'
+                                ];
+                      final effectiveType =
+                          availableMemberTypes.contains(_membershipType)
+                              ? _membershipType
+                              : (availableMemberTypes.isNotEmpty
+                                  ? availableMemberTypes.first
+                                  : _membershipType);
 
                       return Row(
                         children: [
@@ -173,8 +208,10 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
                             child: _buildFormField(
                               label: 'Membership Type',
                               child: DropdownButtonFormField<String>(
-                                value: effectiveType,
-                                dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                initialValue: effectiveType,
+                                dropdownColor: isDark
+                                    ? const Color(0xFF1E293B)
+                                    : Colors.white,
                                 decoration: _inputDecoration(isDark),
                                 items: availableMemberTypes.map((type) {
                                   return DropdownMenuItem<String>(
@@ -183,7 +220,8 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
                                   );
                                 }).toList(),
                                 onChanged: (val) {
-                                  if (val != null) setState(() => _membershipType = val);
+                                  if (val != null)
+                                    setState(() => _membershipType = val);
                                 },
                               ),
                             ),
@@ -193,17 +231,26 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
                             child: _buildFormField(
                               label: 'Status',
                               child: DropdownButtonFormField<String>(
-                                value: _status,
-                                dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                initialValue: _status,
+                                dropdownColor: isDark
+                                    ? const Color(0xFF1E293B)
+                                    : Colors.white,
                                 decoration: _inputDecoration(isDark),
                                 items: const [
-                                  DropdownMenuItem(value: 'ACTIVE', child: Text('Active')),
-                                  DropdownMenuItem(value: 'INACTIVE', child: Text('Inactive')),
-                                  DropdownMenuItem(value: 'SUSPENDED', child: Text('Suspended')),
-                                  DropdownMenuItem(value: 'EXPIRED', child: Text('Expired')),
+                                  DropdownMenuItem(
+                                      value: 'ACTIVE', child: Text('Active')),
+                                  DropdownMenuItem(
+                                      value: 'INACTIVE',
+                                      child: Text('Inactive')),
+                                  DropdownMenuItem(
+                                      value: 'SUSPENDED',
+                                      child: Text('Suspended')),
+                                  DropdownMenuItem(
+                                      value: 'EXPIRED', child: Text('Expired')),
                                 ],
                                 onChanged: (val) {
-                                  if (val != null) setState(() => _status = val);
+                                  if (val != null)
+                                    setState(() => _status = val);
                                 },
                               ),
                             ),
@@ -239,11 +286,13 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
                                 firstDate: DateTime(2020),
                                 lastDate: DateTime(2035),
                               );
-                              if (picked != null) setState(() => _expiryDate = picked);
+                              if (picked != null)
+                                setState(() => _expiryDate = picked);
                             },
                             child: InputDecorator(
                               decoration: _inputDecoration(isDark),
-                              child: Text(dateFormat.format(_expiryDate), style: const TextStyle(fontSize: 13)),
+                              child: Text(dateFormat.format(_expiryDate),
+                                  style: const TextStyle(fontSize: 13)),
                             ),
                           ),
                         ),
@@ -258,7 +307,8 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
                     child: TextField(
                       controller: _notesCtrl,
                       maxLines: 2,
-                      decoration: _inputDecoration(isDark, hint: 'Membership notes...'),
+                      decoration:
+                          _inputDecoration(isDark, hint: 'Membership notes...'),
                     ),
                   ),
                 ],
@@ -270,7 +320,10 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
               decoration: BoxDecoration(
                 border: Border(
-                  top: BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+                  top: BorderSide(
+                      color: isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFE2E8F0)),
                 ),
               ),
               child: Row(
@@ -283,16 +336,24 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
                   const SizedBox(width: 10),
                   ElevatedButton.icon(
                     icon: state.isActionLoading
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
                         : const Icon(Icons.save_rounded, size: 17),
-                    label: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.w700)),
+                    label: const Text('Save Changes',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF6366F1),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
-                    onPressed: state.isActionLoading ? null : _submitUpdateMember,
+                    onPressed:
+                        state.isActionLoading ? null : _submitUpdateMember,
                   ),
                 ],
               ),
@@ -309,7 +370,10 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+          style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF64748B)),
         ),
         const SizedBox(height: 6),
         child,
@@ -326,11 +390,13 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+        borderSide: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+        borderSide: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
     );
   }
@@ -350,7 +416,9 @@ class _EditMemberDialogState extends ConsumerState<EditMemberDialog> {
       'notes': _notesCtrl.text.trim(),
     };
 
-    final success = await ref.read(memberProvider.notifier).updateMember(widget.member.id, payload);
+    final success = await ref
+        .read(memberProvider.notifier)
+        .updateMember(widget.member.id, payload);
     if (success && mounted) {
       Navigator.pop(context);
     }

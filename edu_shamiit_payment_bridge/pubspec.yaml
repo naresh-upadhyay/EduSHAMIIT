@@ -1,0 +1,28 @@
+name: edu_shamiit_payment_bridge
+description: "EduSHAMIIT Payment Bridge - Android UPI Notification Listener & Payment Reconciliation System"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter_riverpod: ^2.4.9
+  http: ^1.1.0
+  shared_preferences: ^2.2.2
+  intl: ^0.19.0
+  uuid: ^4.2.2
+  web_socket_channel: ^2.4.0
+  google_fonts: ^6.1.0
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true

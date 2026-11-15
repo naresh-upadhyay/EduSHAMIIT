@@ -29,112 +29,136 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
     {
       'category': 'Getting Started',
       'question': 'How do I get started with School ERP?',
-      'answer': 'You can get started by clicking the "Get Started" button in the top right, filling in your administrator and school details, selecting a subscription plan, and completing the mock payment. Once submitted, the request goes to the superadmin for activation. Upon approval, your credentials will work immediately.'
+      'answer':
+          'You can get started by clicking the "Get Started" button in the top right, filling in your administrator and school details, selecting a subscription plan, and completing the mock payment. Once submitted, the request goes to the superadmin for activation. Upon approval, your credentials will work immediately.'
     },
     {
       'category': 'Getting Started',
       'question': 'What are the hardware requirements for School ERP?',
-      'answer': 'School ERP is completely web-based and cloud-hosted. All you need is a device (computer, tablet, or smartphone) with a modern web browser (such as Chrome, Firefox, Safari, or Edge) and an active internet connection.'
+      'answer':
+          'School ERP is completely web-based and cloud-hosted. All you need is a device (computer, tablet, or smartphone) with a modern web browser (such as Chrome, Firefox, Safari, or Edge) and an active internet connection.'
     },
     {
       'category': 'Getting Started',
       'question': 'Is training provided for the school staff?',
-      'answer': 'Yes! We provide complete onboarding training sessions for teachers, administrators, and staff. We also offer comprehensive user guides, video tutorials, and dedicated training documentation.'
+      'answer':
+          'Yes! We provide complete onboarding training sessions for teachers, administrators, and staff. We also offer comprehensive user guides, video tutorials, and dedicated training documentation.'
     },
     {
       'category': 'Getting Started',
       'question': 'Can we import our existing student and teacher data?',
-      'answer': 'Absolutely. We support bulk data import via Excel/CSV templates. Our technical onboarding support team will help you migrate your legacy data smoothly during setup.'
+      'answer':
+          'Absolutely. We support bulk data import via Excel/CSV templates. Our technical onboarding support team will help you migrate your legacy data smoothly during setup.'
     },
     {
       'category': 'Getting Started',
-      'question': 'Can we customize School ERP according to our school\'s needs?',
-      'answer': 'Yes, School ERP has highly configurable settings, custom templates for report cards, fee receipts, and various modules that can be toggled on or off depending on your school\'s unique requirements.'
+      'question':
+          'Can we customize School ERP according to our school\'s needs?',
+      'answer':
+          'Yes, School ERP has highly configurable settings, custom templates for report cards, fee receipts, and various modules that can be toggled on or off depending on your school\'s unique requirements.'
     },
     {
       'category': 'Account & Security',
       'question': 'How do I reset my password?',
-      'answer': 'Click on the "Forgot Password" link on the Login screen, enter your registered email address or user ID, and follow the instructions sent to your email to securely reset your password.'
+      'answer':
+          'Click on the "Forgot Password" link on the Login screen, enter your registered email address or user ID, and follow the instructions sent to your email to securely reset your password.'
     },
     {
       'category': 'Account & Security',
-      'question': 'Can we set different access permissions for different users?',
-      'answer': 'Yes. School ERP features robust Role-Based Access Control (RBAC). You can define specific permissions for students, teachers, principals, finance officers, HR personnel, and custom staff roles.'
+      'question':
+          'Can we set different access permissions for different users?',
+      'answer':
+          'Yes. School ERP features robust Role-Based Access Control (RBAC). You can define specific permissions for students, teachers, principals, finance officers, HR personnel, and custom staff roles.'
     },
     {
       'category': 'Account & Security',
       'question': 'Does School ERP support multi-factor authentication (MFA)?',
-      'answer': 'Yes, you can enable MFA or secure OTP-based login options through the security settings in your user profile dashboard.'
+      'answer':
+          'Yes, you can enable MFA or secure OTP-based login options through the security settings in your user profile dashboard.'
     },
     {
       'category': 'Account & Security',
       'question': 'What should I do if my account is locked?',
-      'answer': 'Accounts are temporarily locked after several failed login attempts for security. You can either wait for the lockout period to expire or contact your school\'s system administrator to unlock it immediately.'
+      'answer':
+          'Accounts are temporarily locked after several failed login attempts for security. You can either wait for the lockout period to expire or contact your school\'s system administrator to unlock it immediately.'
     },
     {
       'category': 'Features & Modules',
       'question': 'What modules are included in School ERP?',
-      'answer': 'School ERP includes Student & Staff Information Management, Attendance Tracking, Examination & Report Card Generation, Online Fees & Payments, Library Cataloging, Transport Route Tracking, Live Classes, and IoT Controller configurations.'
+      'answer':
+          'School ERP includes Student & Staff Information Management, Attendance Tracking, Examination & Report Card Generation, Online Fees & Payments, Library Cataloging, Transport Route Tracking, Live Classes, and IoT Controller configurations.'
     },
     {
       'category': 'Features & Modules',
       'question': 'Does the system support online examinations?',
-      'answer': 'Yes, teachers can create dynamic online exams, assign them to classes, enable proctoring features (camera/mic tracking), and the system will automatically grade objective questions and publish results.'
+      'answer':
+          'Yes, teachers can create dynamic online exams, assign them to classes, enable proctoring features (camera/mic tracking), and the system will automatically grade objective questions and publish results.'
     },
     {
       'category': 'Features & Modules',
       'question': 'Is there a mobile app for parents and students?',
-      'answer': 'Yes, parents and students can access the portal via a responsive web interface on any mobile browser, and native mobile apps are available for download on both iOS and Android stores.'
+      'answer':
+          'Yes, parents and students can access the portal via a responsive web interface on any mobile browser, and native mobile apps are available for download on both iOS and Android stores.'
     },
     {
       'category': 'Features & Modules',
       'question': 'Does it support bus route tracking?',
-      'answer': 'Yes, our Transport Management module integrates live route tracking, stops management, and automated notifications for parents when the bus is near.'
+      'answer':
+          'Yes, our Transport Management module integrates live route tracking, stops management, and automated notifications for parents when the bus is near.'
     },
     {
       'category': 'Billing & Payments',
       'question': 'What subscription plans do you offer?',
-      'answer': 'We offer three primary subscription plans: Basic (starter features for small schools), Premium (advanced analytics, IoT controller, priority support), and Enterprise (tailored custom configurations and dedicated hosting).'
+      'answer':
+          'We offer three primary subscription plans: Basic (starter features for small schools), Premium (advanced analytics, IoT controller, priority support), and Enterprise (tailored custom configurations and dedicated hosting).'
     },
     {
       'category': 'Billing & Payments',
       'question': 'What payment methods are supported for online fee payment?',
-      'answer': 'We support all major payment options including UPI, NetBanking, Debit/Credit Cards, and popular mobile wallets through our secure payment gateway integration.'
+      'answer':
+          'We support all major payment options including UPI, NetBanking, Debit/Credit Cards, and popular mobile wallets through our secure payment gateway integration.'
     },
     {
       'category': 'Billing & Payments',
       'question': 'How is the subscription billed?',
-      'answer': 'Subscription plans can be billed monthly or yearly. Yearly billing includes a 10% discount on the subscription fee.'
+      'answer':
+          'Subscription plans can be billed monthly or yearly. Yearly billing includes a 10% discount on the subscription fee.'
     },
     {
       'category': 'Billing & Payments',
       'question': 'What happens if a school subscription expires?',
-      'answer': 'If the school subscription expires, all user accounts associated with that school will be blocked from logging in. Data is safely preserved, and access is restored immediately upon renewal.'
+      'answer':
+          'If the school subscription expires, all user accounts associated with that school will be blocked from logging in. Data is safely preserved, and access is restored immediately upon renewal.'
     },
     {
       'category': 'Data & Security',
       'question': 'Is my school data secure with School ERP?',
-      'answer': 'Yes, security is our top priority. We use industry-standard SSL/TLS encryption for all data in transit, and databases are encrypted at rest with regular daily automated backups.'
+      'answer':
+          'Yes, security is our top priority. We use industry-standard SSL/TLS encryption for all data in transit, and databases are encrypted at rest with regular daily automated backups.'
     },
     {
       'category': 'Data & Security',
       'question': 'Where is the data hosted?',
-      'answer': 'Our systems are hosted on secure, enterprise-grade cloud servers (such as AWS/Google Cloud/Supabase) with multi-region redundancy to ensure 99.9% uptime.'
+      'answer':
+          'Our systems are hosted on secure, enterprise-grade cloud servers (such as AWS/Google Cloud/Supabase) with multi-region redundancy to ensure 99.9% uptime.'
     },
     {
       'category': 'Data & Security',
       'question': 'Who owns the data uploaded to the system?',
-      'answer': 'The school retains full ownership of all data uploaded to the platform. We do not share, sell, or utilize your data for any commercial purposes.'
+      'answer':
+          'The school retains full ownership of all data uploaded to the platform. We do not share, sell, or utilize your data for any commercial purposes.'
     },
     {
       'category': 'Support & Services',
       'question': 'What kind of support does School ERP provide?',
-      'answer': 'We offer 24/7 email and ticket-based support, and premium phone support for Premium/Enterprise plans. We also assign dedicated onboarding managers for large institutes.'
+      'answer':
+          'We offer 24/7 email and ticket-based support, and premium phone support for Premium/Enterprise plans. We also assign dedicated onboarding managers for large institutes.'
     },
     {
       'category': 'Support & Services',
       'question': 'How often is School ERP updated?',
-      'answer': 'We release regular system updates and feature enhancements every month. All updates are automatically deployed to the cloud, so you always use the latest version without any downtime.'
+      'answer':
+          'We release regular system updates and feature enhancements every month. All updates are automatically deployed to the cloud, so you always use the latest version without any downtime.'
     }
   ];
 
@@ -161,10 +185,17 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
 
   List<Map<String, dynamic>> _getFilteredFaqs() {
     return _faqs.where((faq) {
-      final matchesCategory = _selectedCategory == 'All Questions' || faq['category'] == _selectedCategory;
+      final matchesCategory = _selectedCategory == 'All Questions' ||
+          faq['category'] == _selectedCategory;
       final matchesSearch = _searchQuery.isEmpty ||
-          faq['question'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          faq['answer'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
+          faq['question']
+              .toString()
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase()) ||
+          faq['answer']
+              .toString()
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
     }).toList();
   }
@@ -187,7 +218,7 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
           children: [
             // 1. Hero Header
             _buildHeroHeader(isDesktop),
-            
+
             // 2. Main Content
             Padding(
               padding: EdgeInsets.symmetric(
@@ -199,7 +230,7 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
                   // Search Bar Section
                   _buildSearchBarCard(),
                   const SizedBox(height: 40),
-                  
+
                   // Split Layout (Categories & Accordions)
                   isDesktop
                       ? Row(
@@ -228,10 +259,10 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
                 ],
               ),
             ),
-            
+
             // 3. Bottom Banner CTA
             _buildBottomBanner(),
-            
+
             // 4. Footer
             PublicFooter(
               showWideFooter: screenWidth >= 1100,
@@ -271,7 +302,8 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
                       child: Image.network(
                         AppConfig.resolveUrl(logoUrl),
                         fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => const Icon(
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(
                           Icons.school_outlined,
                           color: Color(0xFF6366F1),
                           size: 20,
@@ -330,10 +362,14 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF0F172A),
                   side: const BorderSide(color: Color(0xFFCBD5E1)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                child: Text('Login', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold)),
+                child: Text('Login',
+                    style: GoogleFonts.dmSans(
+                        fontSize: 13, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(width: 12),
               ElevatedButton(
@@ -342,10 +378,14 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
                   backgroundColor: const Color(0xFF4F46E5),
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                child: Text('Get Started', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold)),
+                child: Text('Get Started',
+                    style: GoogleFonts.dmSans(
+                        fontSize: 13, fontWeight: FontWeight.bold)),
               ),
             ] else
               IconButton(
@@ -358,13 +398,15 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
     );
   }
 
-  Widget _buildNavbarLink(String label, VoidCallback onTap, {bool isActive = false}) {
+  Widget _buildNavbarLink(String label, VoidCallback onTap,
+      {bool isActive = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: TextButton(
         onPressed: onTap,
         style: TextButton.styleFrom(
-          foregroundColor: isActive ? const Color(0xFF4F46E5) : const Color(0xFF475569),
+          foregroundColor:
+              isActive ? const Color(0xFF4F46E5) : const Color(0xFF475569),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -453,7 +495,8 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
         const SizedBox(height: 16),
         RichText(
           text: TextSpan(
-            text: 'Find answers to common questions about School ERP.\nCan\'t find what you\'re looking for? ',
+            text:
+                'Find answers to common questions about School ERP.\nCan\'t find what you\'re looking for? ',
             style: GoogleFonts.dmSans(
               fontSize: 14,
               color: const Color(0xFF64748B),
@@ -483,7 +526,8 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
   }
 
   Widget _buildHeroRightImage() {
-    final illustration = widget.illustrationUrl ?? 'assets/images/faq_illustration.png';
+    final illustration =
+        widget.illustrationUrl ?? 'assets/images/faq_illustration.png';
     return Center(
       child: Image.asset(
         illustration,
@@ -499,11 +543,15 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.help_center_outlined, size: 80, color: Color(0xFF6366F1)),
+              const Icon(Icons.help_center_outlined,
+                  size: 80, color: Color(0xFF6366F1)),
               const SizedBox(height: 16),
               Text(
                 'FAQ Center',
-                style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
+                style: GoogleFonts.outfit(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF0F172A)),
               )
             ],
           ),
@@ -598,10 +646,12 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
       },
       decoration: InputDecoration(
         hintText: 'Search questions...',
-        hintStyle: GoogleFonts.dmSans(color: const Color(0xFF94A3B8), fontSize: 13),
+        hintStyle:
+            GoogleFonts.dmSans(color: const Color(0xFF94A3B8), fontSize: 13),
         suffixIcon: _searchQuery.isNotEmpty
             ? IconButton(
-                icon: const Icon(Icons.clear, size: 18, color: Color(0xFF64748B)),
+                icon:
+                    const Icon(Icons.clear, size: 18, color: Color(0xFF64748B)),
                 onPressed: () {
                   _searchController.clear();
                   setState(() {
@@ -610,7 +660,8 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
                 },
               )
             : const Icon(Icons.search, color: Color(0xFF94A3B8), size: 18),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -646,7 +697,8 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 child: Text(
                   'Categories',
                   style: GoogleFonts.outfit(
@@ -663,7 +715,8 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
                 final icon = _getCategoryIcon(category);
 
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                   child: InkWell(
                     onTap: () {
                       setState(() {
@@ -672,9 +725,12 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
                     },
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFFEEF2F6) : Colors.transparent,
+                        color: isSelected
+                            ? const Color(0xFFEEF2F6)
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -682,7 +738,9 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
                           Icon(
                             icon,
                             size: 16,
-                            color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
+                            color: isSelected
+                                ? const Color(0xFF4F46E5)
+                                : const Color(0xFF64748B),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -690,15 +748,23 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
                               category,
                               style: GoogleFonts.dmSans(
                                 fontSize: 13,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFF475569),
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.w500,
+                                color: isSelected
+                                    ? const Color(0xFF4F46E5)
+                                    : const Color(0xFF475569),
                               ),
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: isSelected ? const Color(0xFF6366F1).withValues(alpha: 0.1) : const Color(0xFFF1F5F9),
+                              color: isSelected
+                                  ? const Color(0xFF6366F1)
+                                      .withValues(alpha: 0.1)
+                                  : const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
@@ -706,7 +772,9 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
                               style: GoogleFonts.dmSans(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
-                                color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
+                                color: isSelected
+                                    ? const Color(0xFF4F46E5)
+                                    : const Color(0xFF64748B),
                               ),
                             ),
                           ),
@@ -720,7 +788,7 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        
+
         // Still Need Help Card
         Container(
           decoration: BoxDecoration(
@@ -738,7 +806,8 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
                   color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.headset_mic_outlined, color: Color(0xFF6366F1), size: 18),
+                child: const Icon(Icons.headset_mic_outlined,
+                    color: Color(0xFF6366F1), size: 18),
               ),
               const SizedBox(height: 16),
               Text(
@@ -764,8 +833,10 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6366F1),
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   elevation: 0,
                 ),
                 child: Row(
@@ -773,7 +844,8 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
                   children: [
                     Text(
                       'Contact Support',
-                      style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.dmSans(
+                          fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(width: 8),
                     const Icon(Icons.arrow_forward, size: 14),
@@ -783,11 +855,15 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  const Icon(Icons.phone_outlined, size: 14, color: Color(0xFF64748B)),
+                  const Icon(Icons.phone_outlined,
+                      size: 14, color: Color(0xFF64748B)),
                   const SizedBox(width: 8),
                   Text(
                     AppConfig.contactPhone,
-                    style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF0F172A)),
                   ),
                 ],
               ),
@@ -832,7 +908,8 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.search_off_outlined, size: 48, color: Color(0xFF94A3B8)),
+              const Icon(Icons.search_off_outlined,
+                  size: 48, color: Color(0xFF94A3B8)),
               const SizedBox(height: 16),
               Text(
                 'No FAQs Found',
@@ -916,7 +993,8 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
             color: const Color(0xFF6366F1).withValues(alpha: 0.08),
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.help_outline, color: Color(0xFF6366F1), size: 24),
+          child: const Icon(Icons.help_outline,
+              color: Color(0xFF6366F1), size: 24),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -962,7 +1040,8 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
         children: [
           Text(
             'Contact Us',
-            style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold),
+            style:
+                GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold),
           ),
           const SizedBox(width: 8),
           const Icon(Icons.arrow_forward, size: 16),
@@ -977,7 +1056,6 @@ class _FaqAccordionItem extends StatefulWidget {
   final String answer;
 
   const _FaqAccordionItem({
-    super.key,
     required this.question,
     required this.answer,
   });
@@ -986,7 +1064,8 @@ class _FaqAccordionItem extends StatefulWidget {
   State<_FaqAccordionItem> createState() => _FaqAccordionItemState();
 }
 
-class _FaqAccordionItemState extends State<_FaqAccordionItem> with SingleTickerProviderStateMixin {
+class _FaqAccordionItemState extends State<_FaqAccordionItem>
+    with SingleTickerProviderStateMixin {
   bool _isExpanded = false;
   late AnimationController _animationController;
   late Animation<double> _iconTurns;
@@ -999,8 +1078,10 @@ class _FaqAccordionItemState extends State<_FaqAccordionItem> with SingleTickerP
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    _iconTurns = Tween<double>(begin: 0.0, end: 0.5).animate(_animationController);
-    _heightFactor = _animationController.drive(CurveTween(curve: Curves.easeIn));
+    _iconTurns =
+        Tween<double>(begin: 0.0, end: 0.5).animate(_animationController);
+    _heightFactor =
+        _animationController.drive(CurveTween(curve: Curves.easeIn));
   }
 
   @override
@@ -1025,10 +1106,13 @@ class _FaqAccordionItemState extends State<_FaqAccordionItem> with SingleTickerP
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: _isExpanded ? const Color(0xFF6366F1).withValues(alpha: 0.02) : Colors.white,
+        color: _isExpanded
+            ? const Color(0xFF6366F1).withValues(alpha: 0.02)
+            : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: _isExpanded ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0),
+          color:
+              _isExpanded ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0),
           width: _isExpanded ? 1.5 : 1,
         ),
       ),
@@ -1045,12 +1129,15 @@ class _FaqAccordionItemState extends State<_FaqAccordionItem> with SingleTickerP
                   Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: _isExpanded ? const Color(0xFF6366F1) : const Color(0xFFEEF2F6),
+                      color: _isExpanded
+                          ? const Color(0xFF6366F1)
+                          : const Color(0xFFEEF2F6),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       _isExpanded ? Icons.remove : Icons.add,
-                      color: _isExpanded ? Colors.white : const Color(0xFF6366F1),
+                      color:
+                          _isExpanded ? Colors.white : const Color(0xFF6366F1),
                       size: 14,
                     ),
                   ),
@@ -1061,7 +1148,9 @@ class _FaqAccordionItemState extends State<_FaqAccordionItem> with SingleTickerP
                       style: GoogleFonts.outfit(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: _isExpanded ? const Color(0xFF4F46E5) : const Color(0xFF0F172A),
+                        color: _isExpanded
+                            ? const Color(0xFF4F46E5)
+                            : const Color(0xFF0F172A),
                       ),
                     ),
                   ),
@@ -1069,7 +1158,9 @@ class _FaqAccordionItemState extends State<_FaqAccordionItem> with SingleTickerP
                     turns: _iconTurns,
                     child: Icon(
                       Icons.keyboard_arrow_down,
-                      color: _isExpanded ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
+                      color: _isExpanded
+                          ? const Color(0xFF4F46E5)
+                          : const Color(0xFF94A3B8),
                       size: 18,
                     ),
                   ),
@@ -1083,7 +1174,8 @@ class _FaqAccordionItemState extends State<_FaqAccordionItem> with SingleTickerP
               return SizeTransition(
                 sizeFactor: _heightFactor,
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 54, right: 20, bottom: 20),
+                  padding:
+                      const EdgeInsets.only(left: 54, right: 20, bottom: 20),
                   child: Text(
                     widget.answer,
                     style: GoogleFonts.dmSans(

@@ -46,10 +46,16 @@ CREATE INDEX IF NOT EXISTS idx_stp_topic ON public.student_topic_progress(topic_
 CREATE INDEX IF NOT EXISTS idx_xp_trans_school ON public.xp_transactions(school_id);
 
 -- Groups, Fleet, Emergency & Support Indexes
+ALTER TABLE public.group_members ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
+UPDATE public.group_members SET user_id = member_id WHERE user_id IS NULL;
 CREATE INDEX IF NOT EXISTS idx_grp_mem_group_id ON public.group_members(group_id);
 CREATE INDEX IF NOT EXISTS idx_grp_mem_user_id ON public.group_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_grp_mem_member_id ON public.group_members(member_id);
+ALTER TABLE public.blocked_users ADD COLUMN IF NOT EXISTS blocked_user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
+UPDATE public.blocked_users SET blocked_user_id = blocked_id WHERE blocked_user_id IS NULL;
 CREATE INDEX IF NOT EXISTS idx_block_users_blocker ON public.blocked_users(blocker_id);
-CREATE INDEX IF NOT EXISTS idx_block_users_blocked ON public.blocked_users(blocked_user_id);
+CREATE INDEX IF NOT EXISTS idx_block_users_blocked ON public.blocked_users(blocked_id);
+CREATE INDEX IF NOT EXISTS idx_block_users_blocked_user ON public.blocked_users(blocked_user_id);
 CREATE INDEX IF NOT EXISTS idx_ai_chat_hist_user ON public.ai_chat_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_mail_sub_school ON public.school_mail_subscriptions(school_id);
 

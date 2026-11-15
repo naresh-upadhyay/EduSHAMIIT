@@ -34,7 +34,10 @@ class NoticeHeaderBar extends ConsumerWidget {
 
   bool get canManageCategories {
     final r = userRole.toLowerCase();
-    return r == 'super_admin' || r == 'admin' || r == 'principal' || r == 'director';
+    return r == 'super_admin' ||
+        r == 'admin' ||
+        r == 'principal' ||
+        r == 'director';
   }
 
   void _downloadSampleTemplate() {
@@ -85,7 +88,9 @@ class NoticeHeaderBar extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
                 ),
               ),
             ],
@@ -97,13 +102,18 @@ class NoticeHeaderBar extends ConsumerWidget {
             children: [
               // Refresh Button
               IconButton(
-                onPressed: onRefresh ?? () => ref.read(noticeProvider.notifier).refreshAll(),
+                onPressed: onRefresh ??
+                    () => ref.read(noticeProvider.notifier).refreshAll(),
                 icon: const Icon(Icons.refresh_rounded, size: 20),
                 tooltip: 'Refresh Notices',
                 style: IconButton.styleFrom(
-                  backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                  foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  backgroundColor: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF1F5F9),
+                  foregroundColor:
+                      isDark ? Colors.white : const Color(0xFF334155),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                   padding: const EdgeInsets.all(10),
                 ),
               ),
@@ -121,10 +131,16 @@ class NoticeHeaderBar extends ConsumerWidget {
                   icon: const Icon(Icons.category_outlined, size: 16),
                   label: const Text('Categories'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
-                    side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    foregroundColor:
+                        isDark ? Colors.white : const Color(0xFF334155),
+                    side: BorderSide(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -134,7 +150,8 @@ class NoticeHeaderBar extends ConsumerWidget {
               if (canCreateNotice)
                 PopupMenuButton<String>(
                   offset: const Offset(0, 44),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                   color: isDark ? const Color(0xFF1E293B) : Colors.white,
                   onSelected: (value) {
                     if (value == 'create' || value == 'notice') {
@@ -152,58 +169,74 @@ class NoticeHeaderBar extends ConsumerWidget {
                     }
                   },
                   itemBuilder: (ctx) => [
-                    PopupMenuItem(
+                    const PopupMenuItem(
                       value: 'create',
                       child: Row(
-                        children: const [
-                          Icon(Icons.edit_note_rounded, size: 18, color: Color(0xFF4F46E5)),
+                        children: [
+                          Icon(Icons.edit_note_rounded,
+                              size: 18, color: Color(0xFF4F46E5)),
                           SizedBox(width: 10),
-                          Text('Create Notice / Circular', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          Text('Create Notice / Circular',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 13)),
                         ],
                       ),
                     ),
                     const PopupMenuDivider(),
-                    PopupMenuItem(
+                    const PopupMenuItem(
                       value: 'bulk',
                       child: Row(
-                        children: const [
-                          Icon(Icons.upload_file_rounded, size: 18, color: Color(0xFF10B981)),
+                        children: [
+                          Icon(Icons.upload_file_rounded,
+                              size: 18, color: Color(0xFF10B981)),
                           SizedBox(width: 10),
-                          Text('Upload Notice (Bulk)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          Text('Upload Notice (Bulk)',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 13)),
                         ],
                       ),
                     ),
-                    PopupMenuItem(
+                    const PopupMenuItem(
                       value: 'export_template',
                       child: Row(
-                        children: const [
-                          Icon(Icons.file_download_outlined, size: 18, color: Color(0xFFF59E0B)),
+                        children: [
+                          Icon(Icons.file_download_outlined,
+                              size: 18, color: Color(0xFFF59E0B)),
                           SizedBox(width: 10),
-                          Text('Export Sample Template (.csv)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          Text('Export Sample Template (.csv)',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 13)),
                         ],
                       ),
                     ),
                   ],
                   child: ElevatedButton.icon(
                     onPressed: null, // Handled by PopupMenuButton child tap
-                    icon: const Icon(Icons.add_rounded, size: 18, color: Colors.white),
-                    label: Row(
+                    icon: const Icon(Icons.add_rounded,
+                        size: 18, color: Colors.white),
+                    label: const Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
+                      children: [
                         Text(
                           'Create Notice',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white),
                         ),
                         SizedBox(width: 4),
-                        Icon(Icons.arrow_drop_down, size: 18, color: Colors.white70),
+                        Icon(Icons.arrow_drop_down,
+                            size: 18, color: Colors.white70),
                       ],
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4F46E5),
                       foregroundColor: Colors.white,
                       disabledBackgroundColor: const Color(0xFF4F46E5),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                       elevation: 1,
                     ),
                   ),

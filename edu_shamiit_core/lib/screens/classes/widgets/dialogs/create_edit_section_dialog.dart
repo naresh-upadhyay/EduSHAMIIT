@@ -22,7 +22,8 @@ class CreateEditSectionDialog extends StatefulWidget {
   });
 
   @override
-  State<CreateEditSectionDialog> createState() => _CreateEditSectionDialogState();
+  State<CreateEditSectionDialog> createState() =>
+      _CreateEditSectionDialogState();
 }
 
 class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
@@ -50,14 +51,20 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
       _codeController = TextEditingController(text: s.code);
       _status = s.status;
       _selectedRoomId = s.roomId;
-      if (_selectedRoomId == null && (s.roomNumber != null || s.roomName != null)) {
-        final match = _availableRooms.where((r) =>
-            r.name == (s.roomNumber ?? s.roomName) ||
-            r.code == (s.roomNumber ?? s.roomName)).firstOrNull;
+      if (_selectedRoomId == null &&
+          (s.roomNumber != null || s.roomName != null)) {
+        final match = _availableRooms
+            .where((r) =>
+                r.name == (s.roomNumber ?? s.roomName) ||
+                r.code == (s.roomNumber ?? s.roomName))
+            .firstOrNull;
         _selectedRoomId = match?.id;
       }
     } else {
-      _selectedClassId = widget.defaultClassId ?? (widget.availableClasses.isNotEmpty ? widget.availableClasses.first.id : null);
+      _selectedClassId = widget.defaultClassId ??
+          (widget.availableClasses.isNotEmpty
+              ? widget.availableClasses.first.id
+              : null);
       _nameController = TextEditingController();
       _codeController = TextEditingController();
       _status = 'ACTIVE';
@@ -76,10 +83,14 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
           setState(() {
             _availableRooms = fetched;
             final s = widget.sectionToEdit;
-            if (_selectedRoomId == null && s != null && (s.roomNumber != null || s.roomName != null)) {
-              final match = _availableRooms.where((r) =>
-                  r.name == (s.roomNumber ?? s.roomName) ||
-                  r.code == (s.roomNumber ?? s.roomName)).firstOrNull;
+            if (_selectedRoomId == null &&
+                s != null &&
+                (s.roomNumber != null || s.roomName != null)) {
+              final match = _availableRooms
+                  .where((r) =>
+                      r.name == (s.roomNumber ?? s.roomName) ||
+                      r.code == (s.roomNumber ?? s.roomName))
+                  .firstOrNull;
               _selectedRoomId = match?.id;
             }
           });
@@ -91,18 +102,22 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
     }
 
     // 2. Load active lookup items for status
-    final list = await AcademicLookupHelper.instance.getActiveLookup('ACADEMIC_STATUS');
+    final list =
+        await AcademicLookupHelper.instance.getActiveLookup('ACADEMIC_STATUS');
     if (mounted) {
       setState(() {
         _statuses = List<AcademicLookupItem>.from(list);
         if (_status.isNotEmpty) {
-          final matched = _statuses.where((s) =>
-              s.code.toUpperCase() == _status.toUpperCase() ||
-              s.label.toUpperCase() == _status.toUpperCase()).firstOrNull;
+          final matched = _statuses
+              .where((s) =>
+                  s.code.toUpperCase() == _status.toUpperCase() ||
+                  s.label.toUpperCase() == _status.toUpperCase())
+              .firstOrNull;
           if (matched != null) {
             _status = matched.code;
           } else {
-            _statuses.add(AcademicLookupItem(id: _status, code: _status, label: _status));
+            _statuses.add(
+                AcademicLookupItem(id: _status, code: _status, label: _status));
           }
         }
       });
@@ -131,13 +146,18 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
       return;
     }
 
-    final selectedClass = widget.availableClasses.where((c) => c.id == _selectedClassId).firstOrNull;
-    if (_status.toUpperCase() == 'ACTIVE' && selectedClass != null && selectedClass.status.toUpperCase() != 'ACTIVE') {
+    final selectedClass = widget.availableClasses
+        .where((c) => c.id == _selectedClassId)
+        .firstOrNull;
+    if (_status.toUpperCase() == 'ACTIVE' &&
+        selectedClass != null &&
+        selectedClass.status.toUpperCase() != 'ACTIVE') {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
+              const Icon(Icons.warning_amber_rounded,
+                  color: Colors.white, size: 20),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -157,9 +177,12 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
 
     setState(() => _isSaving = true);
 
-    final selectedRoom = _availableRooms.where((r) => r.id == _selectedRoomId).firstOrNull;
-    final derivedCapacity = selectedRoom?.capacity ?? widget.sectionToEdit?.capacity ?? 40;
-    final derivedRoomName = selectedRoom?.name ?? widget.sectionToEdit?.roomNumber;
+    final selectedRoom =
+        _availableRooms.where((r) => r.id == _selectedRoomId).firstOrNull;
+    final derivedCapacity =
+        selectedRoom?.capacity ?? widget.sectionToEdit?.capacity ?? 40;
+    final derivedRoomName =
+        selectedRoom?.name ?? widget.sectionToEdit?.roomNumber;
 
     final payload = {
       'class_id': _selectedClassId,
@@ -190,7 +213,8 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final selectedRoom = _availableRooms.where((r) => r.id == _selectedRoomId).firstOrNull;
+    final selectedRoom =
+        _availableRooms.where((r) => r.id == _selectedRoomId).firstOrNull;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -203,7 +227,7 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 24,
               offset: const Offset(0, 10),
             ),
@@ -218,7 +242,9 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
               ),
@@ -227,10 +253,11 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withOpacity(0.1),
+                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.grid_view_rounded, color: Color(0xFF10B981), size: 22),
+                    child: const Icon(Icons.grid_view_rounded,
+                        color: Color(0xFF10B981), size: 22),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -242,7 +269,8 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -252,7 +280,9 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
                               : 'Configure section name, capacity, and classroom room allocation.',
                           style: TextStyle(
                             fontSize: 12,
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ],
@@ -261,7 +291,9 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.close, size: 20),
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                   ),
                 ],
               ),
@@ -281,7 +313,10 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                        border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFCBD5E1)),
                         borderRadius: BorderRadius.circular(8),
                         color: isDark ? const Color(0xFF0F172A) : Colors.white,
                       ),
@@ -289,8 +324,13 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
                         child: DropdownButton<String>(
                           value: _selectedClassId,
                           isExpanded: true,
-                          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                          style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
+                          dropdownColor:
+                              isDark ? const Color(0xFF1E293B) : Colors.white,
+                          style: TextStyle(
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
+                              fontSize: 14),
                           hint: const Text('Select Academic Class'),
                           items: widget.availableClasses.map((c) {
                             return DropdownMenuItem(
@@ -298,7 +338,9 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
                               child: Text('${c.name} (${c.code})'),
                             );
                           }).toList(),
-                          onChanged: isEdit ? null : (v) => setState(() => _selectedClassId = v),
+                          onChanged: isEdit
+                              ? null
+                              : (v) => setState(() => _selectedClassId = v),
                         ),
                       ),
                     ),
@@ -317,12 +359,22 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
                               const SizedBox(height: 6),
                               TextFormField(
                                 controller: _nameController,
-                                decoration: _inputDecoration('e.g. 9-A or A', isDark),
-                                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
-                                validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+                                decoration:
+                                    _inputDecoration('e.g. 9-A or A', isDark),
+                                style: TextStyle(
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F172A),
+                                    fontSize: 14),
+                                validator: (v) =>
+                                    (v == null || v.trim().isEmpty)
+                                        ? 'Name is required'
+                                        : null,
                                 onChanged: (v) {
                                   if (!isEdit && _codeController.text.isEmpty) {
-                                    _codeController.text = v.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase();
+                                    _codeController.text = v
+                                        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+                                        .toUpperCase();
                                   }
                                 },
                               ),
@@ -339,9 +391,17 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
                               const SizedBox(height: 6),
                               TextFormField(
                                 controller: _codeController,
-                                decoration: _inputDecoration('e.g. 9A or A', isDark),
-                                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
-                                validator: (v) => (v == null || v.trim().isEmpty) ? 'Code is required' : null,
+                                decoration:
+                                    _inputDecoration('e.g. 9A or A', isDark),
+                                style: TextStyle(
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F172A),
+                                    fontSize: 14),
+                                validator: (v) =>
+                                    (v == null || v.trim().isEmpty)
+                                        ? 'Code is required'
+                                        : null,
                               ),
                             ],
                           ),
@@ -367,17 +427,30 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                        border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFCBD5E1)),
                         borderRadius: BorderRadius.circular(8),
                         color: isDark ? const Color(0xFF0F172A) : Colors.white,
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String?>(
-                          value: _availableRooms.any((r) => r.id == _selectedRoomId) ? _selectedRoomId : null,
+                          value: _availableRooms
+                                  .any((r) => r.id == _selectedRoomId)
+                              ? _selectedRoomId
+                              : null,
                           isExpanded: true,
-                          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                          style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
-                          hint: Text(_isLoadingRooms ? 'Loading rooms...' : 'Select Allocated Room (Optional)'),
+                          dropdownColor:
+                              isDark ? const Color(0xFF1E293B) : Colors.white,
+                          style: TextStyle(
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
+                              fontSize: 14),
+                          hint: Text(_isLoadingRooms
+                              ? 'Loading rooms...'
+                              : 'Select Allocated Room (Optional)'),
                           items: [
                             const DropdownMenuItem<String?>(
                               value: null,
@@ -386,7 +459,8 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
                             ..._availableRooms.map((r) {
                               return DropdownMenuItem<String?>(
                                 value: r.id,
-                                child: Text('${r.name} (${r.code}) • ${r.building} [Cap: ${r.capacity}]'),
+                                child: Text(
+                                    '${r.name} (${r.code}) • ${r.building} [Cap: ${r.capacity}]'),
                               );
                             }),
                           ],
@@ -399,15 +473,21 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
                     if (selectedRoom != null) ...[
                       const SizedBox(height: 10),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF0FDF4),
+                          color: isDark
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFFF0FDF4),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+                          border: Border.all(
+                              color: const Color(0xFF10B981)
+                                  .withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.meeting_room_rounded, color: Color(0xFF10B981), size: 18),
+                            const Icon(Icons.meeting_room_rounded,
+                                color: Color(0xFF10B981), size: 18),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Column(
@@ -418,7 +498,9 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w700,
-                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
                                     ),
                                   ),
                                   const SizedBox(height: 2),
@@ -445,7 +527,10 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                        border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFCBD5E1)),
                         borderRadius: BorderRadius.circular(8),
                         color: isDark ? const Color(0xFF0F172A) : Colors.white,
                       ),
@@ -453,14 +538,23 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
                         child: DropdownButton<String>(
                           value: _statuses.any((s) => s.code == _status)
                               ? _status
-                              : (_statuses.isNotEmpty ? _statuses.first.code : 'ACTIVE'),
+                              : (_statuses.isNotEmpty
+                                  ? _statuses.first.code
+                                  : 'ACTIVE'),
                           isExpanded: true,
-                          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                          style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
+                          dropdownColor:
+                              isDark ? const Color(0xFF1E293B) : Colors.white,
+                          style: TextStyle(
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
+                              fontSize: 14),
                           items: _statuses
-                              .map((s) => DropdownMenuItem(value: s.code, child: Text(s.label)))
+                              .map((s) => DropdownMenuItem(
+                                  value: s.code, child: Text(s.label)))
                               .toList(),
-                          onChanged: (v) => setState(() => _status = v ?? 'ACTIVE'),
+                          onChanged: (v) =>
+                              setState(() => _status = v ?? 'ACTIVE'),
                         ),
                       ),
                     ),
@@ -473,11 +567,16 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A).withOpacity(0.5) : const Color(0xFFF8FAFC),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                color: isDark
+                    ? const Color(0xFF0F172A).withValues(alpha: 0.5)
+                    : const Color(0xFFF8FAFC),
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(16)),
                 border: Border(
                   top: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
               ),
@@ -485,15 +584,24 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   OutlinedButton(
-                    onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+                    onPressed:
+                        _isSaving ? null : () => Navigator.of(context).pop(),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      side: BorderSide(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFCBD5E1)),
                     ),
                     child: Text(
                       'Cancel',
-                      style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                      style: TextStyle(
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF475569)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -503,14 +611,17 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
                       backgroundColor: const Color(0xFF10B981),
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     child: _isSaving
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
                           )
                         : Text(
                             isEdit ? 'Save Changes' : 'Add Section',
@@ -549,11 +660,13 @@ class _CreateEditSectionDialogState extends State<CreateEditSectionDialog> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+        borderSide: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+        borderSide: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),

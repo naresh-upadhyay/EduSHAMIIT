@@ -98,9 +98,11 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen>
   }
 
   Future<void> _fetchEmergencyData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final contactsRes = await ApiService().get('/transport/emergency/contacts', useCache: false);
+      if (!mounted) return;
       if (contactsRes['success'] == true && contactsRes['data'] != null && (contactsRes['data'] as List).isNotEmpty) {
         setState(() {
           _emergencyContacts = contactsRes['data'] as List<dynamic>;
@@ -112,6 +114,7 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen>
 
     try {
       final alertsRes = await ApiService().get('/transport/emergency/alerts', useCache: false);
+      if (!mounted) return;
       if (alertsRes['success'] == true && alertsRes['data'] != null && (alertsRes['data'] as List).isNotEmpty) {
         setState(() {
           _emergencyHistory = alertsRes['data'] as List<dynamic>;
@@ -126,6 +129,7 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen>
 
     try {
       final locationRes = await ApiService().get('/transport/emergency/current-location', useCache: false);
+      if (!mounted) return;
       if (locationRes['success'] == true && locationRes['data'] != null) {
         setState(() {
           _locationData = locationRes['data'] as Map<String, dynamic>;

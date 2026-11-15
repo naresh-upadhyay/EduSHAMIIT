@@ -11,7 +11,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'dart:math' as math;
 import 'package:edu_shamiit_admin/core/file_download_helper.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:html' as html;
 
@@ -33,10 +32,13 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   static const _orange = Color(0xFFF59E0B);
   static const _red = Color(0xFFEF4444);
   static const _gray = Color(0xFF94A3B8);
-  static const _bg = Color(0xFFF8FAFC);
-  static const _border = Color(0xFFE2E8F0);
-  static const _textPrimary = Color(0xFF0F172A);
-  static const _textSecondary = Color(0xFF64748B);
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+  Color get _bg => _isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+  Color get _cardBg => _isDark ? const Color(0xFF1E293B) : Colors.white;
+  Color get _border => _isDark ? Colors.white10 : const Color(0xFFE2E8F0);
+  Color get _textPrimary => _isDark ? Colors.white : const Color(0xFF0F172A);
+  Color get _textSecondary => _isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+  Color get _inputBg => _isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9);
 
   // State lists
   List<dynamic> _routes = [];
@@ -182,22 +184,6 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   final List<dynamic> _saRecentAssignmentsLog = [];
 
 
-  // --- ASSIGN BUS TAB STATE VARIABLES ---
-  List<dynamic> _assignments = [];
-  bool _isLoadingAssignmentsTab = false;
-  String? _assignSelectedRouteId;
-  String? _assignSelectedVehicleId;
-  String? _assignSelectedDriverId;
-  DateTime _assignStartDate = DateTime.now();
-  final TextEditingController _assignNotesController = TextEditingController();
-  final TextEditingController _assignSearchController = TextEditingController();
-  String _assignSearchQuery = '';
-  String _assignAreaFilter = 'All';
-  String _assignTypeFilter = 'All';
-  String _assignStatusFilter = 'All';
-  int _assignCurrentPage = 1;
-  int _assignPageSize = 8;
-  final ScrollController _assignTableScrollController = ScrollController();
 
   // --- LIVE TRACKING TAB STATE VARIABLES ---
   Map<String, dynamic> _trackingSummary = {};
@@ -235,7 +221,6 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   );
   String _reportsRouteFilter = 'All';
   String _reportsBusFilter = 'All';
-  final String _reportsDriverFilter = 'All';
   String _reportsStatusFilter = 'All';
   
   int _reportsTableCurrentPage = 1;
@@ -279,12 +264,6 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         _stopsCurrentPage = 1;
       });
       _loadStops();
-    });
-    _assignSearchController.addListener(() {
-      setState(() {
-        _assignSearchQuery = _assignSearchController.text;
-        _assignCurrentPage = 1;
-      });
     });
     _trackingSearchController.addListener(() {
       setState(() {
@@ -333,7 +312,6 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     _tabController.dispose();
     _searchController.dispose();
     _stopsSearchController.dispose();
-    _assignSearchController.dispose();
     _trackingSearchController.dispose();
     _saSearchController.dispose();
     super.dispose();
@@ -343,8 +321,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   void didUpdateWidget(RouteManagementScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.initialIndex != oldWidget.initialIndex) {
-      _tabController.animateTo(widget.initialIndex.clamp(0, 5));
-      _loadTabIfNeeded(widget.initialIndex.clamp(0, 5));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _tabController.animateTo(widget.initialIndex.clamp(0, 5));
+          _loadTabIfNeeded(widget.initialIndex.clamp(0, 5));
+        }
+      });
     }
   }
 
@@ -791,7 +773,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
+            colorScheme: ColorScheme.light(
               primary: _accent,
               onPrimary: Colors.white,
               onSurface: _textPrimary,
@@ -1244,14 +1226,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               child: Container(
                 width: dialogWidth,
                 height: 720,
-                color: Colors.white,
+                color: _cardBg,
                 child: Column(
                   children: [
                     // Header
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
+                      decoration: BoxDecoration(
+                        color: _cardBg,
                         border: Border(bottom: BorderSide(color: _border)),
                       ),
                       child: Row(
@@ -1273,7 +1255,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                           ),
                           IconButton(
                             onPressed: () => Navigator.pop(ctx),
-                            icon: const Icon(Icons.close, color: _textSecondary),
+                            icon: Icon(Icons.close, color: _textSecondary),
                           ),
                         ],
                       ),
@@ -1299,14 +1281,16 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                         Expanded(
                                           child: Container(
                                             decoration: BoxDecoration(
-                                              color: Colors.white,
+                                              color: _cardBg,
                                               borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: _border),
                                               boxShadow: [
                                                 BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2)),
                                               ],
                                             ),
                                             child: TextField(
                                               controller: mapSearchController,
+                                              style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
                                               onChanged: (val) {
                                                 searchDebounceTimer?.cancel();
                                                 if (val.trim().length >= 2) {
@@ -1359,7 +1343,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                       constraints: const BoxConstraints(maxHeight: 180),
                                       margin: const EdgeInsets.symmetric(horizontal: 12),
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
+                                        color: _cardBg,
                                         borderRadius: BorderRadius.circular(10),
                                         border: Border.all(color: _border),
                                         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 10, offset: const Offset(0, 4))],
@@ -1371,7 +1355,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                         child: ListView.separated(
                                           shrinkWrap: true,
                                           itemCount: searchResults.length,
-                                          separatorBuilder: (ctx, i) => const Divider(height: 1, color: _border),
+                                          separatorBuilder: (ctx, i) => Divider(height: 1, color: _border),
                                           itemBuilder: (context, idx) {
                                             final item = searchResults[idx];
                                             return ListTile(
@@ -1409,10 +1393,10 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                               flags: InteractiveFlag.all,
                                             ),
                                             onPositionChanged: (position, hasGesture) {
-                                              if (hasGesture && position.center != null) {
+                                              if (hasGesture) {
                                                 setDialogState(() {
-                                                  currentLat = position.center!.latitude;
-                                                  currentLng = position.center!.longitude;
+                                                  currentLat = position.center.latitude;
+                                                  currentLng = position.center.longitude;
                                                   latController.text = currentLat.toStringAsFixed(6);
                                                   lngController.text = currentLng.toStringAsFixed(6);
                                                 });
@@ -1448,7 +1432,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                                 Container(
                                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                                   decoration: BoxDecoration(
-                                                    color: Colors.white,
+                                                    color: _cardBg,
                                                     borderRadius: BorderRadius.circular(8),
                                                     boxShadow: [
                                                       BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 8, offset: const Offset(0, 3)),
@@ -1496,7 +1480,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                                     performReverseGeocode(currentLat, currentLng);
                                                   } catch (_) {}
                                                 },
-                                                backgroundColor: Colors.white,
+                                                backgroundColor: _cardBg,
                                                 foregroundColor: _accent,
                                                 child: const Icon(Icons.my_location, size: 18),
                                               ),
@@ -1509,7 +1493,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                                     dialogMapController.move(LatLng(currentLat, currentLng), zoom);
                                                   } catch (_) {}
                                                 },
-                                                backgroundColor: Colors.white,
+                                                backgroundColor: _cardBg,
                                                 foregroundColor: _textPrimary,
                                                 child: const Icon(Icons.add, size: 18),
                                               ),
@@ -1522,7 +1506,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                                     dialogMapController.move(LatLng(currentLat, currentLng), zoom);
                                                   } catch (_) {}
                                                 },
-                                                backgroundColor: Colors.white,
+                                                backgroundColor: _cardBg,
                                                 foregroundColor: _textPrimary,
                                                 child: const Icon(Icons.remove, size: 18),
                                               ),
@@ -1536,8 +1520,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                   // Bottom Address & Coordinates Bar (Matches Screenshot 2)
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                    decoration: const BoxDecoration(
-                                      color: Colors.white,
+                                    decoration: BoxDecoration(
+                                      color: _cardBg,
                                       border: Border(top: BorderSide(color: _border)),
                                     ),
                                     child: Row(
@@ -1594,7 +1578,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                             ),
                           ),
 
-                          const VerticalDivider(width: 1, color: _border),
+                          VerticalDivider(width: 1, color: _border),
 
                           // Right Side: Form Fields (Flex: 5)
                           Expanded(
@@ -1610,7 +1594,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                     const SizedBox(height: 16),
 
                                     DropdownButtonFormField<String>(
-                                      value: (selectedRouteId != null && _routes.any((r) => r['id'].toString() == selectedRouteId)) ? selectedRouteId : null,
+                                      initialValue: (selectedRouteId != null && _routes.any((r) => r['id'].toString() == selectedRouteId)) ? selectedRouteId : null,
                                       decoration: const InputDecoration(labelText: 'Select Route *', border: OutlineInputBorder()),
                                       items: _routes.map((r) => DropdownMenuItem<String>(value: r['id'].toString(), child: Text(r['route_name']))).toList(),
                                       onChanged: (val) => setDialogState(() => selectedRouteId = val),
@@ -1677,7 +1661,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                     const SizedBox(height: 12),
 
                                     DropdownButtonFormField<String>(
-                                      value: ['Pickup', 'Drop', 'Pickup & Drop'].contains(stopType) ? stopType : 'Pickup',
+                                      initialValue: ['Pickup', 'Drop', 'Pickup & Drop'].contains(stopType) ? stopType : 'Pickup',
                                       decoration: const InputDecoration(labelText: 'Stop Type *', border: OutlineInputBorder()),
                                       items: ['Pickup', 'Drop', 'Pickup & Drop'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                                       onChanged: (val) => setDialogState(() => stopType = val!),
@@ -1699,7 +1683,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                     const SizedBox(height: 12),
 
                                     DropdownButtonFormField<String>(
-                                      value: ['Active', 'Inactive', 'Deleted'].contains(status) ? status : 'Active',
+                                      initialValue: ['Active', 'Inactive', 'Deleted'].contains(status) ? status : 'Active',
                                       decoration: const InputDecoration(labelText: 'Status *', border: OutlineInputBorder()),
                                       items: ['Active', 'Inactive', 'Deleted'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                       onChanged: (val) => setDialogState(() => status = val!),
@@ -1716,8 +1700,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     // Dialog Footer Actions
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
+                      decoration: BoxDecoration(
+                        color: _cardBg,
                         border: Border(top: BorderSide(color: _border)),
                       ),
                       child: Row(
@@ -1839,9 +1823,9 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     return Container(
       height: 48,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _border),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
@@ -1856,7 +1840,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
           tabAlignment: TabAlignment.start,
           padding: EdgeInsets.zero,
           labelColor: const Color(0xFF4F46E5),
-          unselectedLabelColor: const Color(0xFF475569),
+          unselectedLabelColor: _textSecondary,
           indicatorColor: const Color(0xFF4F46E5),
           indicatorWeight: 2.5,
           indicatorSize: TabBarIndicatorSize.tab,
@@ -1895,9 +1879,9 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: _bg,
-        body: Center(child: CircularProgressIndicator(color: _accent)),
+        body: const Center(child: CircularProgressIndicator(color: _accent)),
       );
     }
 
@@ -1992,25 +1976,25 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _cardBg,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: _border),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF64748B)),
+              Icon(Icons.calendar_today_rounded, size: 14, color: _textSecondary),
               const SizedBox(width: 8),
               Text(
                 dateStr,
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF334155),
+                  color: _textPrimary,
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Color(0xFF64748B)),
+              Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: _textSecondary),
             ],
           ),
         ),
@@ -2123,31 +2107,26 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
           _buildKPICard('Assigned Drivers', '$assignedDrivers', '${totalRoutes > 0 ? (assignedDrivers / totalRoutes * 100).toStringAsFixed(1) : 0}%', Icons.person_rounded, const Color(0xFF10B981)),
         ];
 
-        if (width >= 950) {
-          return Row(
-            children: [
-              Expanded(child: cards[0]),
-              const SizedBox(width: 12),
-              Expanded(child: cards[1]),
-              const SizedBox(width: 12),
-              Expanded(child: cards[2]),
-              const SizedBox(width: 12),
-              Expanded(child: cards[3]),
-              const SizedBox(width: 12),
-              Expanded(child: cards[4]),
-              const SizedBox(width: 12),
-              Expanded(child: cards[5]),
-            ],
-          );
+        final int cols;
+        const double spacing = 12.0;
+        if (width >= 1440) {
+          cols = 6;
+        } else if (width >= 780) {
+          cols = 3;
+        } else if (width >= 480) {
+          cols = 2;
         } else {
-          final double cardW = (width - 24) / 3;
-          final double finalW = cardW > 160 ? cardW : 160;
-          return Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: cards.map((c) => SizedBox(width: finalW, child: c)).toList(),
-          );
+          cols = 1;
         }
+
+        final double totalSpacing = (cols - 1) * spacing;
+        final double cardWidth = ((width - totalSpacing) / cols).floorToDouble();
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: cards.map((c) => SizedBox(width: cardWidth, child: c)).toList(),
+        );
       },
     );
   }
@@ -2167,12 +2146,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -2186,14 +2165,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             height: 38,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              color: _inputBg,
+              border: Border.all(color: _border),
               borderRadius: BorderRadius.circular(8),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _overviewAreaFilter,
-                style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
+                style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                 items: dynamicAreas.map((area) {
                   return DropdownMenuItem<String>(
                     value: area,
@@ -2213,14 +2192,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             height: 38,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              color: _inputBg,
+              border: Border.all(color: _border),
               borderRadius: BorderRadius.circular(8),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _overviewTypeFilter,
-                style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
+                style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                 items: ['All', 'Pickup', 'Drop', 'Pickup & Drop'].map((t) {
                   return DropdownMenuItem<String>(
                     value: t,
@@ -2240,14 +2219,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             height: 38,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              color: _inputBg,
+              border: Border.all(color: _border),
               borderRadius: BorderRadius.circular(8),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _overviewStatusFilter,
-                style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
+                style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                 items: ['All', 'Active', 'Inactive', 'Draft'].map((s) {
                   return DropdownMenuItem<String>(
                     value: s,
@@ -2279,8 +2258,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               height: 38,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                color: _inputBg,
+                border: Border.all(color: _border),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -2288,7 +2267,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                 children: [
                   const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF64748B)),
                   const SizedBox(width: 8),
-                  Text('$startStr - $endStr', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: const Color(0xFF0F172A))),
+                  Text('$startStr - $endStr', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: _textPrimary)),
                 ],
               ),
             ),
@@ -2307,8 +2286,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               icon: const Icon(Icons.filter_list_rounded, size: 15),
               label: const Text('Reset'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEEF2FF),
-                foregroundColor: const Color(0xFF4F46E5),
+                backgroundColor: _isDark ? const Color(0xFF312E81) : const Color(0xFFEEF2FF),
+                foregroundColor: _isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
                 elevation: 0,
                 shadowColor: Colors.transparent,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -2409,12 +2388,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       height: 280,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -2423,7 +2402,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Route Status Distribution', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: const Color(0xFF0F172A))),
+          Text('Route Status Distribution', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary)),
           const SizedBox(height: 16),
           Expanded(
             child: Row(
@@ -2450,8 +2429,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('$total', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A), height: 1.1)),
-                            Text('Total Routes', style: GoogleFonts.inter(fontSize: 8, color: const Color(0xFF64748B), fontWeight: FontWeight.w500)),
+                            Text('$total', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold, color: _textPrimary, height: 1.1)),
+                            Text('Total Routes', style: GoogleFonts.inter(fontSize: 8, color: _textSecondary, fontWeight: FontWeight.w500)),
                           ],
                         ),
                       ),
@@ -2489,12 +2468,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       height: 280,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -2503,7 +2482,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Route Type Distribution', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: const Color(0xFF0F172A))),
+          Text('Route Type Distribution', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary)),
           const SizedBox(height: 16),
           Expanded(
             child: Row(
@@ -2530,8 +2509,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('$total', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A), height: 1.1)),
-                            Text('Total Routes', style: GoogleFonts.inter(fontSize: 8, color: const Color(0xFF64748B), fontWeight: FontWeight.w500)),
+                            Text('$total', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold, color: _textPrimary, height: 1.1)),
+                            Text('Total Routes', style: GoogleFonts.inter(fontSize: 8, color: _textSecondary, fontWeight: FontWeight.w500)),
                           ],
                         ),
                       ),
@@ -2565,10 +2544,10 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       children: [
         Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 8),
-        Text(label, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w500, color: const Color(0xFF0F172A))),
+        Text(label, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w500, color: _textPrimary)),
         const Spacer(),
-        Text('$val ', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A))),
-        Text('($pct%)', style: GoogleFonts.inter(fontSize: 9, color: const Color(0xFF64748B))),
+        Text('$val ', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: _textPrimary)),
+        Text('($pct%)', style: GoogleFonts.inter(fontSize: 9, color: _textSecondary)),
       ],
     );
   }
@@ -2588,12 +2567,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       height: 280,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -2602,7 +2581,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Routes by Area / Zone', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: const Color(0xFF0F172A))),
+          Text('Routes by Area / Zone', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary)),
           const SizedBox(height: 16),
           Expanded(
             child: topAreas.isEmpty
@@ -2618,7 +2597,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                             width: 120,
                             child: Text(
                               entry.key,
-                              style: GoogleFonts.inter(fontSize: 10, color: const Color(0xFF64748B), fontWeight: FontWeight.w500),
+                              style: GoogleFonts.inter(fontSize: 10, color: _textSecondary, fontWeight: FontWeight.w500),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -2647,7 +2626,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text('${entry.value}', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A))),
+                          Text('${entry.value}', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: _textPrimary)),
                         ],
                       );
                     }).toList(),
@@ -2710,12 +2689,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -2724,7 +2703,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Recent Routes', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: const Color(0xFF0F172A))),
+          Text('Recent Routes', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary)),
           const SizedBox(height: 12),
           
           Scrollbar(
@@ -2737,20 +2716,20 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                 width: 1050,
                 child: DataTable(
                   columnSpacing: 16,
-                  headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                  headingRowColor: WidgetStateProperty.all(_isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
                   dataRowMinHeight: 48,
                   dataRowMaxHeight: 54,
                   columns: [
-                    DataColumn(label: Text('Route Code', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
-                    DataColumn(label: Text('Route Name', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
-                    DataColumn(label: Text('Area / Zone', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
-                    DataColumn(label: Text('Type', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
-                    DataColumn(label: Text('Distance', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
-                    DataColumn(label: Text('Stops', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
-                    DataColumn(label: Text('Assigned Bus', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
-                    DataColumn(label: Text('Driver', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
-                    DataColumn(label: Text('Status', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
-                    DataColumn(label: Text('Actions', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
+                    DataColumn(label: Text('Route Code', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
+                    DataColumn(label: Text('Route Name', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
+                    DataColumn(label: Text('Area / Zone', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
+                    DataColumn(label: Text('Type', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
+                    DataColumn(label: Text('Distance', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
+                    DataColumn(label: Text('Stops', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
+                    DataColumn(label: Text('Assigned Bus', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
+                    DataColumn(label: Text('Driver', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
+                    DataColumn(label: Text('Status', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
+                    DataColumn(label: Text('Actions', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
                   ],
                   rows: recent.map((r) {
                     final code = r['route_code'] ?? 'RT-001';
@@ -2831,7 +2810,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Showing 1 to ${recent.length} of $total routes', style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B))),
+              Text('Showing 1 to ${recent.length} of $total routes', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
               TextButton.icon(
                 icon: const Icon(Icons.arrow_forward_rounded, size: 14),
                 label: Text('View All Routes', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold)),
@@ -2866,12 +2845,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -2880,7 +2859,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Route Summary', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: const Color(0xFF0F172A))),
+          Text('Route Summary', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary)),
           const SizedBox(height: 12),
           _buildSummaryRow('Route Code Range', filteredRoutes.isEmpty ? '—' : 'RT-001 to RT-${filteredRoutes.length.toString().padLeft(3, '0')}'),
           const Divider(height: 12, color: Color(0xFFF1F5F9)),
@@ -2902,8 +2881,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B))),
-        Text(value, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A))),
+        Text(label, style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
+        Text(value, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: _textPrimary)),
       ],
     );
   }
@@ -2916,12 +2895,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -2930,17 +2909,17 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Top Performing Routes', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: const Color(0xFF0F172A))),
+          Text('Top Performing Routes', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary)),
           const SizedBox(height: 12),
           ...top.map((r) {
             final name = r['route_name'] ?? 'Route';
-            final pct = '95.4%';
+            const pct = '95.4%';
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(name, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: const Color(0xFF0F172A))),
+                  Text(name, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: _textPrimary)),
                   Row(
                     children: [
                       Text(pct, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: _green)),
@@ -2952,91 +2931,6 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               ),
             );
           }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentActivityCard() {
-    final activities = [
-      {
-        "title": "Route 101 (Morning) updated",
-        "desc": "Distance updated from 17.8 km to 18.6 km",
-        "time": "10:30 AM",
-        "color": _green,
-        "icon": Icons.check_circle_outline,
-      },
-      {
-        "title": "New route RT-028 created",
-        "desc": "Route 108 (Morning) added",
-        "time": "09:15 AM",
-        "color": _accent,
-        "icon": Icons.add_circle_outline,
-      },
-      {
-        "title": "Route 104 (Afternoon) edited",
-        "desc": "Stops updated [20 -> 21]",
-        "time": "Yesterday",
-        "color": _blue,
-        "icon": Icons.edit_location_alt_outlined,
-      },
-      {
-        "title": "Route 021 deactivated",
-        "desc": "No trips scheduled",
-        "time": "2 Days ago",
-        "color": _orange,
-        "icon": Icons.toggle_off_outlined,
-      },
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: _border),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Recent Activity', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary)),
-          const SizedBox(height: 16),
-          ...activities.map((a) {
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
-                  children: [
-                    Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(color: (a['color'] as Color).withValues(alpha: 0.1), shape: BoxShape.circle),
-                      child: Icon(a['icon'] as IconData, size: 12, color: a['color'] as Color),
-                    ),
-                    Container(width: 2, height: 24, color: _border),
-                  ],
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(a['title'] as String, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: _textPrimary)),
-                      Text(a['desc'] as String, style: GoogleFonts.inter(fontSize: 9, color: _textSecondary)),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
-                ),
-                Text(a['time'] as String, style: GoogleFonts.inter(fontSize: 8, color: _textSecondary)),
-              ],
-            );
-          }),
-          const Divider(height: 8),
-          const SizedBox(height: 8),
-          TextButton(
-            child: Text('View All Activity', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold)),
-            onPressed: () => _tabController.animateTo(1),
-          ),
         ],
       ),
     );
@@ -3113,12 +3007,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: _cardBg,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+                border: Border.all(color: _border),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                    color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -3136,7 +3030,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                         hintStyle: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF94A3B8)),
                         prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF94A3B8)),
                         filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
+                        fillColor: _inputBg,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -3158,14 +3052,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     height: 38,
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      color: _inputBg,
+                      border: Border.all(color: _border),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: _statusFilter,
-                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
+                        style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                         items: ['All', 'Active', 'Inactive', 'Draft'].map((s) => DropdownMenuItem(value: s, child: Text('$s Status'))).toList(),
                         onChanged: (val) => setState(() { _statusFilter = val!; _currentPage = 1; }),
                       ),
@@ -3176,14 +3070,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     height: 38,
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      color: _inputBg,
+                      border: Border.all(color: _border),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: _typeFilter,
-                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
+                        style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                         items: ['All', 'Pickup', 'Drop'].map((s) => DropdownMenuItem(value: s, child: Text('$s Types'))).toList(),
                         onChanged: (val) => setState(() { _typeFilter = val!; _currentPage = 1; }),
                       ),
@@ -3194,14 +3088,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     height: 38,
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      color: _inputBg,
+                      border: Border.all(color: _border),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: _areaFilter,
-                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
+                        style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                         items: ['All', 'Noida', 'Greater Noida', 'Dadri', 'Knowledge Park'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Areas' : s))).toList(),
                         onChanged: (val) => setState(() { _areaFilter = val!; _currentPage = 1; }),
                       ),
@@ -3221,8 +3115,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                       icon: const Icon(Icons.filter_list_rounded, size: 15),
                       label: const Text('Reset'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFEEF2FF),
-                        foregroundColor: const Color(0xFF4F46E5),
+                        backgroundColor: _isDark ? const Color(0xFF312E81) : const Color(0xFFEEF2FF),
+                        foregroundColor: _isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
                         elevation: 0,
                         shadowColor: Colors.transparent,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -3304,7 +3198,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                   Expanded(
                     flex: 5,
                     child: Container(
-                      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
+                      decoration: BoxDecoration(color: _cardBg, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -3391,7 +3285,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                                 DataCell(Text(r['area_zone'] ?? '—', style: GoogleFonts.inter(fontSize: 12))),
                                               DataCell(Text('${r['distance_km'] ?? 0.0} km', style: GoogleFonts.inter(fontSize: 12))),
                                               DataCell(Text('${r['stops_count'] ?? 0}', style: GoogleFonts.inter(fontSize: 12))),
-                                              DataCell(Text((r['bus_routes'] ?? {})['bus_number'] ?? r['bus_number'] ?? 'Unassigned', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500))),
+                                              DataCell(Text(busName, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500))),
                                               DataCell(Text(driverName, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500))),
                                               DataCell(Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -3446,13 +3340,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                       height: 28,
                                       padding: const EdgeInsets.symmetric(horizontal: 6),
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
+                                        color: _cardBg,
                                         border: Border.all(color: _border),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: DropdownButtonHideUnderline(
                                         child: DropdownButton<int>(
                                           value: _pageSize,
+                                          dropdownColor: _cardBg,
                                           style: GoogleFonts.inter(fontSize: 11, color: _textPrimary, fontWeight: FontWeight.bold),
                                           items: [5, 8, 10, 15, 20, 50].map((int val) {
                                             return DropdownMenuItem<int>(
@@ -3507,7 +3402,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                   Expanded(
                     flex: 4,
                     child: Container(
-                      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
+                      decoration: BoxDecoration(color: _cardBg, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
                       child: _selectedRoute == null
                           ? const Center(child: Text('Select a route to view map preview'))
                           : Column(
@@ -3569,8 +3464,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                                   PolylineLayer(
                                          polylines: [
                                            Polyline(
-                                             points: _stopsTabPolylinePoints.isNotEmpty
-                                                 ? _stopsTabPolylinePoints
+                                             points: _routeMapPolylinePoints.isNotEmpty
+                                                 ? _routeMapPolylinePoints
                                                  : _selectedRouteStops.map((s) => LatLng(
                                                      double.tryParse(s['latitude'].toString()) ?? 28.62,
                                                      double.tryParse(s['longitude'].toString()) ?? 77.36
@@ -3643,7 +3538,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                               Expanded(
                                                 child: Row(
                                                   children: [
-                                                    const Icon(Icons.directions_bus_filled_outlined, size: 16, color: _textSecondary),
+                                                    Icon(Icons.directions_bus_filled_outlined, size: 16, color: _textSecondary),
                                                     const SizedBox(width: 8),
                                                     Expanded(
                                                       child: Column(
@@ -3664,7 +3559,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                               Expanded(
                                                 child: Row(
                                                   children: [
-                                                    const Icon(Icons.person_pin_circle_outlined, size: 16, color: _textSecondary),
+                                                    Icon(Icons.person_pin_circle_outlined, size: 16, color: _textSecondary),
                                                     const SizedBox(width: 8),
                                                     Expanded(
                                                       child: Column(
@@ -3705,7 +3600,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                         // Stops Timeline List (Scrollable Box filling remaining height)
                         Expanded(
                           child: Container(
-                            decoration: BoxDecoration(color: Colors.white, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
+                            decoration: BoxDecoration(color: _cardBg, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
                             padding: const EdgeInsets.all(16),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -3741,7 +3636,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
 
                         // Quick Actions Panel
                         Container(
-                          decoration: BoxDecoration(color: Colors.white, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
+                          decoration: BoxDecoration(color: _cardBg, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
                           padding: const EdgeInsets.all(16),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -3796,12 +3691,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -3850,7 +3745,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: const Color(0xFF0F172A),
+              color: _textPrimary,
               height: 1.1,
               letterSpacing: -0.5,
             ),
@@ -3861,7 +3756,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             style: GoogleFonts.inter(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF64748B),
+              color: _textSecondary,
             ),
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
@@ -4385,7 +4280,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
 
             return DropdownButtonFormField<String?>(
               isExpanded: true,
-              value: validVehicleId,
+              initialValue: validVehicleId,
               decoration: const InputDecoration(labelText: 'Assign Bus / Vehicle', border: OutlineInputBorder(), isDense: true),
               items: [
                 const DropdownMenuItem<String?>(value: null, child: Text('Unassigned', overflow: TextOverflow.ellipsis)),
@@ -4428,7 +4323,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
 
             return DropdownButtonFormField<String?>(
               isExpanded: true,
-              value: validDriverId,
+              initialValue: validDriverId,
               decoration: const InputDecoration(labelText: 'Assign Driver', border: OutlineInputBorder(), isDense: true),
               items: [
                 const DropdownMenuItem<String?>(value: null, child: Text('Unassigned', overflow: TextOverflow.ellipsis)),
@@ -4441,7 +4336,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           isExpanded: true,
-          value: ['Active', 'Inactive', 'Draft'].contains(status) ? status : 'Active',
+          initialValue: ['Active', 'Inactive', 'Draft'].contains(status) ? status : 'Active',
           decoration: const InputDecoration(labelText: 'Status *', border: OutlineInputBorder(), isDense: true),
           items: ['Active', 'Inactive', 'Draft'].map((s) => DropdownMenuItem(value: s, child: Text(s, overflow: TextOverflow.ellipsis))).toList(),
           onChanged: (val) => onStatusChanged(val!),
@@ -4492,9 +4387,9 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: _inputBg,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: _border),
             ),
             child: Column(
               children: [
@@ -4508,7 +4403,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                 Text(
                   'Use the separate "Add / Edit Stop Location" section on the map to add stops to this route.',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(fontSize: 11, color: Color(0xFF94A3B8)),
+                  style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF94A3B8)),
                 ),
               ],
             ),
@@ -4542,9 +4437,9 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                   key: ValueKey(stopKey),
                   margin: const EdgeInsets.only(bottom: 10),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: _cardBg,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: _border),
                     boxShadow: const [
                       BoxShadow(color: Color(0x0A0F172A), blurRadius: 6, offset: Offset(0, 2)),
                     ],
@@ -4647,9 +4542,9 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                           child: Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
+                              color: _inputBg,
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              border: Border.all(color: _border),
                             ),
                             child: const Icon(Icons.drag_indicator_rounded, color: Color(0xFF64748B), size: 16),
                           ),
@@ -4676,18 +4571,31 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _border),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
-          items: items,
+          items: items.map((item) {
+            final childWidget = item.child;
+            if (childWidget is Text) {
+              return DropdownMenuItem<String>(
+                value: item.value,
+                child: Text(
+                  childWidget.data ?? '',
+                  style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              );
+            }
+            return item;
+          }).toList(),
           onChanged: onChanged,
-          icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF64748B)),
-          style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF1E293B)),
-          dropdownColor: Colors.white,
+          icon: Icon(Icons.arrow_drop_down, color: _textSecondary),
+          style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
+          dropdownColor: _cardBg,
           isExpanded: true,
         ),
       ),
@@ -4695,906 +4603,6 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   }
 
 
-  String _getRouteType(dynamic r) {
-    final name = (r['route_name'] ?? '').toString().toLowerCase();
-    if (name.contains('morning')) return 'Morning';
-    if (name.contains('afternoon')) return 'Afternoon';
-    if (name.contains('evening')) return 'Evening';
-    return 'General';
-  }
-
-  String _getRouteCode(dynamic r) {
-    if (r['route_code'] != null && r['route_code'].toString().isNotEmpty) {
-      return r['route_code'].toString();
-    }
-    final name = (r['route_name'] ?? '').toString();
-    if (name.contains('Route ')) {
-      final num = name.replaceAll('Route ', '').trim();
-      return 'RT-${num.padLeft(3, '0')}';
-    }
-    final idStr = r['id']?.toString() ?? '000';
-    return 'RT-${idStr.substring(0, 3).toUpperCase()}';
-  }
-
-  Future<void> _performAssignment() async {
-    if (_assignSelectedRouteId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a route to assign'), backgroundColor: Colors.red),
-      );
-      return;
-    }
-    if (_assignSelectedVehicleId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a vehicle to assign'), backgroundColor: Colors.red),
-      );
-      return;
-    }
-    if (_assignSelectedDriverId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a driver to assign'), backgroundColor: Colors.red),
-      );
-      return;
-    }
-
-    setState(() => _isLoadingAssignmentsTab = true);
-
-    try {
-      final dateStr = '${_assignStartDate.year}-${_assignStartDate.month.toString().padLeft(2, '0')}-${_assignStartDate.day.toString().padLeft(2, '0')}';
-      
-      // 1. Update the route's vehicle and driver in transport_routes table
-      await ApiService().put('/transport/routes/$_assignSelectedRouteId', {
-        "vehicle_id": _assignSelectedVehicleId,
-        "driver_id": _assignSelectedDriverId,
-      });
-
-      // Reset form
-      setState(() {
-        _assignSelectedRouteId = null;
-        _assignSelectedVehicleId = null;
-        _assignSelectedDriverId = null;
-        _assignNotesController.clear();
-      });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bus assigned successfully!'), backgroundColor: _green),
-      );
-
-      _loadData();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to complete assignment: $e'), backgroundColor: _red),
-      );
-    } finally {
-      setState(() => _isLoadingAssignmentsTab = false);
-    }
-  }
-
-  Future<void> _removeAssignment(dynamic r) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Remove Assignment'),
-        content: Text('Are you sure you want to unassign the vehicle and driver from ${r['route_name']}?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: _red),
-            child: const Text('Unassign'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      setState(() => _isLoadingAssignmentsTab = true);
-      try {
-        final routeId = r['id'].toString();
-
-        // Find if there is an active assignment record to delete or complete
-        final activeAssign = _assignments.firstWhere(
-          (a) => a['route_id']?.toString() == routeId && a['status']?.toString().toLowerCase() == 'active',
-          orElse: () => null,
-        );
-
-        if (activeAssign != null) {
-          await ApiService().delete('/transport/drivers/assignments/${activeAssign['id']}');
-        }
-
-        // Update route configuration
-        await ApiService().put('/transport/routes/$routeId', {
-          "vehicle_id": null,
-          "driver_id": null,
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Bus unassigned successfully'), backgroundColor: _green),
-        );
-        _loadData();
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to remove assignment: $e'), backgroundColor: _red),
-        );
-      } finally {
-        setState(() => _isLoadingAssignmentsTab = false);
-      }
-    }
-  }
-
-  Widget _buildAssignBusKpiCard(String title, String value, String subtitle, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: _border),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.08), shape: BoxShape.circle),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(title, style: GoogleFonts.inter(fontSize: 10, color: _textSecondary, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 2),
-                Text(value, style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: _textPrimary)),
-                const SizedBox(height: 2),
-                Text(subtitle, style: GoogleFonts.inter(fontSize: 9, color: color, fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAssignBusTab() {
-    // 1. Filter routes list
-    final filteredRoutes = _routes.where((r) {
-      if (_assignSearchQuery.isNotEmpty) {
-        final q = _assignSearchQuery.toLowerCase();
-        final name = (r['route_name'] ?? '').toString().toLowerCase();
-        final code = _getRouteCode(r).toLowerCase();
-        final zone = (r['area_zone'] ?? '').toString().toLowerCase();
-        if (!name.contains(q) && !code.contains(q) && !zone.contains(q)) return false;
-      }
-      if (_assignAreaFilter != 'All') {
-        if (r['area_zone']?.toString() != _assignAreaFilter) return false;
-      }
-      if (_assignTypeFilter != 'All') {
-        if (_getRouteType(r) != _assignTypeFilter) return false;
-      }
-      if (_assignStatusFilter != 'All') {
-        final isAssigned = r['vehicle_id'] != null;
-        if (_assignStatusFilter == 'Assigned' && !isAssigned) return false;
-        if (_assignStatusFilter == 'Unassigned' && isAssigned) return false;
-      }
-      return true;
-    }).toList();
-
-    // Calculate pagination details
-    final total = filteredRoutes.length;
-    final totalPages = (total / _assignPageSize).ceil();
-    if (_assignCurrentPage > totalPages && totalPages > 0) {
-      _assignCurrentPage = totalPages;
-    } else if (_assignCurrentPage < 1) {
-      _assignCurrentPage = 1;
-    }
-    final startIdx = total == 0 ? 0 : (_assignCurrentPage - 1) * _assignPageSize;
-    final endIdx = startIdx + _assignPageSize > total ? total : startIdx + _assignPageSize;
-    final paginatedRoutes = filteredRoutes.isEmpty ? <dynamic>[] : filteredRoutes.sublist(startIdx, endIdx);
-
-    // Dynamic stats computation
-    final totalRoutes = _routes.length;
-    final assignedRoutesCount = _routes.where((r) => r['vehicle_id'] != null).length;
-    final unassignedRoutesCount = totalRoutes - assignedRoutesCount;
-    final assignedRoutesPct = totalRoutes > 0 ? (assignedRoutesCount / totalRoutes * 100).toStringAsFixed(2) : '0.00';
-    final unassignedRoutesPct = totalRoutes > 0 ? (unassignedRoutesCount / totalRoutes * 100).toStringAsFixed(2) : '0.00';
-
-    final totalBuses = _vehicles.length;
-    final assignedBusesCount = _vehicles.where((v) => _routes.any((r) => r['vehicle_id']?.toString() == v['id']?.toString())).length;
-    final availableBusesCount = totalBuses - assignedBusesCount;
-    final assignedBusesPct = totalBuses > 0 ? (assignedBusesCount / totalBuses * 100).toStringAsFixed(2) : '0.00';
-    final availableBusesPct = totalBuses > 0 ? (availableBusesCount / totalBuses * 100).toStringAsFixed(2) : '0.00';
-
-    // Get available buses
-    final availableBuses = _vehicles.where((v) => !_routes.any((r) => r['vehicle_id']?.toString() == v['id']?.toString())).toList();
-
-    // Unique zones list for filter
-    final zonesSet = _routes.map((r) => r['area_zone']?.toString()).whereType<String>().where((z) => z.isNotEmpty).toSet().toList();
-
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // KPI metrics
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-            child: Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: [
-                SizedBox(width: 175, child: _buildAssignBusKpiCard('Total Routes', '$totalRoutes', 'All Routes', Icons.alt_route, _accent)),
-                SizedBox(width: 175, child: _buildAssignBusKpiCard('Assigned Routes', '$assignedRoutesCount', '$assignedRoutesPct%', Icons.check_circle_rounded, _green)),
-                SizedBox(width: 175, child: _buildAssignBusKpiCard('Unassigned Routes', '$unassignedRoutesCount', '$unassignedRoutesPct%', Icons.pause_circle_rounded, _orange)),
-                SizedBox(width: 175, child: _buildAssignBusKpiCard('Total Buses', '$totalBuses', 'All Buses', Icons.directions_bus, Colors.blue)),
-                SizedBox(width: 175, child: _buildAssignBusKpiCard('Assigned Buses', '$assignedBusesCount', '$assignedBusesPct%', Icons.directions_bus_filled_outlined, Colors.indigo)),
-                SizedBox(width: 175, child: _buildAssignBusKpiCard('Available Buses', '$availableBusesCount', '$availableBusesPct%', Icons.circle_outlined, Colors.pink)),
-              ],
-            ),
-          ),
-
-          // Filters Row
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    _buildTripsFilterDropdown(
-                      value: _assignAreaFilter,
-                      width: 155,
-                      items: [
-                        const DropdownMenuItem(value: 'All', child: Text('All Areas / Zones')),
-                        ...zonesSet.map((z) => DropdownMenuItem(value: z, child: Text(z))),
-                      ],
-                      onChanged: (val) => setState(() { _assignAreaFilter = val!; _assignCurrentPage = 1; }),
-                    ),
-                    _buildTripsFilterDropdown(
-                      value: _assignTypeFilter,
-                      width: 140,
-                      items: const [
-                        DropdownMenuItem(value: 'All', child: Text('All Route Types')),
-                        DropdownMenuItem(value: 'Morning', child: Text('Morning')),
-                        DropdownMenuItem(value: 'Afternoon', child: Text('Afternoon')),
-                        DropdownMenuItem(value: 'Evening', child: Text('Evening')),
-                        DropdownMenuItem(value: 'General', child: Text('General')),
-                      ],
-                      onChanged: (val) => setState(() { _assignTypeFilter = val!; _assignCurrentPage = 1; }),
-                    ),
-                    _buildTripsFilterDropdown(
-                      value: _assignStatusFilter,
-                      width: 130,
-                      items: const [
-                        DropdownMenuItem(value: 'All', child: Text('All Status')),
-                        DropdownMenuItem(value: 'Assigned', child: Text('Assigned')),
-                        DropdownMenuItem(value: 'Unassigned', child: Text('Unassigned')),
-                      ],
-                      onChanged: (val) => setState(() { _assignStatusFilter = val!; _assignCurrentPage = 1; }),
-                    ),
-                    SizedBox(
-                      width: 200,
-                      height: 40,
-                      child: TextField(
-                        controller: _assignSearchController,
-                        decoration: InputDecoration(
-                          prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
-                          hintText: 'Search routes...',
-                          hintStyle: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF94A3B8)),
-                          fillColor: Colors.white,
-                          filled: true,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        ),
-                      ),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () => setState(() {
-                        _assignSearchController.clear();
-                        _assignSearchQuery = '';
-                        _assignAreaFilter = 'All';
-                        _assignTypeFilter = 'All';
-                        _assignStatusFilter = 'All';
-                        _assignCurrentPage = 1;
-                      }),
-                      icon: const Icon(Icons.filter_list, size: 14),
-                      label: const Text('Reset'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF64748B),
-                        side: const BorderSide(color: Color(0xFFE2E8F0)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: _loadData,
-                      icon: const Icon(Icons.refresh, size: 18),
-                      style: IconButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: Color(0xFFE2E8F0))),
-                        padding: const EdgeInsets.all(10),
-                      ),
-                    ),
-                  ],
-                ),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    // Populate first route, vehicle, driver if available to assign
-                    setState(() {
-                      if (_routes.isNotEmpty) _assignSelectedRouteId = _routes[0]['id']?.toString();
-                      if (availableBuses.isNotEmpty) _assignSelectedVehicleId = availableBuses[0]['id']?.toString();
-                      if (_drivers.isNotEmpty) _assignSelectedDriverId = _drivers[0]['id']?.toString();
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _accent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  icon: const Icon(Icons.add_link, size: 16),
-                  label: const Text('Assign Bus'),
-                ),
-              ],
-            ),
-          ),
-
-          // Main split content
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-            child: SizedBox(
-              height: 750,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Left side: Routes table
-                  Expanded(
-                    flex: 7,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: _border),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(
-                            child: _isLoadingAssignmentsTab
-                                ? const Center(child: CircularProgressIndicator())
-                                : filteredRoutes.isEmpty
-                                    ? Center(
-                                        child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            const Icon(Icons.link_off_rounded, size: 48, color: _gray),
-                                            const SizedBox(height: 16),
-                                            Text('No Routes Found', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary)),
-                                            Text('Try adjusting your search query or filters.', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
-                                          ],
-                                        ),
-                                      )
-                                    : Scrollbar(
-                                        controller: _assignTableScrollController,
-                                        thumbVisibility: true,
-                                        child: SingleChildScrollView(
-                                          controller: _assignTableScrollController,
-                                          scrollDirection: Axis.horizontal,
-                                          child: SingleChildScrollView(
-                                            child: SizedBox(
-                                              width: 1000,
-                                              child: DataTable(
-                                                headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-                                                dataRowMinHeight: 64,
-                                                dataRowMaxHeight: 76,
-                                                columnSpacing: 20,
-                                                horizontalMargin: 16,
-                                                showCheckboxColumn: false,
-                                                columns: [
-                                                  DataColumn(label: Text('Route Code', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
-                                                  DataColumn(label: Text('Route Name', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
-                                                  DataColumn(label: Text('Area / Zone', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
-                                                  DataColumn(label: Text('Stops', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
-                                                  DataColumn(label: Text('Distance', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
-                                                  DataColumn(label: Text('Assigned Bus', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
-                                                  DataColumn(label: Text('Driver', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
-                                                  DataColumn(label: Text('Status', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
-                                                  DataColumn(label: Text('Actions', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
-                                                ],
-                                                rows: paginatedRoutes.map((r) {
-                                                  final isAssigned = r['vehicle_id'] != null;
-                                                  final code = _getRouteCode(r);
-                                                  final busNo = (r['bus_routes'] ?? {})['bus_number'] ?? '—';
-                                                  final busType = (r['bus_routes'] ?? {})['vehicle_type'] ?? '';
-                                                  final driverName = (r['drivers'] ?? {})['name'] ?? '—';
-
-                                                  return DataRow(
-                                                    cells: [
-                                                      DataCell(Container(
-                                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                        decoration: BoxDecoration(color: _accent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
-                                                        child: Text(code, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: _accent, fontSize: 11)),
-                                                      )),
-                                                      DataCell(
-                                                        Column(
-                                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                                          mainAxisAlignment: MainAxisAlignment.center,
-                                                          children: [
-                                                            Text(r['route_name'] ?? 'Morning Route', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600)),
-                                                            Text('${_getRouteType(r)} Route', style: GoogleFonts.inter(fontSize: 9, color: _textSecondary)),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                      DataCell(Text(r['area_zone'] ?? '—', style: GoogleFonts.inter(fontSize: 11))),
-                                                      DataCell(Text('${r['stops_count'] ?? 0}', style: GoogleFonts.inter(fontSize: 11))),
-                                                      DataCell(Text('${r['distance_km'] ?? 0.0} km', style: GoogleFonts.inter(fontSize: 11))),
-                                                      DataCell(
-                                                        Column(
-                                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                                          mainAxisAlignment: MainAxisAlignment.center,
-                                                          children: [
-                                                            Text(busNo, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold)),
-                                                            if (busType.isNotEmpty) Text(busType, style: GoogleFonts.inter(fontSize: 9, color: _textSecondary)),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                      DataCell(Text(driverName, style: GoogleFonts.inter(fontSize: 11))),
-                                                      DataCell(
-                                                        Container(
-                                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                          decoration: BoxDecoration(
-                                                            color: isAssigned ? _green.withValues(alpha: 0.1) : _orange.withValues(alpha: 0.1),
-                                                            borderRadius: BorderRadius.circular(4),
-                                                          ),
-                                                          child: Text(
-                                                            isAssigned ? 'Assigned' : 'Unassigned',
-                                                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: isAssigned ? _green : _orange),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      DataCell(
-                                                        Row(
-                                                          mainAxisSize: MainAxisSize.min,
-                                                          children: [
-                                                            IconButton(
-                                                              icon: const Icon(Icons.info_outline, size: 16, color: _accent),
-                                                              tooltip: 'Details',
-                                                              onPressed: () {
-                                                                showDialog(
-                                                                  context: context,
-                                                                  builder: (ctx) => AlertDialog(
-                                                                    title: Text('Route Details: $code'),
-                                                                    content: Column(
-                                                                      mainAxisSize: MainAxisSize.min,
-                                                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                                                      children: [
-                                                                        Text('Name: ${r['route_name']}'),
-                                                                        Text('Zone: ${r['area_zone']}'),
-                                                                        Text('Stops: ${r['stops_count']}'),
-                                                                        Text('Distance: ${r['distance_km']} km'),
-                                                                        Text('Bus No: $busNo'),
-                                                                        Text('Driver: $driverName'),
-                                                                      ],
-                                                                    ),
-                                                                    actions: [
-                                                                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
-                                                                    ],
-                                                                  ),
-                                                                );
-                                                              },
-                                                            ),
-                                                            if (isAssigned) ...[
-                                                              IconButton(
-                                                                icon: const Icon(Icons.edit_outlined, size: 16, color: Colors.blue),
-                                                                tooltip: 'Edit Assignment',
-                                                                onPressed: () {
-                                                                  setState(() {
-                                                                    _assignSelectedRouteId = r['id']?.toString();
-                                                                    _assignSelectedVehicleId = r['vehicle_id']?.toString();
-                                                                    _assignSelectedDriverId = r['driver_id']?.toString();
-                                                                  });
-                                                                },
-                                                              ),
-                                                              IconButton(
-                                                                icon: const Icon(Icons.delete_outline, size: 16, color: _red),
-                                                                tooltip: 'Remove Assignment',
-                                                                onPressed: () => _removeAssignment(r),
-                                                              ),
-                                                            ] else ...[
-                                                              IconButton(
-                                                                icon: const Icon(Icons.add_link, size: 16, color: _orange),
-                                                                tooltip: 'Quick Assign',
-                                                                onPressed: () {
-                                                                  setState(() {
-                                                                    _assignSelectedRouteId = r['id']?.toString();
-                                                                    if (availableBuses.isNotEmpty) _assignSelectedVehicleId = availableBuses[0]['id']?.toString();
-                                                                    if (_drivers.isNotEmpty) _assignSelectedDriverId = _drivers[0]['id']?.toString();
-                                                                  });
-                                                                },
-                                                              ),
-                                                            ],
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  );
-                                                }).toList(),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                          ),
-                          // Pagination bar
-                          const Divider(height: 1),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: const BoxDecoration(color: Color(0xFFF8FAFC)),
-                            child: Wrap(
-                              alignment: WrapAlignment.spaceBetween,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                Text('Showing ${total > 0 ? startIdx + 1 : 0} to $endIdx of $total routes', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text('Show', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      height: 28,
-                                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        border: Border.all(color: _border),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<int>(
-                                          value: _assignPageSize,
-                                          style: GoogleFonts.inter(fontSize: 11, color: _textPrimary, fontWeight: FontWeight.bold),
-                                          items: [5, 8, 10, 15, 20, 50].map((int val) {
-                                            return DropdownMenuItem<int>(
-                                              value: val,
-                                              child: Text('$val'),
-                                            );
-                                          }).toList(),
-                                          onChanged: (val) {
-                                            setState(() {
-                                              _assignPageSize = val!;
-                                              _assignCurrentPage = 1;
-                                            });
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text('entries', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
-                                  ],
-                                ),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.chevron_left, size: 18),
-                                      onPressed: _assignCurrentPage > 1 ? () => setState(() => _assignCurrentPage--) : null,
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text('$_assignCurrentPage / ${totalPages == 0 ? 1 : totalPages}', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold)),
-                                    const SizedBox(width: 8),
-                                    IconButton(
-                                      icon: const Icon(Icons.chevron_right, size: 18),
-                                      onPressed: _assignCurrentPage < totalPages ? () => setState(() => _assignCurrentPage++) : null,
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-
-                  // Right side: Form & Available list
-                  Expanded(
-                    flex: 3,
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Form
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              border: Border.all(color: _border),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Text('Assign Bus to Route', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary)),
-                                const SizedBox(height: 12),
-
-                                // Route select
-                                Text('Select Route *', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: _textSecondary)),
-                                const SizedBox(height: 6),
-                                _buildTripsFilterDropdown(
-                                  value: (_assignSelectedRouteId == null || !_routes.any((r) => r['id']?.toString() == _assignSelectedRouteId)) ? 'placeholder' : _assignSelectedRouteId!,
-                                  width: double.infinity,
-                                  items: [
-                                    const DropdownMenuItem(value: 'placeholder', child: Text('Select Route...')),
-                                    ..._routes.map((r) => DropdownMenuItem(value: r['id']?.toString(), child: Text('${_getRouteCode(r)} - ${r['route_name']}'))),
-                                  ],
-                                  onChanged: (val) => setState(() {
-                                    _assignSelectedRouteId = val == 'placeholder' ? null : val;
-                                  }),
-                                ),
-                                const SizedBox(height: 12),
-
-                                // Bus select
-                                Text('Select Bus *', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: _textSecondary)),
-                                const SizedBox(height: 6),
-                                _buildTripsFilterDropdown(
-                                  value: (_assignSelectedVehicleId == null || !_vehicles.any((v) => v['id']?.toString() == _assignSelectedVehicleId)) ? 'placeholder' : _assignSelectedVehicleId!,
-                                  width: double.infinity,
-                                  items: [
-                                    const DropdownMenuItem(value: 'placeholder', child: Text('Select an available bus...')),
-                                    ..._vehicles.map((v) => DropdownMenuItem(value: v['id']?.toString(), child: Text('${v['bus_number']} (${v['vehicle_type'] ?? 'Bus'})'))),
-                                  ],
-                                  onChanged: (val) => setState(() {
-                                    _assignSelectedVehicleId = val == 'placeholder' ? null : val;
-                                  }),
-                                ),
-                                const SizedBox(height: 12),
-
-                                // Driver select
-                                Text('Select Driver *', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: _textSecondary)),
-                                const SizedBox(height: 6),
-                                _buildTripsFilterDropdown(
-                                  value: (_assignSelectedDriverId == null || !_drivers.any((d) => d['id']?.toString() == _assignSelectedDriverId)) ? 'placeholder' : _assignSelectedDriverId!,
-                                  width: double.infinity,
-                                  items: [
-                                    const DropdownMenuItem(value: 'placeholder', child: Text('Select a driver...')),
-                                    ..._drivers.map((d) => DropdownMenuItem(value: d['id']?.toString(), child: Text(d['name'] ?? 'Driver'))),
-                                  ],
-                                  onChanged: (val) => setState(() {
-                                    _assignSelectedDriverId = val == 'placeholder' ? null : val;
-                                  }),
-                                ),
-                                const SizedBox(height: 12),
-
-                                // Start Date selector
-                                Text('Start Date *', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: _textSecondary)),
-                                const SizedBox(height: 6),
-                                InkWell(
-                                  onTap: () async {
-                                    final picked = await showDatePicker(
-                                      context: context,
-                                      initialDate: _assignStartDate,
-                                      firstDate: DateTime(2020),
-                                      lastDate: DateTime(2030),
-                                    );
-                                    if (picked != null) {
-                                      setState(() {
-                                        _assignStartDate = picked;
-                                      });
-                                    }
-                                  },
-                                  child: Container(
-                                    height: 40,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          '${_assignStartDate.day.toString().padLeft(2, '0')} ${_assignStartDate.month.toString().padLeft(2, '0')} ${_assignStartDate.year}',
-                                          style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
-                                        ),
-                                        const Icon(Icons.calendar_today, size: 16, color: Color(0xFF64748B)),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-
-                                // Notes textfield
-                                Text('Notes (Optional)', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: _textSecondary)),
-                                const SizedBox(height: 6),
-                                TextField(
-                                  controller: _assignNotesController,
-                                  maxLines: 2,
-                                  decoration: InputDecoration(
-                                    hintText: 'Enter notes...',
-                                    hintStyle: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF94A3B8)),
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                                    contentPadding: const EdgeInsets.all(12),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-
-                                // Assign Now button
-                                ElevatedButton(
-                                  onPressed: _performAssignment,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: _accent,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                  ),
-                                  child: Text('Assign Now', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12)),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Available list
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              border: Border.all(color: _border),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text('Available Buses (${availableBuses.length})', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary)),
-                                    InkWell(
-                                      onTap: () => _tabController.animateTo(1),
-                                      child: Text('View All Buses →', style: GoogleFonts.inter(fontSize: 10, color: _accent, fontWeight: FontWeight.bold)),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                if (availableBuses.isEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Center(
-                                      child: Text('No buses available', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
-                                    ),
-                                  )
-                                else
-                                  ...availableBuses.take(4).map((v) => Container(
-                                    margin: const EdgeInsets.only(bottom: 10),
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF8FAFC),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.directions_bus, size: 24, color: _accent),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(v['bus_number'] ?? '—', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: _textPrimary)),
-                                              Text('${v['total_capacity'] ?? 40} Seats • ${v['vehicle_type'] ?? 'AC Bus'}', style: GoogleFonts.inter(fontSize: 9, color: _textSecondary)),
-                                            ],
-                                          ),
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(color: _green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                                          child: const Text('Available', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: _green)),
-                                        ),
-                                      ],
-                                    ),
-                                  )),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Bottom card: Recent Bus Assignments
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: _border),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Recent Bus Assignments', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary)),
-                      Text('View All Assignments', style: GoogleFonts.inter(fontSize: 10, color: _accent, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  if (_assignments.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Center(
-                        child: Text('No assignments recorded yet.', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
-                      ),
-                    )
-                  else
-                    Table(
-                      columnWidths: const {
-                        0: FlexColumnWidth(2),
-                        1: FlexColumnWidth(2),
-                        2: FlexColumnWidth(2),
-                        3: FlexColumnWidth(2),
-                        4: FlexColumnWidth(2),
-                      },
-                      children: [
-                        TableRow(
-                          decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9)))),
-                          children: [
-                            Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text('Route', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textSecondary))),
-                            Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text('Bus', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textSecondary))),
-                            Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text('Driver', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textSecondary))),
-                            Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text('Assigned On', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textSecondary))),
-                            Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text('Assigned By', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textSecondary))),
-                          ],
-                        ),
-                        ..._assignments.take(5).map((a) {
-                          final routeName = a['route']?['route_name'] ?? '—';
-                          final busNo = a['vehicle']?['bus_number'] ?? '—';
-                          final busType = a['vehicle']?['vehicle_type'] ?? 'Bus';
-                          final driverName = a['drivers']?['name'] ?? '—';
-                          final assignedOn = a['created_at'] != null 
-                              ? a['created_at'].toString().split('T')[0]
-                              : '—';
-                          final assignedBy = a['created_by'] ?? 'Transport Manager';
-
-                          return TableRow(
-                            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFF8FAFC)))),
-                            children: [
-                              Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(routeName, style: GoogleFonts.inter(fontSize: 11, color: _textPrimary))),
-                              Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text('$busNo ($busType)', style: GoogleFonts.inter(fontSize: 11, color: _textPrimary))),
-                              Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(driverName, style: GoogleFonts.inter(fontSize: 11, color: _textPrimary))),
-                              Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(assignedOn, style: GoogleFonts.inter(fontSize: 11, color: _textPrimary))),
-                              Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(assignedBy, style: GoogleFonts.inter(fontSize: 11, color: _textPrimary))),
-                            ],
-                          );
-                        }),
-                      ],
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // --- LIVE TRACKING VIEW IMPLEMENTATION ---
   Future<void> _loadLiveTrackingData({bool isSilent = false}) async {
@@ -5741,7 +4749,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         border: Border.all(color: _border),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -5936,7 +4944,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                           prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
                           hintText: 'Search bus or route...',
                           hintStyle: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF94A3B8)),
-                          fillColor: Colors.white,
+                          fillColor: _inputBg,
                           filled: true,
                           contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
@@ -6018,7 +5026,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     flex: 7,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: _cardBg,
                         border: Border.all(color: _border),
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -6047,9 +5055,9 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                 ),
                                 children: [
                                   TileLayer(
-                                    urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-                                    subdomains: const ['a', 'b', 'c', 'd'],
+                                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                                     userAgentPackageName: 'com.edushamiit.admin',
+                                    maxZoom: 19,
                                     tileProvider: CancellableNetworkTileProvider(),
                                   ),
                                   if (_trackingRoutePoints.isNotEmpty)
@@ -6138,10 +5146,10 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                   child: Container(
                                     width: 28,
                                     height: 28,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.white,
+                                    decoration: BoxDecoration(
+                                      color: _cardBg,
                                       shape: BoxShape.circle,
-                                      boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
+                                      boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
                                     ),
                                     child: Icon(Icons.my_location, size: 14, color: _textPrimary),
                                   ),
@@ -6157,8 +5165,9 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: _cardBg,
                                 borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: _border),
                                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)],
                               ),
                               child: Row(
@@ -6186,7 +5195,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: _cardBg,
                         border: Border.all(color: _border),
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -6228,7 +5237,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                   // Driver Info
                                   Row(
                                     children: [
-                                      const CircleAvatar(radius: 16, backgroundColor: _border, child: Icon(Icons.person, size: 18, color: _gray)),
+                                      CircleAvatar(radius: 16, backgroundColor: _border, child: const Icon(Icons.person, size: 18, color: _gray)),
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: Column(
@@ -6306,7 +5315,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                     ..._trackingAlerts.take(2).map((a) => Container(
                                       margin: const EdgeInsets.only(bottom: 8),
                                       padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(6)),
+                                      decoration: BoxDecoration(color: _inputBg, borderRadius: BorderRadius.circular(6)),
                                       child: Row(
                                         children: [
                                           Icon(Icons.warning, size: 14, color: a['severity'] == 'critical' ? _red : _orange),
@@ -6331,7 +5340,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: _cardBg,
                   border: Border.all(color: _border),
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -6364,7 +5373,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                       child: SizedBox(
                                         width: tableWidth,
                                         child: DataTable(
-                                          headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                                          headingRowColor: WidgetStateProperty.all(_isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
                                           dataRowMinHeight: 56,
                                           dataRowMaxHeight: 64,
                                           columns: [
@@ -6450,7 +5459,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     const Divider(height: 1),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: const BoxDecoration(color: Color(0xFFF8FAFC)),
+                      decoration: BoxDecoration(color: _inputBg),
                       child: Wrap(
                         alignment: WrapAlignment.spaceBetween,
                         crossAxisAlignment: WrapCrossAlignment.center,
@@ -6467,13 +5476,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                 height: 28,
                                 padding: const EdgeInsets.symmetric(horizontal: 6),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: _cardBg,
                                   border: Border.all(color: _border),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<int>(
                                     value: _trackingPageSize,
+                                    dropdownColor: _cardBg,
                                     style: GoogleFonts.inter(fontSize: 11, color: _textPrimary, fontWeight: FontWeight.bold),
                                     items: [4, 8, 10, 15, 20].map((int val) {
                                       return DropdownMenuItem<int>(
@@ -6657,12 +5667,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -6691,8 +5701,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               height: 38,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                color: _inputBg,
+                border: Border.all(color: _border),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -6700,7 +5710,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                 children: [
                   const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF64748B)),
                   const SizedBox(width: 8),
-                  Text('$startStr - $endStr', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: const Color(0xFF0F172A))),
+                  Text('$startStr - $endStr', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: _textPrimary)),
                 ],
               ),
             ),
@@ -6710,14 +5720,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             height: 38,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              color: _inputBg,
+              border: Border.all(color: _border),
               borderRadius: BorderRadius.circular(8),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _reportsRouteFilter,
-                style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
+                style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                 items: [
                   const DropdownMenuItem(value: 'All', child: Text('All Routes')),
                   ..._routes.map((r) => DropdownMenuItem(value: r['id'].toString(), child: Text(r['route_name'] ?? 'Route'))),
@@ -6737,14 +5747,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             height: 38,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              color: _inputBg,
+              border: Border.all(color: _border),
               borderRadius: BorderRadius.circular(8),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _reportsBusFilter,
-                style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
+                style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                 items: [
                   const DropdownMenuItem(value: 'All', child: Text('All Buses')),
                   ..._vehicles.map((v) => DropdownMenuItem(value: v['id'].toString(), child: Text(v['bus_number'] ?? 'Bus'))),
@@ -6764,14 +5774,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             height: 38,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              color: _inputBg,
+              border: Border.all(color: _border),
               borderRadius: BorderRadius.circular(8),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _reportsStatusFilter,
-                style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
+                style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                 items: const [
                   DropdownMenuItem(value: 'All', child: Text('All Status')),
                   DropdownMenuItem(value: 'Completed', child: Text('Completed')),
@@ -6900,31 +5910,26 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
           ),
         ];
 
-        if (width >= 950) {
-          return Row(
-            children: [
-              Expanded(child: cards[0]),
-              const SizedBox(width: 12),
-              Expanded(child: cards[1]),
-              const SizedBox(width: 12),
-              Expanded(child: cards[2]),
-              const SizedBox(width: 12),
-              Expanded(child: cards[3]),
-              const SizedBox(width: 12),
-              Expanded(child: cards[4]),
-              const SizedBox(width: 12),
-              Expanded(child: cards[5]),
-            ],
-          );
+        final int cols;
+        const double spacing = 12.0;
+        if (width >= 1440) {
+          cols = 6;
+        } else if (width >= 780) {
+          cols = 3;
+        } else if (width >= 480) {
+          cols = 2;
         } else {
-          final double cardW = (width - 24) / 3;
-          final double finalW = cardW > 160 ? cardW : 160;
-          return Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: cards.map((c) => SizedBox(width: finalW, child: c)).toList(),
-          );
+          cols = 1;
         }
+
+        final double totalSpacing = (cols - 1) * spacing;
+        final double cardWidth = ((width - totalSpacing) / cols).floorToDouble();
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: cards.map((c) => SizedBox(width: cardWidth, child: c)).toList(),
+        );
       },
     );
   }
@@ -6933,12 +5938,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -6987,7 +5992,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: const Color(0xFF0F172A),
+              color: _textPrimary,
               height: 1.1,
               letterSpacing: -0.5,
             ),
@@ -6998,7 +6003,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             style: GoogleFonts.inter(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF64748B),
+              color: _textSecondary,
             ),
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
@@ -7043,7 +6048,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       height: 320,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         border: Border.all(color: _border),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -7230,10 +6235,10 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     final completed = r['completed_trips'] ?? 0;
     final cancelled = r['cancelled_trips'] ?? 0;
     final onTimePct = r['on_time_pct'] ?? 0.0;
-    final avgDelay = r['avg_delay'] ?? 0.0;
     final distance = r['total_distance'] ?? 0.0;
     final students = r['students_transported'] ?? 0;
 
+    final avgDelay = r['avg_delay'] ?? 0.0;
     final csvContent = 'Route Code,Route Name,Total Trips,Completed Trips,Cancelled Trips,On-Time %,Avg Delay (min),Total Distance (km),Students Transported\n'
         '$code,$name,$trips,$completed,$cancelled,$onTimePct%,$avgDelay,$distance,$students';
         
@@ -7254,7 +6259,6 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     final completed = r['completed_trips'] ?? 0;
     final cancelled = r['cancelled_trips'] ?? 0;
     final onTimePct = r['on_time_pct'] ?? 0.0;
-    final avgDelay = r['avg_delay'] ?? 0.0;
     final distance = r['total_distance'] ?? 0.0;
     final students = r['students_transported'] ?? 0;
 
@@ -7275,7 +6279,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       builder: (context) {
         return Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          backgroundColor: Colors.white,
+          backgroundColor: _cardBg,
           child: Container(
             width: 700,
             padding: const EdgeInsets.all(24),
@@ -7480,7 +6484,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         border: Border.all(color: _border),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -7505,7 +6509,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     width: tableWidth,
                     child: DataTable(
                       columnSpacing: 18,
-                      headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                      headingRowColor: WidgetStateProperty.all(_isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
                       dataRowMinHeight: 52,
                       dataRowMaxHeight: 58,
                       columns: [
@@ -7559,14 +6563,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                 IconButton(
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(),
-                                  icon: const Icon(Icons.remove_red_eye_outlined, size: 14, color: _textSecondary),
+                                  icon: Icon(Icons.remove_red_eye_outlined, size: 14, color: _textSecondary),
                                   onPressed: () => _showRouteDetailsReportDialog(r),
                                 ),
                                 const SizedBox(width: 8),
                                 IconButton(
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(),
-                                  icon: const Icon(Icons.download_rounded, size: 14, color: _textSecondary),
+                                  icon: Icon(Icons.download_rounded, size: 14, color: _textSecondary),
                                   onPressed: () => _downloadRouteReportCSV(r),
                                 ),
                               ],
@@ -7585,7 +6589,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
           // Pagination Row
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            color: const Color(0xFFF8FAFC),
+            color: _inputBg,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -7596,15 +6600,16 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: _cardBg,
                         border: Border.all(color: _border),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<int>(
                           value: _reportsTablePageSize,
+                          dropdownColor: _cardBg,
                           isDense: true,
-                          icon: const Icon(Icons.arrow_drop_down, size: 16, color: _textSecondary),
+                          icon: Icon(Icons.arrow_drop_down, size: 16, color: _textSecondary),
                           items: [5, 8, 10, 20, 50].map((size) {
                             return DropdownMenuItem<int>(
                               value: size,
@@ -7661,12 +6666,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -7675,7 +6680,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Route Performance Summary', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: const Color(0xFF0F172A))),
+          Text('Route Performance Summary', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary)),
           const SizedBox(height: 10),
           _buildSummaryItem('Best Performing Route', best['name'].toString(), best['value'].toString(), _green),
           const Divider(height: 12, color: Color(0xFFF1F5F9)),
@@ -7701,9 +6706,9 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: GoogleFonts.inter(fontSize: 10, color: const Color(0xFF64748B), fontWeight: FontWeight.w500)),
+              Text(label, style: GoogleFonts.inter(fontSize: 10, color: _textSecondary, fontWeight: FontWeight.w500)),
               const SizedBox(height: 1),
-              Text(subLabel, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)), overflow: TextOverflow.ellipsis),
+              Text(subLabel, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: _textPrimary), overflow: TextOverflow.ellipsis),
             ],
           ),
         ),
@@ -7725,12 +6730,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -7739,7 +6744,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Report Quick Access', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: const Color(0xFF0F172A))),
+          Text('Report Quick Access', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary)),
           const SizedBox(height: 10),
           ...reportsList.map((rep) {
             return InkWell(
@@ -7754,7 +6759,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                       child: const Icon(Icons.insert_drive_file_outlined, size: 13, color: _accent),
                     ),
                     const SizedBox(width: 8),
-                    Expanded(child: Text(rep, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: const Color(0xFF0F172A)))),
+                    Expanded(child: Text(rep, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: _textPrimary))),
                     const Icon(Icons.arrow_forward_ios, size: 10, color: Color(0xFF94A3B8)),
                   ],
                 ),
@@ -7776,7 +6781,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         border: Border.all(color: _border),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -7816,20 +6821,6 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               ),
             );
           }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPlaceholderTab(String title) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.construction_rounded, size: 48, color: _gray),
-          const SizedBox(height: 16),
-          Text('$title Sub-Tab', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: _textPrimary)),
-          Text('This view is currently scheduled for development.', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
         ],
       ),
     );
@@ -7934,12 +6925,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: _cardBg,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+                border: Border.all(color: _border),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                    color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -7957,7 +6948,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                         hintStyle: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF94A3B8)),
                         prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF94A3B8)),
                         filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
+                        fillColor: _inputBg,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -7979,14 +6970,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     height: 38,
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      color: _inputBg,
+                      border: Border.all(color: _border),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: (_stopsRouteFilter == 'All' || _routes.any((r) => r['id'].toString() == _stopsRouteFilter)) ? _stopsRouteFilter : 'All',
-                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
+                        style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                         items: [
                           const DropdownMenuItem(value: 'All', child: Text('All Routes')),
                           ..._routes.map((r) => DropdownMenuItem(value: r['id'].toString(), child: Text(r['route_name']))),
@@ -8000,14 +6991,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     height: 38,
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      color: _inputBg,
+                      border: Border.all(color: _border),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: _stopsStatusFilter,
-                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
+                        style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                         items: ['All', 'Active', 'Inactive', 'Deleted'].map((s) => DropdownMenuItem(value: s, child: Text('$s Status'))).toList(),
                         onChanged: (val) => setState(() { _stopsStatusFilter = val!; _stopsCurrentPage = 1; _loadStops(); }),
                       ),
@@ -8018,14 +7009,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     height: 38,
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      color: _inputBg,
+                      border: Border.all(color: _border),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: _stopsTypeFilter,
-                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
+                        style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                         items: ['All', 'Pickup', 'Drop', 'Pickup & Drop'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Stop Types' : s))).toList(),
                         onChanged: (val) => setState(() { _stopsTypeFilter = val!; _stopsCurrentPage = 1; _loadStops(); }),
                       ),
@@ -8046,8 +7037,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                       icon: const Icon(Icons.filter_list_rounded, size: 15),
                       label: const Text('Reset'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFEEF2FF),
-                        foregroundColor: const Color(0xFF4F46E5),
+                        backgroundColor: _isDark ? const Color(0xFF312E81) : const Color(0xFFEEF2FF),
+                        foregroundColor: _isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
                         elevation: 0,
                         shadowColor: Colors.transparent,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -8125,7 +7116,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                 final isNarrow = constraints.maxWidth < 1150;
 
                 final tableWidget = Container(
-                  decoration: BoxDecoration(color: Colors.white, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: _cardBg, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -8227,13 +7218,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                   height: 28,
                                   padding: const EdgeInsets.symmetric(horizontal: 6),
                                   decoration: BoxDecoration(
-                                    color: Colors.white,
+                                    color: _cardBg,
                                     border: Border.all(color: _border),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<int>(
                                       value: _stopsPageSize,
+                                      dropdownColor: _cardBg,
                                       style: GoogleFonts.inter(fontSize: 11, color: _textPrimary, fontWeight: FontWeight.bold),
                                       items: [5, 10, 15, 20, 50].map((int val) {
                                         return DropdownMenuItem<int>(
@@ -8287,7 +7279,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     : (_selectedStop != null ? 'ST-${(_selectedStop['stop_order'] ?? 1).toString().padLeft(3, '0')}' : 'ST-000');
 
                 final previewWidget = Container(
-                  decoration: BoxDecoration(color: Colors.white, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: _cardBg, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -8376,10 +7368,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                     PolylineLayer(
                                       polylines: [
                                         Polyline(
-                                          points: _stopsPreviewRouteStops.map((s) => LatLng(
-                                            double.tryParse(s['latitude'].toString()) ?? 28.62,
-                                            double.tryParse(s['longitude'].toString()) ?? 77.36
-                                          )).toList(),
+                                          points: _stopsTabPolylinePoints.isNotEmpty
+                                              ? _stopsTabPolylinePoints
+                                              : _stopsPreviewRouteStops.map((s) => LatLng(
+                                                  double.tryParse(s['latitude'].toString()) ?? 28.62,
+                                                  double.tryParse(s['longitude'].toString()) ?? 77.36
+                                                )).toList(),
                                           color: _accent,
                                           strokeWidth: 4.0,
                                         ),
@@ -8667,7 +7661,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _border),
       ),
@@ -8680,9 +7674,9 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: _inputBg,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: _border),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
@@ -8745,7 +7739,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFFEEF2FF) : const Color(0xFFF8FAFC),
+                      color: isSelected ? (_isDark ? const Color(0xFF4F46E5).withValues(alpha: 0.25) : const Color(0xFFEEF2FF)) : (_isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFFE2E8F0),
@@ -8892,7 +7886,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _cardBg,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: _border),
           ),
@@ -8909,7 +7903,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEEF2FF),
+                          color: _isDark ? const Color(0xFF312E81) : const Color(0xFFEEF2FF),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(stopCode, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF4F46E5))),
@@ -8991,7 +7985,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _cardBg,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: _border),
           ),
@@ -9021,12 +8015,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                       decoration: InputDecoration(
                         hintText: 'Search passengers by name, email, role, class...',
                         hintStyle: GoogleFonts.inter(fontSize: 11, color: _textSecondary),
-                        prefixIcon: const Icon(Icons.search_rounded, size: 16, color: _textSecondary),
+                        prefixIcon: Icon(Icons.search_rounded, size: 16, color: _textSecondary),
                         contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
                         filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
+                        fillColor: _inputBg,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: _border)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: _border)),
                       ),
                     ),
                   ),
@@ -9061,7 +8055,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                       child: DataTable(
                         showCheckboxColumn: false,
                         columnSpacing: 16,
-                        headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                        headingRowColor: WidgetStateProperty.all(_isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
                         dataRowMinHeight: 48,
                         dataRowMaxHeight: 56,
                         columns: [
@@ -9169,7 +8163,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                               )),
                               DataCell(Row(
                                 children: [
-                                  const Icon(Icons.phone_outlined, size: 12, color: _textSecondary),
+                                  Icon(Icons.phone_outlined, size: 12, color: _textSecondary),
                                   const SizedBox(width: 4),
                                   Text(phone, style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
                                 ],
@@ -9199,13 +8193,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                           height: 28,
                           padding: const EdgeInsets.symmetric(horizontal: 6),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: _cardBg,
                             border: Border.all(color: _border),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<int>(
                               value: _saPageSize,
+                              dropdownColor: _cardBg,
                               style: GoogleFonts.inter(fontSize: 11, color: _textPrimary, fontWeight: FontWeight.w600),
                               items: [5, 10, 20, 50].map((size) {
                                 return DropdownMenuItem<int>(
@@ -9379,7 +8374,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _cardBg,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: _border),
           ),
@@ -9407,7 +8402,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _cardBg,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: _border),
           ),
@@ -9462,7 +8457,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     return Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
+                        color: _inputBg,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: _border),
                       ),
@@ -9502,7 +8497,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                           IconButton(
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
-                            icon: const Icon(Icons.close_rounded, size: 16, color: _textSecondary),
+                            icon: Icon(Icons.close_rounded, size: 16, color: _textSecondary),
                             onPressed: () => _unassignStudentsFromStop([st['id'].toString()]),
                           ),
                         ],
@@ -9518,7 +8513,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _cardBg,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: _border),
           ),
@@ -9588,7 +8583,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       height: 38,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: _inputBg,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: _border),
       ),
@@ -9882,11 +8877,14 @@ class CustomDonutPainter extends CustomPainter {
 class CustomBarPainter extends CustomPainter {
   final List<Map<String, dynamic>> data;
   final Color barColor;
+  final bool isDark;
 
-  CustomBarPainter({required this.data, required this.barColor});
+  CustomBarPainter({required this.data, required this.barColor, this.isDark = false});
 
   @override
   void paint(Canvas canvas, Size size) {
+    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
+    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
     if (data.isEmpty) return;
 
     final paint = Paint()..color = barColor;
@@ -9944,14 +8942,14 @@ class CustomBarPainter extends CustomPainter {
       final labelVal = val.toInt();
       textPainter.text = TextSpan(
         text: '$labelVal',
-        style: GoogleFonts.inter(fontSize: 8, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
+        style: GoogleFonts.inter(fontSize: 8, fontWeight: FontWeight.bold, color: textPrimary),
       );
       textPainter.layout();
       textPainter.paint(canvas, Offset(x + (barWidth - textPainter.width) / 2, y - textPainter.height - 4));
 
       textPainter.text = TextSpan(
         text: data[i]['label'] ?? '',
-        style: GoogleFonts.inter(fontSize: 8, color: const Color(0xFF64748B)),
+        style: GoogleFonts.inter(fontSize: 8, color: textSecondary),
       );
       textPainter.layout();
       textPainter.paint(canvas, Offset(x + (barWidth - textPainter.width) / 2, graphHeight + 12));
@@ -9965,11 +8963,14 @@ class CustomBarPainter extends CustomPainter {
 class CustomLinePainter extends CustomPainter {
   final List<Map<String, dynamic>> data;
   final Color lineColor;
+  final bool isDark;
 
-  CustomLinePainter({required this.data, required this.lineColor});
+  CustomLinePainter({required this.data, required this.lineColor, this.isDark = false});
 
   @override
   void paint(Canvas canvas, Size size) {
+    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
+    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
     if (data.isEmpty) return;
 
     final gridPaint = Paint()
@@ -10035,14 +9036,14 @@ class CustomLinePainter extends CustomPainter {
 
       textPainter.text = TextSpan(
         text: '${val.toStringAsFixed(1)}%',
-        style: GoogleFonts.inter(fontSize: 8, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
+        style: GoogleFonts.inter(fontSize: 8, fontWeight: FontWeight.bold, color: textPrimary),
       );
       textPainter.layout();
       textPainter.paint(canvas, Offset(offset.dx - textPainter.width / 2, offset.dy - textPainter.height - 6));
 
       textPainter.text = TextSpan(
         text: data[i]['label'] ?? '',
-        style: GoogleFonts.inter(fontSize: 8, color: const Color(0xFF64748B)),
+        style: GoogleFonts.inter(fontSize: 8, color: textSecondary),
       );
       textPainter.layout();
       textPainter.paint(canvas, Offset(offset.dx - textPainter.width / 2, graphHeight + 12));

@@ -17,7 +17,8 @@ class _BookFilterBarState extends ConsumerState<BookFilterBar> {
   @override
   void initState() {
     super.initState();
-    _searchCtrl = TextEditingController(text: ref.read(bookProvider).searchQuery);
+    _searchCtrl =
+        TextEditingController(text: ref.read(bookProvider).searchQuery);
   }
 
   @override
@@ -158,26 +159,39 @@ class _BookFilterBarState extends ConsumerState<BookFilterBar> {
                   icon: Icon(
                     Icons.tune_rounded,
                     size: 16,
-                    color: hasActiveAdvancedFilters ? const Color(0xFF6366F1) : (isDark ? Colors.white : const Color(0xFF334155)),
+                    color: hasActiveAdvancedFilters
+                        ? const Color(0xFF6366F1)
+                        : (isDark ? Colors.white : const Color(0xFF334155)),
                   ),
                   label: Text(
                     hasActiveAdvancedFilters ? 'Filters (Active)' : 'Filters',
                     style: TextStyle(
                       fontSize: 12.5,
-                      fontWeight: hasActiveAdvancedFilters ? FontWeight.w700 : FontWeight.w500,
-                      color: hasActiveAdvancedFilters ? const Color(0xFF6366F1) : (isDark ? Colors.white : const Color(0xFF334155)),
+                      fontWeight: hasActiveAdvancedFilters
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                      color: hasActiveAdvancedFilters
+                          ? const Color(0xFF6366F1)
+                          : (isDark ? Colors.white : const Color(0xFF334155)),
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
-                    backgroundColor: hasActiveAdvancedFilters ? const Color(0xFF6366F1).withOpacity(0.08) : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                    foregroundColor:
+                        isDark ? Colors.white : const Color(0xFF334155),
+                    backgroundColor: hasActiveAdvancedFilters
+                        ? const Color(0xFF6366F1).withValues(alpha: 0.08)
+                        : (isDark ? const Color(0xFF1E293B) : Colors.white),
                     side: BorderSide(
                       color: hasActiveAdvancedFilters
                           ? const Color(0xFF6366F1)
-                          : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                          : (isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFE2E8F0)),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () {
                     showDialog(
@@ -194,11 +208,17 @@ class _BookFilterBarState extends ConsumerState<BookFilterBar> {
                   tooltip: 'Refresh Books',
                   icon: const Icon(Icons.refresh_rounded, size: 19),
                   style: IconButton.styleFrom(
-                    backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
-                    side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                    backgroundColor:
+                        isDark ? const Color(0xFF1E293B) : Colors.white,
+                    foregroundColor:
+                        isDark ? Colors.white : const Color(0xFF334155),
+                    side: BorderSide(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0)),
                     padding: const EdgeInsets.all(10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () {
                     notifier.loadStats();
@@ -298,14 +318,23 @@ class _BookFilterBarState extends ConsumerState<BookFilterBar> {
                       icon: const Icon(Icons.tune_rounded, size: 16),
                       label: const Text('Filters'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
-                        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                        side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        foregroundColor:
+                            isDark ? Colors.white : const Color(0xFF334155),
+                        backgroundColor:
+                            isDark ? const Color(0xFF1E293B) : Colors.white,
+                        side: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
                       ),
                       onPressed: () {
-                        showDialog(context: context, builder: (_) => const AdvancedFilterDialog());
+                        showDialog(
+                            context: context,
+                            builder: (_) => const AdvancedFilterDialog());
                       },
                     ),
                     const SizedBox(width: 8),
@@ -313,11 +342,17 @@ class _BookFilterBarState extends ConsumerState<BookFilterBar> {
                       tooltip: 'Refresh',
                       icon: const Icon(Icons.refresh_rounded, size: 19),
                       style: IconButton.styleFrom(
-                        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                        foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
-                        side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                        backgroundColor:
+                            isDark ? const Color(0xFF1E293B) : Colors.white,
+                        foregroundColor:
+                            isDark ? Colors.white : const Color(0xFF334155),
+                        side: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0)),
                         padding: const EdgeInsets.all(10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
                       ),
                       onPressed: () {
                         notifier.loadStats();
@@ -388,7 +423,8 @@ class _BookFilterBarState extends ConsumerState<BookFilterBar> {
     required bool isDark,
     double width = 140,
   }) {
-    final validValue = items.contains(value) ? value : (items.isNotEmpty ? items.first : null);
+    final validValue =
+        items.contains(value) ? value : (items.isNotEmpty ? items.first : null);
 
     return Container(
       width: width,

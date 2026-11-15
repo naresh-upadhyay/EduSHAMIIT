@@ -424,73 +424,86 @@ class _AdminInfraMonitorScreenState extends State<AdminInfraMonitorScreen> {
   }
 
   Widget _buildKpiGrid(bool isDark, ThemeData theme) {
-    final width = MediaQuery.of(context).size.width;
-    final int crossCount = width < 750 ? 2 : (width < 1100 ? 3 : 6);
-    final double aspectRatio = width < 750 ? 1.45 : (width < 1100 ? 1.3 : 1.15);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final int cols;
+        const double spacing = 12.0;
+        if (width >= 1200) {
+          cols = 6;
+        } else if (width >= 800) {
+          cols = 3;
+        } else if (width >= 480) {
+          cols = 2;
+        } else {
+          cols = 1;
+        }
+        final double totalSpacing = (cols - 1) * spacing;
+        final double cardWidth = ((width - totalSpacing) / cols).floorToDouble();
 
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: crossCount,
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: aspectRatio,
-      children: [
-        _buildKpiCard(
-          "Total Institutions",
-          "${_metrics['total_institutions'] ?? 0}",
-          "Active: ${_metrics['active_institutions'] ?? 0}",
-          Icons.school_outlined,
-          const Color(0xFF6366F1),
-          isDark,
-          theme,
-        ),
-        _buildKpiCard(
-          "All Systems",
-          "${_metrics['total_systems'] ?? 0}",
-          "Healthy: ${_metrics['healthy_systems'] ?? 0}",
-          Icons.dns_outlined,
-          const Color(0xFF10B981),
-          isDark,
-          theme,
-        ),
-        _buildKpiCard(
-          "Uptime (Avg.)",
-          "${_metrics['uptime_avg'] ?? 99.9}%",
-          "↑ 0.12% this week",
-          Icons.trending_up,
-          const Color(0xFF3B82F6),
-          isDark,
-          theme,
-        ),
-        _buildKpiCard(
-          "Incidents",
-          "${_metrics['incidents'] ?? 0}",
-          "Active alerts in trail",
-          Icons.error_outline_rounded,
-          const Color(0xFFEF4444),
-          isDark,
-          theme,
-        ),
-        _buildKpiCard(
-          "Total Requests",
-          "${_metrics['total_requests'] ?? '0.00M'}",
-          "↑ 18.6% this week",
-          Icons.stacked_line_chart,
-          const Color(0xFF2563EB),
-          isDark,
-          theme,
-        ),
-        _buildKpiCard(
-          "Data Transfer",
-          "${_metrics['data_transfer'] ?? '0.00 TB'}",
-          "↑ 9.3% this week",
-          Icons.cloud_upload_outlined,
-          const Color(0xFFF59E0B),
-          isDark,
-          theme,
-        ),
-      ],
+        final cards = [
+          _buildKpiCard(
+            "Total Institutions",
+            "${_metrics['total_institutions'] ?? 0}",
+            "Active: ${_metrics['active_institutions'] ?? 0}",
+            Icons.school_outlined,
+            const Color(0xFF6366F1),
+            isDark,
+            theme,
+          ),
+          _buildKpiCard(
+            "All Systems",
+            "${_metrics['total_systems'] ?? 0}",
+            "Healthy: ${_metrics['healthy_systems'] ?? 0}",
+            Icons.dns_outlined,
+            const Color(0xFF10B981),
+            isDark,
+            theme,
+          ),
+          _buildKpiCard(
+            "Uptime (Avg.)",
+            "${_metrics['uptime_avg'] ?? 99.9}%",
+            "↑ 0.12% this week",
+            Icons.trending_up,
+            const Color(0xFF3B82F6),
+            isDark,
+            theme,
+          ),
+          _buildKpiCard(
+            "Incidents",
+            "${_metrics['incidents'] ?? 0}",
+            "Active alerts in trail",
+            Icons.error_outline_rounded,
+            const Color(0xFFEF4444),
+            isDark,
+            theme,
+          ),
+          _buildKpiCard(
+            "Total Requests",
+            "${_metrics['total_requests'] ?? '0.00M'}",
+            "↑ 18.6% this week",
+            Icons.stacked_line_chart,
+            const Color(0xFF2563EB),
+            isDark,
+            theme,
+          ),
+          _buildKpiCard(
+            "Data Transfer",
+            "${_metrics['data_transfer'] ?? '0.00 TB'}",
+            "↑ 9.3% this week",
+            Icons.cloud_upload_outlined,
+            const Color(0xFFF59E0B),
+            isDark,
+            theme,
+          ),
+        ];
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: cards.map((c) => SizedBox(width: cardWidth, child: c)).toList(),
+        );
+      },
     );
   }
 
@@ -1985,7 +1998,7 @@ class _GoogleMapsStyleInfraMapState extends State<GoogleMapsStyleInfraMap> {
       final pos = _doubleTapDetails!.localPosition;
       widget.transformationController.value =
           Matrix4.translationValues(-pos.dx * 0.8, -pos.dy * 0.8, 0.0)
-            ..scale(1.8, 1.8, 1.0);
+            ..scaleByDouble(1.8, 1.8, 1.0, 1.0);
     }
   }
 

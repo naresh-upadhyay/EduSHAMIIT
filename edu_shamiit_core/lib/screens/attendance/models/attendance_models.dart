@@ -108,11 +108,11 @@ extension AttendanceStatusExtension on AttendanceStatus {
   }
 
   Color get backgroundColor {
-    return color.withOpacity(0.12);
+    return color.withValues(alpha: 0.12);
   }
 
   Color get borderColor {
-    return color.withOpacity(0.35);
+    return color.withValues(alpha: 0.35);
   }
 
   static AttendanceStatus fromString(String? val) {
@@ -211,7 +211,8 @@ class AttendanceStatsModel {
 
   factory AttendanceStatsModel.fromJson(Map<String, dynamic> json) {
     return AttendanceStatsModel(
-      overallAttendancePct: (json['overall_attendance_pct'] as num?)?.toDouble() ?? 0.0,
+      overallAttendancePct:
+          (json['overall_attendance_pct'] as num?)?.toDouble() ?? 0.0,
       totalStudents: json['total_students'] as int? ?? 0,
       studentsPresent: json['students_present'] as int? ?? 0,
       studentsAbsent: json['students_absent'] as int? ?? 0,
@@ -284,13 +285,15 @@ class AttendanceStudentRowModel {
     List<StudentPeriodAttendanceModel> parsedPeriods = [];
     if (json['periods'] is List) {
       parsedPeriods = (json['periods'] as List)
-          .map((p) => StudentPeriodAttendanceModel.fromJson(p as Map<String, dynamic>))
+          .map((p) =>
+              StudentPeriodAttendanceModel.fromJson(p as Map<String, dynamic>))
           .toList();
     }
 
     StudentPeriodsSummaryModel? summary;
     if (json['periods_summary'] is Map<String, dynamic>) {
-      summary = StudentPeriodsSummaryModel.fromJson(json['periods_summary'] as Map<String, dynamic>);
+      summary = StudentPeriodsSummaryModel.fromJson(
+          json['periods_summary'] as Map<String, dynamic>);
     }
 
     return AttendanceStudentRowModel(
@@ -312,7 +315,9 @@ class AttendanceStudentRowModel {
       overrideReason: json['override_reason']?.toString(),
       hasApprovedLeave: json['has_approved_leave'] == true,
       leaveReason: json['leave_reason']?.toString(),
-      lastUpdatedAt: json['last_updated_at'] != null ? DateTime.tryParse(json['last_updated_at'].toString()) : null,
+      lastUpdatedAt: json['last_updated_at'] != null
+          ? DateTime.tryParse(json['last_updated_at'].toString())
+          : null,
       updatedByName: json['updated_by_name']?.toString(),
       periods: parsedPeriods,
       periodsSummary: summary,
@@ -412,7 +417,8 @@ class StudentPeriodAttendanceModel {
 
     return StudentPeriodAttendanceModel(
       periodNumber: int.tryParse(json['period_number']?.toString() ?? '1') ?? 1,
-      periodLabel: json['period_label']?.toString() ?? 'P${json['period_number'] ?? 1}',
+      periodLabel:
+          json['period_label']?.toString() ?? 'P${json['period_number'] ?? 1}',
       subjectId: json['subject_id']?.toString(),
       subjectName: json['subject_name']?.toString() ?? 'Subject',
       subjectCode: json['subject_code']?.toString() ?? '',
@@ -429,7 +435,9 @@ class StudentPeriodAttendanceModel {
       lockedByAllDay: json['locked_by_all_day'] == true,
       isOverridden: json['is_overridden'] == true,
       overrideReason: json['override_reason']?.toString(),
-      lastUpdatedAt: json['last_updated_at'] != null ? DateTime.tryParse(json['last_updated_at'].toString()) : null,
+      lastUpdatedAt: json['last_updated_at'] != null
+          ? DateTime.tryParse(json['last_updated_at'].toString())
+          : null,
       updatedByName: json['updated_by_name']?.toString(),
     );
   }
@@ -492,13 +500,17 @@ class StudentPeriodsSummaryModel {
   factory StudentPeriodsSummaryModel.fromJson(Map<String, dynamic> json) {
     return StudentPeriodsSummaryModel(
       totalPeriods: int.tryParse(json['total_periods']?.toString() ?? '0') ?? 0,
-      markedPeriods: int.tryParse(json['marked_periods']?.toString() ?? '0') ?? 0,
-      notMarkedCount: int.tryParse(json['not_marked_count']?.toString() ?? '0') ?? 0,
+      markedPeriods:
+          int.tryParse(json['marked_periods']?.toString() ?? '0') ?? 0,
+      notMarkedCount:
+          int.tryParse(json['not_marked_count']?.toString() ?? '0') ?? 0,
       presentCount: int.tryParse(json['present_count']?.toString() ?? '0') ?? 0,
       absentCount: int.tryParse(json['absent_count']?.toString() ?? '0') ?? 0,
       lateCount: int.tryParse(json['late_count']?.toString() ?? '0') ?? 0,
-      onLeaveCount: int.tryParse(json['on_leave_count']?.toString() ?? '0') ?? 0,
-      halfDayCount: int.tryParse(json['half_day_count']?.toString() ?? '0') ?? 0,
+      onLeaveCount:
+          int.tryParse(json['on_leave_count']?.toString() ?? '0') ?? 0,
+      halfDayCount:
+          int.tryParse(json['half_day_count']?.toString() ?? '0') ?? 0,
     );
   }
 }
@@ -633,21 +645,26 @@ class StaffAttendanceRowModel {
   factory StaffAttendanceRowModel.fromJson(Map<String, dynamic> json) {
     return StaffAttendanceRowModel(
       id: json['id']?.toString() ?? '',
-      employeeId: json['employee_id']?.toString() ?? json['id']?.toString() ?? '',
+      employeeId:
+          json['employee_id']?.toString() ?? json['id']?.toString() ?? '',
       employeeCode: json['employee_code']?.toString() ?? '',
       fullName: json['full_name']?.toString() ?? 'Employee',
       email: json['email']?.toString() ?? '',
       avatarUrl: json['avatar_url']?.toString(),
       role: json['role']?.toString() ?? 'staff',
       department: json['department']?.toString() ?? 'General',
-      designation: json['designation']?.toString() ?? json['role']?.toString() ?? 'Staff',
+      designation: json['designation']?.toString() ??
+          json['role']?.toString() ??
+          'Staff',
       status: AttendanceStatusExtension.fromString(json['status']?.toString()),
       checkInTime: json['check_in_time']?.toString(),
       checkOutTime: json['check_out_time']?.toString(),
       isWfh: json['is_wfh'] == true,
       remarks: json['remarks']?.toString() ?? '',
       managerName: json['manager_name']?.toString(),
-      lastUpdatedAt: json['last_updated_at'] != null ? DateTime.tryParse(json['last_updated_at'].toString()) : null,
+      lastUpdatedAt: json['last_updated_at'] != null
+          ? DateTime.tryParse(json['last_updated_at'].toString())
+          : null,
       updatedByName: json['updated_by_name']?.toString(),
     );
   }
@@ -739,7 +756,9 @@ class AttendanceLeaveRequestModel {
 
   factory AttendanceLeaveRequestModel.fromJson(Map<String, dynamic> json) {
     Color parsedColor = const Color(0xFF4F46E5);
-    final hex = json['color_hex']?.toString() ?? json['leave_type_color']?.toString() ?? '';
+    final hex = json['color_hex']?.toString() ??
+        json['leave_type_color']?.toString() ??
+        '';
     if (hex.startsWith('#') && hex.length >= 7) {
       try {
         final colorInt = int.parse(hex.replaceFirst('#', '0xFF'));
@@ -747,8 +766,13 @@ class AttendanceLeaveRequestModel {
       } catch (_) {}
     }
 
-    final rawDays = json['billable_days'] ?? json['duration_days'] ?? json['days_count'] ?? json['days'];
-    final parsedDays = (rawDays is num) ? rawDays.toDouble() : (double.tryParse(rawDays?.toString() ?? '') ?? 1.0);
+    final rawDays = json['billable_days'] ??
+        json['duration_days'] ??
+        json['days_count'] ??
+        json['days'];
+    final parsedDays = (rawDays is num)
+        ? rawDays.toDouble()
+        : (double.tryParse(rawDays?.toString() ?? '') ?? 1.0);
 
     return AttendanceLeaveRequestModel(
       id: json['id']?.toString() ?? '',
@@ -762,8 +786,10 @@ class AttendanceLeaveRequestModel {
       designation: json['designation']?.toString() ?? '',
       leaveType: json['leave_type']?.toString() ?? 'Casual Leave',
       leaveTypeColor: parsedColor,
-      startDate: DateTime.tryParse(json['start_date']?.toString() ?? '') ?? DateTime.now(),
-      endDate: DateTime.tryParse(json['end_date']?.toString() ?? '') ?? DateTime.now(),
+      startDate: DateTime.tryParse(json['start_date']?.toString() ?? '') ??
+          DateTime.now(),
+      endDate: DateTime.tryParse(json['end_date']?.toString() ?? '') ??
+          DateTime.now(),
       daysCount: parsedDays,
       halfDayType: json['half_day_type']?.toString() ?? 'FULL_DAY',
       reason: json['reason']?.toString() ?? '',
@@ -772,7 +798,10 @@ class AttendanceLeaveRequestModel {
       rejectionReason: json['rejection_reason']?.toString(),
       attachmentUrl: json['attachment_url']?.toString(),
       contactNumber: json['contact_number']?.toString(),
-      appliedAt: DateTime.tryParse(json['applied_at']?.toString() ?? json['created_at']?.toString() ?? '') ?? DateTime.now(),
+      appliedAt: DateTime.tryParse(json['applied_at']?.toString() ??
+              json['created_at']?.toString() ??
+              '') ??
+          DateTime.now(),
       approvedByName: json['approved_by_name']?.toString(),
       managerName: json['manager_name']?.toString(),
     );
@@ -810,10 +839,14 @@ class LeaveDashboardKpiModel {
       pendingRequests: json['pending_requests'] as int? ?? 0,
       rejectedLeaves: json['rejected_leaves'] as int? ?? 0,
       cancelledLeaves: json['cancelled_leaves'] as int? ?? 0,
-      approvedPercentage: (json['approved_percentage'] as num?)?.toDouble() ?? 0.0,
-      pendingPercentage: (json['pending_percentage'] as num?)?.toDouble() ?? 0.0,
-      rejectedPercentage: (json['rejected_percentage'] as num?)?.toDouble() ?? 0.0,
-      cancelledPercentage: (json['cancelled_percentage'] as num?)?.toDouble() ?? 0.0,
+      approvedPercentage:
+          (json['approved_percentage'] as num?)?.toDouble() ?? 0.0,
+      pendingPercentage:
+          (json['pending_percentage'] as num?)?.toDouble() ?? 0.0,
+      rejectedPercentage:
+          (json['rejected_percentage'] as num?)?.toDouble() ?? 0.0,
+      cancelledPercentage:
+          (json['cancelled_percentage'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
@@ -884,20 +917,30 @@ class UpcomingLeaveItemModel {
   });
 
   factory UpcomingLeaveItemModel.fromJson(Map<String, dynamic> json) {
-    final sDate = DateTime.tryParse(json['start_date']?.toString() ?? '') ?? DateTime.now();
-    final eDate = DateTime.tryParse(json['end_date']?.toString() ?? '') ?? sDate;
+    final sDate = DateTime.tryParse(json['start_date']?.toString() ?? '') ??
+        DateTime.now();
+    final eDate =
+        DateTime.tryParse(json['end_date']?.toString() ?? '') ?? sDate;
     String formattedDate = json['date_range_formatted']?.toString() ?? '';
     if (formattedDate.isEmpty) {
-      if (sDate.year == eDate.year && sDate.month == eDate.month && sDate.day == eDate.day) {
+      if (sDate.year == eDate.year &&
+          sDate.month == eDate.month &&
+          sDate.day == eDate.day) {
         formattedDate = DateFormat('dd MMM').format(sDate);
       } else if (sDate.month == eDate.month && sDate.year == eDate.year) {
-        formattedDate = '${DateFormat('dd').format(sDate)} - ${DateFormat('dd MMM').format(eDate)}';
+        formattedDate =
+            '${DateFormat('dd').format(sDate)} - ${DateFormat('dd MMM').format(eDate)}';
       } else {
-        formattedDate = '${DateFormat('dd MMM').format(sDate)} - ${DateFormat('dd MMM').format(eDate)}';
+        formattedDate =
+            '${DateFormat('dd MMM').format(sDate)} - ${DateFormat('dd MMM').format(eDate)}';
       }
     }
 
-    final empName = json['employee_name']?.toString() ?? json['applicant_name']?.toString() ?? json['full_name']?.toString() ?? json['name']?.toString() ?? 'Employee';
+    final empName = json['employee_name']?.toString() ??
+        json['applicant_name']?.toString() ??
+        json['full_name']?.toString() ??
+        json['name']?.toString() ??
+        'Employee';
 
     return UpcomingLeaveItemModel(
       id: json['id']?.toString() ?? '',
@@ -941,15 +984,29 @@ class LeaveDashboardModel {
     final pagination = json['pagination'] as Map<String, dynamic>? ?? {};
 
     final parsedPage = (json['page'] ?? pagination['page']) as int? ?? 1;
-    final parsedPageSize = (json['page_size'] ?? pagination['page_size']) as int? ?? 10;
-    final parsedTotalCount = (json['total_count'] ?? pagination['total_count'] ?? kpiData['total_requests']) as int? ?? reqList.length;
-    final parsedTotalPages = (json['total_pages'] ?? pagination['total_pages']) as int? ?? 1;
+    final parsedPageSize =
+        (json['page_size'] ?? pagination['page_size']) as int? ?? 10;
+    final parsedTotalCount = (json['total_count'] ??
+            pagination['total_count'] ??
+            kpiData['total_requests']) as int? ??
+        reqList.length;
+    final parsedTotalPages =
+        (json['total_pages'] ?? pagination['total_pages']) as int? ?? 1;
 
     return LeaveDashboardModel(
       kpi: LeaveDashboardKpiModel.fromJson(kpiData),
-      requests: reqList.map((e) => AttendanceLeaveRequestModel.fromJson(e as Map<String, dynamic>)).toList(),
-      balanceSummary: balList.map((e) => LeaveBalanceSummaryItemModel.fromJson(e as Map<String, dynamic>)).toList(),
-      upcomingLeaves: upList.map((e) => UpcomingLeaveItemModel.fromJson(e as Map<String, dynamic>)).toList(),
+      requests: reqList
+          .map((e) =>
+              AttendanceLeaveRequestModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      balanceSummary: balList
+          .map((e) =>
+              LeaveBalanceSummaryItemModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      upcomingLeaves: upList
+          .map(
+              (e) => UpcomingLeaveItemModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
       page: parsedPage,
       pageSize: parsedPageSize,
       totalCount: parsedTotalCount,
@@ -979,7 +1036,8 @@ class AppRoleItemModel {
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       code: json['code']?.toString() ?? '',
-      displayName: json['display_name']?.toString() ?? json['name']?.toString() ?? '',
+      displayName:
+          json['display_name']?.toString() ?? json['name']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
     );
   }
@@ -1034,9 +1092,18 @@ class LeaveTypeModel {
     final rolesRaw = json['applicable_roles'];
     List<String> parsedRoles = [];
     if (rolesRaw is List) {
-      parsedRoles = rolesRaw.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+      parsedRoles = rolesRaw
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
     } else if (rolesRaw is String && rolesRaw.isNotEmpty) {
-      parsedRoles = rolesRaw.replaceAll('{', '').replaceAll('}', '').split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      parsedRoles = rolesRaw
+          .replaceAll('{', '')
+          .replaceAll('}', '')
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
     }
 
     return LeaveTypeModel(
@@ -1044,13 +1111,15 @@ class LeaveTypeModel {
       name: json['name']?.toString() ?? '',
       code: json['code']?.toString() ?? '',
       category: json['category']?.toString() ?? 'PAID',
-      annualEntitlement: (json['annual_entitlement'] as num?)?.toDouble() ?? 12.0,
+      annualEntitlement:
+          (json['annual_entitlement'] as num?)?.toDouble() ?? 12.0,
       monthlyAccrual: json['monthly_accrual'] == true,
       carryForwardAllowed: json['carry_forward_allowed'] == true,
       maxCarryForward: (json['max_carry_forward'] as num?)?.toDouble() ?? 5.0,
       encashmentAllowed: json['encashment_allowed'] == true,
       docRequired: json['doc_required'] == true,
-      docRequiredAfterDays: (json['doc_required_after_days'] as num?)?.toDouble() ?? 2.0,
+      docRequiredAfterDays:
+          (json['doc_required_after_days'] as num?)?.toDouble() ?? 2.0,
       allowHalfDay: json['allow_half_day'] != false,
       applicableRoles: parsedRoles,
       color: parsedColor,
@@ -1124,7 +1193,8 @@ class LeaveBalanceRowModel {
       allocatedDays: (json['allocated_days'] as num?)?.toDouble() ?? 12.0,
       usedDays: (json['used_days'] as num?)?.toDouble() ?? 0.0,
       pendingDays: (json['pending_days'] as num?)?.toDouble() ?? 0.0,
-      carriedForwardDays: (json['carried_forward_days'] as num?)?.toDouble() ?? 0.0,
+      carriedForwardDays:
+          (json['carried_forward_days'] as num?)?.toDouble() ?? 0.0,
       availableDays: (json['available_days'] as num?)?.toDouble() ?? 12.0,
       academicYear: json['academic_year']?.toString() ?? '2026-2027',
     );
@@ -1244,7 +1314,9 @@ class PermissionRequestModel {
       department: json['department']?.toString() ?? 'General',
       applicantRole: json['applicant_role']?.toString() ?? 'teacher',
       permissionType: json['permission_type']?.toString() ?? 'SHORT_PERMISSION',
-      permissionDate: DateTime.tryParse(json['permission_date']?.toString() ?? '') ?? DateTime.now(),
+      permissionDate:
+          DateTime.tryParse(json['permission_date']?.toString() ?? '') ??
+              DateTime.now(),
       startTime: json['start_time']?.toString() ?? '09:00',
       endTime: json['end_time']?.toString() ?? '10:00',
       durationHours: (json['duration_hours'] as num?)?.toDouble() ?? 1.0,
@@ -1252,7 +1324,8 @@ class PermissionRequestModel {
       status: json['status']?.toString() ?? 'PENDING',
       rejectionReason: json['rejection_reason']?.toString(),
       remarks: json['remarks']?.toString(),
-      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+          DateTime.now(),
       approvedByName: json['approved_by_name']?.toString(),
     );
   }
@@ -1312,20 +1385,35 @@ class AttendanceInsightsModel {
       granularity: json['granularity']?.toString() ?? 'monthly',
       kpis: (json['kpis'] as Map<String, dynamic>?) ?? {},
       trend: (json['trend'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
-          (json['daily_trend'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
+          (json['daily_trend'] as List<dynamic>?)
+              ?.cast<Map<String, dynamic>>() ??
           [],
       distribution: (json['distribution'] as Map<String, dynamic>?) ?? {},
-      topClasses: (json['top_classes'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
-          (json['class_comparison'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
+      topClasses: (json['top_classes'] as List<dynamic>?)
+              ?.cast<Map<String, dynamic>>() ??
+          (json['class_comparison'] as List<dynamic>?)
+              ?.cast<Map<String, dynamic>>() ??
           [],
-      topAbsentees: (json['top_absentees'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
-          (json['at_risk_students'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
+      topAbsentees: (json['top_absentees'] as List<dynamic>?)
+              ?.cast<Map<String, dynamic>>() ??
+          (json['at_risk_students'] as List<dynamic>?)
+              ?.cast<Map<String, dynamic>>() ??
           [],
-      dayOfWeek: (json['day_of_week'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
-      departmentStats: (json['department_stats'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
-      availableDepartments: (json['available_departments'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
-      availableRoles: (json['available_roles'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
-      insightsAlerts: (json['insights_alerts'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
+      dayOfWeek: (json['day_of_week'] as List<dynamic>?)
+              ?.cast<Map<String, dynamic>>() ??
+          [],
+      departmentStats: (json['department_stats'] as List<dynamic>?)
+              ?.cast<Map<String, dynamic>>() ??
+          [],
+      availableDepartments: (json['available_departments'] as List<dynamic>?)
+              ?.cast<Map<String, dynamic>>() ??
+          [],
+      availableRoles: (json['available_roles'] as List<dynamic>?)
+              ?.cast<Map<String, dynamic>>() ??
+          [],
+      insightsAlerts: (json['insights_alerts'] as List<dynamic>?)
+              ?.cast<Map<String, dynamic>>() ??
+          [],
     );
   }
 }
@@ -1401,9 +1489,11 @@ class AttendanceSettingsModel {
       lateCutoffMinutes: lateCutoffMinutes ?? this.lateCutoffMinutes,
       requireAbsentRemark: requireAbsentRemark ?? this.requireAbsentRemark,
       requireLateRemark: requireLateRemark ?? this.requireLateRemark,
-      autoMarkApprovedLeave: autoMarkApprovedLeave ?? this.autoMarkApprovedLeave,
+      autoMarkApprovedLeave:
+          autoMarkApprovedLeave ?? this.autoMarkApprovedLeave,
       lockAfterHours: lockAfterHours ?? this.lockAfterHours,
-      allowTeacherOverrideLocked: allowTeacherOverrideLocked ?? this.allowTeacherOverrideLocked,
+      allowTeacherOverrideLocked:
+          allowTeacherOverrideLocked ?? this.allowTeacherOverrideLocked,
       enableNotifications: enableNotifications ?? this.enableNotifications,
     );
   }
@@ -1446,7 +1536,8 @@ class AttendanceAuditLogModel {
       oldValue: json['old_value'] as Map<String, dynamic>?,
       newValue: json['new_value'] as Map<String, dynamic>?,
       reason: json['reason']?.toString(),
-      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+          DateTime.now(),
       userName: json['user_name']?.toString() ?? 'System',
       userAvatar: json['user_avatar']?.toString(),
       userRole: json['user_role']?.toString(),
@@ -1494,8 +1585,10 @@ class HolidayItemModel {
       description: json['description']?.toString(),
       scheduleType: json['schedule_type']?.toString() ?? 'holiday',
       category: json['category']?.toString() ?? 'Holidays',
-      startDate: DateTime.tryParse(json['start_date']?.toString() ?? '') ?? DateTime.now(),
-      endDate: DateTime.tryParse(json['end_date']?.toString() ?? '') ?? DateTime.now(),
+      startDate: DateTime.tryParse(json['start_date']?.toString() ?? '') ??
+          DateTime.now(),
+      endDate: DateTime.tryParse(json['end_date']?.toString() ?? '') ??
+          DateTime.now(),
       color: parsedColor,
       calendarName: json['calendar_name']?.toString() ?? 'Public Holidays',
     );

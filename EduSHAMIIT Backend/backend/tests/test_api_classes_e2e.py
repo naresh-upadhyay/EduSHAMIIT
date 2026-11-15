@@ -15,8 +15,8 @@ import uuid
 from jose import jwt
 from app.config import settings
 
-API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8000")
-JWT_SECRET = getattr(settings, "JWT_SECRET", "super-secret-jwt-token-key-for-edushamiit-backend-auth")
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8082")
+JWT_SECRET = "super-secret-jwt-token-with-at-least-32-characters-long"
 
 def get_test_token(user_id: str, school_id: str, role: str = "super_admin", email: str = "admin@school.com"):
     payload = {
@@ -47,7 +47,7 @@ def run_e2e_tests():
     print("=" * 70)
 
     school_id = "11111111-1111-1111-1111-111111111111"
-    user_id = "38a93170-997b-4b4c-bc8e-256b93169c23"
+    user_id = "5198c4b0-f1cb-45db-9649-41688d0438ba"
     token = get_test_token(user_id, school_id, "super_admin", "mathematicsking888@gmail.com")
 
     headers = {

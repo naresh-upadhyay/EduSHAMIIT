@@ -19,10 +19,12 @@ class OptionalSubjectEnrollmentDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<OptionalSubjectEnrollmentDialog> createState() => _OptionalSubjectEnrollmentDialogState();
+  ConsumerState<OptionalSubjectEnrollmentDialog> createState() =>
+      _OptionalSubjectEnrollmentDialogState();
 }
 
-class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjectEnrollmentDialog> {
+class _OptionalSubjectEnrollmentDialogState
+    extends ConsumerState<OptionalSubjectEnrollmentDialog> {
   final ClassApiService _api = ClassApiService();
   final TextEditingController _searchController = TextEditingController();
 
@@ -54,7 +56,8 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
         academicYear: widget.academicYear,
       );
 
-      final enrolled = students.where((s) => s.isEnrolledInSubject).map((s) => s.id).toSet();
+      final enrolled =
+          students.where((s) => s.isEnrolledInSubject).map((s) => s.id).toSet();
 
       if (mounted) {
         setState(() {
@@ -80,7 +83,8 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
     return _allStudents.where((s) {
       return s.fullName.toLowerCase().contains(q) ||
           (s.rollNumber != null && s.rollNumber!.toLowerCase().contains(q)) ||
-          (s.admissionNumber != null && s.admissionNumber!.toLowerCase().contains(q));
+          (s.admissionNumber != null &&
+              s.admissionNumber!.toLowerCase().contains(q));
     }).toList();
   }
 
@@ -134,7 +138,8 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final filtered = _filteredStudents;
-    final allFilteredSelected = filtered.isNotEmpty && filtered.every((s) => _selectedStudentIds.contains(s.id));
+    final allFilteredSelected = filtered.isNotEmpty &&
+        filtered.every((s) => _selectedStudentIds.contains(s.id));
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -142,13 +147,14 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
       backgroundColor: Colors.transparent,
       child: Container(
         width: 600,
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.88),
+        constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.88),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 24,
               offset: const Offset(0, 10),
             ),
@@ -163,7 +169,9 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
               ),
@@ -172,10 +180,11 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withOpacity(0.1),
+                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.how_to_reg_rounded, color: Color(0xFF10B981), size: 22),
+                    child: const Icon(Icons.how_to_reg_rounded,
+                        color: Color(0xFF10B981), size: 22),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -187,7 +196,8 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -195,7 +205,9 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
                           '${widget.academicClass.name} - Section ${widget.section.name} (${widget.academicYear})',
                           style: TextStyle(
                             fontSize: 12,
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ],
@@ -203,7 +215,11 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
                   ),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: Icon(Icons.close, size: 20, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    icon: Icon(Icons.close,
+                        size: 20,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B)),
                     splashRadius: 20,
                   ),
                 ],
@@ -219,9 +235,12 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
                     controller: _searchController,
                     onChanged: (_) => setState(() {}),
                     decoration: InputDecoration(
-                      hintText: 'Search student in ${widget.section.name} by name or roll no...',
+                      hintText:
+                          'Search student in ${widget.section.name} by name or roll no...',
                       hintStyle: TextStyle(
-                        color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                        color: isDark
+                            ? const Color(0xFF64748B)
+                            : const Color(0xFF94A3B8),
                         fontSize: 12.5,
                       ),
                       prefixIcon: const Icon(Icons.search, size: 18),
@@ -235,18 +254,29 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
                             )
                           : null,
                       filled: true,
-                      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      fillColor: isDark
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                        borderSide: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFCBD5E1)),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                        borderSide: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFCBD5E1)),
                       ),
                     ),
-                    style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                    style: TextStyle(
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        fontSize: 13),
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -256,7 +286,9 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
                         'Showing ${filtered.length} students in section',
                         style: TextStyle(
                           fontSize: 12,
-                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -265,14 +297,20 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
                           TextButton.icon(
                             onPressed: filtered.isEmpty
                                 ? null
-                                : (allFilteredSelected ? _deselectAllFiltered : _selectAllFiltered),
+                                : (allFilteredSelected
+                                    ? _deselectAllFiltered
+                                    : _selectAllFiltered),
                             icon: Icon(
-                              allFilteredSelected ? Icons.deselect_rounded : Icons.select_all_rounded,
+                              allFilteredSelected
+                                  ? Icons.deselect_rounded
+                                  : Icons.select_all_rounded,
                               size: 15,
                               color: const Color(0xFF10B981),
                             ),
                             label: Text(
-                              allFilteredSelected ? 'Deselect All' : 'Select All Filtered',
+                              allFilteredSelected
+                                  ? 'Deselect All'
+                                  : 'Select All Filtered',
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -283,8 +321,10 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
                           if (_selectedStudentIds.isNotEmpty) ...[
                             const SizedBox(width: 8),
                             TextButton.icon(
-                              onPressed: () => setState(() => _selectedStudentIds.clear()),
-                              icon: const Icon(Icons.clear_all_rounded, size: 15, color: Color(0xFFEF4444)),
+                              onPressed: () =>
+                                  setState(() => _selectedStudentIds.clear()),
+                              icon: const Icon(Icons.clear_all_rounded,
+                                  size: 15, color: Color(0xFFEF4444)),
                               label: const Text(
                                 'Clear All',
                                 style: TextStyle(
@@ -308,10 +348,12 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
                 margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444).withOpacity(0.1),
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(_errorMessage!, style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12)),
+                child: Text(_errorMessage!,
+                    style: const TextStyle(
+                        color: Color(0xFFEF4444), fontSize: 12)),
               ),
 
             // Students List
@@ -325,28 +367,40 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.person_search_outlined, size: 36, color: isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
+                                Icon(Icons.person_search_outlined,
+                                    size: 36,
+                                    color: isDark
+                                        ? const Color(0xFF64748B)
+                                        : const Color(0xFFCBD5E1)),
                                 const SizedBox(height: 8),
                                 Text(
                                   _allStudents.isEmpty
                                       ? 'No students found enrolled in Section ${widget.section.name}.'
                                       : 'No students match your search.',
-                                  style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B), fontSize: 12.5),
+                                  style: TextStyle(
+                                      color: isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : const Color(0xFF64748B),
+                                      fontSize: 12.5),
                                 ),
                               ],
                             ),
                           ),
                         )
                       : ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 4),
                           itemCount: filtered.length,
                           separatorBuilder: (_, __) => Divider(
                             height: 1,
-                            color: isDark ? const Color(0xFF334155).withOpacity(0.5) : const Color(0xFFE2E8F0),
+                            color: isDark
+                                ? const Color(0xFF334155).withValues(alpha: 0.5)
+                                : const Color(0xFFE2E8F0),
                           ),
                           itemBuilder: (context, index) {
                             final s = filtered[index];
-                            final isSelected = _selectedStudentIds.contains(s.id);
+                            final isSelected =
+                                _selectedStudentIds.contains(s.id);
 
                             return InkWell(
                               onTap: () {
@@ -361,10 +415,14 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
                               borderRadius: BorderRadius.circular(8),
                               child: Container(
                                 margin: const EdgeInsets.symmetric(vertical: 2),
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 8),
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? (isDark ? const Color(0xFF10B981).withOpacity(0.12) : const Color(0xFFECFDF5))
+                                      ? (isDark
+                                          ? const Color(0xFF10B981)
+                                              .withValues(alpha: 0.12)
+                                          : const Color(0xFFECFDF5))
                                       : Colors.transparent,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
@@ -372,33 +430,46 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
                                   children: [
                                     CircleAvatar(
                                       radius: 16,
-                                      backgroundColor: const Color(0xFF10B981).withOpacity(0.15),
-                                      backgroundImage: s.avatarUrl != null ? NetworkImage(s.avatarUrl!) : null,
+                                      backgroundColor: const Color(0xFF10B981)
+                                          .withValues(alpha: 0.15),
+                                      backgroundImage: s.avatarUrl != null
+                                          ? NetworkImage(s.avatarUrl!)
+                                          : null,
                                       child: s.avatarUrl == null
                                           ? Text(
-                                              s.fullName.isNotEmpty ? s.fullName[0].toUpperCase() : 'S',
-                                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF059669)),
+                                              s.fullName.isNotEmpty
+                                                  ? s.fullName[0].toUpperCase()
+                                                  : 'S',
+                                              style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Color(0xFF059669)),
                                             )
                                           : null,
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             s.fullName,
                                             style: TextStyle(
                                               fontSize: 13.5,
                                               fontWeight: FontWeight.w600,
-                                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                              color: isDark
+                                                  ? Colors.white
+                                                  : const Color(0xFF0F172A),
                                             ),
                                           ),
                                           Text(
                                             '${s.admissionNumber ?? 'ADM'} • Roll: ${s.rollNumber ?? '-'}',
                                             style: TextStyle(
                                               fontSize: 11.5,
-                                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                              color: isDark
+                                                  ? const Color(0xFF94A3B8)
+                                                  : const Color(0xFF64748B),
                                             ),
                                           ),
                                         ],
@@ -407,7 +478,9 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
                                     Checkbox(
                                       value: isSelected,
                                       activeColor: const Color(0xFF10B981),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(4)),
                                       onChanged: (val) {
                                         setState(() {
                                           if (val == true) {
@@ -430,11 +503,16 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A).withOpacity(0.5) : const Color(0xFFF8FAFC),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                color: isDark
+                    ? const Color(0xFF0F172A).withValues(alpha: 0.5)
+                    : const Color(0xFFF8FAFC),
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(16)),
                 border: Border(
                   top: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
               ),
@@ -446,21 +524,35 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: _selectedStudentIds.isNotEmpty ? const Color(0xFF10B981) : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      color: _selectedStudentIds.isNotEmpty
+                          ? const Color(0xFF10B981)
+                          : (isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B)),
                     ),
                   ),
                   Row(
                     children: [
                       OutlinedButton(
-                        onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+                        onPressed: _isSaving
+                            ? null
+                            : () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                          side: BorderSide(
+                              color: isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFCBD5E1)),
                         ),
                         child: Text(
                           'Cancel',
-                          style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                          style: TextStyle(
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF475569)),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -470,16 +562,20 @@ class _OptionalSubjectEnrollmentDialogState extends ConsumerState<OptionalSubjec
                           backgroundColor: const Color(0xFF10B981),
                           foregroundColor: Colors.white,
                           elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
                         child: _isSaving
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
                               )
-                            : const Text('Save Enrollments', style: TextStyle(fontWeight: FontWeight.w600)),
+                            : const Text('Save Enrollments',
+                                style: TextStyle(fontWeight: FontWeight.w600)),
                       ),
                     ],
                   ),

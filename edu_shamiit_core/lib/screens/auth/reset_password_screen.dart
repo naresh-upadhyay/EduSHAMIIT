@@ -34,7 +34,7 @@ class SharedResetPasswordScreen extends ConsumerStatefulWidget {
 class _SharedResetPasswordScreenState
     extends ConsumerState<SharedResetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  
+
   // OTP Digits
   final List<TextEditingController> _otpControllers =
       List.generate(6, (_) => TextEditingController());
@@ -43,7 +43,7 @@ class _SharedResetPasswordScreenState
   // Password Controllers
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
@@ -97,12 +97,16 @@ class _SharedResetPasswordScreenState
   String _getPasswordStrength(String password) {
     if (password.isEmpty) return '';
     if (password.length < 6) return 'Weak';
-    
+
     bool hasUppercase = password.contains(RegExp(r'[A-Z]'));
     bool hasDigits = password.contains(RegExp(r'[0-9]'));
-    bool hasSpecialCharacters = password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
+    bool hasSpecialCharacters =
+        password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
 
-    if (password.length >= 8 && hasUppercase && hasDigits && hasSpecialCharacters) {
+    if (password.length >= 8 &&
+        hasUppercase &&
+        hasDigits &&
+        hasSpecialCharacters) {
       return 'Strong';
     } else if (password.length >= 6 && (hasUppercase || hasDigits)) {
       return 'Medium';
@@ -199,7 +203,8 @@ class _SharedResetPasswordScreenState
         setState(() {
           _isOtpVerified = true;
         });
-        _showSnackBar('OTP verified. Please set your new password.', Colors.green);
+        _showSnackBar(
+            'OTP verified. Please set your new password.', Colors.green);
       } else {
         _showSnackBar(data['detail'] ?? 'Invalid or expired OTP', Colors.red);
       }
@@ -255,7 +260,8 @@ class _SharedResetPasswordScreenState
   void _showSnackBar(String message, Color backgroundColor) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
+        content:
+            Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
         backgroundColor: backgroundColor,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -268,7 +274,8 @@ class _SharedResetPasswordScreenState
     final isDesktop = MediaQuery.of(context).size.width >= 900;
 
     return Scaffold(
-      backgroundColor: isDesktop ? const Color(0xFFF8FAFC) : const Color(0xFF0F1026),
+      backgroundColor:
+          isDesktop ? const Color(0xFFF8FAFC) : const Color(0xFF0F1026),
       body: isDesktop
           ? SingleChildScrollView(
               child: IntrinsicHeight(
@@ -300,7 +307,8 @@ class _SharedResetPasswordScreenState
               ),
               child: Center(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 480),
                     child: Column(
@@ -420,235 +428,238 @@ class _SharedResetPasswordScreenState
             padding: const EdgeInsets.symmetric(horizontal: 48),
             child: Row(
               children: [
-                  if (logoUrl != null && logoUrl.isNotEmpty)
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Image.network(
-                        AppConfig.resolveUrl(logoUrl),
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(
-                            Icons.shield_outlined,
-                            color: Color(0xFF818CF8),
-                            size: 24,
-                          );
-                        },
-                      ),
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.shield_outlined,
-                        color: Color(0xFF818CF8),
-                        size: 24,
-                      ),
+                if (logoUrl != null && logoUrl.isNotEmpty)
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: GoogleFonts.outfit(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Text(
-                        'Smart Management. Better Education.',
-                        style: GoogleFonts.outfit(
-                          fontSize: 10,
-                          color: Colors.white60,
-                        ),
-                      ),
-                    ],
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.network(
+                      AppConfig.resolveUrl(logoUrl),
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.shield_outlined,
+                          color: Color(0xFF818CF8),
+                          size: 24,
+                        );
+                      },
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.shield_outlined,
+                      color: Color(0xFF818CF8),
+                      size: 24,
+                    ),
                   ),
-                ],
-              ),
-            ),
-            if (!isMobile) ...[
-              const SizedBox(height: 48),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 48),
-                child: Column(
+                const SizedBox(width: 12),
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    RichText(
-                      text: TextSpan(
-                        style: GoogleFonts.outfit(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        children: const [
-                          TextSpan(text: 'Reset Your '),
-                          TextSpan(
-                            text: 'Password',
-                            style: TextStyle(color: Color(0xFF818CF8)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Glowing gradient underline accent
-                    Container(
-                      width: 40,
-                      height: 3,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(1.5),
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF818CF8), Color(0xFF6366F1)],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
                     Text(
-                      'Enter the OTP sent to your email address and create a new secure password.',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
+                      name,
+                      style: GoogleFonts.outfit(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      'Smart Management. Better Education.',
+                      style: GoogleFonts.outfit(
+                        fontSize: 10,
                         color: Colors.white60,
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 48),
-              // 3D Reset password illustration (dynamic with fallback)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: ShaderMask(
-                  shaderCallback: (Rect bounds) {
-                    return RadialGradient(
-                      center: Alignment.center,
-                      radius: 0.7,
-                      colors: [
-                        Colors.black,
-                        Colors.black.withValues(alpha: 0.85),
-                        Colors.transparent,
+              ],
+            ),
+          ),
+          if (!isMobile) ...[
+            const SizedBox(height: 48),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 48),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  RichText(
+                    text: TextSpan(
+                      style: GoogleFonts.outfit(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      children: const [
+                        TextSpan(text: 'Reset Your '),
+                        TextSpan(
+                          text: 'Password',
+                          style: TextStyle(color: Color(0xFF818CF8)),
+                        ),
                       ],
-                      stops: const [0.0, 0.85, 1.0],
-                    ).createShader(bounds);
-                  },
-                  blendMode: BlendMode.dstIn,
-                  child: Builder(
-                    builder: (context) {
-                      final screenHeight = MediaQuery.of(context).size.height;
-                      final imageHeight = (screenHeight * 0.38).clamp(240.0, 420.0);
-                      final imageUrl = widget.illustrationUrl ?? '';
-                      if (imageUrl.isNotEmpty) {
-                        return Image.network(
-                          AppConfig.resolveUrl(imageUrl),
-                          width: double.infinity,
-                          height: imageHeight,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) =>
-                              _buildFallbackIllustration('assets/images/reset_password_illustration.png', imageHeight: imageHeight),
-                        );
-                      }
-                      return _buildFallbackIllustration('assets/images/reset_password_illustration.png', imageHeight: imageHeight);
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 48),
-              // Bottom trusted banner
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 48),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08),
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.05),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.08),
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.shield_outlined,
-                          color: Color(0xFF818CF8),
-                          size: 20,
-                        ),
+                  const SizedBox(height: 16),
+                  // Glowing gradient underline accent
+                  Container(
+                    width: 40,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(1.5),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF818CF8), Color(0xFF6366F1)],
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Secure & Trusted Platform',
-                              style: GoogleFonts.outfit(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Your data is protected with enterprise-grade security and privacy.',
-                              style: GoogleFonts.dmSans(
-                                fontSize: 11,
-                                color: Colors.white60,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Enter the OTP sent to your email address and create a new secure password.',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      color: Colors.white60,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 48),
+            // 3D Reset password illustration (dynamic with fallback)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ShaderMask(
+                shaderCallback: (Rect bounds) {
+                  return RadialGradient(
+                    center: Alignment.center,
+                    radius: 0.7,
+                    colors: [
+                      Colors.black,
+                      Colors.black.withValues(alpha: 0.85),
+                      Colors.transparent,
+                    ],
+                    stops: const [0.0, 0.85, 1.0],
+                  ).createShader(bounds);
+                },
+                blendMode: BlendMode.dstIn,
+                child: Builder(
+                  builder: (context) {
+                    final screenHeight = MediaQuery.of(context).size.height;
+                    final imageHeight =
+                        (screenHeight * 0.38).clamp(240.0, 420.0);
+                    final imageUrl = widget.illustrationUrl ?? '';
+                    if (imageUrl.isNotEmpty) {
+                      return Image.network(
+                        AppConfig.resolveUrl(imageUrl),
+                        width: double.infinity,
+                        height: imageHeight,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) =>
+                            _buildFallbackIllustration(
+                                'assets/images/reset_password_illustration.png',
+                                imageHeight: imageHeight),
+                      );
+                    }
+                    return _buildFallbackIllustration(
+                        'assets/images/reset_password_illustration.png',
+                        imageHeight: imageHeight);
+                  },
                 ),
               ),
-              const SizedBox(height: 32),
-              // Back to Login Link
-              InkWell(
-                onTap: () => context.go('/login'),
+            ),
+            const SizedBox(height: 48),
+            // Bottom trusted banner
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 48),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
+                ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.arrow_back, color: Colors.white70, size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Back to Login',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white70,
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.05),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.08),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.shield_outlined,
+                        color: Color(0xFF818CF8),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Secure & Trusted Platform',
+                            style: GoogleFonts.outfit(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Your data is protected with enterprise-grade security and privacy.',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 11,
+                              color: Colors.white60,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
+            ),
+            const SizedBox(height: 32),
+            // Back to Login Link
+            InkWell(
+              onTap: () => context.go('/login'),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.arrow_back, color: Colors.white70, size: 16),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Back to Login',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
-        ),
+        ],
+      ),
     );
   }
 
   Widget _buildRightForm({bool isMobile = false}) {
-    final strength = _getPasswordStrength(_passwordController.text);
-
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: isMobile ? 16 : 48,
@@ -665,7 +676,8 @@ class _SharedResetPasswordScreenState
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
@@ -673,7 +685,8 @@ class _SharedResetPasswordScreenState
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.language_outlined, size: 14, color: Colors.black54),
+                        const Icon(Icons.language_outlined,
+                            size: 14, color: Colors.black54),
                         const SizedBox(width: 6),
                         Text(
                           'English',
@@ -684,7 +697,8 @@ class _SharedResetPasswordScreenState
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.black54),
+                        const Icon(Icons.keyboard_arrow_down,
+                            size: 14, color: Colors.black54),
                       ],
                     ),
                   ),
@@ -731,7 +745,7 @@ class _SharedResetPasswordScreenState
                       // Stepper Header
                       _buildStepperHeader(),
                       const SizedBox(height: 24),
-                      
+
                       if (!_isOtpVerified) ...[
                         // Section 1: Enter OTP (Step 2)
                         Text(
@@ -750,7 +764,8 @@ class _SharedResetPasswordScreenState
                               color: const Color(0xFF64748B),
                             ),
                             children: [
-                              const TextSpan(text: 'We have sent a 6-digit OTP to '),
+                              const TextSpan(
+                                  text: 'We have sent a 6-digit OTP to '),
                               TextSpan(
                                 text: widget.email,
                                 style: const TextStyle(
@@ -783,7 +798,8 @@ class _SharedResetPasswordScreenState
                                       style: TextButton.styleFrom(
                                         padding: EdgeInsets.zero,
                                         minimumSize: Size.zero,
-                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
                                       ),
                                       child: Text(
                                         'Resend OTP',
@@ -824,7 +840,8 @@ class _SharedResetPasswordScreenState
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation(Colors.white),
+                                    valueColor:
+                                        AlwaysStoppedAnimation(Colors.white),
                                   ),
                                 )
                               : Text(
@@ -867,34 +884,44 @@ class _SharedResetPasswordScreenState
                         TextFormField(
                           controller: _passwordController,
                           obscureText: _obscurePassword,
-                          style: GoogleFonts.dmSans(fontSize: 14, color: const Color(0xFF0F172A)),
+                          style: GoogleFonts.dmSans(
+                              fontSize: 14, color: const Color(0xFF0F172A)),
                           decoration: InputDecoration(
                             hintText: 'Minimum 6 characters',
-                            hintStyle: GoogleFonts.dmSans(color: const Color(0xFF94A3B8), fontSize: 13),
-                            prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF94A3B8), size: 18),
+                            hintStyle: GoogleFonts.dmSans(
+                                color: const Color(0xFF94A3B8), fontSize: 13),
+                            prefixIcon: const Icon(Icons.lock_outline,
+                                color: Color(0xFF94A3B8), size: 18),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                _obscurePassword
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
                                 color: const Color(0xFF94A3B8),
                                 size: 18,
                               ),
-                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                              onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword),
                             ),
                             filled: true,
                             fillColor: Colors.white,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFFE2E8F0)),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFFE2E8F0)),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                              borderSide: const BorderSide(
+                                  color: Color(0xFF6366F1), width: 1.5),
                             ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 14),
                           ),
                           onChanged: (val) => setState(() {}),
                           validator: (value) {
@@ -911,7 +938,8 @@ class _SharedResetPasswordScreenState
                           const SizedBox(height: 8),
                           Builder(
                             builder: (context) {
-                              final strength = _getPasswordStrength(_passwordController.text);
+                              final strength = _getPasswordStrength(
+                                  _passwordController.text);
                               final color = _getStrengthColor(strength);
                               int segments = 1;
                               if (strength == 'Medium') segments = 2;
@@ -924,7 +952,9 @@ class _SharedResetPasswordScreenState
                                     children: [
                                       Text(
                                         'Password strength: ',
-                                        style: GoogleFonts.dmSans(fontSize: 11, color: const Color(0xFF64748B)),
+                                        style: GoogleFonts.dmSans(
+                                            fontSize: 11,
+                                            color: const Color(0xFF64748B)),
                                       ),
                                       Text(
                                         strength,
@@ -947,8 +977,11 @@ class _SharedResetPasswordScreenState
                                             right: index < 2 ? 4 : 0,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: isActive ? color : const Color(0xFFE2E8F0),
-                                            borderRadius: BorderRadius.circular(2),
+                                            color: isActive
+                                                ? color
+                                                : const Color(0xFFE2E8F0),
+                                            borderRadius:
+                                                BorderRadius.circular(2),
                                           ),
                                         ),
                                       );
@@ -973,34 +1006,45 @@ class _SharedResetPasswordScreenState
                         TextFormField(
                           controller: _confirmPasswordController,
                           obscureText: _obscureConfirmPassword,
-                          style: GoogleFonts.dmSans(fontSize: 14, color: const Color(0xFF0F172A)),
+                          style: GoogleFonts.dmSans(
+                              fontSize: 14, color: const Color(0xFF0F172A)),
                           decoration: InputDecoration(
                             hintText: 'Re-enter your password',
-                            hintStyle: GoogleFonts.dmSans(color: const Color(0xFF94A3B8), fontSize: 13),
-                            prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF94A3B8), size: 18),
+                            hintStyle: GoogleFonts.dmSans(
+                                color: const Color(0xFF94A3B8), fontSize: 13),
+                            prefixIcon: const Icon(Icons.lock_outline,
+                                color: Color(0xFF94A3B8), size: 18),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                _obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                _obscureConfirmPassword
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
                                 color: const Color(0xFF94A3B8),
                                 size: 18,
                               ),
-                              onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                              onPressed: () => setState(() =>
+                                  _obscureConfirmPassword =
+                                      !_obscureConfirmPassword),
                             ),
                             filled: true,
                             fillColor: Colors.white,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFFE2E8F0)),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFFE2E8F0)),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                              borderSide: const BorderSide(
+                                  color: Color(0xFF6366F1), width: 1.5),
                             ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 14),
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
@@ -1031,7 +1075,8 @@ class _SharedResetPasswordScreenState
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation(Colors.white),
+                                    valueColor:
+                                        AlwaysStoppedAnimation(Colors.white),
                                   ),
                                 )
                               : Text(
@@ -1078,14 +1123,17 @@ class _SharedResetPasswordScreenState
       children: [
         _buildStepBadge(1, 'Request Sent', isCompleted: true, isActive: true),
         _buildStepDivider(true),
-        _buildStepBadge(2, 'Verify OTP', isCompleted: _isOtpVerified, isActive: !_isOtpVerified),
+        _buildStepBadge(2, 'Verify OTP',
+            isCompleted: _isOtpVerified, isActive: !_isOtpVerified),
         _buildStepDivider(_isOtpVerified),
-        _buildStepBadge(3, 'Reset Password', isCompleted: false, isActive: false),
+        _buildStepBadge(3, 'Reset Password',
+            isCompleted: false, isActive: false),
       ],
     );
   }
 
-  Widget _buildStepBadge(int number, String label, {required bool isCompleted, required bool isActive}) {
+  Widget _buildStepBadge(int number, String label,
+      {required bool isCompleted, required bool isActive}) {
     const activeColor = Color(0xFF6366F1);
     const inactiveColor = Color(0xFFE2E8F0);
     const textActiveColor = Color(0xFF1E293B);
@@ -1124,8 +1172,10 @@ class _SharedResetPasswordScreenState
           label,
           style: GoogleFonts.dmSans(
             fontSize: 10,
-            fontWeight: (isCompleted || isActive) ? FontWeight.bold : FontWeight.normal,
-            color: (isCompleted || isActive) ? textActiveColor : textInactiveColor,
+            fontWeight:
+                (isCompleted || isActive) ? FontWeight.bold : FontWeight.normal,
+            color:
+                (isCompleted || isActive) ? textActiveColor : textInactiveColor,
           ),
         ),
       ],
@@ -1154,7 +1204,10 @@ class _SharedResetPasswordScreenState
             focusNode: _otpFocusNodes[index],
             keyboardType: TextInputType.number,
             textAlign: TextAlign.center,
-            style: GoogleFonts.dmSans(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
+            style: GoogleFonts.dmSans(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF0F172A)),
             inputFormatters: [
               LengthLimitingTextInputFormatter(1),
               FilteringTextInputFormatter.digitsOnly,
@@ -1173,7 +1226,8 @@ class _SharedResetPasswordScreenState
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+                borderSide:
+                    const BorderSide(color: Color(0xFF6366F1), width: 2),
               ),
             ),
             onChanged: (value) {
@@ -1197,7 +1251,8 @@ class _SharedResetPasswordScreenState
     );
   }
 
-  Widget _buildFallbackIllustration(String defaultUrl, {required double imageHeight}) {
+  Widget _buildFallbackIllustration(String defaultUrl,
+      {required double imageHeight}) {
     final isAsset = defaultUrl.startsWith('assets/');
     return Container(
       width: double.infinity,

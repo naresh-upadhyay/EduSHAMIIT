@@ -17,7 +17,8 @@ class _ImportBooksDialogState extends ConsumerState<ImportBooksDialog> {
   Map<String, dynamic>? _validationResult;
   Map<String, dynamic>? _importResult;
 
-  final String _sampleCsvTemplate = '''Title,Author,Category,ISBN,Year,Copies,Rack,Shelf,Price,Supplier
+  final String _sampleCsvTemplate =
+      '''Title,Author,Category,ISBN,Year,Copies,Rack,Shelf,Price,Supplier
 The Psychology of Money,Morgan Housel,Finance,978-9390166268,2020,4,Rack A,Shelf 1,299.00,Sapna Book House
 Atomic Habits,James Clear,Self Help,978-1847941831,2018,5,Rack A,Shelf 2,399.00,Amazon Business
 Wings of Fire,A.P.J. Abdul Kalam,Biography,978-8179925938,1999,3,Rack A,Shelf 3,250.00,Orient Blackswan
@@ -36,14 +37,17 @@ The Alchemist,Paulo Coelho,Fiction,978-8172234984,2005,6,Rack B,Shelf 1,275.00,H
   }
 
   List<Map<String, dynamic>> _parseCsv(String text) {
-    final lines = text.trim().split('\n').where((l) => l.trim().isNotEmpty).toList();
+    final lines =
+        text.trim().split('\n').where((l) => l.trim().isNotEmpty).toList();
     if (lines.length < 2) return [];
 
-    final headers = lines[0].split(',').map((h) => h.trim().replaceAll('"', '')).toList();
+    final headers =
+        lines[0].split(',').map((h) => h.trim().replaceAll('"', '')).toList();
     final records = <Map<String, dynamic>>[];
 
     for (int i = 1; i < lines.length; i++) {
-      final values = lines[i].split(',').map((v) => v.trim().replaceAll('"', '')).toList();
+      final values =
+          lines[i].split(',').map((v) => v.trim().replaceAll('"', '')).toList();
       final map = <String, dynamic>{};
       for (int h = 0; h < headers.length; h++) {
         if (h < values.length) {
@@ -59,7 +63,8 @@ The Alchemist,Paulo Coelho,Fiction,978-8172234984,2005,6,Rack B,Shelf 1,275.00,H
     final rows = _parseCsv(_csvInputCtrl.text);
     if (rows.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter valid CSV data with header row.')),
+        const SnackBar(
+            content: Text('Please enter valid CSV data with header row.')),
       );
       return;
     }
@@ -77,7 +82,9 @@ The Alchemist,Paulo Coelho,Fiction,978-8172234984,2005,6,Rack B,Shelf 1,275.00,H
       if (mounted) {
         setState(() => _isValidating = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Validation failed: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Validation failed: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -100,7 +107,8 @@ The Alchemist,Paulo Coelho,Fiction,978-8172234984,2005,6,Rack B,Shelf 1,275.00,H
       if (mounted) {
         setState(() => _isImporting = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Import failed: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Import failed: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -123,12 +131,16 @@ The Alchemist,Paulo Coelho,Fiction,978-8172234984,2005,6,Rack B,Shelf 1,275.00,H
               padding: const EdgeInsets.fromLTRB(24, 20, 16, 16),
               decoration: BoxDecoration(
                 border: Border(
-                  bottom: BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+                  bottom: BorderSide(
+                      color: isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFE2E8F0)),
                 ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.upload_file_rounded, color: Color(0xFF6366F1), size: 22),
+                  const Icon(Icons.upload_file_rounded,
+                      color: Color(0xFF6366F1), size: 22),
                   const SizedBox(width: 10),
                   const Text(
                     'Import Books Catalogue (CSV / XLSX)',
@@ -146,16 +158,20 @@ The Alchemist,Paulo Coelho,Fiction,978-8172234984,2005,6,Rack B,Shelf 1,275.00,H
             // Stepper Header
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              color: isDark ? const Color(0xFF0F172A).withOpacity(0.5) : const Color(0xFFF8FAFC),
+              color: isDark
+                  ? const Color(0xFF0F172A).withValues(alpha: 0.5)
+                  : const Color(0xFFF8FAFC),
               child: Row(
                 children: [
                   _buildStepIndicator(0, '1. Upload Data', isDark),
                   const SizedBox(width: 16),
-                  const Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFF94A3B8)),
+                  const Icon(Icons.arrow_forward_rounded,
+                      size: 14, color: Color(0xFF94A3B8)),
                   const SizedBox(width: 16),
                   _buildStepIndicator(1, '2. Validate & Preview', isDark),
                   const SizedBox(width: 16),
-                  const Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFF94A3B8)),
+                  const Icon(Icons.arrow_forward_rounded,
+                      size: 14, color: Color(0xFF94A3B8)),
                   const SizedBox(width: 16),
                   _buildStepIndicator(2, '3. Summary Report', isDark),
                 ],
@@ -175,7 +191,10 @@ The Alchemist,Paulo Coelho,Fiction,978-8172234984,2005,6,Rack B,Shelf 1,275.00,H
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
                 border: Border(
-                  top: BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+                  top: BorderSide(
+                      color: isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFE2E8F0)),
                 ),
               ),
               child: Row(
@@ -195,8 +214,13 @@ The Alchemist,Paulo Coelho,Fiction,978-8172234984,2005,6,Rack B,Shelf 1,275.00,H
                   if (_currentStep == 0)
                     ElevatedButton.icon(
                       icon: _isValidating
-                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.check_circle_outline_rounded, size: 16),
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.check_circle_outline_rounded,
+                              size: 16),
                       label: const Text('Validate & Preview'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF6366F1),
@@ -207,7 +231,11 @@ The Alchemist,Paulo Coelho,Fiction,978-8172234984,2005,6,Rack B,Shelf 1,275.00,H
                   else if (_currentStep == 1)
                     ElevatedButton.icon(
                       icon: _isImporting
-                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
                           : const Icon(Icons.cloud_upload_rounded, size: 16),
                       label: const Text('Confirm Import'),
                       style: ElevatedButton.styleFrom(
@@ -233,10 +261,17 @@ The Alchemist,Paulo Coelho,Fiction,978-8172234984,2005,6,Rack B,Shelf 1,275.00,H
       children: [
         CircleAvatar(
           radius: 10,
-          backgroundColor: isDone ? const Color(0xFF10B981) : (isActive ? const Color(0xFF6366F1) : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1))),
+          backgroundColor: isDone
+              ? const Color(0xFF10B981)
+              : (isActive
+                  ? const Color(0xFF6366F1)
+                  : (isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFCBD5E1))),
           child: Text(
             isDone ? '✓' : '${stepIndex + 1}',
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white),
+            style: const TextStyle(
+                fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white),
           ),
         ),
         const SizedBox(width: 6),
@@ -245,7 +280,9 @@ The Alchemist,Paulo Coelho,Fiction,978-8172234984,2005,6,Rack B,Shelf 1,275.00,H
           style: TextStyle(
             fontSize: 12,
             fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-            color: isActive ? (isDark ? Colors.white : const Color(0xFF0F172A)) : const Color(0xFF94A3B8),
+            color: isActive
+                ? (isDark ? Colors.white : const Color(0xFF0F172A))
+                : const Color(0xFF94A3B8),
           ),
         ),
       ],
@@ -266,8 +303,10 @@ The Alchemist,Paulo Coelho,Fiction,978-8172234984,2005,6,Rack B,Shelf 1,275.00,H
               ),
               TextButton.icon(
                 icon: const Icon(Icons.refresh_rounded, size: 14),
-                label: const Text('Reset to Sample', style: TextStyle(fontSize: 11.5)),
-                onPressed: () => setState(() => _csvInputCtrl.text = _sampleCsvTemplate),
+                label: const Text('Reset to Sample',
+                    style: TextStyle(fontSize: 11.5)),
+                onPressed: () =>
+                    setState(() => _csvInputCtrl.text = _sampleCsvTemplate),
               ),
             ],
           ),
@@ -284,10 +323,14 @@ The Alchemist,Paulo Coelho,Fiction,978-8172234984,2005,6,Rack B,Shelf 1,275.00,H
               ),
               decoration: InputDecoration(
                 filled: true,
-                fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                fillColor:
+                    isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  borderSide: BorderSide(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFCBD5E1)),
                 ),
                 contentPadding: const EdgeInsets.all(12),
               ),
@@ -296,7 +339,8 @@ The Alchemist,Paulo Coelho,Fiction,978-8172234984,2005,6,Rack B,Shelf 1,275.00,H
         ],
       );
     } else if (_currentStep == 1) {
-      final summary = _validationResult?['summary'] as Map<String, dynamic>? ?? {};
+      final summary =
+          _validationResult?['summary'] as Map<String, dynamic>? ?? {};
       final preview = (_validationResult?['preview'] as List?) ?? [];
 
       return Column(
@@ -305,17 +349,34 @@ The Alchemist,Paulo Coelho,Fiction,978-8172234984,2005,6,Rack B,Shelf 1,275.00,H
           // Metrics summary
           Row(
             children: [
-              _buildMetricChip('Total Records', '${summary['total_processed'] ?? 0}', const Color(0xFF6366F1), isDark),
+              _buildMetricChip(
+                  'Total Records',
+                  '${summary['total_processed'] ?? 0}',
+                  const Color(0xFF6366F1),
+                  isDark),
               const SizedBox(width: 8),
-              _buildMetricChip('Valid to Import', '${summary['imported_count'] ?? 0}', const Color(0xFF10B981), isDark),
+              _buildMetricChip(
+                  'Valid to Import',
+                  '${summary['imported_count'] ?? 0}',
+                  const Color(0xFF10B981),
+                  isDark),
               const SizedBox(width: 8),
-              _buildMetricChip('Duplicate ISBNs', '${summary['duplicates_count'] ?? 0}', const Color(0xFFF59E0B), isDark),
+              _buildMetricChip(
+                  'Duplicate ISBNs',
+                  '${summary['duplicates_count'] ?? 0}',
+                  const Color(0xFFF59E0B),
+                  isDark),
               const SizedBox(width: 8),
-              _buildMetricChip('Invalid Rows', '${summary['invalid_count'] ?? 0}', const Color(0xFFEF4444), isDark),
+              _buildMetricChip(
+                  'Invalid Rows',
+                  '${summary['invalid_count'] ?? 0}',
+                  const Color(0xFFEF4444),
+                  isDark),
             ],
           ),
           const SizedBox(height: 16),
-          const Text('Previewing Valid Records:', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+          const Text('Previewing Valid Records:',
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           Expanded(
             child: ListView.separated(
@@ -325,10 +386,17 @@ The Alchemist,Paulo Coelho,Fiction,978-8172234984,2005,6,Rack B,Shelf 1,275.00,H
                 final item = preview[idx];
                 return ListTile(
                   dense: true,
-                  leading: const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18),
-                  title: Text(item['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5)),
-                  subtitle: Text('${item['author']} • ${item['category_name']} • ISBN: ${item['isbn13']}', style: const TextStyle(fontSize: 11)),
-                  trailing: Text('${item['copies_count']} copies', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+                  leading: const Icon(Icons.check_circle_rounded,
+                      color: Color(0xFF10B981), size: 18),
+                  title: Text(item['title'] ?? '',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 12.5)),
+                  subtitle: Text(
+                      '${item['author']} • ${item['category_name']} • ISBN: ${item['isbn13']}',
+                      style: const TextStyle(fontSize: 11)),
+                  trailing: Text('${item['copies_count']} copies',
+                      style: const TextStyle(
+                          fontSize: 11.5, fontWeight: FontWeight.w600)),
                 );
               },
             ),
@@ -341,7 +409,8 @@ The Alchemist,Paulo Coelho,Fiction,978-8172234984,2005,6,Rack B,Shelf 1,275.00,H
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.task_alt_rounded, color: Color(0xFF10B981), size: 56),
+            const Icon(Icons.task_alt_rounded,
+                color: Color(0xFF10B981), size: 56),
             const SizedBox(height: 16),
             const Text(
               'Books Import Completed Successfully!',
@@ -350,7 +419,11 @@ The Alchemist,Paulo Coelho,Fiction,978-8172234984,2005,6,Rack B,Shelf 1,275.00,H
             const SizedBox(height: 8),
             Text(
               '${summary['imported_count'] ?? 0} books and copies were created in your catalogue.',
-              style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+              style: TextStyle(
+                  fontSize: 13,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B)),
             ),
           ],
         ),
@@ -358,19 +431,27 @@ The Alchemist,Paulo Coelho,Fiction,978-8172234984,2005,6,Rack B,Shelf 1,275.00,H
     }
   }
 
-  Widget _buildMetricChip(String label, String value, Color color, bool isDark) {
+  Widget _buildMetricChip(
+      String label, String value, Color color, bool isDark) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: color.withOpacity(isDark ? 0.15 : 0.08),
+          color: color.withValues(alpha: isDark ? 0.15 : 0.08),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           children: [
-            Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: color)),
-            Text(label, style: TextStyle(fontSize: 10.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+            Text(value,
+                style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w700, color: color)),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 10.5,
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B))),
           ],
         ),
       ),

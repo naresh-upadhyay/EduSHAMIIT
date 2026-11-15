@@ -174,6 +174,8 @@ CREATE TABLE IF NOT EXISTS public.recruitment_assessments (
     assessment_date DATE DEFAULT CURRENT_DATE,
     result TEXT NOT NULL DEFAULT 'Pending' CHECK (result IN ('Passed', 'Failed', 'Pending')),
     remarks TEXT,
+    test_link TEXT,
+    instructions TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now())
 );

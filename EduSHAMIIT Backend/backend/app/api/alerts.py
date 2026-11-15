@@ -62,11 +62,15 @@ async def get_system_alerts(
         q = sb.table("notifications").select("*").eq("category", "system_alert").count("exact")
         
         # Apply filters
-        if priority and priority != "All Priorities":
+        if priority and priority != "All Priorities" and priority != "All Alerts":
             if priority == "Unread":
                 q = q.eq("is_read", False)
             elif priority == "Resolved":
-                q = q.eq("status", "Resolved")
+                q = q.ilike("status", "%resolved%")
+            elif priority in ["Critical", "High", "Warning", "Info"]:
+                q = q.ilike("priority", f"%{priority}%")
+        if status and status != "All Status":
+            q = q.ilike("status", f"%{status}%")
         if search:
             clean_search = sanitize_search_input(search)
             if clean_search:
@@ -81,15 +85,40 @@ async def get_system_alerts(
         alerts = res.data or []
         total = res.count or len(alerts)
 
+        # Ensure each alert has a status field fallback for UI and message mapped to description
+        for alert in alerts:
+            if not alert.get("status"):
+                alert["status"] = "New"
+            if not alert.get("description") and alert.get("message"):
+                alert["description"] = alert.get("message")
+
         # Get summary stats
-        stats_res = await sb.table("notifications").select("status, is_read, created_at").eq("category", "system_alert").aexecute()
+        try:
+            stats_res = await sb.table("notifications").select("id, is_read, priority, status, created_at, updated_at").eq("category", "system_alert").aexecute()
+        except Exception:
+            stats_res = await sb.table("notifications").select("id, is_read, created_at").aexecute()
         all_rows = stats_res.data or []
         
         total_alerts = len(all_rows)
         unread_alerts = sum(1 for r in all_rows if r.get("is_read") is False)
-        critical_alerts = sum(1 for r in all_rows if r.get("status") == "Critical")
-        resolved_alerts = sum(1 for r in all_rows if r.get("status") == "Resolved")
-        in_progress_alerts = sum(1 for r in all_rows if r.get("status") == "In Progress")
+        crit_count = sum(1 for r in all_rows if (r.get("priority") or "").lower() == "critical")
+        high_count = sum(1 for r in all_rows if (r.get("priority") or "").lower() == "high")
+        warn_count = sum(1 for r in all_rows if (r.get("priority") or "").lower() == "warning")
+        info_count = sum(1 for r in all_rows if (r.get("priority") or "").lower() in ["info", "normal", "low", ""])
+        
+        resolved_alerts = sum(1 for r in all_rows if (r.get("status") or "").lower() == "resolved")
+        in_progress_alerts = sum(1 for r in all_rows if (r.get("status") or "").lower() in ["in progress", "in_progress"])
+        new_alerts = sum(1 for r in all_rows if (r.get("status") or "").lower() == "new")
+        
+        today_str = datetime.utcnow().date().isoformat()
+        resolved_today_alerts = sum(1 for r in all_rows if (r.get("status") or "").lower() == "resolved" and str(r.get("updated_at") or r.get("created_at") or "").startswith(today_str))
+        
+        breakdown = {
+            "critical": crit_count,
+            "high": high_count,
+            "warning": warn_count,
+            "info": info_count
+        }
         
         profile_res = await sb.table("profiles").select(
             "email_notifications, sms_alerts, push_notifications, system_alert_sounds"
@@ -110,10 +139,15 @@ async def get_system_alerts(
                 "stats": {
                     "total_alerts": total_alerts,
                     "unread_alerts": unread_alerts,
-                    "critical_alerts": critical_alerts,
+                    "critical_alerts": crit_count,
+                    "high_alerts": high_count,
+                    "warning_alerts": warn_count,
+                    "info_alerts": info_count,
                     "resolved_alerts": resolved_alerts,
-                    "in_progress_alerts": in_progress_alerts
+                    "in_progress_alerts": in_progress_alerts,
+                    "resolved_today_alerts": resolved_today_alerts
                 },
+                "breakdown": breakdown,
                 "settings": settings
             }
         }
@@ -124,14 +158,29 @@ async def get_system_alerts(
 async def create_system_alert(request: AlertCreate, user=Depends(require_super_admin)):
     sb = get_supabase()
     try:
-        res = await sb.table("notifications").insert({
+        priority_val = (request.priority or "normal").lower()
+        if priority_val == "critical":
+            priority_val = "critical"
+        elif priority_val == "high":
+            priority_val = "high"
+        elif priority_val == "warning":
+            priority_val = "warning"
+        else:
+            priority_val = "normal"
+
+        is_read_val = (request.status or "").lower() == "resolved"
+
+        insert_data = {
             "title": request.title,
             "message": request.description or request.title,
             "category": "system_alert",
             "school_id": request.school_id,
-            "is_read": False,
+            "priority": priority_val,
+            "status": request.status or "New",
+            "is_read": is_read_val,
             "created_at": datetime.utcnow().isoformat()
-        }).aexecute()
+        }
+        res = await sb.table("notifications").insert(insert_data).aexecute()
         
         if res.data:
             return {"success": True, "data": res.data[0]}
@@ -148,6 +197,18 @@ async def update_system_alert(alert_id: str, request: AlertUpdate, user=Depends(
             update_data["title"] = request.title
         if request.description is not None:
             update_data["message"] = request.description
+        if request.priority is not None:
+            p_val = request.priority.lower()
+            if p_val in ["critical", "high", "warning"]:
+                update_data["priority"] = p_val
+            else:
+                update_data["priority"] = "normal"
+        if request.status is not None:
+            update_data["status"] = request.status
+            if request.status.lower() == "resolved":
+                update_data["is_read"] = True
+            elif request.status.lower() == "new":
+                update_data["is_read"] = False
         if request.is_read is not None:
             update_data["is_read"] = request.is_read
             
@@ -185,6 +246,9 @@ async def bulk_update_alerts(request: BulkUpdateAlerts, user=Depends(require_sup
         elif request.action == "unread":
             for aid in request.ids:
                 await sb.table("notifications").update({"is_read": False}).eq("id", aid).aexecute()
+        elif request.action == "resolve":
+            for aid in request.ids:
+                await sb.table("notifications").update({"is_read": True, "status": "Resolved"}).eq("id", aid).aexecute()
                 
         return {"success": True}
     except Exception as e:

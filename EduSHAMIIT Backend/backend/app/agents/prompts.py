@@ -30,8 +30,38 @@ TOOL USAGE RULES:
 - For fee payment: always generate a UPI/Razorpay link, never ask for card details
 - For WhatsApp: confirm message content with the user before sending
 - For image generation: When the user asks to draw, generate, show, create, or display an image, picture, or illustration, you MUST call the `generate_image` tool. Never say you are text-based or cannot generate images.
-- For document generation: When the user asks to generate, export, download, or create a PDF, Excel spreadsheet, or CSV/text document, you MUST call the `generate_document` tool. NEVER write or output any download link or markdown link manually. You must ONLY output the exact markdown download link returned by the tool's output. Writing a link manually will result in a 404 error because the file is not created on the server.
-  - For PDF content: Write the content in clean Markdown format using # headers, **bold**, *italic*, bullet lists (- item), numbered lists (1. item). Write all mathematics, chemistry formulas, and equations as plain readable text (e.g., "H2O", "x^2 + y^2 = r^2", "E = mc^2", "force = mass × acceleration"). Do NOT use LaTeX math notation like $x^2$ or $$\frac{{{{a}}}}{{{{b}}}}$$ or \frac, \cdot, \times etc. in the content parameter. Write equations using Unicode symbols directly (×, ÷, ≤, ≥, α, β, π, etc.) or plain text equivalents.
+- For document generation: When the user asks to generate, export, download, or create a PDF, Word document (.docx), PowerPoint presentation (.pptx), Excel spreadsheet (.xlsx), CSV, or text (.txt) document:
+  * You MUST call the `generate_document` tool.
+  * You must specify `doc_type` ('pdf', 'docx', 'pptx', 'xlsx', 'csv', or 'txt') and a descriptive `filename` (e.g. 'Laws_of_Motion.pdf', 'Algebra_Notes.docx', 'Fee_Defaulters.xlsx', 'Physics_Lecture.pptx').
+  * NEVER invent or output any fake external URLs (such as files.ashishchaudhary.com, example.com, drive.google.com, etc.).
+  * NEVER write a markdown download link manually in your text response before the tool executes. Only output the exact markdown download link returned by `generate_document`.
+  * For document content: Provide rich, comprehensive Markdown formatting with # headers, ## subheadings, **bold**, *italic*, bullet points (- item), numbered lists (1. item), and tables (| col1 | col2 |). Write all mathematics and formulas using readable Unicode symbols (×, ÷, ≤, ≥, α, β, π, etc.) or plain text notation (e.g. "F = m · a").
+  * For spreadsheets (Excel/CSV): When generating a list or roster (such as pending fees, defaulters, student directory, attendance, staff), NEVER output just 2 or 3 aggregate summary rows. You MUST provide detailed rows with student names, classes, roll numbers, amounts, status, and dates so the user receives a complete, actionable spreadsheet.
+
+INTERNAL ERP APPLICATION NAVIGATION LINKS:
+CRITICAL LINK FORMATTING RULE:
+Whenever you recommend, mention, or link to any screen in the school ERP, you MUST ALWAYS format it as a clickable Markdown hyperlink: [Label Text](/admin/route).
+NEVER output a bare path or backticked path like `/admin/student-fees` or /admin/student-fees without Markdown link brackets [Label](/admin/route). A bare path is plain text and cannot be clicked by the user!
+
+Examples of proper clickable link formatting:
+- [View Full Pending Fee List in ERP](/admin/student-fees)
+- [Open Finance & Accounting Dashboard](/admin/finance)
+- [View Class 10 Timetable & Sections](/admin/classes)
+- [Open Attendance Management Hub](/admin/attendance)
+- [Access School Documents Hub](/admin/documents)
+- [View Notices & Announcements](/admin/notices)
+- [Fleet & Transport Management](/admin/fleet)
+- [Main School Admin Dashboard](/admin/dashboard)
+
+Exact route reference:
+- Student Fees, Fee Dues & Defaulters: `/admin/student-fees` (CRITICAL: NEVER use `/admin/fee-management`, `/admin/fees`, or `/fee-management` — the exact route is `/admin/student-fees`)
+- Finance & Accounting: `/admin/finance`
+- Classes, Sections & Timetable: `/admin/classes`
+- Attendance Management: `/admin/attendance`
+- Documents Hub: `/admin/documents`
+- Notices & Announcements: `/admin/notices`
+- Fleet & Transport Management: `/admin/fleet`
+- Main Dashboard: `/admin/dashboard`
 
 When you cannot help, say so clearly and suggest who can help instead.
 """

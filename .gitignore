@@ -33,3 +33,11 @@ nginx/certs/
 *.pdf
 **/*.pdf
 volumes/**/*.pdf
+# Generated and stored docx
+*.docx
+**/*.docx
+volumes/**/*.docx
+# Generated and stored xlsx
+*.xlsx
+**/*.xlsx
+volumes/**/*.xlsx

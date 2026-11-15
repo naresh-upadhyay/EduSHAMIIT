@@ -383,8 +383,8 @@ async def get_training_dashboard_stats(
     part_sql = """
         SELECT 
             COUNT(DISTINCT employee_id)::int as total_participants,
-            COUNT(DISTINCT employee_id) FILTER (WHERE COALESCE(enrolled_at, created_at) >= DATE_TRUNC('month', CURRENT_DATE))::int as cur_participants,
-            COUNT(DISTINCT employee_id) FILTER (WHERE COALESCE(enrolled_at, created_at) >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AND COALESCE(enrolled_at, created_at) < DATE_TRUNC('month', CURRENT_DATE))::int as prev_participants
+            COUNT(DISTINCT employee_id) FILTER (WHERE COALESCE(assigned_at, created_at) >= DATE_TRUNC('month', CURRENT_DATE))::int as cur_participants,
+            COUNT(DISTINCT employee_id) FILTER (WHERE COALESCE(assigned_at, created_at) >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AND COALESCE(assigned_at, created_at) < DATE_TRUNC('month', CURRENT_DATE))::int as prev_participants
         FROM public.hr_training_enrollments 
         WHERE school_id = %s;
     """
@@ -561,7 +561,7 @@ async def get_training_dashboard_stats(
         SELECT id, program_id, session_title, session_date, start_time, end_time,
                trainer_name, location_or_link, mode, capacity, enrolled_count, status
         FROM public.hr_training_sessions
-        WHERE school_id = %s AND status != 'CANCELLED' AND session_date >= CURRENT_DATE
+        WHERE school_id = %s AND status != 'CANCELLED' AND (session_date >= CURRENT_DATE OR status = 'Upcoming')
         ORDER BY session_date ASC, start_time ASC
         LIMIT 5;
     """

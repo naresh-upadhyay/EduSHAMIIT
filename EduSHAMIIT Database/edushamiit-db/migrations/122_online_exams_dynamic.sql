@@ -3,6 +3,15 @@
 -- Seeds online exams, questions, submissions, and active sessions
 -- ============================================================
 
+-- ── 0. PROFILES: Seed student profiles for submissions if not existing ──
+INSERT INTO profiles (id, user_id, school_id, full_name, email, role, class, xp_points)
+VALUES
+  ('bb000001-0000-0000-0000-000000000001', 'bb000001-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Arjun Kumar', 'arjun.kumar@demo.school.com', 'student', '10A', 1500),
+  ('bb000002-0000-0000-0000-000000000002', 'bb000002-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'Riya Gupta', 'riya.gupta@demo.school.com', 'student', '10A', 1400),
+  ('bb000003-0000-0000-0000-000000000003', 'bb000003-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'Sanjay Mehta', 'sanjay.mehta@demo.school.com', 'student', '10A', 1600),
+  ('bb000005-0000-0000-0000-000000000005', 'bb000005-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111111', 'Vikram Joshi', 'vikram.joshi@demo.school.com', 'student', '10A', 1550)
+ON CONFLICT (id) DO NOTHING;
+
 -- ── 1. ONLINE EXAMS: Seed realistic online exams ──
 
 INSERT INTO exams (id, school_id, subject_id, teacher_id, title, description,

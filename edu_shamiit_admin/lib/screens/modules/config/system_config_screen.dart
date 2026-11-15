@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:edu_shamiit_admin/providers/system_config_provider.dart';
@@ -9,7 +10,9 @@ import 'package:image_cropper/image_cropper.dart';
 import 'dart:typed_data';
 
 class AdminSystemConfigScreen extends ConsumerStatefulWidget {
-  const AdminSystemConfigScreen({super.key});
+  final int initialTab;
+
+  const AdminSystemConfigScreen({super.key, this.initialTab = 0});
 
   @override
   ConsumerState<AdminSystemConfigScreen> createState() =>
@@ -150,9 +153,24 @@ class _AdminSystemConfigScreenState
   @override
   void initState() {
     super.initState();
+    _activeTab = widget.initialTab.clamp(0, 11);
     _fetchSchools();
     _fetchConfig();
     _fetchStats();
+  }
+
+  @override
+  void didUpdateWidget(covariant AdminSystemConfigScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTab != oldWidget.initialTab) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _activeTab = widget.initialTab.clamp(0, 11);
+          });
+        }
+      });
+    }
   }
 
   @override
@@ -367,8 +385,7 @@ class _AdminSystemConfigScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(
-                  'Image uploaded successfully!'),
+              content: Text('Image uploaded successfully!'),
               backgroundColor: Color(0xFF10B981),
             ),
           );
@@ -481,10 +498,13 @@ class _AdminSystemConfigScreenState
           _sessionTimeoutController.text =
               (data['session_timeout_minutes'] ?? 120).toString();
 
-          _contactEmailController.text = data['contact_email'] ?? 'support@schoolerp.com';
-          _contactPhoneController.text = data['contact_phone'] ?? '+91 98765 43210';
+          _contactEmailController.text =
+              data['contact_email'] ?? 'support@schoolerp.com';
+          _contactPhoneController.text =
+              data['contact_phone'] ?? '+91 98765 43210';
           _contactAddressController.text = data['contact_address'] ?? '';
-          _liveChatInfoController.text = data['live_chat_info'] ?? 'Available in the application';
+          _liveChatInfoController.text =
+              data['live_chat_info'] ?? 'Available in the application';
 
           _defaultLanguage = data['default_language'] ?? 'English';
           _defaultTimezone =
@@ -514,39 +534,54 @@ class _AdminSystemConfigScreenState
               Map<String, dynamic>.from(data['integrations_settings'] ?? {});
 
           // Populate Login Settings controllers
-          _loginTitleController.text = _appearanceSettings['login_title'] ?? 'Welcome Back!';
-          _loginSubtitleController.text = _appearanceSettings['login_subtitle'] ?? 'Sign in to your account';
-          _loginDescController.text = _appearanceSettings['login_desc'] ?? 'Access your dashboard and manage your institution with ease.';
-          _loginFeature1Controller.text = _appearanceSettings['login_feature1'] ?? 'Secure Access';
-          _loginFeature2Controller.text = _appearanceSettings['login_feature2'] ?? 'Smart Insights';
-          _loginFeature3Controller.text = _appearanceSettings['login_feature3'] ?? 'Role Based Dashboard';
-          _loginFeature4Controller.text = _appearanceSettings['login_feature4'] ?? 'Centralized Management';
+          _loginTitleController.text =
+              _appearanceSettings['login_title'] ?? 'Welcome Back!';
+          _loginSubtitleController.text =
+              _appearanceSettings['login_subtitle'] ??
+                  'Sign in to your account';
+          _loginDescController.text = _appearanceSettings['login_desc'] ??
+              'Access your dashboard and manage your institution with ease.';
+          _loginFeature1Controller.text =
+              _appearanceSettings['login_feature1'] ?? 'Secure Access';
+          _loginFeature2Controller.text =
+              _appearanceSettings['login_feature2'] ?? 'Smart Insights';
+          _loginFeature3Controller.text =
+              _appearanceSettings['login_feature3'] ?? 'Role Based Dashboard';
+          _loginFeature4Controller.text =
+              _appearanceSettings['login_feature4'] ?? 'Centralized Management';
 
-          _loginIllustrationController.text = _appearanceSettings['login_illustration'] ?? '';
-          
+          _loginIllustrationController.text =
+              _appearanceSettings['login_illustration'] ?? '';
+
           final footer = _appearanceSettings['footer'] ?? {};
-          _footerDescController.text = footer['description'] ?? 'An all-in-one school management system designed to simplify administration, improve communication and enhance overall efficiency.';
-          _footerCopyrightController.text = footer['copyright'] ?? '© 2025 \$name. All rights reserved.';
-          
+          _footerDescController.text = footer['description'] ??
+              'An all-in-one school management system designed to simplify administration, improve communication and enhance overall efficiency.';
+          _footerCopyrightController.text =
+              footer['copyright'] ?? '© 2025 \$name. All rights reserved.';
+
           if (footer['quick_links'] != null) {
             _footerQuickLinks = (footer['quick_links'] as List)
-                .map((item) => FooterLink.fromJson(Map<String, dynamic>.from(item)))
+                .map((item) =>
+                    FooterLink.fromJson(Map<String, dynamic>.from(item)))
                 .toList();
           } else {
-            _footerQuickLinks = List<FooterLink>.from(AppConfig.footerQuickLinks);
+            _footerQuickLinks =
+                List<FooterLink>.from(AppConfig.footerQuickLinks);
           }
-          
+
           if (footer['modules'] != null) {
             _footerModules = (footer['modules'] as List)
-                .map((item) => FooterLink.fromJson(Map<String, dynamic>.from(item)))
+                .map((item) =>
+                    FooterLink.fromJson(Map<String, dynamic>.from(item)))
                 .toList();
           } else {
             _footerModules = List<FooterLink>.from(AppConfig.footerModules);
           }
-          
+
           if (footer['support'] != null) {
             _footerSupport = (footer['support'] as List)
-                .map((item) => FooterLink.fromJson(Map<String, dynamic>.from(item)))
+                .map((item) =>
+                    FooterLink.fromJson(Map<String, dynamic>.from(item)))
                 .toList();
           } else {
             _footerSupport = List<FooterLink>.from(AppConfig.footerSupport);
@@ -554,14 +589,19 @@ class _AdminSystemConfigScreenState
 
           if (footer['social_links'] != null) {
             _footerSocialLinks = (footer['social_links'] as List)
-                .map((item) => FooterSocialLink.fromJson(Map<String, dynamic>.from(item)))
+                .map((item) =>
+                    FooterSocialLink.fromJson(Map<String, dynamic>.from(item)))
                 .toList();
           } else {
-            _footerSocialLinks = List<FooterSocialLink>.from(AppConfig.footerSocialLinks);
+            _footerSocialLinks =
+                List<FooterSocialLink>.from(AppConfig.footerSocialLinks);
           }
-          _forgotPasswordIllustrationController.text = _appearanceSettings['forgot_password_illustration'] ?? '';
-          _resetPasswordIllustrationController.text = _appearanceSettings['reset_password_illustration'] ?? '';
-          _otpVerificationIllustrationController.text = _appearanceSettings['otp_verification_illustration'] ?? '';
+          _forgotPasswordIllustrationController.text =
+              _appearanceSettings['forgot_password_illustration'] ?? '';
+          _resetPasswordIllustrationController.text =
+              _appearanceSettings['reset_password_illustration'] ?? '';
+          _otpVerificationIllustrationController.text =
+              _appearanceSettings['otp_verification_illustration'] ?? '';
           _backupRestoreSettings =
               Map<String, dynamic>.from(data['backup_restore_settings'] ?? {});
           _advancedSettings =
@@ -617,14 +657,20 @@ class _AdminSystemConfigScreenState
 
     // Sync Login settings to appearance_settings map
     _appearanceSettings['login_title'] = _loginTitleController.text.trim();
-    _appearanceSettings['login_subtitle'] = _loginSubtitleController.text.trim();
+    _appearanceSettings['login_subtitle'] =
+        _loginSubtitleController.text.trim();
     _appearanceSettings['login_desc'] = _loginDescController.text.trim();
-    _appearanceSettings['login_feature1'] = _loginFeature1Controller.text.trim();
-    _appearanceSettings['login_feature2'] = _loginFeature2Controller.text.trim();
-    _appearanceSettings['login_feature3'] = _loginFeature3Controller.text.trim();
-    _appearanceSettings['login_feature4'] = _loginFeature4Controller.text.trim();
+    _appearanceSettings['login_feature1'] =
+        _loginFeature1Controller.text.trim();
+    _appearanceSettings['login_feature2'] =
+        _loginFeature2Controller.text.trim();
+    _appearanceSettings['login_feature3'] =
+        _loginFeature3Controller.text.trim();
+    _appearanceSettings['login_feature4'] =
+        _loginFeature4Controller.text.trim();
 
-    _appearanceSettings['login_illustration'] = _loginIllustrationController.text.trim();
+    _appearanceSettings['login_illustration'] =
+        _loginIllustrationController.text.trim();
 
     final footer = {
       'description': _footerDescController.text.trim(),
@@ -635,9 +681,12 @@ class _AdminSystemConfigScreenState
       'social_links': _footerSocialLinks.map((e) => e.toJson()).toList(),
     };
     _appearanceSettings['footer'] = footer;
-    _appearanceSettings['forgot_password_illustration'] = _forgotPasswordIllustrationController.text.trim();
-    _appearanceSettings['reset_password_illustration'] = _resetPasswordIllustrationController.text.trim();
-    _appearanceSettings['otp_verification_illustration'] = _otpVerificationIllustrationController.text.trim();
+    _appearanceSettings['forgot_password_illustration'] =
+        _forgotPasswordIllustrationController.text.trim();
+    _appearanceSettings['reset_password_illustration'] =
+        _resetPasswordIllustrationController.text.trim();
+    _appearanceSettings['otp_verification_illustration'] =
+        _otpVerificationIllustrationController.text.trim();
 
     final payload = {
       "school_id":
@@ -740,7 +789,8 @@ class _AdminSystemConfigScreenState
     );
   }
 
-  void _showIllustrationUploadOptions(String label, String fileType, TextEditingController controller) {
+  void _showIllustrationUploadOptions(
+      String label, String fileType, TextEditingController controller) {
     showModalBottomSheet(
       context: context,
       builder: (context) {
@@ -770,7 +820,8 @@ class _AdminSystemConfigScreenState
     );
   }
 
-  Widget _buildImageUploadRow(String label, String fileType, TextEditingController controller, bool isDark) {
+  Widget _buildImageUploadRow(String label, String fileType,
+      TextEditingController controller, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -790,7 +841,8 @@ class _AdminSystemConfigScreenState
                 controller: controller,
                 decoration: const InputDecoration(
                   hintText: "Upload file or enter URL...",
-                  contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   border: OutlineInputBorder(),
                 ),
                 style: const TextStyle(fontSize: 12),
@@ -798,12 +850,16 @@ class _AdminSystemConfigScreenState
             ),
             const SizedBox(width: 12),
             InkWell(
-              onTap: () => _showIllustrationUploadOptions(label, fileType, controller),
+              onTap: () =>
+                  _showIllustrationUploadOptions(label, fileType, controller),
               borderRadius: BorderRadius.circular(8),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
@@ -823,7 +879,8 @@ class _AdminSystemConfigScreenState
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white70 : const Color(0xFF475569),
+                        color:
+                            isDark ? Colors.white70 : const Color(0xFF475569),
                       ),
                     ),
                   ],
@@ -848,7 +905,8 @@ class _AdminSystemConfigScreenState
               AppConfig.resolveUrl(controller.text),
               fit: BoxFit.contain,
               errorBuilder: (_, __, ___) => const Center(
-                child: Icon(Icons.broken_image_outlined, color: Colors.red, size: 24),
+                child: Icon(Icons.broken_image_outlined,
+                    color: Colors.red, size: 24),
               ),
             ),
           ),
@@ -907,20 +965,27 @@ class _AdminSystemConfigScreenState
                       ? Center(
                           child: Text(
                             'No logs available.',
-                            style: TextStyle(color: textSecondary, fontFamily: 'Outfit'),
+                            style: TextStyle(
+                                color: textSecondary, fontFamily: 'Outfit'),
                           ),
                         )
                       : ListView.separated(
                           itemCount: logs.length,
-                          separatorBuilder: (context, idx) => Divider(color: borderColor),
+                          separatorBuilder: (context, idx) =>
+                              Divider(color: borderColor),
                           itemBuilder: (context, idx) {
                             final log = logs[idx];
-                            final time = DateTime.tryParse(log['created_at']?.toString() ?? '') ?? DateTime.now();
-                            final timeStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(time);
+                            final time = DateTime.tryParse(
+                                    log['created_at']?.toString() ?? '') ??
+                                DateTime.now();
+                            final timeStr =
+                                DateFormat('yyyy-MM-dd HH:mm:ss').format(time);
                             final email = log['user_email'] ?? 'System';
                             final event = log['event_type'] ?? 'Action';
                             final status = log['status'] ?? 'Success';
-                            final isSuccess = status.toString().toLowerCase() == 'success' || status.toString().toLowerCase() == 'true';
+                            final isSuccess =
+                                status.toString().toLowerCase() == 'success' ||
+                                    status.toString().toLowerCase() == 'true';
 
                             return Padding(
                               padding: const EdgeInsets.symmetric(vertical: 4),
@@ -928,17 +993,22 @@ class _AdminSystemConfigScreenState
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
                                       color: isSuccess
-                                          ? const Color(0xFF10B981).withValues(alpha: 0.1)
-                                          : const Color(0xFFEF4444).withValues(alpha: 0.1),
+                                          ? const Color(0xFF10B981)
+                                              .withValues(alpha: 0.1)
+                                          : const Color(0xFFEF4444)
+                                              .withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
                                       status.toString().toUpperCase(),
                                       style: TextStyle(
-                                        color: isSuccess ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                        color: isSuccess
+                                            ? const Color(0xFF10B981)
+                                            : const Color(0xFFEF4444),
                                         fontSize: 9,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -947,7 +1017,8 @@ class _AdminSystemConfigScreenState
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           event,
@@ -1055,9 +1126,11 @@ class _AdminSystemConfigScreenState
                   ),
                 ),
                 const SizedBox(height: 24),
-                _buildHealthItem('PostgreSQL Database', dbStatus == 'online', textPrimary, textSecondary),
+                _buildHealthItem('PostgreSQL Database', dbStatus == 'online',
+                    textPrimary, textSecondary),
                 const SizedBox(height: 12),
-                _buildHealthItem('Redis Cache Broker', redisStatus == 'online', textPrimary, textSecondary),
+                _buildHealthItem('Redis Cache Broker', redisStatus == 'online',
+                    textPrimary, textSecondary),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: () => Navigator.pop(context),
@@ -1065,7 +1138,8 @@ class _AdminSystemConfigScreenState
                     backgroundColor: Theme.of(context).primaryColor,
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -1087,7 +1161,8 @@ class _AdminSystemConfigScreenState
     );
   }
 
-  Widget _buildHealthItem(String title, bool isOnline, Color textPrimary, Color textSecondary) {
+  Widget _buildHealthItem(
+      String title, bool isOnline, Color textPrimary, Color textSecondary) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -1105,7 +1180,9 @@ class _AdminSystemConfigScreenState
               width: 8,
               height: 8,
               decoration: BoxDecoration(
-                color: isOnline ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                color: isOnline
+                    ? const Color(0xFF10B981)
+                    : const Color(0xFFEF4444),
                 shape: BoxShape.circle,
               ),
             ),
@@ -1113,7 +1190,9 @@ class _AdminSystemConfigScreenState
             Text(
               isOnline ? 'Online' : 'Offline',
               style: TextStyle(
-                color: isOnline ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                color: isOnline
+                    ? const Color(0xFF10B981)
+                    : const Color(0xFFEF4444),
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
@@ -1193,8 +1272,7 @@ class _AdminSystemConfigScreenState
       backgroundColor:
           isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       body: _isLoading
-          ? Center(
-              child: CircularProgressIndicator(color: theme.primaryColor))
+          ? Center(child: CircularProgressIndicator(color: theme.primaryColor))
           : isMobile
               ? NestedScrollView(
                   headerSliverBuilder: (context, innerBoxIsScrolled) {
@@ -1222,7 +1300,8 @@ class _AdminSystemConfigScreenState
                                 child: Padding(
                                   padding: const EdgeInsets.only(bottom: 24),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
                                     children: [
                                       _buildActiveTabContent(isDark),
                                       const SizedBox(height: 24),
@@ -1243,7 +1322,8 @@ class _AdminSystemConfigScreenState
                   ),
                 )
               : Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 24),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1419,7 +1499,6 @@ class _AdminSystemConfigScreenState
   }
 
   Widget _buildTabsRow(bool isDark) {
-    final theme = Theme.of(context);
     final List<Map<String, dynamic>> tabs = [
       {"label": "General Settings", "icon": Icons.tune_rounded},
       {"label": "Security", "icon": Icons.security_rounded},
@@ -1437,55 +1516,88 @@ class _AdminSystemConfigScreenState
       {"label": "Footer Settings", "icon": Icons.view_headline_rounded},
     ];
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: tabs.asMap().entries.map((entry) {
-          final idx = entry.key;
-          final item = entry.value;
-          final isActive = _activeTab == idx;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final borderColor =
+        isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
 
-          return GestureDetector(
-            onTap: () => setState(() => _activeTab = idx),
-            child: Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: isActive
-                    ? theme.primaryColor
-                    : (isDark ? const Color(0xFF1E293B) : Colors.white),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isActive
-                      ? Colors.transparent
-                      : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    item["icon"] as IconData,
-                    size: 14,
-                    color: isActive
-                        ? Colors.white
-                        : (isDark ? Colors.white70 : const Color(0xFF64748B)),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    item["label"] as String,
-                    style: TextStyle(
+    return Container(
+      height: 48,
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: tabs.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final item = entry.value;
+            final isActive = _activeTab == idx;
+
+            return InkWell(
+              onTap: () {
+                setState(() => _activeTab = idx);
+                updateTabUrl('/admin/config', idx);
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
                       color: isActive
-                          ? Colors.white
-                          : (isDark ? Colors.white70 : const Color(0xFF475569)),
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                          ? const Color(0xFF4F46E5)
+                          : Colors.transparent,
+                      width: 2.5,
                     ),
                   ),
-                ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      item["icon"] as IconData,
+                      size: 15,
+                      color: isActive
+                          ? const Color(0xFF4F46E5)
+                          : (isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B)),
+                    ),
+                    const SizedBox(width: 7),
+                    Text(
+                      item["label"] as String,
+                      style: GoogleFonts.inter(
+                        fontSize: 12.5,
+                        fontWeight:
+                            isActive ? FontWeight.w600 : FontWeight.w500,
+                        color: isActive
+                            ? (isDark ? Colors.white : const Color(0xFF0F172A))
+                            : (isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -1571,7 +1683,8 @@ class _AdminSystemConfigScreenState
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(10),
                                   child: Image.network(
-                                    AppConfig.resolveUrl(_systemLogoController.text),
+                                    AppConfig.resolveUrl(
+                                        _systemLogoController.text),
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) => const Column(
                                       mainAxisAlignment:
@@ -1613,11 +1726,11 @@ class _AdminSystemConfigScreenState
                   ),
                 ),
                 const SizedBox(height: 24),
-                _buildInputField("System Name", _systemNameController,
-                    isDark, "School ERP"),
+                _buildInputField(
+                    "System Name", _systemNameController, isDark, "School ERP"),
                 const SizedBox(height: 16),
-                _buildInputField("System Title", _systemTitleController,
-                    isDark, "Next Generation School Management"),
+                _buildInputField("System Title", _systemTitleController, isDark,
+                    "Next Generation School Management"),
               ] else ...[
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1628,8 +1741,11 @@ class _AdminSystemConfigScreenState
                           _buildInputField("System Name", _systemNameController,
                               isDark, "School ERP"),
                           const SizedBox(height: 16),
-                          _buildInputField("System Title", _systemTitleController,
-                              isDark, "Next Generation School Management"),
+                          _buildInputField(
+                              "System Title",
+                              _systemTitleController,
+                              isDark,
+                              "Next Generation School Management"),
                         ],
                       ),
                     ),
@@ -1666,9 +1782,11 @@ class _AdminSystemConfigScreenState
                                 ? ClipRRect(
                                     borderRadius: BorderRadius.circular(10),
                                     child: Image.network(
-                                      AppConfig.resolveUrl(_systemLogoController.text),
+                                      AppConfig.resolveUrl(
+                                          _systemLogoController.text),
                                       fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => const Column(
+                                      errorBuilder: (_, __, ___) =>
+                                          const Column(
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
                                         children: [
@@ -1712,8 +1830,7 @@ class _AdminSystemConfigScreenState
               const SizedBox(height: 16),
               if (isMobile) ...[
                 _buildDropdownField(
-                    "Default Language", _defaultLanguage, _languages,
-                    (val) {
+                    "Default Language", _defaultLanguage, _languages, (val) {
                   if (val != null) setState(() => _defaultLanguage = val);
                 }, isDark),
                 const SizedBox(height: 16),
@@ -1748,13 +1865,13 @@ class _AdminSystemConfigScreenState
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(6),
                                   child: Image.network(
-                                    AppConfig.resolveUrl(_faviconController.text),
+                                    AppConfig.resolveUrl(
+                                        _faviconController.text),
                                     fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) =>
-                                        const Icon(
-                                            Icons.error_outline_rounded,
-                                            size: 18,
-                                            color: Colors.red),
+                                    errorBuilder: (_, __, ___) => const Icon(
+                                        Icons.error_outline_rounded,
+                                        size: 18,
+                                        color: Colors.red),
                                   ),
                                 )
                               : Icon(Icons.school_rounded,
@@ -1825,7 +1942,8 @@ class _AdminSystemConfigScreenState
                                     ? ClipRRect(
                                         borderRadius: BorderRadius.circular(6),
                                         child: Image.network(
-                                          AppConfig.resolveUrl(_faviconController.text),
+                                          AppConfig.resolveUrl(
+                                              _faviconController.text),
                                           fit: BoxFit.cover,
                                           errorBuilder: (_, __, ___) =>
                                               const Icon(
@@ -1866,18 +1984,17 @@ class _AdminSystemConfigScreenState
               const SizedBox(height: 16),
               if (isMobile) ...[
                 _buildDropdownField(
-                    "Default Timezone", _defaultTimezone, _timezones,
-                    (val) {
+                    "Default Timezone", _defaultTimezone, _timezones, (val) {
                   if (val != null) setState(() => _defaultTimezone = val);
                 }, isDark),
                 const SizedBox(height: 16),
-                _buildDropdownField(
-                    "Date Format", _dateFormat, _dateFormats, (val) {
+                _buildDropdownField("Date Format", _dateFormat, _dateFormats,
+                    (val) {
                   if (val != null) setState(() => _dateFormat = val);
                 }, isDark),
                 const SizedBox(height: 16),
-                _buildDropdownField(
-                    "Time Format", _timeFormat, _timeFormats, (val) {
+                _buildDropdownField("Time Format", _timeFormat, _timeFormats,
+                    (val) {
                   if (val != null) setState(() => _timeFormat = val);
                 }, isDark),
               ] else ...[
@@ -2101,7 +2218,8 @@ class _AdminSystemConfigScreenState
                                 onPressed: () => _formatTextMessage('*', '*'),
                                 tooltip: "Italic"),
                             IconButton(
-                                icon: const Icon(Icons.format_underlined_rounded,
+                                icon: const Icon(
+                                    Icons.format_underlined_rounded,
                                     size: 16),
                                 onPressed: () =>
                                     _formatTextMessage('<u>', '</u>'),
@@ -2112,12 +2230,14 @@ class _AdminSystemConfigScreenState
                                 icon: const Icon(
                                     Icons.format_list_bulleted_rounded,
                                     size: 16),
-                                onPressed: () => _formatTextMessage('\n- ', '')),
+                                onPressed: () =>
+                                    _formatTextMessage('\n- ', '')),
                             IconButton(
                                 icon: const Icon(
                                     Icons.format_list_numbered_rounded,
                                     size: 16),
-                                onPressed: () => _formatTextMessage('\n1. ', '')),
+                                onPressed: () =>
+                                    _formatTextMessage('\n1. ', '')),
                             const VerticalDivider(
                                 color: Colors.white24, indent: 8, endIndent: 8),
                             IconButton(
@@ -2149,36 +2269,53 @@ class _AdminSystemConfigScreenState
         _buildConfigCard(
           isDark,
           title: "Contact Information",
-          subtitle: "Configure contact details displayed on public pages (Contact Us, Help Center, footers).",
+          subtitle:
+              "Configure contact details displayed on public pages (Contact Us, Help Center, footers).",
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (isMobile) ...[
-                _buildInputField("Contact Email", _contactEmailController, isDark, "support@schoolerp.com"),
+                _buildInputField("Contact Email", _contactEmailController,
+                    isDark, "support@schoolerp.com"),
                 const SizedBox(height: 16),
-                _buildInputField("Contact Phone", _contactPhoneController, isDark, "+91 98765 43210"),
+                _buildInputField("Contact Phone", _contactPhoneController,
+                    isDark, "+91 98765 43210"),
                 const SizedBox(height: 16),
-                _buildInputField("Live Chat Info", _liveChatInfoController, isDark, "Available in the application"),
+                _buildInputField("Live Chat Info", _liveChatInfoController,
+                    isDark, "Available in the application"),
                 const SizedBox(height: 16),
-                _buildInputField("Contact Address", _contactAddressController, isDark, "School Address...", maxLines: 3),
+                _buildInputField("Contact Address", _contactAddressController,
+                    isDark, "School Address...",
+                    maxLines: 3),
               ] else ...[
                 Row(
                   children: [
                     Expanded(
-                      child: _buildInputField("Contact Email", _contactEmailController, isDark, "support@schoolerp.com"),
+                      child: _buildInputField(
+                          "Contact Email",
+                          _contactEmailController,
+                          isDark,
+                          "support@schoolerp.com"),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: _buildInputField("Contact Phone", _contactPhoneController, isDark, "+91 98765 43210"),
+                      child: _buildInputField("Contact Phone",
+                          _contactPhoneController, isDark, "+91 98765 43210"),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: _buildInputField("Live Chat Info", _liveChatInfoController, isDark, "Available in the application"),
+                      child: _buildInputField(
+                          "Live Chat Info",
+                          _liveChatInfoController,
+                          isDark,
+                          "Available in the application"),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
-                _buildInputField("Contact Address", _contactAddressController, isDark, "School Address...", maxLines: 3),
+                _buildInputField("Contact Address", _contactAddressController,
+                    isDark, "School Address...",
+                    maxLines: 3),
               ],
             ],
           ),
@@ -2215,19 +2352,24 @@ class _AdminSystemConfigScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text("Max Active Sessions per User",
-                    style: TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.bold)),
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 DropdownButtonFormField<int>(
-                  initialValue: [1, 2, 5, 10, 20].contains(int.tryParse(_securitySettings['session_limit']?.toString() ?? '5') ?? 5)
-                      ? (int.tryParse(_securitySettings['session_limit']?.toString() ?? '5') ?? 5)
+                  initialValue: [1, 2, 5, 10, 20].contains(int.tryParse(
+                              _securitySettings['session_limit']?.toString() ??
+                                  '5') ??
+                          5)
+                      ? (int.tryParse(
+                              _securitySettings['session_limit']?.toString() ??
+                                  '5') ??
+                          5)
                       : 5,
                   dropdownColor:
                       isDark ? const Color(0xFF1E293B) : Colors.white,
                   isExpanded: true,
                   decoration: InputDecoration(
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 12),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8)),
                   ),
@@ -2250,19 +2392,26 @@ class _AdminSystemConfigScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text("Failed Login Lockout Threshold",
-                    style: TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.bold)),
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 DropdownButtonFormField<int>(
-                  initialValue: [3, 5, 10, 15].contains(int.tryParse(_securitySettings['failed_attempts_lockout']?.toString() ?? '5') ?? 5)
-                      ? (int.tryParse(_securitySettings['failed_attempts_lockout']?.toString() ?? '5') ?? 5)
+                  initialValue: [3, 5, 10, 15].contains(int.tryParse(
+                              _securitySettings['failed_attempts_lockout']
+                                      ?.toString() ??
+                                  '5') ??
+                          5)
+                      ? (int.tryParse(
+                              _securitySettings['failed_attempts_lockout']
+                                      ?.toString() ??
+                                  '5') ??
+                          5)
                       : 5,
                   dropdownColor:
                       isDark ? const Color(0xFF1E293B) : Colors.white,
                   isExpanded: true,
                   decoration: InputDecoration(
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 12),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8)),
                   ),
@@ -2292,8 +2441,15 @@ class _AdminSystemConfigScreenState
                               fontSize: 12, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
                       DropdownButtonFormField<int>(
-                        initialValue: [1, 2, 5, 10, 20].contains(int.tryParse(_securitySettings['session_limit']?.toString() ?? '5') ?? 5)
-                            ? (int.tryParse(_securitySettings['session_limit']?.toString() ?? '5') ?? 5)
+                        initialValue: [1, 2, 5, 10, 20].contains(int.tryParse(
+                                    _securitySettings['session_limit']
+                                            ?.toString() ??
+                                        '5') ??
+                                5)
+                            ? (int.tryParse(_securitySettings['session_limit']
+                                        ?.toString() ??
+                                    '5') ??
+                                5)
                             : 5,
                         dropdownColor:
                             isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2329,8 +2485,16 @@ class _AdminSystemConfigScreenState
                               fontSize: 12, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
                       DropdownButtonFormField<int>(
-                        initialValue: [3, 5, 10, 15].contains(int.tryParse(_securitySettings['failed_attempts_lockout']?.toString() ?? '5') ?? 5)
-                            ? (int.tryParse(_securitySettings['failed_attempts_lockout']?.toString() ?? '5') ?? 5)
+                        initialValue: [3, 5, 10, 15].contains(int.tryParse(
+                                    _securitySettings['failed_attempts_lockout']
+                                            ?.toString() ??
+                                        '5') ??
+                                5)
+                            ? (int.tryParse(
+                                    _securitySettings['failed_attempts_lockout']
+                                            ?.toString() ??
+                                        '5') ??
+                                5)
                             : 5,
                         dropdownColor:
                             isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2344,7 +2508,8 @@ class _AdminSystemConfigScreenState
                         onChanged: (val) {
                           if (val != null) {
                             setState(() {
-                              _securitySettings['failed_attempts_lockout'] = val;
+                              _securitySettings['failed_attempts_lockout'] =
+                                  val;
                             });
                           }
                         },
@@ -2634,11 +2799,17 @@ class _AdminSystemConfigScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildInputField("Welcome Banner Title", _loginTitleController, isDark, "e.g., Welcome Back!"),
+          _buildInputField("Welcome Banner Title", _loginTitleController,
+              isDark, "e.g., Welcome Back!"),
           const SizedBox(height: 16),
-          _buildInputField("Welcome Banner Subtitle", _loginSubtitleController, isDark, "e.g., Sign in to your account"),
+          _buildInputField("Welcome Banner Subtitle", _loginSubtitleController,
+              isDark, "e.g., Sign in to your account"),
           const SizedBox(height: 16),
-          _buildInputField("Welcome Banner Description", _loginDescController, isDark, "e.g., Access your dashboard and manage your institution with ease."),
+          _buildInputField(
+              "Welcome Banner Description",
+              _loginDescController,
+              isDark,
+              "e.g., Access your dashboard and manage your institution with ease."),
           const SizedBox(height: 24),
           const Divider(height: 1, color: Colors.white10),
           const SizedBox(height: 24),
@@ -2651,13 +2822,17 @@ class _AdminSystemConfigScreenState
             ),
           ),
           const SizedBox(height: 16),
-          _buildInputField("Feature Item 1 Label", _loginFeature1Controller, isDark, "e.g., Secure Access"),
+          _buildInputField("Feature Item 1 Label", _loginFeature1Controller,
+              isDark, "e.g., Secure Access"),
           const SizedBox(height: 12),
-          _buildInputField("Feature Item 2 Label", _loginFeature2Controller, isDark, "e.g., Smart Insights"),
+          _buildInputField("Feature Item 2 Label", _loginFeature2Controller,
+              isDark, "e.g., Smart Insights"),
           const SizedBox(height: 12),
-          _buildInputField("Feature Item 3 Label", _loginFeature3Controller, isDark, "e.g., Role Based Dashboard"),
+          _buildInputField("Feature Item 3 Label", _loginFeature3Controller,
+              isDark, "e.g., Role Based Dashboard"),
           const SizedBox(height: 12),
-          _buildInputField("Feature Item 4 Label", _loginFeature4Controller, isDark, "e.g., Centralized Management"),
+          _buildInputField("Feature Item 4 Label", _loginFeature4Controller,
+              isDark, "e.g., Centralized Management"),
           const SizedBox(height: 24),
           const Divider(height: 1, color: Colors.white10),
           const SizedBox(height: 24),
@@ -2670,13 +2845,26 @@ class _AdminSystemConfigScreenState
             ),
           ),
           const SizedBox(height: 16),
-          _buildImageUploadRow("Login Screen Illustration", "login_illustration", _loginIllustrationController, isDark),
+          _buildImageUploadRow("Login Screen Illustration",
+              "login_illustration", _loginIllustrationController, isDark),
           const SizedBox(height: 16),
-          _buildImageUploadRow("Forgot Password Screen Illustration", "forgot_password_illustration", _forgotPasswordIllustrationController, isDark),
+          _buildImageUploadRow(
+              "Forgot Password Screen Illustration",
+              "forgot_password_illustration",
+              _forgotPasswordIllustrationController,
+              isDark),
           const SizedBox(height: 16),
-          _buildImageUploadRow("Reset Password Screen Illustration", "reset_password_illustration", _resetPasswordIllustrationController, isDark),
+          _buildImageUploadRow(
+              "Reset Password Screen Illustration",
+              "reset_password_illustration",
+              _resetPasswordIllustrationController,
+              isDark),
           const SizedBox(height: 16),
-          _buildImageUploadRow("OTP Verification Screen Illustration", "otp_verification_illustration", _otpVerificationIllustrationController, isDark),
+          _buildImageUploadRow(
+              "OTP Verification Screen Illustration",
+              "otp_verification_illustration",
+              _otpVerificationIllustrationController,
+              isDark),
         ],
       ),
     );
@@ -2729,8 +2917,9 @@ class _AdminSystemConfigScreenState
     );
   }
 
-  Widget _buildInputField(String label, TextEditingController controller,
-      bool isDark, String hint, {int maxLines = 1}) {
+  Widget _buildInputField(
+      String label, TextEditingController controller, bool isDark, String hint,
+      {int maxLines = 1}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2830,8 +3019,11 @@ class _AdminSystemConfigScreenState
 
   Widget _buildSystemStatusCard(bool isDark) {
     final theme = Theme.of(context);
-    final double usedGb = (double.tryParse(_stats["storage_used_gb"]?.toString() ?? '0') ?? 0.0);
-    final double totalGb = (double.tryParse(_stats["storage_total_gb"]?.toString() ?? '1.0') ?? 1.0);
+    final double usedGb =
+        (double.tryParse(_stats["storage_used_gb"]?.toString() ?? '0') ?? 0.0);
+    final double totalGb =
+        (double.tryParse(_stats["storage_total_gb"]?.toString() ?? '1.0') ??
+            1.0);
     final double percentage = totalGb > 0 ? (usedGb / totalGb * 100) : 0.0;
 
     return Container(
@@ -2959,7 +3151,9 @@ class _AdminSystemConfigScreenState
                         sections: total == 0
                             ? [
                                 PieChartSectionData(
-                                  color: isDark ? Colors.white10 : const Color(0xFFCBD5E1),
+                                  color: isDark
+                                      ? Colors.white10
+                                      : const Color(0xFFCBD5E1),
                                   value: 1.0,
                                   radius: 8,
                                   showTitle: false,
@@ -3173,7 +3367,8 @@ class _AdminSystemConfigScreenState
     }
   }
 
-  void _showEditLinkDialog(int index, String columnTitle, List<FooterLink> list) {
+  void _showEditLinkDialog(
+      int index, String columnTitle, List<FooterLink> list) {
     final link = list[index];
     final labelController = TextEditingController(text: link.label);
     final urlController = TextEditingController(text: link.url);
@@ -3192,7 +3387,8 @@ class _AdminSystemConfigScreenState
               const SizedBox(height: 12),
               TextField(
                 controller: urlController,
-                decoration: const InputDecoration(labelText: "Target URL / Route"),
+                decoration:
+                    const InputDecoration(labelText: "Target URL / Route"),
               ),
             ],
           ),
@@ -3254,7 +3450,8 @@ class _AdminSystemConfigScreenState
                 final url = urlController.text.trim();
                 if (platform.isNotEmpty && url.isNotEmpty) {
                   setState(() {
-                    _footerSocialLinks[index] = FooterSocialLink(platform: platform, url: url);
+                    _footerSocialLinks[index] =
+                        FooterSocialLink(platform: platform, url: url);
                   });
                   Navigator.pop(context);
                 }
@@ -3275,7 +3472,8 @@ class _AdminSystemConfigScreenState
         _buildConfigCard(
           isDark,
           title: "Footer Information",
-          subtitle: "Customize the description text and the copyright / all-rights-reserved information.",
+          subtitle:
+              "Customize the description text and the copyright / all-rights-reserved information.",
           child: Column(
             children: [
               _buildInputField(
@@ -3299,13 +3497,16 @@ class _AdminSystemConfigScreenState
         _buildConfigCard(
           isDark,
           title: "Social Media Links (Drag to Reorder)",
-          subtitle: "Configure platform connections and external target URLs in the footer. Drag handles to reorder them immediately.",
+          subtitle:
+              "Configure platform connections and external target URLs in the footer. Drag handles to reorder them immediately.",
           child: Column(
             children: [
               Container(
                 constraints: const BoxConstraints(maxHeight: 280),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  color: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
@@ -3339,17 +3540,23 @@ class _AdminSystemConfigScreenState
                           final item = _footerSocialLinks[index];
                           return Container(
                             key: ValueKey("social_${index}_${item.platform}"),
-                            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                            margin: const EdgeInsets.symmetric(
+                                vertical: 4, horizontal: 8),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                              color: isDark
+                                  ? const Color(0xFF1E293B)
+                                  : Colors.white,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                                color: isDark
+                                    ? Colors.white10
+                                    : const Color(0xFFE2E8F0),
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+                                  color: Colors.black
+                                      .withValues(alpha: isDark ? 0.2 : 0.05),
                                   blurRadius: 4,
                                   offset: const Offset(0, 2),
                                 ),
@@ -3362,8 +3569,10 @@ class _AdminSystemConfigScreenState
                                   child: const MouseRegion(
                                     cursor: SystemMouseCursors.grab,
                                     child: Padding(
-                                      padding: EdgeInsets.symmetric(horizontal: 4),
-                                      child: Icon(Icons.drag_indicator_rounded, size: 20, color: Colors.grey),
+                                      padding:
+                                          EdgeInsets.symmetric(horizontal: 4),
+                                      child: Icon(Icons.drag_indicator_rounded,
+                                          size: 20, color: Colors.grey),
                                     ),
                                   ),
                                 ),
@@ -3371,7 +3580,8 @@ class _AdminSystemConfigScreenState
                                 Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: _getSocialBrandColor(item.platform).withValues(alpha: 0.1),
+                                    color: _getSocialBrandColor(item.platform)
+                                        .withValues(alpha: 0.1),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
@@ -3383,20 +3593,24 @@ class _AdminSystemConfigScreenState
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         item.platform.toUpperCase(),
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
-                                          color: isDark ? Colors.white : const Color(0xFF1E293B),
+                                          color: isDark
+                                              ? Colors.white
+                                              : const Color(0xFF1E293B),
                                         ),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
                                         item.url,
-                                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                        style: const TextStyle(
+                                            fontSize: 11, color: Colors.grey),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ],
@@ -3406,12 +3620,15 @@ class _AdminSystemConfigScreenState
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     IconButton(
-                                      icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.blueAccent),
-                                      onPressed: () => _showEditSocialLinkDialog(index),
+                                      icon: const Icon(Icons.edit_outlined,
+                                          size: 18, color: Colors.blueAccent),
+                                      onPressed: () =>
+                                          _showEditSocialLinkDialog(index),
                                       tooltip: "Edit Connection",
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                                      icon: const Icon(Icons.delete_outline,
+                                          size: 18, color: Colors.redAccent),
                                       onPressed: () {
                                         setState(() {
                                           _footerSocialLinks.removeAt(index);
@@ -3436,9 +3653,11 @@ class _AdminSystemConfigScreenState
                       controller: _newSocialPlatformController,
                       decoration: InputDecoration(
                         hintText: "Platform (e.g. facebook, email)",
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 8),
                         isDense: true,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6)),
                       ),
                       style: const TextStyle(fontSize: 11),
                     ),
@@ -3450,9 +3669,11 @@ class _AdminSystemConfigScreenState
                       controller: _newSocialUrlController,
                       decoration: InputDecoration(
                         hintText: "Target URL (e.g. https://facebook.com/...)",
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 8),
                         isDense: true,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6)),
                       ),
                       style: const TextStyle(fontSize: 11),
                     ),
@@ -3464,7 +3685,8 @@ class _AdminSystemConfigScreenState
                       final url = _newSocialUrlController.text.trim();
                       if (platform.isNotEmpty && url.isNotEmpty) {
                         setState(() {
-                          _footerSocialLinks.add(FooterSocialLink(platform: platform, url: url));
+                          _footerSocialLinks.add(
+                              FooterSocialLink(platform: platform, url: url));
                           _newSocialPlatformController.clear();
                           _newSocialUrlController.clear();
                         });
@@ -3472,8 +3694,10 @@ class _AdminSystemConfigScreenState
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF6366F1),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6)),
                     ),
                     child: const Icon(Icons.add, size: 14, color: Colors.white),
                   ),
@@ -3486,7 +3710,8 @@ class _AdminSystemConfigScreenState
         _buildConfigCard(
           isDark,
           title: "Footer Columns Manager (Drag to Reorder)",
-          subtitle: "Manage dynamic links displayed in the Quick Links, Modules, and Support columns. Drag handles to reorder them.",
+          subtitle:
+              "Manage dynamic links displayed in the Quick Links, Modules, and Support columns. Drag handles to reorder them.",
           child: LayoutBuilder(
             builder: (context, constraints) {
               if (isMobile) {
@@ -3502,7 +3727,8 @@ class _AdminSystemConfigScreenState
                         final url = _newQuickLinkUrlController.text.trim();
                         if (label.isNotEmpty && url.isNotEmpty) {
                           setState(() {
-                            _footerQuickLinks.add(FooterLink(label: label, url: url));
+                            _footerQuickLinks
+                                .add(FooterLink(label: label, url: url));
                             _newQuickLinkLabelController.clear();
                             _newQuickLinkUrlController.clear();
                           });
@@ -3526,7 +3752,8 @@ class _AdminSystemConfigScreenState
                         final url = _newModuleUrlController.text.trim();
                         if (label.isNotEmpty && url.isNotEmpty) {
                           setState(() {
-                            _footerModules.add(FooterLink(label: label, url: url));
+                            _footerModules
+                                .add(FooterLink(label: label, url: url));
                             _newModuleLabelController.clear();
                             _newModuleUrlController.clear();
                           });
@@ -3550,7 +3777,8 @@ class _AdminSystemConfigScreenState
                         final url = _newSupportUrlController.text.trim();
                         if (label.isNotEmpty && url.isNotEmpty) {
                           setState(() {
-                            _footerSupport.add(FooterLink(label: label, url: url));
+                            _footerSupport
+                                .add(FooterLink(label: label, url: url));
                             _newSupportLabelController.clear();
                             _newSupportUrlController.clear();
                           });
@@ -3576,11 +3804,13 @@ class _AdminSystemConfigScreenState
                         _newQuickLinkLabelController,
                         _newQuickLinkUrlController,
                         () {
-                          final label = _newQuickLinkLabelController.text.trim();
+                          final label =
+                              _newQuickLinkLabelController.text.trim();
                           final url = _newQuickLinkUrlController.text.trim();
                           if (label.isNotEmpty && url.isNotEmpty) {
                             setState(() {
-                              _footerQuickLinks.add(FooterLink(label: label, url: url));
+                              _footerQuickLinks
+                                  .add(FooterLink(label: label, url: url));
                               _newQuickLinkLabelController.clear();
                               _newQuickLinkUrlController.clear();
                             });
@@ -3606,7 +3836,8 @@ class _AdminSystemConfigScreenState
                           final url = _newModuleUrlController.text.trim();
                           if (label.isNotEmpty && url.isNotEmpty) {
                             setState(() {
-                              _footerModules.add(FooterLink(label: label, url: url));
+                              _footerModules
+                                  .add(FooterLink(label: label, url: url));
                               _newModuleLabelController.clear();
                               _newModuleUrlController.clear();
                             });
@@ -3632,7 +3863,8 @@ class _AdminSystemConfigScreenState
                           final url = _newSupportUrlController.text.trim();
                           if (label.isNotEmpty && url.isNotEmpty) {
                             setState(() {
-                              _footerSupport.add(FooterLink(label: label, url: url));
+                              _footerSupport
+                                  .add(FooterLink(label: label, url: url));
                               _newSupportLabelController.clear();
                               _newSupportUrlController.clear();
                             });
@@ -3741,17 +3973,20 @@ class _AdminSystemConfigScreenState
                     final item = links[index];
                     return Container(
                       key: ValueKey("link_${title}_${index}_${item.label}"),
-                      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                      margin: const EdgeInsets.symmetric(
+                          vertical: 4, horizontal: 8),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: isDark ? const Color(0xFF1E293B) : Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                          color:
+                              isDark ? Colors.white10 : const Color(0xFFE2E8F0),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+                            color: Colors.black
+                                .withValues(alpha: isDark ? 0.2 : 0.05),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -3765,7 +4000,8 @@ class _AdminSystemConfigScreenState
                               cursor: SystemMouseCursors.grab,
                               child: Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 4),
-                                child: Icon(Icons.drag_indicator_rounded, size: 20, color: Colors.grey),
+                                child: Icon(Icons.drag_indicator_rounded,
+                                    size: 20, color: Colors.grey),
                               ),
                             ),
                           ),
@@ -3779,13 +4015,16 @@ class _AdminSystemConfigScreenState
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.white : const Color(0xFF1E293B),
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF1E293B),
                                   ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   item.url,
-                                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                  style: const TextStyle(
+                                      fontSize: 10, color: Colors.grey),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ],
@@ -3795,12 +4034,15 @@ class _AdminSystemConfigScreenState
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.blueAccent),
-                                onPressed: () => _showEditLinkDialog(index, title, links),
+                                icon: const Icon(Icons.edit_outlined,
+                                    size: 18, color: Colors.blueAccent),
+                                onPressed: () =>
+                                    _showEditLinkDialog(index, title, links),
                                 tooltip: "Edit Link",
                               ),
                               IconButton(
-                                icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                                icon: const Icon(Icons.delete_outline,
+                                    size: 18, color: Colors.redAccent),
                                 onPressed: () => onDelete(index),
                                 tooltip: "Delete Link",
                               ),
@@ -3819,9 +4061,11 @@ class _AdminSystemConfigScreenState
               controller: labelController,
               decoration: InputDecoration(
                 hintText: "Link Label (e.g. Home)",
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 isDense: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
               ),
               style: const TextStyle(fontSize: 11),
             ),
@@ -3833,9 +4077,11 @@ class _AdminSystemConfigScreenState
                     controller: urlController,
                     decoration: InputDecoration(
                       hintText: "Target URL (e.g. /faq)",
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
                       isDense: true,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6)),
                     ),
                     style: const TextStyle(fontSize: 11),
                   ),
@@ -3845,8 +4091,10 @@ class _AdminSystemConfigScreenState
                   onPressed: onAdd,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6366F1),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6)),
                   ),
                   child: const Icon(Icons.add, size: 14, color: Colors.white),
                 ),
@@ -3878,7 +4126,7 @@ class RichTextEditingController extends TextEditingController {
     );
 
     int lastIndex = 0;
-    
+
     final tagStyle = TextStyle(
       color: isDark ? Colors.white30 : Colors.black26,
       fontSize: 11,
@@ -3926,7 +4174,7 @@ class RichTextEditingController extends TextEditingController {
         if (closeBracketIdx != -1) {
           final label = matchedText.substring(1, closeBracketIdx);
           final urlPart = matchedText.substring(closeBracketIdx + 1);
-          
+
           children.add(TextSpan(text: '[', style: tagStyle));
           children.add(TextSpan(
             text: label,

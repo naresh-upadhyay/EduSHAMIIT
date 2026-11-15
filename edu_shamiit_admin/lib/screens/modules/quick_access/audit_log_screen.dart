@@ -28,7 +28,6 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
   final ScrollController _horizScrollController = ScrollController();
   // Loading and pagination states
   bool _isLoading = true;
-  bool _isLoadingFilters = true;
   int _currentPage = 1;
   int _pageSize = 10;
   int _totalEvents = 0;
@@ -104,9 +103,6 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
 
   // Fetch institutions and users to populate dropdowns
   Future<void> _fetchFilterData() async {
-    setState(() {
-      _isLoadingFilters = true;
-    });
     try {
       final instRes = await ApiService().get('/admin/audit-logs/institutions', useCache: false);
       final usersRes = await ApiService().get('/admin/audit-logs/users', useCache: false);
@@ -119,14 +115,9 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
         if (usersRes['success'] == true) {
           _users = usersRes['data'] ?? [];
         }
-        _isLoadingFilters = false;
       });
     } catch (e) {
       debugPrint('Error loading filter dropdown data: $e');
-      if (!mounted) return;
-      setState(() {
-        _isLoadingFilters = false;
-      });
     }
   }
 
@@ -169,10 +160,11 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     } catch (e) {
       debugPrint('Error fetching audit logs: $e');
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -203,6 +195,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not download/export logs.')),
         );
@@ -520,28 +513,25 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     ];
 
     return LayoutBuilder(builder: (context, constraints) {
-      if (Responsive.isMobile(context)) {
-        return SizedBox(
-          height: 110,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: list.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (context, index) => SizedBox(width: 180, child: list[index]),
-          ),
-        );
+      final width = constraints.maxWidth;
+      final int cols;
+      const double spacing = 12.0;
+      if (width >= 1200) {
+        cols = 5;
+      } else if (width >= 800) {
+        cols = 3;
+      } else if (width >= 480) {
+        cols = 2;
+      } else {
+        cols = 1;
       }
-      return GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: Responsive.isTablet(context) ? 3 : 5,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.8,
-        ),
-        itemCount: list.length,
-        itemBuilder: (context, idx) => list[idx],
+      final double totalSpacing = (cols - 1) * spacing;
+      final double cardWidth = ((width - totalSpacing) / cols).floorToDouble();
+
+      return Wrap(
+        spacing: spacing,
+        runSpacing: spacing,
+        children: list.map((item) => SizedBox(width: cardWidth, child: item)).toList(),
       );
     });
   }

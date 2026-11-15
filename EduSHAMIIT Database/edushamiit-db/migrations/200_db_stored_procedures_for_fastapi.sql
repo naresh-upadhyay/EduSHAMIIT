@@ -142,6 +142,7 @@ $$;
 
 
 -- 3. Vehicle Live Dashboard Summary RPC Function (Aggregated Superfast KPIs)
+DROP FUNCTION IF EXISTS public.get_vehicle_dashboard_summary(UUID);
 CREATE OR REPLACE FUNCTION public.get_vehicle_dashboard_summary(p_school_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql

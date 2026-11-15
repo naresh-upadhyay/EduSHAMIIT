@@ -14,7 +14,7 @@ import requests
 import time
 from datetime import datetime, timedelta, timezone
 
-BASE_URL = "http://127.0.0.1:80"
+BASE_URL = os.environ.get("BASE_URL", "http://127.0.0.1:8082")
 DEV_SECRET = "eduSHAMIIT-dev-seed-2026"
 SCHOOL_ID = "11111111-1111-1111-1111-111111111111"
 
@@ -25,7 +25,7 @@ TEACHER_PASS = "naresh@1A"
 
 TEMP_STUDENT_ADMIN = "temp_seeder_student_admin@gmail.com"
 TEMP_TEACHER_ADMIN = "temp_seeder_teacher_admin@gmail.com"
-TEMP_PASS = "TempPassword1A"
+TEMP_PASS = "TempPassword1A@"
 
 
 def promote_user(email, role):

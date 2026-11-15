@@ -14,6 +14,9 @@ PGPASSWORD="$POSTGRES_PASSWORD" psql -v ON_ERROR_STOP=0 --username "supabase_adm
   GRANT ALL ON SCHEMA public TO authenticated;
   GRANT ALL ON SCHEMA public TO service_role;
   ALTER ROLE supabase_admin SET search_path TO "\$user", public, auth, extensions, storage;
+  INSERT INTO storage.buckets (id, name, public, file_size_limit)
+  VALUES ('live-classes', 'live-classes', true, 5368709120)
+  ON CONFLICT (id) DO UPDATE SET public = true, file_size_limit = 5368709120;
 EOSQL
 
 echo ">>> Running EduSHAMIIT app migrations (001-091)..."

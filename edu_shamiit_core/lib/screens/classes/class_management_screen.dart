@@ -9,7 +9,8 @@ import 'widgets/subjects_tab_view.dart';
 import 'widgets/rooms_tab_view.dart';
 
 class ClassManagementScreen extends ConsumerWidget {
-  const ClassManagementScreen({super.key});
+  final int initialTab;
+  const ClassManagementScreen({super.key, this.initialTab = 0});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

@@ -6,12 +6,6 @@ import '../models/class_models.dart';
 import '../providers/class_provider.dart';
 import '../services/academic_lookup_helper.dart';
 import 'dialogs/create_edit_class_dialog.dart';
-import 'dialogs/create_edit_section_dialog.dart';
-import 'dialogs/create_edit_subject_dialog.dart';
-import 'dialogs/assign_class_teacher_dialog.dart';
-import 'dialogs/assign_subject_teacher_dialog.dart';
-import 'dialogs/optional_subject_enrollment_dialog.dart';
-import 'dialogs/manage_subjects_dialog.dart';
 import 'dialogs/archive_confirmation_dialog.dart';
 
 class ClassesTabView extends ConsumerStatefulWidget {
@@ -96,7 +90,8 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                 _buildClassListSidebar(context, state, notifier, isDark),
                 const SizedBox(height: 24),
                 if (selectedClass != null)
-                  _buildClassDetailPanel(context, state, notifier, selectedClass, detail, isTeacher, isDark)
+                  _buildClassDetailPanel(context, state, notifier,
+                      selectedClass, detail, isTeacher, isDark)
                 else
                   _buildEmptySelectionPlaceholder(isDark),
               ],
@@ -116,7 +111,8 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
               // Right Detail Column (approx 68%)
               Expanded(
                 child: selectedClass != null
-                    ? _buildClassDetailPanel(context, state, notifier, selectedClass, detail, isTeacher, isDark)
+                    ? _buildClassDetailPanel(context, state, notifier,
+                        selectedClass, detail, isTeacher, isDark)
                     : _buildEmptySelectionPlaceholder(isDark),
               ),
             ],
@@ -136,13 +132,15 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
     bool isDark,
   ) {
     final classes = state.classes;
-    final hasActiveFilter = _selectedStageFilter != 'ALL' || _selectedStatusFilter != 'ALL';
+    final hasActiveFilter =
+        _selectedStageFilter != 'ALL' || _selectedStatusFilter != 'ALL';
 
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,7 +162,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                     decoration: InputDecoration(
                       hintText: 'Search classes...',
                       hintStyle: TextStyle(
-                        color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                        color: isDark
+                            ? const Color(0xFF64748B)
+                            : const Color(0xFF94A3B8),
                         fontSize: 12.5,
                       ),
                       prefixIcon: const Icon(Icons.search, size: 16),
@@ -178,18 +178,29 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                             )
                           : null,
                       filled: true,
-                      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      fillColor: isDark
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                        borderSide: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFCBD5E1)),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                        borderSide: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFCBD5E1)),
                       ),
                     ),
-                    style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 12.5),
+                    style: TextStyle(
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        fontSize: 12.5),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -199,19 +210,25 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: hasActiveFilter
-                          ? const Color(0xFF4F46E5).withOpacity(0.15)
-                          : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
+                          ? const Color(0xFF4F46E5).withValues(alpha: 0.15)
+                          : (isDark
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFFF8FAFC)),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: hasActiveFilter
                             ? const Color(0xFF4F46E5)
-                            : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                            : (isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFCBD5E1)),
                       ),
                     ),
                     child: Icon(
                       Icons.filter_list_rounded,
                       size: 16,
-                      color: hasActiveFilter ? const Color(0xFF4F46E5) : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                      color: hasActiveFilter
+                          ? const Color(0xFF4F46E5)
+                          : (isDark ? Colors.white70 : const Color(0xFF64748B)),
                     ),
                   ),
                   onSelected: (val) {
@@ -226,19 +243,29 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                     }
                   },
                   itemBuilder: (ctx) {
-                    final stages = AcademicLookupHelper.instance.getCachedLookup('CLASS_STAGE');
+                    final stages = AcademicLookupHelper.instance
+                        .getCachedLookup('CLASS_STAGE');
                     return [
                       const PopupMenuItem<String>(
                         enabled: false,
-                        child: Text('FILTER BY STATUS', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF64748B))),
+                        child: Text('FILTER BY STATUS',
+                            style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF64748B))),
                       ),
                       PopupMenuItem<String>(
                         value: 'status:ALL',
                         child: Row(
                           children: [
-                            Icon(Icons.check, size: 14, color: _selectedStatusFilter == 'ALL' ? const Color(0xFF4F46E5) : Colors.transparent),
+                            Icon(Icons.check,
+                                size: 14,
+                                color: _selectedStatusFilter == 'ALL'
+                                    ? const Color(0xFF4F46E5)
+                                    : Colors.transparent),
                             const SizedBox(width: 6),
-                            const Text('All Statuses', style: TextStyle(fontSize: 12)),
+                            const Text('All Statuses',
+                                style: TextStyle(fontSize: 12)),
                           ],
                         ),
                       ),
@@ -246,9 +273,14 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                         value: 'status:ACTIVE',
                         child: Row(
                           children: [
-                            Icon(Icons.check, size: 14, color: _selectedStatusFilter == 'ACTIVE' ? const Color(0xFF4F46E5) : Colors.transparent),
+                            Icon(Icons.check,
+                                size: 14,
+                                color: _selectedStatusFilter == 'ACTIVE'
+                                    ? const Color(0xFF4F46E5)
+                                    : Colors.transparent),
                             const SizedBox(width: 6),
-                            const Text('Active Only', style: TextStyle(fontSize: 12)),
+                            const Text('Active Only',
+                                style: TextStyle(fontSize: 12)),
                           ],
                         ),
                       ),
@@ -256,9 +288,14 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                         value: 'status:INACTIVE',
                         child: Row(
                           children: [
-                            Icon(Icons.check, size: 14, color: _selectedStatusFilter == 'INACTIVE' ? const Color(0xFF4F46E5) : Colors.transparent),
+                            Icon(Icons.check,
+                                size: 14,
+                                color: _selectedStatusFilter == 'INACTIVE'
+                                    ? const Color(0xFF4F46E5)
+                                    : Colors.transparent),
                             const SizedBox(width: 6),
-                            const Text('Inactive Only', style: TextStyle(fontSize: 12)),
+                            const Text('Inactive Only',
+                                style: TextStyle(fontSize: 12)),
                           ],
                         ),
                       ),
@@ -266,24 +303,38 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                         value: 'status:ARCHIVED',
                         child: Row(
                           children: [
-                            Icon(Icons.check, size: 14, color: _selectedStatusFilter == 'ARCHIVED' ? const Color(0xFF4F46E5) : Colors.transparent),
+                            Icon(Icons.check,
+                                size: 14,
+                                color: _selectedStatusFilter == 'ARCHIVED'
+                                    ? const Color(0xFF4F46E5)
+                                    : Colors.transparent),
                             const SizedBox(width: 6),
-                            const Text('Archived Only', style: TextStyle(fontSize: 12)),
+                            const Text('Archived Only',
+                                style: TextStyle(fontSize: 12)),
                           ],
                         ),
                       ),
                       const PopupMenuDivider(),
                       const PopupMenuItem<String>(
                         enabled: false,
-                        child: Text('FILTER BY STAGE', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF64748B))),
+                        child: Text('FILTER BY STAGE',
+                            style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF64748B))),
                       ),
                       PopupMenuItem<String>(
                         value: 'stage:ALL',
                         child: Row(
                           children: [
-                            Icon(Icons.check, size: 14, color: _selectedStageFilter == 'ALL' ? const Color(0xFF4F46E5) : Colors.transparent),
+                            Icon(Icons.check,
+                                size: 14,
+                                color: _selectedStageFilter == 'ALL'
+                                    ? const Color(0xFF4F46E5)
+                                    : Colors.transparent),
                             const SizedBox(width: 6),
-                            const Text('All Stages', style: TextStyle(fontSize: 12)),
+                            const Text('All Stages',
+                                style: TextStyle(fontSize: 12)),
                           ],
                         ),
                       ),
@@ -292,9 +343,14 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                           value: 'stage:${s.label}',
                           child: Row(
                             children: [
-                              Icon(Icons.check, size: 14, color: _selectedStageFilter == s.label ? const Color(0xFF4F46E5) : Colors.transparent),
+                              Icon(Icons.check,
+                                  size: 14,
+                                  color: _selectedStageFilter == s.label
+                                      ? const Color(0xFF4F46E5)
+                                      : Colors.transparent),
                               const SizedBox(width: 6),
-                              Text(s.label, style: const TextStyle(fontSize: 12)),
+                              Text(s.label,
+                                  style: const TextStyle(fontSize: 12)),
                             ],
                           ),
                         ),
@@ -307,25 +363,32 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
           ),
           if (_selectedStageFilter != 'ALL' || _selectedStatusFilter != 'ALL')
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14).copyWith(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14)
+                  .copyWith(bottom: 10),
               child: Wrap(
                 spacing: 6,
                 runSpacing: 6,
                 children: [
                   if (_selectedStatusFilter != 'ALL')
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4F46E5).withOpacity(0.1),
+                        color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFF4F46E5).withOpacity(0.3)),
+                        border: Border.all(
+                            color:
+                                const Color(0xFF4F46E5).withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             'Status: ${_selectedStatusFilter == "ACTIVE" ? "Active" : (_selectedStatusFilter == "INACTIVE" ? "Inactive" : "Archived")}',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF4F46E5)),
+                            style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF4F46E5)),
                           ),
                           const SizedBox(width: 4),
                           InkWell(
@@ -333,25 +396,32 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                               setState(() => _selectedStatusFilter = 'ALL');
                               notifier.setStatusFilter('ALL');
                             },
-                            child: const Icon(Icons.close, size: 13, color: Color(0xFF4F46E5)),
+                            child: const Icon(Icons.close,
+                                size: 13, color: Color(0xFF4F46E5)),
                           ),
                         ],
                       ),
                     ),
                   if (_selectedStageFilter != 'ALL')
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4F46E5).withOpacity(0.1),
+                        color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFF4F46E5).withOpacity(0.3)),
+                        border: Border.all(
+                            color:
+                                const Color(0xFF4F46E5).withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             'Stage: $_selectedStageFilter',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF4F46E5)),
+                            style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF4F46E5)),
                           ),
                           const SizedBox(width: 4),
                           InkWell(
@@ -359,7 +429,8 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                               setState(() => _selectedStageFilter = 'ALL');
                               notifier.setClassStageFilter('ALL');
                             },
-                            child: const Icon(Icons.close, size: 13, color: Color(0xFF4F46E5)),
+                            child: const Icon(Icons.close,
+                                size: 13, color: Color(0xFF4F46E5)),
                           ),
                         ],
                       ),
@@ -371,12 +442,16 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
 
           // Class List
           if (state.isLoading)
-            const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator()))
+            const Padding(
+                padding: EdgeInsets.all(32),
+                child: Center(child: CircularProgressIndicator()))
           else if (classes.isEmpty)
             Padding(
               padding: const EdgeInsets.all(32),
               child: Center(
-                child: Text('No classes found.', style: TextStyle(color: isDark ? Colors.white54 : Colors.black54)),
+                child: Text('No classes found.',
+                    style: TextStyle(
+                        color: isDark ? Colors.white54 : Colors.black54)),
               ),
             )
           else
@@ -402,13 +477,17 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? const Color(0xFF4F46E5).withOpacity(0.06)
-                          : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
+                          ? const Color(0xFF4F46E5).withValues(alpha: 0.06)
+                          : (isDark
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFFF8FAFC)),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: isSelected
                             ? const Color(0xFF4F46E5)
-                            : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                            : (isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0)),
                         width: isSelected ? 1.5 : 1,
                       ),
                     ),
@@ -419,7 +498,7 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                           width: 36,
                           height: 36,
                           decoration: BoxDecoration(
-                            color: badgeColor.withOpacity(0.15),
+                            color: badgeColor.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           alignment: Alignment.center,
@@ -444,7 +523,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A),
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -452,7 +533,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                                 cls.stage,
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
                                 ),
                               ),
                             ],
@@ -468,7 +551,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                color: isDark
+                                    ? Colors.white70
+                                    : const Color(0xFF475569),
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -479,7 +564,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                                   '$stuCount Students',
                                   style: TextStyle(
                                     fontSize: 10.5,
-                                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B),
                                   ),
                                 ),
                                 const SizedBox(width: 6),
@@ -487,7 +574,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                                   width: 6,
                                   height: 6,
                                   decoration: BoxDecoration(
-                                    color: cls.isActive ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                    color: cls.isActive
+                                        ? const Color(0xFF10B981)
+                                        : const Color(0xFFEF4444),
                                     shape: BoxShape.circle,
                                   ),
                                 ),
@@ -507,13 +596,22 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-              border: Border(top: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+              border: Border(
+                  top: BorderSide(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0))),
+              borderRadius:
+                  const BorderRadius.vertical(bottom: Radius.circular(12)),
             ),
             child: Builder(
               builder: (context) {
-                final startItem = state.totalCount == 0 ? 0 : (state.page - 1) * state.pageSize + 1;
-                final endItem = (state.page * state.pageSize) > state.totalCount ? state.totalCount : (state.page * state.pageSize);
+                final startItem = state.totalCount == 0
+                    ? 0
+                    : (state.page - 1) * state.pageSize + 1;
+                final endItem = (state.page * state.pageSize) > state.totalCount
+                    ? state.totalCount
+                    : (state.page * state.pageSize);
                 return Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -523,7 +621,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                         style: TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B),
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -534,10 +634,13 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                         IconButton(
                           icon: const Icon(Icons.chevron_left, size: 18),
                           padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                          constraints:
+                              const BoxConstraints(minWidth: 26, minHeight: 26),
                           splashRadius: 14,
                           tooltip: 'Previous Page',
-                          onPressed: state.page > 1 ? () => notifier.setPage(state.page - 1) : null,
+                          onPressed: state.page > 1
+                              ? () => notifier.setPage(state.page - 1)
+                              : null,
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -546,17 +649,21 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                             style: TextStyle(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
                             ),
                           ),
                         ),
                         IconButton(
                           icon: const Icon(Icons.chevron_right, size: 18),
                           padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                          constraints:
+                              const BoxConstraints(minWidth: 26, minHeight: 26),
                           splashRadius: 14,
                           tooltip: 'Next Page',
-                          onPressed: (state.totalPages > 0 && state.page < state.totalPages)
+                          onPressed: (state.totalPages > 0 &&
+                                  state.page < state.totalPages)
                               ? () => notifier.setPage(state.page + 1)
                               : null,
                         ),
@@ -589,13 +696,23 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
 
     final secCount = detail?.totalSections ?? cls.sectionsCount;
     final stuCount = detail?.totalStudents ?? cls.studentsCount;
-    final capCount = detail?.totalCapacity ?? (detail?.sections.fold<int>(0, (sum, s) => sum + s.capacity) ?? (cls.sections.fold<int>(0, (sum, s) => sum + s.capacity)));
-    final coreCount = detail?.coreSubjectsCount ?? (detail?.subjects.where((s) => s.isCore).length ?? 0);
-    final optCount = detail?.optionalSubjectsCount ?? (detail?.subjects.where((s) => s.isOptional).length ?? 0);
-    final totalSubs = detail?.totalSubjectsCount ?? (detail?.subjects.isNotEmpty == true ? detail!.subjects.length : cls.subjectsCount);
-    final capPct = capCount > 0 ? ((stuCount / capCount) * 100).clamp(0.0, 100.0) : 0.0;
+    final capCount = detail?.totalCapacity ??
+        (detail?.sections.fold<int>(0, (sum, s) => sum + s.capacity) ??
+            (cls.sections.fold<int>(0, (sum, s) => sum + s.capacity)));
+    final coreCount = detail?.coreSubjectsCount ??
+        (detail?.subjects.where((s) => s.isCore).length ?? 0);
+    final optCount = detail?.optionalSubjectsCount ??
+        (detail?.subjects.where((s) => s.isOptional).length ?? 0);
+    final totalSubs = detail?.totalSubjectsCount ??
+        (detail?.subjects.isNotEmpty == true
+            ? detail!.subjects.length
+            : cls.subjectsCount);
+    final capPct =
+        capCount > 0 ? ((stuCount / capCount) * 100).clamp(0.0, 100.0) : 0.0;
 
-    final clsStatus = (detail?.status.isNotEmpty == true ? detail!.status : cls.status).trim();
+    final clsStatus =
+        (detail?.status.isNotEmpty == true ? detail!.status : cls.status)
+            .trim();
     final isClsActive = clsStatus.toUpperCase() == 'ACTIVE';
     final isClsInactive = clsStatus.toUpperCase() == 'INACTIVE';
     final isClsArchived = clsStatus.toUpperCase() == 'ARCHIVED';
@@ -603,7 +720,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
         ? const Color(0xFF10B981)
         : (isClsInactive
             ? const Color(0xFFEF4444)
-            : (isClsArchived ? const Color(0xFFF59E0B) : const Color(0xFF64748B)));
+            : (isClsArchived
+                ? const Color(0xFFF59E0B)
+                : const Color(0xFF64748B)));
     final displayClsStatus = clsStatus.isNotEmpty
         ? (clsStatus[0].toUpperCase() + clsStatus.substring(1).toLowerCase())
         : 'Active';
@@ -617,7 +736,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+            border: Border.all(
+                color:
+                    isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -632,7 +753,7 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          color: badgeColor.withOpacity(0.15),
+                          color: badgeColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         alignment: Alignment.center,
@@ -656,19 +777,25 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: clsStatusColor.withOpacity(0.12),
+                                  color: clsStatusColor.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
                                   displayClsStatus,
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: clsStatusColor),
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: clsStatusColor),
                                 ),
                               ),
                             ],
@@ -678,7 +805,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                             '${cls.stage}  •  Class Code: ${cls.code}  •  Academic Year: ${cls.academicYear}',
                             style: TextStyle(
                               fontSize: 12,
-                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B),
                             ),
                           ),
                         ],
@@ -692,13 +821,19 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         OutlinedButton.icon(
-                          onPressed: () => _showEditClassDialog(context, cls, state, notifier),
+                          onPressed: () => _showEditClassDialog(
+                              context, cls, state, notifier),
                           icon: const Icon(Icons.edit_outlined, size: 14),
                           label: const Text('Edit Class'),
                           style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 8),
+                            side: BorderSide(
+                                color: isDark
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFCBD5E1)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -717,9 +852,12 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                                 value: 'restore',
                                 child: Row(
                                   children: [
-                                    Icon(Icons.restore, size: 16, color: Color(0xFF10B981)),
+                                    Icon(Icons.restore,
+                                        size: 16, color: Color(0xFF10B981)),
                                     SizedBox(width: 8),
-                                    Text('Restore Class', style: TextStyle(color: Color(0xFF10B981))),
+                                    Text('Restore Class',
+                                        style: TextStyle(
+                                            color: Color(0xFF10B981))),
                                   ],
                                 ),
                               )
@@ -728,9 +866,12 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                                 value: 'archive',
                                 child: Row(
                                   children: [
-                                    Icon(Icons.archive_outlined, size: 16, color: Color(0xFFEF4444)),
+                                    Icon(Icons.archive_outlined,
+                                        size: 16, color: Color(0xFFEF4444)),
                                     SizedBox(width: 8),
-                                    Text('Archive Class', style: TextStyle(color: Color(0xFFEF4444))),
+                                    Text('Archive Class',
+                                        style: TextStyle(
+                                            color: Color(0xFFEF4444))),
                                   ],
                                 ),
                               ),
@@ -763,7 +904,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                     _buildSummaryKpiTile(
                       icon: Icons.menu_book_rounded,
                       title: '$totalSubs',
-                      subtitle: 'Subjects',
+                      subtitle: (coreCount > 0 || optCount > 0)
+                          ? '$coreCount Core • $optCount Opt'
+                          : 'Subjects',
                       color: const Color(0xFF8B5CF6),
                       isDark: isDark,
                     ),
@@ -779,14 +922,24 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                     return Wrap(
                       spacing: 12,
                       runSpacing: 12,
-                      children: kpiCards.map((c) => SizedBox(width: (boxConstraints.maxWidth - 24) / 2, child: c)).toList(),
+                      children: kpiCards
+                          .map((c) => SizedBox(
+                              width: (boxConstraints.maxWidth - 24) / 2,
+                              child: c))
+                          .toList(),
                     );
                   }
 
                   return IntrinsicHeight(
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: kpiCards.map((c) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: c))).toList(),
+                      children: kpiCards
+                          .map((c) => Expanded(
+                              child: Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 4),
+                                  child: c)))
+                          .toList(),
                     ),
                   );
                 },
@@ -797,11 +950,13 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
         const SizedBox(height: 20),
 
         // 2. SECTIONS IN THIS CLASS TABLE
-        _buildSectionsInClassCard(context, state, notifier, cls, detail, isTeacher, isDark),
+        _buildSectionsInClassCard(
+            context, state, notifier, cls, detail, isTeacher, isDark),
         const SizedBox(height: 20),
 
         // 3. SUBJECTS OF THIS CLASS TABLE
-        _buildSubjectsInClassCard(context, state, notifier, cls, detail, isTeacher, isDark),
+        _buildSubjectsInClassCard(
+            context, state, notifier, cls, detail, isTeacher, isDark),
       ],
     );
   }
@@ -818,7 +973,8 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -826,7 +982,7 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: color, size: 18),
@@ -849,7 +1005,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                   subtitle,
                   style: TextStyle(
                     fontSize: 10.5,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -873,7 +1031,8 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -886,14 +1045,20 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
               children: [
                 CircularProgressIndicator(
                   value: (percentage / 100).clamp(0.0, 1.0),
-                  backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+                  backgroundColor: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0),
+                  valueColor:
+                      const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
                   strokeWidth: 3.5,
                 ),
                 Center(
                   child: Text(
                     '${percentage.round()}%',
-                    style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Color(0xFF10B981)),
+                    style: const TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF10B981)),
                   ),
                 ),
               ],
@@ -917,7 +1082,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                   'Capacity',
                   style: TextStyle(
                     fontSize: 10.5,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                   ),
                 ),
               ],
@@ -948,7 +1115,8 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -975,7 +1143,8 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
           // Table
           LayoutBuilder(
             builder: (context, constraints) {
-              final tableWidth = constraints.maxWidth < 850 ? 850.0 : constraints.maxWidth;
+              final tableWidth =
+                  constraints.maxWidth < 850 ? 850.0 : constraints.maxWidth;
 
               return SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -983,13 +1152,17 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                   constraints: BoxConstraints(minWidth: tableWidth),
                   child: DataTable(
                     showCheckboxColumn: false,
-                    headingRowColor: MaterialStateProperty.all(
-                      isDark ? const Color(0xFF0F172A).withOpacity(0.5) : const Color(0xFFF8FAFC),
+                    headingRowColor: WidgetStateProperty.all(
+                      isDark
+                          ? const Color(0xFF0F172A).withValues(alpha: 0.5)
+                          : const Color(0xFFF8FAFC),
                     ),
                     headingTextStyle: TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF475569),
                     ),
                     dataRowMinHeight: 52,
                     dataRowMaxHeight: 56,
@@ -1004,8 +1177,10 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                       DataColumn(label: Text('Status')),
                     ],
                     rows: sections.map((sec) {
-                      final teacherName = sec.classTeacher?.fullName ?? 'Unassigned';
-                      final teacherSub = sec.classTeacher?.department ?? 'Section Teacher';
+                      final teacherName =
+                          sec.classTeacher?.fullName ?? 'Unassigned';
+                      final teacherSub =
+                          sec.classTeacher?.department ?? 'Section Teacher';
 
                       return DataRow(
                         cells: [
@@ -1016,7 +1191,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                               style: TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.w700,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A),
                               ),
                             ),
                           ),
@@ -1028,7 +1205,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                                color: isDark
+                                    ? const Color(0xFFCBD5E1)
+                                    : const Color(0xFF475569),
                               ),
                             ),
                           ),
@@ -1040,7 +1219,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                               style: TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.w700,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A),
                               ),
                             ),
                           ),
@@ -1051,7 +1232,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                               '${sec.capacity}',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                                color: isDark
+                                    ? const Color(0xFFCBD5E1)
+                                    : const Color(0xFF475569),
                               ),
                             ),
                           ),
@@ -1063,17 +1246,25 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                               children: [
                                 CircleAvatar(
                                   radius: 12,
-                                  backgroundColor: const Color(0xFF4F46E5).withOpacity(0.12),
+                                  backgroundColor: const Color(0xFF4F46E5)
+                                      .withValues(alpha: 0.12),
                                   child: Text(
-                                    teacherName.isNotEmpty ? teacherName[0] : 'T',
-                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF4F46E5)),
+                                    teacherName.isNotEmpty
+                                        ? teacherName[0]
+                                        : 'T',
+                                    style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF4F46E5)),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 ConstrainedBox(
-                                  constraints: const BoxConstraints(maxWidth: 140),
+                                  constraints:
+                                      const BoxConstraints(maxWidth: 140),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Text(
@@ -1081,7 +1272,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                                         style: TextStyle(
                                           fontSize: 11.5,
                                           fontWeight: FontWeight.w700,
-                                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                          color: isDark
+                                              ? Colors.white
+                                              : const Color(0xFF0F172A),
                                         ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
@@ -1090,7 +1283,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                                         teacherSub,
                                         style: TextStyle(
                                           fontSize: 10,
-                                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                          color: isDark
+                                              ? const Color(0xFF94A3B8)
+                                              : const Color(0xFF64748B),
                                         ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
@@ -1106,18 +1301,31 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                           DataCell(
                             Builder(
                               builder: (context) {
-                                final isClassInactive = (detail?.status.isNotEmpty == true ? detail!.status : cls.status).trim().toUpperCase() == 'INACTIVE';
-                                final isSecActive = !isClassInactive && sec.status.toUpperCase() == 'ACTIVE';
-                                final isSecInactive = isClassInactive || sec.status.toUpperCase() == 'INACTIVE';
+                                final isClassInactive =
+                                    (detail?.status.isNotEmpty == true
+                                                ? detail!.status
+                                                : cls.status)
+                                            .trim()
+                                            .toUpperCase() ==
+                                        'INACTIVE';
+                                final isSecActive = !isClassInactive &&
+                                    sec.status.toUpperCase() == 'ACTIVE';
+                                final isSecInactive = isClassInactive ||
+                                    sec.status.toUpperCase() == 'INACTIVE';
                                 final statusColor = isSecActive
                                     ? const Color(0xFF10B981)
-                                    : (isSecInactive ? const Color(0xFFEF4444) : const Color(0xFFF59E0B));
-                                final statusText = isSecActive ? 'Active' : (isSecInactive ? 'Inactive' : sec.status);
+                                    : (isSecInactive
+                                        ? const Color(0xFFEF4444)
+                                        : const Color(0xFFF59E0B));
+                                final statusText = isSecActive
+                                    ? 'Active'
+                                    : (isSecInactive ? 'Inactive' : sec.status);
 
                                 return Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: statusColor.withOpacity(0.12),
+                                    color: statusColor.withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
@@ -1151,10 +1359,14 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                 children: [
                   Text(
                     'View all sections',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF4F46E5)),
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF4F46E5)),
                   ),
                   SizedBox(width: 4),
-                  Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFF4F46E5)),
+                  Icon(Icons.arrow_forward_rounded,
+                      size: 14, color: Color(0xFF4F46E5)),
                 ],
               ),
             ),
@@ -1180,15 +1392,18 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
         ? detail.subjects
         : const <ClassSubjectDetailModel>[];
 
-    final coreCount = detail?.coreSubjectsCount ?? subjects.where((s) => s.isCore).length;
-    final optCount = detail?.optionalSubjectsCount ?? subjects.where((s) => s.isOptional).length;
+    final coreCount =
+        detail?.coreSubjectsCount ?? subjects.where((s) => s.isCore).length;
+    final optCount = detail?.optionalSubjectsCount ??
+        subjects.where((s) => s.isOptional).length;
     final totalCount = detail?.totalSubjectsCount ?? subjects.length;
 
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1207,11 +1422,14 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                   ),
                 ),
                 const SizedBox(width: 14),
-                _buildLegendDot('Core: $coreCount', const Color(0xFF10B981), isDark),
+                _buildLegendDot(
+                    'Core: $coreCount', const Color(0xFF10B981), isDark),
                 const SizedBox(width: 10),
-                _buildLegendDot('Optional: $optCount', const Color(0xFFF59E0B), isDark),
+                _buildLegendDot(
+                    'Optional: $optCount', const Color(0xFFF59E0B), isDark),
                 const SizedBox(width: 10),
-                _buildLegendDot('Total: $totalCount', const Color(0xFF4F46E5), isDark),
+                _buildLegendDot(
+                    'Total: $totalCount', const Color(0xFF4F46E5), isDark),
               ],
             ),
           ),
@@ -1224,11 +1442,19 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
               child: Center(
                 child: Column(
                   children: [
-                    Icon(Icons.auto_stories_outlined, size: 36, color: isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
+                    Icon(Icons.auto_stories_outlined,
+                        size: 36,
+                        color: isDark
+                            ? const Color(0xFF64748B)
+                            : const Color(0xFFCBD5E1)),
                     const SizedBox(height: 8),
                     Text(
                       'No subjects assigned to ${cls.name} yet.',
-                      style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      style: TextStyle(
+                          fontSize: 13,
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B)),
                     ),
                   ],
                 ),
@@ -1237,7 +1463,8 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
           else
             LayoutBuilder(
               builder: (context, constraints) {
-                final tableWidth = constraints.maxWidth < 750 ? 750.0 : constraints.maxWidth;
+                final tableWidth =
+                    constraints.maxWidth < 750 ? 750.0 : constraints.maxWidth;
 
                 return SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -1246,12 +1473,16 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                     child: DataTable(
                       showCheckboxColumn: false,
                       headingRowColor: WidgetStateProperty.all(
-                        isDark ? const Color(0xFF0F172A).withOpacity(0.5) : const Color(0xFFF8FAFC),
+                        isDark
+                            ? const Color(0xFF0F172A).withValues(alpha: 0.5)
+                            : const Color(0xFFF8FAFC),
                       ),
                       headingTextStyle: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF475569),
                       ),
                       dataRowMinHeight: 52,
                       dataRowMaxHeight: 56,
@@ -1262,12 +1493,15 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                         DataColumn(label: Text('Subject Code')),
                         DataColumn(label: Text('Type')),
                         DataColumn(label: Text('Offered As')),
-                        DataColumn(label: Text('Assigned Teachers by Section ⓘ')),
+                        DataColumn(
+                            label: Text('Assigned Teachers by Section ⓘ')),
                         DataColumn(label: Text('Status')),
                       ],
                       rows: subjects.map((sub) {
                         final isCore = sub.isCore;
-                        final typeColor = isCore ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
+                        final typeColor = isCore
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFFF59E0B);
 
                         return DataRow(
                           cells: [
@@ -1278,7 +1512,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                                 style: TextStyle(
                                   fontSize: 12.5,
                                   fontWeight: FontWeight.w700,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A),
                                 ),
                               ),
                             ),
@@ -1290,7 +1526,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                                  color: isDark
+                                      ? const Color(0xFFCBD5E1)
+                                      : const Color(0xFF475569),
                                 ),
                               ),
                             ),
@@ -1298,9 +1536,10 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                             // Type Pill
                             DataCell(
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: typeColor.withOpacity(0.12),
+                                  color: typeColor.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
@@ -1320,7 +1559,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                                 sub.offeredAs,
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                                  color: isDark
+                                      ? const Color(0xFFCBD5E1)
+                                      : const Color(0xFF475569),
                                 ),
                               ),
                             ),
@@ -1330,22 +1571,33 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                               Builder(
                                 builder: (context) {
                                   final teachers = sub.assignedTeachers;
-                                  final assignedSecCount = sub.assignedSectionsCount > 0 ? sub.assignedSectionsCount : teachers.length;
+                                  final assignedSecCount =
+                                      sub.assignedSectionsCount > 0
+                                          ? sub.assignedSectionsCount
+                                          : teachers.length;
 
                                   if (teachers.isEmpty) {
                                     return Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                                        color: isDark
+                                            ? const Color(0xFF0F172A)
+                                            : const Color(0xFFF1F5F9),
                                         borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                                        border: Border.all(
+                                            color: isDark
+                                                ? const Color(0xFF334155)
+                                                : const Color(0xFFCBD5E1)),
                                       ),
                                       child: Text(
                                         'Unassigned',
                                         style: TextStyle(
                                           fontSize: 11,
                                           fontWeight: FontWeight.w600,
-                                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                          color: isDark
+                                              ? const Color(0xFF94A3B8)
+                                              : const Color(0xFF64748B),
                                         ),
                                       ),
                                     );
@@ -1359,7 +1611,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                                         enabled: false,
                                         child: Text(
                                           'Teachers for ${sub.name}:',
-                                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 12),
                                         ),
                                       ),
                                       const PopupMenuDivider(),
@@ -1370,27 +1624,51 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                                             children: [
                                               CircleAvatar(
                                                 radius: 12,
-                                                backgroundColor: const Color(0xFF4F46E5).withOpacity(0.15),
-                                                backgroundImage: (t.avatarUrl != null && t.avatarUrl!.isNotEmpty)
+                                                backgroundColor:
+                                                    const Color(0xFF4F46E5)
+                                                        .withValues(
+                                                            alpha: 0.15),
+                                                backgroundImage: (t.avatarUrl !=
+                                                            null &&
+                                                        t.avatarUrl!.isNotEmpty)
                                                     ? NetworkImage(t.avatarUrl!)
                                                     : null,
-                                                child: (t.avatarUrl == null || t.avatarUrl!.isEmpty)
+                                                child: (t.avatarUrl == null ||
+                                                        t.avatarUrl!.isEmpty)
                                                     ? Text(
-                                                        t.fullName.isNotEmpty ? t.fullName.substring(0, 1).toUpperCase() : 'T',
-                                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF4F46E5)),
+                                                        t.fullName.isNotEmpty
+                                                            ? t.fullName
+                                                                .substring(0, 1)
+                                                                .toUpperCase()
+                                                            : 'T',
+                                                        style: const TextStyle(
+                                                            fontSize: 10,
+                                                            fontWeight:
+                                                                FontWeight.w700,
+                                                            color: Color(
+                                                                0xFF4F46E5)),
                                                       )
                                                     : null,
                                               ),
                                               const SizedBox(width: 8),
                                               Expanded(
                                                 child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  mainAxisSize: MainAxisSize.min,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
                                                   children: [
-                                                    Text(t.fullName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                                    Text(t.fullName,
+                                                        style: const TextStyle(
+                                                            fontSize: 12,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600)),
                                                     Text(
                                                       'Section: ${t.sectionName ?? "All Sections"}',
-                                                      style: const TextStyle(fontSize: 10.5, color: Colors.grey),
+                                                      style: const TextStyle(
+                                                          fontSize: 10.5,
+                                                          color: Colors.grey),
                                                     ),
                                                   ],
                                                 ),
@@ -1412,14 +1690,46 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                                                 left: 0,
                                                 child: CircleAvatar(
                                                   radius: 11,
-                                                  backgroundColor: const Color(0xFF4F46E5).withOpacity(0.2),
-                                                  backgroundImage: (teachers.first.avatarUrl != null && teachers.first.avatarUrl!.isNotEmpty)
-                                                      ? NetworkImage(teachers.first.avatarUrl!)
+                                                  backgroundColor:
+                                                      const Color(0xFF4F46E5)
+                                                          .withValues(
+                                                              alpha: 0.2),
+                                                  backgroundImage: (teachers
+                                                                  .first
+                                                                  .avatarUrl !=
+                                                              null &&
+                                                          teachers
+                                                              .first
+                                                              .avatarUrl!
+                                                              .isNotEmpty)
+                                                      ? NetworkImage(teachers
+                                                          .first.avatarUrl!)
                                                       : null,
-                                                  child: (teachers.first.avatarUrl == null || teachers.first.avatarUrl!.isEmpty)
+                                                  child: (teachers.first
+                                                                  .avatarUrl ==
+                                                              null ||
+                                                          teachers
+                                                              .first
+                                                              .avatarUrl!
+                                                              .isEmpty)
                                                       ? Text(
-                                                          teachers.first.fullName.isNotEmpty ? teachers.first.fullName.substring(0, 1).toUpperCase() : 'T',
-                                                          style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700, color: Color(0xFF4F46E5)),
+                                                          teachers
+                                                                  .first
+                                                                  .fullName
+                                                                  .isNotEmpty
+                                                              ? teachers.first
+                                                                  .fullName
+                                                                  .substring(
+                                                                      0, 1)
+                                                                  .toUpperCase()
+                                                              : 'T',
+                                                          style: const TextStyle(
+                                                              fontSize: 8.5,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700,
+                                                              color: Color(
+                                                                  0xFF4F46E5)),
                                                         )
                                                       : null,
                                                 ),
@@ -1429,14 +1739,43 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                                                   left: 14,
                                                   child: CircleAvatar(
                                                     radius: 11,
-                                                    backgroundColor: const Color(0xFF10B981).withOpacity(0.2),
-                                                    backgroundImage: (teachers[1].avatarUrl != null && teachers[1].avatarUrl!.isNotEmpty)
-                                                        ? NetworkImage(teachers[1].avatarUrl!)
-                                                        : null,
-                                                    child: (teachers[1].avatarUrl == null || teachers[1].avatarUrl!.isEmpty)
+                                                    backgroundColor:
+                                                        const Color(0xFF10B981)
+                                                            .withValues(
+                                                                alpha: 0.2),
+                                                    backgroundImage:
+                                                        (teachers[1].avatarUrl !=
+                                                                    null &&
+                                                                teachers[1]
+                                                                    .avatarUrl!
+                                                                    .isNotEmpty)
+                                                            ? NetworkImage(
+                                                                teachers[1]
+                                                                    .avatarUrl!)
+                                                            : null,
+                                                    child: (teachers[1]
+                                                                    .avatarUrl ==
+                                                                null ||
+                                                            teachers[1]
+                                                                .avatarUrl!
+                                                                .isEmpty)
                                                         ? Text(
-                                                            teachers[1].fullName.isNotEmpty ? teachers[1].fullName.substring(0, 1).toUpperCase() : 'T',
-                                                            style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700, color: Color(0xFF10B981)),
+                                                            teachers[1]
+                                                                    .fullName
+                                                                    .isNotEmpty
+                                                                ? teachers[1]
+                                                                    .fullName
+                                                                    .substring(
+                                                                        0, 1)
+                                                                    .toUpperCase()
+                                                                : 'T',
+                                                            style: const TextStyle(
+                                                                fontSize: 8.5,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w700,
+                                                                color: Color(
+                                                                    0xFF10B981)),
                                                           )
                                                         : null,
                                                   ),
@@ -1446,11 +1785,18 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                                         ),
                                         const SizedBox(width: 6),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 3),
                                           decoration: BoxDecoration(
-                                            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                                            borderRadius: BorderRadius.circular(4),
-                                            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                                            color: isDark
+                                                ? const Color(0xFF0F172A)
+                                                : const Color(0xFFF1F5F9),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                            border: Border.all(
+                                                color: isDark
+                                                    ? const Color(0xFF334155)
+                                                    : const Color(0xFFCBD5E1)),
                                           ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
@@ -1460,10 +1806,13 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                                                 style: TextStyle(
                                                   fontSize: 10.5,
                                                   fontWeight: FontWeight.w600,
-                                                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                                  color: isDark
+                                                      ? Colors.white70
+                                                      : const Color(0xFF475569),
                                                 ),
                                               ),
-                                              const Icon(Icons.arrow_drop_down, size: 14),
+                                              const Icon(Icons.arrow_drop_down,
+                                                  size: 14),
                                             ],
                                           ),
                                         ),
@@ -1478,23 +1827,42 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                             DataCell(
                               Builder(
                                 builder: (context) {
-                                  final isClassInactive = (detail?.status.isNotEmpty == true ? detail!.status : cls.status).trim().toUpperCase() == 'INACTIVE';
-                                  final isSubActive = !isClassInactive && sub.status.toUpperCase() == 'ACTIVE';
-                                  final isSubInactive = isClassInactive || sub.status.toUpperCase() == 'INACTIVE';
+                                  final isClassInactive =
+                                      (detail?.status.isNotEmpty == true
+                                                  ? detail!.status
+                                                  : cls.status)
+                                              .trim()
+                                              .toUpperCase() ==
+                                          'INACTIVE';
+                                  final isSubActive = !isClassInactive &&
+                                      sub.status.toUpperCase() == 'ACTIVE';
+                                  final isSubInactive = isClassInactive ||
+                                      sub.status.toUpperCase() == 'INACTIVE';
                                   final statusColor = isSubActive
                                       ? const Color(0xFF10B981)
-                                      : (isSubInactive ? const Color(0xFFEF4444) : const Color(0xFFF59E0B));
-                                  final statusText = isSubActive ? 'Active' : (isSubInactive ? 'Inactive' : sub.status);
+                                      : (isSubInactive
+                                          ? const Color(0xFFEF4444)
+                                          : const Color(0xFFF59E0B));
+                                  final statusText = isSubActive
+                                      ? 'Active'
+                                      : (isSubInactive
+                                          ? 'Inactive'
+                                          : sub.status);
 
                                   return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: statusColor.withOpacity(0.12),
+                                      color:
+                                          statusColor.withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
                                       statusText,
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: statusColor),
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: statusColor),
                                     ),
                                   );
                                 },
@@ -1519,10 +1887,14 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                 children: [
                   Text(
                     'View all subjects',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF4F46E5)),
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF4F46E5)),
                   ),
                   SizedBox(width: 4),
-                  Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFF4F46E5)),
+                  Icon(Icons.arrow_forward_rounded,
+                      size: 14, color: Color(0xFF4F46E5)),
                 ],
               ),
             ),
@@ -1536,11 +1908,18 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 4),
         Text(
           label,
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+          style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color:
+                  isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
         ),
       ],
     );
@@ -1552,7 +1931,8 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Center(
         child: Column(
@@ -1561,7 +1941,9 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
             const SizedBox(height: 12),
             Text(
               'Select a class from the list to view its details, sections, and subjects.',
-              style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
+              style: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? Colors.white70 : const Color(0xFF64748B)),
             ),
           ],
         ),
@@ -1572,7 +1954,8 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
   // =========================================================================
   // 5. DIALOG LAUNCHERS
   // =========================================================================
-  void _showEditClassDialog(BuildContext context, AcademicClassModel cls, ClassState state, ClassNotifier notifier) {
+  void _showEditClassDialog(BuildContext context, AcademicClassModel cls,
+      ClassState state, ClassNotifier notifier) {
     showDialog(
       context: context,
       builder: (ctx) => CreateEditClassDialog(
@@ -1589,7 +1972,8 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
     );
   }
 
-  void _showArchiveClassDialog(BuildContext context, AcademicClassModel cls, ClassNotifier notifier) {
+  void _showArchiveClassDialog(
+      BuildContext context, AcademicClassModel cls, ClassNotifier notifier) {
     showDialog(
       context: context,
       builder: (ctx) => ArchiveConfirmationDialog(

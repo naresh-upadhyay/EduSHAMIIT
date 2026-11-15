@@ -46,48 +46,63 @@ class CommandCenterTab extends StatelessWidget {
           ),
           const SizedBox(height: 32),
 
-          // Stat Cards Grid
-          GridView.count(
-            crossAxisCount: MediaQuery.of(context).size.width > 1200 ? 4 : 2,
-            crossAxisSpacing: 20,
-            mainAxisSpacing: 20,
-            shrinkWrap: true,
-            childAspectRatio: 1.5,
-            physics: const NeverScrollableScrollPhysics(),
-            children: [
-              _buildStatCard(
-                context,
-                title: 'Total Students',
-                value: '1,248',
-                subText: '+42 new admissions this term',
-                icon: Icons.people_outline_rounded,
-                iconColor: const Color(0xFF3B82F6),
-              ),
-              _buildStatCard(
-                context,
-                title: 'Active Teachers',
-                value: '84',
-                subText: '2 currently on approved leave',
-                icon: Icons.school_outlined,
-                iconColor: const Color(0xFF10B981),
-              ),
-              _buildStatCard(
-                context,
-                title: 'Month Fee Collection',
-                value: '₹18,45,200',
-                subText: '91% of targeted collection reached',
-                icon: Icons.payments_outlined,
-                iconColor: const Color(0xFFF59E0B),
-              ),
-              _buildStatCard(
-                context,
-                title: 'Support Tickets',
-                value: '7 Pending',
-                subText: 'Average resolution time: 2.4 hrs',
-                icon: Icons.support_agent_rounded,
-                iconColor: const Color(0xFFEF4444),
-              ),
-            ],
+          // Stat Cards Grid (Fluid Responsive Wrap)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final int cols;
+              const double spacing = 16.0;
+              if (width >= 1100) {
+                cols = 4;
+              } else if (width >= 600) {
+                cols = 2;
+              } else {
+                cols = 1;
+              }
+              final double totalSpacing = (cols - 1) * spacing;
+              final double cardWidth = ((width - totalSpacing) / cols).floorToDouble();
+
+              final cards = [
+                _buildStatCard(
+                  context,
+                  title: 'Total Students',
+                  value: '1,248',
+                  subText: '+42 new admissions this term',
+                  icon: Icons.people_outline_rounded,
+                  iconColor: const Color(0xFF3B82F6),
+                ),
+                _buildStatCard(
+                  context,
+                  title: 'Active Teachers',
+                  value: '84',
+                  subText: '2 currently on approved leave',
+                  icon: Icons.school_outlined,
+                  iconColor: const Color(0xFF10B981),
+                ),
+                _buildStatCard(
+                  context,
+                  title: 'Month Fee Collection',
+                  value: '₹18,45,200',
+                  subText: '91% of targeted collection reached',
+                  icon: Icons.payments_outlined,
+                  iconColor: const Color(0xFFF59E0B),
+                ),
+                _buildStatCard(
+                  context,
+                  title: 'Support Tickets',
+                  value: '7 Pending',
+                  subText: 'Average resolution time: 2.4 hrs',
+                  icon: Icons.support_agent_rounded,
+                  iconColor: const Color(0xFFEF4444),
+                ),
+              ];
+
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: cards.map((c) => SizedBox(width: cardWidth, child: c)).toList(),
+              );
+            },
           ),
           const SizedBox(height: 32),
 

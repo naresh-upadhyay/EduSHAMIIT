@@ -9,7 +9,9 @@ services:
     container_name: supabase-db
     image: supabase/postgres:15.8.1.085
     restart: unless-stopped
-    # Port NOT exposed on host — connect via Supavisor (port 5432) or direct pooler (6543)
+    ports:
+      - "54322:5432"
+      - "5432:5432"
     environment:
       POSTGRES_HOST: /var/run/postgresql
       PGPORT: ${POSTGRES_PORT}
@@ -174,25 +176,28 @@ services:
       timeout: 5s
       interval: 5s
       retries: 3
-      start_period: 10s
+    ports:
+      - "5000:5000"
     environment:
       ANON_KEY: ${ANON_KEY}
       SERVICE_KEY: ${SERVICE_ROLE_KEY}
       POSTGREST_URL: http://rest:3000
       AUTH_JWT_SECRET: ${SUPABASE_JWT_SECRET}
       DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
-      STORAGE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
+      # STORAGE_PUBLIC_URL omitted so S3 signature verification matches actual request Host
       REQUEST_ALLOW_X_FORWARDED_PATH: "true"
-      FILE_SIZE_LIMIT: 52428800
+      S3_ALLOW_FORWARDED_HEADER: "true"
+      S3_PROTOCOL_ENFORCE_REGION: "false"
+      FILE_SIZE_LIMIT: 5368709120
       STORAGE_BACKEND: file
-      GLOBAL_S3_BUCKET: ${GLOBAL_S3_BUCKET}
+      GLOBAL_S3_BUCKET: ${GLOBAL_S3_BUCKET:-stub}
       FILE_STORAGE_BACKEND_PATH: /var/lib/storage
-      TENANT_ID: ${STORAGE_TENANT_ID}
-      REGION: ${REGION}
+      TENANT_ID: ${STORAGE_TENANT_ID:-stub}
+      REGION: ${REGION:-us-east-1}
       ENABLE_IMAGE_TRANSFORMATION: "true"
       IMGPROXY_URL: http://imgproxy:5001
-      S3_PROTOCOL_ACCESS_KEY_ID: ${S3_PROTOCOL_ACCESS_KEY_ID}
-      S3_PROTOCOL_ACCESS_KEY_SECRET: ${S3_PROTOCOL_ACCESS_KEY_SECRET}
+      S3_PROTOCOL_ACCESS_KEY_ID: ${S3_PROTOCOL_ACCESS_KEY_ID:-625729a08b95bf1b7ff351a663f3a23c}
+      S3_PROTOCOL_ACCESS_KEY_SECRET: ${S3_PROTOCOL_ACCESS_KEY_SECRET:-850181e4652dd023b7a98c58ae0d2d34bd487ee0cc3254aed6eda37307425907}
     volumes:
       - storage_data:/var/lib/storage:z
     networks:
@@ -243,61 +248,16 @@ services:
       - edushamiit-net
 
   # ============================================================
-  # SUPABASE – Analytics (Logflare)
+  # SUPABASE – Analytics & Vector (Disabled to save RAM & CPU)
   # ============================================================
-  analytics:
-    container_name: supabase-analytics
-    image: supabase/logflare:1.36.1
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-s", "http://localhost:4000/health"]
-      timeout: 5s
-      interval: 10s
-      retries: 20
-      start_period: 30s
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      LOGFLARE_NODE_HOST: 127.0.0.1
-      DB_USERNAME: supabase_admin
-      DB_DATABASE: _supabase
-      DB_HOSTNAME: ${POSTGRES_HOST}
-      DB_PORT: ${POSTGRES_PORT}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_SCHEMA: _analytics
-      LOGFLARE_PUBLIC_ACCESS_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
-      LOGFLARE_PRIVATE_ACCESS_TOKEN: ${LOGFLARE_PRIVATE_ACCESS_TOKEN}
-      LOGFLARE_SINGLE_TENANT: "true"
-      LOGFLARE_SUPABASE_MODE: "true"
-      POSTGRES_BACKEND_URL: postgresql://supabase_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/_supabase
-      POSTGRES_BACKEND_SCHEMA: _analytics
-      LOGFLARE_FEATURE_FLAG_OVERRIDE: multibackend=true
-    networks:
-      - edushamiit-net
-
-  # ============================================================
-  # SUPABASE – Vector (log shipper → Logflare)
-  # ============================================================
-  vector:
-    container_name: supabase-vector
-    image: timberio/vector:0.53.0-alpine
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://vector:9001/health"]
-      timeout: 5s
-      interval: 5s
-      retries: 3
-    volumes:
-      - ./volumes/logs/vector.yml:/etc/vector/vector.yml:ro,z
-      - /var/run/docker.sock:/var/run/docker.sock:ro,z
-    environment:
-      LOGFLARE_PUBLIC_ACCESS_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
-    command: ["--config", "/etc/vector/vector.yml"]
-    security_opt:
-      - "label=disable"
-    networks:
-      - edushamiit-net
+  # analytics:
+  #   container_name: supabase-analytics
+  #   image: supabase/logflare:1.36.1
+  #   ...
+  # vector:
+  #   container_name: supabase-vector
+  #   image: timberio/vector:0.53.0-alpine
+  #   ...
 
   # ============================================================
   # SUPABASE – Kong API Gateway (port 8000)
@@ -314,7 +274,7 @@ services:
       timeout: 5s
       retries: 5
     depends_on:
-      analytics:
+      db:
         condition: service_healthy
     ports:
       - "${KONG_HTTP_PORT}:8000/tcp"
@@ -358,7 +318,7 @@ services:
       interval: 5s
       retries: 3
     depends_on:
-      analytics:
+      db:
         condition: service_healthy
     ports:
       - "54323:3000"
@@ -384,7 +344,7 @@ services:
       LOGFLARE_PUBLIC_ACCESS_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
       LOGFLARE_PRIVATE_ACCESS_TOKEN: ${LOGFLARE_PRIVATE_ACCESS_TOKEN}
       LOGFLARE_URL: http://analytics:4000
-      NEXT_PUBLIC_ENABLE_LOGS: "true"
+      NEXT_PUBLIC_ENABLE_LOGS: "false"
       NEXT_ANALYTICS_BACKEND_PROVIDER: postgres
       SNIPPETS_MANAGEMENT_FOLDER: ${SNIPPETS_MANAGEMENT_FOLDER}
     volumes:
@@ -394,51 +354,12 @@ services:
       - edushamiit-net
 
   # ============================================================
-  # SUPABASE – Supavisor Connection Pooler (port 6543)
+  # SUPABASE – Supavisor Connection Pooler (Disabled to save RAM & CPU; DB port 5432 exposed directly)
   # ============================================================
-  supavisor:
-    container_name: supabase-pooler
-    image: supabase/supavisor:2.7.4
-    restart: unless-stopped
-    ports:
-      - "5432:5432"                              # Direct Postgres access via pooler
-      - "${POOLER_PROXY_PORT_TRANSACTION}:6543"  # Transaction-mode pooler
-    healthcheck:
-      test: ["CMD", "curl", "-sSfL", "--head", "-o", "/dev/null", "http://127.0.0.1:4000/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - ./volumes/pooler/pooler.exs:/etc/pooler/pooler.exs:ro,z
-    environment:
-      PORT: 4000
-      POSTGRES_PORT: ${POSTGRES_PORT}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      DATABASE_URL: ecto://supabase_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/_supabase
-      CLUSTER_POSTGRES: "true"
-      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
-      VAULT_ENC_KEY: ${VAULT_ENC_KEY}
-      API_JWT_SECRET: ${SUPABASE_JWT_SECRET}
-      METRICS_JWT_SECRET: ${SUPABASE_JWT_SECRET}
-      REGION: local
-      ERL_AFLAGS: -proto_dist inet_tcp
-      POOLER_TENANT_ID: ${POOLER_TENANT_ID}
-      POOLER_DEFAULT_POOL_SIZE: ${POOLER_DEFAULT_POOL_SIZE}
-      POOLER_MAX_CLIENT_CONN: ${POOLER_MAX_CLIENT_CONN}
-      POOLER_POOL_MODE: transaction
-      DB_POOL_SIZE: ${POOLER_DB_POOL_SIZE}
-    command:
-      [
-        "/bin/sh", "-c",
-        "/app/bin/migrate && /app/bin/supavisor eval \"$$(cat /etc/pooler/pooler.exs)\" && /app/bin/server"
-      ]
-    networks:
-      - edushamiit-net
+  # supavisor:
+  #   container_name: supabase-pooler
+  #   image: supabase/supavisor:2.7.4
+  #   ...
 
   # ============================================================
   # INFRASTRUCTURE – Redis (with password auth)
@@ -533,23 +454,11 @@ services:
       - edushamiit-net
 
   # ============================================================
-  # MINIO – Object Storage
+  # MINIO – Object Storage (Consolidated into Supabase Storage)
   # ============================================================
-  minio:
-    container_name: edushamiit-minio
-    image: minio/minio:RELEASE.2024-01-28T22-35-53Z
-    restart: unless-stopped
-    ports:
-      - "9000:9000"
-      - "9091:9001"
-    environment:
-      MINIO_ROOT_USER: minio_admin
-      MINIO_ROOT_PASSWORD: minio_password_2026
-    command: server /data --console-address ":9001"
-    volumes:
-      - minio_data:/data
-    networks:
-      - edushamiit-net
+  # minio:
+  #   container_name: edushamiit-minio
+  #   ...
 
   # ============================================================
   # LIVEKIT – WebRTC SFU Server
@@ -622,7 +531,7 @@ volumes:
   storage_data:
   mosquitto_data:
   mosquitto_logs:
-  minio_data:
+  # minio_data: (Consolidated into storage_data)
 
 # ============================================================
 # NETWORKS

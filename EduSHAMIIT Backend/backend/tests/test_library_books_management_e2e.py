@@ -4,11 +4,12 @@ import json
 import uuid
 import sys
 
-BASE_URL = "http://localhost:8000/api/library"
+import os
+BASE_URL = os.getenv("API_URL", "http://localhost:8082/api/library")
 JWT_SECRET = "super-secret-jwt-token-with-at-least-32-characters-long"
 
 SCHOOL_A = "11111111-1111-1111-1111-111111111111"
-USER_A = "38a93170-997b-4b4c-bc8e-256b93169c23"
+USER_A = "5198c4b0-f1cb-45db-9649-41688d0438ba"
 
 SCHOOL_B = "22222222-2222-2222-2222-222222222222"
 USER_B = str(uuid.uuid4())

@@ -879,9 +879,13 @@ async def dispatch_policy_acknowledgements_for_policy(
         target_users = await exec_sql("""
             SELECT id, full_name, email, role, department FROM public.profiles 
             WHERE school_id = %s 
-              AND (department ILIKE %s OR department ILIKE %s)
+              AND (
+                  department ILIKE %s 
+                  OR department ILIKE %s
+                  OR (%s ILIKE '%%admin%%' AND role IN ('super_admin', 'admin', 'institution_admin', 'principal'))
+              )
               AND role != 'student';
-        """, (school_id, f"%{dept_target}%", f"%{policy_dict.get('department') or ''}%"))
+        """, (school_id, f"%{dept_target}%", f"%{policy_dict.get('department') or ''}%", dept_target))
 
     else:
         # Entire Institute

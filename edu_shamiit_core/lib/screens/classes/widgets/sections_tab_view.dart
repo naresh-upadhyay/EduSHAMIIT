@@ -10,7 +10,6 @@ import 'dialogs/create_edit_section_dialog.dart';
 import 'dialogs/assign_class_teacher_dialog.dart';
 import 'dialogs/assign_students_dialog.dart';
 import 'dialogs/archive_confirmation_dialog.dart';
-import 'dialogs/csv_import_export_dialog.dart';
 
 class SectionsTabView extends ConsumerStatefulWidget {
   const SectionsTabView({super.key});
@@ -112,9 +111,11 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSectionsListCard(context, state, notifier, isTeacher, isDark),
+                    _buildSectionsListCard(
+                        context, state, notifier, isTeacher, isDark),
                     const SizedBox(height: 24),
-                    _buildAnalyticsAndActionsColumn(context, state, notifier, isDark),
+                    _buildAnalyticsAndActionsColumn(
+                        context, state, notifier, isDark),
                   ],
                 );
               }
@@ -125,14 +126,16 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                   // Left Primary Data Table (72%)
                   Expanded(
                     flex: 72,
-                    child: _buildSectionsListCard(context, state, notifier, isTeacher, isDark),
+                    child: _buildSectionsListCard(
+                        context, state, notifier, isTeacher, isDark),
                   ),
                   const SizedBox(width: 24),
 
                   // Right Analytics & Actions (28%)
                   Expanded(
                     flex: 28,
-                    child: _buildAnalyticsAndActionsColumn(context, state, notifier, isDark),
+                    child: _buildAnalyticsAndActionsColumn(
+                        context, state, notifier, isDark),
                   ),
                 ],
               );
@@ -146,7 +149,8 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
   // =========================================================================
   // 1. KPI STATS ROW (5 CARDS)
   // =========================================================================
-  Widget _buildKpiStatsRow(BuildContext context, ClassState state, bool isDark) {
+  Widget _buildKpiStatsRow(
+      BuildContext context, ClassState state, bool isDark) {
     final stats = state.stats;
     final overview = state.sectionsOverviewStats;
 
@@ -154,13 +158,17 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
         ? stats.totalSections
         : (overview != null && overview.totalSections > 0
             ? overview.totalSections
-            : (state.totalCount > 0 ? state.totalCount : state.sections.length));
+            : (state.totalCount > 0
+                ? state.totalCount
+                : state.sections.length));
 
     final activeSections = stats.totalSections > 0
         ? stats.activeSections
         : (overview != null && overview.activeSections > 0
             ? overview.activeSections
-            : state.sections.where((s) => s.status.toUpperCase() == 'ACTIVE').length);
+            : state.sections
+                .where((s) => s.status.toUpperCase() == 'ACTIVE')
+                .length);
 
     final inactiveSections = stats.totalSections > 0
         ? stats.inactiveSections
@@ -170,16 +178,24 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
 
     final totalStudents = stats.totalStudents > 0
         ? stats.totalStudents
-        : (overview != null && overview.totalStudents > 0 ? overview.totalStudents : 0);
+        : (overview != null && overview.totalStudents > 0
+            ? overview.totalStudents
+            : 0);
 
     final avgStudents = stats.totalSections > 0
         ? stats.avgStudentsPerSection.toStringAsFixed(2)
         : (overview != null && overview.avgStudentsPerSection > 0
             ? overview.avgStudentsPerSection.toStringAsFixed(2)
-            : (totalSections > 0 ? (totalStudents / totalSections).toStringAsFixed(2) : '0.00'));
+            : (totalSections > 0
+                ? (totalStudents / totalSections).toStringAsFixed(2)
+                : '0.00'));
 
-    final activePct = totalSections > 0 ? ((activeSections / totalSections) * 100).toStringAsFixed(2) : '0.00';
-    final inactivePct = totalSections > 0 ? ((inactiveSections / totalSections) * 100).toStringAsFixed(2) : '0.00';
+    final activePct = totalSections > 0
+        ? ((activeSections / totalSections) * 100).toStringAsFixed(2)
+        : '0.00';
+    final inactivePct = totalSections > 0
+        ? ((inactiveSections / totalSections) * 100).toStringAsFixed(2)
+        : '0.00';
 
     final cards = [
       _buildKpiCard(
@@ -229,9 +245,17 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
         if (constraints.maxWidth < 750) {
           return Column(
             children: [
-              Row(children: [Expanded(child: cards[0]), const SizedBox(width: 12), Expanded(child: cards[1])]),
+              Row(children: [
+                Expanded(child: cards[0]),
+                const SizedBox(width: 12),
+                Expanded(child: cards[1])
+              ]),
               const SizedBox(height: 12),
-              Row(children: [Expanded(child: cards[2]), const SizedBox(width: 12), Expanded(child: cards[3])]),
+              Row(children: [
+                Expanded(child: cards[2]),
+                const SizedBox(width: 12),
+                Expanded(child: cards[3])
+              ]),
               const SizedBox(height: 12),
               cards[4],
             ],
@@ -287,10 +311,11 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -301,7 +326,7 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 22),
@@ -317,7 +342,9 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -335,7 +362,9 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                   subtitle,
                   style: TextStyle(
                     fontSize: 11,
-                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                    color: isDark
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF94A3B8),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -351,13 +380,15 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
   // =========================================================================
   // 2. MULTI-FILTER TOOLBAR
   // =========================================================================
-  Widget _buildFilterToolbar(BuildContext context, ClassState state, ClassNotifier notifier, bool isDark) {
+  Widget _buildFilterToolbar(BuildContext context, ClassState state,
+      ClassNotifier notifier, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -367,7 +398,8 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
             controller: _searchController,
             onSubmitted: (v) => notifier.applySectionFilters(
               search: v.trim(),
-              classId: _selectedClassFilter == 'ALL' ? null : _selectedClassFilter,
+              classId:
+                  _selectedClassFilter == 'ALL' ? null : _selectedClassFilter,
               building: _selectedBuildingFilter,
               floor: _selectedFloorFilter,
               status: _selectedStatusFilter,
@@ -375,7 +407,8 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
             decoration: InputDecoration(
               hintText: 'Search sections by name or code...',
               hintStyle: TextStyle(
-                color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                color:
+                    isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
                 fontSize: 13,
               ),
               prefixIcon: const Icon(Icons.search, size: 18),
@@ -386,7 +419,9 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                         _searchController.clear();
                         notifier.applySectionFilters(
                           search: '',
-                          classId: _selectedClassFilter == 'ALL' ? null : _selectedClassFilter,
+                          classId: _selectedClassFilter == 'ALL'
+                              ? null
+                              : _selectedClassFilter,
                           building: _selectedBuildingFilter,
                           floor: _selectedFloorFilter,
                           status: _selectedStatusFilter,
@@ -395,18 +430,28 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                     )
                   : null,
               filled: true,
-              fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              fillColor:
+                  isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                borderSide: BorderSide(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFCBD5E1)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                borderSide: BorderSide(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFCBD5E1)),
               ),
             ),
-            style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+            style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                fontSize: 13),
           );
 
           final classDropdown = Container(
@@ -415,20 +460,30 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFCBD5E1)),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: (_selectedClassFilter == 'ALL' || state.availableClasses.any((c) => c.id == _selectedClassFilter))
+                value: (_selectedClassFilter == 'ALL' ||
+                        state.availableClasses
+                            .any((c) => c.id == _selectedClassFilter))
                     ? _selectedClassFilter
                     : 'ALL',
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    fontSize: 13),
                 items: [
-                  const DropdownMenuItem(value: 'ALL', child: Text('Class: All Classes')),
-                  ...state.availableClasses.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))),
+                  const DropdownMenuItem(
+                      value: 'ALL', child: Text('Class: All Classes')),
+                  ...state.availableClasses.map((c) =>
+                      DropdownMenuItem(value: c.id, child: Text(c.name))),
                 ],
-                onChanged: (v) => setState(() => _selectedClassFilter = v ?? 'ALL'),
+                onChanged: (v) =>
+                    setState(() => _selectedClassFilter = v ?? 'ALL'),
               ),
             ),
           );
@@ -436,8 +491,11 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
           final allDistinctBuildings = <String>{
             ...state.availableBuildings,
             ...state.rooms.map((r) => r.building).where((b) => b.isNotEmpty),
-            ...state.stats.buildingsBreakdown.map((b) => b['building']?.toString() ?? '').where((b) => b.isNotEmpty && b != 'Unassigned'),
-          }.toList()..sort();
+            ...state.stats.buildingsBreakdown
+                .map((b) => b['building']?.toString() ?? '')
+                .where((b) => b.isNotEmpty && b != 'Unassigned'),
+          }.toList()
+            ..sort();
 
           final buildingDropdown = Container(
             height: 42,
@@ -445,34 +503,53 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFCBD5E1)),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: (_selectedBuildingFilter == 'ALL' || allDistinctBuildings.contains(_selectedBuildingFilter) || _selectedBuildingFilter == 'Unassigned')
+                value: (_selectedBuildingFilter == 'ALL' ||
+                        allDistinctBuildings
+                            .contains(_selectedBuildingFilter) ||
+                        _selectedBuildingFilter == 'Unassigned')
                     ? _selectedBuildingFilter
                     : 'ALL',
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    fontSize: 13),
                 items: [
-                  const DropdownMenuItem(value: 'ALL', child: Text('Building: All Buildings')),
-                  const DropdownMenuItem(value: 'Unassigned', child: Text('Unassigned')),
+                  const DropdownMenuItem(
+                      value: 'ALL', child: Text('Building: All Buildings')),
+                  const DropdownMenuItem(
+                      value: 'Unassigned', child: Text('Unassigned')),
                   if (allDistinctBuildings.isNotEmpty)
-                    ...allDistinctBuildings.map((b) => DropdownMenuItem(value: b, child: Text(b)))
+                    ...allDistinctBuildings
+                        .map((b) => DropdownMenuItem(value: b, child: Text(b)))
                   else ...const [
-                    DropdownMenuItem(value: 'Academic Block', child: Text('Academic Block')),
-                    DropdownMenuItem(value: 'IT Block', child: Text('IT Block')),
-                    DropdownMenuItem(value: 'Science Block', child: Text('Science Block')),
-                    DropdownMenuItem(value: 'Academic Block A', child: Text('Academic Block A')),
+                    DropdownMenuItem(
+                        value: 'Academic Block', child: Text('Academic Block')),
+                    DropdownMenuItem(
+                        value: 'IT Block', child: Text('IT Block')),
+                    DropdownMenuItem(
+                        value: 'Science Block', child: Text('Science Block')),
+                    DropdownMenuItem(
+                        value: 'Academic Block A',
+                        child: Text('Academic Block A')),
                   ],
                 ],
-                onChanged: (v) => setState(() => _selectedBuildingFilter = v ?? 'ALL'),
+                onChanged: (v) =>
+                    setState(() => _selectedBuildingFilter = v ?? 'ALL'),
               ),
             ),
           );
 
-          final activeFloors = AcademicLookupHelper.instance.getCachedLookup('BUILDING_FLOOR');
-          final activeStatuses = AcademicLookupHelper.instance.getCachedLookup('ACADEMIC_STATUS');
+          final activeFloors =
+              AcademicLookupHelper.instance.getCachedLookup('BUILDING_FLOOR');
+          final activeStatuses =
+              AcademicLookupHelper.instance.getCachedLookup('ACADEMIC_STATUS');
           final floorItems = ['ALL', ...activeFloors.map((f) => f.label)];
           final statusItems = ['ALL', ...activeStatuses.map((s) => s.code)];
 
@@ -482,18 +559,28 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFCBD5E1)),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: floorItems.contains(_selectedFloorFilter) ? _selectedFloorFilter : 'ALL',
+                value: floorItems.contains(_selectedFloorFilter)
+                    ? _selectedFloorFilter
+                    : 'ALL',
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    fontSize: 13),
                 items: [
-                  const DropdownMenuItem(value: 'ALL', child: Text('Floor: All Floors')),
-                  ...activeFloors.map((f) => DropdownMenuItem(value: f.label, child: Text(f.label))),
+                  const DropdownMenuItem(
+                      value: 'ALL', child: Text('Floor: All Floors')),
+                  ...activeFloors.map((f) =>
+                      DropdownMenuItem(value: f.label, child: Text(f.label))),
                 ],
-                onChanged: (v) => setState(() => _selectedFloorFilter = v ?? 'ALL'),
+                onChanged: (v) =>
+                    setState(() => _selectedFloorFilter = v ?? 'ALL'),
               ),
             ),
           );
@@ -504,18 +591,28 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFCBD5E1)),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: statusItems.contains(_selectedStatusFilter) ? _selectedStatusFilter : 'ALL',
+                value: statusItems.contains(_selectedStatusFilter)
+                    ? _selectedStatusFilter
+                    : 'ALL',
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    fontSize: 13),
                 items: [
-                  const DropdownMenuItem(value: 'ALL', child: Text('Status: All Status')),
-                  ...activeStatuses.map((s) => DropdownMenuItem(value: s.code, child: Text(s.label))),
+                  const DropdownMenuItem(
+                      value: 'ALL', child: Text('Status: All Status')),
+                  ...activeStatuses.map((s) =>
+                      DropdownMenuItem(value: s.code, child: Text(s.label))),
                 ],
-                onChanged: (v) => setState(() => _selectedStatusFilter = v ?? 'ALL'),
+                onChanged: (v) =>
+                    setState(() => _selectedStatusFilter = v ?? 'ALL'),
               ),
             ),
           );
@@ -535,18 +632,28 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                   notifier.clearSectionFilters();
                 },
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  side: BorderSide(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFCBD5E1)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
-                child: Text('Clear', style: TextStyle(color: isDark ? Colors.white70 : const Color(0xFF475569))),
+                child: Text('Clear',
+                    style: TextStyle(
+                        color:
+                            isDark ? Colors.white70 : const Color(0xFF475569))),
               ),
               const SizedBox(width: 10),
               ElevatedButton.icon(
                 onPressed: () {
                   notifier.applySectionFilters(
                     search: _searchController.text.trim(),
-                    classId: _selectedClassFilter == 'ALL' ? null : _selectedClassFilter,
+                    classId: _selectedClassFilter == 'ALL'
+                        ? null
+                        : _selectedClassFilter,
                     building: _selectedBuildingFilter,
                     floor: _selectedFloorFilter,
                     status: _selectedStatusFilter,
@@ -557,8 +664,10 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4F46E5),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
               ),
             ],
@@ -619,16 +728,106 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
     final sections = state.sections.isNotEmpty
         ? state.sections
         : [
-            AcademicSectionModel(id: '1', name: 'A', code: '10-A', className: 'Class 10', studentsCount: 38, capacity: 40, roomName: 'Room 101', building: 'Academic Block A', status: 'ACTIVE'),
-            AcademicSectionModel(id: '2', name: 'B', code: '10-B', className: 'Class 10', studentsCount: 36, capacity: 40, roomName: 'Room 102', building: 'Academic Block A', status: 'ACTIVE'),
-            AcademicSectionModel(id: '3', name: 'C', code: '10-C', className: 'Class 10', studentsCount: 37, capacity: 40, roomName: 'Room 103', building: 'Academic Block A', status: 'ACTIVE'),
-            AcademicSectionModel(id: '4', name: 'A', code: '9-A', className: 'Class 9', studentsCount: 35, capacity: 40, roomName: 'Room 201', building: 'Academic Block B', status: 'ACTIVE'),
-            AcademicSectionModel(id: '5', name: 'B', code: '9-B', className: 'Class 9', studentsCount: 34, capacity: 40, roomName: 'Room 202', building: 'Academic Block B', status: 'ACTIVE'),
-            AcademicSectionModel(id: '6', name: 'C', code: '9-C', className: 'Class 9', studentsCount: 33, capacity: 40, roomName: 'Room 203', building: 'Academic Block B', status: 'ACTIVE'),
-            AcademicSectionModel(id: '7', name: 'A', code: '8-A', className: 'Class 8', studentsCount: 40, capacity: 40, roomName: 'Room 301', building: 'Academic Block C', status: 'ACTIVE'),
-            AcademicSectionModel(id: '8', name: 'B', code: '8-B', className: 'Class 8', studentsCount: 28, capacity: 40, roomName: 'Room 302', building: 'Academic Block C', status: 'INACTIVE'),
-            AcademicSectionModel(id: '9', name: 'A', code: '7-A', className: 'Class 7', studentsCount: 31, capacity: 35, roomName: 'Room 401', building: 'Academic Block C', status: 'ACTIVE'),
-            AcademicSectionModel(id: '10', name: 'B', code: '7-B', className: 'Class 7', studentsCount: 32, capacity: 35, roomName: 'Room 402', building: 'Academic Block C', status: 'ACTIVE'),
+            AcademicSectionModel(
+                id: '1',
+                name: 'A',
+                code: '10-A',
+                className: 'Class 10',
+                studentsCount: 38,
+                capacity: 40,
+                roomName: 'Room 101',
+                building: 'Academic Block A',
+                status: 'ACTIVE'),
+            AcademicSectionModel(
+                id: '2',
+                name: 'B',
+                code: '10-B',
+                className: 'Class 10',
+                studentsCount: 36,
+                capacity: 40,
+                roomName: 'Room 102',
+                building: 'Academic Block A',
+                status: 'ACTIVE'),
+            AcademicSectionModel(
+                id: '3',
+                name: 'C',
+                code: '10-C',
+                className: 'Class 10',
+                studentsCount: 37,
+                capacity: 40,
+                roomName: 'Room 103',
+                building: 'Academic Block A',
+                status: 'ACTIVE'),
+            AcademicSectionModel(
+                id: '4',
+                name: 'A',
+                code: '9-A',
+                className: 'Class 9',
+                studentsCount: 35,
+                capacity: 40,
+                roomName: 'Room 201',
+                building: 'Academic Block B',
+                status: 'ACTIVE'),
+            AcademicSectionModel(
+                id: '5',
+                name: 'B',
+                code: '9-B',
+                className: 'Class 9',
+                studentsCount: 34,
+                capacity: 40,
+                roomName: 'Room 202',
+                building: 'Academic Block B',
+                status: 'ACTIVE'),
+            AcademicSectionModel(
+                id: '6',
+                name: 'C',
+                code: '9-C',
+                className: 'Class 9',
+                studentsCount: 33,
+                capacity: 40,
+                roomName: 'Room 203',
+                building: 'Academic Block B',
+                status: 'ACTIVE'),
+            AcademicSectionModel(
+                id: '7',
+                name: 'A',
+                code: '8-A',
+                className: 'Class 8',
+                studentsCount: 40,
+                capacity: 40,
+                roomName: 'Room 301',
+                building: 'Academic Block C',
+                status: 'ACTIVE'),
+            AcademicSectionModel(
+                id: '8',
+                name: 'B',
+                code: '8-B',
+                className: 'Class 8',
+                studentsCount: 28,
+                capacity: 40,
+                roomName: 'Room 302',
+                building: 'Academic Block C',
+                status: 'INACTIVE'),
+            AcademicSectionModel(
+                id: '9',
+                name: 'A',
+                code: '7-A',
+                className: 'Class 7',
+                studentsCount: 31,
+                capacity: 35,
+                roomName: 'Room 401',
+                building: 'Academic Block C',
+                status: 'ACTIVE'),
+            AcademicSectionModel(
+                id: '10',
+                name: 'B',
+                code: '7-B',
+                className: 'Class 7',
+                studentsCount: 32,
+                capacity: 35,
+                roomName: 'Room 402',
+                building: 'Academic Block C',
+                status: 'ACTIVE'),
           ];
 
     return Container(
@@ -636,7 +835,8 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -657,14 +857,17 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                 ),
                 if (!isTeacher)
                   ElevatedButton.icon(
-                    onPressed: () => _showCreateSectionDialog(context, state, notifier),
+                    onPressed: () =>
+                        _showCreateSectionDialog(context, state, notifier),
                     icon: const Icon(Icons.add_rounded, size: 16),
                     label: const Text('Add Section'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4F46E5),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
               ],
@@ -674,11 +877,14 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
 
           // Data Table
           if (state.isLoading)
-            const Padding(padding: EdgeInsets.all(48), child: Center(child: CircularProgressIndicator()))
+            const Padding(
+                padding: EdgeInsets.all(48),
+                child: Center(child: CircularProgressIndicator()))
           else
             LayoutBuilder(
               builder: (context, constraints) {
-                final tableWidth = constraints.maxWidth < 1000 ? 1000.0 : constraints.maxWidth;
+                final tableWidth =
+                    constraints.maxWidth < 1000 ? 1000.0 : constraints.maxWidth;
 
                 return SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -686,14 +892,18 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                     constraints: BoxConstraints(minWidth: tableWidth),
                     child: DataTable(
                       showCheckboxColumn: false,
-                      headingRowColor: MaterialStateProperty.all(
-                        isDark ? const Color(0xFF0F172A).withOpacity(0.6) : const Color(0xFFF8FAFC),
+                      headingRowColor: WidgetStateProperty.all(
+                        isDark
+                            ? const Color(0xFF0F172A).withValues(alpha: 0.6)
+                            : const Color(0xFFF8FAFC),
                       ),
                       headingTextStyle: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF475569),
                       ),
                       dataRowMinHeight: 56,
                       dataRowMaxHeight: 60,
@@ -717,19 +927,25 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
 
                         final capacity = sec.capacity > 0 ? sec.capacity : 40;
                         final students = sec.studentsCount;
-                        final capacityPct = ((students / capacity) * 100).clamp(0.0, 100.0);
+                        final capacityPct =
+                            ((students / capacity) * 100).clamp(0.0, 100.0);
 
                         final teacher = sec.classTeacher;
-                        final roomDisplay = sec.roomName != null && sec.roomName!.isNotEmpty
+                        final roomDisplay = sec.roomName != null &&
+                                sec.roomName!.isNotEmpty
                             ? '${sec.roomName}\n${sec.building ?? "Academic Block"}'
-                            : (sec.roomNumber != null && sec.roomNumber!.isNotEmpty ? sec.roomNumber! : 'Not Assigned');
+                            : (sec.roomNumber != null &&
+                                    sec.roomNumber!.isNotEmpty
+                                ? sec.roomNumber!
+                                : 'Not Assigned');
 
                         return DataRow(
                           cells: [
                             // Section Name with Colored Letter Avatar
                             DataCell(
                               InkWell(
-                                onTap: () => _showEditSectionDialog(context, sec, state, notifier),
+                                onTap: () => _showEditSectionDialog(
+                                    context, sec, state, notifier),
                                 borderRadius: BorderRadius.circular(6),
                                 child: Row(
                                   children: [
@@ -737,7 +953,8 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                                       width: 28,
                                       height: 28,
                                       decoration: BoxDecoration(
-                                        color: letterColor.withOpacity(0.12),
+                                        color:
+                                            letterColor.withValues(alpha: 0.12),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       alignment: Alignment.center,
@@ -756,7 +973,9 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w700,
-                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
                                       ),
                                     ),
                                   ],
@@ -771,7 +990,9 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                                  color: isDark
+                                      ? const Color(0xFFCBD5E1)
+                                      : const Color(0xFF334155),
                                 ),
                               ),
                             ),
@@ -780,33 +1001,49 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                             DataCell(
                               Text(
                                 sec.className ?? 'Class',
-                                style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white70 : const Color(0xFF475569)),
+                                style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: isDark
+                                        ? Colors.white70
+                                        : const Color(0xFF475569)),
                               ),
                             ),
 
                             // Students (Interactive: Click to open Assign Students Modal)
                             DataCell(
                               InkWell(
-                                onTap: () => _showAssignStudentsDialog(context, sec, state, notifier),
+                                onTap: () => _showAssignStudentsDialog(
+                                    context, sec, state, notifier),
                                 borderRadius: BorderRadius.circular(8),
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 4, horizontal: 2),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFEFF6FF),
-                                          borderRadius: BorderRadius.circular(6),
+                                          color: isDark
+                                              ? const Color(0xFF0F172A)
+                                              : const Color(0xFFEFF6FF),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
                                           border: Border.all(
-                                            color: isDark ? const Color(0xFF3B82F6).withOpacity(0.3) : const Color(0xFF93C5FD),
+                                            color: isDark
+                                                ? const Color(0xFF3B82F6)
+                                                    .withValues(alpha: 0.3)
+                                                : const Color(0xFF93C5FD),
                                           ),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            const Icon(Icons.people_alt_outlined, size: 14, color: Color(0xFF3B82F6)),
+                                            const Icon(
+                                                Icons.people_alt_outlined,
+                                                size: 14,
+                                                color: Color(0xFF3B82F6)),
                                             const SizedBox(width: 6),
                                             Text(
                                               '$students',
@@ -820,7 +1057,11 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                                         ),
                                       ),
                                       const SizedBox(width: 4),
-                                      Icon(Icons.add_circle_outline_rounded, size: 14, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                                      Icon(Icons.add_circle_outline_rounded,
+                                          size: 14,
+                                          color: isDark
+                                              ? const Color(0xFF64748B)
+                                              : const Color(0xFF94A3B8)),
                                     ],
                                   ),
                                 ),
@@ -833,7 +1074,12 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                                 children: [
                                   Text(
                                     '$capacity',
-                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF475569)),
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? Colors.white70
+                                            : const Color(0xFF475569)),
                                   ),
                                   const SizedBox(width: 8),
                                   SizedBox(
@@ -841,10 +1087,16 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(3),
                                       child: LinearProgressIndicator(
-                                        value: (capacityPct / 100).clamp(0.0, 1.0),
-                                        backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                                        valueColor: AlwaysStoppedAnimation<Color>(
-                                          capacityPct >= 100 ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                                        value:
+                                            (capacityPct / 100).clamp(0.0, 1.0),
+                                        backgroundColor: isDark
+                                            ? const Color(0xFF334155)
+                                            : const Color(0xFFE2E8F0),
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                          capacityPct >= 100
+                                              ? const Color(0xFFEF4444)
+                                              : const Color(0xFF10B981),
                                         ),
                                         minHeight: 4,
                                       ),
@@ -853,7 +1105,12 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                                   const SizedBox(width: 6),
                                   Text(
                                     '${capacityPct.round()}%',
-                                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                                    style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark
+                                            ? const Color(0xFF94A3B8)
+                                            : const Color(0xFF64748B)),
                                   ),
                                 ],
                               ),
@@ -862,22 +1119,40 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                             // Class Teacher (Interactive: Click to open Assign Class Teacher Modal)
                             DataCell(
                               InkWell(
-                                onTap: () => _showAssignTeacherDialog(context, sec, state, notifier),
+                                onTap: () => _showAssignTeacherDialog(
+                                    context, sec, state, notifier),
                                 borderRadius: BorderRadius.circular(8),
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-                                  child: teacher != null && teacher.fullName.isNotEmpty
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 4, horizontal: 2),
+                                  child: teacher != null &&
+                                          teacher.fullName.isNotEmpty
                                       ? Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             CircleAvatar(
                                               radius: 12,
-                                              backgroundColor: const Color(0xFF4F46E5).withOpacity(0.15),
-                                              backgroundImage: teacher.avatarUrl != null ? NetworkImage(teacher.avatarUrl!) : null,
+                                              backgroundColor:
+                                                  const Color(0xFF4F46E5)
+                                                      .withValues(alpha: 0.15),
+                                              backgroundImage:
+                                                  teacher.avatarUrl != null
+                                                      ? NetworkImage(
+                                                          teacher.avatarUrl!)
+                                                      : null,
                                               child: teacher.avatarUrl == null
                                                   ? Text(
-                                                      teacher.fullName.isNotEmpty ? teacher.fullName[0].toUpperCase() : 'T',
-                                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)),
+                                                      teacher.fullName
+                                                              .isNotEmpty
+                                                          ? teacher.fullName[0]
+                                                              .toUpperCase()
+                                                          : 'T',
+                                                      style: const TextStyle(
+                                                          fontSize: 10,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: Color(
+                                                              0xFF4F46E5)),
                                                     )
                                                   : null,
                                             ),
@@ -887,33 +1162,54 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                                               style: TextStyle(
                                                 fontSize: 12.5,
                                                 fontWeight: FontWeight.w600,
-                                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                                color: isDark
+                                                    ? Colors.white
+                                                    : const Color(0xFF0F172A),
                                               ),
                                             ),
                                             const SizedBox(width: 4),
-                                            Icon(Icons.edit_outlined, size: 13, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                                            Icon(Icons.edit_outlined,
+                                                size: 13,
+                                                color: isDark
+                                                    ? const Color(0xFF64748B)
+                                                    : const Color(0xFF94A3B8)),
                                           ],
                                         )
                                       : Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                                            borderRadius: BorderRadius.circular(6),
+                                            color: isDark
+                                                ? const Color(0xFF0F172A)
+                                                : const Color(0xFFF1F5F9),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
                                             border: Border.all(
-                                              color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                                              color: isDark
+                                                  ? const Color(0xFF334155)
+                                                  : const Color(0xFFCBD5E1),
                                             ),
                                           ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Icon(Icons.person_add_alt_1_outlined, size: 13, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                                              Icon(
+                                                  Icons
+                                                      .person_add_alt_1_outlined,
+                                                  size: 13,
+                                                  color: isDark
+                                                      ? const Color(0xFF94A3B8)
+                                                      : const Color(
+                                                          0xFF64748B)),
                                               const SizedBox(width: 5),
                                               Text(
                                                 'Assign Teacher',
                                                 style: TextStyle(
                                                   fontSize: 11.5,
                                                   fontWeight: FontWeight.w600,
-                                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                                                  color: isDark
+                                                      ? const Color(0xFF94A3B8)
+                                                      : const Color(0xFF475569),
                                                 ),
                                               ),
                                             ],
@@ -927,16 +1223,24 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                             DataCell(
                               Text(
                                 roomDisplay,
-                                style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark
+                                        ? const Color(0xFFCBD5E1)
+                                        : const Color(0xFF475569)),
                               ),
                             ),
 
                             // Status Pill
                             DataCell(
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: (isActive ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withOpacity(0.12),
+                                  color: (isActive
+                                          ? const Color(0xFF10B981)
+                                          : const Color(0xFFEF4444))
+                                      .withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
@@ -944,7 +1248,9 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
-                                    color: isActive ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                    color: isActive
+                                        ? const Color(0xFF10B981)
+                                        : const Color(0xFFEF4444),
                                   ),
                                 ),
                               ),
@@ -956,34 +1262,54 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
-                                    icon: const Icon(Icons.edit_outlined, size: 16),
+                                    icon: const Icon(Icons.edit_outlined,
+                                        size: 16),
                                     tooltip: 'Edit Section',
-                                    onPressed: () => _showEditSectionDialog(context, sec, state, notifier),
+                                    onPressed: () => _showEditSectionDialog(
+                                        context, sec, state, notifier),
                                     padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                    constraints: const BoxConstraints(
+                                        minWidth: 28, minHeight: 28),
                                   ),
                                   PopupMenuButton<String>(
                                     icon: const Icon(Icons.more_vert, size: 16),
                                     onSelected: (val) {
                                       if (val == 'edit') {
-                                        _showEditSectionDialog(context, sec, state, notifier);
+                                        _showEditSectionDialog(
+                                            context, sec, state, notifier);
                                       } else if (val == 'teacher') {
-                                        _showAssignTeacherDialog(context, sec, state, notifier);
+                                        _showAssignTeacherDialog(
+                                            context, sec, state, notifier);
                                       } else if (val == 'students') {
-                                        _showAssignStudentsDialog(context, sec, state, notifier);
+                                        _showAssignStudentsDialog(
+                                            context, sec, state, notifier);
                                       } else if (val == 'room') {
-                                        _showEditSectionDialog(context, sec, state, notifier);
+                                        _showEditSectionDialog(
+                                            context, sec, state, notifier);
                                       } else if (val == 'archive') {
-                                        _showArchiveDialog(context, sec, notifier);
+                                        _showArchiveDialog(
+                                            context, sec, notifier);
                                       }
                                     },
                                     itemBuilder: (ctx) => [
-                                      const PopupMenuItem(value: 'edit', child: Text('Edit Section')),
-                                      const PopupMenuItem(value: 'teacher', child: Text('Assign Class Teacher')),
-                                      const PopupMenuItem(value: 'room', child: Text('Assign Room')),
-                                      const PopupMenuItem(value: 'students', child: Text('Assign Students')),
+                                      const PopupMenuItem(
+                                          value: 'edit',
+                                          child: Text('Edit Section')),
+                                      const PopupMenuItem(
+                                          value: 'teacher',
+                                          child: Text('Assign Class Teacher')),
+                                      const PopupMenuItem(
+                                          value: 'room',
+                                          child: Text('Assign Room')),
+                                      const PopupMenuItem(
+                                          value: 'students',
+                                          child: Text('Assign Students')),
                                       const PopupMenuDivider(),
-                                      const PopupMenuItem(value: 'archive', child: Text('Archive Section', style: TextStyle(color: Color(0xFFEF4444)))),
+                                      const PopupMenuItem(
+                                          value: 'archive',
+                                          child: Text('Archive Section',
+                                              style: TextStyle(
+                                                  color: Color(0xFFEF4444)))),
                                     ],
                                   ),
                                 ],
@@ -1034,7 +1360,9 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
         ? stats.totalSections
         : (overview != null && overview.totalSections > 0
             ? overview.totalSections
-            : (state.totalCount > 0 ? state.totalCount : state.sections.length));
+            : (state.totalCount > 0
+                ? state.totalCount
+                : state.sections.length));
 
     final List<Map<String, dynamic>> rawClassItems = [];
     if (overview != null && overview.sectionsByClass.isNotEmpty) {
@@ -1068,7 +1396,8 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
       }
     }
 
-    rawClassItems.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+    rawClassItems
+        .sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
 
     const colorPalette = [
       Color(0xFF3B82F6), // Blue
@@ -1089,7 +1418,9 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
     for (int i = 0; i < maxDirect; i++) {
       final item = rawClassItems[i];
       final cnt = item['count'] as int;
-      final pct = total > 0 ? double.parse(((cnt / total) * 100).toStringAsFixed(2)) : 0.0;
+      final pct = total > 0
+          ? double.parse(((cnt / total) * 100).toStringAsFixed(2))
+          : 0.0;
       final label = (item['name'] as String).trim();
       slices.add(_SectionChartSlice(
         label: label,
@@ -1105,7 +1436,9 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
         othersCount += rawClassItems[i]['count'] as int;
       }
       if (othersCount > 0) {
-        final othersPct = total > 0 ? double.parse(((othersCount / total) * 100).toStringAsFixed(2)) : 0.0;
+        final othersPct = total > 0
+            ? double.parse(((othersCount / total) * 100).toStringAsFixed(2))
+            : 0.0;
         slices.add(_SectionChartSlice(
           label: 'Others',
           count: othersCount,
@@ -1120,14 +1453,18 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Sections by Class',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+            style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : const Color(0xFF0F172A)),
           ),
           const SizedBox(height: 18),
           Row(
@@ -1144,11 +1481,20 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                       children: [
                         Text(
                           '$total',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A)),
                         ),
                         Text(
                           'Total',
-                          style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B)),
                         ),
                       ],
                     ),
@@ -1163,7 +1509,11 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                     ? Center(
                         child: Text(
                           'No classes configured',
-                          style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: isDark
+                                  ? const Color(0xFF64748B)
+                                  : const Color(0xFF94A3B8)),
                         ),
                       )
                     : Column(
@@ -1173,12 +1523,22 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                             padding: const EdgeInsets.only(bottom: 4),
                             child: Row(
                               children: [
-                                Container(width: 8, height: 8, decoration: BoxDecoration(color: s.color, shape: BoxShape.circle)),
+                                Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                        color: s.color,
+                                        shape: BoxShape.circle)),
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
                                     s.label,
-                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF475569)),
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? Colors.white70
+                                            : const Color(0xFF475569)),
                                     overflow: TextOverflow.ellipsis,
                                     maxLines: 1,
                                   ),
@@ -1186,7 +1546,12 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                                 const SizedBox(width: 6),
                                 Text(
                                   '${s.count} (${s.percentage}%)',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A)),
                                 ),
                               ],
                             ),
@@ -1208,7 +1573,9 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
         ? stats.totalSections
         : (overview != null && overview.totalSections > 0
             ? overview.totalSections
-            : (state.totalCount > 0 ? state.totalCount : state.sections.length));
+            : (state.totalCount > 0
+                ? state.totalCount
+                : state.sections.length));
 
     final List<Map<String, dynamic>> buildingItems = [];
 
@@ -1224,8 +1591,11 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
       }
     } else if (stats.buildingsBreakdown.isNotEmpty) {
       for (final b in stats.buildingsBreakdown) {
-        final name = b['name']?.toString() ?? b['building']?.toString() ?? 'Building';
-        final cnt = (b['sections_count'] as num?)?.toInt() ?? (b['count'] as num?)?.toInt() ?? 0;
+        final name =
+            b['name']?.toString() ?? b['building']?.toString() ?? 'Building';
+        final cnt = (b['sections_count'] as num?)?.toInt() ??
+            (b['count'] as num?)?.toInt() ??
+            0;
         final pct = total > 0 ? (cnt / total).clamp(0.0, 1.0) : 0.0;
         buildingItems.add({
           'name': name,
@@ -1243,7 +1613,8 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
       }
     }
 
-    buildingItems.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+    buildingItems
+        .sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
     final displayItems = buildingItems.take(5).toList();
 
     return Container(
@@ -1251,14 +1622,18 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Buildings Overview',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+            style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : const Color(0xFF0F172A)),
           ),
           const SizedBox(height: 16),
           if (displayItems.isEmpty)
@@ -1267,7 +1642,11 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Text(
                   'No buildings configured',
-                  style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? const Color(0xFF64748B)
+                          : const Color(0xFF94A3B8)),
                 ),
               ),
             )
@@ -1288,11 +1667,21 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                         children: [
                           Text(
                             name,
-                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF334155)),
+                            style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: isDark
+                                    ? Colors.white70
+                                    : const Color(0xFF334155)),
                           ),
                           Text(
                             '$count Sections',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: isDark
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF64748B)),
                           ),
                         ],
                       ),
@@ -1301,8 +1690,11 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                         borderRadius: BorderRadius.circular(4),
                         child: LinearProgressIndicator(
                           value: pct,
-                          backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
-                          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4F46E5)),
+                          backgroundColor: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFF1F5F9),
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                              Color(0xFF4F46E5)),
                           minHeight: 6,
                         ),
                       ),
@@ -1316,20 +1708,26 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
     );
   }
 
-
-
   // =========================================================================
   // 5. PAGINATION FOOTER
   // =========================================================================
-  Widget _buildPaginationBar(BuildContext context, ClassState state, ClassNotifier notifier, bool isDark) {
-    final startItem = state.totalCount == 0 ? 0 : (state.page - 1) * state.pageSize + 1;
-    final endItem = (state.page * state.pageSize) > state.totalCount ? state.totalCount : (state.page * state.pageSize);
+  Widget _buildPaginationBar(BuildContext context, ClassState state,
+      ClassNotifier notifier, bool isDark) {
+    final startItem =
+        state.totalCount == 0 ? 0 : (state.page - 1) * state.pageSize + 1;
+    final endItem = (state.page * state.pageSize) > state.totalCount
+        ? state.totalCount
+        : (state.page * state.pageSize);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-        border: Border(top: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+        border: Border(
+            top: BorderSide(
+                color: isDark
+                    ? const Color(0xFF334155)
+                    : const Color(0xFFE2E8F0))),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -1343,7 +1741,9 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
                 ),
               ),
               const SizedBox(width: 16),
@@ -1354,7 +1754,9 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                     'Per page:',
                     style: TextStyle(
                       fontSize: 12,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                     ),
                   ),
                   const SizedBox(width: 6),
@@ -1364,16 +1766,23 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                     decoration: BoxDecoration(
                       color: isDark ? const Color(0xFF1E293B) : Colors.white,
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                      border: Border.all(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFCBD5E1)),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<int>(
-                        value: [10, 25, 50, 100].contains(state.pageSize) ? state.pageSize : 10,
-                        dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        value: [10, 25, 50, 100].contains(state.pageSize)
+                            ? state.pageSize
+                            : 10,
+                        dropdownColor:
+                            isDark ? const Color(0xFF1E293B) : Colors.white,
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                         items: const [
                           DropdownMenuItem(value: 10, child: Text('10')),
@@ -1404,7 +1813,9 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                 splashRadius: 16,
               ),
               IconButton(
-                onPressed: state.page > 1 ? () => notifier.setPage(state.page - 1) : null,
+                onPressed: state.page > 1
+                    ? () => notifier.setPage(state.page - 1)
+                    : null,
                 icon: const Icon(Icons.chevron_left, size: 20),
                 tooltip: 'Previous Page',
                 padding: EdgeInsets.zero,
@@ -1423,7 +1834,9 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                 ),
               ),
               IconButton(
-                onPressed: state.page < state.totalPages ? () => notifier.setPage(state.page + 1) : null,
+                onPressed: state.page < state.totalPages
+                    ? () => notifier.setPage(state.page + 1)
+                    : null,
                 icon: const Icon(Icons.chevron_right, size: 20),
                 tooltip: 'Next Page',
                 padding: EdgeInsets.zero,
@@ -1431,7 +1844,9 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                 splashRadius: 16,
               ),
               IconButton(
-                onPressed: state.page < state.totalPages ? () => notifier.setPage(state.totalPages) : null,
+                onPressed: state.page < state.totalPages
+                    ? () => notifier.setPage(state.totalPages)
+                    : null,
                 icon: const Icon(Icons.last_page, size: 18),
                 tooltip: 'Last Page',
                 padding: EdgeInsets.zero,
@@ -1467,7 +1882,8 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
   // =========================================================================
   // 6. DIALOG LAUNCHERS & HELPERS
   // =========================================================================
-  void _showCreateSectionDialog(BuildContext context, ClassState state, ClassNotifier notifier) {
+  void _showCreateSectionDialog(
+      BuildContext context, ClassState state, ClassNotifier notifier) {
     if (state.availableClasses.isEmpty) return;
     showDialog(
       context: context,
@@ -1487,7 +1903,8 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
     );
   }
 
-  void _showEditSectionDialog(BuildContext context, AcademicSectionModel sec, ClassState state, ClassNotifier notifier) {
+  void _showEditSectionDialog(BuildContext context, AcademicSectionModel sec,
+      ClassState state, ClassNotifier notifier) {
     showDialog(
       context: context,
       builder: (ctx) => CreateEditSectionDialog(
@@ -1507,9 +1924,14 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
     );
   }
 
-  void _showAssignTeacherDialog(BuildContext context, AcademicSectionModel sec, ClassState state, ClassNotifier notifier) {
-    final matchedClass = state.availableClasses.where((c) => c.id == sec.classId).firstOrNull ??
-        AcademicClassModel(id: sec.classId ?? '', name: sec.className ?? 'Class', code: sec.classCode ?? 'CL');
+  void _showAssignTeacherDialog(BuildContext context, AcademicSectionModel sec,
+      ClassState state, ClassNotifier notifier) {
+    final matchedClass =
+        state.availableClasses.where((c) => c.id == sec.classId).firstOrNull ??
+            AcademicClassModel(
+                id: sec.classId ?? '',
+                name: sec.className ?? 'Class',
+                code: sec.classCode ?? 'CL');
 
     showDialog(
       context: context,
@@ -1518,7 +1940,8 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
         className: matchedClass.name,
         sectionId: sec.id,
         sectionName: sec.name,
-        currentlyAssigned: sec.classTeacher != null ? [sec.classTeacher!] : const [],
+        currentlyAssigned:
+            sec.classTeacher != null ? [sec.classTeacher!] : const [],
         onSave: (teacherIds) async {
           if (teacherIds.isNotEmpty) {
             await notifier.assignSectionTeacher(
@@ -1538,9 +1961,14 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
     );
   }
 
-  void _showAssignStudentsDialog(BuildContext context, AcademicSectionModel sec, ClassState state, ClassNotifier notifier) {
-    final matchedClass = state.availableClasses.where((c) => c.id == sec.classId).firstOrNull ??
-        AcademicClassModel(id: sec.classId ?? '', name: sec.className ?? 'Class', code: sec.classCode ?? 'CL');
+  void _showAssignStudentsDialog(BuildContext context, AcademicSectionModel sec,
+      ClassState state, ClassNotifier notifier) {
+    final matchedClass =
+        state.availableClasses.where((c) => c.id == sec.classId).firstOrNull ??
+            AcademicClassModel(
+                id: sec.classId ?? '',
+                name: sec.className ?? 'Class',
+                code: sec.classCode ?? 'CL');
 
     showDialog(
       context: context,
@@ -1560,7 +1988,8 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
     );
   }
 
-  void _showArchiveDialog(BuildContext context, AcademicSectionModel sec, ClassNotifier notifier) {
+  void _showArchiveDialog(
+      BuildContext context, AcademicSectionModel sec, ClassNotifier notifier) {
     showDialog(
       context: context,
       builder: (ctx) => ArchiveConfirmationDialog(
@@ -1573,14 +2002,6 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
       ),
     );
   }
-
-  void _showCsvDialog(BuildContext context, int initialIndex) {
-    showDialog(
-      context: context,
-      builder: (ctx) => CsvImportExportDialog(initialEntityIndex: initialIndex),
-    );
-  }
-
 }
 
 class _SectionChartSlice {
@@ -1611,7 +2032,7 @@ class _SectionDonutPainter extends CustomPainter {
 
     if (total == 0) {
       final paint = Paint()
-        ..color = const Color(0xFFCBD5E1).withOpacity(0.3)
+        ..color = const Color(0xFFCBD5E1).withValues(alpha: 0.3)
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth;
       canvas.drawCircle(center, radius - strokeWidth / 2, paint);
@@ -1643,5 +2064,3 @@ class _SectionDonutPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
-
-

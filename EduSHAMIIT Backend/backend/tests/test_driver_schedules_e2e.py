@@ -13,8 +13,8 @@ from app.api.transport import get_upcoming_driver_trip, exec_sql
 from app.api.calendar import create_schedule, update_schedule, delete_schedule, ScheduleCreateRequest, ScheduleUpdateRequest
 
 DRIVER_USER = {
-    "id": "33d93277-35a4-4b33-bdf1-9bf0f3c8b45a",
-    "email": "ramesh.kumar@gmail.com",
+    "id": "77777777-7777-7777-7777-777777777777",
+    "email": "driver@edushamiit.com",
     "school_id": "11111111-1111-1111-1111-111111111111",
     "role": "driver"
 }
@@ -26,8 +26,8 @@ ADMIN_USER = {
     "role": "admin"
 }
 
-ROUTE_108_ID = "46cd7317-b093-4b5e-a150-d55f53885731"
-ROUTE_126_ID = "a4cd4f83-dad4-495b-86fd-6bd2de8f3389"
+ROUTE_108_ID = "ee2a1af1-1e67-4a8b-b653-d5ecdcf86f1f"
+ROUTE_126_ID = "a756e44a-dbc3-4d9d-8ede-ee52ccc3b383"
 
 async def run_e2e_tests():
     print("=" * 70)

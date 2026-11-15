@@ -23,7 +23,8 @@ import 'widgets/request_tab_view.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
 
 class LibraryManagementScreen extends ConsumerStatefulWidget {
-  const LibraryManagementScreen({super.key});
+  final int initialTab;
+  const LibraryManagementScreen({super.key, this.initialTab = 0});
 
   @override
   ConsumerState<LibraryManagementScreen> createState() => _LibraryManagementScreenState();

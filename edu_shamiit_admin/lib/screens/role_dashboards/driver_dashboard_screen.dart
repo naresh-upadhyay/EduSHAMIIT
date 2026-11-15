@@ -22,9 +22,7 @@ class DriverDashboardScreen extends ConsumerStatefulWidget {
 
 class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     with SingleTickerProviderStateMixin {
-  final bool _isLoading = false;
   bool _isInitialLoading = true;
-  List<dynamic> _routes = [];
   Map<String, dynamic>? _activeTrip;
   Map<String, dynamic>? _tripState;
   String? _selectedRouteId;
@@ -36,8 +34,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   // Telemetry controls
   bool _isTripActive = false;
   bool _isTripPaused = false;
-  bool _emergencyAlertActive = false;
-  bool _deviationAlertActive = false;
 
   Map<String, dynamic>? _selectedRoute;
   String _registrationNo = "";
@@ -186,27 +182,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
 
     // 1. Fetch driver routes
     try {
-      final routesRes = await ApiService().get('/transport/driver/routes', useCache: false);
-      if (routesRes['success'] == true && routesRes['data'] != null) {
-        _routes = routesRes['data'] ?? [];
-      }
+      await ApiService().get('/transport/driver/routes', useCache: false);
     } catch (e) {
       debugPrint("[DRIVER_DASH] Routes fetch failed: $e");
     }
 
-    // 2. Resolve target route if urlRouteId specified
-    Map<String, dynamic>? targetRoute;
-    if (_routes.isNotEmpty) {
-      if (urlRouteId != null && urlRouteId.isNotEmpty) {
-        targetRoute = _routes.firstWhere(
-          (r) => r['id']?.toString() == urlRouteId,
-          orElse: () => _routes[0],
-        );
-      } else {
-        final assigned = _routes.where((r) => r['is_assigned'] == true).toList();
-        targetRoute = assigned.isNotEmpty ? assigned[0] : _routes[0];
-      }
-    }
+    // 2. Resolve route if needed
 
     // 3. Load Trip State
     if (urlTripId != null && urlTripId.isNotEmpty) {
@@ -612,38 +593,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     }
   }
 
-  Future<void> _persistTripProgress() async {
-    if (_activeTrip == null) return;
-    try {
-      final busLoc = _getBusLocation();
-      final totalStopsCount = _stops.isNotEmpty ? _stops.length : 1;
-      final calcRatio = (_currentStopIndex / totalStopsCount).clamp(0.0, 1.0);
-      _busPositionRatio = calcRatio;
-
-      final payload = {
-        "latitude": busLoc.latitude,
-        "longitude": busLoc.longitude,
-        "speed": _currentSpeedKmh > 0 ? _currentSpeedKmh : 35.5,
-        "heading": _vehicleHeading,
-        "accuracy_m": 5.0,
-        "live_status": _isTripPaused ? "paused" : "on_route",
-        "students_on_board": _getOnBoardCount(),
-        "bus_position_ratio": _busPositionRatio,
-        "current_stop_index": _currentStopIndex,
-        "elapsed_seconds": _elapsedMinutes * 60,
-        "distance_km": _coveredDistanceKm,
-      };
-
-      await ApiService().post(
-          '/transport/driver/trips/${_activeTrip!['id']}/location',
-          payload);
-      debugPrint(
-          "[DRIVER_DASH] _persistTripProgress: Persisted progress to DB (stop_index=$_currentStopIndex, ratio=$_busPositionRatio)");
-    } catch (e) {
-      debugPrint("[DRIVER_DASH] Error persisting trip progress: $e");
-    }
-  }
-
   void _startTelemetryBroadcasting() {
     _telemetryTimer?.cancel();
     _telemetryTimer =
@@ -724,7 +673,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   double _currentSpeedKmh = 0.0;
   double _vehicleHeading = 0.0;
   bool _isAutoRerouting = false;
-  bool _hasLocationPermission = false;
   bool _isRequestingPermission = false;
   StreamSubscription<Position>? _gpsPositionSubscription;
   LatLng? _lastGpsPosition;
@@ -754,9 +702,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       }
 
       if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
-        setState(() {
-          _hasLocationPermission = true;
-        });
         _startRealGpsSpeedometer();
       } else if (permission == LocationPermission.deniedForever) {
         if (mounted) {
@@ -877,8 +822,9 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   }
 
   void _checkRouteDeviationAndReroute() {
-    if (!_isNavigating || _searchedMarkerLoc == null || _isAutoRerouting)
+    if (!_isNavigating || _searchedMarkerLoc == null || _isAutoRerouting) {
       return;
+    }
     if (_navigationPolylinePoints.isEmpty) return;
 
     final busLoc = _getBusLocation();
@@ -953,7 +899,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                 double.parse((distanceMeters / 1000.0).toStringAsFixed(1));
             _navDurationMins = (durationSecs / 60.0).round();
             _isAutoRerouting = false;
-            _deviationAlertActive = true;
           });
           return;
         }
@@ -2824,10 +2769,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   }
 
   Future<void> _triggerEmergency() async {
-    setState(() {
-      _emergencyAlertActive = true;
-    });
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -2867,10 +2808,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   }
 
   Future<void> _triggerDeviation() async {
-    setState(() {
-      _deviationAlertActive = true;
-    });
-
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
           content: Text("Route deviation registered."),
@@ -3305,127 +3242,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         ),
       );
     });
-  }
-
-
-
-  int _calculateDurationMins(dynamic startTime, dynamic endTime) {
-    if (startTime == null || endTime == null) return 0;
-    try {
-      int parseMins(String tStr) {
-        tStr = tStr.trim();
-        if (tStr.toUpperCase().contains('AM') || tStr.toUpperCase().contains('PM')) {
-          final parts = tStr.split(' ');
-          final timeParts = parts[0].split(':');
-          int h = int.parse(timeParts[0]);
-          final m = int.parse(timeParts[1]);
-          if (parts[1].toUpperCase() == 'PM' && h < 12) h += 12;
-          if (parts[1].toUpperCase() == 'AM' && h == 12) h = 0;
-          return h * 60 + m;
-        }
-        final parts = tStr.split(':');
-        final h = int.parse(parts[0]);
-        final m = int.parse(parts[1]);
-        return h * 60 + m;
-      }
-
-      final startM = parseMins(startTime.toString());
-      final endM = parseMins(endTime.toString());
-      int diff = endM - startM;
-      if (diff < 0) diff += 24 * 60;
-      return diff;
-    } catch (_) {
-      return 0;
-    }
-  }
-
-  Future<void> _selectRoute(Map<String, dynamic> route) async {
-    final routeId = route['id']?.toString() ?? '';
-    final routeName = route['route_name'] ?? 'Route';
-    final shift = route['shift'] ?? 'Morning';
-
-    final busLabel = route['registration_no'] ?? route['bus_number'] ?? route['assigned_bus'] ?? 'UP18181';
-    final stTime = route['start_time'] != null ? route['start_time'].toString() : '03:30 PM';
-    final dist = (route['distance_km'] as num?)?.toDouble() ?? 55.13;
-    
-    final calcDuration = _calculateDurationMins(route['start_time'], route['end_time']);
-    final duration = calcDuration > 0
-        ? calcDuration
-        : ((route['travel_time_mins'] as num?)?.toInt() ?? 52);
-
-    setState(() {
-      _selectedRouteId = routeId;
-      _selectedRoute = route;
-      _registrationNo = busLabel.toString();
-      _busNumber = busLabel.toString();
-      _startTime = stTime;
-      _totalDistanceKm = dist;
-      _totalTimeMinutes = duration;
-    });
-
-    try {
-      final stopsRes = await ApiService().get('/transport/stops', query: {'route_id': routeId}, useCache: false);
-      if (stopsRes['success'] == true && stopsRes['data'] != null) {
-        final rawStops = (stopsRes['data'] is Map ? stopsRes['data']['stops'] : stopsRes['data']) as List<dynamic>? ?? [];
-        if (rawStops.isNotEmpty) {
-          setState(() {
-            _stops = rawStops.map<Map<String, dynamic>>((s) => {
-              'id': s['id']?.toString() ?? '',
-              'stop_name': s['stop_name'] ?? 'Stoppage',
-              'latitude': (s['latitude'] as num?)?.toDouble() ?? 28.62,
-              'longitude': (s['longitude'] as num?)?.toDouble() ?? 77.37,
-              'stop_order': s['stop_order'] ?? 1,
-              'estimated_arrival': s['estimated_arrival'] ?? '03:30 PM',
-              'status': 'pending',
-              'landmark': s['landmark'],
-              'stop_code': s['stop_code'],
-            }).toList();
-          });
-        }
-      }
-
-      try {
-        final studentsRes = await ApiService().get('/transport/driver/routes/$routeId/students', useCache: false);
-        if (studentsRes['success'] == true && studentsRes['data'] != null) {
-          final List<dynamic> fetchedStudents = studentsRes['data'];
-          if (fetchedStudents.isNotEmpty) {
-            setState(() {
-              _students = fetchedStudents.map<Map<String, dynamic>>((st) => Map<String, dynamic>.from(st)).toList();
-            });
-          }
-        }
-      } catch (_) {}
-
-      setState(() {
-        _syncCurrentStopIndex();
-        _syncSelectedMap();
-      });
-      await _loadOSRMRouteForStops();
-    } catch (e) {
-      debugPrint("Error switching route details: $e");
-    }
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.alt_route_rounded, color: Colors.white, size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  "Switched Active Route: $routeName ($shift)",
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF4F46E5),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
   }
 
   Widget _buildActiveRouteBanner() {
@@ -4664,7 +4480,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF1E293B)),
                         ),
                         Text(
-                          "${_selectedDestinationDistanceKm.toStringAsFixed(1)} km • ${_selectedDestinationDurationMins} mins away",
+                          "${_selectedDestinationDistanceKm.toStringAsFixed(1)} km • $_selectedDestinationDurationMins mins away",
                           style: const TextStyle(fontSize: 9.5, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
                         ),
                       ],
@@ -5135,10 +4951,11 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                           return;
                         }
 
+                        if (oldIdx < newIdx) {
+                          newIdx -= 1;
+                        }
+
                         setState(() {
-                          if (newIdx > oldIdx) {
-                            newIdx -= 1;
-                          }
                           final Map<String, dynamic> item =
                               _stops.removeAt(oldIdx);
                           _stops.insert(newIdx, item);
@@ -5163,8 +4980,9 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                       },
                       itemBuilder: (context, index) {
                         final s = _stops[index];
-                        if (!_shouldShowStop(index))
+                        if (!_shouldShowStop(index)) {
                           return Container(key: ValueKey(s['id']));
+                        }
 
                         final isCompleted = s['status'] == "completed";
 
@@ -5603,8 +5421,8 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-              child: Column(
-                children: const [
+              child: const Column(
+                children: [
                   Icon(Icons.schedule_rounded, size: 32, color: Color(0xFF94A3B8)),
                   SizedBox(height: 8),
                   Text("Waiting for Scheduled Trips",

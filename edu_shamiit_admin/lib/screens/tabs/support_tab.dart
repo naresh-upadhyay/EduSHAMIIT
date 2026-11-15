@@ -407,31 +407,6 @@ class _SupportTabState extends ConsumerState<SupportTab> {
     }
   }
 
-  Future<void> _assignTicketToMe() async {
-    if (_selectedTicket == null) return;
-    final currentUser = ref.read(authProvider).userData;
-    final staffId = currentUser?['id'];
-    if (staffId == null) return;
-
-    try {
-      final res = await ApiService().put('/admin/tickets/${_selectedTicket['id']}', {'assigned_to_id': staffId});
-      if (res['success'] == true) {
-        _fetchTickets();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Ticket assigned to you successfully!")),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to assign ticket: $e")),
-        );
-      }
-    }
-  }
-
   Future<void> _deleteTicket(String id) async {
     try {
       final res = await ApiService().delete('/admin/tickets/$id');

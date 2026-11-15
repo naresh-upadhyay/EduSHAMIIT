@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from typing import Optional
+from typing import Optional, Any
 import httpx
 import os
+import uuid
 from datetime import datetime
 
 from app.middleware.auth import get_current_user, require_school_id
@@ -11,14 +12,106 @@ from app.config import settings
 router = APIRouter()
 
 
+def _is_uuid(val: Any) -> bool:
+    if not val:
+        return False
+    try:
+        uuid.UUID(str(val).strip())
+        return True
+    except (ValueError, AttributeError, TypeError):
+        return False
+
+
+async def _resolve_profile_id(raw_id: Any, sb) -> Optional[str]:
+    """Resolves any identifier (profile UUID, user_id string, auth UUID, email) to a valid profiles.id (UUID)."""
+    if not raw_id:
+        return None
+    s = str(raw_id).strip()
+    if not s:
+        return None
+
+    # 1. Direct UUID lookup in profiles.id
+    if _is_uuid(s):
+        try:
+            res = await sb.table("profiles").select("id").eq("id", s).maybe_single().aexecute()
+            if res.data and res.data.get("id"):
+                return str(res.data["id"])
+        except Exception:
+            pass
+
+    # 2. Lookup by profiles.user_id (e.g., SUP-A699FB, STU-9E9847, TEA-F78F76)
+    try:
+        res = await sb.table("profiles").select("id").eq("user_id", s).maybe_single().aexecute()
+        if res.data and res.data.get("id"):
+            return str(res.data["id"])
+    except Exception:
+        pass
+
+    # 3. Lookup by email
+    if "@" in s:
+        try:
+            res = await sb.table("profiles").select("id").ilike("email", s).maybe_single().aexecute()
+            if res.data and res.data.get("id"):
+                return str(res.data["id"])
+        except Exception:
+            pass
+
+    return s if _is_uuid(s) else None
+
+
+async def _get_caller_profile(user: dict, sb) -> dict:
+    """Returns caller profile dictionary with validated UUID id, user_id, role, etc."""
+    raw_id = user.get("id") or user.get("sub") or ""
+    resolved_uuid = await _resolve_profile_id(raw_id, sb)
+    if resolved_uuid:
+        try:
+            res = await sb.table("profiles").select("*").eq("id", resolved_uuid).maybe_single().aexecute()
+            if res.data:
+                return res.data
+        except Exception:
+            pass
+
+    # Try lookup by email
+    email = user.get("email")
+    if email:
+        try:
+            res = await sb.table("profiles").select("*").ilike("email", email).maybe_single().aexecute()
+            if res.data:
+                return res.data
+        except Exception:
+            pass
+
+    return {
+        "id": resolved_uuid or raw_id,
+        "user_id": raw_id,
+        "full_name": user.get("name") or user.get("full_name") or "User",
+        "role": user.get("role", "student"),
+        "email": user.get("email"),
+    }
+
+
+
 @router.get("/messages")
 async def get_messages(user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
+    caller = await _get_caller_profile(user, sb)
+    caller_id = str(caller.get("id") or user.get("id"))
     
-    # 1. Fetch all groups user is in
-    memberships = (await sb.table("group_members").select("*, groups!group_id(*)").eq("member_id", user['id']).aexecute()).data
-    group_ids = [m['group_id'] for m in memberships if m.get('group_id')]
+    # 1. Fetch all groups caller is currently an active member of
+    m_res = await sb.table("group_members").select("group_id, role, groups!group_id(*)").or_(
+        f"member_id.eq.{caller_id},user_id.eq.{caller_id}"
+    ).aexecute()
+    memberships = m_res.data or []
     
+    # Also if caller is creator of any group in this school, include that group
+    c_res = await sb.table("groups").select("*").eq("school_id", school_id).eq("created_by", caller_id).aexecute()
+    creator_groups = c_res.data or []
+    
+    group_ids = list({m['group_id'] for m in memberships if m.get('group_id')})
+    for cg in creator_groups:
+        if cg["id"] not in group_ids:
+            group_ids.append(cg["id"])
+            
     # 2. Build the initial set of active group conversation placeholders
     conversations = {}
     for m in memberships:
@@ -28,39 +121,84 @@ async def get_messages(user=Depends(get_current_user), school_id=Depends(require
                 "id": g["id"],
                 "name": g["name"],
                 "avatar_url": g.get("avatar_url"),
+                "description": g.get("description"),
                 "type": "group",
+                "role": "group",
+                "is_verified": True,
+                "is_online": True,
                 "last_message": "No messages yet",
                 "last_message_time": g["created_at"],
                 "unread_count": 0
             }
+    for cg in creator_groups:
+        key = f"group_{cg['id']}"
+        if key not in conversations:
+            conversations[key] = {
+                "id": cg["id"],
+                "name": cg["name"],
+                "avatar_url": cg.get("avatar_url"),
+                "description": cg.get("description"),
+                "type": "group",
+                "role": "group",
+                "is_verified": True,
+                "is_online": True,
+                "last_message": "No messages yet",
+                "last_message_time": cg["created_at"],
+                "unread_count": 0
+            }
             
     # 3. Construct OR query to fetch relevant messages
-    # Either user is sender, user is receiver, or the message belongs to a group the user is in
-    or_cond = f"sender_id.eq.{user['id']},receiver_id.eq.{user['id']}"
+    # Either user is sender, user is receiver, or the message belongs to an active group the user is in
+    or_cond = f"sender_id.eq.{caller_id},receiver_id.eq.{caller_id}"
     if group_ids:
         group_conds = ",".join([f"group_id.eq.{gid}" for gid in group_ids])
         or_cond += f",{group_conds}"
         
     messages = (await sb.table("messages")
-                .select("*, sender:profiles!sender_id(full_name, avatar_url, role), receiver:profiles!receiver_id(full_name, avatar_url, role), groups:groups!group_id(name, avatar_url)")
+                .select("*, sender:profiles!sender_id(id, full_name, avatar_url, role, phone, email, is_verified, is_online, class, ward_student_id), receiver:profiles!receiver_id(id, full_name, avatar_url, role, phone, email, is_verified, is_online, class, ward_student_id), groups:groups!group_id(id, name, avatar_url, description)")
                 .eq("school_id", school_id)
                 .or_(or_cond)
                 .order("created_at", ascending=False)
-                .aexecute()).data
+                .aexecute()).data or []
+
+    # Collect ward_student_ids for parents
+    ward_student_ids = []
+    for msg in messages:
+        for p in (msg.get("sender"), msg.get("receiver")):
+            if p and p.get("ward_student_id") and p.get("ward_student_id") not in ward_student_ids:
+                ward_student_ids.append(p.get("ward_student_id"))
+    
+    ward_map = {}
+    if ward_student_ids:
+        try:
+            wards_res = await sb.table("profiles").select("id, full_name, class, avatar_url").in_("id", ward_student_ids).aexecute()
+            if wards_res.data:
+                for w in wards_res.data:
+                    ward_map[w["id"]] = w
+        except Exception as e:
+            print(f"Error fetching wards: {e}")
                 
     # 4. Aggregate messages into conversation buckets
     for msg in messages:
         is_read = msg.get("is_read", False)
-        sender_id = msg.get("sender_id")
-        receiver_id = msg.get("receiver_id")
+        sender_id = str(msg.get("sender_id") or "")
+        receiver_id = str(msg.get("receiver_id") or "")
         group_id = msg.get("group_id")
         created_at = msg.get("created_at")
         content = msg.get("content")
+        
+        # Skip if soft-deleted for this caller
+        deleted_for = msg.get("deleted_for") or []
+        if caller_id in deleted_for or user["id"] in deleted_for:
+            continue
         
         if not receiver_id and not group_id:
             continue
         
         if group_id:
+            # If user has exited the group (not in active group memberships), NEVER include it!
+            if group_id not in group_ids:
+                continue
             key = f"group_{group_id}"
             if key in conversations:
                 # If placeholder has not been replaced by a real message, replace it
@@ -68,39 +206,61 @@ async def get_messages(user=Depends(get_current_user), school_id=Depends(require
                     conversations[key]["last_message"] = content
                     conversations[key]["last_message_time"] = created_at
                 # Count unread group messages (sent by others)
-                if sender_id != user["id"] and not is_read:
+                if sender_id != caller_id and not is_read:
                     conversations[key]["unread_count"] += 1
             else:
                 g = msg.get("groups")
                 name = g.get("name", "Unknown Group") if g else "Unknown Group"
                 avatar = g.get("avatar_url") if g else None
+                desc = g.get("description") if g else None
                 conversations[key] = {
                     "id": group_id,
                     "name": name,
                     "avatar_url": avatar,
+                    "description": desc,
                     "type": "group",
+                    "role": "group",
+                    "is_verified": True,
+                    "is_online": True,
                     "last_message": content,
                     "last_message_time": created_at,
-                    "unread_count": 1 if (sender_id != user["id"] and not is_read) else 0
+                    "unread_count": 1 if (sender_id != caller_id and not is_read) else 0
                 }
         else:
-            contact_id = receiver_id if sender_id == user["id"] else sender_id
+            contact_id = receiver_id if sender_id == caller_id else sender_id
             if not contact_id:
                 continue
             key = f"user_{contact_id}"
             
+            p = msg.get("receiver") if sender_id == caller_id else msg.get("sender")
+            name = p.get("full_name", "Unknown User") if p else "Unknown User"
+            avatar = p.get("avatar_url") if p else None
+            role = p.get("role", "student") if p else "student"
+            phone = p.get("phone") if p else None
+            email = p.get("email") if p else None
+            is_verified = p.get("is_verified", False) if p else False
+            is_online = p.get("is_online", False) if p else False
+
+            ward_id = p.get("ward_student_id") if p else None
+            ward = ward_map.get(ward_id) if ward_id else None
+            student_name = ward.get("full_name") if ward else (p.get("full_name") if role == "student" else None)
+            student_class = ward.get("class") if ward else (p.get("class") if role == "student" else None)
+            student_avatar = ward.get("avatar_url") if ward else (p.get("avatar_url") if role == "student" else None)
+            
             if key not in conversations:
-                p = msg.get("receiver") if sender_id == user["id"] else msg.get("sender")
-                name = p.get("full_name", "Unknown User") if p else "Unknown User"
-                avatar = p.get("avatar_url") if p else None
-                role = p.get("role", "student") if p else "student"
-                
                 conversations[key] = {
                     "id": contact_id,
                     "name": name,
                     "avatar_url": avatar,
                     "role": role,
+                    "phone": phone,
+                    "email": email,
+                    "is_verified": is_verified,
+                    "is_online": is_online,
                     "type": "direct",
+                    "student_name": student_name,
+                    "student_class": student_class,
+                    "student_avatar": student_avatar,
                     "last_message": content,
                     "last_message_time": created_at,
                     "unread_count": 0
@@ -119,11 +279,14 @@ async def get_messages(user=Depends(get_current_user), school_id=Depends(require
 @router.post("/messages/send")
 async def send_message(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
+    caller = await _get_caller_profile(user, sb)
+    caller_id = str(caller.get("id") or user.get("id"))
+    
     receiver_id = request.get("receiver_id")
     group_id = request.get("group_id")
     content = request.get("content")
     
-    if not content:
+    if not content or not str(content).strip():
         raise HTTPException(status_code=400, detail="Content cannot be empty")
         
     if not receiver_id and not group_id:
@@ -131,33 +294,60 @@ async def send_message(request: dict, user=Depends(get_current_user), school_id=
         
     payload = {
         "school_id": school_id,
-        "sender_id": user["id"],
-        "content": content
+        "sender_id": caller_id,
+        "content": str(content).strip(),
+        "message_type": request.get("message_type", "text"),
     }
     
+    if request.get("attachment_url"):
+        payload["attachment_url"] = request.get("attachment_url")
+    if request.get("file_name"):
+        payload["file_name"] = request.get("file_name")
+    if request.get("file_size"):
+        payload["file_size"] = request.get("file_size")
+    if request.get("reply_to_id"):
+        payload["reply_to_id"] = request.get("reply_to_id")
+    
     if group_id:
+        # Check active membership
+        mem_check = await sb.table("group_members").select("id").eq("group_id", group_id).or_(
+            f"member_id.eq.{caller_id},user_id.eq.{caller_id}"
+        ).maybe_single().aexecute()
+        
+        is_creator = False
+        group_check = await sb.table("groups").select("created_by").eq("id", group_id).maybe_single().aexecute()
+        if group_check.data and str(group_check.data.get("created_by")) == caller_id:
+            is_creator = True
+            
+        is_app_admin = caller.get("role") in ("admin", "super_admin", "principal") or user.get("role") in ("admin", "super_admin", "principal")
+        
+        if not (mem_check.data or is_creator or is_app_admin):
+            raise HTTPException(status_code=403, detail="You are no longer a member of this group. Exited or non-members cannot send messages.")
+            
         payload["group_id"] = group_id
     else:
-        payload["receiver_id"] = receiver_id
-        if receiver_id:
-            try:
-                blocks_res = await sb.table("blocked_users").select("blocker_id, blocked_id").or_(f"blocker_id.eq.{user['id']},blocked_id.eq.{user['id']}").aexecute()
-                if blocks_res.data:
-                    blocked_user_ids = {row["blocker_id"] for row in blocks_res.data} | {row["blocked_id"] for row in blocks_res.data}
-                    if receiver_id in blocked_user_ids:
-                        raise HTTPException(status_code=403, detail="Messaging is blocked with this user")
-            except HTTPException:
-                raise
-            except Exception as e:
-                print(f"Error checking blocks in send_message: {e}")
+        target_uuid = await _resolve_profile_id(receiver_id, sb)
+        if not target_uuid:
+            raise HTTPException(status_code=404, detail="Receiver user profile not found")
+            
+        try:
+            blocks_res = await sb.table("blocked_users").select("blocker_id, blocked_id").or_(
+                f"blocker_id.eq.{caller_id},blocked_id.eq.{caller_id}"
+            ).aexecute()
+            if blocks_res.data:
+                blocked_user_ids = {row["blocker_id"] for row in blocks_res.data} | {row["blocked_id"] for row in blocks_res.data}
+                if target_uuid in blocked_user_ids:
+                    raise HTTPException(status_code=403, detail="Messaging is blocked with this user")
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"Error checking blocks in send_message: {e}")
+            
+        payload["receiver_id"] = target_uuid
         
     message = await sb.table("messages").insert(payload).aexecute()
     if not message.data:
         raise HTTPException(status_code=500, detail="Failed to send message")
-        
-    # Message notification is now handled completely dynamically and securely in the database
-    # by the PostgreSQL trigger 'trigger_message_notification' (Migration 107).
-    # This guarantees reliable delivery, resolves RLS permission errors, and optimizes performance.
         
     return {"success": True, "school_id": school_id, "data": {"message": message.data[0]}}
 
@@ -168,35 +358,123 @@ async def get_chat(chat_id: str = "", user=Depends(get_current_user), school_id=
     if not chat_id:
         return {"success": True, "school_id": school_id, "data": {"messages": []}}
         
-    # Check if chat_id matches a study group
+    caller = await _get_caller_profile(user, sb)
+    caller_id = str(caller.get("id") or user.get("id"))
+    
+    # Check if chat_id matches a group
     group_res = await sb.table("groups").select("*").eq("id", chat_id).maybe_single().aexecute()
     
     if group_res.data:
         # Mark group messages sent by others as read
-        await sb.table("messages").update({"is_read": True, "read_at": "now()"}).eq("group_id", chat_id).neq("sender_id", user['id']).eq("is_read", False).aexecute()
+        await sb.table("messages").update({"is_read": True, "read_at": "now()"}).eq("group_id", chat_id).neq("sender_id", caller_id).eq("is_read", False).aexecute()
         # Fetch group messages and include sender profiles
         messages = (await sb.table("messages")
-                    .select("*, profiles!sender_id(full_name, avatar_url, role)")
+                    .select("*, profiles!sender_id(id, full_name, avatar_url, role, phone, email, is_verified)")
                     .eq("group_id", chat_id)
                     .order("created_at")
-                    .aexecute()).data
+                    .aexecute()).data or []
     else:
         # Fetch private direct messages between user and contact
-        res1 = await sb.table("messages").select("*, profiles!sender_id(full_name, avatar_url, role)").eq("school_id", school_id).eq("sender_id", user['id']).eq("receiver_id", chat_id).aexecute()
-        res2 = await sb.table("messages").select("*, profiles!sender_id(full_name, avatar_url, role)").eq("school_id", school_id).eq("sender_id", chat_id).eq("receiver_id", user['id']).aexecute()
-        messages = res1.data + res2.data
+        contact_uuid = await _resolve_profile_id(chat_id, sb) or chat_id
+        res1 = await sb.table("messages").select("*, profiles!sender_id(id, full_name, avatar_url, role, phone, email, is_verified)").eq("school_id", school_id).eq("sender_id", caller_id).eq("receiver_id", contact_uuid).aexecute()
+        res2 = await sb.table("messages").select("*, profiles!sender_id(id, full_name, avatar_url, role, phone, email, is_verified)").eq("school_id", school_id).eq("sender_id", contact_uuid).eq("receiver_id", caller_id).aexecute()
+        messages = (res1.data or []) + (res2.data or [])
         messages.sort(key=lambda x: x['created_at'])
         
         # Mark incoming messages as read
-        await sb.table("messages").update({"is_read": True, "read_at": "now()"}).eq("sender_id", chat_id).eq("receiver_id", user['id']).eq("is_read", False).aexecute()
+        await sb.table("messages").update({"is_read": True, "read_at": "now()"}).eq("sender_id", contact_uuid).eq("receiver_id", caller_id).eq("is_read", False).aexecute()
         
-    return {"success": True, "school_id": school_id, "data": {"messages": messages}}
+    # Format messages
+    result = []
+    for m in messages:
+        deleted_for = m.get("deleted_for") or []
+        if caller_id in deleted_for or user["id"] in deleted_for:
+            continue
+        sender = m.get("profiles") or m.get("sender") or {}
+        result.append({
+            "id": m["id"],
+            "sender_id": m["sender_id"],
+            "receiver_id": m.get("receiver_id"),
+            "group_id": m.get("group_id"),
+            "content": m.get("content", ""),
+            "message_type": m.get("message_type", "text"),
+            "attachment_url": m.get("attachment_url"),
+            "file_name": m.get("file_name"),
+            "file_size": m.get("file_size"),
+            "reply_to_id": m.get("reply_to_id"),
+            "is_read": m.get("is_read", False),
+            "created_at": m["created_at"],
+            "sender_name": sender.get("full_name"),
+            "sender_avatar": sender.get("avatar_url"),
+            "sender_role": sender.get("role"),
+        })
+        
+    return {"success": True, "school_id": school_id, "data": {"messages": result}}
+
+
+@router.post("/messages/react")
+async def react_message(request: dict, user=Depends(get_current_user)):
+    sb = get_supabase()
+    message_id = request.get("message_id")
+    emoji = request.get("emoji", "❤️")
+    if not message_id:
+        raise HTTPException(status_code=400, detail="message_id is required")
+        
+    msg_res = await sb.table("messages").select("id, reactions").eq("id", message_id).maybe_single().aexecute()
+    if not msg_res.data:
+        raise HTTPException(status_code=404, detail="Message not found")
+        
+    reactions = msg_res.data.get("reactions") or {}
+    user_id = user["id"]
+    
+    users_for_emoji = reactions.get(emoji, [])
+    if user_id in users_for_emoji:
+        users_for_emoji.remove(user_id)
+        if not users_for_emoji:
+            reactions.pop(emoji, None)
+        else:
+            reactions[emoji] = users_for_emoji
+    else:
+        users_for_emoji.append(user_id)
+        reactions[emoji] = users_for_emoji
+        
+    await sb.table("messages").update({"reactions": reactions}).eq("id", message_id).aexecute()
+    return {"success": True, "reactions": reactions}
+
+
+@router.post("/messages/pin")
+async def pin_message(request: dict, user=Depends(get_current_user)):
+    sb = get_supabase()
+    message_id = request.get("message_id")
+    is_pinned = request.get("is_pinned", True)
+    if not message_id:
+        raise HTTPException(status_code=400, detail="message_id is required")
+        
+    await sb.table("messages").update({"is_pinned": is_pinned}).eq("id", message_id).aexecute()
+    return {"success": True, "is_pinned": is_pinned}
+
+
+@router.get("/messages/contact-details/{contact_id}")
+async def get_contact_details(contact_id: str, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    
+    # Check if group
+    group_res = await sb.table("groups").select("*, group_members(*, profiles(id, full_name, avatar_url, role))").eq("id", contact_id).maybe_single().aexecute()
+    if group_res.data:
+        return {"success": True, "type": "group", "data": group_res.data}
+        
+    # Otherwise profile
+    prof_res = await sb.table("profiles").select("*, ward_student:profiles!ward_student_id(id, full_name, class, avatar_url, phone, email)").eq("id", contact_id).maybe_single().aexecute()
+    if not prof_res.data:
+        raise HTTPException(status_code=404, detail="Contact not found")
+        
+    return {"success": True, "type": "contact", "data": prof_res.data}
 
 
 @router.get("/users/search")
 async def search_users(q: str = "", user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    query_builder = sb.table("profiles").select("id, full_name, avatar_url, role").eq("school_id", school_id).neq("id", user["id"])
+    query_builder = sb.table("profiles").select("id, full_name, avatar_url, role, class, phone, email").eq("school_id", school_id).neq("id", user["id"])
     if q.strip():
         query_builder = query_builder.ilike("full_name", f"%{q.strip()}%")
     res = await query_builder.limit(100).aexecute()
@@ -273,26 +551,87 @@ async def update_user_settings(request: dict, user=Depends(get_current_user), sc
 
 
 @router.get("/groups/{group_id}/members")
-async def get_group_members(group_id: str, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def get_group_members(group_id: str, user=Depends(get_current_user)):
     sb = get_supabase()
-    members = (await sb.table("group_members")
-               .select("role, profiles:member_id(id, full_name, avatar_url, role)")
-               .eq("group_id", group_id)
-               .aexecute()).data
-               
-    formatted_members = []
-    for m in members:
-        p = m.get("profiles")
-        if p:
-            formatted_members.append({
-                "id": p["id"],
-                "full_name": p["full_name"],
-                "avatar_url": p.get("avatar_url"),
-                "role": p.get("role", "student"),
-                "group_role": m.get("role", "member")
-            })
+    caller = await _get_caller_profile(user, sb)
+    caller_id = str(caller.get("id") or user.get("id"))
+    
+    members_res = await sb.table("group_members").select("id, member_id, user_id, role, created_at").eq("group_id", group_id).aexecute()
+    members_data = members_res.data or []
+    
+    group_res = await sb.table("groups").select("created_by").eq("id", group_id).maybe_single().aexecute()
+    creator_id = str(group_res.data.get("created_by")) if group_res.data and group_res.data.get("created_by") else None
+    
+    member_ids = list({str(m["member_id"]) for m in members_data if m.get("member_id")} | {str(m["user_id"]) for m in members_data if m.get("user_id")})
+    
+    profiles_dict = {}
+    if member_ids:
+        uuid_ids = [mid for mid in member_ids if _is_uuid(mid)]
+        if uuid_ids:
+            try:
+                p_res = await sb.table("profiles").select("id, user_id, full_name, email, role, avatar_url, phone, class, department").in_("id", uuid_ids).aexecute()
+                if p_res.data:
+                    for p in p_res.data:
+                        if p.get("id"):
+                            profiles_dict[str(p["id"])] = p
+                        if p.get("user_id"):
+                            profiles_dict[str(p["user_id"])] = p
+            except Exception as e:
+                print(f"Error querying profiles by id: {e}")
+                
+        try:
+            p_res2 = await sb.table("profiles").select("id, user_id, full_name, email, role, avatar_url, phone, class, department").in_("user_id", member_ids).aexecute()
+            if p_res2.data:
+                for p in p_res2.data:
+                    if p.get("id"):
+                        profiles_dict[str(p["id"])] = p
+                    if p.get("user_id"):
+                        profiles_dict[str(p["user_id"])] = p
+        except Exception as e:
+            print(f"Error querying profiles by user_id: {e}")
             
-    return {"success": True, "data": {"members": formatted_members}}
+    result = []
+    seen_ids = set()
+    for m in members_data:
+        mid = str(m.get("member_id") or m.get("user_id"))
+        prof = profiles_dict.get(str(m.get("member_id")), {}) or profiles_dict.get(str(m.get("user_id")), {})
+        
+        profile_uuid = str(prof.get("id") or mid)
+        if profile_uuid in seen_ids:
+            continue
+        seen_ids.add(profile_uuid)
+        
+        is_creator = (profile_uuid == creator_id) if creator_id else False
+        grp_role = m.get("role") or ("admin" if is_creator else "member")
+        
+        name = prof.get("full_name")
+        if not name:
+            if profile_uuid == caller_id or mid == str(user.get("id")):
+                name = caller.get("full_name") or user.get("name") or "User"
+            else:
+                name = prof.get("email", "").split("@")[0].replace(".", " ").title() if prof.get("email") else "Group Member"
+                
+        user_role_val = prof.get("role") or ("super_admin" if is_creator else "student")
+        
+        result.append({
+            "id": profile_uuid,
+            "member_record_id": m.get("id"),
+            "user_id": prof.get("user_id") or profile_uuid,
+            "name": name,
+            "full_name": name,
+            "role": grp_role,
+            "group_role": grp_role,
+            "user_role": user_role_val,
+            "avatar_url": prof.get("avatar_url"),
+            "email": prof.get("email"),
+            "phone": prof.get("phone"),
+            "class": prof.get("class"),
+            "class_name": prof.get("class"),
+            "department": prof.get("department"),
+            "is_creator": is_creator,
+        })
+        
+    return {"success": True, "data": {"members": result}}
 
 
 @router.post("/groups/{group_id}/avatar")
@@ -328,7 +667,6 @@ async def upload_group_avatar(
     }
     
     async with httpx.AsyncClient() as client:
-        # Upload to Supabase storage bucket "avatars" using service role bypass
         upload_response = await client.post(storage_url, headers=headers, content=image_bytes)
         if upload_response.status_code not in (200, 201):
             put_response = await client.put(storage_url, headers=headers, content=image_bytes)
@@ -347,84 +685,112 @@ async def upload_group_avatar(
 @router.post("/groups/create")
 async def create_group(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
+    caller = await _get_caller_profile(user, sb)
+    creator_profile_id = str(caller.get("id") or user.get("id"))
+    
     name = request.get("name")
     description = request.get("description")
     group_level = request.get("group_level", "school")
     class_name = request.get("class_name")
     is_private = request.get("is_private", False)
+    avatar_url = request.get("avatar_url")
     
-    if not name:
+    if not name or not str(name).strip():
         raise HTTPException(status_code=400, detail="Group name is required")
         
-    user_role = user.get("role", "student")
-    user_class = user.get("class")
+    resolved_creator = await _resolve_profile_id(creator_profile_id, sb)
+    if not resolved_creator or not _is_uuid(resolved_creator):
+        resolved_creator = creator_profile_id
+        
+    user_role = caller.get("role", "student")
+    user_class = caller.get("class")
     
-    # 1. Enforce student/teacher roles & constraints
     if user_role == "student":
-        # Students can ONLY create class-level groups for their own class
         group_level = "class"
-        if not user_class:
-            raise HTTPException(status_code=400, detail="Student must be assigned to a class to create a group")
-        class_name = user_class
+        class_name = user_class or class_name or "General"
     else:
-        # Teachers or senior level like principal/hod/admin can choose school or class level
-        if group_level == "class" and not class_name:
-            raise HTTPException(status_code=400, detail="class_name is required for Class Level groups")
+        class_name = class_name or user_class or "General"
 
-    # 2. Insert the group
-    group_res = await sb.table("groups").insert({
+    insert_data = {
         "school_id": school_id,
-        "name": name,
-        "description": description,
-        "created_by": user["id"],
-        "is_private": is_private
-    }).aexecute()
-    
+        "name": str(name).strip(),
+        "description": str(description).strip() if description else None,
+        "created_by": resolved_creator,
+        "is_private": bool(is_private),
+        "group_level": group_level,
+        "class_name": class_name,
+    }
+    if avatar_url:
+        insert_data["avatar_url"] = avatar_url
+
+    group_res = await sb.table("groups").insert(insert_data).aexecute()
     if not group_res.data:
         raise HTTPException(status_code=500, detail="Failed to create group")
         
     group_id = group_res.data[0]["id"]
     
-    # 3. Automatically add creator to group_members as admin
+    # Automatically add creator to group_members as admin
     await sb.table("group_members").insert({
         "group_id": group_id,
-        "member_id": user["id"],
+        "member_id": resolved_creator,
+        "user_id": resolved_creator,
+        "school_id": school_id,
         "role": "admin"
     }).aexecute()
     
-    # 4. Creators can add selected members manually. Class auto-populate removed to support only selected members.
+    # If initial member_ids provided, add them as members
+    initial_member_ids = request.get("member_ids") or []
+    for mid in initial_member_ids:
+        mid_resolved = await _resolve_profile_id(mid, sb)
+        if mid_resolved and mid_resolved != resolved_creator:
+            try:
+                await sb.table("group_members").insert({
+                    "group_id": group_id,
+                    "member_id": mid_resolved,
+                    "user_id": mid_resolved,
+                    "school_id": school_id,
+                    "role": "member"
+                }).aexecute()
+            except Exception:
+                pass
+                
     return {"success": True, "school_id": school_id, "data": {"group": group_res.data[0]}}
 
 
 @router.get("/groups")
 async def get_groups(user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
+    caller = await _get_caller_profile(user, sb)
+    caller_id = str(caller.get("id") or user.get("id"))
     
-    # Fetch user memberships
-    memberships = (await sb.table("group_members").select("group_id").eq("member_id", user['id']).aexecute()).data
+    memberships = (await sb.table("group_members").select("group_id").or_(
+        f"member_id.eq.{caller_id},user_id.eq.{caller_id}"
+    ).aexecute()).data or []
     member_group_ids = {m['group_id'] for m in memberships if m.get('group_id')}
     
-    user_role = user.get("role", "student")
-    user_class = user.get("class")
+    user_role = caller.get("role", "student")
+    user_class = caller.get("class")
     
-    # Fetch all active groups in the school
     groups_res = await sb.table("groups").select("*").eq("school_id", school_id).aexecute()
     all_groups = groups_res.data or []
     
-    # Extract all creator_ids to fetch creator profiles in one query
     creator_ids = list({g["created_by"] for g in all_groups if g.get("created_by")})
     creators_dict = {}
     if creator_ids:
-        creators_res = await sb.table("profiles").select("id, role, class").in_("id", creator_ids).aexecute()
-        if creators_res.data:
-            creators_dict = {p["id"]: p for p in creators_res.data}
+        uuid_creators = [cid for cid in creator_ids if _is_uuid(cid)]
+        if uuid_creators:
+            try:
+                creators_res = await sb.table("profiles").select("id, role, class").in_("id", uuid_creators).aexecute()
+                if creators_res.data:
+                    creators_dict = {p["id"]: p for p in creators_res.data}
+            except Exception:
+                pass
             
     filtered_groups = []
     for g in all_groups:
         g_id = g["id"]
-        is_member = g_id in member_group_ids
+        is_member = g_id in member_group_ids or str(g.get("created_by")) == caller_id
         
-        # Rule 1: Members can always see their groups
         if is_member:
             g["is_member"] = True
             filtered_groups.append(g)
@@ -432,22 +798,16 @@ async def get_groups(user=Depends(get_current_user), school_id=Depends(require_s
             
         g["is_member"] = False
         
-        # Non-members: check if private
         is_private = g.get("is_private", False)
         if is_private:
-            # Rule 2: Private groups are invisible to non-members
             continue
             
-        # Public groups filtering based on creator role
         creator_id = g.get("created_by")
         creator_profile = creators_dict.get(creator_id) if creator_id else None
         creator_role = creator_profile.get("role", "student") if creator_profile else "student"
         creator_class = creator_profile.get("class") if creator_profile else None
         
         if user_role == "student":
-            # Student non-members only see:
-            # - Public groups created by teachers
-            # - Public groups created by students in their same class
             if creator_role != "student":
                 filtered_groups.append(g)
             elif creator_class and creator_class == user_class:
@@ -455,7 +815,6 @@ async def get_groups(user=Depends(get_current_user), school_id=Depends(require_s
             elif g.get("class_name") and g.get("class_name") == user_class:
                 filtered_groups.append(g)
         else:
-            # Teachers non-members see all public groups in the school
             filtered_groups.append(g)
             
     return {"success": True, "school_id": school_id, "data": {"groups": filtered_groups}}
@@ -464,59 +823,219 @@ async def get_groups(user=Depends(get_current_user), school_id=Depends(require_s
 @router.post("/groups/{group_id}/join")
 async def join_group(group_id: str, user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    # Verify group exists and is not private
+    caller = await _get_caller_profile(user, sb)
+    caller_id = str(caller.get("id") or user.get("id"))
+    
     group = await sb.table("groups").select("is_private").eq("id", group_id).maybe_single().aexecute()
     if not group.data:
         raise HTTPException(status_code=404, detail="Group not found")
     if group.data.get("is_private", False):
         raise HTTPException(status_code=403, detail="Cannot join a private group. You must be invited/added by an admin.")
         
-    # Insert record into group_members
     await sb.table("group_members").insert({
         "group_id": group_id,
-        "member_id": user["id"],
+        "member_id": caller_id,
+        "user_id": caller_id,
+        "school_id": school_id,
         "role": "member"
     }).aexecute()
     return {"success": True, "message": "Joined group successfully"}
 
 
 @router.post("/groups/{group_id}/members")
-async def add_group_member(group_id: str, request: dict, user=Depends(get_current_user)):
+async def add_group_member(group_id: str, request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    member_id = request.get("member_id")
-    if not member_id:
-        raise HTTPException(status_code=400, detail="member_id is required")
+    caller = await _get_caller_profile(user, sb)
+    caller_id = str(caller.get("id") or user.get("id"))
+    
+    group = await sb.table("groups").select("created_by, school_id").eq("id", group_id).maybe_single().aexecute()
+    if not group.data:
+        raise HTTPException(status_code=404, detail="Group not found")
         
-    try:
-        blocks_res = await sb.table("blocked_users").select("blocker_id, blocked_id").or_(f"blocker_id.eq.{user['id']},blocked_id.eq.{user['id']}").aexecute()
-        if blocks_res.data:
-            blocked_user_ids = {row["blocker_id"] for row in blocks_res.data} | {row["blocked_id"] for row in blocks_res.data}
-            if member_id in blocked_user_ids:
-                raise HTTPException(status_code=403, detail="Cannot add user to group because one of you has blocked the other")
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Error checking blocks in add_group_member: {e}")
-
-    # Check if already a member to prevent duplicate key error
-    existing = await sb.table("group_members").select("*").eq("group_id", group_id).eq("member_id", member_id).maybe_single().aexecute()
-    if existing.data:
-        return {"success": True, "message": "User is already a member of this group"}
+    creator_id = str(group.data.get("created_by")) if group.data.get("created_by") else None
+    is_creator = (caller_id == creator_id)
+    is_app_admin = caller.get("role") in ("admin", "super_admin", "principal") or user.get("role") in ("admin", "super_admin", "principal")
+    
+    caller_membership = await sb.table("group_members").select("role").eq("group_id", group_id).or_(
+        f"member_id.eq.{caller_id},user_id.eq.{caller_id}"
+    ).maybe_single().aexecute()
+    is_group_admin = bool(caller_membership.data and caller_membership.data.get("role") == "admin")
+    
+    if not (is_creator or is_app_admin or is_group_admin):
+        raise HTTPException(status_code=403, detail="Only group admins can add new members")
         
-    # Insert record into group_members
-    await sb.table("group_members").insert({
-        "group_id": group_id,
-        "member_id": member_id,
-        "role": "member"
-    }).aexecute()
-    return {"success": True, "message": "Member added successfully"}
+    member_ids = []
+    if "member_ids" in request and isinstance(request["member_ids"], list):
+        member_ids = request["member_ids"]
+    elif "member_id" in request and request["member_id"]:
+        member_ids = [request["member_id"]]
+        
+    if not member_ids:
+        raise HTTPException(status_code=400, detail="member_id or member_ids is required")
+        
+    added_count = 0
+    for mid in member_ids:
+        target_uuid = await _resolve_profile_id(mid, sb)
+        if not target_uuid:
+            continue
+            
+        existing = await sb.table("group_members").select("id").eq("group_id", group_id).or_(
+            f"member_id.eq.{target_uuid},user_id.eq.{target_uuid}"
+        ).maybe_single().aexecute()
+        if existing.data:
+            continue
+            
+        await sb.table("group_members").insert({
+            "group_id": group_id,
+            "member_id": target_uuid,
+            "user_id": target_uuid,
+            "school_id": school_id,
+            "role": "member"
+        }).aexecute()
+        added_count += 1
+        
+    return {"success": True, "message": f"Added {added_count} members successfully", "added_count": added_count}
 
 
 @router.post("/groups/{group_id}/leave")
 async def leave_group(group_id: str, user=Depends(get_current_user)):
     sb = get_supabase()
-    await sb.table("group_members").delete().eq("group_id", group_id).eq("member_id", user["id"]).aexecute()
+    caller = await _get_caller_profile(user, sb)
+    caller_id = str(caller.get("id") or user.get("id"))
+    
+    await sb.table("group_members").delete().eq("group_id", group_id).or_(
+        f"member_id.eq.{caller_id},user_id.eq.{caller_id}"
+    ).aexecute()
+    
+    if user.get("id") and str(user["id"]) != caller_id:
+        try:
+            await sb.table("group_members").delete().eq("group_id", group_id).eq("member_id", str(user["id"])).aexecute()
+        except Exception:
+            pass
+            
     return {"success": True, "message": "Left group successfully"}
+
+
+@router.put("/groups/{group_id}")
+@router.patch("/groups/{group_id}")
+async def update_group_details(group_id: str, request: dict, user=Depends(get_current_user)):
+    sb = get_supabase()
+    caller = await _get_caller_profile(user, sb)
+    caller_id = str(caller.get("id") or user.get("id"))
+    
+    group = await sb.table("groups").select("created_by").eq("id", group_id).maybe_single().aexecute()
+    if not group.data:
+        raise HTTPException(status_code=404, detail="Group not found")
+        
+    creator_id = str(group.data.get("created_by")) if group.data.get("created_by") else None
+    is_creator = (caller_id == creator_id)
+    is_app_admin = caller.get("role") in ("admin", "super_admin", "principal") or user.get("role") in ("admin", "super_admin", "principal")
+    
+    caller_mem = await sb.table("group_members").select("role").eq("group_id", group_id).or_(
+        f"member_id.eq.{caller_id},user_id.eq.{caller_id}"
+    ).maybe_single().aexecute()
+    is_group_admin = bool(caller_mem.data and caller_mem.data.get("role") == "admin")
+    
+    if not (is_creator or is_app_admin or is_group_admin):
+        raise HTTPException(status_code=403, detail="Only group admins can update group details")
+        
+    updates = {}
+    if "name" in request and request["name"] and request["name"].strip():
+        updates["name"] = request["name"].strip()
+    if "description" in request:
+        updates["description"] = request["description"].strip() if request["description"] else None
+    if "avatar_url" in request:
+        updates["avatar_url"] = request["avatar_url"].strip() if request["avatar_url"] else None
+        
+    if not updates:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+        
+    res = await sb.table("groups").update(updates).eq("id", group_id).aexecute()
+    return {"success": True, "message": "Group details updated successfully", "data": res.data[0] if res.data else updates}
+
+
+@router.put("/groups/{group_id}/members/{member_id}")
+@router.post("/groups/{group_id}/members/{member_id}/role")
+async def update_group_member_role(group_id: str, member_id: str, request: dict, user=Depends(get_current_user)):
+    sb = get_supabase()
+    caller = await _get_caller_profile(user, sb)
+    caller_id = str(caller.get("id") or user.get("id"))
+    
+    new_role = request.get("role", "member")
+    if new_role not in ("admin", "member"):
+        raise HTTPException(status_code=400, detail="Role must be 'admin' or 'member'")
+        
+    group = await sb.table("groups").select("created_by").eq("id", group_id).maybe_single().aexecute()
+    if not group.data:
+        raise HTTPException(status_code=404, detail="Group not found")
+        
+    creator_id = str(group.data.get("created_by")) if group.data.get("created_by") else None
+    is_creator = (caller_id == creator_id)
+    is_app_admin = caller.get("role") in ("admin", "super_admin", "principal") or user.get("role") in ("admin", "super_admin", "principal")
+    
+    caller_membership = await sb.table("group_members").select("role").eq("group_id", group_id).or_(
+        f"member_id.eq.{caller_id},user_id.eq.{caller_id}"
+    ).maybe_single().aexecute()
+    is_group_admin = bool(caller_membership.data and caller_membership.data.get("role") == "admin")
+    
+    if not (is_creator or is_app_admin or is_group_admin):
+        raise HTTPException(status_code=403, detail="Only group admins can update member roles")
+        
+    target_uuid = await _resolve_profile_id(member_id, sb) or member_id
+    
+    target_mem = await sb.table("group_members").select("*").eq("group_id", group_id).or_(
+        f"member_id.eq.{target_uuid},user_id.eq.{target_uuid},id.eq.{member_id}"
+    ).maybe_single().aexecute()
+    
+    if not target_mem.data:
+        raise HTTPException(status_code=404, detail="Target user is not a member of this group")
+        
+    target_row = target_mem.data
+    current_role = target_row.get("role", "member")
+    row_id = target_row["id"]
+    
+    if current_role == new_role:
+        return {"success": True, "message": f"User already has role {new_role}"}
+        
+    if current_role == "admin" and new_role == "member":
+        admins_res = await sb.table("group_members").select("id").eq("group_id", group_id).eq("role", "admin").aexecute()
+        admins = admins_res.data or []
+        if len(admins) <= 1:
+            raise HTTPException(status_code=400, detail="Cannot demote the last admin of the group. Please promote another member first.")
+            
+    await sb.table("group_members").update({"role": new_role}).eq("id", row_id).aexecute()
+    return {"success": True, "message": f"Member role updated to {new_role} successfully"}
+
+
+@router.delete("/groups/{group_id}/members/{member_id}")
+async def remove_group_member(group_id: str, member_id: str, user=Depends(get_current_user)):
+    sb = get_supabase()
+    caller = await _get_caller_profile(user, sb)
+    caller_id = str(caller.get("id") or user.get("id"))
+    
+    group = await sb.table("groups").select("created_by").eq("id", group_id).maybe_single().aexecute()
+    if not group.data:
+        raise HTTPException(status_code=404, detail="Group not found")
+        
+    creator_id = str(group.data.get("created_by")) if group.data.get("created_by") else None
+    is_creator = (caller_id == creator_id)
+    is_app_admin = caller.get("role") in ("admin", "super_admin", "principal") or user.get("role") in ("admin", "super_admin", "principal")
+    
+    caller_mem = await sb.table("group_members").select("role").eq("group_id", group_id).or_(
+        f"member_id.eq.{caller_id},user_id.eq.{caller_id}"
+    ).maybe_single().aexecute()
+    is_group_admin = bool(caller_mem.data and caller_mem.data.get("role") == "admin")
+    
+    target_uuid = await _resolve_profile_id(member_id, sb) or member_id
+    is_self = (caller_id == target_uuid or str(user.get("id")) == member_id)
+    
+    if not (is_self or is_creator or is_app_admin or is_group_admin):
+        raise HTTPException(status_code=403, detail="Only group admins can remove members")
+        
+    await sb.table("group_members").delete().eq("group_id", group_id).or_(
+        f"member_id.eq.{target_uuid},user_id.eq.{target_uuid},id.eq.{member_id}"
+    ).aexecute()
+    return {"success": True, "message": "Member removed successfully"}
 
 
 
@@ -566,14 +1085,37 @@ async def change_password(request: dict, user=Depends(get_current_user)):
 @router.delete("/messages/{message_id}")
 async def delete_message(message_id: str, user=Depends(get_current_user)):
     sb = get_supabase()
-    msg = await sb.table("messages").select("sender_id").eq("id", message_id).maybe_single().aexecute()
+    caller = await _get_caller_profile(user, sb)
+    caller_id = str(caller.get("id") or user.get("id"))
+    
+    msg = await sb.table("messages").select("sender_id, group_id").eq("id", message_id).maybe_single().aexecute()
     if not msg.data:
         raise HTTPException(status_code=404, detail="Message not found")
-    if msg.data["sender_id"] != user["id"]:
+        
+    sender_id = str(msg.data.get("sender_id") or "")
+    group_id = msg.data.get("group_id")
+    is_sender = (sender_id == caller_id or sender_id == str(user.get("id")))
+    is_app_admin = caller.get("role") in ("admin", "super_admin", "principal") or user.get("role") in ("admin", "super_admin", "principal")
+    
+    # Senders can ALWAYS delete their own messages (even after exiting the group)
+    if is_sender:
+        await sb.table("messages").delete().eq("id", message_id).aexecute()
+        return {"success": True, "message": "Message deleted successfully"}
+        
+    # Non-senders can ONLY delete if they are a group admin in that group or app admin
+    is_group_admin = False
+    if group_id:
+        caller_mem = await sb.table("group_members").select("role").eq("group_id", group_id).or_(
+            f"member_id.eq.{caller_id},user_id.eq.{caller_id}"
+        ).maybe_single().aexecute()
+        if caller_mem.data and caller_mem.data.get("role") == "admin":
+            is_group_admin = True
+            
+    if not (is_group_admin or is_app_admin):
         raise HTTPException(status_code=403, detail="You can only delete your own messages")
         
     await sb.table("messages").delete().eq("id", message_id).aexecute()
-    return {"success": True}
+    return {"success": True, "message": "Message deleted successfully"}
 
 
 @router.post("/messages/clear")
@@ -583,14 +1125,30 @@ async def clear_chat(request: dict, user=Depends(get_current_user), school_id=De
         raise HTTPException(status_code=400, detail="chat_id is required")
         
     sb = get_supabase()
-    group_check = await sb.table("groups").select("id").eq("id", chat_id).maybe_single().aexecute()
+    caller = await _get_caller_profile(user, sb)
+    caller_id = str(caller.get("id") or user.get("id"))
+    is_app_admin = caller.get("role") in ("admin", "super_admin", "principal") or user.get("role") in ("admin", "super_admin", "principal")
+    
+    group_check = await sb.table("groups").select("id, created_by").eq("id", chat_id).maybe_single().aexecute()
     if group_check.data:
+        # For groups: ONLY group creator or group admin or school admin can clear the group chat!
+        is_creator = str(group_check.data.get("created_by")) == caller_id
+        caller_mem = await sb.table("group_members").select("role").eq("group_id", chat_id).or_(
+            f"member_id.eq.{caller_id},user_id.eq.{caller_id}"
+        ).maybe_single().aexecute()
+        is_group_admin = bool(caller_mem.data and caller_mem.data.get("role") == "admin")
+        
+        if not (is_creator or is_app_admin or is_group_admin):
+            raise HTTPException(status_code=403, detail="Only group admins can clear group chat history")
+            
         await sb.table("messages").delete().eq("group_id", chat_id).aexecute()
     else:
-        await sb.table("messages").delete().eq("school_id", school_id).eq("sender_id", user["id"]).eq("receiver_id", chat_id).aexecute()
-        await sb.table("messages").delete().eq("school_id", school_id).eq("sender_id", chat_id).eq("receiver_id", user["id"]).aexecute()
+        contact_uuid = await _resolve_profile_id(chat_id, sb) or chat_id
+        await sb.table("messages").delete().eq("school_id", school_id).or_(
+            f"and(sender_id.eq.{caller_id},receiver_id.eq.{contact_uuid}),and(sender_id.eq.{contact_uuid},receiver_id.eq.{caller_id})"
+        ).aexecute()
         
-    return {"success": True}
+    return {"success": True, "message": "Chat history cleared"}
 
 
 @router.post("/messages/upload")
@@ -615,7 +1173,6 @@ async def upload_message_file(
     if "." in filename:
         ext = filename.split(".")[-1]
         
-    import uuid
     unique_id = uuid.uuid4().hex
     storage_path = f"avatars/msg_{user['id']}_{unique_id}.{ext}"
     storage_url = f"{supabase_url}/storage/v1/object/{storage_path}"
@@ -666,7 +1223,6 @@ async def block_user(blocked_id: str, user=Depends(get_current_user)):
             "blocked_id": blocked_id
         }).aexecute()
     except Exception:
-        # Unique constraint violation means already blocked
         pass
         
     return {"success": True, "message": "User blocked successfully"}
@@ -690,84 +1246,26 @@ async def get_blocked_users(user=Depends(get_current_user)):
 @router.delete("/groups/{group_id}")
 async def delete_group(group_id: str, user=Depends(get_current_user)):
     sb = get_supabase()
+    caller = await _get_caller_profile(user, sb)
+    caller_id = str(caller.get("id") or user.get("id"))
+    
     group = await sb.table("groups").select("*").eq("id", group_id).maybe_single().aexecute()
     if not group.data:
         raise HTTPException(status_code=404, detail="Group not found")
         
-    if group.data["created_by"] != user["id"]:
-        raise HTTPException(status_code=403, detail="Only the group creator/admin can delete the group")
+    creator_id = str(group.data.get("created_by")) if group.data.get("created_by") else None
+    is_creator = (caller_id == creator_id)
+    is_app_admin = caller.get("role") in ("admin", "super_admin", "principal") or user.get("role") in ("admin", "super_admin", "principal")
+    
+    if not (is_creator or is_app_admin):
+        raise HTTPException(status_code=403, detail="Only the group creator or admin can delete the group")
         
     members = await sb.table("group_members").select("*").eq("group_id", group_id).aexecute()
-    if len(members.data) > 1:
-        raise HTTPException(status_code=400, detail="Groups with more than 1 member cannot be deleted by creator until they are the only remaining member.")
+    if len(members.data or []) > 1 and not is_app_admin:
+        raise HTTPException(status_code=400, detail="Groups with more than 1 member cannot be deleted until all other members leave.")
         
     await sb.table("groups").delete().eq("id", group_id).aexecute()
     return {"success": True, "message": "Group deleted successfully"}
-
-
-@router.delete("/groups/{group_id}/members/{member_id}")
-async def remove_group_member(group_id: str, member_id: str, user=Depends(get_current_user)):
-    sb = get_supabase()
-    group = await sb.table("groups").select("created_by").eq("id", group_id).maybe_single().aexecute()
-    if not group.data:
-        raise HTTPException(status_code=404, detail="Group not found")
-        
-    if group.data["created_by"] != user["id"]:
-        membership = await sb.table("group_members").select("role").eq("group_id", group_id).eq("member_id", user["id"]).maybe_single().aexecute()
-        if not membership.data or membership.data["role"] != "admin":
-            raise HTTPException(status_code=403, detail="Only admins have permission to remove members")
-            
-    if member_id == user["id"]:
-        raise HTTPException(status_code=400, detail="Cannot remove yourself. Use leave group instead.")
-        
-    await sb.table("group_members").delete().eq("group_id", group_id).eq("member_id", member_id).aexecute()
-    return {"success": True, "message": "Member removed successfully"}
-
-
-@router.post("/groups/{group_id}/members/{member_id}/role")
-async def update_member_role(
-    group_id: str,
-    member_id: str,
-    request: dict,
-    user=Depends(get_current_user)
-):
-    role = request.get("role")
-    if role not in ("admin", "member"):
-        raise HTTPException(status_code=400, detail="Role must be 'admin' or 'member'")
-        
-    sb = get_supabase()
-    
-    # Check if group exists and who created it
-    group = await sb.table("groups").select("created_by").eq("id", group_id).maybe_single().aexecute()
-    if not group.data:
-        raise HTTPException(status_code=404, detail="Group not found")
-        
-    # Check caller's role in the group
-    caller_membership = await sb.table("group_members").select("role").eq("group_id", group_id).eq("member_id", user["id"]).maybe_single().aexecute()
-    
-    is_caller_admin = (group.data["created_by"] == user["id"]) or (caller_membership.data and caller_membership.data["role"] == "admin")
-    if not is_caller_admin:
-        raise HTTPException(status_code=403, detail="Only admins have permission to change member roles")
-        
-    # Check target user's current membership/role in the group
-    target_membership = await sb.table("group_members").select("role").eq("group_id", group_id).eq("member_id", member_id).maybe_single().aexecute()
-    if not target_membership.data:
-        raise HTTPException(status_code=404, detail="Target user is not a member of this group")
-        
-    current_role = target_membership.data.get("role", "member")
-    if current_role == role:
-        return {"success": True, "message": f"User already has role {role}"}
-        
-    # If demoting from admin to member, check that it's not the last admin
-    if current_role == "admin" and role == "member":
-        admins_res = await sb.table("group_members").select("member_id").eq("group_id", group_id).eq("role", "admin").aexecute()
-        admins = admins_res.data or []
-        if len(admins) <= 1:
-            raise HTTPException(status_code=400, detail="Cannot demote the last admin of the group")
-            
-    # Update the role
-    await sb.table("group_members").update({"role": role}).eq("group_id", group_id).eq("member_id", member_id).aexecute()
-    return {"success": True, "message": f"Member role updated to {role} successfully"}
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -82,6 +82,8 @@ AS $$
 DECLARE
     new_id uuid;
 BEGIN
+    -- Delete existing secret with same name if any
+    DELETE FROM vault.secrets WHERE name = p_secret_name;
     -- Create vault secret
     new_id := vault.create_secret(p_secret_value, p_secret_name, p_secret_desc);
     
@@ -208,6 +210,17 @@ DECLARE
 BEGIN
     -- Only seed if metadata table is empty
     IF NOT EXISTS (SELECT 1 FROM public.vault_secret_metadata) THEN
+        DELETE FROM vault.secrets WHERE name IN (
+            'DB Connection String',
+            'AWS Access Key',
+            'Google OAuth Client',
+            'SMTP Credential',
+            'GitHub Token',
+            'JWT Signing Key',
+            'Azure Storage Key',
+            'Slack Webhook URL'
+        );
+
         -- DB Connection String
         sec_id := vault.create_secret('postgresql://admin:super-secure-pass-2026@db.edushamiit.prod:5432/main_db', 'DB Connection String', 'Primary database connection string for production environment.');
         INSERT INTO public.vault_secret_metadata (secret_id, path, secret_type, next_rotation, status, created_by, modified_by, version)

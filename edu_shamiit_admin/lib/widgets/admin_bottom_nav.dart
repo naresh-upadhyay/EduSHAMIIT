@@ -3,7 +3,13 @@ import 'package:go_router/go_router.dart';
 
 class AdminBottomNav extends StatelessWidget {
   final String currentLocation;
-  const AdminBottomNav({super.key, required this.currentLocation});
+  final VoidCallback? onMenuPressed;
+
+  const AdminBottomNav({
+    super.key,
+    required this.currentLocation,
+    this.onMenuPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -11,7 +17,7 @@ class AdminBottomNav extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      height: 54,
+      height: 56,
       decoration: BoxDecoration(
         color: theme.cardColor,
         border: Border(
@@ -34,11 +40,17 @@ class AdminBottomNav extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildNavItem(context, Icons.bolt_rounded, 'Home', '/admin/dashboard'),
+            _buildNavItem(context, Icons.space_dashboard_rounded, 'Dashboard', '/admin/dashboard'),
             _buildNavItem(context, Icons.school_outlined, 'Schools', '/admin/schools'),
             _buildNavItem(context, Icons.people_outline_rounded, 'Users', '/admin/users'),
-            _buildNavItem(context, Icons.analytics_outlined, 'Infra Monitor', '/admin/infra'),
-            _buildNavItem(context, Icons.settings_outlined, 'Config', '/admin/config'),
+            _buildNavItem(context, Icons.directions_bus_rounded, 'Fleet', '/admin/vehicle-dashboard'),
+            _buildActionItem(
+              context,
+              Icons.grid_view_rounded,
+              'All Modules',
+              onMenuPressed ?? () {},
+              isDark: isDark,
+            ),
           ],
         ),
       ),
@@ -90,6 +102,51 @@ class AdminBottomNav extends StatelessWidget {
                     : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                 fontSize: 9,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                fontFamily: 'Outfit',
+              ),
+              maxLines: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionItem(
+    BuildContext context,
+    IconData icon,
+    String label,
+    VoidCallback onTap, {
+    required bool isDark,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 46,
+            height: 26,
+            decoration: BoxDecoration(
+              color: const Color(0xFF4F46E5).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: const Icon(
+              Icons.menu_open_rounded,
+              color: Color(0xFF6366F1),
+              size: 18,
+            ),
+          ),
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF6366F1),
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
                 fontFamily: 'Outfit',
               ),
               maxLines: 1,

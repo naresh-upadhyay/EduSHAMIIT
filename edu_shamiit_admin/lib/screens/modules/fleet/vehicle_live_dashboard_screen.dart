@@ -130,11 +130,12 @@ class _VehicleLiveDashboardScreenState
   static const _orange = Color(0xFFF59E0B);
   static const _red = Color(0xFFEF4444);
   static const _gray = Color(0xFF94A3B8);
-  static const _bg = Color(0xFFF8FAFC);
-  static const _cardBg = Colors.white;
-  static const _border = Color(0xFFE2E8F0);
-  static const _textPrimary = Color(0xFF0F172A);
-  static const _textSecondary = Color(0xFF64748B);
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+  Color get _bg => _isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+  Color get _cardBg => _isDark ? const Color(0xFF1E293B) : Colors.white;
+  Color get _border => _isDark ? Colors.white10 : const Color(0xFFE2E8F0);
+  Color get _textPrimary => _isDark ? Colors.white : const Color(0xFF0F172A);
+  Color get _textSecondary => _isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
   Color _statusColor(String? s) {
     switch (s) {
@@ -148,21 +149,6 @@ class _VehicleLiveDashboardScreenState
         return _red;
       default:
         return _gray;
-    }
-  }
-
-  IconData _statusIcon(String? s) {
-    switch (s) {
-      case 'on_route':
-        return Icons.directions_bus_rounded;
-      case 'at_school':
-        return Icons.school_rounded;
-      case 'returning':
-        return Icons.u_turn_left_rounded;
-      case 'delayed':
-        return Icons.timer_outlined;
-      default:
-        return Icons.wifi_off_rounded;
     }
   }
 
@@ -187,15 +173,6 @@ class _VehicleLiveDashboardScreenState
     if (iso == null) return '—';
     try {
       return DateFormat('hh:mm a').format(DateTime.parse(iso).toLocal());
-    } catch (_) {
-      return '—';
-    }
-  }
-
-  String _fmtDate(String? iso) {
-    if (iso == null) return '—';
-    try {
-      return DateFormat('dd MMM, hh:mm a').format(DateTime.parse(iso).toLocal());
     } catch (_) {
       return '—';
     }
@@ -352,7 +329,7 @@ class _VehicleLiveDashboardScreenState
             Text('All Routes',
                 style: GoogleFonts.inter(fontSize: 13, color: _textPrimary)),
             const SizedBox(width: 6),
-            const Icon(Icons.keyboard_arrow_down_rounded,
+            Icon(Icons.keyboard_arrow_down_rounded,
                 size: 18, color: _textSecondary),
           ]),
         ),
@@ -425,48 +402,30 @@ class _VehicleLiveDashboardScreenState
           Icons.wifi_off_rounded, _gray),
     ];
 
-    if (w < 768) {
-      return Column(children: [
-        GridView.count(
-          crossAxisCount: 2,
-          childAspectRatio: 2.0,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: metrics.map(_buildMetricCard).toList(),
-        ),
-        const SizedBox(height: 10),
-        _buildStudentsCard(),
-      ]);
-    } else if (w < 1250) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          GridView.count(
-            crossAxisCount: 3,
-            childAspectRatio: 2.6,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            children: metrics.map(_buildMetricCard).toList(),
-          ),
-          const SizedBox(height: 12),
-          _buildStudentsCard(),
-        ],
-      );
+    final allCards = [
+      ...metrics.map((m) => _buildMetricCard(m)),
+      _buildStudentsCard(),
+    ];
+
+    final int cols;
+    const double spacing = 12.0;
+    if (w >= 1440) {
+      cols = 7;
+    } else if (w >= 1050) {
+      cols = 4;
+    } else if (w >= 640) {
+      cols = 2;
+    } else {
+      cols = 1;
     }
 
-    return Row(
-      children: [
-        ...metrics.map(
-            (m) => Expanded(child: Padding(
-              padding: const EdgeInsets.only(right: 10),
-              child: _buildMetricCard(m),
-            ))),
-        SizedBox(width: 150, child: _buildStudentsCard()),
-      ],
+    final double totalSpacing = (cols - 1) * spacing;
+    final double cardWidth = ((w - totalSpacing) / cols).floorToDouble();
+
+    return Wrap(
+      spacing: spacing,
+      runSpacing: spacing,
+      children: allCards.map((c) => SizedBox(width: cardWidth, child: c)).toList(),
     );
   }
 
@@ -640,7 +599,7 @@ class _VehicleLiveDashboardScreenState
               _iconBtn(Icons.fullscreen_rounded),
             ]),
           ),
-          const Divider(height: 1, color: _border),
+          Divider(height: 1, color: _border),
           // OSM Map content
           Expanded(
             child: Stack(
@@ -682,7 +641,7 @@ class _VehicleLiveDashboardScreenState
                     decoration: BoxDecoration(
                       color: _cardBg.withValues(alpha: 0.92),
                       border:
-                          const Border(top: BorderSide(color: _border)),
+                          Border(top: BorderSide(color: _border)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -879,7 +838,7 @@ class _VehicleLiveDashboardScreenState
       onTap: () => _resolveAlert(a['id']),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
             border: Border(bottom: BorderSide(color: _border, width: 0.5))),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -956,7 +915,7 @@ class _VehicleLiveDashboardScreenState
               height: 120,
               child: CustomPaint(
                 painter: _DonutChartPainter(
-                    segments: segments, total: _totalVehicles),
+                    segments: segments, total: _totalVehicles, isDark: _isDark),
                 child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -1127,7 +1086,7 @@ class _VehicleLiveDashboardScreenState
                   return Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 8),
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                         border: Border(
                             top: BorderSide(color: _border, width: 0.5))),
                     child: Row(children: [
@@ -1392,7 +1351,7 @@ class _VehicleLiveDashboardScreenState
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
             child: header,
           ),
-          const Divider(height: 1, color: _border),
+          Divider(height: 1, color: _border),
           child,
         ],
       ),
@@ -1483,7 +1442,8 @@ class _PinTailPainter extends CustomPainter {
 class _DonutChartPainter extends CustomPainter {
   final List<_DonutSeg> segments;
   final int total;
-  _DonutChartPainter({required this.segments, required this.total});
+  final bool isDark;
+  _DonutChartPainter({required this.segments, required this.total, this.isDark = false});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1497,7 +1457,7 @@ class _DonutChartPainter extends CustomPainter {
       center,
       radius,
       Paint()
-        ..color = const Color(0xFFF1F5F9)
+        ..color = isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth,
     );

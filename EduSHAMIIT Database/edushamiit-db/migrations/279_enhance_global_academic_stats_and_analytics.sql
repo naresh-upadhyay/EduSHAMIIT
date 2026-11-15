@@ -666,12 +666,13 @@ BEGIN
         p_search := p_search,
         p_type := p_type,
         p_status := p_status,
-        p_class_id := NULL,
+        p_class_id := NULL::uuid,
         p_page := p_page,
         p_page_size := p_page_size,
         p_sort_by := p_sort_by,
         p_sort_order := p_sort_order,
-        p_teacher_id := p_teacher_id
+        p_teacher_id := p_teacher_id,
+        p_academic_year := '2026-27'
     );
 END;
 $$;

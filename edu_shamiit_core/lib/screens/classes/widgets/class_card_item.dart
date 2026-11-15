@@ -22,7 +22,9 @@ class ClassCardItem extends StatelessWidget {
     final match = RegExp(r'\d+').firstMatch(academicClass.name);
     final badgeText = match != null
         ? match.group(0)!
-        : (academicClass.code.length > 3 ? academicClass.code.substring(0, 3) : academicClass.code);
+        : (academicClass.code.length > 3
+            ? academicClass.code.substring(0, 3)
+            : academicClass.code);
 
     final badgeColor = academicClass.badgeColor;
 
@@ -35,7 +37,9 @@ class ClassCardItem extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected
               ? (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC))
-              : (isDark ? const Color(0xFF0F172A).withOpacity(0.6) : Colors.white),
+              : (isDark
+                  ? const Color(0xFF0F172A).withValues(alpha: 0.6)
+                  : Colors.white),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
@@ -46,7 +50,7 @@ class ClassCardItem extends StatelessWidget {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF4F46E5).withOpacity(0.08),
+                    color: const Color(0xFF4F46E5).withValues(alpha: 0.08),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   )
@@ -60,9 +64,9 @@ class ClassCardItem extends StatelessWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: badgeColor.withOpacity(0.15),
+                color: badgeColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: badgeColor.withOpacity(0.3)),
+                border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
               ),
               alignment: Alignment.center,
               child: Text(
@@ -89,32 +93,42 @@ class ClassCardItem extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 14.5,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 1.5),
                         decoration: BoxDecoration(
-                          color: academicClass.status.toUpperCase() == 'ARCHIVED'
-                              ? const Color(0xFFF59E0B).withOpacity(0.15)
+                          color: academicClass.status.toUpperCase() ==
+                                  'ARCHIVED'
+                              ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
                               : (academicClass.isActive
-                                  ? const Color(0xFF10B981).withOpacity(0.15)
-                                  : const Color(0xFFEF4444).withOpacity(0.15)),
+                                  ? const Color(0xFF10B981)
+                                      .withValues(alpha: 0.15)
+                                  : const Color(0xFFEF4444)
+                                      .withValues(alpha: 0.15)),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           academicClass.status.toUpperCase() == 'ARCHIVED'
                               ? 'Archived'
-                              : (academicClass.isActive ? 'Active' : 'Inactive'),
+                              : (academicClass.isActive
+                                  ? 'Active'
+                                  : 'Inactive'),
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
-                            color: academicClass.status.toUpperCase() == 'ARCHIVED'
-                                ? const Color(0xFFF59E0B)
-                                : (academicClass.isActive ? const Color(0xFF10B981) : const Color(0xFFEF4444)),
+                            color:
+                                academicClass.status.toUpperCase() == 'ARCHIVED'
+                                    ? const Color(0xFFF59E0B)
+                                    : (academicClass.isActive
+                                        ? const Color(0xFF10B981)
+                                        : const Color(0xFFEF4444)),
                           ),
                         ),
                       ),
@@ -125,7 +139,9 @@ class ClassCardItem extends StatelessWidget {
                     academicClass.stage,
                     style: TextStyle(
                       fontSize: 12,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -136,7 +152,9 @@ class ClassCardItem extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                          color: isDark
+                              ? const Color(0xFFCBD5E1)
+                              : const Color(0xFF475569),
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -144,7 +162,9 @@ class ClassCardItem extends StatelessWidget {
                         '•',
                         style: TextStyle(
                           fontSize: 11,
-                          color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                          color: isDark
+                              ? const Color(0xFF64748B)
+                              : const Color(0xFF94A3B8),
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -153,7 +173,9 @@ class ClassCardItem extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                          color: isDark
+                              ? const Color(0xFFCBD5E1)
+                              : const Color(0xFF475569),
                         ),
                       ),
                     ],

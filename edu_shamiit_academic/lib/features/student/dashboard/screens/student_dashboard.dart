@@ -68,29 +68,68 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
 
     try {
       final response = await ApiService().get('/student/dashboard');
-      final data = response.containsKey('data') ? response['data'] : response;
+      final rawData = response.containsKey('data') ? response['data'] : response;
 
-      if (data != null && data is Map && data.containsKey('quick_access')) {
-        final List quickAccess = List.from(data['quick_access']);
-        final hasSettings =
-            quickAccess.any((item) => item['title'] == 'Settings');
-        if (!hasSettings) {
-          quickAccess.add({
-            "title": "Settings",
-            "icon": "⚙️",
-            "route": "/student/settings",
-            "bg": "F1F5F9"
-          });
-          data['quick_access'] = quickAccess;
+      if (rawData != null && rawData is Map) {
+        final Map<String, dynamic> data = Map<String, dynamic>.from(rawData);
+        final profileMap = (data['profile'] is Map) ? Map<String, dynamic>.from(data['profile']) : null;
+        final userMap = (data['user'] is Map) ? Map<String, dynamic>.from(data['user']) : null;
+
+        data['user'] = {
+          "full_name": profileMap?['full_name'] ?? userMap?['full_name'] ?? 'Student',
+          "class": profileMap?['class'] ?? userMap?['class'] ?? '',
+          "roll_no": profileMap?['roll_no'] ?? userMap?['roll_no'] ?? '',
+          "session": userMap?['session'] ?? '2024-25',
+          "xp_points": profileMap?['xp_points'] ?? userMap?['xp_points'] ?? 0,
+          "learning_streak": profileMap?['learning_streak'] ?? userMap?['learning_streak'] ?? 0,
+          "avatar_emoji": profileMap?['avatar_emoji'] ?? userMap?['avatar_emoji'] ?? '🧑',
+          "avatar_url": profileMap?['avatar_url'] ?? userMap?['avatar_url'],
+        };
+
+        final statsMap = (data['stats'] is Map) ? Map<String, dynamic>.from(data['stats']) : null;
+        data['stats'] = {
+          "attendance_pct": statsMap?['attendance_pct'] ?? data['attendance_percentage'] ?? 100.0,
+          "avg_score": statsMap?['avg_score'] ?? 0,
+          "class_rank": statsMap?['class_rank'] ?? 1,
+          "xp_points": statsMap?['xp_points'] ?? profileMap?['xp_points'] ?? 0,
+        };
+
+        if (data['today_schedule'] is! List) {
+          data['today_schedule'] = [];
         }
-      }
+        if (data['pending_homework'] is! List) {
+          data['pending_homework'] = [];
+        }
 
-      setState(() {
-        _dashboardData = data;
-        _isLoading = false;
-      });
+        if (data['quick_access'] is List) {
+          final List quickAccess = List.from(data['quick_access']);
+          final hasSettings =
+              quickAccess.any((item) => item['title'] == 'Settings');
+          if (!hasSettings) {
+            quickAccess.add({
+              "title": "Settings",
+              "icon": "⚙️",
+              "route": "/student/settings",
+              "bg": "F1F5F9"
+            });
+            data['quick_access'] = quickAccess;
+          }
+        } else {
+          data['quick_access'] = _getMockData()['quick_access'];
+        }
+
+        setState(() {
+          _dashboardData = data;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _dashboardData = _getMockData();
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      await Future.delayed(const Duration(milliseconds: 500));
+      debugPrint('[StudentDashboard] Error loading dashboard: $e');
       setState(() {
         _dashboardData = _getMockData();
         _isLoading = false;
@@ -316,12 +355,16 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
   Widget _buildHeader() {
     final notificationsState = ref.watch(notificationsProvider);
     final unreadCount = notificationsState.unreadCount;
-    final user = _dashboardData!['user'];
-    final stats = _dashboardData!['stats'];
+    final Map<String, dynamic> user = (_dashboardData?['user'] is Map)
+        ? Map<String, dynamic>.from(_dashboardData!['user'])
+        : const {};
+    final Map<String, dynamic> stats = (_dashboardData?['stats'] is Map)
+        ? Map<String, dynamic>.from(_dashboardData!['stats'])
+        : const {};
     final profileState = ref.watch(profileProvider);
     final profile = profileState.profile;
-    final String? avatarUrl = profile?.avatarUrl ?? user['avatar_url'];
-    final String fullName = profile?.name ?? user['full_name'] ?? 'Student';
+    final String? avatarUrl = profile?.avatarUrl ?? user['avatar_url']?.toString();
+    final String fullName = profile?.name ?? user['full_name']?.toString() ?? 'Student';
 
     final hour = DateTime.now().hour;
     final String greeting;
@@ -583,10 +626,12 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
     );
   }
 
-  String _getOrdinalSuffix(int? n) {
+  String _getOrdinalSuffix(dynamic n) {
     if (n == null) return '';
-    if (n >= 11 && n <= 13) return 'th';
-    switch (n % 10) {
+    final val = (n is num) ? n.toInt() : int.tryParse(n.toString());
+    if (val == null) return '';
+    if (val >= 11 && val <= 13) return 'th';
+    switch (val % 10) {
       case 1:
         return 'st';
       case 2:
@@ -617,7 +662,9 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
   }
 
   Widget _buildQuickAccessGrid() {
-    final quickAccess = _dashboardData!['quick_access'] as List;
+    final quickAccess = (_dashboardData?['quick_access'] is List)
+        ? (_dashboardData!['quick_access'] as List)
+        : const [];
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -719,7 +766,9 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
   }
 
   Widget _buildTodaySchedule() {
-    final schedule = _dashboardData!['today_schedule'] as List;
+    final schedule = (_dashboardData?['today_schedule'] is List)
+        ? (_dashboardData!['today_schedule'] as List)
+        : const [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -859,7 +908,9 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
   }
 
   Widget _buildPendingHomework() {
-    final homework = _dashboardData!['pending_homework'] as List;
+    final homework = (_dashboardData?['pending_homework'] is List)
+        ? (_dashboardData!['pending_homework'] as List)
+        : const [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

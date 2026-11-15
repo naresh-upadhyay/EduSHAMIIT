@@ -14,7 +14,7 @@ import 'drawers/student_attendance_drawer.dart';
 class DailyAttendanceTab extends ConsumerStatefulWidget {
   final Function(AttendanceStudentRowModel student)? onSelectStudent;
 
-  const DailyAttendanceTab({Key? key, this.onSelectStudent}) : super(key: key);
+  const DailyAttendanceTab({super.key, this.onSelectStudent});
 
   @override
   ConsumerState<DailyAttendanceTab> createState() => _DailyAttendanceTabState();
@@ -69,7 +69,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 const SizedBox(height: 14),
 
                 // 4. Student Search Bar & Action Buttons Toolbar
-                _buildSearchBarAndActionsToolbar(state, notifier, isDark, theme),
+                _buildSearchBarAndActionsToolbar(
+                    state, notifier, isDark, theme),
                 const SizedBox(height: 14),
 
                 // Floating Bulk Action Bar (when students are selected)
@@ -87,7 +88,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 const SizedBox(height: 16),
 
                 // 7. Bottom Pagination & Sticky Save Bar
-                _buildBottomSaveAndPaginationBar(state, notifier, isDark, theme),
+                _buildBottomSaveAndPaginationBar(
+                    state, notifier, isDark, theme),
                 const SizedBox(height: 32),
               ],
             ),
@@ -100,9 +102,14 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
         if (isDesktop && _selectedDrawerStudent == null)
           Container(
             width: 330,
-            padding: const EdgeInsets.only(top: 18, right: 24, left: 12, bottom: 24),
+            padding:
+                const EdgeInsets.only(top: 18, right: 24, left: 12, bottom: 24),
             decoration: BoxDecoration(
-              border: Border(left: BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0))),
+              border: Border(
+                  left: BorderSide(
+                      color: isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFE2E8F0))),
             ),
             child: SingleChildScrollView(
               child: Column(
@@ -154,7 +161,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -177,7 +185,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
                 ),
               ),
               const SizedBox(height: 6),
@@ -198,7 +208,10 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF1E293B) : Colors.white,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                    border: Border.all(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFCBD5E1)),
                   ),
                   child: Row(
                     children: [
@@ -208,11 +221,13 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                       ),
-                      const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF4F46E5)),
+                      const Icon(Icons.calendar_today_rounded,
+                          size: 14, color: Color(0xFF4F46E5)),
                     ],
                   ),
                 ),
@@ -228,9 +243,10 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
             }
           }
           final classList = uniqueClasses.values.toList();
-          final effectiveClassId = classList.any((c) => c.id == state.selectedClassId)
-              ? state.selectedClassId
-              : (classList.isNotEmpty ? classList.first.id : null);
+          final effectiveClassId =
+              classList.any((c) => c.id == state.selectedClassId)
+                  ? state.selectedClassId
+                  : (classList.isNotEmpty ? classList.first.id : null);
 
           final classField = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,7 +257,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
                 ),
               ),
               const SizedBox(height: 6),
@@ -251,18 +269,36 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF1E293B) : Colors.white,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFCBD5E1)),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: effectiveClassId,
                     isExpanded: true,
-                    icon: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                    hint: Text('Select Class', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                    icon: Icon(Icons.keyboard_arrow_down_rounded,
+                        size: 18,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B)),
+                    hint: Text('Select Class',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B))),
                     items: classList.map((c) {
                       return DropdownMenuItem<String>(
                         value: c.id,
-                        child: Text(c.name, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                        child: Text(c.name,
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A))),
                       );
                     }).toList(),
                     onChanged: (val) {
@@ -277,7 +313,10 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
           // 3. Section Dropdown
           final currentClass = classList.firstWhere(
             (c) => c.id == effectiveClassId,
-            orElse: () => classList.isNotEmpty ? classList.first : AcademicClassModel(id: '', name: 'Class 10', code: 'C10', stage: 'Secondary'),
+            orElse: () => classList.isNotEmpty
+                ? classList.first
+                : AcademicClassModel(
+                    id: '', name: 'Class 10', code: 'C10', stage: 'Secondary'),
           );
           final uniqueSections = <String, AcademicSectionModel>{};
           for (final s in currentClass.sections) {
@@ -286,9 +325,10 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
             }
           }
           final sectionList = uniqueSections.values.toList();
-          final effectiveSectionId = sectionList.any((s) => s.id == state.selectedSectionId)
-              ? state.selectedSectionId
-              : null;
+          final effectiveSectionId =
+              sectionList.any((s) => s.id == state.selectedSectionId)
+                  ? state.selectedSectionId
+                  : null;
 
           final sectionField = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -299,7 +339,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
                 ),
               ),
               const SizedBox(height: 6),
@@ -309,23 +351,43 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF1E293B) : Colors.white,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFCBD5E1)),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String?>(
                     value: effectiveSectionId,
                     isExpanded: true,
-                    icon: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                    hint: Text('All Sections', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                    icon: Icon(Icons.keyboard_arrow_down_rounded,
+                        size: 18,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B)),
+                    hint: Text('All Sections',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B))),
                     items: [
                       const DropdownMenuItem<String?>(
                         value: null,
-                        child: Text('All Sections', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        child: Text('All Sections',
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w600)),
                       ),
                       ...sectionList.map((s) {
                         return DropdownMenuItem<String?>(
                           value: s.id,
-                          child: Text(s.name, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                          child: Text(s.name,
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A))),
                         );
                       }),
                     ],
@@ -346,7 +408,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
                 ),
               ),
               const SizedBox(height: 6),
@@ -354,26 +418,37 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 tooltip: 'Select Attendance Mode',
                 onSelected: (mode) => notifier.setMode(mode),
                 offset: const Offset(0, 42),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
                 itemBuilder: (context) => [
                   PopupMenuItem(
                     value: AttendanceMode.allDay,
                     child: Row(
                       children: [
-                        const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF4F46E5)),
+                        const Icon(Icons.calendar_today_rounded,
+                            size: 16, color: Color(0xFF4F46E5)),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text('By Schedule (All Day)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                              Text('Mark for all periods of the day', style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                              const Text('By Schedule (All Day)',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700)),
+                              Text('Mark for all periods of the day',
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : const Color(0xFF64748B))),
                             ],
                           ),
                         ),
                         if (state.selectedMode == AttendanceMode.allDay)
-                          const Icon(Icons.check_rounded, size: 16, color: Color(0xFF4F46E5)),
+                          const Icon(Icons.check_rounded,
+                              size: 16, color: Color(0xFF4F46E5)),
                       ],
                     ),
                   ),
@@ -381,20 +456,30 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                     value: AttendanceMode.byPeriod,
                     child: Row(
                       children: [
-                        const Icon(Icons.schedule_rounded, size: 16, color: Color(0xFF3B82F6)),
+                        const Icon(Icons.schedule_rounded,
+                            size: 16, color: Color(0xFF3B82F6)),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text('By Period', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                              Text('Mark attendance for a specific period', style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                              const Text('By Period',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700)),
+                              Text('Mark attendance for a specific period',
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : const Color(0xFF64748B))),
                             ],
                           ),
                         ),
                         if (state.selectedMode == AttendanceMode.byPeriod)
-                          const Icon(Icons.check_rounded, size: 16, color: Color(0xFF4F46E5)),
+                          const Icon(Icons.check_rounded,
+                              size: 16, color: Color(0xFF4F46E5)),
                       ],
                     ),
                   ),
@@ -402,20 +487,31 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                     value: AttendanceMode.customSelection,
                     child: Row(
                       children: [
-                        const Icon(Icons.tune_rounded, size: 16, color: Color(0xFF8B5CF6)),
+                        const Icon(Icons.tune_rounded,
+                            size: 16, color: Color(0xFF8B5CF6)),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text('Custom Selection', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                              Text('Select multiple periods', style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                              const Text('Custom Selection',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700)),
+                              Text('Select multiple periods',
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : const Color(0xFF64748B))),
                             ],
                           ),
                         ),
-                        if (state.selectedMode == AttendanceMode.customSelection)
-                          const Icon(Icons.check_rounded, size: 16, color: Color(0xFF4F46E5)),
+                        if (state.selectedMode ==
+                            AttendanceMode.customSelection)
+                          const Icon(Icons.check_rounded,
+                              size: 16, color: Color(0xFF4F46E5)),
                       ],
                     ),
                   ),
@@ -426,7 +522,10 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF1E293B) : Colors.white,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                    border: Border.all(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFCBD5E1)),
                   ),
                   child: Row(
                     children: [
@@ -436,13 +535,18 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      Icon(Icons.keyboard_arrow_down_rounded,
+                          size: 18,
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B)),
                     ],
                   ),
                 ),
@@ -462,10 +566,13 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                     backgroundColor: const Color(0xFF4F46E5),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                     elevation: 0,
                   ),
-                  child: const Text('Load', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  child: const Text('Load',
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                 ),
               ),
               const SizedBox(width: 8),
@@ -474,12 +581,20 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 child: OutlinedButton(
                   onPressed: () => notifier.resetDrafts(),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
-                    side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                    foregroundColor: isDark
+                        ? const Color(0xFFCBD5E1)
+                        : const Color(0xFF64748B),
+                    side: BorderSide(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFCBD5E1)),
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
-                  child: const Text('Reset', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  child: const Text('Reset',
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                 ),
               ),
             ],
@@ -540,9 +655,12 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1B4B).withValues(alpha: 0.4) : const Color(0xFFEEF2FF),
+        color: isDark
+            ? const Color(0xFF1E1B4B).withValues(alpha: 0.4)
+            : const Color(0xFFEEF2FF),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isDark ? const Color(0xFF3730A3) : const Color(0xFFC7D2FE)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF3730A3) : const Color(0xFFC7D2FE)),
       ),
       child: Row(
         children: [
@@ -552,7 +670,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.info_outline_rounded, color: Color(0xFF4F46E5), size: 18),
+            child: const Icon(Icons.info_outline_rounded,
+                color: Color(0xFF4F46E5), size: 18),
           ),
           const SizedBox(width: 12),
           const Expanded(
@@ -562,7 +681,10 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               children: [
                 Text(
                   'All Day Mode Selected',
-                  style: TextStyle(color: Color(0xFF312E81), fontWeight: FontWeight.w700, fontSize: 12.5),
+                  style: TextStyle(
+                      color: Color(0xFF312E81),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5),
                 ),
                 SizedBox(height: 1),
                 Text(
@@ -579,7 +701,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               borderRadius: BorderRadius.circular(6),
               border: Border.all(color: const Color(0xFFC7D2FE)),
             ),
-            child: const Icon(Icons.lock_outline_rounded, size: 14, color: Color(0xFF4F46E5)),
+            child: const Icon(Icons.lock_outline_rounded,
+                size: 14, color: Color(0xFF4F46E5)),
           ),
         ],
       ),
@@ -603,17 +726,21 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+          border: Border.all(
+              color:
+                  isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
         ),
         child: Row(
           children: [
-            const Icon(Icons.info_outline_rounded, color: Color(0xFF3B82F6), size: 18),
+            const Icon(Icons.info_outline_rounded,
+                color: Color(0xFF3B82F6), size: 18),
             const SizedBox(width: 10),
             Text(
               'No Academic Calendar schedule found for this class on selected date.',
               style: TextStyle(
                 fontSize: 12,
-                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -627,7 +754,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -644,7 +772,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.schedule_rounded, size: 16, color: Color(0xFF3B82F6)),
+                  const Icon(Icons.schedule_rounded,
+                      size: 16, color: Color(0xFF3B82F6)),
                   const SizedBox(width: 8),
                   Text(
                     'Select Academic Period / Subject',
@@ -661,7 +790,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
                 ),
               ),
             ],
@@ -671,7 +802,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: schedules.map((sched) {
-                final isSelected = sched.periodNumber == state.selectedPeriodNumber;
+                final isSelected =
+                    sched.periodNumber == state.selectedPeriodNumber;
                 return Padding(
                   padding: const EdgeInsets.only(right: 10),
                   child: InkWell(
@@ -685,16 +817,23 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                     borderRadius: BorderRadius.circular(10),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? (isDark ? const Color(0xFF312E81).withValues(alpha: 0.5) : const Color(0xFFEEF2FF))
-                            : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+                            ? (isDark
+                                ? const Color(0xFF312E81).withValues(alpha: 0.5)
+                                : const Color(0xFFEEF2FF))
+                            : (isDark
+                                ? const Color(0xFF1E293B)
+                                : const Color(0xFFF8FAFC)),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: isSelected
                               ? const Color(0xFF4F46E5)
-                              : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                              : (isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFE2E8F0)),
                           width: isSelected ? 1.8 : 1.0,
                         ),
                       ),
@@ -702,7 +841,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 4),
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? const Color(0xFF4F46E5)
@@ -714,7 +854,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
-                                color: isSelected ? Colors.white : sched.subjectColor,
+                                color: isSelected
+                                    ? Colors.white
+                                    : sched.subjectColor,
                               ),
                             ),
                           ),
@@ -729,20 +871,32 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                                     sched.subjectName,
                                     style: TextStyle(
                                       fontSize: 12,
-                                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w800
+                                          : FontWeight.w700,
                                       color: isSelected
-                                          ? (isDark ? Colors.white : const Color(0xFF312E81))
-                                          : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                                          ? (isDark
+                                              ? Colors.white
+                                              : const Color(0xFF312E81))
+                                          : (isDark
+                                              ? Colors.white
+                                              : const Color(0xFF0F172A)),
                                     ),
                                   ),
-                                  if (state.selectedSectionId == null && sched.sectionName != null && sched.sectionName!.isNotEmpty) ...[
+                                  if (state.selectedSectionId == null &&
+                                      sched.sectionName != null &&
+                                      sched.sectionName!.isNotEmpty) ...[
                                     const SizedBox(width: 6),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 5, vertical: 1.5),
                                       decoration: BoxDecoration(
                                         color: isSelected
-                                            ? const Color(0xFF4F46E5).withValues(alpha: 0.2)
-                                            : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                            ? const Color(0xFF4F46E5)
+                                                .withValues(alpha: 0.2)
+                                            : (isDark
+                                                ? const Color(0xFF334155)
+                                                : const Color(0xFFE2E8F0)),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
@@ -751,15 +905,20 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                                           fontSize: 9,
                                           fontWeight: FontWeight.w700,
                                           color: isSelected
-                                              ? (isDark ? Colors.white : const Color(0xFF312E81))
-                                              : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                                              ? (isDark
+                                                  ? Colors.white
+                                                  : const Color(0xFF312E81))
+                                              : (isDark
+                                                  ? const Color(0xFF94A3B8)
+                                                  : const Color(0xFF475569)),
                                         ),
                                       ),
                                     ),
                                   ],
                                   if (sched.isCompleted) ...[
                                     const SizedBox(width: 6),
-                                    const Icon(Icons.check_circle_rounded, size: 13, color: Color(0xFF10B981)),
+                                    const Icon(Icons.check_circle_rounded,
+                                        size: 13, color: Color(0xFF10B981)),
                                   ],
                                 ],
                               ),
@@ -770,7 +929,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                                     sched.timeRange,
                                     style: TextStyle(
                                       fontSize: 10.5,
-                                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                      color: isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : const Color(0xFF64748B),
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -779,7 +940,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                                     '• ${sched.teacherName}',
                                     style: TextStyle(
                                       fontSize: 10.5,
-                                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                      color: isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : const Color(0xFF64748B),
                                     ),
                                   ),
                                 ],
@@ -788,7 +951,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                           ),
                           if (isSelected) ...[
                             const SizedBox(width: 8),
-                            const Icon(Icons.radio_button_checked_rounded, size: 16, color: Color(0xFF4F46E5)),
+                            const Icon(Icons.radio_button_checked_rounded,
+                                size: 16, color: Color(0xFF4F46E5)),
                           ],
                         ],
                       ),
@@ -813,15 +977,22 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
     ThemeData theme,
   ) {
     final schedules = state.schedulesToday;
-    final selectedCount = schedules.where((s) => state.selectedScheduleIds.contains(s.id) || (s.scheduleId != null && state.selectedScheduleIds.contains(s.scheduleId))).length;
-    final allSelected = schedules.isNotEmpty && selectedCount == schedules.length;
+    final selectedCount = schedules
+        .where((s) =>
+            state.selectedScheduleIds.contains(s.id) ||
+            (s.scheduleId != null &&
+                state.selectedScheduleIds.contains(s.scheduleId)))
+        .length;
+    final allSelected =
+        schedules.isNotEmpty && selectedCount == schedules.length;
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -838,7 +1009,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.tune_rounded, size: 16, color: Color(0xFF8B5CF6)),
+                  const Icon(Icons.tune_rounded,
+                      size: 16, color: Color(0xFF8B5CF6)),
                   const SizedBox(width: 8),
                   Text(
                     'Custom Selection: Choose Target Periods',
@@ -850,14 +1022,18 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                   ),
                   const SizedBox(width: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       '$selectedCount of ${schedules.length} Selected',
-                      style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFF7C3AED)),
+                      style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF7C3AED)),
                     ),
                   ),
                 ],
@@ -866,11 +1042,18 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 children: [
                   TextButton.icon(
                     onPressed: () => notifier.selectAllSchedules(!allSelected),
-                    icon: Icon(allSelected ? Icons.deselect_rounded : Icons.select_all_rounded, size: 14),
-                    label: Text(allSelected ? 'Deselect All' : 'Select All', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                    icon: Icon(
+                        allSelected
+                            ? Icons.deselect_rounded
+                            : Icons.select_all_rounded,
+                        size: 14),
+                    label: Text(allSelected ? 'Deselect All' : 'Select All',
+                        style: const TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w700)),
                     style: TextButton.styleFrom(
                       foregroundColor: const Color(0xFF7C3AED),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                     ),
                   ),
                 ],
@@ -883,7 +1066,11 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
                 'No Academic Calendar schedule found for this class on selected date.',
-                style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                style: TextStyle(
+                    fontSize: 12,
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B)),
               ),
             )
           else
@@ -891,8 +1078,10 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: schedules.map((sched) {
-                  final isChecked = state.selectedScheduleIds.contains(sched.id) ||
-                      (sched.scheduleId != null && state.selectedScheduleIds.contains(sched.scheduleId));
+                  final isChecked = state.selectedScheduleIds
+                          .contains(sched.id) ||
+                      (sched.scheduleId != null &&
+                          state.selectedScheduleIds.contains(sched.scheduleId));
 
                   return Padding(
                     padding: const EdgeInsets.only(right: 10),
@@ -901,16 +1090,24 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                       borderRadius: BorderRadius.circular(10),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           color: isChecked
-                              ? (isDark ? const Color(0xFF581C87).withValues(alpha: 0.3) : const Color(0xFFFAF5FF))
-                              : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+                              ? (isDark
+                                  ? const Color(0xFF581C87)
+                                      .withValues(alpha: 0.3)
+                                  : const Color(0xFFFAF5FF))
+                              : (isDark
+                                  ? const Color(0xFF1E293B)
+                                  : const Color(0xFFF8FAFC)),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: isChecked
                                 ? const Color(0xFF8B5CF6)
-                                : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                : (isDark
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFE2E8F0)),
                             width: isChecked ? 1.6 : 1.0,
                           ),
                         ),
@@ -919,17 +1116,22 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                           children: [
                             Checkbox(
                               value: isChecked,
-                              onChanged: (_) => notifier.toggleScheduleSelection(sched.id),
+                              onChanged: (_) =>
+                                  notifier.toggleScheduleSelection(sched.id),
                               activeColor: const Color(0xFF8B5CF6),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4)),
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
                               visualDensity: VisualDensity.compact,
                             ),
                             const SizedBox(width: 4),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 3),
                               decoration: BoxDecoration(
-                                color: sched.subjectColor.withValues(alpha: 0.15),
+                                color:
+                                    sched.subjectColor.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -952,24 +1154,36 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                                       sched.subjectName,
                                       style: TextStyle(
                                         fontSize: 11.5,
-                                        fontWeight: isChecked ? FontWeight.w800 : FontWeight.w700,
-                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                        fontWeight: isChecked
+                                            ? FontWeight.w800
+                                            : FontWeight.w700,
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
                                       ),
                                     ),
-                                    if (state.selectedSectionId == null && sched.sectionName != null && sched.sectionName!.isNotEmpty) ...[
+                                    if (state.selectedSectionId == null &&
+                                        sched.sectionName != null &&
+                                        sched.sectionName!.isNotEmpty) ...[
                                       const SizedBox(width: 5),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 4.5, vertical: 1),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 4.5, vertical: 1),
                                         decoration: BoxDecoration(
-                                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                                          borderRadius: BorderRadius.circular(3),
+                                          color: isDark
+                                              ? const Color(0xFF334155)
+                                              : const Color(0xFFE2E8F0),
+                                          borderRadius:
+                                              BorderRadius.circular(3),
                                         ),
                                         child: Text(
                                           'Sec ${sched.sectionName}',
                                           style: TextStyle(
                                             fontSize: 8.5,
                                             fontWeight: FontWeight.w700,
-                                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                                            color: isDark
+                                                ? const Color(0xFF94A3B8)
+                                                : const Color(0xFF475569),
                                           ),
                                         ),
                                       ),
@@ -980,7 +1194,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                                   '${sched.timeRange} • ${sched.teacherName}',
                                   style: TextStyle(
                                     fontSize: 10,
-                                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B),
                                   ),
                                 ),
                               ],
@@ -997,19 +1213,25 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E1B4B).withValues(alpha: 0.3) : const Color(0xFFF5F3FF),
+              color: isDark
+                  ? const Color(0xFF1E1B4B).withValues(alpha: 0.3)
+                  : const Color(0xFFF5F3FF),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Row(
               children: [
-                const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF8B5CF6)),
+                const Icon(Icons.info_outline_rounded,
+                    size: 14, color: Color(0xFF8B5CF6)),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     selectedCount > 0
                         ? 'Attendance saved below will be simultaneously applied across all $selectedCount selected periods.'
                         : 'Please select at least 1 period above to mark attendance.',
-                    style: const TextStyle(fontSize: 10.5, color: Color(0xFF6D28D9), fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                        fontSize: 10.5,
+                        color: Color(0xFF6D28D9),
+                        fontWeight: FontWeight.w500),
                   ),
                 ),
               ],
@@ -1035,10 +1257,12 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
           ? state.availableClasses.first
           : AcademicClassModel(id: '', name: 'Class', code: '', stage: ''),
     );
-    final className = selectedClass.name.isNotEmpty ? selectedClass.name : 'Class';
+    final className =
+        selectedClass.name.isNotEmpty ? selectedClass.name : 'Class';
     String sectionName = '';
     if (state.selectedSectionId != null && selectedClass.sections.isNotEmpty) {
-      final foundSection = selectedClass.sections.where((s) => s.id == state.selectedSectionId);
+      final foundSection =
+          selectedClass.sections.where((s) => s.id == state.selectedSectionId);
       if (foundSection.isNotEmpty) {
         sectionName = foundSection.first.name;
       }
@@ -1048,11 +1272,31 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
         : (sectionName.isNotEmpty ? '$className - $sectionName' : className);
 
     final total = state.totalCount > 0 ? state.totalCount : state.roster.length;
-    final present = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.present).length;
-    final absent = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.absent).length;
-    final lateCount = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.late).length;
-    final onLeave = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.onLeave).length;
-    final halfDay = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.halfDay).length;
+    final present = state.roster
+        .where((s) =>
+            (state.draftStatuses[s.studentId] ?? s.status) ==
+            AttendanceStatus.present)
+        .length;
+    final absent = state.roster
+        .where((s) =>
+            (state.draftStatuses[s.studentId] ?? s.status) ==
+            AttendanceStatus.absent)
+        .length;
+    final lateCount = state.roster
+        .where((s) =>
+            (state.draftStatuses[s.studentId] ?? s.status) ==
+            AttendanceStatus.late)
+        .length;
+    final onLeave = state.roster
+        .where((s) =>
+            (state.draftStatuses[s.studentId] ?? s.status) ==
+            AttendanceStatus.onLeave)
+        .length;
+    final halfDay = state.roster
+        .where((s) =>
+            (state.draftStatuses[s.studentId] ?? s.status) ==
+            AttendanceStatus.halfDay)
+        .length;
 
     return Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -1072,22 +1316,28 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
         const SizedBox(width: 6),
 
         // Total Students Pill
-        _buildStatPill('Total Students: $total', const Color(0xFF64748B), isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+        _buildStatPill('Total Students: $total', const Color(0xFF64748B),
+            isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
 
         // Present Pill
-        _buildStatPill('Present: $present', const Color(0xFF15803D), const Color(0xFFECFDF5)),
+        _buildStatPill('Present: $present', const Color(0xFF15803D),
+            const Color(0xFFECFDF5)),
 
         // Absent Pill
-        _buildStatPill('Absent: $absent', const Color(0xFFB91C1C), const Color(0xFFFEF2F2)),
+        _buildStatPill('Absent: $absent', const Color(0xFFB91C1C),
+            const Color(0xFFFEF2F2)),
 
         // Late Pill
-        _buildStatPill('Late: $lateCount', const Color(0xFFB45309), const Color(0xFFFFFBEB)),
+        _buildStatPill('Late: $lateCount', const Color(0xFFB45309),
+            const Color(0xFFFFFBEB)),
 
         // On Leave Pill
-        _buildStatPill('On Leave: $onLeave', const Color(0xFF1D4ED8), const Color(0xFFEFF6FF)),
+        _buildStatPill('On Leave: $onLeave', const Color(0xFF1D4ED8),
+            const Color(0xFFEFF6FF)),
 
         if (halfDay > 0)
-          _buildStatPill('Half Day: $halfDay', const Color(0xFF6B21A8), const Color(0xFFFAF5FF)),
+          _buildStatPill('Half Day: $halfDay', const Color(0xFF6B21A8),
+              const Color(0xFFFAF5FF)),
       ],
     );
   }
@@ -1124,11 +1374,19 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
       child: TextField(
         controller: _searchController,
         onChanged: (val) => notifier.setSearch(val),
-        style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+        style: TextStyle(
+            fontSize: 12.5,
+            color: isDark ? Colors.white : const Color(0xFF0F172A)),
         decoration: InputDecoration(
           hintText: 'Search by student name, roll no, admission no...',
-          hintStyle: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
-          prefixIcon: Icon(Icons.search_rounded, size: 17, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+          hintStyle: TextStyle(
+              fontSize: 12,
+              color:
+                  isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+          prefixIcon: Icon(Icons.search_rounded,
+              size: 17,
+              color:
+                  isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.clear_rounded, size: 15),
@@ -1138,12 +1396,15 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                   },
                 )
               : null,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           filled: true,
           fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+            borderSide: BorderSide(
+                color:
+                    isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
@@ -1225,51 +1486,67 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
 
         // Quick Mark: Mark Present (Selected / All)
         ElevatedButton.icon(
-          onPressed: () => _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.present, hasSelection),
+          onPressed: () => _handleBulkMarkAttendance(
+              context, state, notifier, AttendanceStatus.present, hasSelection),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF10B981),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             elevation: 0,
           ),
-          icon: Icon(hasSelection ? Icons.check_circle_outline_rounded : Icons.done_all_rounded, size: 15),
+          icon: Icon(
+              hasSelection
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.done_all_rounded,
+              size: 15),
           label: Text(
-            hasSelection ? 'Mark Selected Present ($selectedCount)' : 'Mark All Present',
+            hasSelection
+                ? 'Mark Selected Present ($selectedCount)'
+                : 'Mark All Present',
             style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
           ),
         ),
 
         // Quick Mark: Mark Absent (Selected / All)
         ElevatedButton.icon(
-          onPressed: () => _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.absent, hasSelection),
+          onPressed: () => _handleBulkMarkAttendance(
+              context, state, notifier, AttendanceStatus.absent, hasSelection),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFEF4444),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             elevation: 0,
           ),
           icon: const Icon(Icons.cancel_outlined, size: 15),
           label: Text(
-            hasSelection ? 'Mark Selected Absent ($selectedCount)' : 'Mark All Absent',
+            hasSelection
+                ? 'Mark Selected Absent ($selectedCount)'
+                : 'Mark All Absent',
             style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
           ),
         ),
 
         // Quick Mark: Mark Late (Selected / All)
         OutlinedButton.icon(
-          onPressed: () => _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.late, hasSelection),
+          onPressed: () => _handleBulkMarkAttendance(
+              context, state, notifier, AttendanceStatus.late, hasSelection),
           style: OutlinedButton.styleFrom(
             foregroundColor: const Color(0xFFD97706),
             backgroundColor: const Color(0xFFFFFBEB),
             side: const BorderSide(color: Color(0xFFFDE68A)),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
           icon: const Icon(Icons.watch_later_outlined, size: 15),
           label: Text(
-            hasSelection ? 'Mark Selected Late ($selectedCount)' : 'Mark All Late',
+            hasSelection
+                ? 'Mark Selected Late ($selectedCount)'
+                : 'Mark All Late',
             style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
           ),
         ),
@@ -1278,9 +1555,14 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
         PopupMenuButton<String>(
           tooltip: 'More Bulk Actions',
           onSelected: (val) {
-            if (val == 'leave') _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.onLeave, hasSelection);
-            if (val == 'half') _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.halfDay, hasSelection);
-            if (val == 'remark') _showBulkRemarksDialog(state, notifier, hasSelection);
+            if (val == 'leave')
+              _handleBulkMarkAttendance(context, state, notifier,
+                  AttendanceStatus.onLeave, hasSelection);
+            if (val == 'half')
+              _handleBulkMarkAttendance(context, state, notifier,
+                  AttendanceStatus.halfDay, hasSelection);
+            if (val == 'remark')
+              _showBulkRemarksDialog(state, notifier, hasSelection);
             if (val == 'deselect') notifier.selectAllStudents(false);
             if (val == 'reset') notifier.resetDrafts();
           },
@@ -1289,10 +1571,13 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               value: 'leave',
               child: Row(
                 children: [
-                  const Icon(Icons.event_busy_rounded, size: 16, color: Color(0xFF8B5CF6)),
+                  const Icon(Icons.event_busy_rounded,
+                      size: 16, color: Color(0xFF8B5CF6)),
                   const SizedBox(width: 8),
                   Text(
-                    hasSelection ? 'Mark Selected On Leave ($selectedCount)' : 'Mark All On Leave',
+                    hasSelection
+                        ? 'Mark Selected On Leave ($selectedCount)'
+                        : 'Mark All On Leave',
                     style: const TextStyle(fontSize: 12),
                   ),
                 ],
@@ -1302,10 +1587,13 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               value: 'half',
               child: Row(
                 children: [
-                  const Icon(Icons.pie_chart_rounded, size: 16, color: Color(0xFF6366F1)),
+                  const Icon(Icons.pie_chart_rounded,
+                      size: 16, color: Color(0xFF6366F1)),
                   const SizedBox(width: 8),
                   Text(
-                    hasSelection ? 'Mark Selected Half Day ($selectedCount)' : 'Mark All Half Day',
+                    hasSelection
+                        ? 'Mark Selected Half Day ($selectedCount)'
+                        : 'Mark All Half Day',
                     style: const TextStyle(fontSize: 12),
                   ),
                 ],
@@ -1315,10 +1603,13 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               value: 'remark',
               child: Row(
                 children: [
-                  const Icon(Icons.edit_note_rounded, size: 16, color: Color(0xFF0284C7)),
+                  const Icon(Icons.edit_note_rounded,
+                      size: 16, color: Color(0xFF0284C7)),
                   const SizedBox(width: 8),
                   Text(
-                    hasSelection ? 'Add Remark to Selected ($selectedCount)' : 'Add Remark to All',
+                    hasSelection
+                        ? 'Add Remark to Selected ($selectedCount)'
+                        : 'Add Remark to All',
                     style: const TextStyle(fontSize: 12),
                   ),
                 ],
@@ -1330,9 +1621,11 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 value: 'deselect',
                 child: Row(
                   children: [
-                    const Icon(Icons.close_rounded, size: 16, color: Color(0xFF64748B)),
+                    const Icon(Icons.close_rounded,
+                        size: 16, color: Color(0xFF64748B)),
                     const SizedBox(width: 8),
-                    Text('Deselect All ($selectedCount)', style: const TextStyle(fontSize: 12)),
+                    Text('Deselect All ($selectedCount)',
+                        style: const TextStyle(fontSize: 12)),
                   ],
                 ),
               ),
@@ -1342,9 +1635,11 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               value: 'reset',
               child: Row(
                 children: [
-                  Icon(Icons.restore_rounded, size: 16, color: Color(0xFF94A3B8)),
+                  Icon(Icons.restore_rounded,
+                      size: 16, color: Color(0xFF94A3B8)),
                   SizedBox(width: 8),
-                  Text('Reset Drafts to Saved Status', style: TextStyle(fontSize: 12)),
+                  Text('Reset Drafts to Saved Status',
+                      style: TextStyle(fontSize: 12)),
                 ],
               ),
             ),
@@ -1355,7 +1650,10 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : Colors.white,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFE2E8F0)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1365,11 +1663,17 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                    color: isDark
+                        ? const Color(0xFFCBD5E1)
+                        : const Color(0xFF475569),
                   ),
                 ),
                 const SizedBox(width: 4),
-                Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                Icon(Icons.keyboard_arrow_down_rounded,
+                    size: 16,
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B)),
               ],
             ),
           ),
@@ -1402,8 +1706,10 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
     );
   }
 
-  void _showBulkRemarksDialog(AttendanceState state, AttendanceNotifier notifier, bool hasSelection) {
-    final count = hasSelection ? state.selectedStudentIds.length : state.roster.length;
+  void _showBulkRemarksDialog(
+      AttendanceState state, AttendanceNotifier notifier, bool hasSelection) {
+    final count =
+        hasSelection ? state.selectedStudentIds.length : state.roster.length;
     final textController = TextEditingController();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -1413,7 +1719,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Row(
           children: [
-            const Icon(Icons.edit_note_rounded, color: Color(0xFF4F46E5), size: 22),
+            const Icon(Icons.edit_note_rounded,
+                color: Color(0xFF4F46E5), size: 22),
             const SizedBox(width: 8),
             Text(
               'Add Remarks for $count ${count == 1 ? "Student" : "Students"}',
@@ -1431,7 +1738,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 'This remark will be applied to ${hasSelection ? "the $count selected students" : "all $count students in this roster"}.',
                 style: TextStyle(
                   fontSize: 12,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
                 ),
               ),
               const SizedBox(height: 12),
@@ -1440,8 +1749,10 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 maxLines: 3,
                 style: const TextStyle(fontSize: 13),
                 decoration: InputDecoration(
-                  hintText: 'e.g. Participated in sports event / Medical excuse / Late due to rain...',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  hintText:
+                      'e.g. Participated in sports event / Medical excuse / Late due to rain...',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
                   contentPadding: const EdgeInsets.all(12),
                 ),
               ),
@@ -1464,7 +1775,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF4F46E5),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('Apply Remarks'),
           ),
@@ -1489,7 +1801,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF0F172A) : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+          border: Border.all(
+              color:
+                  isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
         ),
         child: const CircularProgressIndicator(color: Color(0xFF4F46E5)),
       );
@@ -1503,11 +1817,14 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF0F172A) : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+          border: Border.all(
+              color:
+                  isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
         ),
         child: Column(
           children: [
-            const Icon(Icons.people_outline_rounded, size: 48, color: Colors.grey),
+            const Icon(Icons.people_outline_rounded,
+                size: 48, color: Colors.grey),
             const SizedBox(height: 12),
             Text(
               'No students found for the selected class/section',
@@ -1522,13 +1839,15 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
       );
     }
 
-    final isAllSelected = roster.isNotEmpty && state.selectedStudentIds.length == roster.length;
+    final isAllSelected =
+        roster.isNotEmpty && state.selectedStudentIds.length == roster.length;
 
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -1544,7 +1863,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
             // Table Header Row
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.5) : const Color(0xFFF8FAFC),
+              color: isDark
+                  ? const Color(0xFF1E293B).withValues(alpha: 0.5)
+                  : const Color(0xFFF8FAFC),
               child: Row(
                 children: [
                   SizedBox(
@@ -1552,7 +1873,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                     height: 28,
                     child: Checkbox(
                       value: isAllSelected,
-                      onChanged: (val) => notifier.selectAllStudents(val ?? false),
+                      onChanged: (val) =>
+                          notifier.selectAllStudents(val ?? false),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
@@ -1564,7 +1886,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 11.5,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                       ),
                     ),
                   ),
@@ -1575,7 +1899,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 11.5,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                       ),
                     ),
                   ),
@@ -1583,14 +1909,17 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                     flex: 4,
                     child: Row(
                       children: [
-                        const Icon(Icons.view_timeline_rounded, size: 14, color: Color(0xFF6366F1)),
+                        const Icon(Icons.view_timeline_rounded,
+                            size: 14, color: Color(0xFF6366F1)),
                         const SizedBox(width: 5),
                         Text(
                           'Periods Breakdown',
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 11.5,
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ],
@@ -1603,7 +1932,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 11.5,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                       ),
                     ),
                   ),
@@ -1614,7 +1945,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 11.5,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                       ),
                     ),
                   ),
@@ -1625,7 +1958,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 11.5,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                       ),
                     ),
                   ),
@@ -1633,24 +1968,38 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 ],
               ),
             ),
-            Divider(height: 1, color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+            Divider(
+                height: 1,
+                color:
+                    isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
 
             // Student Rows
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: roster.length,
-              separatorBuilder: (_, __) => Divider(height: 1, color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+              separatorBuilder: (_, __) => Divider(
+                  height: 1,
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF1F5F9)),
               itemBuilder: (context, index) {
                 final student = roster[index];
-                final currentStatus = state.draftStatuses[student.studentId] ?? student.status;
-                final isSelected = state.selectedStudentIds.contains(student.studentId);
-                final rollStr = student.rollNumber.isNotEmpty ? student.rollNumber : '${index + 1}';
+                final currentStatus =
+                    state.draftStatuses[student.studentId] ?? student.status;
+                final isSelected =
+                    state.selectedStudentIds.contains(student.studentId);
+                final rollStr = student.rollNumber.isNotEmpty
+                    ? student.rollNumber
+                    : '${index + 1}';
 
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   color: isSelected
-                      ? (isDark ? const Color(0xFF1E1B4B).withValues(alpha: 0.4) : const Color(0xFFEEF2FF))
+                      ? (isDark
+                          ? const Color(0xFF1E1B4B).withValues(alpha: 0.4)
+                          : const Color(0xFFEEF2FF))
                       : Colors.transparent,
                   child: Row(
                     children: [
@@ -1660,8 +2009,10 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                         height: 28,
                         child: Checkbox(
                           value: isSelected,
-                          onChanged: (_) => notifier.toggleStudentSelection(student.studentId),
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          onChanged: (_) => notifier
+                              .toggleStudentSelection(student.studentId),
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -1674,7 +2025,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 12.5,
-                            color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                            color: isDark
+                                ? const Color(0xFFCBD5E1)
+                                : const Color(0xFF334155),
                           ),
                         ),
                       ),
@@ -1694,16 +2047,26 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                                 height: 32,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
-                                  border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.2)),
+                                  color: const Color(0xFF4F46E5)
+                                      .withValues(alpha: 0.12),
+                                  border: Border.all(
+                                      color: const Color(0xFF4F46E5)
+                                          .withValues(alpha: 0.2)),
                                 ),
                                 child: ClipOval(
                                   child: student.avatarUrl != null
-                                      ? Image.network(student.avatarUrl!, fit: BoxFit.cover)
+                                      ? Image.network(student.avatarUrl!,
+                                          fit: BoxFit.cover)
                                       : Center(
                                           child: Text(
-                                            student.fullName.isNotEmpty ? student.fullName[0].toUpperCase() : 'S',
-                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF4F46E5)),
+                                            student.fullName.isNotEmpty
+                                                ? student.fullName[0]
+                                                    .toUpperCase()
+                                                : 'S',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12,
+                                                color: Color(0xFF4F46E5)),
                                           ),
                                         ),
                                 ),
@@ -1715,7 +2078,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                                   style: TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 12.5,
-                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F172A),
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -1729,7 +2094,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                       // Periods Attendance Breakdown (Interactive Period Chips)
                       Expanded(
                         flex: 4,
-                        child: _buildStudentPeriodsCell(student, state, notifier, isDark),
+                        child: _buildStudentPeriodsCell(
+                            student, state, notifier, isDark),
                       ),
 
                       // Interactive Status Pill (with 1-click mode-aware dropdown & rich hover breakdown)
@@ -1737,14 +2103,16 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                         flex: 3,
                         child: Align(
                           alignment: Alignment.centerLeft,
-                          child: _buildInteractiveStatusPill(student, currentStatus, state, notifier, isDark),
+                          child: _buildInteractiveStatusPill(
+                              student, currentStatus, state, notifier, isDark),
                         ),
                       ),
 
                       // Remarks Field / Interactive Editable Box
                       Expanded(
                         flex: 3,
-                        child: _buildEditableRemarksCell(student, state, notifier, isDark),
+                        child: _buildEditableRemarksCell(
+                            student, state, notifier, isDark),
                       ),
 
                       // Last Updated (09:15 AM by Neha Sharma)
@@ -1761,14 +2129,18 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                               style: TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w600,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A),
                               ),
                             ),
                             Text(
                               'by ${student.updatedByName ?? "Neha Sharma"}',
                               style: TextStyle(
                                 fontSize: 10,
-                                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                color: isDark
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF64748B),
                               ),
                             ),
                           ],
@@ -1777,17 +2149,25 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
 
                       // Row Action Menu ⋮
                       PopupMenuButton<String>(
-                        icon: Icon(Icons.more_vert_rounded, size: 18, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                        icon: Icon(Icons.more_vert_rounded,
+                            size: 18,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B)),
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        constraints:
+                            const BoxConstraints(minWidth: 28, minHeight: 28),
                         onSelected: (val) {
                           if (val == 'view') {
                             setState(() => _selectedDrawerStudent = student);
                           } else if (val == 'remark') {
-                            final curRem = state.draftRemarks[student.studentId] ?? student.remarks;
+                            final curRem =
+                                state.draftRemarks[student.studentId] ??
+                                    student.remarks;
                             _showEditRemarkDialog(student, curRem, notifier);
                           } else if (val == 'override') {
-                            _showOverrideDialog(student, currentStatus, notifier);
+                            _showOverrideDialog(
+                                student, currentStatus, notifier);
                           }
                         },
                         itemBuilder: (context) => [
@@ -1795,9 +2175,11 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                             value: 'view',
                             child: Row(
                               children: [
-                                Icon(Icons.visibility_rounded, size: 16, color: Color(0xFF4F46E5)),
+                                Icon(Icons.visibility_rounded,
+                                    size: 16, color: Color(0xFF4F46E5)),
                                 SizedBox(width: 8),
-                                Text('View Details & History', style: TextStyle(fontSize: 12)),
+                                Text('View Details & History',
+                                    style: TextStyle(fontSize: 12)),
                               ],
                             ),
                           ),
@@ -1805,9 +2187,11 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                             value: 'remark',
                             child: Row(
                               children: [
-                                Icon(Icons.edit_note_rounded, size: 16, color: Color(0xFF6366F1)),
+                                Icon(Icons.edit_note_rounded,
+                                    size: 16, color: Color(0xFF6366F1)),
                                 SizedBox(width: 8),
-                                Text('Add / Edit Remark', style: TextStyle(fontSize: 12)),
+                                Text('Add / Edit Remark',
+                                    style: TextStyle(fontSize: 12)),
                               ],
                             ),
                           ),
@@ -1815,9 +2199,11 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                             value: 'override',
                             child: Row(
                               children: [
-                                Icon(Icons.lock_reset_rounded, size: 16, color: Color(0xFFD97706)),
+                                Icon(Icons.lock_reset_rounded,
+                                    size: 16, color: Color(0xFFD97706)),
                                 SizedBox(width: 8),
-                                Text('Override Lock with Reason', style: TextStyle(fontSize: 12)),
+                                Text('Override Lock with Reason',
+                                    style: TextStyle(fontSize: 12)),
                               ],
                             ),
                           ),
@@ -1866,8 +2252,10 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: student.periods.map((period) {
-          final isSelectedInMulti = state.selectedScheduleIds.contains(period.scheduleId) ||
-              (period.subjectId != null && state.selectedScheduleIds.contains(period.subjectId));
+          final isSelectedInMulti =
+              state.selectedScheduleIds.contains(period.scheduleId) ||
+                  (period.subjectId != null &&
+                      state.selectedScheduleIds.contains(period.subjectId));
 
           Color statusColor;
           IconData statusIcon;
@@ -1893,7 +2281,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               statusIcon = Icons.pie_chart_rounded;
               break;
             default:
-              statusColor = isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
+              statusColor =
+                  isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
               statusIcon = Icons.remove_circle_outline_rounded;
           }
 
@@ -1912,13 +2301,20 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               decoration: BoxDecoration(
                 color: const Color(0xFF0F172A),
                 borderRadius: BorderRadius.circular(8),
-                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
+                boxShadow: const [
+                  BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 4,
+                      offset: Offset(0, 2))
+                ],
               ),
-              textStyle: const TextStyle(fontSize: 11, color: Colors.white, height: 1.3),
+              textStyle: const TextStyle(
+                  fontSize: 11, color: Colors.white, height: 1.3),
               child: PopupMenuButton<AttendanceStatus>(
                 tooltip: '',
                 offset: const Offset(0, 28),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
                 onSelected: (newStatus) {
                   if (period.isLocked) {
                     _showOverridePeriodDialog(
@@ -1945,37 +2341,61 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                       children: [
                         Text(
                           '${period.periodLabel}: ${period.subjectName}',
-                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                          style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A)),
                         ),
                         Text(
                           '${student.fullName} • ${period.timeRange}',
-                          style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                          style: const TextStyle(
+                              fontSize: 10, color: Color(0xFF64748B)),
                         ),
                         const Divider(height: 12),
                       ],
                     ),
                   ),
-                  _buildStatusMenuItem(AttendanceStatus.present, 'Mark Present', Icons.check_circle_rounded, const Color(0xFF10B981)),
-                  _buildStatusMenuItem(AttendanceStatus.absent, 'Mark Absent', Icons.cancel_rounded, const Color(0xFFEF4444)),
-                  _buildStatusMenuItem(AttendanceStatus.late, 'Mark Late', Icons.watch_later_rounded, const Color(0xFFF59E0B)),
-                  _buildStatusMenuItem(AttendanceStatus.onLeave, 'Mark On Leave', Icons.event_busy_rounded, const Color(0xFF8B5CF6)),
-                  _buildStatusMenuItem(AttendanceStatus.halfDay, 'Mark Half Day', Icons.pie_chart_rounded, const Color(0xFF6366F1)),
-                  _buildStatusMenuItem(AttendanceStatus.notMarked, 'Reset (Not Marked)', Icons.remove_circle_outline_rounded, const Color(0xFF94A3B8)),
+                  _buildStatusMenuItem(AttendanceStatus.present, 'Mark Present',
+                      Icons.check_circle_rounded, const Color(0xFF10B981)),
+                  _buildStatusMenuItem(AttendanceStatus.absent, 'Mark Absent',
+                      Icons.cancel_rounded, const Color(0xFFEF4444)),
+                  _buildStatusMenuItem(AttendanceStatus.late, 'Mark Late',
+                      Icons.watch_later_rounded, const Color(0xFFF59E0B)),
+                  _buildStatusMenuItem(
+                      AttendanceStatus.onLeave,
+                      'Mark On Leave',
+                      Icons.event_busy_rounded,
+                      const Color(0xFF8B5CF6)),
+                  _buildStatusMenuItem(
+                      AttendanceStatus.halfDay,
+                      'Mark Half Day',
+                      Icons.pie_chart_rounded,
+                      const Color(0xFF6366F1)),
+                  _buildStatusMenuItem(
+                      AttendanceStatus.notMarked,
+                      'Reset (Not Marked)',
+                      Icons.remove_circle_outline_rounded,
+                      const Color(0xFF94A3B8)),
                 ],
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
                   decoration: BoxDecoration(
                     color: period.status != AttendanceStatus.notMarked
                         ? statusColor.withValues(alpha: isDark ? 0.2 : 0.1)
-                        : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+                        : (isDark
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFFF8FAFC)),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
                       color: isSelectedInMulti
                           ? const Color(0xFF8B5CF6)
                           : (period.status != AttendanceStatus.notMarked
                               ? statusColor.withValues(alpha: 0.5)
-                              : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                              : (isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFE2E8F0))),
                       width: isSelectedInMulti ? 1.6 : 1.0,
                     ),
                   ),
@@ -1996,7 +2416,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                         style: TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
                       const SizedBox(width: 4),
@@ -2007,7 +2428,11 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                       ),
                       if (period.isLocked) ...[
                         const SizedBox(width: 2),
-                        Icon(Icons.lock_rounded, size: 9, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                        Icon(Icons.lock_rounded,
+                            size: 9,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B)),
                       ],
                     ],
                   ),
@@ -2039,8 +2464,11 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
 
     AttendanceStatus effectiveStatus;
     if (state.selectedMode == AttendanceMode.byPeriod) {
-      final activePNum = state.selectedPeriodNumber ?? (student.periods.isNotEmpty ? student.periods.first.periodNumber : 1);
-      final activeP = student.periods.where((p) => p.periodNumber == activePNum).firstOrNull;
+      final activePNum = state.selectedPeriodNumber ??
+          (student.periods.isNotEmpty ? student.periods.first.periodNumber : 1);
+      final activeP = student.periods
+          .where((p) => p.periodNumber == activePNum)
+          .firstOrNull;
       effectiveStatus = activeP?.status ?? AttendanceStatus.notMarked;
     } else {
       effectiveStatus = status;
@@ -2117,14 +2545,16 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
           ? 'Summary: ${summary.presentCount} Present, ${summary.absentCount} Absent, ${summary.lateCount} Late, ${summary.onLeaveCount} Leave (${summary.markedPeriods}/${summary.totalPeriods} Periods Marked)'
           : '${student.periods.length} Periods Scheduled';
 
-      tooltipMsg = '${student.fullName} • Status: $displayLabel${student.isLocked ? " (Locked)" : ""}\n'
+      tooltipMsg =
+          '${student.fullName} • Status: $displayLabel${student.isLocked ? " (Locked)" : ""}\n'
           '─────────────────────────────\n'
           '$periodLines\n'
           '─────────────────────────────\n'
           '$summaryLine\n'
           '👉 Click to change attendance for active mode';
     } else {
-      tooltipMsg = '${student.fullName} • Status: $displayLabel${student.isLocked ? " (Locked)" : ""}\n👉 Click to change attendance';
+      tooltipMsg =
+          '${student.fullName} • Status: $displayLabel${student.isLocked ? " (Locked)" : ""}\n👉 Click to change attendance';
     }
 
     String modeHelpText;
@@ -2142,9 +2572,12 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
       decoration: BoxDecoration(
         color: const Color(0xFF0F172A),
         borderRadius: BorderRadius.circular(8),
-        boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 3))],
+        boxShadow: const [
+          BoxShadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 3))
+        ],
       ),
-      textStyle: const TextStyle(fontSize: 11, color: Colors.white, height: 1.35),
+      textStyle:
+          const TextStyle(fontSize: 11, color: Colors.white, height: 1.35),
       child: PopupMenuButton<AttendanceStatus>(
         tooltip: '',
         offset: const Offset(0, 32),
@@ -2152,8 +2585,13 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
         onSelected: (newStatus) {
           bool isTargetLocked;
           if (state.selectedMode == AttendanceMode.byPeriod) {
-            final activePNum = state.selectedPeriodNumber ?? (student.periods.isNotEmpty ? student.periods.first.periodNumber : 1);
-            final activeP = student.periods.where((p) => p.periodNumber == activePNum).firstOrNull;
+            final activePNum = state.selectedPeriodNumber ??
+                (student.periods.isNotEmpty
+                    ? student.periods.first.periodNumber
+                    : 1);
+            final activeP = student.periods
+                .where((p) => p.periodNumber == activePNum)
+                .firstOrNull;
             isTargetLocked = activeP?.isLocked ?? false;
           } else {
             isTargetLocked = student.isLocked && state.isLockedAllDay;
@@ -2162,7 +2600,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
           if (isTargetLocked) {
             _showOverrideDialog(student, newStatus, notifier);
           } else {
-            notifier.markAttendance(newStatus, targetStudentIds: {student.studentId});
+            notifier.markAttendance(newStatus,
+                targetStudentIds: {student.studentId});
           }
         },
         itemBuilder: (context) => [
@@ -2173,22 +2612,34 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               children: [
                 Text(
                   student.fullName,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A)),
                 ),
                 Text(
                   'Mode: $modeHelpText',
-                  style: const TextStyle(fontSize: 10.5, color: Color(0xFF6366F1), fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                      fontSize: 10.5,
+                      color: Color(0xFF6366F1),
+                      fontWeight: FontWeight.w600),
                 ),
                 const Divider(height: 10),
               ],
             ),
           ),
-          _buildStatusMenuItem(AttendanceStatus.present, 'Mark Present', Icons.check_circle_rounded, const Color(0xFF10B981)),
-          _buildStatusMenuItem(AttendanceStatus.absent, 'Mark Absent', Icons.cancel_rounded, const Color(0xFFEF4444)),
-          _buildStatusMenuItem(AttendanceStatus.late, 'Mark Late', Icons.watch_later_rounded, const Color(0xFFF59E0B)),
-          _buildStatusMenuItem(AttendanceStatus.onLeave, 'Mark On Leave', Icons.event_busy_rounded, const Color(0xFF8B5CF6)),
-          _buildStatusMenuItem(AttendanceStatus.halfDay, 'Mark Half Day', Icons.pie_chart_rounded, const Color(0xFF6366F1)),
-          _buildStatusMenuItem(AttendanceStatus.notMarked, 'Reset (Not Marked)', Icons.remove_circle_outline_rounded, const Color(0xFF94A3B8)),
+          _buildStatusMenuItem(AttendanceStatus.present, 'Mark Present',
+              Icons.check_circle_rounded, const Color(0xFF10B981)),
+          _buildStatusMenuItem(AttendanceStatus.absent, 'Mark Absent',
+              Icons.cancel_rounded, const Color(0xFFEF4444)),
+          _buildStatusMenuItem(AttendanceStatus.late, 'Mark Late',
+              Icons.watch_later_rounded, const Color(0xFFF59E0B)),
+          _buildStatusMenuItem(AttendanceStatus.onLeave, 'Mark On Leave',
+              Icons.event_busy_rounded, const Color(0xFF8B5CF6)),
+          _buildStatusMenuItem(AttendanceStatus.halfDay, 'Mark Half Day',
+              Icons.pie_chart_rounded, const Color(0xFF6366F1)),
+          _buildStatusMenuItem(AttendanceStatus.notMarked, 'Reset (Not Marked)',
+              Icons.remove_circle_outline_rounded, const Color(0xFF94A3B8)),
         ],
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -2247,7 +2698,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1B4B) : const Color(0xFFEEF2FF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.4), width: 1.5),
+        border: Border.all(
+            color: const Color(0xFF6366F1).withValues(alpha: 0.4), width: 1.5),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
@@ -2267,14 +2719,18 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: const Color(0xFF4F46E5),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   '$count Selected',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12),
                 ),
               ),
               const SizedBox(width: 10),
@@ -2292,7 +2748,10 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                     const SizedBox(width: 4),
                     Text(
                       'Mode: $modeText',
-                      style: TextStyle(color: modeColor, fontWeight: FontWeight.w700, fontSize: 11),
+                      style: TextStyle(
+                          color: modeColor,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11),
                     ),
                   ],
                 ),
@@ -2306,22 +2765,38 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
             runSpacing: 6,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              _buildBulkPill('Present', const Color(0xFF10B981), Icons.check_circle_rounded, () {
-                _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.present, true);
+              _buildBulkPill('Present', const Color(0xFF10B981),
+                  Icons.check_circle_rounded, () {
+                _handleBulkMarkAttendance(
+                    context, state, notifier, AttendanceStatus.present, true);
               }),
-              _buildBulkPill('Absent', const Color(0xFFEF4444), Icons.cancel_rounded, () {
-                _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.absent, true);
+              _buildBulkPill(
+                  'Absent', const Color(0xFFEF4444), Icons.cancel_rounded, () {
+                _handleBulkMarkAttendance(
+                    context, state, notifier, AttendanceStatus.absent, true);
               }),
-              _buildBulkPill('Late', const Color(0xFFF59E0B), Icons.watch_later_rounded, () {
-                _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.late, true);
+              _buildBulkPill(
+                  'Late', const Color(0xFFF59E0B), Icons.watch_later_rounded,
+                  () {
+                _handleBulkMarkAttendance(
+                    context, state, notifier, AttendanceStatus.late, true);
               }),
-              _buildBulkPill('On Leave', const Color(0xFF8B5CF6), Icons.event_busy_rounded, () {
-                _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.onLeave, true);
+              _buildBulkPill(
+                  'On Leave', const Color(0xFF8B5CF6), Icons.event_busy_rounded,
+                  () {
+                _handleBulkMarkAttendance(
+                    context, state, notifier, AttendanceStatus.onLeave, true);
               }),
-              _buildBulkPill('Half Day', const Color(0xFF6366F1), Icons.pie_chart_rounded, () {
-                _handleBulkMarkAttendance(context, state, notifier, AttendanceStatus.halfDay, true);
+              _buildBulkPill(
+                  'Half Day', const Color(0xFF6366F1), Icons.pie_chart_rounded,
+                  () {
+                _handleBulkMarkAttendance(
+                    context, state, notifier, AttendanceStatus.halfDay, true);
               }),
-              _buildBulkPill('Remarks', isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569), Icons.edit_note_rounded, () {
+              _buildBulkPill(
+                  'Remarks',
+                  isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                  Icons.edit_note_rounded, () {
                 _showBulkRemarksDialog(state, notifier, true);
               }),
             ],
@@ -2336,7 +2811,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 icon: const Icon(Icons.close_rounded, size: 14),
                 label: const Text('Deselect', style: TextStyle(fontSize: 11.5)),
                 style: TextButton.styleFrom(
-                  foregroundColor: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
+                  foregroundColor: isDark
+                      ? const Color(0xFFCBD5E1)
+                      : const Color(0xFF64748B),
                 ),
               ),
               const SizedBox(width: 6),
@@ -2346,12 +2823,15 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                     : () {
                         final selectedClass = state.availableClasses.firstWhere(
                           (c) => c.id == state.selectedClassId,
-                          orElse: () => AcademicClassModel(id: '', name: 'Class', code: '', stage: ''),
+                          orElse: () => AcademicClassModel(
+                              id: '', name: 'Class', code: '', stage: ''),
                         );
                         final className = selectedClass.name;
                         String sectionName = 'All Sections';
-                        if (state.selectedSectionId != null && selectedClass.sections.isNotEmpty) {
-                          final foundSection = selectedClass.sections.where((s) => s.id == state.selectedSectionId);
+                        if (state.selectedSectionId != null &&
+                            selectedClass.sections.isNotEmpty) {
+                          final foundSection = selectedClass.sections
+                              .where((s) => s.id == state.selectedSectionId);
                           if (foundSection.isNotEmpty) {
                             sectionName = foundSection.first.name;
                           }
@@ -2362,32 +2842,60 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                             dateStr: state.displayDateString,
                             className: className,
                             sectionName: sectionName,
-                            modeName: state.selectedMode == AttendanceMode.allDay
+                            modeName: state.selectedMode ==
+                                    AttendanceMode.allDay
                                 ? 'All Day'
                                 : (state.selectedMode == AttendanceMode.byPeriod
                                     ? 'Period ${state.selectedPeriodNumber ?? 1}'
                                     : 'Custom Selection (${state.selectedScheduleIds.length} Periods)'),
                             totalCount: state.roster.length,
-                            presentCount: state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.present).length,
-                            absentCount: state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.absent).length,
-                            lateCount: state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.late).length,
-                            onLeaveCount: state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.onLeave).length,
+                            presentCount: state.roster
+                                .where((s) =>
+                                    (state.draftStatuses[s.studentId] ??
+                                        s.status) ==
+                                    AttendanceStatus.present)
+                                .length,
+                            absentCount: state.roster
+                                .where((s) =>
+                                    (state.draftStatuses[s.studentId] ??
+                                        s.status) ==
+                                    AttendanceStatus.absent)
+                                .length,
+                            lateCount: state.roster
+                                .where((s) =>
+                                    (state.draftStatuses[s.studentId] ??
+                                        s.status) ==
+                                    AttendanceStatus.late)
+                                .length,
+                            onLeaveCount: state.roster
+                                .where((s) =>
+                                    (state.draftStatuses[s.studentId] ??
+                                        s.status) ==
+                                    AttendanceStatus.onLeave)
+                                .length,
                             onConfirm: () => notifier.saveDailyAttendance(),
                           ),
                         );
                       },
                 icon: state.isSaving
-                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.save_rounded, size: 15),
                 label: Text(
                   state.isSaving ? 'Saving...' : 'Save & Submit ($count)',
-                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 11.5, fontWeight: FontWeight.bold),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4F46E5),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
               ),
             ],
@@ -2397,7 +2905,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
     );
   }
 
-  Widget _buildBulkPill(String label, Color color, IconData icon, VoidCallback onTap) {
+  Widget _buildBulkPill(
+      String label, Color color, IconData icon, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(6),
@@ -2439,7 +2948,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
         children: [
           Icon(icon, size: 15, color: color),
           const SizedBox(width: 8),
-          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(label,
+              style:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -2522,28 +3033,41 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
       }
 
       if (startPage > 1) {
-        pageButtons.add(_buildPageNumberButton(1, 1 == currentPage, isDark, onTap: () => notifier.setPage(1)));
+        pageButtons.add(_buildPageNumberButton(1, 1 == currentPage, isDark,
+            onTap: () => notifier.setPage(1)));
         if (startPage > 2) {
           pageButtons.add(Padding(
             padding: const EdgeInsets.symmetric(horizontal: 2),
-            child: Text('...', style: TextStyle(color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8))),
+            child: Text('...',
+                style: TextStyle(
+                    color: isDark
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF94A3B8))),
           ));
         }
       }
 
       for (int p = startPage; p <= endPage; p++) {
         final pageNum = p;
-        pageButtons.add(_buildPageNumberButton(pageNum, pageNum == currentPage, isDark, onTap: () => notifier.setPage(pageNum)));
+        pageButtons.add(_buildPageNumberButton(
+            pageNum, pageNum == currentPage, isDark,
+            onTap: () => notifier.setPage(pageNum)));
       }
 
       if (endPage < totalPages) {
         if (endPage < totalPages - 1) {
           pageButtons.add(Padding(
             padding: const EdgeInsets.symmetric(horizontal: 2),
-            child: Text('...', style: TextStyle(color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8))),
+            child: Text('...',
+                style: TextStyle(
+                    color: isDark
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF94A3B8))),
           ));
         }
-        pageButtons.add(_buildPageNumberButton(totalPages, totalPages == currentPage, isDark, onTap: () => notifier.setPage(totalPages)));
+        pageButtons.add(_buildPageNumberButton(
+            totalPages, totalPages == currentPage, isDark,
+            onTap: () => notifier.setPage(totalPages)));
       }
     }
 
@@ -2552,7 +3076,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -2570,7 +3095,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -2578,7 +3105,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                    color: isDark
+                        ? const Color(0xFFCBD5E1)
+                        : const Color(0xFF475569),
                   ),
                 ),
               ),
@@ -2587,7 +3116,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 'Showing $start to $end of $total students',
                 style: TextStyle(
                   fontSize: 11.5,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
                 ),
               ),
             ],
@@ -2597,17 +3128,32 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
           Row(
             children: [
               IconButton(
-                icon: Icon(Icons.chevron_left_rounded, size: 18, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                onPressed: state.page > 1 ? () => notifier.setPage(state.page - 1) : null,
+                icon: Icon(Icons.chevron_left_rounded,
+                    size: 18,
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B)),
+                onPressed: state.page > 1
+                    ? () => notifier.setPage(state.page - 1)
+                    : null,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
               ),
               const SizedBox(width: 4),
-              ...pageButtons.expand((w) => [w, const SizedBox(width: 4)]).toList()..removeLast(),
+              ...pageButtons
+                  .expand((w) => [w, const SizedBox(width: 4)])
+                  .toList()
+                ..removeLast(),
               const SizedBox(width: 4),
               IconButton(
-                icon: Icon(Icons.chevron_right_rounded, size: 18, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                onPressed: state.page < state.totalPages ? () => notifier.setPage(state.page + 1) : null,
+                icon: Icon(Icons.chevron_right_rounded,
+                    size: 18,
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B)),
+                onPressed: state.page < state.totalPages
+                    ? () => notifier.setPage(state.page + 1)
+                    : null,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
               ),
@@ -2620,16 +3166,31 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF1E293B) : Colors.white,
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFCBD5E1)),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<int>(
-                    value: [5, 10, 20, 50].contains(state.pageSize) ? state.pageSize : 10,
-                    icon: Icon(Icons.keyboard_arrow_down_rounded, size: 14, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    value: [5, 10, 20, 50].contains(state.pageSize)
+                        ? state.pageSize
+                        : 10,
+                    icon: Icon(Icons.keyboard_arrow_down_rounded,
+                        size: 14,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B)),
                     items: [5, 10, 20, 50].map((size) {
                       return DropdownMenuItem<int>(
                         value: size,
-                        child: Text('$size / page', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                        child: Text('$size / page',
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A))),
                       );
                     }).toList(),
                     onChanged: (newSize) {
@@ -2647,12 +3208,21 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               OutlinedButton(
                 onPressed: () => notifier.resetDrafts(),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
-                  side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  foregroundColor: isDark
+                      ? const Color(0xFFCBD5E1)
+                      : const Color(0xFF64748B),
+                  side: BorderSide(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFCBD5E1)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
-                child: const Text('Cancel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                child: const Text('Cancel',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               ),
               const SizedBox(width: 10),
               ElevatedButton.icon(
@@ -2661,12 +3231,15 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                     : () {
                         final selectedClass = state.availableClasses.firstWhere(
                           (c) => c.id == state.selectedClassId,
-                          orElse: () => AcademicClassModel(id: '', name: 'Class', code: '', stage: ''),
+                          orElse: () => AcademicClassModel(
+                              id: '', name: 'Class', code: '', stage: ''),
                         );
                         final className = selectedClass.name;
                         String sectionName = 'All Sections';
-                        if (state.selectedSectionId != null && selectedClass.sections.isNotEmpty) {
-                          final foundSection = selectedClass.sections.where((s) => s.id == state.selectedSectionId);
+                        if (state.selectedSectionId != null &&
+                            selectedClass.sections.isNotEmpty) {
+                          final foundSection = selectedClass.sections
+                              .where((s) => s.id == state.selectedSectionId);
                           if (foundSection.isNotEmpty) {
                             sectionName = foundSection.first.name;
                           }
@@ -2677,32 +3250,60 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                             dateStr: state.displayDateString,
                             className: className,
                             sectionName: sectionName,
-                            modeName: state.selectedMode == AttendanceMode.allDay
+                            modeName: state.selectedMode ==
+                                    AttendanceMode.allDay
                                 ? 'All Day'
                                 : (state.selectedMode == AttendanceMode.byPeriod
                                     ? 'Period ${state.selectedPeriodNumber ?? 1}'
                                     : 'Custom Selection (${state.selectedScheduleIds.length} Periods)'),
                             totalCount: state.roster.length,
-                            presentCount: state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.present).length,
-                            absentCount: state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.absent).length,
-                            lateCount: state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.late).length,
-                            onLeaveCount: state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.onLeave).length,
+                            presentCount: state.roster
+                                .where((s) =>
+                                    (state.draftStatuses[s.studentId] ??
+                                        s.status) ==
+                                    AttendanceStatus.present)
+                                .length,
+                            absentCount: state.roster
+                                .where((s) =>
+                                    (state.draftStatuses[s.studentId] ??
+                                        s.status) ==
+                                    AttendanceStatus.absent)
+                                .length,
+                            lateCount: state.roster
+                                .where((s) =>
+                                    (state.draftStatuses[s.studentId] ??
+                                        s.status) ==
+                                    AttendanceStatus.late)
+                                .length,
+                            onLeaveCount: state.roster
+                                .where((s) =>
+                                    (state.draftStatuses[s.studentId] ??
+                                        s.status) ==
+                                    AttendanceStatus.onLeave)
+                                .length,
                             onConfirm: () => notifier.saveDailyAttendance(),
                           ),
                         );
                       },
                 icon: state.isSaving
-                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.save_rounded, size: 15),
                 label: Text(
                   state.isSaving ? 'Saving...' : 'Save Attendance',
-                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                      fontSize: 12.5, fontWeight: FontWeight.w700),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4F46E5),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                   elevation: 0,
                 ),
               ),
@@ -2713,7 +3314,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
     );
   }
 
-  Widget _buildPageNumberButton(int page, bool isActive, bool isDark, {VoidCallback? onTap}) {
+  Widget _buildPageNumberButton(int page, bool isActive, bool isDark,
+      {VoidCallback? onTap}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(6),
@@ -2724,14 +3326,21 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
         decoration: BoxDecoration(
           color: isActive ? const Color(0xFF4F46E5) : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
-          border: isActive ? null : Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+          border: isActive
+              ? null
+              : Border.all(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0)),
         ),
         child: Text(
           '$page',
           style: TextStyle(
             fontSize: 11,
             fontWeight: isActive ? FontWeight.w800 : FontWeight.w500,
-            color: isActive ? Colors.white : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+            color: isActive
+                ? Colors.white
+                : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
           ),
         ),
       ),
@@ -2741,17 +3350,20 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
   // ==========================================================================
   // RIGHT SIDEBAR CARD 1: DAY SUMMARY CHART (Donut Chart & Percentages)
   // ==========================================================================
-  Widget _buildDaySummaryCard(AttendanceState state, bool isDark, ThemeData theme) {
+  Widget _buildDaySummaryCard(
+      AttendanceState state, bool isDark, ThemeData theme) {
     final selectedClass = state.availableClasses.firstWhere(
       (c) => c.id == state.selectedClassId,
       orElse: () => state.availableClasses.isNotEmpty
           ? state.availableClasses.first
           : AcademicClassModel(id: '', name: 'Class', code: '', stage: ''),
     );
-    final className = selectedClass.name.isNotEmpty ? selectedClass.name : 'Class';
+    final className =
+        selectedClass.name.isNotEmpty ? selectedClass.name : 'Class';
     String sectionName = '';
     if (state.selectedSectionId != null && selectedClass.sections.isNotEmpty) {
-      final foundSection = selectedClass.sections.where((s) => s.id == state.selectedSectionId);
+      final foundSection =
+          selectedClass.sections.where((s) => s.id == state.selectedSectionId);
       if (foundSection.isNotEmpty) {
         sectionName = foundSection.first.name;
       }
@@ -2761,24 +3373,50 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
         : (sectionName.isNotEmpty ? '$className - $sectionName' : className);
 
     final total = state.roster.length;
-    final present = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.present).length;
-    final absent = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.absent).length;
-    final lateCount = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.late).length;
-    final onLeave = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.onLeave).length;
-    final halfDay = state.roster.where((s) => (state.draftStatuses[s.studentId] ?? s.status) == AttendanceStatus.halfDay).length;
+    final present = state.roster
+        .where((s) =>
+            (state.draftStatuses[s.studentId] ?? s.status) ==
+            AttendanceStatus.present)
+        .length;
+    final absent = state.roster
+        .where((s) =>
+            (state.draftStatuses[s.studentId] ?? s.status) ==
+            AttendanceStatus.absent)
+        .length;
+    final lateCount = state.roster
+        .where((s) =>
+            (state.draftStatuses[s.studentId] ?? s.status) ==
+            AttendanceStatus.late)
+        .length;
+    final onLeave = state.roster
+        .where((s) =>
+            (state.draftStatuses[s.studentId] ?? s.status) ==
+            AttendanceStatus.onLeave)
+        .length;
+    final halfDay = state.roster
+        .where((s) =>
+            (state.draftStatuses[s.studentId] ?? s.status) ==
+            AttendanceStatus.halfDay)
+        .length;
 
-    final presentPct = total > 0 ? ((present / total) * 100).toStringAsFixed(1) : '0.0';
-    final absentPct = total > 0 ? ((absent / total) * 100).toStringAsFixed(1) : '0.0';
-    final latePct = total > 0 ? ((lateCount / total) * 100).toStringAsFixed(1) : '0.0';
-    final leavePct = total > 0 ? ((onLeave / total) * 100).toStringAsFixed(1) : '0.0';
-    final halfDayPct = total > 0 ? ((halfDay / total) * 100).toStringAsFixed(1) : '0.0';
+    final presentPct =
+        total > 0 ? ((present / total) * 100).toStringAsFixed(1) : '0.0';
+    final absentPct =
+        total > 0 ? ((absent / total) * 100).toStringAsFixed(1) : '0.0';
+    final latePct =
+        total > 0 ? ((lateCount / total) * 100).toStringAsFixed(1) : '0.0';
+    final leavePct =
+        total > 0 ? ((onLeave / total) * 100).toStringAsFixed(1) : '0.0';
+    final halfDayPct =
+        total > 0 ? ((halfDay / total) * 100).toStringAsFixed(1) : '0.0';
 
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -2823,7 +3461,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                         style: TextStyle(
                           fontWeight: FontWeight.w900,
                           fontSize: 22,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                           letterSpacing: -0.5,
                         ),
                       ),
@@ -2832,7 +3471,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B),
                         ),
                       ),
                     ],
@@ -2844,21 +3485,27 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
           const SizedBox(height: 18),
 
           // Legend Breakdown with Counts and Percentages
-          _buildDaySummaryLegendRow('Present', '$present ($presentPct%)', const Color(0xFF10B981), isDark),
+          _buildDaySummaryLegendRow('Present', '$present ($presentPct%)',
+              const Color(0xFF10B981), isDark),
           const SizedBox(height: 8),
-          _buildDaySummaryLegendRow('Absent', '$absent ($absentPct%)', const Color(0xFFEF4444), isDark),
+          _buildDaySummaryLegendRow('Absent', '$absent ($absentPct%)',
+              const Color(0xFFEF4444), isDark),
           const SizedBox(height: 8),
-          _buildDaySummaryLegendRow('Late', '$lateCount ($latePct%)', const Color(0xFFF59E0B), isDark),
+          _buildDaySummaryLegendRow('Late', '$lateCount ($latePct%)',
+              const Color(0xFFF59E0B), isDark),
           const SizedBox(height: 8),
-          _buildDaySummaryLegendRow('On Leave', '$onLeave ($leavePct%)', const Color(0xFF3B82F6), isDark),
+          _buildDaySummaryLegendRow('On Leave', '$onLeave ($leavePct%)',
+              const Color(0xFF3B82F6), isDark),
           const SizedBox(height: 8),
-          _buildDaySummaryLegendRow('Half Day', '$halfDay ($halfDayPct%)', const Color(0xFF8B5CF6), isDark),
+          _buildDaySummaryLegendRow('Half Day', '$halfDay ($halfDayPct%)',
+              const Color(0xFF8B5CF6), isDark),
         ],
       ),
     );
   }
 
-  Widget _buildDaySummaryLegendRow(String label, String value, Color color, bool isDark) {
+  Widget _buildDaySummaryLegendRow(
+      String label, String value, Color color, bool isDark) {
     return Row(
       children: [
         Container(
@@ -2906,7 +3553,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -2939,7 +3587,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 decoration: BoxDecoration(
                   color: state.selectedMode == AttendanceMode.allDay
                       ? const Color(0xFFECFDF5)
-                      : (state.selectedMode == AttendanceMode.byPeriod ? const Color(0xFFEFF6FF) : const Color(0xFFF5F3FF)),
+                      : (state.selectedMode == AttendanceMode.byPeriod
+                          ? const Color(0xFFEFF6FF)
+                          : const Color(0xFFF5F3FF)),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Row(
@@ -2948,11 +3598,15 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                     Icon(
                       state.selectedMode == AttendanceMode.allDay
                           ? Icons.flash_on_rounded
-                          : (state.selectedMode == AttendanceMode.byPeriod ? Icons.schedule_rounded : Icons.tune_rounded),
+                          : (state.selectedMode == AttendanceMode.byPeriod
+                              ? Icons.schedule_rounded
+                              : Icons.tune_rounded),
                       size: 11,
                       color: state.selectedMode == AttendanceMode.allDay
                           ? const Color(0xFF15803D)
-                          : (state.selectedMode == AttendanceMode.byPeriod ? const Color(0xFF2563EB) : const Color(0xFF7C3AED)),
+                          : (state.selectedMode == AttendanceMode.byPeriod
+                              ? const Color(0xFF2563EB)
+                              : const Color(0xFF7C3AED)),
                     ),
                     const SizedBox(width: 3),
                     Text(
@@ -2962,7 +3616,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                         fontWeight: FontWeight.w700,
                         color: state.selectedMode == AttendanceMode.allDay
                             ? const Color(0xFF15803D)
-                            : (state.selectedMode == AttendanceMode.byPeriod ? const Color(0xFF2563EB) : const Color(0xFF7C3AED)),
+                            : (state.selectedMode == AttendanceMode.byPeriod
+                                ? const Color(0xFF2563EB)
+                                : const Color(0xFF7C3AED)),
                       ),
                     ),
                   ],
@@ -2971,7 +3627,6 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
             ],
           ),
           const SizedBox(height: 14),
-
           if (schedules.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -2980,7 +3635,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                   'No Academic Calendar schedule found for today',
                   style: TextStyle(
                     fontSize: 11.5,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                   ),
                 ),
               ),
@@ -2993,22 +3650,31 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, idx) {
                 final p = schedules[idx];
-                final isCurrentPeriod = state.selectedMode == AttendanceMode.byPeriod && state.selectedPeriodNumber == p.periodNumber;
+                final isCurrentPeriod =
+                    state.selectedMode == AttendanceMode.byPeriod &&
+                        state.selectedPeriodNumber == p.periodNumber;
 
                 return InkWell(
                   onTap: () {
                     notifier.setMode(AttendanceMode.byPeriod);
-                    notifier.setPeriod(p.periodNumber, p.subjectId, scheduleId: p.scheduleId ?? p.id);
+                    notifier.setPeriod(p.periodNumber, p.subjectId,
+                        scheduleId: p.scheduleId ?? p.id);
                   },
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     decoration: BoxDecoration(
                       color: isCurrentPeriod
-                          ? (isDark ? const Color(0xFF312E81).withValues(alpha: 0.4) : const Color(0xFFEEF2FF))
+                          ? (isDark
+                              ? const Color(0xFF312E81).withValues(alpha: 0.4)
+                              : const Color(0xFFEEF2FF))
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
-                      border: isCurrentPeriod ? Border.all(color: const Color(0xFF4F46E5), width: 1.2) : null,
+                      border: isCurrentPeriod
+                          ? Border.all(
+                              color: const Color(0xFF4F46E5), width: 1.2)
+                          : null,
                     ),
                     child: Row(
                       children: [
@@ -3027,7 +3693,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
-                              color: isCurrentPeriod ? Colors.white : p.subjectColor,
+                              color: isCurrentPeriod
+                                  ? Colors.white
+                                  : p.subjectColor,
                             ),
                           ),
                         ),
@@ -3039,7 +3707,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w500,
-                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B),
                             ),
                           ),
                         ),
@@ -3056,18 +3726,25 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w700,
-                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                  if (state.selectedSectionId == null && p.sectionName != null && p.sectionName!.isNotEmpty) ...[
+                                  if (state.selectedSectionId == null &&
+                                      p.sectionName != null &&
+                                      p.sectionName!.isNotEmpty) ...[
                                     const SizedBox(width: 4),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 4, vertical: 1),
                                       decoration: BoxDecoration(
-                                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                        color: isDark
+                                            ? const Color(0xFF334155)
+                                            : const Color(0xFFE2E8F0),
                                         borderRadius: BorderRadius.circular(3),
                                       ),
                                       child: Text(
@@ -3075,7 +3752,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                                         style: TextStyle(
                                           fontSize: 8.5,
                                           fontWeight: FontWeight.w700,
-                                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                                          color: isDark
+                                              ? const Color(0xFF94A3B8)
+                                              : const Color(0xFF475569),
                                         ),
                                       ),
                                     ),
@@ -3086,7 +3765,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                                 p.teacherName,
                                 style: TextStyle(
                                   fontSize: 9.5,
-                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -3095,9 +3776,11 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                           ),
                         ),
                         if (p.isLocked)
-                          const Icon(Icons.lock_rounded, size: 12, color: Color(0xFF64748B))
+                          const Icon(Icons.lock_rounded,
+                              size: 12, color: Color(0xFF64748B))
                         else if (p.isCompleted)
-                          const Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF10B981))
+                          const Icon(Icons.check_circle_rounded,
+                              size: 12, color: Color(0xFF10B981))
                         else
                           Container(
                             width: 6,
@@ -3132,7 +3815,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -3153,7 +3837,6 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
             ),
           ),
           const SizedBox(height: 14),
-
           Row(
             children: [
               Expanded(
@@ -3180,7 +3863,6 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
             ],
           ),
           const SizedBox(height: 10),
-
           Row(
             children: [
               Expanded(
@@ -3257,7 +3939,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
     AttendanceNotifier notifier,
     bool isDark,
   ) {
-    final currentRemark = state.draftRemarks[student.studentId] ?? student.remarks;
+    final currentRemark =
+        state.draftRemarks[student.studentId] ?? student.remarks;
     final hasDraft = state.draftRemarks.containsKey(student.studentId);
 
     return InkWell(
@@ -3268,7 +3951,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: hasDraft
-              ? (isDark ? const Color(0xFF312E81).withValues(alpha: 0.3) : const Color(0xFFEEF2FF))
+              ? (isDark
+                  ? const Color(0xFF312E81).withValues(alpha: 0.3)
+                  : const Color(0xFFEEF2FF))
               : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
@@ -3285,7 +3970,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
               size: 15,
               color: hasDraft
                   ? const Color(0xFF6366F1)
-                  : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                  : (isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B)),
             ),
             const SizedBox(width: 6),
             Expanded(
@@ -3293,11 +3980,17 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                 currentRemark.isNotEmpty ? currentRemark : 'Add remark...',
                 style: TextStyle(
                   fontSize: 11.5,
-                  fontWeight: currentRemark.isNotEmpty ? FontWeight.w500 : FontWeight.normal,
-                  fontStyle: currentRemark.isNotEmpty ? FontStyle.normal : FontStyle.italic,
+                  fontWeight: currentRemark.isNotEmpty
+                      ? FontWeight.w500
+                      : FontWeight.normal,
+                  fontStyle: currentRemark.isNotEmpty
+                      ? FontStyle.normal
+                      : FontStyle.italic,
                   color: currentRemark.isNotEmpty
                       ? (isDark ? Colors.white : const Color(0xFF0F172A))
-                      : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                      : (isDark
+                          ? const Color(0xFF64748B)
+                          : const Color(0xFF94A3B8)),
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -3306,11 +3999,14 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
             if (currentRemark.isNotEmpty) ...[
               const SizedBox(width: 4),
               InkWell(
-                onTap: () => notifier.updateStudentRemarks(student.studentId, ''),
+                onTap: () =>
+                    notifier.updateStudentRemarks(student.studentId, ''),
                 child: Icon(
                   Icons.close_rounded,
                   size: 13,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
                 ),
               ),
             ],
@@ -3401,14 +4097,17 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
     bool hasSelection,
   ) {
     final targetStudents = hasSelection
-        ? state.roster.where((s) => state.selectedStudentIds.contains(s.studentId)).toList()
+        ? state.roster
+            .where((s) => state.selectedStudentIds.contains(s.studentId))
+            .toList()
         : state.roster;
 
     bool anyLocked;
     if (state.selectedMode == AttendanceMode.byPeriod) {
       final activePNum = state.selectedPeriodNumber ?? 1;
       anyLocked = targetStudents.any((s) {
-        final p = s.periods.where((p) => p.periodNumber == activePNum).firstOrNull;
+        final p =
+            s.periods.where((p) => p.periodNumber == activePNum).firstOrNull;
         return p?.isLocked ?? false;
       });
     } else {
@@ -3456,7 +4155,8 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             return Dialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
               backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
               child: Container(
                 width: 480,
@@ -3465,7 +4165,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                   borderRadius: BorderRadius.circular(16),
                   color: isDark ? const Color(0xFF0F172A) : Colors.white,
                   border: Border.all(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
                 child: Column(
@@ -3478,10 +4180,12 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
+                            color:
+                                const Color(0xFF4F46E5).withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(Icons.edit_note_rounded, size: 22, color: Color(0xFF4F46E5)),
+                          child: const Icon(Icons.edit_note_rounded,
+                              size: 22, color: Color(0xFF4F46E5)),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -3493,7 +4197,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A),
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -3501,7 +4207,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                                 '${student.fullName} ${student.rollNumber.isNotEmpty ? "(Roll: ${student.rollNumber})" : ""}',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
                                 ),
                               ),
                             ],
@@ -3510,7 +4218,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                         IconButton(
                           icon: const Icon(Icons.close_rounded, size: 20),
                           onPressed: () => Navigator.of(ctx).pop(),
-                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B),
                         ),
                       ],
                     ),
@@ -3522,7 +4232,9 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                         letterSpacing: 0.3,
                       ),
                     ),
@@ -3538,19 +4250,26 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                             setDialogState(() {});
                           },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                              color: isDark
+                                  ? const Color(0xFF1E293B)
+                                  : const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                color: isDark
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFE2E8F0),
                               ),
                             ),
                             child: Text(
                               chip,
                               style: TextStyle(
                                 fontSize: 11,
-                                color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                                color: isDark
+                                    ? const Color(0xFFCBD5E1)
+                                    : const Color(0xFF334155),
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -3570,23 +4289,32 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                         color: isDark ? Colors.white : const Color(0xFF0F172A),
                       ),
                       decoration: InputDecoration(
-                        hintText: 'Enter student attendance remark, reason or note...',
+                        hintText:
+                            'Enter student attendance remark, reason or note...',
                         hintStyle: TextStyle(
                           fontSize: 12,
-                          color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                          color: isDark
+                              ? const Color(0xFF64748B)
+                              : const Color(0xFF94A3B8),
                         ),
                         filled: true,
-                        fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                        fillColor: isDark
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFFF8FAFC),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide(
-                            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFCBD5E1),
                           ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide(
-                            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFCBD5E1),
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
@@ -3608,34 +4336,46 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                         if (controller.text.isNotEmpty)
                           TextButton.icon(
                             onPressed: () {
-                              notifier.updateStudentRemarks(student.studentId, '');
+                              notifier.updateStudentRemarks(
+                                  student.studentId, '');
                               Navigator.of(ctx).pop();
                             },
-                            icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
-                            label: const Text('Clear Remark', style: TextStyle(color: Color(0xFFEF4444), fontSize: 12)),
+                            icon: const Icon(Icons.delete_outline_rounded,
+                                size: 16, color: Color(0xFFEF4444)),
+                            label: const Text('Clear Remark',
+                                style: TextStyle(
+                                    color: Color(0xFFEF4444), fontSize: 12)),
                           ),
                         const Spacer(),
                         OutlinedButton(
                           onPressed: () => Navigator.of(ctx).pop(),
                           style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
                           ),
-                          child: const Text('Cancel', style: TextStyle(fontSize: 12)),
+                          child: const Text('Cancel',
+                              style: TextStyle(fontSize: 12)),
                         ),
                         const SizedBox(width: 10),
                         ElevatedButton(
                           onPressed: () {
-                            notifier.updateStudentRemarks(student.studentId, controller.text.trim());
+                            notifier.updateStudentRemarks(
+                                student.studentId, controller.text.trim());
                             Navigator.of(ctx).pop();
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF4F46E5),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
                           ),
-                          child: const Text('Apply Remark', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          child: const Text('Apply Remark',
+                              style: TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),

@@ -11,7 +11,6 @@ import 'dialogs/archive_confirmation_dialog.dart';
 import 'dialogs/assign_subject_teacher_dialog.dart';
 import 'dialogs/optional_subject_enrollment_dialog.dart';
 import 'dialogs/assign_subject_to_section_dialog.dart';
-import 'dialogs/csv_import_export_dialog.dart';
 
 class SubjectsTabView extends ConsumerStatefulWidget {
   const SubjectsTabView({super.key});
@@ -116,11 +115,14 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSubjectsListCard(context, state, notifier, isTeacher, isDark),
+                    _buildSubjectsListCard(
+                        context, state, notifier, isTeacher, isDark),
                     const SizedBox(height: 24),
-                    _buildSubjectSectionMappingCard(context, state, notifier, isTeacher, isDark),
+                    _buildSubjectSectionMappingCard(
+                        context, state, notifier, isTeacher, isDark),
                     const SizedBox(height: 24),
-                    _buildAnalyticsAndActionsColumn(context, state, notifier, isDark),
+                    _buildAnalyticsAndActionsColumn(
+                        context, state, notifier, isDark),
                   ],
                 );
               }
@@ -134,9 +136,11 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildSubjectsListCard(context, state, notifier, isTeacher, isDark),
+                        _buildSubjectsListCard(
+                            context, state, notifier, isTeacher, isDark),
                         const SizedBox(height: 24),
-                        _buildSubjectSectionMappingCard(context, state, notifier, isTeacher, isDark),
+                        _buildSubjectSectionMappingCard(
+                            context, state, notifier, isTeacher, isDark),
                       ],
                     ),
                   ),
@@ -145,7 +149,8 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                   // Right Analytics & Actions Column (28%)
                   Expanded(
                     flex: 28,
-                    child: _buildAnalyticsAndActionsColumn(context, state, notifier, isDark),
+                    child: _buildAnalyticsAndActionsColumn(
+                        context, state, notifier, isDark),
                   ),
                 ],
               );
@@ -159,7 +164,8 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
   // =========================================================================
   // 1. KPI STATS ROW (5 CARDS)
   // =========================================================================
-  Widget _buildKpiStatsRow(BuildContext context, ClassState state, bool isDark) {
+  Widget _buildKpiStatsRow(
+      BuildContext context, ClassState state, bool isDark) {
     final stats = state.stats;
     final allSubjects = state.subjects;
     final totalCount = stats.totalSubjects > 0
@@ -172,7 +178,10 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
     int inactiveCount = stats.inactiveSubjects;
 
     // Fallbacks if stats not loaded yet
-    if (coreCount == 0 && electiveCount == 0 && practicalCount == 0 && allSubjects.isNotEmpty) {
+    if (coreCount == 0 &&
+        electiveCount == 0 &&
+        practicalCount == 0 &&
+        allSubjects.isNotEmpty) {
       coreCount = allSubjects.where((s) => s.isCore).length;
       electiveCount = allSubjects.where((s) => s.isElective).length;
       practicalCount = allSubjects.where((s) => s.isPractical).length;
@@ -187,10 +196,18 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
       }
     }
 
-    final corePct = totalCount > 0 ? ((coreCount / totalCount) * 100).toStringAsFixed(1) : '0.0';
-    final electivePct = totalCount > 0 ? ((electiveCount / totalCount) * 100).toStringAsFixed(1) : '0.0';
-    final practicalPct = totalCount > 0 ? ((practicalCount / totalCount) * 100).toStringAsFixed(1) : '0.0';
-    final inactivePct = totalCount > 0 ? ((inactiveCount / totalCount) * 100).toStringAsFixed(1) : '0.0';
+    final corePct = totalCount > 0
+        ? ((coreCount / totalCount) * 100).toStringAsFixed(1)
+        : '0.0';
+    final electivePct = totalCount > 0
+        ? ((electiveCount / totalCount) * 100).toStringAsFixed(1)
+        : '0.0';
+    final practicalPct = totalCount > 0
+        ? ((practicalCount / totalCount) * 100).toStringAsFixed(1)
+        : '0.0';
+    final inactivePct = totalCount > 0
+        ? ((inactiveCount / totalCount) * 100).toStringAsFixed(1)
+        : '0.0';
 
     final cards = [
       _buildKpiCard(
@@ -240,9 +257,17 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
         if (constraints.maxWidth < 750) {
           return Column(
             children: [
-              Row(children: [Expanded(child: cards[0]), const SizedBox(width: 12), Expanded(child: cards[1])]),
+              Row(children: [
+                Expanded(child: cards[0]),
+                const SizedBox(width: 12),
+                Expanded(child: cards[1])
+              ]),
               const SizedBox(height: 12),
-              Row(children: [Expanded(child: cards[2]), const SizedBox(width: 12), Expanded(child: cards[3])]),
+              Row(children: [
+                Expanded(child: cards[2]),
+                const SizedBox(width: 12),
+                Expanded(child: cards[3])
+              ]),
               const SizedBox(height: 12),
               cards[4],
             ],
@@ -298,10 +323,11 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -312,7 +338,7 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 22),
@@ -328,7 +354,9 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -346,7 +374,9 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                   subtitle,
                   style: TextStyle(
                     fontSize: 11,
-                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                    color: isDark
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF94A3B8),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -362,13 +392,15 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
   // =========================================================================
   // 2. MULTI-FILTER TOOLBAR
   // =========================================================================
-  Widget _buildFilterToolbar(BuildContext context, ClassState state, ClassNotifier notifier, bool isDark) {
+  Widget _buildFilterToolbar(BuildContext context, ClassState state,
+      ClassNotifier notifier, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -380,12 +412,14 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
               search: v.trim(),
               type: _selectedTypeFilter,
               status: _selectedStatusFilter,
-              classId: _selectedClassFilter == 'ALL' ? null : _selectedClassFilter,
+              classId:
+                  _selectedClassFilter == 'ALL' ? null : _selectedClassFilter,
             ),
             decoration: InputDecoration(
               hintText: 'Search subjects by name or code...',
               hintStyle: TextStyle(
-                color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                color:
+                    isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
                 fontSize: 13,
               ),
               prefixIcon: const Icon(Icons.search, size: 18),
@@ -398,28 +432,42 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                           search: '',
                           type: _selectedTypeFilter,
                           status: _selectedStatusFilter,
-                          classId: _selectedClassFilter == 'ALL' ? null : _selectedClassFilter,
+                          classId: _selectedClassFilter == 'ALL'
+                              ? null
+                              : _selectedClassFilter,
                         );
                       },
                     )
                   : null,
               filled: true,
-              fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              fillColor:
+                  isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                borderSide: BorderSide(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFCBD5E1)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                borderSide: BorderSide(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFCBD5E1)),
               ),
             ),
-            style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+            style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                fontSize: 13),
           );
 
-          final activeTypes = AcademicLookupHelper.instance.getCachedLookup('SUBJECT_TYPE');
-          final activeStatuses = AcademicLookupHelper.instance.getCachedLookup('ACADEMIC_STATUS');
+          final activeTypes =
+              AcademicLookupHelper.instance.getCachedLookup('SUBJECT_TYPE');
+          final activeStatuses =
+              AcademicLookupHelper.instance.getCachedLookup('ACADEMIC_STATUS');
           final typeItems = ['ALL', ...activeTypes.map((t) => t.label)];
           final statusItems = ['ALL', ...activeStatuses.map((s) => s.code)];
 
@@ -429,18 +477,28 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFCBD5E1)),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: typeItems.contains(_selectedTypeFilter) ? _selectedTypeFilter : 'ALL',
+                value: typeItems.contains(_selectedTypeFilter)
+                    ? _selectedTypeFilter
+                    : 'ALL',
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    fontSize: 13),
                 items: [
-                  const DropdownMenuItem(value: 'ALL', child: Text('Subject Type: All Types')),
-                  ...activeTypes.map((t) => DropdownMenuItem(value: t.label, child: Text(t.label))),
+                  const DropdownMenuItem(
+                      value: 'ALL', child: Text('Subject Type: All Types')),
+                  ...activeTypes.map((t) =>
+                      DropdownMenuItem(value: t.label, child: Text(t.label))),
                 ],
-                onChanged: (v) => setState(() => _selectedTypeFilter = v ?? 'ALL'),
+                onChanged: (v) =>
+                    setState(() => _selectedTypeFilter = v ?? 'ALL'),
               ),
             ),
           );
@@ -451,20 +509,30 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFCBD5E1)),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: (_selectedClassFilter == 'ALL' || state.availableClasses.any((c) => c.id == _selectedClassFilter))
+                value: (_selectedClassFilter == 'ALL' ||
+                        state.availableClasses
+                            .any((c) => c.id == _selectedClassFilter))
                     ? _selectedClassFilter
                     : 'ALL',
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    fontSize: 13),
                 items: [
-                  const DropdownMenuItem(value: 'ALL', child: Text('Class: All Classes')),
-                  ...state.availableClasses.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))),
+                  const DropdownMenuItem(
+                      value: 'ALL', child: Text('Class: All Classes')),
+                  ...state.availableClasses.map((c) =>
+                      DropdownMenuItem(value: c.id, child: Text(c.name))),
                 ],
-                onChanged: (v) => setState(() => _selectedClassFilter = v ?? 'ALL'),
+                onChanged: (v) =>
+                    setState(() => _selectedClassFilter = v ?? 'ALL'),
               ),
             ),
           );
@@ -475,18 +543,28 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFCBD5E1)),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: statusItems.contains(_selectedStatusFilter) ? _selectedStatusFilter : 'ALL',
+                value: statusItems.contains(_selectedStatusFilter)
+                    ? _selectedStatusFilter
+                    : 'ALL',
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    fontSize: 13),
                 items: [
-                  const DropdownMenuItem(value: 'ALL', child: Text('Status: All Status')),
-                  ...activeStatuses.map((s) => DropdownMenuItem(value: s.code, child: Text(s.label))),
+                  const DropdownMenuItem(
+                      value: 'ALL', child: Text('Status: All Status')),
+                  ...activeStatuses.map((s) =>
+                      DropdownMenuItem(value: s.code, child: Text(s.label))),
                 ],
-                onChanged: (v) => setState(() => _selectedStatusFilter = v ?? 'ALL'),
+                onChanged: (v) =>
+                    setState(() => _selectedStatusFilter = v ?? 'ALL'),
               ),
             ),
           );
@@ -505,11 +583,19 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                   notifier.clearSubjectFilters();
                 },
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  side: BorderSide(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFCBD5E1)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
-                child: Text('Clear', style: TextStyle(color: isDark ? Colors.white70 : const Color(0xFF475569))),
+                child: Text('Clear',
+                    style: TextStyle(
+                        color:
+                            isDark ? Colors.white70 : const Color(0xFF475569))),
               ),
               const SizedBox(width: 10),
               ElevatedButton.icon(
@@ -518,7 +604,9 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                     search: _searchController.text.trim(),
                     type: _selectedTypeFilter,
                     status: _selectedStatusFilter,
-                    classId: _selectedClassFilter == 'ALL' ? null : _selectedClassFilter,
+                    classId: _selectedClassFilter == 'ALL'
+                        ? null
+                        : _selectedClassFilter,
                   );
                 },
                 icon: const Icon(Icons.filter_alt_rounded, size: 16),
@@ -526,8 +614,10 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4F46E5),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
               ),
             ],
@@ -588,7 +678,8 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -611,21 +702,27 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                     ),
                     const SizedBox(width: 8),
                     Tooltip(
-                      message: 'Click any row to view and manage class & section offerings in the bottom panel.',
-                      child: Icon(Icons.info_outline, size: 16, color: isDark ? Colors.white54 : Colors.black45),
+                      message:
+                          'Click any row to view and manage class & section offerings in the bottom panel.',
+                      child: Icon(Icons.info_outline,
+                          size: 16,
+                          color: isDark ? Colors.white54 : Colors.black45),
                     ),
                   ],
                 ),
                 if (!isTeacher)
                   ElevatedButton.icon(
-                    onPressed: () => _showCreateEditSubjectDialog(context, null, state, notifier),
+                    onPressed: () => _showCreateEditSubjectDialog(
+                        context, null, state, notifier),
                     icon: const Icon(Icons.add_rounded, size: 16),
                     label: const Text('Add Subject'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4F46E5),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
               ],
@@ -635,18 +732,28 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
 
           // Data Grid
           if (state.isLoading)
-            const Padding(padding: EdgeInsets.all(48), child: Center(child: CircularProgressIndicator()))
+            const Padding(
+                padding: EdgeInsets.all(48),
+                child: Center(child: CircularProgressIndicator()))
           else if (subjects.isEmpty)
             Padding(
               padding: const EdgeInsets.all(48),
               child: Center(
                 child: Column(
                   children: [
-                    Icon(Icons.menu_book_rounded, size: 40, color: isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
+                    Icon(Icons.menu_book_rounded,
+                        size: 40,
+                        color: isDark
+                            ? const Color(0xFF64748B)
+                            : const Color(0xFFCBD5E1)),
                     const SizedBox(height: 12),
                     Text(
                       'No subjects found matching the filter criteria.',
-                      style: TextStyle(fontSize: 14, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      style: TextStyle(
+                          fontSize: 14,
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B)),
                     ),
                   ],
                 ),
@@ -655,7 +762,8 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
           else
             LayoutBuilder(
               builder: (context, constraints) {
-                final tableWidth = constraints.maxWidth < 1050 ? 1050.0 : constraints.maxWidth;
+                final tableWidth =
+                    constraints.maxWidth < 1050 ? 1050.0 : constraints.maxWidth;
 
                 return SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -663,14 +771,18 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                     constraints: BoxConstraints(minWidth: tableWidth),
                     child: DataTable(
                       showCheckboxColumn: false,
-                      headingRowColor: MaterialStateProperty.all(
-                        isDark ? const Color(0xFF0F172A).withOpacity(0.6) : const Color(0xFFF8FAFC),
+                      headingRowColor: WidgetStateProperty.all(
+                        isDark
+                            ? const Color(0xFF0F172A).withValues(alpha: 0.6)
+                            : const Color(0xFFF8FAFC),
                       ),
                       headingTextStyle: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF475569),
                       ),
                       dataRowMinHeight: 56,
                       dataRowMaxHeight: 62,
@@ -686,7 +798,8 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                         const DataColumn(label: Text('REQUIREMENT')),
                         const DataColumn(label: Text('STATUS')),
                         const DataColumn(label: Text('LAST UPDATED')),
-                        if (!isTeacher) const DataColumn(label: Text('ACTIONS')),
+                        if (!isTeacher)
+                          const DataColumn(label: Text('ACTIONS')),
                       ],
                       rows: subjects.map((sub) {
                         final isSelected = state.selectedSubject?.id == sub.id;
@@ -694,8 +807,12 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                         final typeColor = _getTypeColor(sub.type);
                         final isActive = sub.status.toUpperCase() == 'ACTIVE';
 
-                        final classesText = sub.classesCount > 0 ? '${sub.classesCount} Classes' : '0 Classes';
-                        final sectionsText = sub.sectionsCount > 0 ? '${sub.sectionsCount} Sections' : '0 Sections';
+                        final classesText = sub.classesCount > 0
+                            ? '${sub.classesCount} Classes'
+                            : '0 Classes';
+                        final sectionsText = sub.sectionsCount > 0
+                            ? '${sub.sectionsCount} Sections'
+                            : '0 Sections';
                         final teachersText = '${sub.teachersCount} Teachers';
 
                         final updatedDateStr = sub.updatedAt != null
@@ -707,9 +824,10 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                         return DataRow(
                           selected: isSelected,
                           onSelectChanged: (_) => notifier.selectSubject(sub),
-                          color: MaterialStateProperty.resolveWith((states) {
+                          color: WidgetStateProperty.resolveWith((states) {
                             if (isSelected) {
-                              return const Color(0xFF4F46E5).withOpacity(0.08);
+                              return const Color(0xFF4F46E5)
+                                  .withValues(alpha: 0.08);
                             }
                             return null;
                           }),
@@ -722,10 +840,12 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                                     width: 34,
                                     height: 34,
                                     decoration: BoxDecoration(
-                                      color: sub.subjectColor.withOpacity(0.12),
+                                      color: sub.subjectColor
+                                          .withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
-                                    child: Icon(_getTypeIcon(sub.type), color: sub.subjectColor, size: 18),
+                                    child: Icon(_getTypeIcon(sub.type),
+                                        color: sub.subjectColor, size: 18),
                                   ),
                                   const SizedBox(width: 12),
                                   Text(
@@ -733,7 +853,9 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w700,
-                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
                                     ),
                                   ),
                                 ],
@@ -747,7 +869,9 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                                  color: isDark
+                                      ? const Color(0xFFCBD5E1)
+                                      : const Color(0xFF334155),
                                 ),
                               ),
                             ),
@@ -755,11 +879,13 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                             // Type Pill
                             DataCell(
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: typeColor.withOpacity(0.12),
+                                  color: typeColor.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: typeColor.withOpacity(0.3)),
+                                  border: Border.all(
+                                      color: typeColor.withValues(alpha: 0.3)),
                                 ),
                                 child: Text(
                                   sub.type,
@@ -776,7 +902,11 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                             DataCell(
                               Text(
                                 classesText,
-                                style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : const Color(0xFF475569)),
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark
+                                        ? Colors.white70
+                                        : const Color(0xFF475569)),
                               ),
                             ),
 
@@ -784,7 +914,11 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                             DataCell(
                               Text(
                                 sectionsText,
-                                style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : const Color(0xFF475569)),
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark
+                                        ? Colors.white70
+                                        : const Color(0xFF475569)),
                               ),
                             ),
 
@@ -792,32 +926,45 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                             DataCell(
                               Text(
                                 teachersText,
-                                style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : const Color(0xFF475569)),
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark
+                                        ? Colors.white70
+                                        : const Color(0xFF475569)),
                               ),
                             ),
 
                             // Requirement (Mandatory / Optional)
                             DataCell(
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
                                   color: isOpt
-                                      ? const Color(0xFFF59E0B).withOpacity(0.12)
-                                      : const Color(0xFF10B981).withOpacity(0.12),
+                                      ? const Color(0xFFF59E0B)
+                                          .withValues(alpha: 0.12)
+                                      : const Color(0xFF10B981)
+                                          .withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
                                     color: isOpt
-                                        ? const Color(0xFFF59E0B).withOpacity(0.3)
-                                        : const Color(0xFF10B981).withOpacity(0.3),
+                                        ? const Color(0xFFF59E0B)
+                                            .withValues(alpha: 0.3)
+                                        : const Color(0xFF10B981)
+                                            .withValues(alpha: 0.3),
                                   ),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
-                                      isOpt ? Icons.tune_rounded : Icons.check_circle_rounded,
+                                      isOpt
+                                          ? Icons.tune_rounded
+                                          : Icons.check_circle_rounded,
                                       size: 11,
-                                      color: isOpt ? const Color(0xFFD97706) : const Color(0xFF059669),
+                                      color: isOpt
+                                          ? const Color(0xFFD97706)
+                                          : const Color(0xFF059669),
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
@@ -825,7 +972,9 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w700,
-                                        color: isOpt ? const Color(0xFFD97706) : const Color(0xFF059669),
+                                        color: isOpt
+                                            ? const Color(0xFFD97706)
+                                            : const Color(0xFF059669),
                                       ),
                                     ),
                                   ],
@@ -836,18 +985,26 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                             // Status Pill
                             DataCell(
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: (isActive ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withOpacity(0.12),
+                                  color: (isActive
+                                          ? const Color(0xFF10B981)
+                                          : const Color(0xFFEF4444))
+                                      .withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
-                                      isActive ? Icons.check_rounded : Icons.close_rounded,
+                                      isActive
+                                          ? Icons.check_rounded
+                                          : Icons.close_rounded,
                                       size: 12,
-                                      color: isActive ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                      color: isActive
+                                          ? const Color(0xFF10B981)
+                                          : const Color(0xFFEF4444),
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
@@ -855,7 +1012,9 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w700,
-                                        color: isActive ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                        color: isActive
+                                            ? const Color(0xFF10B981)
+                                            : const Color(0xFFEF4444),
                                       ),
                                     ),
                                   ],
@@ -871,11 +1030,20 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                                 children: [
                                   Text(
                                     updatedDateStr,
-                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                                    style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A)),
                                   ),
                                   Text(
                                     'by Administrator',
-                                    style: TextStyle(fontSize: 10.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                                    style: TextStyle(
+                                        fontSize: 10.5,
+                                        color: isDark
+                                            ? const Color(0xFF94A3B8)
+                                            : const Color(0xFF64748B)),
                                   ),
                                 ],
                               ),
@@ -888,24 +1056,33 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     IconButton(
-                                      icon: const Icon(Icons.edit_outlined, size: 16),
+                                      icon: const Icon(Icons.edit_outlined,
+                                          size: 16),
                                       tooltip: 'Edit Subject',
-                                      onPressed: () => _showCreateEditSubjectDialog(context, sub, state, notifier),
+                                      onPressed: () =>
+                                          _showCreateEditSubjectDialog(
+                                              context, sub, state, notifier),
                                       padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                                      constraints: const BoxConstraints(
+                                          minWidth: 30, minHeight: 30),
                                     ),
                                     PopupMenuButton<String>(
-                                      icon: const Icon(Icons.more_vert, size: 16),
+                                      icon:
+                                          const Icon(Icons.more_vert, size: 16),
                                       tooltip: 'More actions',
                                       onSelected: (val) {
                                         if (val == 'edit') {
-                                          _showCreateEditSubjectDialog(context, sub, state, notifier);
+                                          _showCreateEditSubjectDialog(
+                                              context, sub, state, notifier);
                                         } else if (val == 'assign_section') {
-                                          _showAssignSubjectToSectionDialog(context, sub, state, notifier);
+                                          _showAssignSubjectToSectionDialog(
+                                              context, sub, state, notifier);
                                         } else if (val == 'assign_teacher') {
-                                          _showAssignTeacherDialog(context, sub, state, notifier);
+                                          _showAssignTeacherDialog(
+                                              context, sub, state, notifier);
                                         } else if (val == 'archive') {
-                                          _showArchiveDialog(context, sub, notifier);
+                                          _showArchiveDialog(
+                                              context, sub, notifier);
                                         } else if (val == 'restore') {
                                           notifier.restoreSubject(sub.id);
                                         }
@@ -913,26 +1090,60 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                                       itemBuilder: (ctx) => [
                                         const PopupMenuItem(
                                           value: 'edit',
-                                          child: Row(children: [Icon(Icons.edit_outlined, size: 16), SizedBox(width: 8), Text('Edit Subject')]),
+                                          child: Row(children: [
+                                            Icon(Icons.edit_outlined, size: 16),
+                                            SizedBox(width: 8),
+                                            Text('Edit Subject')
+                                          ]),
                                         ),
                                         const PopupMenuItem(
                                           value: 'assign_section',
-                                          child: Row(children: [Icon(Icons.add_task_rounded, size: 16, color: Color(0xFF4F46E5)), SizedBox(width: 8), Text('Assign to Class/Section')]),
+                                          child: Row(children: [
+                                            Icon(Icons.add_task_rounded,
+                                                size: 16,
+                                                color: Color(0xFF4F46E5)),
+                                            SizedBox(width: 8),
+                                            Text('Assign to Class/Section')
+                                          ]),
                                         ),
                                         const PopupMenuItem(
                                           value: 'assign_teacher',
-                                          child: Row(children: [Icon(Icons.person_add_alt_1_outlined, size: 16, color: Color(0xFF4F46E5)), SizedBox(width: 8), Text('Assign Faculty')]),
+                                          child: Row(children: [
+                                            Icon(
+                                                Icons.person_add_alt_1_outlined,
+                                                size: 16,
+                                                color: Color(0xFF4F46E5)),
+                                            SizedBox(width: 8),
+                                            Text('Assign Faculty')
+                                          ]),
                                         ),
                                         const PopupMenuDivider(),
-                                        if (sub.status.toUpperCase() == 'ARCHIVED')
+                                        if (sub.status.toUpperCase() ==
+                                            'ARCHIVED')
                                           const PopupMenuItem(
                                             value: 'restore',
-                                            child: Row(children: [Icon(Icons.unarchive_outlined, size: 16, color: Color(0xFF10B981)), SizedBox(width: 8), Text('Restore Subject', style: TextStyle(color: Color(0xFF10B981)))]),
+                                            child: Row(children: [
+                                              Icon(Icons.unarchive_outlined,
+                                                  size: 16,
+                                                  color: Color(0xFF10B981)),
+                                              SizedBox(width: 8),
+                                              Text('Restore Subject',
+                                                  style: TextStyle(
+                                                      color: Color(0xFF10B981)))
+                                            ]),
                                           )
                                         else
                                           const PopupMenuItem(
                                             value: 'archive',
-                                            child: Row(children: [Icon(Icons.archive_outlined, size: 16, color: Color(0xFFEF4444)), SizedBox(width: 8), Text('Archive Subject', style: TextStyle(color: Color(0xFFEF4444)))]),
+                                            child: Row(children: [
+                                              Icon(Icons.archive_outlined,
+                                                  size: 16,
+                                                  color: Color(0xFFEF4444)),
+                                              SizedBox(width: 8),
+                                              Text('Archive Subject',
+                                                  style: TextStyle(
+                                                      color: Color(0xFFEF4444)))
+                                            ]),
                                           ),
                                       ],
                                     ),
@@ -973,7 +1184,8 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -998,26 +1210,35 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A),
                               ),
                             ),
                           ),
                           if (selectedSub != null) ...[
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
                                 color: selectedSub.isElectiveOrOptional
-                                    ? const Color(0xFFF59E0B).withOpacity(0.15)
-                                    : const Color(0xFF10B981).withOpacity(0.15),
+                                    ? const Color(0xFFF59E0B)
+                                        .withValues(alpha: 0.15)
+                                    : const Color(0xFF10B981)
+                                        .withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                selectedSub.isElectiveOrOptional ? 'Optional' : 'Mandatory',
+                                selectedSub.isElectiveOrOptional
+                                    ? 'Optional'
+                                    : 'Mandatory',
                                 style: TextStyle(
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w700,
-                                  color: selectedSub.isElectiveOrOptional ? const Color(0xFFD97706) : const Color(0xFF059669),
+                                  color: selectedSub.isElectiveOrOptional
+                                      ? const Color(0xFFD97706)
+                                      : const Color(0xFF059669),
                                 ),
                               ),
                             ),
@@ -1027,7 +1248,11 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                       const SizedBox(height: 2),
                       Text(
                         'Showing sections offering this subject with faculty assignments and student enrollments.',
-                        style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B)),
                       ),
                     ],
                   ),
@@ -1040,15 +1265,19 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                   children: [
                     if (!isTeacher && selectedSub != null) ...[
                       ElevatedButton.icon(
-                        onPressed: () => _showAssignSubjectToSectionDialog(context, selectedSub, state, notifier),
+                        onPressed: () => _showAssignSubjectToSectionDialog(
+                            context, selectedSub, state, notifier),
                         icon: const Icon(Icons.add_task_rounded, size: 15),
                         label: const Text('Assign to Section'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF4F46E5),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                          textStyle: const TextStyle(
+                              fontSize: 12.5, fontWeight: FontWeight.w600),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -1056,24 +1285,42 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                     if (state.subjects.isNotEmpty) ...[
                       Text(
                         'Subject:',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF475569)),
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? Colors.white70
+                                : const Color(0xFF475569)),
                       ),
                       const SizedBox(width: 6),
                       Container(
                         height: 36,
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                          color: isDark
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                          border: Border.all(
+                              color: isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFCBD5E1)),
                         ),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
-                            value: selectedSub != null && state.subjects.any((s) => s.id == selectedSub.id)
+                            value: selectedSub != null &&
+                                    state.subjects
+                                        .any((s) => s.id == selectedSub.id)
                                 ? selectedSub.id
                                 : state.subjects.first.id,
-                            dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                            dropdownColor:
+                                isDark ? const Color(0xFF1E293B) : Colors.white,
+                            style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A)),
                             items: state.subjects.map((s) {
                               return DropdownMenuItem(
                                 value: s.id,
@@ -1099,7 +1346,10 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
             Padding(
               padding: const EdgeInsets.all(36),
               child: Center(
-                child: Text('Select a subject from the list above to view section offerings.', style: TextStyle(color: isDark ? Colors.white54 : Colors.black54)),
+                child: Text(
+                    'Select a subject from the list above to view section offerings.',
+                    style: TextStyle(
+                        color: isDark ? Colors.white54 : Colors.black54)),
               ),
             )
           else if (mappings.isEmpty)
@@ -1111,33 +1361,47 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4F46E5).withOpacity(0.1),
+                        color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.assignment_add, size: 32, color: Color(0xFF4F46E5)),
+                      child: const Icon(Icons.assignment_add,
+                          size: 32, color: Color(0xFF4F46E5)),
                     ),
                     const SizedBox(height: 12),
                     Text(
                       'No sections currently assigned to ${selectedSub.name}.',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A)),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Assign this subject to class sections to configure faculty and student enrollments.',
-                      style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B)),
                     ),
                     const SizedBox(height: 16),
                     if (!isTeacher)
                       ElevatedButton.icon(
-                        onPressed: () => _showAssignSubjectToSectionDialog(context, selectedSub, state, notifier),
+                        onPressed: () => _showAssignSubjectToSectionDialog(
+                            context, selectedSub, state, notifier),
                         icon: const Icon(Icons.add_rounded, size: 16),
-                        label: Text('Assign ${selectedSub.name} to Class / Section'),
+                        label: Text(
+                            'Assign ${selectedSub.name} to Class / Section'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF4F46E5),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                          textStyle: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 13),
                         ),
                       ),
                   ],
@@ -1147,7 +1411,8 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
           else
             LayoutBuilder(
               builder: (context, constraints) {
-                final tableWidth = constraints.maxWidth < 1000 ? 1000.0 : constraints.maxWidth;
+                final tableWidth =
+                    constraints.maxWidth < 1000 ? 1000.0 : constraints.maxWidth;
 
                 return SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -1155,14 +1420,18 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                     constraints: BoxConstraints(minWidth: tableWidth),
                     child: DataTable(
                       showCheckboxColumn: false,
-                      headingRowColor: MaterialStateProperty.all(
-                        isDark ? const Color(0xFF0F172A).withOpacity(0.6) : const Color(0xFFF8FAFC),
+                      headingRowColor: WidgetStateProperty.all(
+                        isDark
+                            ? const Color(0xFF0F172A).withValues(alpha: 0.6)
+                            : const Color(0xFFF8FAFC),
                       ),
                       headingTextStyle: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF475569),
                       ),
                       dataRowMinHeight: 58,
                       dataRowMaxHeight: 64,
@@ -1175,13 +1444,18 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                         const DataColumn(label: Text('STUDENTS ENROLLED')),
                         const DataColumn(label: Text('ASSIGNED TEACHER')),
                         const DataColumn(label: Text('STATUS')),
-                        if (!isTeacher) const DataColumn(label: Text('ACTIONS')),
+                        if (!isTeacher)
+                          const DataColumn(label: Text('ACTIONS')),
                       ],
                       rows: mappings.map((m) {
                         final teacher = m.assignedTeacher;
-                        final isMandatory = !selectedSub.isElectiveOrOptional && !m.isOfferedAsOptional;
-                        final enrolledCount = isMandatory ? m.totalCapacity : m.enrolledStudentsCount;
-                        final capacity = m.totalCapacity > 0 ? m.totalCapacity : 0;
+                        final isMandatory = !selectedSub.isElectiveOrOptional &&
+                            !m.isOfferedAsOptional;
+                        final enrolledCount = isMandatory
+                            ? m.totalCapacity
+                            : m.enrolledStudentsCount;
+                        final capacity =
+                            m.totalCapacity > 0 ? m.totalCapacity : 0;
                         final isOffered = m.status.toUpperCase() == 'ACTIVE';
 
                         return DataRow(
@@ -1193,7 +1467,9 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A),
                                 ),
                               ),
                             ),
@@ -1201,9 +1477,11 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                             // Section Name
                             DataCell(
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF4F46E5).withOpacity(0.08),
+                                  color: const Color(0xFF4F46E5)
+                                      .withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
@@ -1220,24 +1498,33 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                             // Enrollment Mode Pill
                             DataCell(
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
                                   color: isMandatory
-                                      ? const Color(0xFF10B981).withOpacity(0.12)
-                                      : const Color(0xFFF59E0B).withOpacity(0.12),
+                                      ? const Color(0xFF10B981)
+                                          .withValues(alpha: 0.12)
+                                      : const Color(0xFFF59E0B)
+                                          .withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
                                     color: isMandatory
-                                        ? const Color(0xFF10B981).withOpacity(0.3)
-                                        : const Color(0xFFF59E0B).withOpacity(0.3),
+                                        ? const Color(0xFF10B981)
+                                            .withValues(alpha: 0.3)
+                                        : const Color(0xFFF59E0B)
+                                            .withValues(alpha: 0.3),
                                   ),
                                 ),
                                 child: Text(
-                                  isMandatory ? 'Mandatory (Auto)' : 'Optional (Selective)',
+                                  isMandatory
+                                      ? 'Mandatory (Auto)'
+                                      : 'Optional (Selective)',
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
-                                    color: isMandatory ? const Color(0xFF059669) : const Color(0xFFD97706),
+                                    color: isMandatory
+                                        ? const Color(0xFF059669)
+                                        : const Color(0xFFD97706),
                                   ),
                                 ),
                               ),
@@ -1247,44 +1534,64 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                             DataCell(
                               isMandatory
                                   ? Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 5),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF10B981).withOpacity(0.10),
+                                        color: const Color(0xFF10B981)
+                                            .withValues(alpha: 0.10),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Icon(Icons.people_alt_rounded, size: 14, color: Color(0xFF059669)),
+                                          const Icon(Icons.people_alt_rounded,
+                                              size: 14,
+                                              color: Color(0xFF059669)),
                                           const SizedBox(width: 6),
                                           Text(
                                             'All $capacity Students (Mandatory)',
-                                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF059669)),
+                                            style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: Color(0xFF059669)),
                                           ),
                                         ],
                                       ),
                                     )
                                   : InkWell(
-                                      onTap: () => _showStudentEnrollmentDialog(context, selectedSub, m, state),
+                                      onTap: () => _showStudentEnrollmentDialog(
+                                          context, selectedSub, m, state),
                                       borderRadius: BorderRadius.circular(6),
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 5),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFFF59E0B).withOpacity(0.12),
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.4)),
+                                          color: const Color(0xFFF59E0B)
+                                              .withValues(alpha: 0.12),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          border: Border.all(
+                                              color: const Color(0xFFF59E0B)
+                                                  .withValues(alpha: 0.4)),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            const Icon(Icons.people_alt_rounded, size: 14, color: Color(0xFFD97706)),
+                                            const Icon(Icons.people_alt_rounded,
+                                                size: 14,
+                                                color: Color(0xFFD97706)),
                                             const SizedBox(width: 6),
                                             Text(
                                               '$enrolledCount / $capacity Enrolled',
-                                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFD97706)),
+                                              style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Color(0xFFD97706)),
                                             ),
                                             const SizedBox(width: 4),
-                                            const Icon(Icons.edit_outlined, size: 12, color: Color(0xFFD97706)),
+                                            const Icon(Icons.edit_outlined,
+                                                size: 12,
+                                                color: Color(0xFFD97706)),
                                           ],
                                         ),
                                       ),
@@ -1295,54 +1602,108 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                             DataCell(
                               teacher != null
                                   ? InkWell(
-                                      onTap: () => _showAssignTeacherForMappingDialog(context, selectedSub, m, state, notifier),
+                                      onTap: () =>
+                                          _showAssignTeacherForMappingDialog(
+                                              context,
+                                              selectedSub,
+                                              m,
+                                              state,
+                                              notifier),
                                       borderRadius: BorderRadius.circular(6),
                                       child: Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 4, horizontal: 2),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             CircleAvatar(
                                               radius: 14,
-                                              backgroundColor: const Color(0xFF4F46E5).withOpacity(0.15),
-                                              backgroundImage: teacher.avatarUrl != null ? NetworkImage(teacher.avatarUrl!) : null,
+                                              backgroundColor:
+                                                  const Color(0xFF4F46E5)
+                                                      .withValues(alpha: 0.15),
+                                              backgroundImage:
+                                                  teacher.avatarUrl != null
+                                                      ? NetworkImage(
+                                                          teacher.avatarUrl!)
+                                                      : null,
                                               child: teacher.avatarUrl == null
                                                   ? Text(
-                                                      teacher.fullName.isNotEmpty ? teacher.fullName[0].toUpperCase() : 'T',
-                                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF4F46E5)),
+                                                      teacher.fullName
+                                                              .isNotEmpty
+                                                          ? teacher.fullName[0]
+                                                              .toUpperCase()
+                                                          : 'T',
+                                                      style: const TextStyle(
+                                                          fontSize: 11,
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                          color: Color(
+                                                              0xFF4F46E5)),
                                                     )
                                                   : null,
                                             ),
                                             const SizedBox(width: 8),
                                             Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
                                               children: [
                                                 Text(
                                                   teacher.fullName,
-                                                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                                                  style: TextStyle(
+                                                      fontSize: 12.5,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: isDark
+                                                          ? Colors.white
+                                                          : const Color(
+                                                              0xFF0F172A)),
                                                 ),
                                                 Text(
-                                                  teacher.department ?? 'Faculty',
-                                                  style: TextStyle(fontSize: 10.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                                                  teacher.department ??
+                                                      'Faculty',
+                                                  style: TextStyle(
+                                                      fontSize: 10.5,
+                                                      color: isDark
+                                                          ? const Color(
+                                                              0xFF94A3B8)
+                                                          : const Color(
+                                                              0xFF64748B)),
                                                 ),
                                               ],
                                             ),
                                             const SizedBox(width: 6),
-                                            Icon(Icons.edit_outlined, size: 13, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                                            Icon(Icons.edit_outlined,
+                                                size: 13,
+                                                color: isDark
+                                                    ? const Color(0xFF94A3B8)
+                                                    : const Color(0xFF64748B)),
                                           ],
                                         ),
                                       ),
                                     )
                                   : OutlinedButton.icon(
-                                      onPressed: () => _showAssignTeacherForMappingDialog(context, selectedSub, m, state, notifier),
-                                      icon: const Icon(Icons.person_add_alt_1_outlined, size: 14),
-                                      label: const Text('Assign Teacher', style: TextStyle(fontSize: 11.5)),
+                                      onPressed: () =>
+                                          _showAssignTeacherForMappingDialog(
+                                              context,
+                                              selectedSub,
+                                              m,
+                                              state,
+                                              notifier),
+                                      icon: const Icon(
+                                          Icons.person_add_alt_1_outlined,
+                                          size: 14),
+                                      label: const Text('Assign Teacher',
+                                          style: TextStyle(fontSize: 11.5)),
                                       style: OutlinedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 5),
                                         minimumSize: Size.zero,
-                                        side: const BorderSide(color: Color(0xFF4F46E5)),
-                                        foregroundColor: const Color(0xFF4F46E5),
+                                        side: const BorderSide(
+                                            color: Color(0xFF4F46E5)),
+                                        foregroundColor:
+                                            const Color(0xFF4F46E5),
                                       ),
                                     ),
                             ),
@@ -1351,16 +1712,24 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                             DataCell(
                               InkWell(
                                 onTap: !isTeacher
-                                    ? () => _handleToggleSubjectOfferingStatus(context, m, selectedSub, notifier)
+                                    ? () => _handleToggleSubjectOfferingStatus(
+                                        context, m, selectedSub, notifier)
                                     : null,
                                 borderRadius: BorderRadius.circular(6),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: (isOffered ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withOpacity(0.12),
+                                    color: (isOffered
+                                            ? const Color(0xFF10B981)
+                                            : const Color(0xFFEF4444))
+                                        .withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(6),
                                     border: Border.all(
-                                      color: (isOffered ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withOpacity(0.25),
+                                      color: (isOffered
+                                              ? const Color(0xFF10B981)
+                                              : const Color(0xFFEF4444))
+                                          .withValues(alpha: 0.25),
                                     ),
                                   ),
                                   child: Row(
@@ -1370,7 +1739,9 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                                         width: 6,
                                         height: 6,
                                         decoration: BoxDecoration(
-                                          color: isOffered ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                          color: isOffered
+                                              ? const Color(0xFF10B981)
+                                              : const Color(0xFFEF4444),
                                           shape: BoxShape.circle,
                                         ),
                                       ),
@@ -1380,7 +1751,9 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                                         style: TextStyle(
                                           fontSize: 11,
                                           fontWeight: FontWeight.w700,
-                                          color: isOffered ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                                          color: isOffered
+                                              ? const Color(0xFF059669)
+                                              : const Color(0xFFDC2626),
                                         ),
                                       ),
                                     ],
@@ -1398,32 +1771,55 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                                     // Make Active / Inactive Action Button
                                     IconButton(
                                       icon: Icon(
-                                        isOffered ? Icons.toggle_on_rounded : Icons.toggle_off_rounded,
+                                        isOffered
+                                            ? Icons.toggle_on_rounded
+                                            : Icons.toggle_off_rounded,
                                         size: 26,
-                                        color: isOffered ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                                        color: isOffered
+                                            ? const Color(0xFF10B981)
+                                            : const Color(0xFF94A3B8),
                                       ),
-                                      tooltip: isOffered ? 'Mark as Inactive' : 'Mark as Active',
-                                      onPressed: () => _handleToggleSubjectOfferingStatus(context, m, selectedSub, notifier),
+                                      tooltip: isOffered
+                                          ? 'Mark as Inactive'
+                                          : 'Mark as Active',
+                                      onPressed: () =>
+                                          _handleToggleSubjectOfferingStatus(
+                                              context,
+                                              m,
+                                              selectedSub,
+                                              notifier),
                                       padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                      constraints: const BoxConstraints(
+                                          minWidth: 28, minHeight: 28),
                                     ),
                                     if (!isMandatory) ...[
                                       const SizedBox(width: 4),
                                       IconButton(
-                                        icon: const Icon(Icons.group_outlined, size: 16),
+                                        icon: const Icon(Icons.group_outlined,
+                                            size: 16),
                                         tooltip: 'Manage Enrolled Students',
-                                        onPressed: () => _showStudentEnrollmentDialog(context, selectedSub, m, state),
+                                        onPressed: () =>
+                                            _showStudentEnrollmentDialog(
+                                                context, selectedSub, m, state),
                                         padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                        constraints: const BoxConstraints(
+                                            minWidth: 28, minHeight: 28),
                                       ),
                                     ],
                                     const SizedBox(width: 4),
                                     IconButton(
-                                      icon: const Icon(Icons.link_off_rounded, size: 16, color: Color(0xFFEF4444)),
+                                      icon: const Icon(Icons.link_off_rounded,
+                                          size: 16, color: Color(0xFFEF4444)),
                                       tooltip: 'Unassign from Section',
-                                      onPressed: () => _confirmUnassignSubjectFromSection(context, selectedSub, m, notifier),
+                                      onPressed: () =>
+                                          _confirmUnassignSubjectFromSection(
+                                              context,
+                                              selectedSub,
+                                              m,
+                                              notifier),
                                       padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                      constraints: const BoxConstraints(
+                                          minWidth: 28, minHeight: 28),
                                     ),
                                   ],
                                 ),
@@ -1478,31 +1874,43 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
     int language = stats.languageSubjects;
 
     // Fallback if stats are not loaded yet
-    if (core == 0 && elective == 0 && practical == 0 && language == 0 && state.subjects.isNotEmpty) {
+    if (core == 0 &&
+        elective == 0 &&
+        practical == 0 &&
+        language == 0 &&
+        state.subjects.isNotEmpty) {
       core = state.subjects.where((s) => s.isCore).length;
       elective = state.subjects.where((s) => s.isElective).length;
       practical = state.subjects.where((s) => s.isPractical).length;
       language = state.subjects.where((s) => s.isLanguage).length;
     }
 
-    final corePct = total > 0 ? ((core / total) * 100).toStringAsFixed(2) : '0.00';
-    final electivePct = total > 0 ? ((elective / total) * 100).toStringAsFixed(2) : '0.00';
-    final practicalPct = total > 0 ? ((practical / total) * 100).toStringAsFixed(2) : '0.00';
-    final languagePct = total > 0 ? ((language / total) * 100).toStringAsFixed(2) : '0.00';
+    final corePct =
+        total > 0 ? ((core / total) * 100).toStringAsFixed(2) : '0.00';
+    final electivePct =
+        total > 0 ? ((elective / total) * 100).toStringAsFixed(2) : '0.00';
+    final practicalPct =
+        total > 0 ? ((practical / total) * 100).toStringAsFixed(2) : '0.00';
+    final languagePct =
+        total > 0 ? ((language / total) * 100).toStringAsFixed(2) : '0.00';
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Subject Types',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+            style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : const Color(0xFF0F172A)),
           ),
           const SizedBox(height: 18),
           Row(
@@ -1514,10 +1922,18 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                 child: CustomPaint(
                   painter: _DonutChartPainter(
                     slices: [
-                      _ChartSlice(value: core.toDouble(), color: const Color(0xFF4F46E5)),
-                      _ChartSlice(value: elective.toDouble(), color: const Color(0xFF10B981)),
-                      _ChartSlice(value: practical.toDouble(), color: const Color(0xFF06B6D4)),
-                      _ChartSlice(value: language.toDouble(), color: const Color(0xFFF59E0B)),
+                      _ChartSlice(
+                          value: core.toDouble(),
+                          color: const Color(0xFF4F46E5)),
+                      _ChartSlice(
+                          value: elective.toDouble(),
+                          color: const Color(0xFF10B981)),
+                      _ChartSlice(
+                          value: practical.toDouble(),
+                          color: const Color(0xFF06B6D4)),
+                      _ChartSlice(
+                          value: language.toDouble(),
+                          color: const Color(0xFFF59E0B)),
                     ],
                   ),
                   child: Center(
@@ -1526,11 +1942,20 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                       children: [
                         Text(
                           '$total',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A)),
                         ),
                         Text(
                           'Total',
-                          style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B)),
                         ),
                       ],
                     ),
@@ -1544,13 +1969,17 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildLegendRow('Core', '$core ($corePct%)', const Color(0xFF4F46E5), isDark),
+                    _buildLegendRow('Core', '$core ($corePct%)',
+                        const Color(0xFF4F46E5), isDark),
                     const SizedBox(height: 6),
-                    _buildLegendRow('Elective', '$elective ($electivePct%)', const Color(0xFF10B981), isDark),
+                    _buildLegendRow('Elective', '$elective ($electivePct%)',
+                        const Color(0xFF10B981), isDark),
                     const SizedBox(height: 6),
-                    _buildLegendRow('Practical', '$practical ($practicalPct%)', const Color(0xFF06B6D4), isDark),
+                    _buildLegendRow('Practical', '$practical ($practicalPct%)',
+                        const Color(0xFF06B6D4), isDark),
                     const SizedBox(height: 6),
-                    _buildLegendRow('Language', '$language ($languagePct%)', const Color(0xFFF59E0B), isDark),
+                    _buildLegendRow('Language', '$language ($languagePct%)',
+                        const Color(0xFFF59E0B), isDark),
                   ],
                 ),
               ),
@@ -1567,12 +1996,24 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
       children: [
         Row(
           children: [
-            Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+            Container(
+                width: 8,
+                height: 8,
+                decoration:
+                    BoxDecoration(color: color, shape: BoxShape.circle)),
             const SizedBox(width: 6),
-            Text(label, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF475569))),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white70 : const Color(0xFF475569))),
           ],
         ),
-        Text(value, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+        Text(value,
+            style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: isDark ? Colors.white : const Color(0xFF0F172A))),
       ],
     );
   }
@@ -1582,17 +2023,22 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
     List<Map<String, dynamic>> classItems = [];
 
     if (stats.subjectsByClass.isNotEmpty) {
-      final withSubs = stats.subjectsByClass.where((c) => ((c['subjects_count'] as num?)?.toInt() ?? 0) > 0).toList();
+      final withSubs = stats.subjectsByClass
+          .where((c) => ((c['subjects_count'] as num?)?.toInt() ?? 0) > 0)
+          .toList();
       if (withSubs.length >= 4) {
         classItems = withSubs.take(6).toList();
       } else {
         classItems = stats.subjectsByClass.take(6).toList();
       }
     } else if (state.classes.isNotEmpty) {
-      classItems = state.classes.take(6).map((c) => {
-        'class_name': c.name,
-        'subjects_count': c.subjectsCount,
-      }).toList();
+      classItems = state.classes
+          .take(6)
+          .map((c) => {
+                'class_name': c.name,
+                'subjects_count': c.subjectsCount,
+              })
+          .toList();
     }
 
     int maxVal = 1;
@@ -1606,14 +2052,18 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Subjects by Class',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+            style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : const Color(0xFF0F172A)),
           ),
           const SizedBox(height: 18),
           if (classItems.isEmpty)
@@ -1622,7 +2072,11 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Text(
                   'No classes configured',
-                  style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? const Color(0xFF64748B)
+                          : const Color(0xFF94A3B8)),
                 ),
               ),
             )
@@ -1635,8 +2089,16 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                 children: classItems.map((c) {
                   final count = (c['subjects_count'] as num?)?.toInt() ?? 0;
                   final rawName = c['class_name']?.toString() ?? '';
-                  final label = rawName.replaceAll('Class ', '').replaceAll('Grade-', 'G').replaceAll('Grade ', 'G').trim();
-                  return _buildBarItem(label.length > 7 ? '${label.substring(0, 6)}…' : label, count, maxVal, isDark);
+                  final label = rawName
+                      .replaceAll('Class ', '')
+                      .replaceAll('Grade-', 'G')
+                      .replaceAll('Grade ', 'G')
+                      .trim();
+                  return _buildBarItem(
+                      label.length > 7 ? '${label.substring(0, 6)}…' : label,
+                      count,
+                      maxVal,
+                      isDark);
                 }).toList(),
               ),
             ),
@@ -1644,7 +2106,11 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
           Center(
             child: Text(
               'Classes',
-              style: TextStyle(fontSize: 10.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+              style: TextStyle(
+                  fontSize: 10.5,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B)),
             ),
           ),
         ],
@@ -1660,7 +2126,10 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
       children: [
         Text(
           '$value',
-          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: isDark ? Colors.white70 : const Color(0xFF475569)),
+          style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white70 : const Color(0xFF475569)),
         ),
         const SizedBox(height: 4),
         Container(
@@ -1674,28 +2143,33 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
         const SizedBox(height: 6),
         Text(
           label,
-          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+          style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white : const Color(0xFF0F172A)),
         ),
       ],
     );
   }
 
-
-
   Widget _buildAboutOptionalSubjectsCard(bool isDark) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFEEF2FF).withOpacity(0.6),
+        color: isDark
+            ? const Color(0xFF0F172A)
+            : const Color(0xFFEEF2FF).withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF4F46E5).withOpacity(0.2)),
+        border:
+            Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.info_rounded, color: Color(0xFF4F46E5), size: 18),
+              const Icon(Icons.info_rounded,
+                  color: Color(0xFF4F46E5), size: 18),
               const SizedBox(width: 8),
               Text(
                 'About Optional Subjects',
@@ -1708,10 +2182,18 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
             ],
           ),
           const SizedBox(height: 12),
-          _buildBulletItem('Optional subjects are offered to students based on school rules.', isDark),
-          _buildBulletItem('Students can enroll in one or more optional subjects (as applicable).', isDark),
-          _buildBulletItem('Different sections of the same class may offer different optional subjects.', isDark),
-          _buildBulletItem('Each subject can have different teachers for different sections.', isDark),
+          _buildBulletItem(
+              'Optional subjects are offered to students based on school rules.',
+              isDark),
+          _buildBulletItem(
+              'Students can enroll in one or more optional subjects (as applicable).',
+              isDark),
+          _buildBulletItem(
+              'Different sections of the same class may offer different optional subjects.',
+              isDark),
+          _buildBulletItem(
+              'Each subject can have different teachers for different sections.',
+              isDark),
           const SizedBox(height: 10),
           InkWell(
             onTap: () {},
@@ -1741,7 +2223,11 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
           Expanded(
             child: Text(
               text,
-              style: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+              style: TextStyle(
+                  fontSize: 11.5,
+                  color: isDark
+                      ? const Color(0xFFCBD5E1)
+                      : const Color(0xFF475569)),
             ),
           ),
         ],
@@ -1752,15 +2238,23 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
   // =========================================================================
   // 6. PAGINATION FOOTER
   // =========================================================================
-  Widget _buildPaginationBar(BuildContext context, ClassState state, ClassNotifier notifier, bool isDark) {
-    final startItem = state.totalCount == 0 ? 0 : (state.page - 1) * state.pageSize + 1;
-    final endItem = (state.page * state.pageSize) > state.totalCount ? state.totalCount : (state.page * state.pageSize);
+  Widget _buildPaginationBar(BuildContext context, ClassState state,
+      ClassNotifier notifier, bool isDark) {
+    final startItem =
+        state.totalCount == 0 ? 0 : (state.page - 1) * state.pageSize + 1;
+    final endItem = (state.page * state.pageSize) > state.totalCount
+        ? state.totalCount
+        : (state.page * state.pageSize);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-        border: Border(top: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+        border: Border(
+            top: BorderSide(
+                color: isDark
+                    ? const Color(0xFF334155)
+                    : const Color(0xFFE2E8F0))),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -1774,7 +2268,9 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
                 ),
               ),
               const SizedBox(width: 16),
@@ -1785,7 +2281,9 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                     'Per page:',
                     style: TextStyle(
                       fontSize: 12,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                     ),
                   ),
                   const SizedBox(width: 6),
@@ -1795,16 +2293,23 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                     decoration: BoxDecoration(
                       color: isDark ? const Color(0xFF1E293B) : Colors.white,
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                      border: Border.all(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFCBD5E1)),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<int>(
-                        value: [10, 25, 50, 100].contains(state.pageSize) ? state.pageSize : 10,
-                        dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        value: [10, 25, 50, 100].contains(state.pageSize)
+                            ? state.pageSize
+                            : 10,
+                        dropdownColor:
+                            isDark ? const Color(0xFF1E293B) : Colors.white,
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                         items: const [
                           DropdownMenuItem(value: 10, child: Text('10')),
@@ -1835,7 +2340,9 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                 splashRadius: 16,
               ),
               IconButton(
-                onPressed: state.page > 1 ? () => notifier.setPage(state.page - 1) : null,
+                onPressed: state.page > 1
+                    ? () => notifier.setPage(state.page - 1)
+                    : null,
                 icon: const Icon(Icons.chevron_left, size: 20),
                 tooltip: 'Previous Page',
                 padding: EdgeInsets.zero,
@@ -1854,7 +2361,9 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                 ),
               ),
               IconButton(
-                onPressed: state.page < state.totalPages ? () => notifier.setPage(state.page + 1) : null,
+                onPressed: state.page < state.totalPages
+                    ? () => notifier.setPage(state.page + 1)
+                    : null,
                 icon: const Icon(Icons.chevron_right, size: 20),
                 tooltip: 'Next Page',
                 padding: EdgeInsets.zero,
@@ -1862,7 +2371,9 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                 splashRadius: 16,
               ),
               IconButton(
-                onPressed: state.page < state.totalPages ? () => notifier.setPage(state.totalPages) : null,
+                onPressed: state.page < state.totalPages
+                    ? () => notifier.setPage(state.totalPages)
+                    : null,
                 icon: const Icon(Icons.last_page, size: 18),
                 tooltip: 'Last Page',
                 padding: EdgeInsets.zero,
@@ -1984,8 +2495,11 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
     ClassState state,
     ClassNotifier notifier,
   ) {
-    final matchedClass = state.availableClasses.where((c) => c.id == mapping.classId).firstOrNull;
-    final matchedSection = state.sections.where((s) => s.id == mapping.sectionId).firstOrNull;
+    final matchedClass = state.availableClasses
+        .where((c) => c.id == mapping.classId)
+        .firstOrNull;
+    final matchedSection =
+        state.sections.where((s) => s.id == mapping.sectionId).firstOrNull;
 
     showDialog(
       context: context,
@@ -2015,9 +2529,11 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: const Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 22),
+            Icon(Icons.warning_amber_rounded,
+                color: Color(0xFFEF4444), size: 22),
             SizedBox(width: 8),
-            Text('Unassign Subject', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            Text('Unassign Subject',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           ],
         ),
         content: Text(
@@ -2036,16 +2552,19 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
               Navigator.of(ctx).pop();
               final ok = await notifier.unassignSubjectFromSection(
                 classId: mapping.classId,
-                sectionId: mapping.sectionId.isNotEmpty ? mapping.sectionId : null,
+                sectionId:
+                    mapping.sectionId.isNotEmpty ? mapping.sectionId : null,
                 subjectId: subject.id,
               );
               if (ok && context.mounted) {
-                final targetLabel = mapping.isClassWide || mapping.sectionId.isEmpty
+                final targetLabel = mapping.isClassWide ||
+                        mapping.sectionId.isEmpty
                     ? mapping.className
                     : '${mapping.className} - Section ${mapping.sectionName}';
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Unassigned "${subject.name}" from $targetLabel'),
+                    content:
+                        Text('Unassigned "${subject.name}" from $targetLabel'),
                     backgroundColor: const Color(0xFF10B981),
                   ),
                 );
@@ -2068,16 +2587,22 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
     SubjectSectionMappingModel mapping,
     ClassState state,
   ) {
-    final matchedClass = state.availableClasses.where((c) => c.id == mapping.classId).firstOrNull ??
-        AcademicClassModel(id: mapping.classId, name: mapping.className, code: mapping.className);
+    final matchedClass = state.availableClasses
+            .where((c) => c.id == mapping.classId)
+            .firstOrNull ??
+        AcademicClassModel(
+            id: mapping.classId,
+            name: mapping.className,
+            code: mapping.className);
 
-    final matchedSection = state.sections.where((s) => s.id == mapping.sectionId).firstOrNull ??
-        AcademicSectionModel(
-          id: mapping.sectionId,
-          classId: mapping.classId,
-          name: mapping.sectionName,
-          code: mapping.sectionName,
-        );
+    final matchedSection =
+        state.sections.where((s) => s.id == mapping.sectionId).firstOrNull ??
+            AcademicSectionModel(
+              id: mapping.sectionId,
+              classId: mapping.classId,
+              name: mapping.sectionName,
+              code: mapping.sectionName,
+            );
 
     showDialog(
       context: context,
@@ -2124,7 +2649,8 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
+                const Icon(Icons.warning_amber_rounded,
+                    color: Colors.white, size: 20),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -2147,7 +2673,8 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
+                const Icon(Icons.warning_amber_rounded,
+                    color: Colors.white, size: 20),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -2174,15 +2701,18 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
     );
 
     if (!ok && context.mounted) {
-      final err = notifier.state.errorMessage ?? 'Failed to update status';
+      final err =
+          ref.read(classProvider).errorMessage ?? 'Failed to update status';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+              const Icon(Icons.error_outline_rounded,
+                  color: Colors.white, size: 20),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(err, style: const TextStyle(fontWeight: FontWeight.w600)),
+                child: Text(err,
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -2195,13 +2725,24 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
   }
 
   String _getMonthName(int month) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     if (month >= 1 && month <= 12) return months[month - 1];
     return '';
   }
 }
-
-
 
 class _ChartSlice {
   final double value;

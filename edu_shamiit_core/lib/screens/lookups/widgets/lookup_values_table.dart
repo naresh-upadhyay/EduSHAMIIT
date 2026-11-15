@@ -83,9 +83,12 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -98,7 +101,6 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                   ),
                 ),
                 const Spacer(),
-
                 if (_isReorderMode) ...[
                   // Reorder Controls
                   OutlinedButton(
@@ -109,8 +111,10 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                       });
                     },
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6)),
                     ),
                     child: const Text('Cancel', style: TextStyle(fontSize: 12)),
                   ),
@@ -118,7 +122,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                   ElevatedButton(
                     onPressed: () async {
                       final orderedIds = _reorderList.map((e) => e.id).toList();
-                      final ok = await ref.read(lookupProvider.notifier).reorderValues(orderedIds);
+                      final ok = await ref
+                          .read(lookupProvider.notifier)
+                          .reorderValues(orderedIds);
                       if (ok) {
                         setState(() => _isReorderMode = false);
                         if (context.mounted) {
@@ -134,10 +140,14 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF10B981),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6)),
                     ),
-                    child: const Text('Save Order', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                    child: const Text('Save Order',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w700)),
                   ),
                 ] else ...[
                   // Add Value Button (Creator/Owner Only)
@@ -150,13 +160,17 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                         );
                       },
                       icon: const Icon(Icons.add_rounded, size: 16),
-                      label: const Text('Add Value', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      label: const Text('Add Value',
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w700)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF4F46E5),
                         foregroundColor: Colors.white,
                         elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6)),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -168,7 +182,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFCBD5E1),
                         ),
                         borderRadius: BorderRadius.circular(6),
                       ),
@@ -182,12 +198,14 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                       if (val == 'bulk_add') {
                         showDialog(
                           context: context,
-                          builder: (ctx) => BulkAddValuesDialog(lookupKey: widget.lookupKey),
+                          builder: (ctx) =>
+                              BulkAddValuesDialog(lookupKey: widget.lookupKey),
                         );
                       } else if (val == 'import_csv') {
                         showDialog(
                           context: context,
-                          builder: (ctx) => ImportLookupValuesDialog(lookupKey: widget.lookupKey),
+                          builder: (ctx) => ImportLookupValuesDialog(
+                              lookupKey: widget.lookupKey),
                         );
                       } else if (val == 'reorder') {
                         setState(() {
@@ -199,14 +217,16 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                           context: context,
                           isScrollControlled: true,
                           backgroundColor: Colors.transparent,
-                          builder: (ctx) => LookupAuditLogDrawer(lookupKey: widget.lookupKey),
+                          builder: (ctx) =>
+                              LookupAuditLogDrawer(lookupKey: widget.lookupKey),
                         );
                       } else if (val == 'usage') {
                         showModalBottomSheet(
                           context: context,
                           isScrollControlled: true,
                           backgroundColor: Colors.transparent,
-                          builder: (ctx) => LookupUsageDrawer(lookupKey: widget.lookupKey),
+                          builder: (ctx) =>
+                              LookupUsageDrawer(lookupKey: widget.lookupKey),
                         );
                       }
                     },
@@ -216,9 +236,11 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                           value: 'bulk_add',
                           child: Row(
                             children: [
-                              Icon(Icons.playlist_add_rounded, size: 16, color: Color(0xFF4F46E5)),
+                              Icon(Icons.playlist_add_rounded,
+                                  size: 16, color: Color(0xFF4F46E5)),
                               SizedBox(width: 8),
-                              Text('Bulk Add Values', style: TextStyle(fontSize: 12)),
+                              Text('Bulk Add Values',
+                                  style: TextStyle(fontSize: 12)),
                             ],
                           ),
                         ),
@@ -226,9 +248,11 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                           value: 'import_csv',
                           child: Row(
                             children: [
-                              Icon(Icons.upload_file_rounded, size: 16, color: Color(0xFF0EA5E9)),
+                              Icon(Icons.upload_file_rounded,
+                                  size: 16, color: Color(0xFF0EA5E9)),
                               SizedBox(width: 8),
-                              Text('Import from CSV', style: TextStyle(fontSize: 12)),
+                              Text('Import from CSV',
+                                  style: TextStyle(fontSize: 12)),
                             ],
                           ),
                         ),
@@ -236,9 +260,11 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                           value: 'reorder',
                           child: Row(
                             children: [
-                              Icon(Icons.drag_indicator_rounded, size: 16, color: Color(0xFFF59E0B)),
+                              Icon(Icons.drag_indicator_rounded,
+                                  size: 16, color: Color(0xFFF59E0B)),
                               SizedBox(width: 8),
-                              Text('Reorder Sequence', style: TextStyle(fontSize: 12)),
+                              Text('Reorder Sequence',
+                                  style: TextStyle(fontSize: 12)),
                             ],
                           ),
                         ),
@@ -248,9 +274,11 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                         value: 'audit_logs',
                         child: Row(
                           children: [
-                            Icon(Icons.history_rounded, size: 16, color: Color(0xFF6366F1)),
+                            Icon(Icons.history_rounded,
+                                size: 16, color: Color(0xFF6366F1)),
                             SizedBox(width: 8),
-                            Text('Audit Trail Logs', style: TextStyle(fontSize: 12)),
+                            Text('Audit Trail Logs',
+                                style: TextStyle(fontSize: 12)),
                           ],
                         ),
                       ),
@@ -258,9 +286,11 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                         value: 'usage',
                         child: Row(
                           children: [
-                            Icon(Icons.pie_chart_outline_rounded, size: 16, color: Color(0xFF10B981)),
+                            Icon(Icons.pie_chart_outline_rounded,
+                                size: 16, color: Color(0xFF10B981)),
                             SizedBox(width: 8),
-                            Text('Usage Breakdown', style: TextStyle(fontSize: 12)),
+                            Text('Usage Breakdown',
+                                style: TextStyle(fontSize: 12)),
                           ],
                         ),
                       ),
@@ -277,7 +307,8 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
           if (state.isValuesLoading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 40),
-              child: Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5))),
+              child: Center(
+                  child: CircularProgressIndicator(color: Color(0xFF4F46E5))),
             )
           else if (widget.values.isEmpty)
             Padding(
@@ -288,7 +319,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                     Icon(
                       Icons.format_list_bulleted_rounded,
                       size: 40,
-                      color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                      color: isDark
+                          ? const Color(0xFF475569)
+                          : const Color(0xFFCBD5E1),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -296,7 +329,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                       ),
                     ),
                     if (widget.isOwner) ...[
@@ -313,7 +348,8 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF4F46E5),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
                         ),
                       ),
                     ],
@@ -333,7 +369,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
               decoration: BoxDecoration(
                 border: Border(
                   top: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
               ),
@@ -344,7 +382,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                     'Page ${state.valuesPage} of ${state.valuesTotalPages} (${state.valuesTotalRecords} total)',
                     style: TextStyle(
                       fontSize: 12,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                     ),
                   ),
                   Row(
@@ -353,18 +393,23 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                         icon: const Icon(Icons.chevron_left_rounded),
                         iconSize: 18,
                         onPressed: state.valuesPage > 1
-                            ? () => ref.read(lookupProvider.notifier).setValuesPage(state.valuesPage - 1)
+                            ? () => ref
+                                .read(lookupProvider.notifier)
+                                .setValuesPage(state.valuesPage - 1)
                             : null,
                       ),
                       Text(
                         '${state.valuesPage}',
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 13),
                       ),
                       IconButton(
                         icon: const Icon(Icons.chevron_right_rounded),
                         iconSize: 18,
                         onPressed: state.valuesPage < state.valuesTotalPages
-                            ? () => ref.read(lookupProvider.notifier).setValuesPage(state.valuesPage + 1)
+                            ? () => ref
+                                .read(lookupProvider.notifier)
+                                .setValuesPage(state.valuesPage + 1)
                             : null,
                       ),
                     ],
@@ -404,7 +449,8 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                   color: const Color(0xFF6366F1).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.swap_vert_rounded, color: Color(0xFF6366F1), size: 22),
+                child: const Icon(Icons.swap_vert_rounded,
+                    color: Color(0xFF6366F1), size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -424,7 +470,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                       'Hold and drag items using the grip handle to customize the sequence options appear in dropdowns across ERP modules.',
                       style: TextStyle(
                         fontSize: 11,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF475569),
                       ),
                     ),
                   ],
@@ -441,8 +489,11 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
           physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           itemCount: _reorderList.length,
-          onReorderItem: (oldIdx, newIdx) {
+          onReorder: (oldIdx, newIdx) {
             setState(() {
+              if (oldIdx < newIdx) {
+                newIdx -= 1;
+              }
               final item = _reorderList.removeAt(oldIdx);
               _reorderList.insert(newIdx, item);
             });
@@ -456,12 +507,17 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                 cursor: SystemMouseCursors.grab,
                 child: Container(
                   margin: const EdgeInsets.symmetric(vertical: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    color: isDark
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0),
                     ),
                     boxShadow: [
                       BoxShadow(
@@ -490,7 +546,8 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
 
                       // Order Sequence Number Pill
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 9, vertical: 4),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
@@ -518,16 +575,21 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A),
                               ),
                             ),
                             const SizedBox(height: 2),
                             Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 1.5),
                                   decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE0E7FF),
+                                    color: isDark
+                                        ? const Color(0xFF1E293B)
+                                        : const Color(0xFFE0E7FF),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
@@ -547,7 +609,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                                       val.description,
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                        color: isDark
+                                            ? const Color(0xFF94A3B8)
+                                            : const Color(0xFF64748B),
                                       ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -561,11 +625,14 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
 
                       // Status Badge
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2.5),
                         decoration: BoxDecoration(
                           color: val.isActive
                               ? const Color(0xFF10B981).withValues(alpha: 0.12)
-                              : (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
+                              : (isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFF1F5F9)),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -576,7 +643,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                               height: 5,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: val.isActive ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                                color: val.isActive
+                                    ? const Color(0xFF10B981)
+                                    : const Color(0xFF94A3B8),
                               ),
                             ),
                             const SizedBox(width: 5),
@@ -587,7 +656,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                                 fontWeight: FontWeight.w700,
                                 color: val.isActive
                                     ? const Color(0xFF10B981)
-                                    : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                                    : (isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B)),
                               ),
                             ),
                           ],
@@ -597,12 +668,17 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
 
                       // Position Indicator Pill (Fully visible with no overlay)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                          color: isDark
+                              ? const Color(0xFF1E293B)
+                              : const Color(0xFFE2E8F0),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFCBD5E1),
                           ),
                         ),
                         child: Row(
@@ -611,7 +687,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                             Icon(
                               Icons.reorder_rounded,
                               size: 13,
-                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B),
                             ),
                             const SizedBox(width: 4),
                             Text(
@@ -619,7 +697,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
-                                color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                                color: isDark
+                                    ? const Color(0xFFCBD5E1)
+                                    : const Color(0xFF334155),
                               ),
                             ),
                           ],
@@ -646,13 +726,18 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                color:
+                    isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                 border: Border(
                   top: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                   bottom: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
               ),
@@ -666,7 +751,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                       ),
                     ),
                   ),
@@ -678,7 +765,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                       ),
                     ),
                   ),
@@ -690,7 +779,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                       ),
                     ),
                   ),
@@ -702,7 +793,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                       ),
                     ),
                   ),
@@ -714,7 +807,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                       ),
                     ),
                   ),
@@ -727,7 +822,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                       ),
                     ),
                   ),
@@ -738,11 +835,14 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
             // Table Rows
             ...widget.values.map((val) {
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(
-                      color: isDark ? const Color(0xFF334155).withValues(alpha: 0.5) : const Color(0xFFF1F5F9),
+                      color: isDark
+                          ? const Color(0xFF334155).withValues(alpha: 0.5)
+                          : const Color(0xFFF1F5F9),
                     ),
                   ),
                 ),
@@ -759,7 +859,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
                             ),
                           ),
                           if (val.description.isNotEmpty)
@@ -769,7 +871,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                                 val.description,
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -784,22 +888,33 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFF0F172A)
+                                    : const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: isDark
+                                      ? const Color(0xFF334155)
+                                      : const Color(0xFFCBD5E1),
+                                ),
                               ),
-                            ),
-                            child: Text(
-                              val.valueCode,
-                              style: TextStyle(
-                                fontFamily: 'monospace',
-                                fontWeight: FontWeight.w600,
-                                fontSize: 11,
-                                color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                              child: Text(
+                                val.valueCode,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontFamily: 'monospace',
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 11,
+                                  color: isDark
+                                      ? const Color(0xFFCBD5E1)
+                                      : const Color(0xFF334155),
+                                ),
                               ),
                             ),
                           ),
@@ -811,10 +926,12 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                             constraints: const BoxConstraints(),
                             tooltip: 'Copy Code',
                             onPressed: () {
-                              Clipboard.setData(ClipboardData(text: val.valueCode));
+                              Clipboard.setData(
+                                  ClipboardData(text: val.valueCode));
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('Copied ${val.valueCode} to clipboard'),
+                                  content: Text(
+                                      'Copied ${val.valueCode} to clipboard'),
                                   duration: const Duration(seconds: 1),
                                 ),
                               );
@@ -830,11 +947,15 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                       child: Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2.5),
                             decoration: BoxDecoration(
                               color: val.isActive
-                                  ? const Color(0xFF10B981).withValues(alpha: 0.12)
-                                  : (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
+                                  ? const Color(0xFF10B981)
+                                      .withValues(alpha: 0.12)
+                                  : (isDark
+                                      ? const Color(0xFF334155)
+                                      : const Color(0xFFF1F5F9)),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Row(
@@ -845,7 +966,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                                   height: 5,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: val.isActive ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                                    color: val.isActive
+                                        ? const Color(0xFF10B981)
+                                        : const Color(0xFF94A3B8),
                                   ),
                                 ),
                                 const SizedBox(width: 5),
@@ -856,7 +979,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                                     fontWeight: FontWeight.w700,
                                     color: val.isActive
                                         ? const Color(0xFF10B981)
-                                        : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                                        : (isDark
+                                            ? const Color(0xFF94A3B8)
+                                            : const Color(0xFF64748B)),
                                   ),
                                 ),
                               ],
@@ -874,7 +999,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF475569),
                         ),
                       ),
                     ),
@@ -895,9 +1022,11 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                         },
                         borderRadius: BorderRadius.circular(6),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF0EA5E9).withValues(alpha: 0.1),
+                            color:
+                                const Color(0xFF0EA5E9).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Row(
@@ -905,7 +1034,9 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                             children: [
                               Flexible(
                                 child: Text(
-                                  val.usage.modulesSummary.isNotEmpty ? val.usage.modulesSummary : '0 Modules',
+                                  val.usage.modulesSummary.isNotEmpty
+                                      ? val.usage.modulesSummary
+                                      : '0 Modules',
                                   style: const TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
@@ -915,7 +1046,8 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                                 ),
                               ),
                               const SizedBox(width: 3),
-                              const Icon(Icons.info_outline_rounded, size: 12, color: Color(0xFF0EA5E9)),
+                              const Icon(Icons.info_outline_rounded,
+                                  size: 12, color: Color(0xFF0EA5E9)),
                             ],
                           ),
                         ),
@@ -939,14 +1071,16 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                               onPressed: () {
                                 showDialog(
                                   context: context,
-                                  builder: (ctx) => AddEditLookupValueDialog(value: val),
+                                  builder: (ctx) =>
+                                      AddEditLookupValueDialog(value: val),
                                 );
                               },
                             ),
                             const SizedBox(width: 6),
                             // Delete Button
                             IconButton(
-                              icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                              icon: const Icon(Icons.delete_outline_rounded,
+                                  size: 16),
                               color: Colors.red,
                               tooltip: 'Delete Value',
                               padding: const EdgeInsets.all(4),
@@ -954,14 +1088,16 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                               onPressed: () {
                                 showDialog(
                                   context: context,
-                                  builder: (ctx) => DeleteLookupValueDialog(lookupKey: widget.lookupKey, value: val),
+                                  builder: (ctx) => DeleteLookupValueDialog(
+                                      lookupKey: widget.lookupKey, value: val),
                                 );
                               },
                             ),
                           ] else ...[
                             const Tooltip(
                               message: 'View only (Only the owner can modify)',
-                              child: Icon(Icons.lock_outline_rounded, size: 16, color: Color(0xFF94A3B8)),
+                              child: Icon(Icons.lock_outline_rounded,
+                                  size: 16, color: Color(0xFF94A3B8)),
                             ),
                           ],
                         ],
@@ -974,11 +1110,11 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
           ],
         );
 
-        if (constraints.maxWidth < 680) {
+        if (constraints.maxWidth < 820) {
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: SizedBox(
-              width: 680,
+              width: 820,
               child: tableContent,
             ),
           );

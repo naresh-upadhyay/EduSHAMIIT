@@ -28,7 +28,7 @@ SELECT
   id, 
   school_id, 
   bus_number, 
-  capacity, 
+  COALESCE(total_capacity, 52), 
   COALESCE(status, 'Active')
 FROM public.bus_routes
 ON CONFLICT (school_id, vehicle_no) DO UPDATE 

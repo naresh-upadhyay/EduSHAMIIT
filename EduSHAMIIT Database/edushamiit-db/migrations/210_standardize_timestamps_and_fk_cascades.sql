@@ -6,19 +6,27 @@
 -- ──────────────────────────────────────────────
 
 ALTER TABLE public.user_active_sessions 
-  ALTER COLUMN ended_at TYPE TIMESTAMPTZ USING ended_at AT TIME ZONE 'UTC';
+  ADD COLUMN IF NOT EXISTS ended_at TIMESTAMPTZ;
 
 ALTER TABLE public.app_roles 
   ALTER COLUMN updated_at TYPE TIMESTAMPTZ USING updated_at AT TIME ZONE 'UTC';
 
-ALTER TABLE public.profiles 
-  ALTER COLUMN lockout TYPE TIMESTAMPTZ USING lockout AT TIME ZONE 'UTC',
-  ALTER COLUMN last_failed_login TYPE TIMESTAMPTZ USING last_failed_login AT TIME ZONE 'UTC';
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='profiles' AND column_name='lockout_until') THEN
+    ALTER TABLE public.profiles ALTER COLUMN lockout_until TYPE TIMESTAMPTZ USING lockout_until AT TIME ZONE 'UTC';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='profiles' AND column_name='last_failed_login') THEN
+    ALTER TABLE public.profiles ALTER COLUMN last_failed_login TYPE TIMESTAMPTZ USING last_failed_login AT TIME ZONE 'UTC';
+  END IF;
+END $$;
 
 
 -- ──────────────────────────────────────────────
 -- 2. CONVERT RESTRICTIVE VARCHAR(255) COLUMNS TO TEXT
 -- ──────────────────────────────────────────────
+
+DROP VIEW IF EXISTS public.vw_all_user_notifications CASCADE;
 
 ALTER TABLE public.profiles ALTER COLUMN alternative_email TYPE TEXT;
 ALTER TABLE public.profiles ALTER COLUMN emergency_contact_name TYPE TEXT;

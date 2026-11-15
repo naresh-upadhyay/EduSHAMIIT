@@ -16,6 +16,15 @@ void main() async {
   // Initialize Cache Service
   await CacheService().init();
 
+  // Register auth callbacks for real WebRTC CallService
+  AuthNotifier.onLogin = (userId, baseUrl) {
+    CallService.instance.initialize(userId, baseUrl);
+  };
+  AuthNotifier.onLogout = () {
+    CallService.instance.dispose();
+  };
+  CallNotificationOverlay.globalNavigatorKey = rootNavigatorKey;
+
   final container = ProviderContainer();
   // Await auth restoration before the app UI starts
   await container.read(authProvider.notifier).initialize();
@@ -24,6 +33,12 @@ void main() async {
     container.read(roleProvider.notifier).setRole(authState.role);
   } else if (authState.userData?['role'] != null) {
     container.read(roleProvider.notifier).setRoleFromString(authState.userData!['role'].toString());
+  }
+
+  // If user is already authenticated on app launch, initialize CallService immediately
+  final currentUserId = authState.userData?['id'] as String? ?? '';
+  if (currentUserId.isNotEmpty) {
+    CallService.instance.initialize(currentUserId, AppConfig.baseUrl);
   }
 
   runApp(
@@ -40,7 +55,6 @@ class EduShamiitAdminApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
-    final settings = ref.watch(settingsProvider);
     final systemConfig = ref.watch(systemConfigProvider);
 
     // Global interceptor for 401 Unauthorized API responses
@@ -76,6 +90,11 @@ class EduShamiitAdminApp extends ConsumerWidget {
       theme: getStudentTheme(brightness: Brightness.light, primaryColor: customPrimary),
       darkTheme: getStudentTheme(brightness: Brightness.dark, primaryColor: customPrimary),
       routerConfig: router,
+      builder: (context, child) {
+        return CallNotificationOverlay(
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }

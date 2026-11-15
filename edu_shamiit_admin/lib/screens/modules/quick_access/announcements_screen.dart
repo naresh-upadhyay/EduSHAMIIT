@@ -376,10 +376,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
           // Left Main Panel
           Expanded(
             flex: 7,
-            child: Scrollbar(
+            child: SingleChildScrollView(
               controller: _leftScrollController,
-              child: SingleChildScrollView(
-                controller: _leftScrollController,
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -392,7 +390,6 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                   ],
                 ),
               ),
-            ),
           ),
           
           // Right Sidebar Panel (desktop only)
@@ -403,10 +400,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                 border: Border(left: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0))),
                 color: isDark ? const Color(0xFF0B0F19) : Colors.white,
               ),
-              child: Scrollbar(
+              child: SingleChildScrollView(
                 controller: _rightScrollController,
-                child: SingleChildScrollView(
-                  controller: _rightScrollController,
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -419,7 +414,6 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                     ],
                   ),
                 ),
-              ),
             ),
         ],
       ),
@@ -472,56 +466,69 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
   Widget _buildMetricsGrid(bool isDark) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final crossCount = constraints.maxWidth < 600 ? 2 : (constraints.maxWidth < 900 ? 3 : 5);
-        return GridView.count(
-          crossAxisCount: crossCount,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          childAspectRatio: 1.6,
-          children: [
-            _buildMetricCard(
-              title: "Total Announcements",
-              value: "${_stats['total']}",
-              subtitle: "All time",
-              color: const Color(0xFF4F46E5),
-              icon: Icons.campaign_rounded,
-              isDark: isDark,
-            ),
-            _buildMetricCard(
-              title: "Published",
-              value: "${_stats['published']}",
-              subtitle: "Currently visible",
-              color: const Color(0xFF3B82F6),
-              icon: Icons.send_rounded,
-              isDark: isDark,
-            ),
-            _buildMetricCard(
-              title: "Scheduled",
-              value: "${_stats['scheduled']}",
-              subtitle: "Upcoming announcements",
-              color: const Color(0xFF10B981),
-              icon: Icons.timer_rounded,
-              isDark: isDark,
-            ),
-            _buildMetricCard(
-              title: "Drafts",
-              value: "${_stats['draft']}",
-              subtitle: "Not published yet",
-              color: const Color(0xFFF59E0B),
-              icon: Icons.edit_rounded,
-              isDark: isDark,
-            ),
-            _buildMetricCard(
-              title: "Expired",
-              value: "${_stats['expired']}",
-              subtitle: "Past expiry date",
-              color: const Color(0xFFEF4444),
-              icon: Icons.cancel_rounded,
-              isDark: isDark,
-            ),
-          ],
+        final width = constraints.maxWidth;
+        const spacing = 12.0;
+        final int cols;
+        if (width >= 1200) {
+          cols = 5;
+        } else if (width >= 750) {
+          cols = 3;
+        } else if (width >= 480) {
+          cols = 2;
+        } else {
+          cols = 1;
+        }
+
+        final double totalSpacing = (cols - 1) * spacing;
+        final double cardWidth = ((width - totalSpacing) / cols).floorToDouble();
+
+        final cards = [
+          _buildMetricCard(
+            title: "Total Announcements",
+            value: "${_stats['total']}",
+            subtitle: "All time",
+            color: const Color(0xFF4F46E5),
+            icon: Icons.campaign_rounded,
+            isDark: isDark,
+          ),
+          _buildMetricCard(
+            title: "Published",
+            value: "${_stats['published']}",
+            subtitle: "Currently visible",
+            color: const Color(0xFF3B82F6),
+            icon: Icons.send_rounded,
+            isDark: isDark,
+          ),
+          _buildMetricCard(
+            title: "Scheduled",
+            value: "${_stats['scheduled']}",
+            subtitle: "Upcoming announcements",
+            color: const Color(0xFF10B981),
+            icon: Icons.timer_rounded,
+            isDark: isDark,
+          ),
+          _buildMetricCard(
+            title: "Drafts",
+            value: "${_stats['draft']}",
+            subtitle: "Not published yet",
+            color: const Color(0xFFF59E0B),
+            icon: Icons.edit_rounded,
+            isDark: isDark,
+          ),
+          _buildMetricCard(
+            title: "Expired",
+            value: "${_stats['expired']}",
+            subtitle: "Past expiry date",
+            color: const Color(0xFFEF4444),
+            icon: Icons.cancel_rounded,
+            isDark: isDark,
+          ),
+        ];
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: cards.map((c) => SizedBox(width: cardWidth, child: c)).toList(),
         );
       },
     );
@@ -536,10 +543,10 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     required bool isDark,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
         boxShadow: [
           if (!isDark)
@@ -569,7 +576,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
@@ -580,23 +587,27 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 value,
                 style: TextStyle(
                   color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  fontSize: 22,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   fontFamily: 'Outfit',
+                  height: 1.1,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: const TextStyle(
-                  color: Color(0xFF64748B),
+                style: TextStyle(
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                   fontSize: 10,
                 ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
             ],
           ),
@@ -927,35 +938,6 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     );
   }
 
-  Widget _buildAudienceBadge(String? audience) {
-    final label = audience ?? "Students";
-    Color bg = Colors.blue.withValues(alpha: 0.1);
-    Color text = Colors.blue;
-
-    if (label.toLowerCase() == 'parents' || label.toLowerCase() == 'parent') {
-      bg = Colors.purple.withValues(alpha: 0.1);
-      text = Colors.purple;
-    } else if (label.toLowerCase() == 'staff' || label.toLowerCase() == 'teacher' || label.toLowerCase() == 'admin' || label.toLowerCase() == 'super_admin') {
-      bg = Colors.teal.withValues(alpha: 0.1);
-      text = Colors.teal;
-    } else if (label.toLowerCase() == 'public') {
-      bg = Colors.amber.withValues(alpha: 0.1);
-      text = Colors.amber;
-    }
-
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
-        child: Text(
-          label.toUpperCase(),
-          style: TextStyle(color: text, fontSize: 10, fontWeight: FontWeight.bold),
-        ),
-      ),
-    );
-  }
-
   Widget _buildPriorityBadge(String? priority) {
     Color color = Colors.blue;
     if (priority == 'High') color = Colors.red;
@@ -1128,7 +1110,6 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     int colorIdx = 0;
 
     breakdown.forEach((key, val) {
-      final percentage = total > 0 ? (val / total * 100).toStringAsFixed(2) : "0.00";
       sections.add(
         PieChartSectionData(
           value: (val as int).toDouble(),

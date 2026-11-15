@@ -26,7 +26,7 @@ from psycopg2.extras import RealDictCursor
 from datetime import datetime, date, timedelta
 from app.config import settings
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = os.environ.get("TEST_BASE_URL", os.environ.get("BASE_URL", "http://localhost:8082"))
 PUBLIC_API = f"{BASE_URL}/api/public/careers"
 HR_API = f"{BASE_URL}/api/recruitment"
 

@@ -64,7 +64,9 @@ class SectionsTableInClass extends ConsumerWidget {
                       '${sections.length} Active section${sections.length == 1 ? '' : 's'} in ${academicClass.name}',
                       style: TextStyle(
                         fontSize: 12,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                       ),
                     ),
                   ],
@@ -96,13 +98,17 @@ class SectionsTableInClass extends ConsumerWidget {
                           );
                         },
                         icon: const Icon(Icons.add, size: 15),
-                        label: const Text('Add Section', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        label: const Text('Add Section',
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w600)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF4F46E5),
                           foregroundColor: Colors.white,
                           elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6)),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -115,15 +121,20 @@ class SectionsTableInClass extends ConsumerWidget {
                       },
                       borderRadius: BorderRadius.circular(6),
                       child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         child: Row(
                           children: [
                             Text(
                               'View all sections',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF4F46E5)),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF4F46E5)),
                             ),
                             SizedBox(width: 4),
-                            Icon(Icons.arrow_forward, size: 14, color: Color(0xFF4F46E5)),
+                            Icon(Icons.arrow_forward,
+                                size: 14, color: Color(0xFF4F46E5)),
                           ],
                         ),
                       ),
@@ -142,16 +153,28 @@ class SectionsTableInClass extends ConsumerWidget {
               child: Center(
                 child: Column(
                   children: [
-                    Icon(Icons.grid_off_rounded, size: 36, color: isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
+                    Icon(Icons.grid_off_rounded,
+                        size: 36,
+                        color: isDark
+                            ? const Color(0xFF64748B)
+                            : const Color(0xFFCBD5E1)),
                     const SizedBox(height: 8),
                     Text(
                       'No sections created for this class yet.',
-                      style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      style: TextStyle(
+                          fontSize: 13,
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B)),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Students and teachers can be assigned directly to ${academicClass.name}.',
-                      style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: isDark
+                              ? const Color(0xFF64748B)
+                              : const Color(0xFF94A3B8)),
                     ),
                   ],
                 ),
@@ -160,7 +183,8 @@ class SectionsTableInClass extends ConsumerWidget {
           else
             LayoutBuilder(
               builder: (context, constraints) {
-                final tableWidth = constraints.maxWidth < 700 ? 700.0 : constraints.maxWidth;
+                final tableWidth =
+                    constraints.maxWidth < 700 ? 700.0 : constraints.maxWidth;
 
                 return SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -168,20 +192,52 @@ class SectionsTableInClass extends ConsumerWidget {
                     width: tableWidth,
                     child: DataTable(
                       headingRowColor: WidgetStateProperty.all(
-                        isDark ? const Color(0xFF0F172A).withOpacity(0.4) : const Color(0xFFF8FAFC),
+                        isDark
+                            ? const Color(0xFF0F172A).withValues(alpha: 0.4)
+                            : const Color(0xFFF8FAFC),
                       ),
                       dataRowMinHeight: 52,
                       dataRowMaxHeight: 56,
                       horizontalMargin: 20,
                       columnSpacing: 16,
                       columns: [
-                        const DataColumn(label: Text('SECTION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5))),
-                        const DataColumn(label: Text('CLASS TEACHER', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5))),
-                        const DataColumn(label: Text('STUDENTS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5))),
-                        const DataColumn(label: Text('ROOM', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5))),
-                        const DataColumn(label: Text('STATUS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5))),
+                        const DataColumn(
+                            label: Text('SECTION',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.5))),
+                        const DataColumn(
+                            label: Text('CLASS TEACHER',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.5))),
+                        const DataColumn(
+                            label: Text('STUDENTS',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.5))),
+                        const DataColumn(
+                            label: Text('ROOM',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.5))),
+                        const DataColumn(
+                            label: Text('STATUS',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.5))),
                         if (!isTeacher)
-                          const DataColumn(label: Text('ACTIONS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5))),
+                          const DataColumn(
+                              label: Text('ACTIONS',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.5))),
                       ],
                       rows: sections.map((sec) {
                         final teacher = sec.classTeacher;
@@ -196,17 +252,21 @@ class SectionsTableInClass extends ConsumerWidget {
                                     : () {
                                         showDialog(
                                           context: context,
-                                          builder: (ctx) => CreateEditSectionDialog(
+                                          builder: (ctx) =>
+                                              CreateEditSectionDialog(
                                             sectionToEdit: sec,
-                                            availableClasses: state.availableClasses,
+                                            availableClasses:
+                                                state.availableClasses,
                                             availableRooms: state.rooms,
                                             defaultClassId: academicClass.id,
-                                            onSave: (payload) => notifier.updateSection(
+                                            onSave: (payload) =>
+                                                notifier.updateSection(
                                               sec.id,
                                               name: payload['name'],
                                               code: payload['code'],
                                               capacity: payload['capacity'],
-                                              roomNumber: payload['room_number'],
+                                              roomNumber:
+                                                  payload['room_number'],
                                               roomId: payload['room_id'],
                                               status: payload['status'],
                                             ),
@@ -215,9 +275,11 @@ class SectionsTableInClass extends ConsumerWidget {
                                       },
                                 borderRadius: BorderRadius.circular(6),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF10B981).withOpacity(0.12),
+                                    color: const Color(0xFF10B981)
+                                        .withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
@@ -240,13 +302,17 @@ class SectionsTableInClass extends ConsumerWidget {
                                     : () {
                                         showDialog(
                                           context: context,
-                                          builder: (ctx) => AssignClassTeacherDialog(
+                                          builder: (ctx) =>
+                                              AssignClassTeacherDialog(
                                             classId: academicClass.id,
                                             className: academicClass.name,
                                             sectionId: sec.id,
                                             sectionName: sec.name,
-                                            currentlyAssigned: teacher != null ? [teacher] : [],
-                                            onSave: (teacherIds) => notifier.assignTeachers(
+                                            currentlyAssigned: teacher != null
+                                                ? [teacher]
+                                                : [],
+                                            onSave: (teacherIds) =>
+                                                notifier.assignTeachers(
                                               classId: academicClass.id,
                                               sectionId: sec.id,
                                               teacherIds: teacherIds,
@@ -256,19 +322,35 @@ class SectionsTableInClass extends ConsumerWidget {
                                       },
                                 borderRadius: BorderRadius.circular(6),
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 4, horizontal: 4),
                                   child: teacher != null
                                       ? Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             CircleAvatar(
                                               radius: 12,
-                                              backgroundColor: const Color(0xFF4F46E5).withOpacity(0.15),
-                                              backgroundImage: teacher.avatarUrl != null ? NetworkImage(teacher.avatarUrl!) : null,
+                                              backgroundColor:
+                                                  const Color(0xFF4F46E5)
+                                                      .withValues(alpha: 0.15),
+                                              backgroundImage:
+                                                  teacher.avatarUrl != null
+                                                      ? NetworkImage(
+                                                          teacher.avatarUrl!)
+                                                      : null,
                                               child: teacher.avatarUrl == null
                                                   ? Text(
-                                                      teacher.fullName.isNotEmpty ? teacher.fullName[0].toUpperCase() : 'T',
-                                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)),
+                                                      teacher.fullName
+                                                              .isNotEmpty
+                                                          ? teacher.fullName[0]
+                                                              .toUpperCase()
+                                                          : 'T',
+                                                      style: const TextStyle(
+                                                          fontSize: 10,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: Color(
+                                                              0xFF4F46E5)),
                                                     )
                                                   : null,
                                             ),
@@ -278,24 +360,39 @@ class SectionsTableInClass extends ConsumerWidget {
                                               style: TextStyle(
                                                 fontSize: 12.5,
                                                 fontWeight: FontWeight.w600,
-                                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                                color: isDark
+                                                    ? Colors.white
+                                                    : const Color(0xFF0F172A),
                                               ),
                                             ),
                                             const SizedBox(width: 4),
-                                            if (!isTeacher) Icon(Icons.edit_outlined, size: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                                            if (!isTeacher)
+                                              Icon(Icons.edit_outlined,
+                                                  size: 12,
+                                                  color: isDark
+                                                      ? const Color(0xFF64748B)
+                                                      : const Color(
+                                                          0xFF94A3B8)),
                                           ],
                                         )
                                       : Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(Icons.person_add_alt_1_outlined, size: 14, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                                            Icon(
+                                                Icons.person_add_alt_1_outlined,
+                                                size: 14,
+                                                color: isDark
+                                                    ? const Color(0xFF64748B)
+                                                    : const Color(0xFF94A3B8)),
                                             const SizedBox(width: 6),
                                             Text(
                                               'Assign Teacher',
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w500,
-                                                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                                color: isDark
+                                                    ? const Color(0xFF94A3B8)
+                                                    : const Color(0xFF64748B),
                                               ),
                                             ),
                                           ],
@@ -312,13 +409,15 @@ class SectionsTableInClass extends ConsumerWidget {
                                     : () {
                                         showDialog(
                                           context: context,
-                                          builder: (ctx) => AssignStudentsDialog(
+                                          builder: (ctx) =>
+                                              AssignStudentsDialog(
                                             classId: academicClass.id,
                                             className: academicClass.name,
                                             sectionId: sec.id,
                                             sectionName: sec.name,
                                             academicYear: state.academicYear,
-                                            onSave: (studentIds, confirmMove) => notifier.assignStudents(
+                                            onSave: (studentIds, confirmMove) =>
+                                                notifier.assignStudents(
                                               classId: academicClass.id,
                                               sectionId: sec.id,
                                               studentIds: studentIds,
@@ -329,7 +428,8 @@ class SectionsTableInClass extends ConsumerWidget {
                                       },
                                 borderRadius: BorderRadius.circular(6),
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 4, horizontal: 4),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -338,14 +438,19 @@ class SectionsTableInClass extends ConsumerWidget {
                                         style: TextStyle(
                                           fontSize: 12.5,
                                           fontWeight: FontWeight.w600,
-                                          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                                          color: isDark
+                                              ? const Color(0xFFCBD5E1)
+                                              : const Color(0xFF334155),
                                         ),
                                       ),
                                       const SizedBox(width: 6),
                                       Icon(
-                                        isTeacher ? Icons.group_outlined : Icons.group_add_outlined,
+                                        isTeacher
+                                            ? Icons.group_outlined
+                                            : Icons.group_add_outlined,
                                         size: 14,
-                                        color: const Color(0xFF4F46E5).withOpacity(0.8),
+                                        color: const Color(0xFF4F46E5)
+                                            .withValues(alpha: 0.8),
                                       ),
                                     ],
                                   ),
@@ -359,22 +464,29 @@ class SectionsTableInClass extends ConsumerWidget {
                                 onTap: () => notifier.setActiveTab(3),
                                 borderRadius: BorderRadius.circular(6),
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 4),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(
                                         Icons.meeting_room_outlined,
                                         size: 14,
-                                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                        color: isDark
+                                            ? const Color(0xFF94A3B8)
+                                            : const Color(0xFF64748B),
                                       ),
                                       const SizedBox(width: 6),
                                       Text(
                                         sec.effectiveRoomDisplay,
                                         style: TextStyle(
                                           fontSize: 12.5,
-                                          fontWeight: sec.roomName != null ? FontWeight.w600 : FontWeight.normal,
-                                          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                                          fontWeight: sec.roomName != null
+                                              ? FontWeight.w600
+                                              : FontWeight.normal,
+                                          color: isDark
+                                              ? const Color(0xFFCBD5E1)
+                                              : const Color(0xFF334155),
                                         ),
                                       ),
                                     ],
@@ -386,13 +498,17 @@ class SectionsTableInClass extends ConsumerWidget {
                             // Status
                             DataCell(
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
                                   color: sec.status.toUpperCase() == 'ARCHIVED'
-                                      ? const Color(0xFFF59E0B).withOpacity(0.12)
+                                      ? const Color(0xFFF59E0B)
+                                          .withValues(alpha: 0.12)
                                       : (sec.isActive
-                                          ? const Color(0xFF10B981).withOpacity(0.12)
-                                          : const Color(0xFFEF4444).withOpacity(0.12)),
+                                          ? const Color(0xFF10B981)
+                                              .withValues(alpha: 0.12)
+                                          : const Color(0xFFEF4444)
+                                              .withValues(alpha: 0.12)),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
@@ -402,9 +518,12 @@ class SectionsTableInClass extends ConsumerWidget {
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
-                                    color: sec.status.toUpperCase() == 'ARCHIVED'
-                                        ? const Color(0xFFF59E0B)
-                                        : (sec.isActive ? const Color(0xFF10B981) : const Color(0xFFEF4444)),
+                                    color:
+                                        sec.status.toUpperCase() == 'ARCHIVED'
+                                            ? const Color(0xFFF59E0B)
+                                            : (sec.isActive
+                                                ? const Color(0xFF10B981)
+                                                : const Color(0xFFEF4444)),
                                   ),
                                 ),
                               ),
@@ -420,11 +539,14 @@ class SectionsTableInClass extends ConsumerWidget {
                                     if (val == 'edit') {
                                       showDialog(
                                         context: context,
-                                        builder: (ctx) => CreateEditSectionDialog(
+                                        builder: (ctx) =>
+                                            CreateEditSectionDialog(
                                           sectionToEdit: sec,
-                                          availableClasses: state.availableClasses,
+                                          availableClasses:
+                                              state.availableClasses,
                                           defaultClassId: academicClass.id,
-                                          onSave: (payload) => notifier.updateSection(
+                                          onSave: (payload) =>
+                                              notifier.updateSection(
                                             sec.id,
                                             name: payload['name'],
                                             code: payload['code'],
@@ -437,13 +559,16 @@ class SectionsTableInClass extends ConsumerWidget {
                                     } else if (val == 'assign_teacher') {
                                       showDialog(
                                         context: context,
-                                        builder: (ctx) => AssignClassTeacherDialog(
+                                        builder: (ctx) =>
+                                            AssignClassTeacherDialog(
                                           classId: academicClass.id,
                                           className: academicClass.name,
                                           sectionId: sec.id,
                                           sectionName: sec.name,
-                                          currentlyAssigned: teacher != null ? [teacher] : [],
-                                          onSave: (teacherIds) => notifier.assignTeachers(
+                                          currentlyAssigned:
+                                              teacher != null ? [teacher] : [],
+                                          onSave: (teacherIds) =>
+                                              notifier.assignTeachers(
                                             classId: academicClass.id,
                                             sectionId: sec.id,
                                             teacherIds: teacherIds,
@@ -459,7 +584,8 @@ class SectionsTableInClass extends ConsumerWidget {
                                           sectionId: sec.id,
                                           sectionName: sec.name,
                                           academicYear: state.academicYear,
-                                          onSave: (studentIds, confirmMove) => notifier.assignStudents(
+                                          onSave: (studentIds, confirmMove) =>
+                                              notifier.assignStudents(
                                             classId: academicClass.id,
                                             sectionId: sec.id,
                                             studentIds: studentIds,
@@ -475,8 +601,10 @@ class SectionsTableInClass extends ConsumerWidget {
                                           className: academicClass.name,
                                           sectionId: sec.id,
                                           sectionName: sec.name,
-                                          initialSubjectIds: sec.assignedSubjectIds,
-                                          onSave: (subjectIds) => notifier.manageSubjects(
+                                          initialSubjectIds:
+                                              sec.assignedSubjectIds,
+                                          onSave: (subjectIds) =>
+                                              notifier.manageSubjects(
                                             classId: academicClass.id,
                                             sectionId: sec.id,
                                             subjectIds: subjectIds,
@@ -488,13 +616,18 @@ class SectionsTableInClass extends ConsumerWidget {
                                     } else if (val == 'archive') {
                                       showDialog(
                                         context: context,
-                                        builder: (ctx) => ArchiveConfirmationDialog(
+                                        builder: (ctx) =>
+                                            ArchiveConfirmationDialog(
                                           title: 'Archive Section',
-                                          itemName: '${academicClass.name} - Section ${sec.name}',
+                                          itemName:
+                                              '${academicClass.name} - Section ${sec.name}',
                                           impactDetails: {
-                                            'Assigned Students': sec.studentsCount,
+                                            'Assigned Students':
+                                                sec.studentsCount,
                                           },
-                                          onConfirm: (force) => notifier.archiveSection(sec.id, force: force),
+                                          onConfirm: (force) =>
+                                              notifier.archiveSection(sec.id,
+                                                  force: force),
                                         ),
                                       );
                                     }
@@ -502,30 +635,65 @@ class SectionsTableInClass extends ConsumerWidget {
                                   itemBuilder: (ctx) => [
                                     const PopupMenuItem(
                                       value: 'edit',
-                                      child: Row(children: [Icon(Icons.edit_outlined, size: 16), SizedBox(width: 8), Text('Edit Section')]),
+                                      child: Row(children: [
+                                        Icon(Icons.edit_outlined, size: 16),
+                                        SizedBox(width: 8),
+                                        Text('Edit Section')
+                                      ]),
                                     ),
                                     const PopupMenuItem(
                                       value: 'assign_teacher',
-                                      child: Row(children: [Icon(Icons.person_add_outlined, size: 16), SizedBox(width: 8), Text('Assign Class Teacher')]),
+                                      child: Row(children: [
+                                        Icon(Icons.person_add_outlined,
+                                            size: 16),
+                                        SizedBox(width: 8),
+                                        Text('Assign Class Teacher')
+                                      ]),
                                     ),
                                     const PopupMenuItem(
                                       value: 'assign_students',
-                                      child: Row(children: [Icon(Icons.group_add_outlined, size: 16), SizedBox(width: 8), Text('Assign Students')]),
+                                      child: Row(children: [
+                                        Icon(Icons.group_add_outlined,
+                                            size: 16),
+                                        SizedBox(width: 8),
+                                        Text('Assign Students')
+                                      ]),
                                     ),
                                     const PopupMenuItem(
                                       value: 'manage_subjects',
-                                      child: Row(children: [Icon(Icons.menu_book_outlined, size: 16), SizedBox(width: 8), Text('Manage Section Subjects')]),
+                                      child: Row(children: [
+                                        Icon(Icons.menu_book_outlined,
+                                            size: 16),
+                                        SizedBox(width: 8),
+                                        Text('Manage Section Subjects')
+                                      ]),
                                     ),
                                     const PopupMenuDivider(),
                                     if (sec.status.toUpperCase() == 'ARCHIVED')
                                       const PopupMenuItem(
                                         value: 'restore',
-                                        child: Row(children: [Icon(Icons.unarchive_outlined, size: 16, color: Color(0xFF10B981)), SizedBox(width: 8), Text('Restore Section', style: TextStyle(color: Color(0xFF10B981)))]),
+                                        child: Row(children: [
+                                          Icon(Icons.unarchive_outlined,
+                                              size: 16,
+                                              color: Color(0xFF10B981)),
+                                          SizedBox(width: 8),
+                                          Text('Restore Section',
+                                              style: TextStyle(
+                                                  color: Color(0xFF10B981)))
+                                        ]),
                                       )
                                     else
                                       const PopupMenuItem(
                                         value: 'archive',
-                                        child: Row(children: [Icon(Icons.archive_outlined, size: 16, color: Color(0xFFEF4444)), SizedBox(width: 8), Text('Archive Section', style: TextStyle(color: Color(0xFFEF4444)))]),
+                                        child: Row(children: [
+                                          Icon(Icons.archive_outlined,
+                                              size: 16,
+                                              color: Color(0xFFEF4444)),
+                                          SizedBox(width: 8),
+                                          Text('Archive Section',
+                                              style: TextStyle(
+                                                  color: Color(0xFFEF4444)))
+                                        ]),
                                       ),
                                   ],
                                 ),

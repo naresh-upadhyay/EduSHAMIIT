@@ -18,6 +18,25 @@ BEGIN
     END IF;
 END $$;
 
+ALTER TABLE public.hr_training_enrollments
+    ADD COLUMN IF NOT EXISTS progress_percentage NUMERIC DEFAULT 0.0,
+    ADD COLUMN IF NOT EXISTS is_mandatory BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS enrolled_at TIMESTAMPTZ DEFAULT NOW(),
+    ADD COLUMN IF NOT EXISTS attendance_status TEXT DEFAULT 'PENDING',
+    ADD COLUMN IF NOT EXISTS certificate_status TEXT DEFAULT 'NOT_ISSUED';
+
+ALTER TABLE public.hr_training_attendance
+    ADD COLUMN IF NOT EXISTS attendance_status TEXT,
+    ADD COLUMN IF NOT EXISTS recorded_by UUID,
+    ADD COLUMN IF NOT EXISTS recorded_at TIMESTAMPTZ DEFAULT NOW(),
+    ADD COLUMN IF NOT EXISTS remarks TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_hr_training_session_enrollment
+    ON public.hr_training_attendance (session_id, enrollment_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_hr_training_cert_program_employee
+    ON public.hr_training_certificates (program_id, employee_id);
+
 
 -- ============================================================================
 -- 1. PROGRAM DETAIL & TAB DATA AGGREGATION

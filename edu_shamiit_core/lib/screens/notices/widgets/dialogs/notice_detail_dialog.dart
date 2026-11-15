@@ -61,7 +61,9 @@ class _NoticeDetailDialogState extends ConsumerState<NoticeDetailDialog> {
       await _loadDetail();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Notice ${status == "acknowledged" ? "acknowledged" : "declined"} successfully!')),
+          SnackBar(
+              content: Text(
+                  'Notice ${status == "acknowledged" ? "acknowledged" : "declined"} successfully!')),
         );
       }
     } catch (e) {
@@ -77,7 +79,11 @@ class _NoticeDetailDialogState extends ConsumerState<NoticeDetailDialog> {
 
   bool get isAdmin {
     final r = widget.userRole.toLowerCase();
-    return r == 'super_admin' || r == 'admin' || r == 'principal' || r == 'vice_principal' || r == 'director';
+    return r == 'super_admin' ||
+        r == 'admin' ||
+        r == 'principal' ||
+        r == 'vice_principal' ||
+        r == 'director';
   }
 
   @override
@@ -95,16 +101,19 @@ class _NoticeDetailDialogState extends ConsumerState<NoticeDetailDialog> {
           maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),
         child: _isLoading
-            ? const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))
+            ? const SizedBox(
+                height: 200, child: Center(child: CircularProgressIndicator()))
             : _error != null
                 ? Padding(
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('Failed to load notice: $_error', style: const TextStyle(color: Colors.red)),
+                        Text('Failed to load notice: $_error',
+                            style: const TextStyle(color: Colors.red)),
                         const SizedBox(height: 12),
-                        ElevatedButton(onPressed: _loadDetail, child: const Text('Retry')),
+                        ElevatedButton(
+                            onPressed: _loadDetail, child: const Text('Retry')),
                       ],
                     ),
                   )
@@ -113,7 +122,8 @@ class _NoticeDetailDialogState extends ConsumerState<NoticeDetailDialog> {
     );
   }
 
-  Widget _buildContent(BuildContext context, NoticeModel notice, bool isDark, DateFormat df) {
+  Widget _buildContent(
+      BuildContext context, NoticeModel notice, bool isDark, DateFormat df) {
     final isAuthor = notice.authorId == widget.currentUserId;
     final canManage = isAdmin || isAuthor;
 
@@ -125,31 +135,40 @@ class _NoticeDetailDialogState extends ConsumerState<NoticeDetailDialog> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+            border: Border(
+                bottom: BorderSide(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0))),
           ),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4F46E5).withOpacity(0.1),
+                  color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   notice.category.toUpperCase(),
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF4F46E5)),
+                  style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF4F46E5)),
                 ),
               ),
               if (notice.isUrgent || notice.priority == 'urgent') ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: const Color(0xFFDC2626),
                     borderRadius: BorderRadius.circular(6),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFDC2626).withOpacity(0.3),
+                        color: const Color(0xFFDC2626).withValues(alpha: 0.3),
                         blurRadius: 4,
                         offset: const Offset(0, 1),
                       ),
@@ -162,7 +181,11 @@ class _NoticeDetailDialogState extends ConsumerState<NoticeDetailDialog> {
                       SizedBox(width: 2),
                       Text(
                         'URGENT',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5),
+                        style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: 0.5),
                       ),
                     ],
                   ),
@@ -198,10 +221,16 @@ class _NoticeDetailDialogState extends ConsumerState<NoticeDetailDialog> {
                 children: [
                   CircleAvatar(
                     radius: 14,
-                    backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    backgroundColor: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                     child: Text(
                       (notice.authorName ?? 'A')[0].toUpperCase(),
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A)),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -210,13 +239,22 @@ class _NoticeDetailDialogState extends ConsumerState<NoticeDetailDialog> {
                     children: [
                       Text(
                         notice.authorName ?? 'Admin / Institute',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF0F172A)),
                       ),
                       Text(
                         notice.publishedAt != null
                             ? 'Published on ${df.format(notice.publishedAt!.toLocal())}'
                             : 'Created on ${df.format(notice.createdAt.toLocal())}',
-                        style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B)),
                       ),
                     ],
                   ),
@@ -232,7 +270,9 @@ class _NoticeDetailDialogState extends ConsumerState<NoticeDetailDialog> {
                 style: TextStyle(
                   fontSize: 13,
                   height: 1.6,
-                  color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF334155),
+                  color: isDark
+                      ? const Color(0xFFE2E8F0)
+                      : const Color(0xFF334155),
                 ),
               ),
               const SizedBox(height: 20),
@@ -241,38 +281,57 @@ class _NoticeDetailDialogState extends ConsumerState<NoticeDetailDialog> {
               if (notice.attachments.isNotEmpty) ...[
                 Text(
                   'Attachments (${notice.attachments.length})',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A)),
                 ),
                 const SizedBox(height: 8),
                 ...notice.attachments.map((att) {
                   return Container(
                     margin: const EdgeInsets.only(bottom: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      color: isDark
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      border: Border.all(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFE2E8F0)),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.attach_file_rounded, size: 16, color: Color(0xFF4F46E5)),
+                        const Icon(Icons.attach_file_rounded,
+                            size: 16, color: Color(0xFF4F46E5)),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             att.name,
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w600),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         if (att.formattedSize.isNotEmpty)
-                          Text(att.formattedSize, style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                          Text(att.formattedSize,
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B))),
                         const SizedBox(width: 8),
                         IconButton(
-                          icon: const Icon(Icons.download_rounded, size: 16, color: Color(0xFF4F46E5)),
+                          icon: const Icon(Icons.download_rounded,
+                              size: 16, color: Color(0xFF4F46E5)),
                           onPressed: () {
                             Clipboard.setData(ClipboardData(text: att.url));
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Attachment link copied to clipboard!')),
+                              const SnackBar(
+                                  content: Text(
+                                      'Attachment link copied to clipboard!')),
                             );
                           },
                           padding: EdgeInsets.zero,
@@ -291,20 +350,24 @@ class _NoticeDetailDialogState extends ConsumerState<NoticeDetailDialog> {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: notice.userIsAcknowledged
-                        ? const Color(0xFF10B981).withOpacity(0.1)
-                        : const Color(0xFFF59E0B).withOpacity(0.1),
+                        ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                        : const Color(0xFFF59E0B).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: notice.userIsAcknowledged
-                          ? const Color(0xFF10B981).withOpacity(0.3)
-                          : const Color(0xFFF59E0B).withOpacity(0.3),
+                          ? const Color(0xFF10B981).withValues(alpha: 0.3)
+                          : const Color(0xFFF59E0B).withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        notice.userIsAcknowledged ? Icons.check_circle_rounded : Icons.info_outline_rounded,
-                        color: notice.userIsAcknowledged ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                        notice.userIsAcknowledged
+                            ? Icons.check_circle_rounded
+                            : Icons.info_outline_rounded,
+                        color: notice.userIsAcknowledged
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFFF59E0B),
                         size: 20,
                       ),
                       const SizedBox(width: 10),
@@ -316,19 +379,26 @@ class _NoticeDetailDialogState extends ConsumerState<NoticeDetailDialog> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: notice.userIsAcknowledged ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                            color: notice.userIsAcknowledged
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFFF59E0B),
                           ),
                         ),
                       ),
                       if (!notice.userIsAcknowledged)
                         ElevatedButton.icon(
-                          onPressed: _isAcknowledging ? null : () => _handleAcknowledge(),
+                          onPressed: _isAcknowledging
+                              ? null
+                              : () => _handleAcknowledge(),
                           icon: const Icon(Icons.check_rounded, size: 14),
-                          label: const Text('Acknowledge', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                          label: const Text('Acknowledge',
+                              style: TextStyle(
+                                  fontSize: 11, fontWeight: FontWeight.w700)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF10B981),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
                             minimumSize: const Size(60, 32),
                           ),
                         ),
@@ -343,23 +413,40 @@ class _NoticeDetailDialogState extends ConsumerState<NoticeDetailDialog> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    color: isDark
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                    border: Border.all(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.visibility_outlined, size: 14, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                          Icon(Icons.visibility_outlined,
+                              size: 14,
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B)),
                           const SizedBox(width: 4),
-                          Text('${notice.viewCount} views', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                          Text('${notice.viewCount} views',
+                              style: const TextStyle(
+                                  fontSize: 11, fontWeight: FontWeight.w600)),
                           if (notice.requiresAcknowledgement) ...[
                             const SizedBox(width: 12),
-                            Icon(Icons.check_circle_outline_rounded, size: 14, color: const Color(0xFF10B981)),
+                            const Icon(Icons.check_circle_outline_rounded,
+                                size: 14, color: Color(0xFF10B981)),
                             const SizedBox(width: 4),
-                            Text('${notice.ackCount} acknowledged (${notice.ackPercentage.toStringAsFixed(0)}%)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF10B981))),
+                            Text(
+                                '${notice.ackCount} acknowledged (${notice.ackPercentage.toStringAsFixed(0)}%)',
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF10B981))),
                           ],
                         ],
                       ),
@@ -368,11 +455,14 @@ class _NoticeDetailDialogState extends ConsumerState<NoticeDetailDialog> {
                           onPressed: () {
                             showDialog(
                               context: context,
-                              builder: (ctx) => NoticeAcknowledgementsDialog(noticeId: notice.id, title: notice.title),
+                              builder: (ctx) => NoticeAcknowledgementsDialog(
+                                  noticeId: notice.id, title: notice.title),
                             );
                           },
                           icon: const Icon(Icons.how_to_reg_rounded, size: 14),
-                          label: const Text('Dashboard', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                          label: const Text('Dashboard',
+                              style: TextStyle(
+                                  fontSize: 11, fontWeight: FontWeight.w700)),
                         ),
                     ],
                   ),
@@ -386,15 +476,21 @@ class _NoticeDetailDialogState extends ConsumerState<NoticeDetailDialog> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
-            border: Border(top: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+            border: Border(
+                top: BorderSide(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0))),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               TextButton.icon(
                 onPressed: () {
-                  Clipboard.setData(ClipboardData(text: '${notice.title}\n\n${notice.content}'));
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notice text copied!')));
+                  Clipboard.setData(ClipboardData(
+                      text: '${notice.title}\n\n${notice.content}'));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Notice text copied!')));
                 },
                 icon: const Icon(Icons.copy_rounded, size: 14),
                 label: const Text('Copy Text', style: TextStyle(fontSize: 11)),
@@ -407,7 +503,8 @@ class _NoticeDetailDialogState extends ConsumerState<NoticeDetailDialog> {
                         Navigator.of(context).pop();
                         showDialog(
                           context: context,
-                          builder: (ctx) => CreateEditNoticeDialog(editNotice: notice),
+                          builder: (ctx) =>
+                              CreateEditNoticeDialog(editNotice: notice),
                         );
                       },
                       icon: const Icon(Icons.edit_rounded, size: 14),

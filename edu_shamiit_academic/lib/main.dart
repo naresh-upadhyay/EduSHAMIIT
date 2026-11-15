@@ -5,11 +5,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_academic/app.dart';
+import 'package:edu_shamiit_academic/app_router.dart';
 import 'package:edu_shamiit_core/services/supabase_service.dart';
 import 'package:edu_shamiit_core/services/cache_service.dart';
 
 import 'package:edu_shamiit_core/providers/auth_provider.dart';
 import 'package:edu_shamiit_core/providers/role_provider.dart';
+import 'package:edu_shamiit_core/config/app_config.dart';
+import 'package:edu_shamiit_core/widgets/call_notification_overlay.dart';
 import 'package:edu_shamiit_academic/core/services/call_service.dart';
 
 
@@ -24,6 +27,7 @@ void main() async {
   AuthNotifier.onLogout = () {
     CallService.instance.dispose();
   };
+  CallNotificationOverlay.globalNavigatorKey = rootNavigatorKey;
 
   // Initialize Supabase
   await SupabaseService.initialize();
@@ -59,6 +63,10 @@ void main() async {
   final authState = container.read(authProvider);
   if (authState.isAuthenticated) {
     container.read(roleProvider.notifier).setRole(authState.role);
+    final currentUserId = authState.userData?['id'] as String? ?? '';
+    if (currentUserId.isNotEmpty) {
+      CallService.instance.initialize(currentUserId, AppConfig.baseUrl);
+    }
   }
 
   runApp(

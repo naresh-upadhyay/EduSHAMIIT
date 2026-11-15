@@ -6,6 +6,7 @@ import io
 import csv
 import json
 import time
+import os
 import hashlib
 
 from app.middleware.auth import get_current_user, require_any_role
@@ -33,6 +34,8 @@ def sanitize_body(body: dict) -> dict:
     return sanitized
 
 
+_SUPABASE_AUDIT_DISABLED_UNTIL = 0.0
+
 async def log_audit_event_to_db(
     school_id: Optional[str],
     user_id: Optional[str],
@@ -49,6 +52,13 @@ async def log_audit_event_to_db(
     Database triggers automatically capture table mutations (INSERT/UPDATE/DELETE).
     Auth and non-table events are recorded in 1 RPC call without extra profile lookups.
     """
+    if os.environ.get("TESTING") == "1":
+        return
+    global _SUPABASE_AUDIT_DISABLED_UNTIL
+    import time
+    if time.time() < _SUPABASE_AUDIT_DISABLED_UNTIL:
+        return
+
     try:
         sb = get_supabase()
 
@@ -79,7 +89,8 @@ async def log_audit_event_to_db(
         }).aexecute()
 
     except Exception as e:
-        print(f"[Audit Log Worker] Log skipped: {e}", flush=True)
+        _SUPABASE_AUDIT_DISABLED_UNTIL = time.time() + 300.0
+        # Silent offline backoff for 5 minutes
 
 
 

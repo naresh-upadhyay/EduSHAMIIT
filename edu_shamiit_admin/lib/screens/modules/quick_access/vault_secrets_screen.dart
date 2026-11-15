@@ -22,6 +22,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
   String _pathFilter = "All Paths";
   String _typeFilter = "All Types";
   String _statusFilter = "All Status";
+  String _scopeFilter = "All Scopes";
 
   // Pagination state
   int _currentPage = 1;
@@ -149,6 +150,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
     required String type,
     DateTime? nextRotation,
     String? status,
+    String scope = 'global',
   }) async {
     try {
       final payload = {
@@ -159,6 +161,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
         'secret_type': type,
         'next_rotation': nextRotation?.toIso8601String(),
         'status': status ?? 'Active',
+        'scope': scope.toLowerCase(),
       };
 
       if (id == null) {
@@ -208,7 +211,29 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
     final valController = TextEditingController();
     final pathController = TextEditingController(text: isEdit ? secret['path'] : 'secret/data/');
     
-    String selectedType = isEdit ? secret['secret_type'] : 'API Key';
+    final List<String> standardTypes = [
+      'API Key',
+      'Config',
+      'Password',
+      'Key / Secret',
+      'Username / Pass',
+      'Token',
+      'Private Key',
+      'Connection String',
+      'URL',
+      'Certificate',
+      'JSON',
+    ];
+
+    String rawType = (isEdit ? (secret['secret_type']?.toString() ?? 'API Key') : 'API Key').trim();
+    if (rawType.isEmpty) rawType = 'API Key';
+
+    final List<String> typeItems = List<String>.from(standardTypes);
+    if (!typeItems.contains(rawType)) {
+      typeItems.add(rawType);
+    }
+    String selectedType = rawType;
+    String selectedScope = isEdit ? (secret['scope']?.toString() ?? 'global') : 'global';
     DateTime? selectedNextRotation = isEdit && secret['next_rotation'] != null
         ? DateTime.parse(secret['next_rotation'])
         : DateTime.now().add(const Duration(days: 30));
@@ -316,6 +341,103 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                       ),
                       const SizedBox(height: 16),
 
+                      // Scope / Priority Selection (Global vs Individual)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text('SCOPE / PREFERENCE', style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? Colors.white38 : const Color(0xFF94A3B8), letterSpacing: 1.0)),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: selectedScope.toLowerCase() == 'individual'
+                                      ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                                      : const Color(0xFF4F46E5).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  selectedScope.toLowerCase() == 'individual' ? 'HIGHEST PREFERENCE' : 'GLOBAL DEFAULT',
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: selectedScope.toLowerCase() == 'individual' ? const Color(0xFF10B981) : const Color(0xFF4F46E5),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: selectedScope.toLowerCase() == 'individual' ? const Color(0xFF10B981) : (isDark ? Colors.white10 : const Color(0xFFE2E8F0))),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: selectedScope.toLowerCase() == 'individual' ? 'Individual' : 'Global',
+                                isExpanded: true,
+                                dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
+                                onChanged: (val) {
+                                  setModalState(() {
+                                    selectedScope = (val ?? 'Global').toLowerCase();
+                                  });
+                                },
+                                items: [
+                                  DropdownMenuItem(
+                                    value: 'Global',
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.public, size: 14, color: Color(0xFF4F46E5)),
+                                        const SizedBox(width: 8),
+                                        Text('Global (System & School-wide Default)', style: GoogleFonts.dmSans(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                                      ],
+                                    ),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'Individual',
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.person, size: 14, color: Color(0xFF10B981)),
+                                        const SizedBox(width: 8),
+                                        Text('Individual (My Personal Credential Override)', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          if (selectedScope.toLowerCase() == 'individual') ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981).withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.25)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.verified_user_outlined, size: 15, color: Color(0xFF10B981)),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Smart Routing: Individual credentials take top priority for all your AI & ERP API requests over global keys.',
+                                      style: GoogleFonts.dmSans(fontSize: 11, color: isDark ? const Color(0xFFA7F3D0) : const Color(0xFF065F46)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
                       // Type & Next Rotation Picker
                       Row(
                         children: [
@@ -338,11 +460,13 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                                       isExpanded: true,
                                       dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
                                       onChanged: (val) {
-                                        setModalState(() {
-                                          selectedType = val!;
-                                        });
+                                        if (val != null) {
+                                          setModalState(() {
+                                            selectedType = val;
+                                          });
+                                        }
                                       },
-                                      items: ['Password', 'API Key', 'Key / Secret', 'Username / Pass', 'Token', 'Private Key', 'Connection String', 'URL'].map((t) {
+                                      items: typeItems.map((t) {
                                         return DropdownMenuItem(value: t, child: Text(t, style: GoogleFonts.dmSans(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A))));
                                       }).toList(),
                                     ),
@@ -461,6 +585,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                                 path: pathController.text.trim(),
                                 type: selectedType,
                                 nextRotation: selectedNextRotation,
+                                scope: selectedScope,
                               );
                             },
                             style: ElevatedButton.styleFrom(
@@ -631,6 +756,14 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
       if (_statusFilter != "All Status") {
         final status = (s['status'] ?? '').toString();
         if (status != _statusFilter) {
+          return false;
+        }
+      }
+
+      // 5. Scope Filter
+      if (_scopeFilter != "All Scopes") {
+        final scope = (s['scope'] ?? 'global').toString().toLowerCase();
+        if (scope != _scopeFilter.toLowerCase()) {
           return false;
         }
       }
@@ -976,7 +1109,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                 _buildFilterDropdown(
                   'Type',
                   _typeFilter,
-                  ['All Types', 'Password', 'API Key', 'Key / Secret', 'Username / Pass', 'Token', 'Private Key', 'Connection String', 'URL'],
+                  ['All Types', 'API Key', 'Config', 'Password', 'Key / Secret', 'Username / Pass', 'Token', 'Private Key', 'Connection String', 'URL'],
                   (val) => setState(() {
                     _typeFilter = val!;
                     _currentPage = 1;
@@ -1087,7 +1220,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
           _buildFilterDropdown(
             'Type',
             _typeFilter,
-            ['All Types', 'Password', 'API Key', 'Key / Secret', 'Username / Pass', 'Token', 'Private Key', 'Connection String', 'URL'],
+            ['All Types', 'API Key', 'Config', 'Password', 'Key / Secret', 'Username / Pass', 'Token', 'Private Key', 'Connection String', 'URL'],
             (val) => setState(() {
               _typeFilter = val!;
               _currentPage = 1;
@@ -1111,6 +1244,20 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
           ),
           const SizedBox(width: 12),
 
+          // Scope Filter Dropdown
+          _buildFilterDropdown(
+            'Scope',
+            _scopeFilter,
+            ['All Scopes', 'Global', 'Individual'],
+            (val) => setState(() {
+              _scopeFilter = val!;
+              _currentPage = 1;
+            }),
+            cardBg,
+            textSecondary,
+          ),
+          const SizedBox(width: 12),
+
           // Filters Reset Button
           OutlinedButton.icon(
             onPressed: () {
@@ -1120,6 +1267,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                 _pathFilter = "All Paths";
                 _typeFilter = "All Types";
                 _statusFilter = "All Status";
+                _scopeFilter = "All Scopes";
                 _currentPage = 1;
               });
             },
@@ -1136,6 +1284,10 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
   }
 
   Widget _buildFilterDropdown(String label, String value, List<String> items, ValueChanged<String?> onChanged, Color cardBg, Color textSecondary) {
+    final effectiveItems = List<String>.from(items);
+    if (!effectiveItems.contains(value)) {
+      effectiveItems.insert(0, value);
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
@@ -1148,7 +1300,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
           value: value,
           dropdownColor: cardBg,
           onChanged: onChanged,
-          items: items.map((i) {
+          items: effectiveItems.map((i) {
             return DropdownMenuItem(
               value: i,
               child: Text(
@@ -1250,7 +1402,33 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           mainAxisAlignment: MainAxisAlignment.center,
                                           children: [
-                                            Text(name, style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 12, color: textPrimary), overflow: TextOverflow.ellipsis),
+                                            Row(
+                                              children: [
+                                                Flexible(
+                                                  child: Text(name, style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 12, color: textPrimary), overflow: TextOverflow.ellipsis),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                                  decoration: BoxDecoration(
+                                                    color: (sec['scope'] ?? 'global').toString().toLowerCase() == 'individual'
+                                                        ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                                                        : const Color(0xFF4F46E5).withValues(alpha: 0.15),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                  child: Text(
+                                                    (sec['scope'] ?? 'global').toString().toLowerCase() == 'individual' ? 'User' : 'Global',
+                                                    style: GoogleFonts.dmSans(
+                                                      fontSize: 9,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: (sec['scope'] ?? 'global').toString().toLowerCase() == 'individual'
+                                                          ? const Color(0xFF10B981)
+                                                          : const Color(0xFF4F46E5),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                             if (desc.isNotEmpty && !isMobile) Text(desc, style: GoogleFonts.dmSans(fontSize: 10, color: textSecondary), overflow: TextOverflow.ellipsis),
                                           ],
                                         ),
@@ -1499,6 +1677,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
             const SizedBox(height: 20),
 
             // Metadata list
+            _buildDetailRow('Scope', (sec['scope'] ?? 'global').toString().toLowerCase() == 'individual' ? 'Individual (Personal Priority)' : 'Global (System Default)', textSecondary),
             _buildDetailRow('Path', path, textSecondary, isCopyable: true),
             _buildDetailRow('Type', type, textSecondary),
             _buildDetailRow('Created On', createdStr, textSecondary),

@@ -29,10 +29,12 @@ class AssignSubjectTeacherDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<AssignSubjectTeacherDialog> createState() => _AssignSubjectTeacherDialogState();
+  ConsumerState<AssignSubjectTeacherDialog> createState() =>
+      _AssignSubjectTeacherDialogState();
 }
 
-class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeacherDialog> {
+class _AssignSubjectTeacherDialogState
+    extends ConsumerState<AssignSubjectTeacherDialog> {
   final ClassApiService _api = ClassApiService();
   final TextEditingController _searchController = TextEditingController();
 
@@ -51,11 +53,14 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
     super.initState();
     _selectedClassId = widget.defaultClass?.id ??
         widget.defaultClassId ??
-        (widget.availableClasses.isNotEmpty ? widget.availableClasses.first.id : null);
+        (widget.availableClasses.isNotEmpty
+            ? widget.availableClasses.first.id
+            : null);
 
     if (widget.defaultSection?.id != null) {
       _selectedSectionIds.add(widget.defaultSection!.id);
-    } else if (widget.defaultSectionId != null && widget.defaultSectionId!.isNotEmpty) {
+    } else if (widget.defaultSectionId != null &&
+        widget.defaultSectionId!.isNotEmpty) {
       _selectedSectionIds.add(widget.defaultSectionId!);
     } else if (_currentSections.isNotEmpty) {
       _selectedSectionIds.add(_currentSections.first.id);
@@ -79,7 +84,9 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
 
   AcademicClassModel? get _currentClass {
     if (_selectedClassId == null) return null;
-    return widget.availableClasses.where((c) => c.id == _selectedClassId).firstOrNull;
+    return widget.availableClasses
+        .where((c) => c.id == _selectedClassId)
+        .firstOrNull;
   }
 
   List<AcademicSectionModel> get _currentSections {
@@ -146,9 +153,11 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: const Row(
           children: [
-            Icon(Icons.person_remove_rounded, color: Color(0xFFEF4444), size: 22),
+            Icon(Icons.person_remove_rounded,
+                color: Color(0xFFEF4444), size: 22),
             SizedBox(width: 8),
-            Text('Unassign Teacher?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            Text('Unassign Teacher?',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           ],
         ),
         content: Text(
@@ -186,11 +195,19 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
     final isDark = theme.brightness == Brightness.dark;
     final sub = widget.defaultSubject;
 
-    final displayClassName = widget.defaultClassName ?? widget.defaultClass?.name ?? _currentClass?.name ?? 'Class';
-    final displaySectionName = widget.defaultSectionName ?? widget.defaultSection?.name ?? (_currentSections.isNotEmpty ? _currentSections.first.name : 'All Sections');
+    final displayClassName = widget.defaultClassName ??
+        widget.defaultClass?.name ??
+        _currentClass?.name ??
+        'Class';
+    final displaySectionName = widget.defaultSectionName ??
+        widget.defaultSection?.name ??
+        (_currentSections.isNotEmpty
+            ? _currentSections.first.name
+            : 'All Sections');
 
     final bool hasInitialTeacher = _initialTeacher != null;
-    final bool isUnassignSelected = _selectedTeacherId == null && hasInitialTeacher;
+    final bool isUnassignSelected =
+        _selectedTeacherId == null && hasInitialTeacher;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -198,13 +215,14 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
       backgroundColor: Colors.transparent,
       child: Container(
         width: 600,
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.90),
+        constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.90),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 24,
               offset: const Offset(0, 10),
             ),
@@ -219,7 +237,9 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
               ),
@@ -228,10 +248,11 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF4F46E5).withOpacity(0.1),
+                      color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.person_pin_rounded, color: Color(0xFF4F46E5), size: 22),
+                    child: const Icon(Icons.person_pin_rounded,
+                        color: Color(0xFF4F46E5), size: 22),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -243,7 +264,8 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                         Text(
@@ -252,7 +274,9 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                               : 'Select class, sections, and faculty member for subject.',
                           style: TextStyle(
                             fontSize: 12,
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ],
@@ -260,7 +284,11 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                   ),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: Icon(Icons.close, size: 20, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    icon: Icon(Icons.close,
+                        size: 20,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B)),
                     splashRadius: 20,
                   ),
                 ],
@@ -275,27 +303,45 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Class & Section Info
-                    if (widget.defaultClass != null || widget.defaultClassId != null) ...[
+                    if (widget.defaultClass != null ||
+                        widget.defaultClassId != null) ...[
                       Text(
                         'Class & Section',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF334155)),
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? Colors.white70
+                                : const Color(0xFF334155)),
                       ),
                       const SizedBox(height: 6),
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                          color: isDark
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                          border: Border.all(
+                              color: isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFE2E8F0)),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.school_outlined, size: 18, color: Color(0xFF4F46E5)),
+                            const Icon(Icons.school_outlined,
+                                size: 18, color: Color(0xFF4F46E5)),
                             const SizedBox(width: 8),
                             Text(
                               '$displayClassName • Section $displaySectionName',
-                              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                              style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A)),
                             ),
                           ],
                         ),
@@ -303,22 +349,37 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                     ] else ...[
                       Text(
                         'Target Class',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF334155)),
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? Colors.white70
+                                : const Color(0xFF334155)),
                       ),
                       const SizedBox(height: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                         decoration: BoxDecoration(
-                          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                          border: Border.all(
+                              color: isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFCBD5E1)),
                           borderRadius: BorderRadius.circular(8),
-                          color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                          color:
+                              isDark ? const Color(0xFF0F172A) : Colors.white,
                         ),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
                             value: _selectedClassId,
                             isExpanded: true,
-                            dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                            style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13.5, fontWeight: FontWeight.w600),
+                            dropdownColor:
+                                isDark ? const Color(0xFF1E293B) : Colors.white,
+                            style: TextStyle(
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A),
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600),
                             items: widget.availableClasses.map((cls) {
                               return DropdownMenuItem(
                                 value: cls.id,
@@ -330,9 +391,12 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                                 setState(() {
                                   _selectedClassId = v;
                                   _selectedSectionIds.clear();
-                                  final cls = widget.availableClasses.where((c) => c.id == v).firstOrNull;
+                                  final cls = widget.availableClasses
+                                      .where((c) => c.id == v)
+                                      .firstOrNull;
                                   if (cls != null && cls.sections.isNotEmpty) {
-                                    _selectedSectionIds.add(cls.sections.first.id);
+                                    _selectedSectionIds
+                                        .add(cls.sections.first.id);
                                   }
                                 });
                               }
@@ -343,23 +407,37 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                       const SizedBox(height: 14),
                       Text(
                         'Sections',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF334155)),
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? Colors.white70
+                                : const Color(0xFF334155)),
                       ),
                       const SizedBox(height: 6),
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF0F172A).withOpacity(0.4) : const Color(0xFFF8FAFC),
+                          color: isDark
+                              ? const Color(0xFF0F172A).withValues(alpha: 0.4)
+                              : const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                          border: Border.all(
+                              color: isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFE2E8F0)),
                         ),
                         child: Wrap(
                           spacing: 8,
                           runSpacing: 8,
                           children: _currentSections.map((sec) {
-                            final isChecked = _selectedSectionIds.contains(sec.id);
+                            final isChecked =
+                                _selectedSectionIds.contains(sec.id);
                             return FilterChip(
-                              label: Text(sec.name, style: TextStyle(fontSize: 12, color: isChecked ? Colors.white : null)),
+                              label: Text(sec.name,
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: isChecked ? Colors.white : null)),
                               selected: isChecked,
                               selectedColor: const Color(0xFF4F46E5),
                               checkmarkColor: Colors.white,
@@ -384,20 +462,33 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withOpacity(0.08),
+                          color:
+                              const Color(0xFF10B981).withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+                          border: Border.all(
+                              color: const Color(0xFF10B981)
+                                  .withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           children: [
                             CircleAvatar(
                               radius: 18,
-                              backgroundColor: const Color(0xFF10B981).withOpacity(0.2),
-                              backgroundImage: _initialTeacher!.avatarUrl != null ? NetworkImage(_initialTeacher!.avatarUrl!) : null,
+                              backgroundColor: const Color(0xFF10B981)
+                                  .withValues(alpha: 0.2),
+                              backgroundImage: _initialTeacher!.avatarUrl !=
+                                      null
+                                  ? NetworkImage(_initialTeacher!.avatarUrl!)
+                                  : null,
                               child: _initialTeacher!.avatarUrl == null
                                   ? Text(
-                                      _initialTeacher!.fullName.isNotEmpty ? _initialTeacher!.fullName[0].toUpperCase() : 'T',
-                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF059669)),
+                                      _initialTeacher!.fullName.isNotEmpty
+                                          ? _initialTeacher!.fullName[0]
+                                              .toUpperCase()
+                                          : 'T',
+                                      style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF059669)),
                                     )
                                   : null,
                             ),
@@ -413,19 +504,27 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                                         style: TextStyle(
                                           fontSize: 13.5,
                                           fontWeight: FontWeight.w700,
-                                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                          color: isDark
+                                              ? Colors.white
+                                              : const Color(0xFF0F172A),
                                         ),
                                       ),
                                       const SizedBox(width: 8),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFF10B981).withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(4),
+                                          color: const Color(0xFF10B981)
+                                              .withValues(alpha: 0.15),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
                                         ),
                                         child: const Text(
                                           'CURRENTLY ASSIGNED',
-                                          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF059669)),
+                                          style: TextStyle(
+                                              fontSize: 9.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF059669)),
                                         ),
                                       ),
                                     ],
@@ -433,20 +532,32 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                                   const SizedBox(height: 2),
                                   Text(
                                     '${_initialTeacher!.employeeId ?? "EMP"} • ${_initialTeacher!.department ?? "Faculty"} • ${_initialTeacher!.email ?? ""}',
-                                    style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark
+                                            ? const Color(0xFF94A3B8)
+                                            : const Color(0xFF64748B)),
                                   ),
                                 ],
                               ),
                             ),
                             OutlinedButton.icon(
                               onPressed: _isSaving ? null : _unassignDirectly,
-                              icon: const Icon(Icons.person_remove_outlined, size: 14, color: Color(0xFFEF4444)),
-                              label: const Text('Unassign', style: TextStyle(fontSize: 11.5, color: Color(0xFFEF4444), fontWeight: FontWeight.w600)),
+                              icon: const Icon(Icons.person_remove_outlined,
+                                  size: 14, color: Color(0xFFEF4444)),
+                              label: const Text('Unassign',
+                                  style: TextStyle(
+                                      fontSize: 11.5,
+                                      color: Color(0xFFEF4444),
+                                      fontWeight: FontWeight.w600)),
                               style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 6),
                                 minimumSize: Size.zero,
-                                side: const BorderSide(color: Color(0xFFEF4444)),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                side:
+                                    const BorderSide(color: Color(0xFFEF4444)),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(6)),
                               ),
                             ),
                           ],
@@ -462,14 +573,27 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                       children: [
                         Text(
                           'Select Faculty Member',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF334155)),
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? Colors.white70
+                                  : const Color(0xFF334155)),
                         ),
                         if (_selectedTeacherId != null)
                           TextButton.icon(
-                            onPressed: () => setState(() => _selectedTeacherId = null),
-                            icon: const Icon(Icons.person_off_outlined, size: 14, color: Color(0xFFEF4444)),
-                            label: const Text('Unassign / Clear', style: TextStyle(fontSize: 11.5, color: Color(0xFFEF4444), fontWeight: FontWeight.w600)),
-                            style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
+                            onPressed: () =>
+                                setState(() => _selectedTeacherId = null),
+                            icon: const Icon(Icons.person_off_outlined,
+                                size: 14, color: Color(0xFFEF4444)),
+                            label: const Text('Unassign / Clear',
+                                style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: Color(0xFFEF4444),
+                                    fontWeight: FontWeight.w600)),
+                            style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero),
                           ),
                       ],
                     ),
@@ -478,9 +602,12 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                       controller: _searchController,
                       onChanged: (v) => _loadTeachers(query: v),
                       decoration: InputDecoration(
-                        hintText: 'Search faculty from school by name, employee ID, or department...',
+                        hintText:
+                            'Search faculty from school by name, employee ID, or department...',
                         hintStyle: TextStyle(
-                          color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                          color: isDark
+                              ? const Color(0xFF64748B)
+                              : const Color(0xFF94A3B8),
                           fontSize: 12.5,
                         ),
                         prefixIcon: const Icon(Icons.search, size: 18),
@@ -494,18 +621,30 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                               )
                             : null,
                         filled: true,
-                        fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        fillColor: isDark
+                            ? const Color(0xFF0F172A)
+                            : const Color(0xFFF8FAFC),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                          borderSide: BorderSide(
+                              color: isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFCBD5E1)),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                          borderSide: BorderSide(
+                              color: isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFCBD5E1)),
                         ),
                       ),
-                      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                      style: TextStyle(
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
+                          fontSize: 13),
                     ),
                     const SizedBox(height: 10),
 
@@ -513,9 +652,14 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                     Container(
                       height: 240,
                       decoration: BoxDecoration(
-                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                        border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0)),
                         borderRadius: BorderRadius.circular(8),
-                        color: isDark ? const Color(0xFF0F172A).withOpacity(0.3) : Colors.white,
+                        color: isDark
+                            ? const Color(0xFF0F172A).withValues(alpha: 0.3)
+                            : Colors.white,
                       ),
                       child: _isLoadingTeachers
                           ? const Center(child: CircularProgressIndicator())
@@ -524,42 +668,58 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                               children: [
                                 // No Teacher / Unassign Tile
                                 InkWell(
-                                  onTap: () => setState(() => _selectedTeacherId = null),
+                                  onTap: () =>
+                                      setState(() => _selectedTeacherId = null),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 9),
                                     color: _selectedTeacherId == null
-                                        ? (isDark ? const Color(0xFFEF4444).withOpacity(0.12) : const Color(0xFFFEF2F2))
+                                        ? (isDark
+                                            ? const Color(0xFFEF4444)
+                                                .withValues(alpha: 0.12)
+                                            : const Color(0xFFFEF2F2))
                                         : Colors.transparent,
                                     child: Row(
                                       children: [
                                         Container(
                                           padding: const EdgeInsets.all(7),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFFEF4444).withOpacity(0.1),
+                                            color: const Color(0xFFEF4444)
+                                                .withValues(alpha: 0.1),
                                             shape: BoxShape.circle,
                                           ),
-                                          child: const Icon(Icons.person_off_outlined, size: 18, color: Color(0xFFEF4444)),
+                                          child: const Icon(
+                                              Icons.person_off_outlined,
+                                              size: 18,
+                                              color: Color(0xFFEF4444)),
                                         ),
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
                                               Text(
                                                 'No Teacher (Unassigned)',
                                                 style: TextStyle(
                                                   fontSize: 13,
                                                   fontWeight: FontWeight.w700,
-                                                  color: _selectedTeacherId == null
+                                                  color: _selectedTeacherId ==
+                                                          null
                                                       ? const Color(0xFFDC2626)
-                                                      : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                                                      : (isDark
+                                                          ? Colors.white
+                                                          : const Color(
+                                                              0xFF0F172A)),
                                                 ),
                                               ),
                                               Text(
                                                 'Keep this subject section unassigned without a teacher',
                                                 style: TextStyle(
                                                   fontSize: 11,
-                                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                                  color: isDark
+                                                      ? const Color(0xFF94A3B8)
+                                                      : const Color(0xFF64748B),
                                                 ),
                                               ),
                                             ],
@@ -569,7 +729,8 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                                           value: null,
                                           groupValue: _selectedTeacherId,
                                           activeColor: const Color(0xFFEF4444),
-                                          onChanged: (_) => setState(() => _selectedTeacherId = null),
+                                          onChanged: (_) => setState(
+                                              () => _selectedTeacherId = null),
                                         ),
                                       ],
                                     ),
@@ -578,7 +739,10 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
 
                                 Divider(
                                   height: 1,
-                                  color: isDark ? const Color(0xFF334155).withOpacity(0.5) : const Color(0xFFE2E8F0),
+                                  color: isDark
+                                      ? const Color(0xFF334155)
+                                          .withValues(alpha: 0.5)
+                                      : const Color(0xFFE2E8F0),
                                 ),
 
                                 if (_teachers.isEmpty)
@@ -587,37 +751,61 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                                     child: Center(
                                       child: Text(
                                         'No faculty found matching search.',
-                                        style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: isDark
+                                                ? const Color(0xFF94A3B8)
+                                                : const Color(0xFF64748B)),
                                       ),
                                     ),
                                   )
                                 else
                                   ..._teachers.map((t) {
-                                    final isSelected = _selectedTeacherId == t.id;
-                                    final isInitial = _initialTeacher?.id == t.id;
+                                    final isSelected =
+                                        _selectedTeacherId == t.id;
+                                    final isInitial =
+                                        _initialTeacher?.id == t.id;
 
                                     return InkWell(
-                                      onTap: () => setState(() => _selectedTeacherId = t.id),
+                                      onTap: () => setState(
+                                          () => _selectedTeacherId = t.id),
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 14, vertical: 8),
                                         color: isSelected
-                                            ? (isDark ? const Color(0xFF4F46E5).withOpacity(0.18) : const Color(0xFFEEF2FF))
+                                            ? (isDark
+                                                ? const Color(0xFF4F46E5)
+                                                    .withValues(alpha: 0.18)
+                                                : const Color(0xFFEEF2FF))
                                             : Colors.transparent,
                                         child: Row(
                                           children: [
                                             CircleAvatar(
                                               radius: 16,
                                               backgroundColor: isInitial
-                                                  ? const Color(0xFF10B981).withOpacity(0.2)
-                                                  : const Color(0xFF4F46E5).withOpacity(0.15),
-                                              backgroundImage: t.avatarUrl != null ? NetworkImage(t.avatarUrl!) : null,
+                                                  ? const Color(0xFF10B981)
+                                                      .withValues(alpha: 0.2)
+                                                  : const Color(0xFF4F46E5)
+                                                      .withValues(alpha: 0.15),
+                                              backgroundImage: t.avatarUrl !=
+                                                      null
+                                                  ? NetworkImage(t.avatarUrl!)
+                                                  : null,
                                               child: t.avatarUrl == null
                                                   ? Text(
-                                                      t.fullName.isNotEmpty ? t.fullName[0].toUpperCase() : 'T',
+                                                      t.fullName.isNotEmpty
+                                                          ? t.fullName[0]
+                                                              .toUpperCase()
+                                                          : 'T',
                                                       style: TextStyle(
                                                         fontSize: 12,
-                                                        fontWeight: FontWeight.w700,
-                                                        color: isInitial ? const Color(0xFF059669) : const Color(0xFF4F46E5),
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        color: isInitial
+                                                            ? const Color(
+                                                                0xFF059669)
+                                                            : const Color(
+                                                                0xFF4F46E5),
                                                       ),
                                                     )
                                                   : null,
@@ -625,7 +813,8 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                                             const SizedBox(width: 12),
                                             Expanded(
                                               child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
                                                   Row(
                                                     children: [
@@ -633,21 +822,44 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                                                         t.fullName,
                                                         style: TextStyle(
                                                           fontSize: 13,
-                                                          fontWeight: FontWeight.w600,
-                                                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color: isDark
+                                                              ? Colors.white
+                                                              : const Color(
+                                                                  0xFF0F172A),
                                                         ),
                                                       ),
                                                       if (isInitial) ...[
-                                                        const SizedBox(width: 6),
+                                                        const SizedBox(
+                                                            width: 6),
                                                         Container(
-                                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                                          decoration: BoxDecoration(
-                                                            color: const Color(0xFF10B981).withOpacity(0.15),
-                                                            borderRadius: BorderRadius.circular(3),
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                                  horizontal: 5,
+                                                                  vertical: 1),
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color: const Color(
+                                                                    0xFF10B981)
+                                                                .withValues(
+                                                                    alpha:
+                                                                        0.15),
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        3),
                                                           ),
                                                           child: const Text(
                                                             'ASSIGNED',
-                                                            style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700, color: Color(0xFF059669)),
+                                                            style: TextStyle(
+                                                                fontSize: 8.5,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w700,
+                                                                color: Color(
+                                                                    0xFF059669)),
                                                           ),
                                                         ),
                                                       ],
@@ -657,10 +869,15 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                                                     '${t.employeeId ?? 'EMP'} • ${t.department ?? 'Faculty'} • ${t.email ?? ''}',
                                                     style: TextStyle(
                                                       fontSize: 11,
-                                                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                                      color: isDark
+                                                          ? const Color(
+                                                              0xFF94A3B8)
+                                                          : const Color(
+                                                              0xFF64748B),
                                                     ),
                                                     maxLines: 1,
-                                                    overflow: TextOverflow.ellipsis,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   ),
                                                 ],
                                               ),
@@ -668,8 +885,10 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                                             Radio<String?>(
                                               value: t.id,
                                               groupValue: _selectedTeacherId,
-                                              activeColor: const Color(0xFF4F46E5),
-                                              onChanged: (val) => setState(() => _selectedTeacherId = val),
+                                              activeColor:
+                                                  const Color(0xFF4F46E5),
+                                              onChanged: (val) => setState(() =>
+                                                  _selectedTeacherId = val),
                                             ),
                                           ],
                                         ),
@@ -688,11 +907,16 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A).withOpacity(0.5) : const Color(0xFFF8FAFC),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                color: isDark
+                    ? const Color(0xFF0F172A).withValues(alpha: 0.5)
+                    : const Color(0xFFF8FAFC),
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(16)),
                 border: Border(
                   top: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
               ),
@@ -704,23 +928,37 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                       Icon(
                         _selectedTeacherId != null
                             ? Icons.check_circle_rounded
-                            : (hasInitialTeacher ? Icons.warning_amber_rounded : Icons.info_outline),
+                            : (hasInitialTeacher
+                                ? Icons.warning_amber_rounded
+                                : Icons.info_outline),
                         size: 16,
                         color: _selectedTeacherId != null
                             ? const Color(0xFF10B981)
-                            : (hasInitialTeacher ? const Color(0xFFEF4444) : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                            : (hasInitialTeacher
+                                ? const Color(0xFFEF4444)
+                                : (isDark
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF64748B))),
                       ),
                       const SizedBox(width: 6),
                       Text(
                         _selectedTeacherId != null
-                            ? (_selectedTeacherId == _initialTeacher?.id ? 'Current Teacher Kept' : 'New Teacher Selected')
-                            : (hasInitialTeacher ? 'Will Be Unassigned' : 'No Teacher Selected'),
+                            ? (_selectedTeacherId == _initialTeacher?.id
+                                ? 'Current Teacher Kept'
+                                : 'New Teacher Selected')
+                            : (hasInitialTeacher
+                                ? 'Will Be Unassigned'
+                                : 'No Teacher Selected'),
                         style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
                           color: _selectedTeacherId != null
                               ? const Color(0xFF10B981)
-                              : (hasInitialTeacher ? const Color(0xFFEF4444) : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                              : (hasInitialTeacher
+                                  ? const Color(0xFFEF4444)
+                                  : (isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B))),
                         ),
                       ),
                     ],
@@ -728,36 +966,54 @@ class _AssignSubjectTeacherDialogState extends ConsumerState<AssignSubjectTeache
                   Row(
                     children: [
                       OutlinedButton(
-                        onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+                        onPressed: _isSaving
+                            ? null
+                            : () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                          side: BorderSide(
+                              color: isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFCBD5E1)),
                         ),
                         child: Text(
                           'Cancel',
-                          style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                          style: TextStyle(
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF475569)),
                         ),
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton(
                         onPressed: _isSaving ? null : _submit,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: isUnassignSelected ? const Color(0xFFEF4444) : const Color(0xFF4F46E5),
+                          backgroundColor: isUnassignSelected
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFF4F46E5),
                           foregroundColor: Colors.white,
                           elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
                         child: _isSaving
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
                               )
                             : Text(
-                                isUnassignSelected ? 'Confirm Unassign' : 'Save Assignment',
-                                style: const TextStyle(fontWeight: FontWeight.w600),
+                                isUnassignSelected
+                                    ? 'Confirm Unassign'
+                                    : 'Save Assignment',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600),
                               ),
                       ),
                     ],

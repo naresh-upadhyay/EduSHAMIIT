@@ -5,21 +5,27 @@
 -- 1. MIGRATE DATA TO PRIMARY TABLES BEFORE DROPPING
 -- ──────────────────────────────────────────────
 
+-- Ensure notifications columns and nullability are compatible
+ALTER TABLE public.notifications ALTER COLUMN body DROP NOT NULL;
+ALTER TABLE public.notifications ALTER COLUMN type DROP NOT NULL;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS message TEXT;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS category TEXT;
+
 -- Migrate any announcements into notifications
-INSERT INTO public.notifications (school_id, title, message, category, is_read, created_at)
-SELECT school_id, title, content, 'announcement', FALSE, created_at
+INSERT INTO public.notifications (school_id, title, message, body, category, type, is_read, created_at)
+SELECT school_id, title, COALESCE(description, title), COALESCE(description, title), 'announcement', 'announcement', FALSE, created_at
 FROM public.announcements
 ON CONFLICT DO NOTHING;
 
 -- Migrate any system_alerts into notifications
-INSERT INTO public.notifications (school_id, title, message, category, is_read, created_at)
-SELECT school_id, alert_type, message, 'system_alert', COALESCE(is_read, FALSE), created_at
+INSERT INTO public.notifications (school_id, title, message, body, category, type, is_read, created_at)
+SELECT school_id, title, description, description, COALESCE(category, 'system_alert'), 'system_alert', COALESCE(is_read, FALSE), created_at
 FROM public.system_alerts
 ON CONFLICT DO NOTHING;
 
 -- Migrate bus_routes records into vehicles if not present
 INSERT INTO public.vehicles (id, school_id, vehicle_no, seating_capacity, status)
-SELECT id, school_id, bus_number, capacity, COALESCE(status, 'Active')
+SELECT id, school_id, bus_number, COALESCE(total_capacity, 52), COALESCE(status, 'Active')
 FROM public.bus_routes
 ON CONFLICT (school_id, vehicle_no) DO NOTHING;
 

@@ -5,7 +5,7 @@ import 'package:edu_shamiit_admin/screens/login_screen.dart';
 import 'package:edu_shamiit_admin/screens/dashboard_screen.dart';
 import 'package:edu_shamiit_admin/screens/role_dashboards/super_admin_dashboard_screen.dart';
 import 'package:edu_shamiit_admin/screens/role_dashboards/driver_dashboard_screen.dart';
-import 'package:edu_shamiit_admin/screens/role_dashboards/my_profile_screen.dart';
+// MyProfileScreen is now universally imported from edu_shamiit_core
 import 'package:edu_shamiit_admin/screens/modules/schools/schools_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/users/users_screen.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
@@ -32,6 +32,7 @@ import 'package:edu_shamiit_admin/screens/modules/recruit/hr_training_screen.dar
 import 'package:edu_shamiit_admin/screens/modules/recruit/hr_policies_screen.dart';
 
 final adminShellKey = GlobalKey<NavigatorState>(debugLabel: 'adminShell');
+final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'adminRoot');
 
 class RouterNotifier extends ChangeNotifier {
   final Ref _ref;
@@ -51,6 +52,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   final notifier = RouterNotifier(ref);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     refreshListenable: notifier,
     redirect: (context, state) {
@@ -324,6 +326,37 @@ final routerProvider = Provider<GoRouter>((ref) {
             pageBuilder: (_, __) => const NoTransitionPage(child: UniversalCalendarScreen()),
           ),
           GoRoute(
+            path: '/admin/messaging',
+            pageBuilder: (context, state) {
+              final chatId = state.uri.queryParameters['chat_id'];
+              return NoTransitionPage(
+                child: MessagingScreen(
+                  initialChatId: chatId,
+                  role: 'admin',
+                  primaryColor: const Color(0xFF4F46E5),
+                ),
+              );
+            },
+          ),
+          GoRoute(
+            path: '/admin/messages',
+            redirect: (_, state) {
+              final chatId = state.uri.queryParameters['chat_id'];
+              return chatId != null ? '/admin/messaging?chat_id=$chatId' : '/admin/messaging';
+            },
+          ),
+          GoRoute(
+            path: '/admin/ai-chat',
+            pageBuilder: (context, state) {
+              final from = state.uri.queryParameters['from'];
+              return NoTransitionPage(child: AiChatScreen(launchedFrom: from));
+            },
+          ),
+          GoRoute(
+            path: '/admin/documents',
+            pageBuilder: (_, __) => const NoTransitionPage(child: DocumentsScreen()),
+          ),
+          GoRoute(
             path: '/admin/dashboard',
             pageBuilder: (context, state) {
               final authState = ref.read(authProvider);
@@ -351,11 +384,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/admin/config',
-            pageBuilder: (_, __) => const NoTransitionPage(child: AdminSystemConfigScreen()),
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: AdminSystemConfigScreen(initialTab: tab));
+            },
           ),
           GoRoute(
             path: '/admin/roles',
-            pageBuilder: (_, __) => const NoTransitionPage(child: AdminRolesScreen()),
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: AdminRolesScreen(initialTab: tab));
+            },
           ),
           GoRoute(
             path: '/admin/lookups',
@@ -367,19 +406,332 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/admin/classes',
-            pageBuilder: (_, __) => const NoTransitionPage(child: ClassManagementScreen()),
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: ClassManagementScreen(initialTab: tab));
+            },
           ),
           GoRoute(
             path: '/classes',
-            pageBuilder: (_, __) => const NoTransitionPage(child: ClassManagementScreen()),
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: ClassManagementScreen(initialTab: tab));
+            },
+          ),
+          GoRoute(
+            path: '/admin/timetable',
+            pageBuilder: (_, state) => const NoTransitionPage(child: ClassManagementScreen(initialTab: 1)),
+          ),
+          GoRoute(
+            path: '/admin/timetables',
+            pageBuilder: (_, state) => const NoTransitionPage(child: ClassManagementScreen(initialTab: 1)),
+          ),
+          GoRoute(
+            path: '/timetable',
+            pageBuilder: (_, state) => const NoTransitionPage(child: ClassManagementScreen(initialTab: 1)),
+          ),
+          GoRoute(
+            path: '/timetables',
+            pageBuilder: (_, state) => const NoTransitionPage(child: ClassManagementScreen(initialTab: 1)),
           ),
           GoRoute(
             path: '/admin/library',
-            pageBuilder: (_, __) => const NoTransitionPage(child: LibraryManagementScreen()),
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: LibraryManagementScreen(initialTab: tab));
+            },
           ),
           GoRoute(
             path: '/library',
-            pageBuilder: (_, __) => const NoTransitionPage(child: LibraryManagementScreen()),
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: LibraryManagementScreen(initialTab: tab));
+            },
+          ),
+          // Exams & Question Bank
+          GoRoute(
+            path: '/admin/exams',
+            pageBuilder: (_, __) => const NoTransitionPage(child: ExamsManagementScreen()),
+          ),
+          GoRoute(
+            path: '/exams',
+            pageBuilder: (_, __) => const NoTransitionPage(child: ExamsManagementScreen()),
+          ),
+          GoRoute(
+            path: '/admin/exams/create',
+            redirect: (_, __) => '/admin/exams',
+          ),
+          GoRoute(
+            path: '/exams/create',
+            redirect: (_, __) => '/admin/exams',
+          ),
+          GoRoute(
+            path: '/admin/exams/edit/:id',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return NoTransitionPage(child: CreateExamScreen(examId: id));
+            },
+          ),
+          GoRoute(
+            path: '/exams/edit/:id',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return NoTransitionPage(child: CreateExamScreen(examId: id));
+            },
+          ),
+          GoRoute(
+            path: '/admin/exams/question-bank',
+            pageBuilder: (_, __) => const NoTransitionPage(child: QuestionBankScreen()),
+          ),
+          GoRoute(
+            path: '/exams/question-bank',
+            pageBuilder: (_, __) => const NoTransitionPage(child: QuestionBankScreen()),
+          ),
+          GoRoute(
+            path: '/admin/exams/paper-builder',
+            pageBuilder: (context, state) {
+              final examId = state.uri.queryParameters['examId'] ?? state.uri.queryParameters['exam_id'];
+              return NoTransitionPage(child: ExamPaperBuilderScreen(examId: examId));
+            },
+          ),
+          GoRoute(
+            path: '/exams/paper-builder',
+            pageBuilder: (context, state) {
+              final examId = state.uri.queryParameters['examId'] ?? state.uri.queryParameters['exam_id'];
+              return NoTransitionPage(child: ExamPaperBuilderScreen(examId: examId));
+            },
+          ),
+          GoRoute(
+            path: '/admin/exams/instructions',
+            pageBuilder: (context, state) {
+              final examId = state.uri.queryParameters['examId'] ?? state.uri.queryParameters['exam_id'];
+              return NoTransitionPage(child: ExamPrestartScreen(examId: examId));
+            },
+          ),
+          GoRoute(
+            path: '/exams/instructions',
+            pageBuilder: (context, state) {
+              final examId = state.uri.queryParameters['examId'] ?? state.uri.queryParameters['exam_id'];
+              return NoTransitionPage(child: ExamPrestartScreen(examId: examId));
+            },
+          ),
+          GoRoute(
+            path: '/admin/exams/take',
+            pageBuilder: (context, state) {
+              final examId = state.uri.queryParameters['examId'] ?? state.uri.queryParameters['exam_id'];
+              return NoTransitionPage(child: TakeExamScreen(examId: examId));
+            },
+          ),
+          GoRoute(
+            path: '/exams/take',
+            pageBuilder: (context, state) {
+              final examId = state.uri.queryParameters['examId'] ?? state.uri.queryParameters['exam_id'];
+              return NoTransitionPage(child: TakeExamScreen(examId: examId));
+            },
+          ),
+          GoRoute(
+            path: '/admin/exams/assign/:id',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return NoTransitionPage(child: AssignExamScreen(examId: id));
+            },
+          ),
+          GoRoute(
+            path: '/exams/assign/:id',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return NoTransitionPage(child: AssignExamScreen(examId: id));
+            },
+          ),
+          GoRoute(
+            path: '/admin/exams/monitor/:id',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return NoTransitionPage(child: LiveMonitoringScreen(examId: id));
+            },
+          ),
+          GoRoute(
+            path: '/exams/monitor/:id',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return NoTransitionPage(child: LiveMonitoringScreen(examId: id));
+            },
+          ),
+          GoRoute(
+            path: '/admin/exams/evaluate/:id',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return NoTransitionPage(child: ManualEvaluationScreen(examId: id));
+            },
+          ),
+          GoRoute(
+            path: '/exams/evaluate/:id',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return NoTransitionPage(child: ManualEvaluationScreen(examId: id));
+            },
+          ),
+          GoRoute(
+            path: '/admin/exams/publish/:id',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return NoTransitionPage(child: PublishResultScreen(examId: id));
+            },
+          ),
+          GoRoute(
+            path: '/exams/publish/:id',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return NoTransitionPage(child: PublishResultScreen(examId: id));
+            },
+          ),
+          GoRoute(
+            path: '/admin/exams/analytics/:id',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return NoTransitionPage(child: ExamAnalyticsScreen(examId: id));
+            },
+          ),
+          GoRoute(
+            path: '/exams/analytics/:id',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return NoTransitionPage(child: ExamAnalyticsScreen(examId: id));
+            },
+          ),
+          GoRoute(
+            path: '/admin/hostel',
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: HostelManagementScreen(initialTab: tab));
+            },
+          ),
+          GoRoute(
+            path: '/hostel',
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: HostelManagementScreen(initialTab: tab));
+            },
+          ),
+          GoRoute(
+            path: '/admin/hostel/rooms',
+            pageBuilder: (_, __) => const NoTransitionPage(child: HostelManagementScreen(initialTab: 1)),
+          ),
+          GoRoute(
+            path: '/hostel/rooms',
+            pageBuilder: (_, __) => const NoTransitionPage(child: HostelManagementScreen(initialTab: 1)),
+          ),
+          GoRoute(
+            path: '/admin/visitors',
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: VisitorsManagementScreen(initialTab: tab));
+            },
+          ),
+          GoRoute(
+            path: '/visitors',
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: VisitorsManagementScreen(initialTab: tab));
+            },
+          ),
+          GoRoute(
+            path: '/admin/inventory',
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: InventoryManagementScreen(initialTab: tab));
+            },
+          ),
+          GoRoute(
+            path: '/inventory',
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: InventoryManagementScreen(initialTab: tab));
+            },
+          ),
+          GoRoute(
+            path: '/admin/campus',
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: CampusManagementScreen(initialTab: tab));
+            },
+          ),
+          GoRoute(
+            path: '/admin/work',
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: WorkManagementScreen(initialTabIndex: tab));
+            },
+          ),
+          GoRoute(
+            path: '/work',
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: WorkManagementScreen(initialTabIndex: tab));
+            },
+          ),
+          GoRoute(
+            path: '/admin/work/board',
+            pageBuilder: (_, __) => const NoTransitionPage(child: WorkManagementScreen(initialTabIndex: 0)),
+          ),
+          GoRoute(
+            path: '/admin/work/list',
+            pageBuilder: (_, __) => const NoTransitionPage(child: WorkManagementScreen(initialTabIndex: 1)),
+          ),
+          GoRoute(
+            path: '/admin/work/backlog',
+            pageBuilder: (_, __) => const NoTransitionPage(child: WorkManagementScreen(initialTabIndex: 2)),
+          ),
+          GoRoute(
+            path: '/admin/work/sprints',
+            pageBuilder: (_, __) => const NoTransitionPage(child: WorkManagementScreen(initialTabIndex: 3)),
+          ),
+          GoRoute(
+            path: '/campus',
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: CampusManagementScreen(initialTab: tab));
+            },
+          ),
+          GoRoute(
+            path: '/admin/campus/buildings-rooms',
+            pageBuilder: (_, __) => const NoTransitionPage(child: CampusManagementScreen(initialTab: 0)),
+          ),
+          GoRoute(
+            path: '/admin/student-fees',
+            pageBuilder: (_, __) => const NoTransitionPage(child: StudentFeeManagementScreen()),
+          ),
+          GoRoute(
+            path: '/student-fees',
+            pageBuilder: (_, __) => const NoTransitionPage(child: StudentFeeManagementScreen()),
+          ),
+          GoRoute(
+            path: '/admin/fee-management',
+            pageBuilder: (_, __) => const NoTransitionPage(child: StudentFeeManagementScreen()),
+          ),
+          GoRoute(
+            path: '/admin/fees',
+            pageBuilder: (_, __) => const NoTransitionPage(child: StudentFeeManagementScreen()),
+          ),
+          GoRoute(
+            path: '/admin/fee',
+            pageBuilder: (_, __) => const NoTransitionPage(child: StudentFeeManagementScreen()),
+          ),
+          GoRoute(
+            path: '/fee-management',
+            pageBuilder: (_, __) => const NoTransitionPage(child: StudentFeeManagementScreen()),
+          ),
+          GoRoute(
+            path: '/fees',
+            pageBuilder: (_, __) => const NoTransitionPage(child: StudentFeeManagementScreen()),
+          ),
+          GoRoute(
+            path: '/admin/staff-salary',
+            pageBuilder: (_, __) => const NoTransitionPage(child: StaffSalaryManagementScreen()),
+          ),
+          GoRoute(
+            path: '/staff-salary',
+            pageBuilder: (_, __) => const NoTransitionPage(child: StaffSalaryManagementScreen()),
           ),
           // Sub-routes for the operational tabs
           GoRoute(
@@ -467,7 +819,10 @@ final routerProvider = Provider<GoRouter>((ref) {
 
           GoRoute(
             path: '/admin/modules',
-            pageBuilder: (_, __) => const NoTransitionPage(child: ModuleToggleScreen()),
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: ModuleToggleScreen(initialTab: tab));
+            },
           ),
 
           GoRoute(
@@ -512,15 +867,24 @@ final routerProvider = Provider<GoRouter>((ref) {
 
           GoRoute(
             path: '/admin/announcements',
-            pageBuilder: (_, __) => const NoTransitionPage(child: UniversalNoticesScreen()),
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: UniversalNoticesScreen(initialTab: tab));
+            },
           ),
           GoRoute(
             path: '/admin/notices',
-            pageBuilder: (_, __) => const NoTransitionPage(child: UniversalNoticesScreen()),
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: UniversalNoticesScreen(initialTab: tab));
+            },
           ),
           GoRoute(
             path: '/notices',
-            pageBuilder: (_, __) => const NoTransitionPage(child: UniversalNoticesScreen()),
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: UniversalNoticesScreen(initialTab: tab));
+            },
           ),
 
           GoRoute(
@@ -563,20 +927,60 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/admin/attendance',
-            pageBuilder: (_, __) => const NoTransitionPage(child: AttendanceManagementScreen()),
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: AttendanceManagementScreen(initialTab: tab));
+            },
           ),
           GoRoute(
             path: '/attendance',
-            pageBuilder: (_, __) => const NoTransitionPage(child: AttendanceManagementScreen()),
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: AttendanceManagementScreen(initialTab: tab));
+            },
           ),
           GoRoute(
-            path: '/admin/library',
-            pageBuilder: (_, __) => const NoTransitionPage(child: LibraryManagementScreen()),
+            path: '/admin/live-classes',
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(
+                key: ValueKey('live_classes_$tab'),
+                child: LiveClassManagementScreen(initialTabIndex: tab),
+              );
+            },
           ),
           GoRoute(
-            path: '/library',
-            pageBuilder: (_, __) => const NoTransitionPage(child: LibraryManagementScreen()),
+            path: '/live-classes',
+            pageBuilder: (_, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(
+                key: ValueKey('live_classes_alias_$tab'),
+                child: LiveClassManagementScreen(initialTabIndex: tab),
+              );
+            },
           ),
+          GoRoute(
+            path: '/admin/live-classes/join',
+            pageBuilder: (_, __) => const NoTransitionPage(
+              key: ValueKey('live_classes_join'),
+              child: LiveClassManagementScreen(initialTabIndex: 0),
+            ),
+          ),
+          GoRoute(
+            path: '/admin/live-classes/recordings',
+            pageBuilder: (_, __) => const NoTransitionPage(
+              key: ValueKey('live_classes_recordings'),
+              child: LiveClassManagementScreen(initialTabIndex: 1),
+            ),
+          ),
+          GoRoute(
+            path: '/admin/live-classes/attendance',
+            pageBuilder: (_, __) => const NoTransitionPage(
+              key: ValueKey('live_classes_attendance'),
+              child: LiveClassManagementScreen(initialTabIndex: 2),
+            ),
+          ),
+
           GoRoute(
             path: '/admin/parent-requests',
             pageBuilder: (_, __) => const NoTransitionPage(child: PlaceholderScreen(title: 'Parent Requests')),
@@ -612,6 +1016,51 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
     ],
+    errorBuilder: (context, state) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF0F172A),
+        body: Center(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 480),
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.explore_off_rounded, size: 64, color: Color(0xFF6366F1)),
+                const SizedBox(height: 20),
+                const Text(
+                  'Page Not Found',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'The requested route "${state.uri.path}" could not be found or has moved.',
+                  style: const TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () => context.go('/admin/dashboard'),
+                  icon: const Icon(Icons.home_rounded),
+                  label: const Text('Back to Dashboard'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6366F1),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    },
   );
 });
 
@@ -621,20 +1070,27 @@ class PlaceholderScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final border = isDark ? Colors.white10 : const Color(0xFFE2E8F0);
+    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
+    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: bg,
       body: Center(
         child: Container(
           constraints: const BoxConstraints(maxWidth: 500),
           margin: const EdgeInsets.all(24),
           padding: const EdgeInsets.all(32),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardBg,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: border),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.02),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -646,7 +1102,7 @@ class PlaceholderScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4F46E5).withValues(alpha: 0.08),
+                  color: const Color(0xFF4F46E5).withValues(alpha: isDark ? 0.2 : 0.08),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -658,20 +1114,20 @@ class PlaceholderScreen extends StatelessWidget {
               const SizedBox(height: 24),
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
+                  color: textPrimary,
                   fontFamily: 'Inter',
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'This sub-module is fully integrated into the administrative console.',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Color(0xFF64748B),
+                  color: textSecondary,
                   fontFamily: 'Inter',
                 ),
                 textAlign: TextAlign.center,

@@ -7,7 +7,6 @@ import '../../providers/book_provider.dart';
 import '../../models/member_models.dart';
 import '../../models/book_models.dart';
 
-
 class QuickIssueDialog extends ConsumerStatefulWidget {
   final String? initialMemberQuery;
   final String? initialBookQuery;
@@ -58,8 +57,13 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
   Future<void> _loadCopiesForBook(String bookId) async {
     setState(() => _isLoadingCopies = true);
     try {
-      final copies = await ref.read(libraryApiServiceProvider).fetchBookCopies(bookId);
-      final avail = copies.where((c) => c.status.toUpperCase() == 'AVAILABLE' || c.status.toUpperCase() == 'ACTIVE').toList();
+      final copies =
+          await ref.read(libraryApiServiceProvider).fetchBookCopies(bookId);
+      final avail = copies
+          .where((c) =>
+              c.status.toUpperCase() == 'AVAILABLE' ||
+              c.status.toUpperCase() == 'ACTIVE')
+          .toList();
       if (mounted) {
         setState(() {
           _bookCopies = avail;
@@ -112,7 +116,8 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
                         color: const Color(0xFF6366F1).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.menu_book_rounded, color: Color(0xFF6366F1), size: 20),
+                      child: const Icon(Icons.menu_book_rounded,
+                          color: Color(0xFF6366F1), size: 20),
                     ),
                     const SizedBox(width: 12),
                     Text(
@@ -167,7 +172,6 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
                   )
                 else
                   const SizedBox.shrink(),
-
                 if (_currentStep < 2)
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
@@ -177,7 +181,9 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
                     onPressed: (_currentStep == 0 && _selectedMember != null) ||
                             (_currentStep == 1 &&
                                 _selectedBook != null &&
-                                (_issueEditionType == 'DIGITAL' || _selectedCopy != null || _copyBarcodeCtrl.text.trim().isNotEmpty))
+                                (_issueEditionType == 'DIGITAL' ||
+                                    _selectedCopy != null ||
+                                    _copyBarcodeCtrl.text.trim().isNotEmpty))
                         ? () => setState(() => _currentStep++)
                         : null,
                     child: const Text('Next Step'),
@@ -193,7 +199,8 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
                         ? const SizedBox(
                             width: 16,
                             height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
                           )
                         : const Text('Confirm & Issue Book'),
                   ),
@@ -221,7 +228,11 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
           backgroundColor: bg,
           child: isDone
               ? const Icon(Icons.check_rounded, size: 12, color: Colors.white)
-              : Text(number, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.white)),
+              : Text(number,
+                  style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white)),
         ),
         const SizedBox(width: 6),
         Text(
@@ -229,7 +240,8 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
-            color: isCurrent ? const Color(0xFF6366F1) : const Color(0xFF94A3B8),
+            color:
+                isCurrent ? const Color(0xFF6366F1) : const Color(0xFF94A3B8),
           ),
         ),
       ],
@@ -265,9 +277,11 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
             hintText: 'Search member by name, member code, phone...',
             prefixIcon: const Icon(Icons.search_rounded, size: 18),
             filled: true,
-            fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+            fillColor:
+                isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           ),
           onChanged: (_) => setState(() {}),
         ),
@@ -283,16 +297,27 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
                     final isSelected = _selectedMember?.id == m.id;
                     return ListTile(
                       selected: isSelected,
-                      selectedTileColor: const Color(0xFF6366F1).withValues(alpha: 0.1),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      selectedTileColor:
+                          const Color(0xFF6366F1).withValues(alpha: 0.1),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                       leading: CircleAvatar(
                         radius: 16,
                         backgroundColor: const Color(0xFF6366F1),
-                        child: Text(m.memberName.isNotEmpty ? m.memberName[0] : 'M', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                        child: Text(
+                            m.memberName.isNotEmpty ? m.memberName[0] : 'M',
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 12)),
                       ),
-                      title: Text(m.memberName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                      subtitle: Text('${m.memberCode} • ${m.membershipType} • Loans: ${m.booksIssued}/${m.borrowingLimit}'),
-                      trailing: isSelected ? const Icon(Icons.check_circle, color: Color(0xFF6366F1)) : null,
+                      title: Text(m.memberName,
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w700)),
+                      subtitle: Text(
+                          '${m.memberCode} • ${m.membershipType} • Loans: ${m.booksIssued}/${m.borrowingLimit}'),
+                      trailing: isSelected
+                          ? const Icon(Icons.check_circle,
+                              color: Color(0xFF6366F1))
+                          : null,
                       onTap: () {
                         setState(() => _selectedMember = m);
                       },
@@ -313,7 +338,6 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
           b.author.toLowerCase().contains(q);
     }).toList();
 
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -323,9 +347,11 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
             hintText: 'Search book by title, author, ISBN...',
             prefixIcon: const Icon(Icons.search_rounded, size: 18),
             filled: true,
-            fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+            fillColor:
+                isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           ),
           onChanged: (_) => setState(() {}),
         ),
@@ -339,35 +365,47 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
                   itemBuilder: (ctx, i) {
                     final b = filteredBooks[i];
                     final isSelected = _selectedBook?.id == b.id;
-                    final available = b.hasDigitalEdition || b.availableCopies > 0;
+                    final available =
+                        b.hasDigitalEdition || b.availableCopies > 0;
 
                     return ListTile(
                       selected: isSelected,
-                      selectedTileColor: const Color(0xFF6366F1).withValues(alpha: 0.1),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      selectedTileColor:
+                          const Color(0xFF6366F1).withValues(alpha: 0.1),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                       enabled: available,
                       leading: Icon(
-                        b.hasDigitalEdition ? Icons.cloud_done_rounded : Icons.menu_book_rounded,
+                        b.hasDigitalEdition
+                            ? Icons.cloud_done_rounded
+                            : Icons.menu_book_rounded,
                         color: const Color(0xFF6366F1),
                       ),
-                      title: Text(b.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                      title: Text(b.title,
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w700)),
                       subtitle: Text(
                         b.hasDigitalEdition && !b.hasPhysicalEdition
                             ? '${b.author} • Digital Edition (eBook/Audio/Video)'
                             : '${b.author} • Available: ${b.availableCopies}/${b.totalCopies}${b.hasDigitalEdition ? " + Digital" : ""}',
                       ),
-                      trailing: isSelected ? const Icon(Icons.check_circle, color: Color(0xFF6366F1)) : null,
-
+                      trailing: isSelected
+                          ? const Icon(Icons.check_circle,
+                              color: Color(0xFF6366F1))
+                          : null,
                       onTap: available
                           ? () {
                               setState(() {
                                 _selectedBook = b;
                                 _selectedCopy = null;
                                 _copyBarcodeCtrl.clear();
-                                if (b.hasDigitalEdition && !b.hasPhysicalEdition) {
+                                if (b.hasDigitalEdition &&
+                                    !b.hasPhysicalEdition) {
                                   _issueEditionType = 'DIGITAL';
                                 } else if (b.hasBothEditions) {
-                                  _issueEditionType = b.availableCopies > 0 ? 'PHYSICAL' : 'DIGITAL';
+                                  _issueEditionType = b.availableCopies > 0
+                                      ? 'PHYSICAL'
+                                      : 'DIGITAL';
                                 } else {
                                   _issueEditionType = 'PHYSICAL';
                                 }
@@ -388,12 +426,14 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
           if (_selectedBook!.hasBothEditions) ...[
             Row(
               children: [
-                const Text('Issue Edition: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                const Text('Issue Edition: ',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                 ChoiceChip(
                   selected: _issueEditionType == 'PHYSICAL',
                   label: const Text('Physical Copy'),
                   avatar: const Icon(Icons.book_rounded, size: 14),
-                  selectedColor: const Color(0xFF6366F1).withOpacity(0.2),
+                  selectedColor: const Color(0xFF6366F1).withValues(alpha: 0.2),
                   onSelected: (val) {
                     if (val) {
                       setState(() => _issueEditionType = 'PHYSICAL');
@@ -406,7 +446,7 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
                   selected: _issueEditionType == 'DIGITAL',
                   label: const Text('Digital Edition'),
                   avatar: const Icon(Icons.cloud_done_rounded, size: 14),
-                  selectedColor: const Color(0xFF10B981).withOpacity(0.2),
+                  selectedColor: const Color(0xFF10B981).withValues(alpha: 0.2),
                   onSelected: (val) {
                     if (val) setState(() => _issueEditionType = 'DIGITAL');
                   },
@@ -419,18 +459,23 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withOpacity(0.08),
+                color: const Color(0xFF10B981).withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.25)),
+                border: Border.all(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.25)),
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.cloud_done_rounded, size: 18, color: Color(0xFF10B981)),
+                  Icon(Icons.cloud_done_rounded,
+                      size: 18, color: Color(0xFF10B981)),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Digital Edition Selected (eBook / Video / Audio). No barcode or physical copy allocation required.',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF047857), fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF047857),
+                          fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -439,20 +484,31 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
           ] else ...[
             TextField(
               controller: _copyBarcodeCtrl,
-              style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w700, fontSize: 13),
+              style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13),
               decoration: InputDecoration(
                 labelText: 'Physical Copy Barcode / Accession No. *',
                 hintText: 'Enter or scan physical copy barcode...',
-                prefixIcon: const Icon(Icons.qr_code_scanner_rounded, size: 18, color: Color(0xFF6366F1)),
+                prefixIcon: const Icon(Icons.qr_code_scanner_rounded,
+                    size: 18, color: Color(0xFF6366F1)),
                 filled: true,
-                fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                fillColor:
+                    isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
               onChanged: (val) {
-                final match = _bookCopies.where((c) =>
-                    c.barcode.trim().toLowerCase() == val.trim().toLowerCase() ||
-                    c.accessionNumber.trim().toLowerCase() == val.trim().toLowerCase()).firstOrNull;
+                final match = _bookCopies
+                    .where((c) =>
+                        c.barcode.trim().toLowerCase() ==
+                            val.trim().toLowerCase() ||
+                        c.accessionNumber.trim().toLowerCase() ==
+                            val.trim().toLowerCase())
+                    .firstOrNull;
                 if (match != null) {
                   setState(() => _selectedCopy = match);
                 }
@@ -467,11 +523,14 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
                 spacing: 6,
                 runSpacing: 6,
                 children: _bookCopies.map((copy) {
-                  final isSelected = _selectedCopy?.id == copy.id || _copyBarcodeCtrl.text.trim() == copy.barcode;
+                  final isSelected = _selectedCopy?.id == copy.id ||
+                      _copyBarcodeCtrl.text.trim() == copy.barcode;
                   return ChoiceChip(
                     selected: isSelected,
-                    selectedColor: const Color(0xFF6366F1).withOpacity(0.2),
-                    label: Text('${copy.barcode} (Copy #${copy.copyNumber})', style: const TextStyle(fontSize: 11)),
+                    selectedColor:
+                        const Color(0xFF6366F1).withValues(alpha: 0.2),
+                    label: Text('${copy.barcode} (Copy #${copy.copyNumber})',
+                        style: const TextStyle(fontSize: 11)),
                     onSelected: (val) {
                       setState(() {
                         _selectedCopy = copy;
@@ -497,12 +556,14 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+            border: Border.all(
+                color:
+                    isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
           ),
           child: Column(
             children: [
-              _buildConfirmRow('Borrower:', '${_selectedMember?.memberName} (${_selectedMember?.memberCode})'),
-
+              _buildConfirmRow('Borrower:',
+                  '${_selectedMember?.memberName} (${_selectedMember?.memberCode})'),
               const SizedBox(height: 6),
               _buildConfirmRow('Book:', _selectedBook?.title ?? '—'),
               const SizedBox(height: 6),
@@ -513,7 +574,8 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
                     : 'Physical Copy (${_copyBarcodeCtrl.text.isNotEmpty ? _copyBarcodeCtrl.text : (_selectedCopy?.barcode ?? "Selected")})',
               ),
               const SizedBox(height: 6),
-              _buildConfirmRow('Issue Date:', DateFormat('dd MMM yyyy').format(DateTime.now())),
+              _buildConfirmRow('Issue Date:',
+                  DateFormat('dd MMM yyyy').format(DateTime.now())),
             ],
           ),
         ),
@@ -537,19 +599,30 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFCBD5E1)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF6366F1)),
+                    const Icon(Icons.calendar_today_rounded,
+                        size: 16, color: Color(0xFF6366F1)),
                     const SizedBox(width: 8),
-                    Text('Due Date: ${DateFormat('dd MMM yyyy').format(_dueDate)}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                    Text(
+                        'Due Date: ${DateFormat('dd MMM yyyy').format(_dueDate)}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 13)),
                   ],
                 ),
-                const Text('Change', style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.w600, fontSize: 12)),
+                const Text('Change',
+                    style: TextStyle(
+                        color: Color(0xFF6366F1),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12)),
               ],
             ),
           ),
@@ -562,9 +635,11 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
           decoration: InputDecoration(
             hintText: 'Add remarks or special notes (optional)...',
             filled: true,
-            fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+            fillColor:
+                isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           ),
         ),
       ],
@@ -575,8 +650,11 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-        Text(value, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+        Text(label,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+        Text(value,
+            style:
+                const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
       ],
     );
   }
@@ -586,31 +664,37 @@ class _QuickIssueDialogState extends ConsumerState<QuickIssueDialog> {
     setState(() => _isSubmitting = true);
 
     final isDigital = _issueEditionType == 'DIGITAL' ||
-        (_selectedBook != null && _selectedBook!.hasDigitalEdition && !_selectedBook!.hasPhysicalEdition);
+        (_selectedBook != null &&
+            _selectedBook!.hasDigitalEdition &&
+            !_selectedBook!.hasPhysicalEdition);
 
     final success = await ref.read(circulationProvider.notifier).issueBooks(
-      memberId: _selectedMember!.id,
-      items: [
-        {
-          'book_id': _selectedBook!.id,
-          'copy_id': isDigital ? null : _selectedCopy?.id,
-          'due_date': DateFormat('yyyy-MM-dd').format(_dueDate),
-        }
-      ],
-      notes: _notesCtrl.text.trim().isNotEmpty ? _notesCtrl.text.trim() : null,
-    );
+          memberId: _selectedMember!.id,
+          items: [
+            {
+              'book_id': _selectedBook!.id,
+              'copy_id': isDigital ? null : _selectedCopy?.id,
+              'due_date': DateFormat('yyyy-MM-dd').format(_dueDate),
+            }
+          ],
+          notes:
+              _notesCtrl.text.trim().isNotEmpty ? _notesCtrl.text.trim() : null,
+        );
 
     if (mounted) {
       setState(() => _isSubmitting = false);
       if (success) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Book issued successfully!'), backgroundColor: Color(0xFF10B981)),
+          const SnackBar(
+              content: Text('Book issued successfully!'),
+              backgroundColor: Color(0xFF10B981)),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(ref.read(circulationProvider).errorMessage ?? 'Failed to issue book.'),
+            content: Text(ref.read(circulationProvider).errorMessage ??
+                'Failed to issue book.'),
             backgroundColor: const Color(0xFFEF4444),
           ),
         );

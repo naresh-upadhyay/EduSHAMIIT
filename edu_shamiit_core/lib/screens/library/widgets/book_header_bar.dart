@@ -15,7 +15,6 @@ class BookHeaderBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(bookProvider);
     final notifier = ref.read(bookProvider.notifier);
-    final roleState = ref.watch(roleProvider);
     final isLibraryAdmin = ref.watch(isLibraryAdminProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -57,11 +56,15 @@ class BookHeaderBar extends ConsumerWidget {
                     if (state.selectedStatus == 'ARCHIVED') ...[
                       const SizedBox(width: 10),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444).withOpacity(0.12),
+                          color:
+                              const Color(0xFFEF4444).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.3)),
+                          border: Border.all(
+                              color: const Color(0xFFEF4444)
+                                  .withValues(alpha: 0.3)),
                         ),
                         child: const Text(
                           'ARCHIVED VIEW',
@@ -81,7 +84,9 @@ class BookHeaderBar extends ConsumerWidget {
                   'Manage all library books, copies, availability and details.',
                   style: TextStyle(
                     fontSize: isDesktop ? 13 : 12,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -102,10 +107,12 @@ class BookHeaderBar extends ConsumerWidget {
                   icon: const Icon(Icons.add_rounded, size: 18),
                   label: const Text(
                     'Add Book',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                    style:
+                        TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6366F1), // Royal Purple / Indigo
+                    backgroundColor:
+                        const Color(0xFF6366F1), // Royal Purple / Indigo
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: EdgeInsets.symmetric(
@@ -132,16 +139,23 @@ class BookHeaderBar extends ConsumerWidget {
                     icon: const Icon(Icons.file_upload_outlined, size: 17),
                     label: const Text(
                       'Import',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      style:
+                          TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                     ),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
-                      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      foregroundColor:
+                          isDark ? Colors.white : const Color(0xFF334155),
+                      backgroundColor:
+                          isDark ? const Color(0xFF1E293B) : Colors.white,
                       side: BorderSide(
-                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     onPressed: () {
                       showDialog(
@@ -154,47 +168,56 @@ class BookHeaderBar extends ConsumerWidget {
                 const SizedBox(width: 10),
               ],
 
-                // Export Button
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.file_download_outlined, size: 17),
-                  label: const Text(
-                    'Export',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
-                    backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    side: BorderSide(
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: () async {
-                    try {
-                      final api = ref.read(libraryApiServiceProvider);
-                      final csv = await api.exportBooksCsv(
-                        search: state.searchQuery,
-                        category: state.selectedCategory,
-                        status: state.selectedStatus,
-                      );
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Catalogue exported (${csv.length} bytes ready).'),
-                            backgroundColor: const Color(0xFF10B981),
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Export failed: $e'), backgroundColor: Colors.red),
-                        );
-                      }
-                    }
-                  },
+              // Export Button
+              OutlinedButton.icon(
+                icon: const Icon(Icons.file_download_outlined, size: 17),
+                label: const Text(
+                  'Export',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                 ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor:
+                      isDark ? Colors.white : const Color(0xFF334155),
+                  backgroundColor:
+                      isDark ? const Color(0xFF1E293B) : Colors.white,
+                  side: BorderSide(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: () async {
+                  try {
+                    final api = ref.read(libraryApiServiceProvider);
+                    final csv = await api.exportBooksCsv(
+                      search: state.searchQuery,
+                      category: state.selectedCategory,
+                      status: state.selectedStatus,
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                              'Catalogue exported (${csv.length} bytes ready).'),
+                          backgroundColor: const Color(0xFF10B981),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text('Export failed: $e'),
+                            backgroundColor: Colors.red),
+                      );
+                    }
+                  }
+                },
+              ),
 
               const SizedBox(width: 8),
 
@@ -206,7 +229,9 @@ class BookHeaderBar extends ConsumerWidget {
                     color: isDark ? const Color(0xFF1E293B) : Colors.white,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0),
                     ),
                   ),
                   child: Icon(
@@ -215,16 +240,19 @@ class BookHeaderBar extends ConsumerWidget {
                     color: isDark ? Colors.white : const Color(0xFF334155),
                   ),
                 ),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
                 color: isDark ? const Color(0xFF1E293B) : Colors.white,
                 itemBuilder: (context) => [
                   const PopupMenuItem(
                     value: 'scan',
                     child: Row(
                       children: [
-                        Icon(Icons.qr_code_scanner_rounded, size: 18, color: Color(0xFF6366F1)),
+                        Icon(Icons.qr_code_scanner_rounded,
+                            size: 18, color: Color(0xFF6366F1)),
                         SizedBox(width: 10),
-                        Text('Scan Barcode / QR', style: TextStyle(fontSize: 13)),
+                        Text('Scan Barcode / QR',
+                            style: TextStyle(fontSize: 13)),
                       ],
                     ),
                   ),
@@ -255,9 +283,12 @@ class BookHeaderBar extends ConsumerWidget {
                       value: 'bulk',
                       child: Row(
                         children: [
-                          const Icon(Icons.checklist_rounded, size: 18, color: Color(0xFF3B82F6)),
+                          const Icon(Icons.checklist_rounded,
+                              size: 18, color: Color(0xFF3B82F6)),
                           const SizedBox(width: 10),
-                          Text('Bulk Operations (${state.selectedBookIds.length})', style: const TextStyle(fontSize: 13)),
+                          Text(
+                              'Bulk Operations (${state.selectedBookIds.length})',
+                              style: const TextStyle(fontSize: 13)),
                         ],
                       ),
                     ),
@@ -275,13 +306,19 @@ class BookHeaderBar extends ConsumerWidget {
                 onSelected: (val) {
                   switch (val) {
                     case 'scan':
-                      showDialog(context: context, builder: (_) => const ScanBookDialog());
+                      showDialog(
+                          context: context,
+                          builder: (_) => const ScanBookDialog());
                       break;
                     case 'import':
-                      showDialog(context: context, builder: (_) => const ImportBooksDialog());
+                      showDialog(
+                          context: context,
+                          builder: (_) => const ImportBooksDialog());
                       break;
                     case 'bulk':
-                      showDialog(context: context, builder: (_) => const BulkOperationsDialog());
+                      showDialog(
+                          context: context,
+                          builder: (_) => const BulkOperationsDialog());
                       break;
                     case 'refresh':
                       notifier.loadStats();

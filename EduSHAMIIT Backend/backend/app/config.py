@@ -1,3 +1,4 @@
+import os
 from pydantic_settings import BaseSettings
 from pydantic import Field, AliasChoices, model_validator
 from typing import Optional
@@ -11,18 +12,18 @@ class Settings(BaseSettings):
     APP_SECRET_KEY: str = "eduSHAMIIT-secret-key-2026"
 
     # Database
-    DATABASE_URL: str = "postgresql://postgres:postgres_password_2026@localhost:5432/edushamiit"
-    POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: int = 5432
-    POSTGRES_DB: str = "edushamiit"
-    POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "postgres_password_2026"
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:eduSHAMIIT2026_pg@localhost:54322/postgres")
+    POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
+    POSTGRES_PORT: int = int(os.getenv("POSTGRES_PORT", "54322"))
+    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "postgres")
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
+    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "eduSHAMIIT2026_pg")
 
     # Supabase
-    SUPABASE_URL: str = "http://127.0.0.1:54321"
-    SUPABASE_ANON_KEY: str = "your-supabase-anon-key"
-    SUPABASE_SERVICE_ROLE_KEY: str = "your-supabase-service-role-key"
-    SUPABASE_JWT_SECRET: str = "eduSHAMIIT-jwt-secret-2026"
+    SUPABASE_URL: str = "http://127.0.0.1:8082"
+    SUPABASE_ANON_KEY: str = Field(default="your-supabase-anon-key", validation_alias=AliasChoices("SUPABASE_ANON_KEY", "ANON_KEY"))
+    SUPABASE_SERVICE_ROLE_KEY: str = Field(default="your-supabase-service-role-key", validation_alias=AliasChoices("SUPABASE_SERVICE_ROLE_KEY", "SERVICE_ROLE_KEY"))
+    SUPABASE_JWT_SECRET: str = Field(default="eduSHAMIIT-jwt-secret-2026", validation_alias=AliasChoices("SUPABASE_JWT_SECRET", "JWT_SECRET"))
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379"
@@ -98,6 +99,18 @@ class Settings(BaseSettings):
                 cleaned = val.strip().strip("'\"")
                 setattr(self, field, cleaned)
 
+        # If running outside Docker container, resolve internal docker hostnames to host port 54322 or 5432
+        if not os.path.exists("/.dockerenv") and self.DATABASE_URL:
+            target_port = 5432
+            try:
+                import psycopg2
+                conn = psycopg2.connect("postgresql://postgres:eduSHAMIIT2026_pg@127.0.0.1:54322/postgres", connect_timeout=1)
+                conn.close()
+                target_port = 54322
+            except Exception:
+                target_port = 5432
+            self.DATABASE_URL = self.DATABASE_URL.replace("@db:5432/", f"@localhost:{target_port}/").replace("@supabase-db:5432/", f"@localhost:{target_port}/")
+
         # If SUPABASE_URL is empty or invalid, try to derive it from DATABASE_URL
         if not self.SUPABASE_URL or not self.SUPABASE_URL.startswith(("http://", "https://")):
             import urllib.parse
@@ -120,7 +133,13 @@ class Settings(BaseSettings):
         return self
 
     class Config:
-        env_file = "../.env"
+        env_file = (
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".env")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".env")),
+            ".env",
+            "../.env",
+        )
         case_sensitive = True
         extra = "ignore"
 

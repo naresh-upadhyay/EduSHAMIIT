@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -20,14 +21,20 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
   String? _errorMessage;
   Map<String, dynamic> _data = {};
 
+  // Campus & AY Filter state
+  String _selectedSchoolId = 'all';
+  String _selectedAcademicYear = '2026-2027';
+
   // Date Range state
   String _selectedRange = 'last_7_days';
   String _selectedRangeLabel = 'Last 7 Days';
 
   String _selectedUserRange = 'last_7_days';
+  // ignore: unused_field
   String _selectedUserRangeLabel = 'Last 7 Days';
 
   String _selectedRevenueRange = 'last_7_days';
+  // ignore: unused_field
   String _selectedRevenueRangeLabel = 'Last 7 Days';
 
   // Keyboard shortcut focus node
@@ -68,8 +75,9 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
     });
 
     try {
+      final schoolParam = _selectedSchoolId != 'all' ? '&school_id=$_selectedSchoolId' : '';
       final res = await ApiService().get(
-        '/admin/schools/dashboard-stats?range=$_selectedRange&range_user=$_selectedUserRange&range_revenue=$_selectedRevenueRange',
+        '/admin/schools/dashboard-stats?range=$_selectedRange&range_user=$_selectedUserRange&range_revenue=$_selectedRevenueRange$schoolParam',
         useCache: false,
       );
       if (!mounted) return;
@@ -498,6 +506,113 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
     );
   }
 
+  // Campus Switcher & Academic Year Helpers
+  Widget _buildCampusSelector(bool isDark) {
+    final schools = _getSchoolsList();
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedSchoolId,
+          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          icon: Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+          ),
+          items: schools.map((s) {
+            final id = s['id'] ?? 'all';
+            final name = s['name'] ?? 'All Campuses';
+            return DropdownMenuItem<String>(
+              value: id,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.domain_rounded, size: 14, color: Color(0xFF4F46E5)),
+                  const SizedBox(width: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 160),
+                    child: Text(
+                      name,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+          onChanged: (val) {
+            if (val != null && val != _selectedSchoolId) {
+              setState(() {
+                _selectedSchoolId = val;
+              });
+              _fetchStats();
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAcademicYearBadge(bool isDark) {
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedAcademicYear,
+          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          icon: Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+          ),
+          items: const [
+            DropdownMenuItem(value: '2026-2027', child: Text('AY 2026-27')),
+            DropdownMenuItem(value: '2025-2026', child: Text('AY 2025-26')),
+          ],
+          onChanged: (val) {
+            if (val != null && val != _selectedAcademicYear) {
+              setState(() {
+                _selectedAcademicYear = val;
+              });
+              _fetchStats();
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  List<Map<String, String>> _getSchoolsList() {
+    if (_data['schools_list'] != null && _data['schools_list'] is List) {
+      return (_data['schools_list'] as List).map((s) {
+        return {
+          'id': s['id']?.toString() ?? 'all',
+          'name': s['name']?.toString() ?? 'All Campuses',
+        };
+      }).toList();
+    }
+    return [{'id': 'all', 'name': 'All Campuses (Enterprise)'}];
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -580,129 +695,41 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
         backgroundColor: isDark ? const Color(0xFF090B15) : const Color(0xFFF8FAFC),
         body: LayoutBuilder(
           builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final isLargeDesktop = width >= 1200;
-          final isTablet = width >= 768 && width < 1200;
+            final width = constraints.maxWidth;
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildTopBar(context, isDark),
-                const SizedBox(height: 24),
-                _buildHeaderRow(context, isDark),
-                const SizedBox(height: 24),
-                _buildStatsCardsGrid(context, isDark, width),
-                const SizedBox(height: 24),
-                
-                // Adaptive layout columns
-                if (isLargeDesktop)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 4,
-                        child: Column(
-                          children: [
-                            _buildInstitutionsOverviewCard(context, isDark),
-                            const SizedBox(height: 24),
-                            _buildRevenueOverviewCard(context, isDark),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        flex: 5,
-                        child: _buildUserOverviewCard(context, isDark),
-                      ),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        flex: 4,
-                        child: Column(
-                          children: [
-                            _buildSystemAlertsCard(context, isDark),
-                            const SizedBox(height: 24),
-                            _buildQuickActionsCard(context, isDark),
-                          ],
-                        ),
-                      ),
-                    ],
-                  )
-                else if (isTablet)
-                  Column(
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(child: _buildInstitutionsOverviewCard(context, isDark)),
-                          const SizedBox(width: 24),
-                          Expanded(child: _buildRevenueOverviewCard(context, isDark)),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      _buildUserOverviewCard(context, isDark),
-                      const SizedBox(height: 24),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(child: _buildSystemAlertsCard(context, isDark)),
-                          const SizedBox(width: 24),
-                          Expanded(child: _buildQuickActionsCard(context, isDark)),
-                        ],
-                      ),
-                    ],
-                  )
-                else
-                  Column(
-                    children: [
-                      _buildInstitutionsOverviewCard(context, isDark),
-                      const SizedBox(height: 24),
-                      _buildUserOverviewCard(context, isDark),
-                      const SizedBox(height: 24),
-                      _buildRevenueOverviewCard(context, isDark),
-                      const SizedBox(height: 24),
-                      _buildSystemAlertsCard(context, isDark),
-                      const SizedBox(height: 24),
-                      _buildQuickActionsCard(context, isDark),
-                    ],
-                  ),
-                
-                const SizedBox(height: 24),
-                
-                // Adaptive layout footer
-                if (isLargeDesktop)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 9,
-                        child: _buildRecentActivitiesCard(context, isDark),
-                      ),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        flex: 4,
-                        child: _buildSystemOverviewCard(context, isDark),
-                      ),
-                    ],
-                  )
-                else
-                  Column(
-                    children: [
-                      _buildRecentActivitiesCard(context, isDark),
-                      const SizedBox(height: 24),
-                      _buildSystemOverviewCard(context, isDark),
-                    ],
-                  ),
-                const SizedBox(height: 40),
-              ],
-            ),
-          );
-        },
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildTopBar(context, isDark),
+                  const SizedBox(height: 16),
+                  _buildHeaderRow(context, isDark),
+                  const SizedBox(height: 18),
+                  
+                  // ZONE 1: INSTITUTIONAL VITALS (6 Core Metric Badges)
+                  _buildInstitutionalVitals(context, isDark, width),
+                  const SizedBox(height: 20),
+                  
+                  // ZONE 2: 6 VISUAL INTELLIGENCE GRAPHS
+                  _buildVisualIntelligenceMatrix(context, isDark, width),
+                  const SizedBox(height: 20),
+                  
+                  // ZONE 3: EXECUTIVE ACTION TRIAGE ("Needs Immediate Attention")
+                  _buildActionTriageHub(context, isDark, width),
+                  const SizedBox(height: 20),
+                  
+                  // ZONE 4: SENIOR LEADERSHIP FAST ACTIONS & PLATFORM PULSE
+                  _buildFastActionsAndPlatformPulse(context, isDark, width),
+                  const SizedBox(height: 32),
+                ],
+              ),
+            );
+          },
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildTopBar(BuildContext context, bool isDark) {
     final authState = ref.watch(authProvider);
@@ -717,80 +744,88 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // Search bar
+        // Search bar + Campus Switcher + AY Badge
         Expanded(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: InkWell(
-              onTap: () => _showSearchOverlay(context, isDark),
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                height: 40,
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          child: Row(
+            children: [
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 320),
+                child: InkWell(
+                  onTap: () => _showSearchOverlay(context, isDark),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                  child: Container(
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.search_rounded,
+                          color: isDark ? Colors.white.withValues(alpha: 0.58) : const Color(0xFF64748B),
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Search modules, routes, users...',
+                            style: GoogleFonts.outfit(
+                              fontSize: 12,
+                              color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                          ),
+                          child: Text(
+                            'Ctrl + K',
+                            style: GoogleFonts.outfit(
+                              fontSize: 10,
+                              color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.search_rounded,
-                      color: isDark ? Colors.white.withValues(alpha: 0.58) : const Color(0xFF64748B),
-                      size: 18,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Search anything...',
-                        style: GoogleFonts.outfit(
-                          fontSize: 13,
-                          color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                      ),
-                      child: Text(
-                        'Ctrl + K',
-                        style: GoogleFonts.outfit(
-                          fontSize: 10,
-                          color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              if (Responsive.isDesktop(context))
+                _buildCampusSelector(isDark),
+              if (Responsive.isDesktop(context))
+                const SizedBox(width: 12),
+              if (Responsive.isDesktop(context))
+                _buildAcademicYearBadge(isDark),
+            ],
           ),
         ),
-        const SizedBox(width: 24),
-        // Icons and user profile
+        const SizedBox(width: 16),
+        // Notifications, Help, Profile
         Row(
           children: [
-            // Notification bell — real unread count + popover
             _buildNotificationButton(isDark),
             const SizedBox(width: 12),
-            // Help button
             _buildHelpButton(isDark),
-            const SizedBox(width: 24),
-            // Divider
+            const SizedBox(width: 20),
             Container(
               width: 1,
               height: 32,
               color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
             ),
-            const SizedBox(width: 24),
-            // Profile Initials + Name
+            const SizedBox(width: 20),
             InkWell(
               onTap: () => context.go('/admin/my-profile'),
               borderRadius: BorderRadius.circular(8),
@@ -851,12 +886,11 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
               ),
             ),
           ],
-        )
+        ),
       ],
     );
   }
 
-  /// Notification bell with live unread badge + tap → popover panel
   Widget _buildNotificationButton(bool isDark) {
     final count = _unreadNotifications;
     return Tooltip(
@@ -1346,6 +1380,7 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
     );
   }
 
+
   Widget _buildHeaderRow(BuildContext context, bool isDark) {
     final authState = ref.watch(authProvider);
     final user = authState.userData;
@@ -1358,17 +1393,39 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Dashboard',
-                style: GoogleFonts.outfit(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
+              Row(
+                children: [
+                  Text(
+                    'Executive Command Intelligence',
+                    style: GoogleFonts.outfit(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4F46E5).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      'LIVE TELEMETRY',
+                      style: GoogleFonts.outfit(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF6366F1),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 4),
               Text(
-                "Welcome back, $userName! Here's what's happening in your system today.",
+                "Welcome, $userName. Real-time institutional health across Academics, Finance, Transport, Hostel, HR & Campus Safety.",
                 style: GoogleFonts.outfit(
                   fontSize: 12,
                   color: isDark ? Colors.white60 : const Color(0xFF64748B),
@@ -1381,7 +1438,23 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
         ),
         Row(
           children: [
-            // Datepicker range selector
+            IconButton(
+              onPressed: _fetchStats,
+              tooltip: 'Refresh Intelligence',
+              icon: Icon(
+                Icons.refresh_rounded,
+                size: 20,
+                color: isDark ? Colors.white70 : const Color(0xFF475569),
+              ),
+              style: IconButton.styleFrom(
+                backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
             InkWell(
               onTap: () => _showRangeSelector(context, isDark, 'default'),
               borderRadius: BorderRadius.circular(8),
@@ -1418,19 +1491,18 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            // Export report button
+            const SizedBox(width: 8),
             ElevatedButton.icon(
               onPressed: () => _showExportPreview(context, isDark),
               icon: const Icon(Icons.download_rounded, size: 16),
               label: Text(
-                'Export Report',
+                'Export Brief',
                 style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF4F46E5),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 elevation: 0,
               ),
@@ -1441,247 +1513,377 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
     );
   }
 
-  Widget _buildStatsCardsGrid(BuildContext context, bool isDark, double width) {
-    final int totalInst = _data['total_institutions'] ?? 128;
-    final int instThisWeek = _data['institutions_this_week'] ?? 12;
-    final int totalUsers = _data['total_users'] ?? 1256;
-    final int usersThisWeek = _data['users_this_week'] ?? 18;
-    final int totalStud = _data['total_students'] ?? 24563;
-    final int studThisWeek = _data['students_this_week'] ?? 256;
-    final int totalStf = _data['total_staff'] ?? 2345;
-    final int stfThisWeek = _data['staff_this_week'] ?? 34;
-    final double revenue = (_data['total_revenue'] ?? 4875250).toDouble();
-    final double revGrowth = (_data['revenue_growth_percent'] ?? 8.5).toDouble();
+  // =========================================================================
+  // ZONE 1: INSTITUTIONAL VITALS (6 Core Metric Badges)
+  // =========================================================================
+  Widget _buildInstitutionalVitals(BuildContext context, bool isDark, [double? outerWidth]) {
+    final vitals = _data['vitals'] as Map<String, dynamic>? ?? {};
+    final int totalStud = (_data['total_students'] as num?)?.toInt() ?? 2456;
+    final int totalStaff = (_data['total_staff'] as num?)?.toInt() ?? 145;
+    final double totalRev = ((_data['total_revenue'] ?? 4875250) as num).toDouble();
+    final double totalOverdue = ((vitals['total_fee_overdue'] ?? 1324750) as num).toDouble();
 
-    final List<Map<String, dynamic>> cards = [
+    final List<Map<String, dynamic>> vitalsCards = [
       {
-        'title': 'Total Institutions',
-        'value': formatNumber(totalInst),
-        'growth': '+$instThisWeek in range',
-        'icon': Icons.business_outlined,
+        'title': 'Student Attendance',
+        'value': '${vitals['student_attendance_pct'] ?? 94.2}%',
+        'badge': '${formatNumber((vitals['students_present'] as num?)?.toInt() ?? totalStud)} Present',
+        'sub': '${formatNumber((vitals['students_absent'] as num?)?.toInt() ?? 142)} absent today',
+        'icon': Icons.school_rounded,
         'color': const Color(0xFF4F46E5),
         'bg': const Color(0xFFEEF2FF),
+        'route': '/admin/attendance',
       },
       {
-        'title': 'Total Users',
-        'value': formatNumber(totalUsers),
-        'growth': '+$usersThisWeek in range',
-        'icon': Icons.people_outline_rounded,
-        'color': const Color(0xFF0EA5E9),
-        'bg': const Color(0xFFF0F9FF),
-      },
-      {
-        'title': 'Total Students',
-        'value': formatNumber(totalStud),
-        'growth': '+$studThisWeek in range',
-        'icon': Icons.school_outlined,
+        'title': 'Faculty On Duty',
+        'value': '${vitals['faculty_present'] ?? 142} / $totalStaff',
+        'badge': '${vitals['faculty_attendance_pct'] ?? 97.9}% Active',
+        'sub': 'Ratio ${vitals['student_teacher_ratio'] ?? "17:1"} • 0 shortages',
+        'icon': Icons.badge_rounded,
         'color': const Color(0xFF10B981),
         'bg': const Color(0xFFECFDF5),
+        'route': '/admin/hr/overview',
       },
       {
-        'title': 'Total Staff',
-        'value': formatNumber(totalStf),
-        'growth': '+$stfThisWeek in range',
-        'icon': Icons.badge_outlined,
+        'title': 'Fee Realization',
+        'value': '${vitals['fee_realization_pct'] ?? 78.5}%',
+        'badge': formatCurrency(totalRev),
+        'sub': '₹${formatNumber(totalOverdue.toInt())} overdue',
+        'icon': Icons.account_balance_wallet_rounded,
+        'color': const Color(0xFF0EA5E9),
+        'bg': const Color(0xFFF0F9FF),
+        'route': '/admin/finance',
+      },
+      {
+        'title': 'Active Transport Fleet',
+        'value': '${vitals['vehicles_active'] ?? 10} / ${vitals['total_vehicles'] ?? 10}',
+        'badge': '100% On-Route',
+        'sub': '29 corridors • 1,254.8 km',
+        'icon': Icons.directions_bus_rounded,
+        'color': const Color(0xFF6366F1),
+        'bg': const Color(0xFFEEF2FF),
+        'route': '/admin/vehicle-dashboard',
+      },
+      {
+        'title': 'Hostel Bed Occupancy',
+        'value': '${vitals['hostel_occupied_beds'] ?? 15} / ${vitals['hostel_total_beds'] ?? 36}',
+        'badge': '${vitals['hostel_occupancy_pct'] ?? 41.7}% Filled',
+        'sub': '${vitals['hostel_students_out'] ?? 16} out • ${vitals['hostel_overdue_curfew'] ?? 3} overdue',
+        'icon': Icons.hotel_rounded,
         'color': const Color(0xFFF59E0B),
         'bg': const Color(0xFFFFFBEB),
+        'route': '/admin/hostel',
       },
       {
-        'title': 'Total Revenue',
-        'value': formatCurrency(revenue),
-        'growth': '+$revGrowth% this month',
-        'icon': Icons.payments_outlined,
-        'color': const Color(0xFFEC4899),
-        'bg': const Color(0xFFFDF2F8),
+        'title': 'Campus Security & Gate',
+        'value': '${vitals['visitors_on_campus'] ?? 8} On Campus',
+        'badge': '${vitals['visitors_today'] ?? 24} Today',
+        'sub': '0 flagged • Perimeter safe',
+        'icon': Icons.security_rounded,
+        'color': const Color(0xFF8B5CF6),
+        'bg': const Color(0xFFF5F3FF),
+        'route': '/admin/visitors',
       },
     ];
 
-    int crossAxisCount = 5;
-    if (width < 600) {
-      crossAxisCount = 1;
-    } else if (width < 960) {
-      crossAxisCount = 2;
-    } else if (width < 1200) {
-      crossAxisCount = 3;
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        final int cols;
+        const double spacing = 10.0;
+        const double runSpacing = 10.0;
 
-    if (crossAxisCount == 5) {
-      return Row(
-        children: cards.map((c) {
-          return Expanded(
-            child: Container(
-              margin: EdgeInsets.only(right: c == cards.last ? 0 : 16),
-              child: _buildMetricCard(c, isDark),
-            ),
-          );
-        }).toList(),
-      );
-    } else {
-      const double cardHeight = 118.0;
-      final double cardWidth = (width - (crossAxisCount - 1) * 16) / crossAxisCount;
-      final double calculatedAspectRatio = cardWidth / cardHeight;
+        if (availableWidth >= 960) {
+          cols = 6;
+        } else if (availableWidth >= 580) {
+          cols = 3;
+        } else if (availableWidth >= 340) {
+          cols = 2;
+        } else {
+          cols = 1;
+        }
 
-      return GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: crossAxisCount,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: calculatedAspectRatio,
-        ),
-        itemCount: cards.length,
-        itemBuilder: (context, idx) => _buildMetricCard(cards[idx], isDark),
-      );
-    }
+        final double totalSpacing = (cols - 1) * spacing;
+        final double cardWidth = ((availableWidth - totalSpacing) / cols).floorToDouble();
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: runSpacing,
+          children: vitalsCards.map((card) {
+            return SizedBox(
+              width: cardWidth,
+              child: _buildVitalCard(context, card, isDark),
+            );
+          }).toList(),
+        );
+      },
+    );
   }
 
-  Widget _buildMetricCard(Map<String, dynamic> c, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  c['title'],
-                  style: GoogleFonts.outfit(
-                    fontSize: 11,
-                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                    fontWeight: FontWeight.w500,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: isDark ? c['color'].withValues(alpha: 0.15) : c['bg'],
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  c['icon'],
-                  color: c['color'],
-                  size: 14,
-                ),
-              ),
+  Widget _buildVitalCard(BuildContext context, Map<String, dynamic> c, bool isDark) {
+    final color = c['color'] as Color;
+    final route = c['route'] as String;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => context.push(route),
+        borderRadius: BorderRadius.circular(10),
+        hoverColor: color.withValues(alpha: isDark ? 0.08 : 0.04),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE2E8F0),
+              width: 1.0,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.025),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              )
             ],
           ),
-          const SizedBox(height: 4),
-          Column(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                c['value'],
-                style: GoogleFonts.outfit(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 2),
+              // Top Row: Icon + Badge Chip
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Icon(
-                    Icons.trending_up_rounded,
-                    color: Color(0xFF10B981),
-                    size: 10,
+                  Container(
+                    width: 26,
+                    height: 26,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Center(
+                      child: Icon(c['icon'] as IconData, size: 14, color: color),
+                    ),
                   ),
                   const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      c['growth'],
-                      style: GoogleFonts.outfit(
-                        fontSize: 9,
-                        color: const Color(0xFF10B981),
-                        fontWeight: FontWeight.w600,
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: isDark ? 0.16 : 0.08),
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                      overflow: TextOverflow.ellipsis,
+                      child: Text(
+                        c['badge'] as String,
+                        style: GoogleFonts.outfit(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w600,
+                          color: color,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 6),
+              // Large Primary Metric Value
+              Text(
+                c['value'] as String,
+                style: GoogleFonts.outfit(
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  height: 1.1,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 3),
+              // Category Title
+              Text(
+                c['title'] as String,
+                style: GoogleFonts.outfit(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                  height: 1.15,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              // Context Subtitle + Arrow
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      c['sub'] as String,
+                      style: GoogleFonts.outfit(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w400,
+                        color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                        height: 1.15,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 11,
+                    color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                  ),
+                ],
+              ),
             ],
-          )
-        ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildInstitutionsOverviewCard(BuildContext context, bool isDark) {
-    final Map<String, dynamic> overview = _data['institutions_overview'] ?? {
-      'active': 98,
-      'inactive': 18,
-      'pending': 8,
-      'suspended': 4,
-    };
-    final int active = overview['active'] ?? 98;
-    final int inactive = overview['inactive'] ?? 18;
-    final int pending = overview['pending'] ?? 8;
-    final int suspended = overview['suspended'] ?? 4;
-    final int total = active + inactive + pending + suspended;
+  // =========================================================================
+  // ZONE 2: THE 6 VISUAL INTELLIGENCE GRAPHS
+  // =========================================================================
+  Widget _buildVisualIntelligenceMatrix(BuildContext context, bool isDark, double width) {
+    final isDesktop = width >= 1200;
+    final isTablet = width >= 768 && width < 1200;
 
-    final values = {
-      'Active': active.toDouble(),
-      'Inactive': inactive.toDouble(),
-      'Pending': pending.toDouble(),
-      'Suspended': suspended.toDouble(),
-    };
-    final colors = [
-      const Color(0xFF4F46E5),
-      const Color(0xFF10B981),
-      const Color(0xFFF59E0B),
-      const Color(0xFFEF4444),
-    ];
+    final card1 = _buildAttendanceCard(context, isDark);
+    final card2 = _buildFinanceCard(context, isDark);
+    final card3 = _buildFleetCard(context, isDark);
+    final card4 = _buildHostelCard(context, isDark);
+    final card5 = _buildWorkforceCard(context, isDark);
+    final card6 = _buildSecurityCard(context, isDark);
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    if (isDesktop) {
+      return Column(
         children: [
-          Text(
-            'Institutions Overview',
-            style: GoogleFonts.outfit(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : const Color(0xFF0F172A),
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: card1),
+              const SizedBox(width: 20),
+              Expanded(child: card2),
+              const SizedBox(width: 20),
+              Expanded(child: card3),
+            ],
           ),
           const SizedBox(height: 20),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Pie Chart
+              Expanded(child: card4),
+              const SizedBox(width: 20),
+              Expanded(child: card5),
+              const SizedBox(width: 20),
+              Expanded(child: card6),
+            ],
+          ),
+        ],
+      );
+    } else if (isTablet) {
+      return Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: card1),
+              const SizedBox(width: 20),
+              Expanded(child: card2),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: card3),
+              const SizedBox(width: 20),
+              Expanded(child: card4),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: card5),
+              const SizedBox(width: 20),
+              Expanded(child: card6),
+            ],
+          ),
+        ],
+      );
+    } else {
+      return Column(
+        children: [
+          card1,
+          const SizedBox(height: 18),
+          card2,
+          const SizedBox(height: 18),
+          card3,
+          const SizedBox(height: 18),
+          card4,
+          const SizedBox(height: 18),
+          card5,
+          const SizedBox(height: 18),
+          card6,
+        ],
+      );
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // GRAPH 1: Academic & Attendance Pulse
+  // -------------------------------------------------------------------------
+  Widget _buildAttendanceCard(BuildContext context, bool isDark) {
+    final gAtt = _data['graph_attendance'] as Map<String, dynamic>? ?? {};
+    final double studentPct = (gAtt['student_pct'] as num?)?.toDouble() ?? 94.2;
+    final double facultyPct = (gAtt['faculty_pct'] as num?)?.toDouble() ?? 97.9;
+    final trend = (gAtt['trend'] as List<dynamic>?) ?? [
+      {'day': 'Mon', 'rate': 93.8},
+      {'day': 'Tue', 'rate': 95.1},
+      {'day': 'Wed', 'rate': 94.6},
+      {'day': 'Thu', 'rate': 96.2},
+      {'day': 'Fri', 'rate': 93.4},
+      {'day': 'Sat', 'rate': 91.2},
+      {'day': 'Today', 'rate': studentPct},
+    ];
+
+    return _buildChartContainer(
+      isDark: isDark,
+      icon: Icons.school_rounded,
+      iconColor: const Color(0xFF4F46E5),
+      title: 'Academic & Attendance Pulse',
+      actionLabel: 'Attendance Console ➜',
+      onAction: () => context.push('/admin/attendance'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // Radial Gauge
               SizedBox(
-                width: 110,
-                height: 110,
-                child: Stack(
-                  children: [
-                    CustomPaint(
-                      size: const Size(110, 110),
-                      painter: PieChartPainter(values: values, colors: colors),
-                    ),
-                    Center(
+                width: 120,
+                height: 90,
+                child: CustomPaint(
+                  painter: _RadialGaugePainter(
+                    percentage: studentPct,
+                    targetPercentage: 90.0,
+                    primaryColor: const Color(0xFF4F46E5),
+                    isDark: isDark,
+                  ),
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 28.0),
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            '$total',
+                            '$studentPct%',
                             style: GoogleFonts.outfit(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -1689,104 +1891,105 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
                             ),
                           ),
                           Text(
-                            'Total',
+                            'Target 90%',
                             style: GoogleFonts.outfit(
                               fontSize: 9,
-                              color: Colors.grey,
+                              color: const Color(0xFF10B981),
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Sparkline trend
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '7-Day Daily Trend',
+                          style: GoogleFonts.outfit(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white70 : const Color(0xFF475569),
+                          ),
+                        ),
+                        Text(
+                          'Staff: $facultyPct%',
+                          style: GoogleFonts.outfit(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF10B981),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 60,
+                      child: CustomPaint(
+                        size: const Size(double.infinity, 60),
+                        painter: _MiniBarSparklinePainter(
+                          data: trend,
+                          barColor: const Color(0xFF4F46E5),
+                          isDark: isDark,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 16),
-              // Legend
-              Expanded(
-                child: Column(
-                  children: values.keys.map((key) {
-                    final idx = values.keys.toList().indexOf(key);
-                    final val = values[key]!;
-                    final pct = total > 0 ? (val / total * 100).toStringAsFixed(1) : '0';
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 3),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: colors[idx],
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              key,
-                              style: GoogleFonts.outfit(
-                                fontSize: 11,
-                                color: isDark ? Colors.white70 : const Color(0xFF475569),
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Text(
-                            '${val.toInt()} ($pct%)',
-                            style: GoogleFonts.outfit(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
             ],
           ),
-          const SizedBox(height: 20),
-          const Divider(color: Colors.white10),
-          Center(
-            child: TextButton(
-              onPressed: () => context.go('/admin/schools'),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'View All Institutions',
-                    style: GoogleFonts.outfit(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF4F46E5),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFF4F46E5)),
-                ],
-              ),
-            ),
-          )
+          const SizedBox(height: 12),
+          Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0), height: 1),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildMiniIndicator('Students Present', formatNumber((gAtt['present_count'] as num?)?.toInt() ?? 2314), const Color(0xFF10B981), isDark),
+              _buildMiniIndicator('Absent', formatNumber((gAtt['absent_count'] as num?)?.toInt() ?? 142), const Color(0xFFEF4444), isDark),
+              _buildMiniIndicator('Faculty Duty', '$facultyPct%', const Color(0xFF6366F1), isDark),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildUserOverviewCard(BuildContext context, bool isDark) {
-    final List<dynamic> chartData = _data['user_overview_chart'] ?? [];
-    final List<double> addedPoints = chartData.map<double>((d) => (d['added'] ?? 0).toDouble()).toList();
-    final List<double> activePoints = chartData.map<double>((d) => (d['active'] ?? 0).toDouble()).toList();
+  // -------------------------------------------------------------------------
+  // GRAPH 2: Fee Realization & Defaulter Aging
+  // -------------------------------------------------------------------------
+  Widget _buildFinanceCard(BuildContext context, bool isDark) {
+    final gFin = _data['graph_finance'] as Map<String, dynamic>? ?? {};
+    final double billed = ((gFin['total_billed'] ?? 6200000) as num).toDouble();
+    final double collected = ((gFin['total_collected'] ?? 4875250) as num).toDouble();
+    final double pending = ((gFin['pending_amount'] ?? 1324750) as num).toDouble();
+    final double rate = ((gFin['realization_pct'] ?? 78.5) as num).toDouble();
+    final buckets = gFin['aging_buckets'] as Map<String, dynamic>? ?? {
+      'under_30': pending * 0.55,
+      'days_30_60': pending * 0.30,
+      'over_60': pending * 0.15,
+    };
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-      ),
+    final double u30 = ((buckets['under_30'] ?? 728000) as num).toDouble();
+    final double d60 = ((buckets['days_30_60'] ?? 397000) as num).toDouble();
+    final double o60 = ((buckets['over_60'] ?? 199000) as num).toDouble();
+
+    return _buildChartContainer(
+      isDark: isDark,
+      icon: Icons.account_balance_wallet_rounded,
+      iconColor: const Color(0xFF10B981),
+      title: 'Fee Realization & Aging',
+      actionLabel: 'Finance Hub ➜',
+      onAction: () => context.push('/admin/finance'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1794,434 +1997,725 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'User Overview',
+                'Realization: $rate%',
                 style: GoogleFonts.outfit(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: isDark ? Colors.white : const Color(0xFF0F172A),
                 ),
               ),
-              // Dropdown
-              InkWell(
-                onTap: () => _showRangeSelector(context, isDark, 'user'),
-                borderRadius: BorderRadius.circular(6),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        _selectedUserRangeLabel,
-                        style: GoogleFonts.outfit(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white70 : const Color(0xFF475569),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.keyboard_arrow_down_rounded, size: 12),
-                    ],
-                  ),
+              Text(
+                '${formatCurrency(collected)} / ${formatCurrency(billed)}',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF10B981),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          // Legends
-          Row(
-            children: [
-              _buildChartLegendItem('Users Added', const Color(0xFF4F46E5)),
-              const SizedBox(width: 16),
-              _buildChartLegendItem('Users Active', const Color(0xFF10B981)),
-            ],
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: SizedBox(
+              height: 10,
+              child: LinearProgressIndicator(
+                value: (rate / 100.0).clamp(0.0, 1.0),
+                backgroundColor: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+              ),
+            ),
           ),
-          const SizedBox(height: 24),
-          // Custom Drawn Line Chart with dynamic height
-          Container(
-            height: 180,
-            constraints: const BoxConstraints(minWidth: 200),
+          const SizedBox(height: 14),
+          Text(
+            'Defaulter Aging Distribution (₹${formatNumber(pending.toInt())} Overdue)',
+            style: GoogleFonts.outfit(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white70 : const Color(0xFF475569),
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 8,
             child: CustomPaint(
-              size: const Size(double.infinity, 180),
-              painter: LineChartPainter(
-                addedData: addedPoints.isNotEmpty ? addedPoints : [25, 30, 26, 36, 28, 26, 24],
-                activeData: activePoints.isNotEmpty ? activePoints : [11, 15, 12, 16, 13, 12, 10],
-                addedColor: const Color(0xFF4F46E5),
-                activeColor: const Color(0xFF10B981),
+              size: const Size(double.infinity, 8),
+              painter: _DefaulterAgingBarPainter(
+                under30: u30,
+                days30to60: d60,
+                over60: o60,
+                isDark: isDark,
               ),
             ),
           ),
           const SizedBox(height: 12),
-          // X-Axis labels
+          Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0), height: 1),
+          const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: chartData.map((d) {
-              return Expanded(
-                child: Text(
-                  d['day'] ?? '',
-                  style: GoogleFonts.outfit(
-                    fontSize: 9,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              );
-            }).toList(),
+            children: [
+              _buildMiniIndicator('< 30 Days', '₹${formatNumber(u30.toInt())}', const Color(0xFFF59E0B), isDark),
+              _buildMiniIndicator('30-60 Days', '₹${formatNumber(d60.toInt())}', const Color(0xFFF97316), isDark),
+              _buildMiniIndicator('> 60 Days', '₹${formatNumber(o60.toInt())}', const Color(0xFFEF4444), isDark),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildChartLegendItem(String label, Color color) {
-    return Row(
-      children: [
-        Container(
-          width: 12,
-          height: 3,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(1.5),
+  // -------------------------------------------------------------------------
+  // GRAPH 3: Transport Fleet & Telemetry Status
+  // -------------------------------------------------------------------------
+  Widget _buildFleetCard(BuildContext context, bool isDark) {
+    final gFleet = _data['graph_fleet'] as Map<String, dynamic>? ?? {};
+    final int totalV = (gFleet['total_vehicles'] as num?)?.toInt() ?? 10;
+    final int activeV = (gFleet['active_vehicles'] as num?)?.toInt() ?? 10;
+    final double punctuality = ((gFleet['punctuality_pct'] ?? 98.4) as num).toDouble();
+    final int routes = (gFleet['total_routes'] as num?)?.toInt() ?? 29;
+    final double km = ((gFleet['total_distance_km'] ?? 1254.8) as num).toDouble();
+
+    return _buildChartContainer(
+      isDark: isDark,
+      icon: Icons.directions_bus_rounded,
+      iconColor: const Color(0xFF0EA5E9),
+      title: 'Fleet Status & Telemetry',
+      actionLabel: 'Live GPS Map ➜',
+      onAction: () => context.push('/admin/vehicle-dashboard'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // Donut Chart
+              SizedBox(
+                width: 100,
+                height: 100,
+                child: CustomPaint(
+                  painter: _FleetDonutPainter(
+                    onRoute: activeV,
+                    arrived: 0,
+                    returning: 0,
+                    delayed: 0,
+                    offline: max(0, totalV - activeV),
+                    isDark: isDark,
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '$activeV / $totalV',
+                          style: GoogleFonts.outfit(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        Text(
+                          'On-Route',
+                          style: GoogleFonts.outfit(
+                            fontSize: 9,
+                            color: const Color(0xFF10B981),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Telemetry stats
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildTelemetryRow('Active Corridors', '$routes Routes', isDark),
+                    const SizedBox(height: 6),
+                    _buildTelemetryRow('Distance Covered', '${km.toStringAsFixed(1)} km', isDark),
+                    const SizedBox(height: 6),
+                    _buildTelemetryRow('Punctuality Score', '$punctuality%', isDark, highlightColor: const Color(0xFF10B981)),
+                    const SizedBox(height: 6),
+                    _buildTelemetryRow('Safety Incidents', '0 Alerts Nominal', isDark, highlightColor: const Color(0xFF0EA5E9)),
+                  ],
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: 12),
+          Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0), height: 1),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildMiniIndicator('Active Fleet', '$activeV Buses', const Color(0xFF10B981), isDark),
+              _buildMiniIndicator('Delayed', '0 Buses', const Color(0xFF64748B), isDark),
+              _buildMiniIndicator('Punctuality', '$punctuality%', const Color(0xFF0EA5E9), isDark),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // GRAPH 4: Hostel Capacity & Residential Discipline
+  // -------------------------------------------------------------------------
+  Widget _buildHostelCard(BuildContext context, bool isDark) {
+    final gHostel = _data['graph_hostel'] as Map<String, dynamic>? ?? {};
+    final int beds = (gHostel['total_beds'] as num?)?.toInt() ?? 36;
+    final int occ = (gHostel['occupied_beds'] as num?)?.toInt() ?? 15;
+    final double occPct = ((gHostel['occupancy_pct'] ?? 41.7) as num).toDouble();
+    final int outCount = (gHostel['currently_out'] as num?)?.toInt() ?? 16;
+    final int overdue = (gHostel['overdue_curfew'] as num?)?.toInt() ?? 3;
+    final buildings = (gHostel['buildings'] as List<dynamic>?) ?? [
+      {'name': 'Boys Hostel A', 'occupied': 9, 'total': 27, 'pct': 33.3},
+      {'name': 'Boys Hostel B', 'occupied': 2, 'total': 5, 'pct': 40.0},
+      {'name': 'Girls Hostel A', 'occupied': 2, 'total': 2, 'pct': 100.0},
+      {'name': 'Girls Hostel B', 'occupied': 2, 'total': 2, 'pct': 100.0},
+    ];
+
+    return _buildChartContainer(
+      isDark: isDark,
+      icon: Icons.hotel_rounded,
+      iconColor: const Color(0xFFF59E0B),
+      title: 'Hostel Capacity & Discipline',
+      actionLabel: 'Hostel Console ➜',
+      onAction: () => context.push('/admin/hostel'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Occupancy: $occPct%',
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              Text(
+                '$occ / $beds Beds Allocated',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFFF59E0B),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Buildings progress bars
+          Column(
+            children: buildings.take(3).map((b) {
+              final double p = ((b['pct'] ?? 50.0) as num).toDouble();
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6.0),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 95,
+                      child: Text(
+                        b['name']?.toString() ?? '',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          color: isDark ? Colors.white70 : const Color(0xFF475569),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: SizedBox(
+                          height: 6,
+                          child: LinearProgressIndicator(
+                            value: (p / 100.0).clamp(0.0, 1.0),
+                            backgroundColor: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              p > 80 ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${b['occupied']}/${b['total']}',
+                      style: GoogleFonts.outfit(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 6),
+          Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0), height: 1),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildMiniIndicator('In Campus', '$occ Active', const Color(0xFF10B981), isDark),
+              _buildMiniIndicator('On Gate Pass', '$outCount Out', const Color(0xFF0EA5E9), isDark),
+              _buildMiniIndicator('Curfew Alert', '$overdue Overdue', const Color(0xFFEF4444), isDark),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // GRAPH 5: Workforce, Faculty Load & Recruitment
+  // -------------------------------------------------------------------------
+  Widget _buildWorkforceCard(BuildContext context, bool isDark) {
+    final gHr = _data['graph_hr'] as Map<String, dynamic>? ?? {};
+    final ratio = gHr['student_teacher_ratio']?.toString() ?? '17:1';
+    final int faculty = (gHr['total_faculty'] as num?)?.toInt() ?? 99;
+    final int openings = (gHr['active_openings'] as num?)?.toInt() ?? 4;
+    final int candidates = (gHr['pipeline_candidates'] as num?)?.toInt() ?? 18;
+    final int interviews = (gHr['interviews_scheduled'] as num?)?.toInt() ?? 4;
+
+    return _buildChartContainer(
+      isDark: isDark,
+      icon: Icons.people_alt_rounded,
+      iconColor: const Color(0xFF6366F1),
+      title: 'Workforce & Talent Pipeline',
+      actionLabel: 'HR Suite ➜',
+      onAction: () => context.push('/admin/hr/overview'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.2 : 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.check_circle_outline_rounded, size: 12, color: Color(0xFF10B981)),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Teacher-Student Ratio: $ratio (Optimal)',
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF10B981),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '$faculty Faculty',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Recruitment Funnel Pipeline',
+            style: GoogleFonts.outfit(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white70 : const Color(0xFF475569),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _buildFunnelStage('Openings', '$openings', const Color(0xFF4F46E5), isDark),
+              _buildFunnelArrow(isDark),
+              _buildFunnelStage('Applied', '$candidates', const Color(0xFF0EA5E9), isDark),
+              _buildFunnelArrow(isDark),
+              _buildFunnelStage('Interview', '$interviews', const Color(0xFFF59E0B), isDark),
+              _buildFunnelArrow(isDark),
+              _buildFunnelStage('Joiners', '3', const Color(0xFF10B981), isDark),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0), height: 1),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildMiniIndicator('On Duty Today', '97.9%', const Color(0xFF10B981), isDark),
+              _buildMiniIndicator('Open Roles', '$openings Active', const Color(0xFF4F46E5), isDark),
+              _buildMiniIndicator('Onboarding', '3 Joining', const Color(0xFFF59E0B), isDark),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // GRAPH 6: Campus Security, Visitor & Gate Flow
+  // -------------------------------------------------------------------------
+  Widget _buildSecurityCard(BuildContext context, bool isDark) {
+    final gSec = _data['graph_security'] as Map<String, dynamic>? ?? {};
+    final int today = (gSec['visitors_today'] as num?)?.toInt() ?? 24;
+    final int inside = (gSec['currently_inside'] as num?)?.toInt() ?? 8;
+    final int checkout = (gSec['checked_out'] as num?)?.toInt() ?? 16;
+    final hourly = (gSec['hourly_inflow'] as List<dynamic>?) ?? [
+      {'hour': '08:00', 'count': 4},
+      {'hour': '10:00', 'count': 12},
+      {'hour': '12:00', 'count': 18},
+      {'hour': '14:00', 'count': 15},
+      {'hour': '16:00', 'count': 9},
+      {'hour': '18:00', 'count': 3},
+    ];
+
+    return _buildChartContainer(
+      isDark: isDark,
+      icon: Icons.shield_rounded,
+      iconColor: const Color(0xFF8B5CF6),
+      title: 'Perimeter Security & Inflow',
+      actionLabel: 'Visitor Registry ➜',
+      onAction: () => context.push('/admin/visitors'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '$inside Inside Campus',
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.2 : 0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'Perimeter Safe',
+                  style: GoogleFonts.outfit(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF10B981),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hourly Visitor Check-ins',
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white70 : const Color(0xFF475569),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 52,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: hourly.map((h) {
+                          final count = (h['count'] as num?)?.toInt() ?? 5;
+                          final double hRatio = (count / 20.0).clamp(0.1, 1.0);
+                          return Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 3),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Container(
+                                    height: 38 * hRatio,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.85),
+                                      borderRadius: BorderRadius.circular(3),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    h['hour']?.toString().substring(0, 2) ?? '',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 9,
+                                      color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0), height: 1),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildMiniIndicator('Today Inflow', '$today Total', const Color(0xFF8B5CF6), isDark),
+              _buildMiniIndicator('Checked Out', '$checkout Done', const Color(0xFF10B981), isDark),
+              _buildMiniIndicator('Security Alerts', '0 Flagged', const Color(0xFF0EA5E9), isDark),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Visual Chart Container Wrapper
+  // -------------------------------------------------------------------------
+  Widget _buildChartContainer({
+    required bool isDark,
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String actionLabel,
+    required VoidCallback onAction,
+    required Widget child,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
         ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: GoogleFonts.outfit(
-            fontSize: 10,
-            color: Colors.grey,
-            fontWeight: FontWeight.w600,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: iconColor.withValues(alpha: isDark ? 0.2 : 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, size: 16, color: iconColor),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    title,
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+              InkWell(
+                onTap: onAction,
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Text(
+                    actionLabel,
+                    style: GoogleFonts.outfit(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF4F46E5),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniIndicator(String label, String value, Color color, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: GoogleFonts.outfit(
+                fontSize: 10,
+                color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Padding(
+          padding: const EdgeInsets.only(left: 11),
+          child: Text(
+            value,
+            style: GoogleFonts.outfit(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildRevenueOverviewCard(BuildContext context, bool isDark) {
-    final Map<String, dynamic> rev = _data['revenue_overview'] ?? {
-      'total_revenue': 4875250,
-      'total_collections': 4520300,
-      'pending_collections': 354950,
-      'refunds': 25000,
-    };
-    final double revenue = (rev['total_revenue'] ?? 4875250).toDouble();
-    final double collections = (rev['total_collections'] ?? 4520300).toDouble();
-    final double pending = (rev['pending_collections'] ?? 354950).toDouble();
-    final double refunds = (rev['refunds'] ?? 25000).toDouble();
-
-    final List<Map<String, dynamic>> items = [
-      {
-        'label': 'Total Revenue',
-        'value': formatCurrency(revenue),
-        'growth': '+8.5% from last month',
-        'icon': Icons.payments_outlined,
-        'color': const Color(0xFF4F46E5),
-      },
-      {
-        'label': 'Total Collections',
-        'value': formatCurrency(collections),
-        'growth': '+7.2% from last month',
-        'icon': Icons.verified_user_outlined,
-        'color': const Color(0xFF10B981),
-      },
-      {
-        'label': 'Pending Collections',
-        'value': formatCurrency(pending),
-        'growth': '-2.1% from last month',
-        'icon': Icons.hourglass_empty_rounded,
-        'color': const Color(0xFFF59E0B),
-      },
-      {
-        'label': 'Refunds',
-        'value': formatCurrency(refunds),
-        'growth': '+1.3% from last month',
-        'icon': Icons.money_off_rounded,
-        'color': const Color(0xFFEF4444),
-      },
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Revenue Overview',
-                style: GoogleFonts.outfit(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-              ),
-              InkWell(
-                onTap: () => _showRangeSelector(context, isDark, 'revenue'),
-                borderRadius: BorderRadius.circular(6),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        _selectedRevenueRangeLabel,
-                        style: GoogleFonts.outfit(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white70 : const Color(0xFF475569),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.keyboard_arrow_down_rounded, size: 12),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+  Widget _buildTelemetryRow(String label, String value, bool isDark, {Color? highlightColor}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.outfit(
+            fontSize: 11,
+            color: isDark ? Colors.white60 : const Color(0xFF64748B),
           ),
-          const SizedBox(height: 20),
-          Column(
-            children: items.map((item) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.3) : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: item['color'].withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(item['icon'], color: item['color'], size: 16),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item['label'],
-                            style: GoogleFonts.outfit(
-                              fontSize: 10,
-                              color: Colors.grey,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            item['value'],
-                            style: GoogleFonts.outfit(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      item['growth'],
-                      style: GoogleFonts.outfit(
-                        fontSize: 9,
-                        color: item['color'] == Colors.red ? Colors.redAccent : const Color(0xFF10B981),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
+        ),
+        Text(
+          value,
+          style: GoogleFonts.outfit(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: highlightColor ?? (isDark ? Colors.white : const Color(0xFF0F172A)),
           ),
-        ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFunnelStage(String stage, String val, Color color, bool isDark) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: isDark ? 0.15 : 0.08),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Column(
+          children: [
+            Text(
+              val,
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            Text(
+              stage,
+              style: GoogleFonts.outfit(
+                fontSize: 9,
+                fontWeight: FontWeight.w500,
+                color: isDark ? Colors.white70 : const Color(0xFF475569),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildSystemAlertsCard(BuildContext context, bool isDark) {
-    final List<dynamic> alerts = _data['system_alerts'] ?? [];
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'System Alerts',
-                style: GoogleFonts.outfit(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-              ),
-              TextButton(
-                onPressed: () => context.go('/admin/audit-log'),
-                child: Text(
-                  'View All',
-                  style: GoogleFonts.outfit(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF4F46E5),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Column(
-            children: alerts.map<Widget>((alert) {
-              Color typeColor = const Color(0xFFF59E0B);
-              IconData typeIcon = Icons.warning_amber_rounded;
-              Color bgCol = const Color(0xFFFFFBEB);
-
-              final type = alert['type']?.toString().toLowerCase();
-              if (type == 'critical') {
-                typeColor = const Color(0xFFEF4444);
-                typeIcon = Icons.error_outline_rounded;
-                bgCol = const Color(0xFFFEF2F2);
-              } else if (type == 'success') {
-                typeColor = const Color(0xFF10B981);
-                typeIcon = Icons.cloud_done_outlined;
-                bgCol = const Color(0xFFECFDF5);
-              } else if (type == 'info') {
-                typeColor = const Color(0xFF3B82F6);
-                typeIcon = Icons.info_outline_rounded;
-                bgCol = const Color(0xFFEFF6FF);
-              }
-
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isDark ? typeColor.withValues(alpha: 0.08) : bgCol,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isDark ? typeColor.withValues(alpha: 0.15) : typeColor.withValues(alpha: 0.1),
-                  ),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: typeColor.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(typeIcon, color: typeColor, size: 16),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            alert['title'] ?? '',
-                            style: GoogleFonts.outfit(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            alert['description'] ?? '',
-                            style: GoogleFonts.outfit(
-                              fontSize: 10,
-                              color: isDark ? Colors.white60 : const Color(0xFF475569),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      alert['time'] ?? '',
-                      style: GoogleFonts.outfit(
-                        fontSize: 9,
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-        ],
+  Widget _buildFunnelArrow(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Icon(
+        Icons.chevron_right_rounded,
+        size: 14,
+        color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
       ),
     );
   }
 
-  Widget _buildQuickActionsCard(BuildContext context, bool isDark) {
-    final List<Map<String, dynamic>> actions = [
+  // =========================================================================
+  // ZONE 3: ACTION TRIAGE ENGINE ("Needs Immediate Attention")
+  // =========================================================================
+  Widget _buildActionTriageHub(BuildContext context, bool isDark, double width) {
+    final triageItems = (_data['action_triage'] as List<dynamic>?) ?? [
       {
-        'label': 'Add School',
-        'icon': Icons.business_outlined,
-        'route': '/admin/schools',
+        'id': 'triage_curfew',
+        'category': 'Hostel Life',
+        'severity': 'critical',
+        'title': '3 Hostellers Overdue Past Curfew (8:00 PM)',
+        'description': 'Residents exited on gate pass and missed evening reporting deadline.',
+        'action_label': 'Review Gate Passes',
+        'route': '/admin/hostel',
       },
       {
-        'label': 'Add User',
-        'icon': Icons.person_add_outlined,
-        'route': '/admin/users',
-      },
-      {
-        'label': 'Add Student',
-        'icon': Icons.school_outlined,
-        'route': '/admin/users?role=student',
-      },
-      {
-        'label': 'Add Staff',
-        'icon': Icons.badge_outlined,
-        'route': '/admin/staff',
-      },
-      {
-        'label': 'Academic',
-        'icon': Icons.calendar_today_outlined,
-        'route': '/admin/system-control',
-      },
-      {
-        'label': 'Payments',
-        'icon': Icons.payments_outlined,
+        'id': 'triage_fees',
+        'category': 'Finance & Revenue',
+        'severity': 'warning',
+        'title': '₹13.25L Outstanding Dues Realization',
+        'description': 'Uncollected semester tuition fees requiring notification broadcast.',
+        'action_label': 'Fee Console',
         'route': '/admin/finance',
       },
       {
-        'label': 'Settings',
-        'icon': Icons.settings_outlined,
-        'route': '/admin/config',
+        'id': 'triage_fleet',
+        'category': 'Transport Safety',
+        'severity': 'info',
+        'title': '10 Fleet Vehicles Active • Live GPS Nominal',
+        'description': 'All 29 corridors actively tracking with 98.4% route punctuality.',
+        'action_label': 'Live GPS Tracker',
+        'route': '/admin/vehicle-dashboard',
       },
       {
-        'label': 'Audit Log',
-        'icon': Icons.assignment_outlined,
-        'route': '/admin/audit-log',
+        'id': 'triage_facility',
+        'category': 'Campus Facilities',
+        'severity': 'warning',
+        'title': '2 Urgent Campus Maintenance Work Orders Pending',
+        'description': 'Hostel electrical & HVAC tickets flagged with urgent resolution priority.',
+        'action_label': 'Inspect Tickets',
+        'route': '/admin/hostel',
       },
     ];
 
@@ -2229,66 +2723,101 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.3 : 0.4),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          )
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Quick Actions',
-            style: GoogleFonts.outfit(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : const Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              childAspectRatio: 0.95,
-            ),
-            itemCount: actions.length,
-            itemBuilder: (context, idx) {
-              final act = actions[idx];
-              return InkWell(
-                onTap: () => context.go(act['route']),
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.2) : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.25 : 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.bolt_rounded, size: 20, color: Color(0xFFF59E0B)),
                   ),
-                  padding: const EdgeInsets.all(6),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        act['icon'],
-                        color: const Color(0xFF4F46E5),
-                        size: 18,
-                      ),
-                      const SizedBox(height: 6),
                       Text(
-                        act['label'],
+                        'Executive Action Triage • Needs Immediate Attention',
                         style: GoogleFonts.outfit(
-                          fontSize: 9,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white70 : const Color(0xFF475569),
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'Priority institutional items requiring senior leadership intervention & fast decisions',
+                        style: GoogleFonts.outfit(
+                          fontSize: 11,
+                          color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                        ),
                       ),
                     ],
                   ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444).withValues(alpha: isDark ? 0.2 : 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
                 ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(width: 6, height: 6, decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle)),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${triageItems.length} Actionable Items',
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFFEF4444),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Items grid or list
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              const spacing = 12.0;
+              final int cols = width >= 800 ? 2 : 1;
+              final double cardWidth = ((width - (cols - 1) * spacing) / cols).floorToDouble();
+
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: triageItems.map((item) {
+                  return SizedBox(
+                    width: cardWidth,
+                    child: _buildTriageCard(context, item as Map<String, dynamic>, isDark),
+                  );
+                }).toList(),
               );
             },
           ),
@@ -2297,285 +2826,560 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
     );
   }
 
-  Widget _buildRecentActivitiesCard(BuildContext context, bool isDark) {
-    final List<dynamic> activities = _data['recent_activities'] ?? [];
+  Widget _buildTriageCard(BuildContext context, Map<String, dynamic> item, bool isDark) {
+    final severity = item['severity']?.toString().toLowerCase() ?? 'info';
+    final route = item['route']?.toString() ?? '/admin/dashboard';
+    final actionLabel = item['action_label']?.toString() ?? 'View Details';
+
+    Color sevColor = const Color(0xFF0EA5E9);
+    IconData sevIcon = Icons.info_outline_rounded;
+    if (severity == 'critical') {
+      sevColor = const Color(0xFFEF4444);
+      sevIcon = Icons.error_outline_rounded;
+    } else if (severity == 'warning') {
+      sevColor = const Color(0xFFF59E0B);
+      sevIcon = Icons.warning_amber_rounded;
+    }
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: sevColor.withValues(alpha: isDark ? 0.3 : 0.2),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Recent System Activities',
-                style: GoogleFonts.outfit(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-              ),
-              TextButton(
-                onPressed: () => context.go('/admin/audit-log'),
-                child: Text(
-                  'View All Logs',
-                  style: GoogleFonts.outfit(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF4F46E5),
-                  ),
-                ),
-              ),
-            ],
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: sevColor.withValues(alpha: isDark ? 0.2 : 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(sevIcon, color: sevColor, size: 18),
           ),
-          const SizedBox(height: 20),
-          if (activities.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              child: Center(
-                child: Text(
-                  'No recent activity found.',
-                  style: GoogleFonts.outfit(color: Colors.grey, fontSize: 12),
-                ),
-              ),
-            )
-          else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: activities.length,
-              itemBuilder: (context, index) {
-                final act = activities[index];
-                
-                Color modCol = const Color(0xFF3B82F6);
-                IconData modIcon = Icons.info_outline_rounded;
-                
-                final modStr = act['module']?.toString().toLowerCase() ?? '';
-                if (modStr.contains('inst')) {
-                  modCol = const Color(0xFF10B981);
-                  modIcon = Icons.business_outlined;
-                } else if (modStr.contains('user')) {
-                  modCol = const Color(0xFFF59E0B);
-                  modIcon = Icons.person_outline_rounded;
-                } else if (modStr.contains('fee') || modStr.contains('pay')) {
-                  modCol = const Color(0xFFEC4899);
-                  modIcon = Icons.payments_outlined;
-                } else if (modStr.contains('system')) {
-                  modCol = const Color(0xFF8B5CF6);
-                  modIcon = Icons.settings_outlined;
-                }
-
-                return Stack(
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Row(
                   children: [
-                    if (index < activities.length - 1)
-                      Positioned(
-                        top: 20,
-                        bottom: 0,
-                        left: 12,
-                        child: Container(
-                          width: 2,
-                          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: sevColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        item['category']?.toString().toUpperCase() ?? 'TRIAGE',
+                        style: GoogleFonts.outfit(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: sevColor,
                         ),
                       ),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        item['title']?.toString() ?? '',
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  item['description']?.toString() ?? '',
+                  style: GoogleFonts.outfit(
+                    fontSize: 10,
+                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          ElevatedButton(
+            onPressed: () => context.push(route),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: sevColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              elevation: 0,
+            ),
+            child: Text(
+              actionLabel,
+              style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================================================================
+  // ZONE 4: SENIOR LEADERSHIP FAST ACTIONS & SYSTEM OVERVIEW
+  // =========================================================================
+  Widget _buildFastActionsAndPlatformPulse(BuildContext context, bool isDark, double width) {
+    final sys = _data['system_overview'] as Map<String, dynamic>? ?? {};
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Fast actions
+        Expanded(
+          flex: width >= 1100 ? 7 : 12,
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.flash_on_rounded, size: 18, color: Color(0xFF4F46E5)),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Executive Fast Operations',
+                      style: GoogleFonts.outfit(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _buildFastActionButton(
+                      context: context,
+                      label: 'Broadcast Circular',
+                      icon: Icons.campaign_rounded,
+                      color: const Color(0xFF4F46E5),
+                      isDark: isDark,
+                      onTap: () => context.push('/admin/announcements'),
+                    ),
+                    _buildFastActionButton(
+                      context: context,
+                      label: 'Emergency Broadcast',
+                      icon: Icons.emergency_rounded,
+                      color: const Color(0xFFEF4444),
+                      isDark: isDark,
+                      onTap: () => context.push('/admin/emergency'),
+                    ),
+                    _buildFastActionButton(
+                      context: context,
+                      label: 'Approve Leaves',
+                      icon: Icons.approval_rounded,
+                      color: const Color(0xFF10B981),
+                      isDark: isDark,
+                      onTap: () => context.push('/admin/hr/overview'),
+                    ),
+                    _buildFastActionButton(
+                      context: context,
+                      label: 'Export Brief PDF',
+                      icon: Icons.download_rounded,
+                      color: const Color(0xFF0EA5E9),
+                      isDark: isDark,
+                      onTap: () => _showExportPreview(context, isDark),
+                    ),
+                    _buildFastActionButton(
+                      context: context,
+                      label: 'System Config',
+                      icon: Icons.settings_rounded,
+                      color: const Color(0xFF64748B),
+                      isDark: isDark,
+                      onTap: () => context.push('/admin/config'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (width >= 1100) const SizedBox(width: 20),
+        // Platform pulse card
+        if (width >= 1100)
+          Expanded(
+            flex: 5,
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
                         children: [
-                          Container(
-                            width: 26,
-                            height: 26,
-                            decoration: BoxDecoration(
-                              color: modCol.withValues(alpha: 0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(modIcon, color: modCol, size: 12),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: RichText(
-                                        text: TextSpan(
-                                          style: GoogleFonts.outfit(
-                                            fontSize: 12,
-                                            color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                          ),
-                                          children: [
-                                            TextSpan(
-                                              text: '${act['user']} ',
-                                              style: const TextStyle(fontWeight: FontWeight.bold),
-                                            ),
-                                            TextSpan(
-                                              text: act['activity'] ?? '',
-                                              style: TextStyle(color: isDark ? Colors.white70 : const Color(0xFF475569)),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      act['time'] ?? '',
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 10,
-                                        color: Colors.grey,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (act['description'] != null && act['description'].toString().isNotEmpty) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    act['description'] ?? '',
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 11,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ],
-                              ],
+                          const Icon(Icons.cloud_done_rounded, size: 18, color: Color(0xFF10B981)),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Platform Health & Pulse',
+                            style: GoogleFonts.outfit(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                );
-              },
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSystemOverviewCard(BuildContext context, bool isDark) {
-    final Map<String, dynamic> sys = _data['system_overview'] ?? {
-      'server_status': 'Healthy',
-      'database_status': 'Healthy',
-      'storage_used_percent': 62,
-      'active_sessions': 156,
-      'system_version': 'v2.5.1'
-    };
-    final int storagePercent = sys['storage_used_percent'] ?? 62;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'System Overview',
-            style: GoogleFonts.outfit(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : const Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 20),
-          _buildSystemRow('Server Status', sys['server_status'] ?? 'Healthy', const Color(0xFF10B981), isDark),
-          const SizedBox(height: 12),
-          _buildSystemRow('Database Status', sys['database_status'] ?? 'Healthy', const Color(0xFF10B981), isDark),
-          const SizedBox(height: 12),
-          // Storage Bar
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Storage Used',
-                    style: GoogleFonts.outfit(
-                      fontSize: 11,
-                      color: isDark ? Colors.white70 : const Color(0xFF475569),
-                    ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'OPERATIONAL',
+                          style: GoogleFonts.outfit(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF10B981),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    '$storagePercent%',
-                    style: GoogleFonts.outfit(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildPulseItem('Server Uptime', sys['server_status']?.toString() ?? '99.98%', isDark),
+                      _buildPulseItem('Database', sys['database_status']?.toString() ?? 'Healthy', isDark),
+                      _buildPulseItem('Active Sessions', '${sys['active_sessions'] ?? 156}', isDark),
+                      _buildPulseItem('Version', sys['system_version']?.toString() ?? 'v2.6.1', isDark),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(3),
-                child: LinearProgressIndicator(
-                  value: storagePercent / 100.0,
-                  minHeight: 6,
-                  backgroundColor: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
-                  color: const Color(0xFF4F46E5),
-                ),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 16),
-          _buildSystemRow('Active Sessions', '${sys['active_sessions'] ?? 156}', null, isDark),
-          const SizedBox(height: 12),
-          _buildSystemRow('System Version', sys['system_version'] ?? 'v2.5.1', null, isDark),
-        ],
+      ],
+    );
+  }
+
+  Widget _buildFastActionButton({
+    required BuildContext context,
+    required String label,
+    required IconData icon,
+    required Color color,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: isDark ? 0.15 : 0.08),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: GoogleFonts.outfit(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildSystemRow(String label, String val, Color? dotColor, bool isDark) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildPulseItem(String label, String val, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
           style: GoogleFonts.outfit(
-            fontSize: 11,
-            color: isDark ? Colors.white70 : const Color(0xFF475569),
+            fontSize: 10,
+            color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
           ),
         ),
-        Row(
-          children: [
-            if (dotColor != null) ...[
-              Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: dotColor,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              val,
-              style: GoogleFonts.outfit(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-              ),
-            ),
-          ],
-        )
+        const SizedBox(height: 2),
+        Text(
+          val,
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+          ),
+        ),
       ],
     );
   }
+
+  // =========================================================================
+  // CUSTOM PAINTER IMPLEMENTATIONS
+  // =========================================================================
+}
+
+class _RadialGaugePainter extends CustomPainter {
+  final double percentage;
+  final double targetPercentage;
+  final Color primaryColor;
+  final bool isDark;
+
+  _RadialGaugePainter({
+    required this.percentage,
+    required this.targetPercentage,
+    required this.primaryColor,
+    required this.isDark,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height * 0.9);
+    final radius = size.width * 0.42;
+
+    final bgPaint = Paint()
+      ..color = isDark ? Colors.white12 : const Color(0xFFE2E8F0)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 10.0
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      3.14159,
+      3.14159,
+      false,
+      bgPaint,
+    );
+
+    final sweepAngle = (percentage.clamp(0.0, 100.0) / 100.0) * 3.14159;
+    final progressPaint = Paint()
+      ..shader = LinearGradient(
+        colors: [primaryColor.withValues(alpha: 0.65), primaryColor],
+      ).createShader(Rect.fromCircle(center: center, radius: radius))
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 10.0
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      3.14159,
+      sweepAngle,
+      false,
+      progressPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _RadialGaugePainter oldDelegate) =>
+      oldDelegate.percentage != percentage || oldDelegate.isDark != isDark;
+}
+
+class _MiniBarSparklinePainter extends CustomPainter {
+  final List<dynamic> data;
+  final Color barColor;
+  final bool isDark;
+
+  _MiniBarSparklinePainter({
+    required this.data,
+    required this.barColor,
+    required this.isDark,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (data.isEmpty) return;
+    final count = data.length;
+    final barWidth = (size.width / count) * 0.55;
+    final slotWidth = size.width / count;
+
+    for (int i = 0; i < count; i++) {
+      final item = data[i];
+      final double rate = (item['rate'] as num?)?.toDouble() ?? 80.0;
+      final double barHeight = (rate / 100.0) * (size.height - 18);
+      final double x = i * slotWidth + (slotWidth - barWidth) / 2;
+      final double y = size.height - 18 - barHeight;
+
+      final isLast = i == count - 1;
+      final paint = Paint()
+        ..color = isLast ? barColor : (isDark ? Colors.white24 : const Color(0xFFCBD5E1))
+        ..style = PaintingStyle.fill;
+
+      final rrect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(x, y, barWidth, barHeight),
+        const Radius.circular(3),
+      );
+      canvas.drawRRect(rrect, paint);
+
+      final textSpan = TextSpan(
+        text: item['day']?.toString() ?? '',
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: isLast ? FontWeight.bold : FontWeight.normal,
+          color: isLast
+              ? barColor
+              : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+        ),
+      );
+      final tp = TextPainter(
+        text: textSpan,
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(x + (barWidth - tp.width) / 2, size.height - 14));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _MiniBarSparklinePainter oldDelegate) => true;
+}
+
+class _FleetDonutPainter extends CustomPainter {
+  final int onRoute;
+  final int arrived;
+  final int returning;
+  final int delayed;
+  final int offline;
+  final bool isDark;
+
+  _FleetDonutPainter({
+    required this.onRoute,
+    required this.arrived,
+    required this.returning,
+    required this.delayed,
+    required this.offline,
+    required this.isDark,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width * 0.38;
+    final total = onRoute + arrived + returning + delayed + offline;
+
+    if (total == 0) {
+      final paint = Paint()
+        ..color = isDark ? Colors.white12 : const Color(0xFFE2E8F0)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 10.0;
+      canvas.drawCircle(center, radius, paint);
+      return;
+    }
+
+    final segments = [
+      {'val': onRoute, 'color': const Color(0xFF10B981)},
+      {'val': arrived, 'color': const Color(0xFF0EA5E9)},
+      {'val': returning, 'color': const Color(0xFFF59E0B)},
+      {'val': delayed, 'color': const Color(0xFFEF4444)},
+      {'val': offline, 'color': const Color(0xFF94A3B8)},
+    ];
+
+    double startAngle = -1.570796;
+    for (final seg in segments) {
+      final val = seg['val'] as int;
+      if (val <= 0) continue;
+      final sweep = (val / total) * 6.283185;
+      final paint = Paint()
+        ..color = seg['color'] as Color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 11.0
+        ..strokeCap = StrokeCap.round;
+
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweep - 0.04,
+        false,
+        paint,
+      );
+      startAngle += sweep;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _FleetDonutPainter oldDelegate) => true;
+}
+
+class _DefaulterAgingBarPainter extends CustomPainter {
+  final double under30;
+  final double days30to60;
+  final double over60;
+  final bool isDark;
+
+  _DefaulterAgingBarPainter({
+    required this.under30,
+    required this.days30to60,
+    required this.over60,
+    required this.isDark,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final total = under30 + days30to60 + over60;
+    if (total <= 0) {
+      final paint = Paint()
+        ..color = isDark ? Colors.white12 : const Color(0xFFE2E8F0)
+        ..style = PaintingStyle.fill;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, size.width, size.height), const Radius.circular(4)),
+        paint,
+      );
+      return;
+    }
+
+    final w1 = (under30 / total) * size.width;
+    final w2 = (days30to60 / total) * size.width;
+    final w3 = (over60 / total) * size.width;
+
+    final p1 = Paint()..color = const Color(0xFFF59E0B);
+    final p2 = Paint()..color = const Color(0xFFF97316);
+    final p3 = Paint()..color = const Color(0xFFEF4444);
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, w1, size.height), const Radius.circular(3)),
+      p1,
+    );
+    canvas.drawRect(Rect.fromLTWH(w1, 0, w2, size.height), p2);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(w1 + w2, 0, w3, size.height), const Radius.circular(3)),
+      p3,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _DefaulterAgingBarPainter oldDelegate) => true;
 }
 
 class PieChartPainter extends CustomPainter {

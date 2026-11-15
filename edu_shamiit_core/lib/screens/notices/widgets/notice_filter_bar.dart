@@ -20,7 +20,8 @@ class _NoticeFilterBarState extends ConsumerState<NoticeFilterBar> {
   @override
   void initState() {
     super.initState();
-    _searchController = TextEditingController(text: ref.read(noticeProvider).searchQuery);
+    _searchController =
+        TextEditingController(text: ref.read(noticeProvider).searchQuery);
   }
 
   @override
@@ -90,32 +91,46 @@ class _NoticeFilterBarState extends ConsumerState<NoticeFilterBar> {
                           hintText: 'Search title, content, author...',
                           hintStyle: TextStyle(
                             fontSize: 12,
-                            color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                            color: isDark
+                                ? const Color(0xFF64748B)
+                                : const Color(0xFF94A3B8),
                           ),
-                          prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                          prefixIcon:
+                              const Icon(Icons.search_rounded, size: 18),
                           suffixIcon: _searchController.text.isNotEmpty
                               ? IconButton(
-                                  icon: const Icon(Icons.clear_rounded, size: 16),
+                                  icon:
+                                      const Icon(Icons.clear_rounded, size: 16),
                                   onPressed: () {
                                     _searchController.clear();
                                     notifier.onSearchChanged('');
                                   },
                                 )
                               : null,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 0),
                           filled: true,
-                          fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                          fillColor: isDark
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFFF8FAFC),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                            borderSide: BorderSide(
+                                color: isDark
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFE2E8F0)),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                            borderSide: BorderSide(
+                                color: isDark
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFE2E8F0)),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                            borderSide: const BorderSide(
+                                color: Color(0xFF4F46E5), width: 1.5),
                           ),
                         ),
                       ),
@@ -130,21 +145,31 @@ class _NoticeFilterBarState extends ConsumerState<NoticeFilterBar> {
                       OutlinedButton.icon(
                         onPressed: widget.onOpenAdvancedFilters,
                         icon: const Icon(Icons.filter_list_rounded, size: 16),
-                        label: const Text('Filters', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        label: const Text('Filters',
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w600)),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: state.hasActiveFilters
                               ? const Color(0xFF4F46E5)
-                              : (isDark ? Colors.white : const Color(0xFF334155)),
+                              : (isDark
+                                  ? Colors.white
+                                  : const Color(0xFF334155)),
                           backgroundColor: state.hasActiveFilters
-                              ? (isDark ? const Color(0xFF312E81) : const Color(0xFFEEF2FF))
+                              ? (isDark
+                                  ? const Color(0xFF312E81)
+                                  : const Color(0xFFEEF2FF))
                               : Colors.transparent,
                           side: BorderSide(
                             color: state.hasActiveFilters
                                 ? const Color(0xFF4F46E5)
-                                : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                : (isDark
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFE2E8F0)),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -158,18 +183,26 @@ class _NoticeFilterBarState extends ConsumerState<NoticeFilterBar> {
                           },
                           style: TextButton.styleFrom(
                             foregroundColor: const Color(0xFFEF4444),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 8),
                           ),
-                          child: const Text('Reset', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                          child: const Text('Reset',
+                              style: TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w700)),
                         ),
                       const SizedBox(width: 4),
 
                       // View Toggle (Table vs Card Mode)
                       Container(
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                          color: isDark
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                          border: Border.all(
+                              color: isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFE2E8F0)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -179,14 +212,19 @@ class _NoticeFilterBarState extends ConsumerState<NoticeFilterBar> {
                                 Icons.format_list_bulleted_rounded,
                                 size: 16,
                                 color: state.isTableView
-                                    ? (isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5))
-                                    : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                                    ? (isDark
+                                        ? const Color(0xFF818CF8)
+                                        : const Color(0xFF4F46E5))
+                                    : (isDark
+                                        ? const Color(0xFF64748B)
+                                        : const Color(0xFF94A3B8)),
                               ),
                               tooltip: 'Table View',
                               padding: const EdgeInsets.all(6),
                               constraints: const BoxConstraints(),
                               onPressed: () {
-                                if (!state.isTableView) notifier.toggleViewMode();
+                                if (!state.isTableView)
+                                  notifier.toggleViewMode();
                               },
                             ),
                             IconButton(
@@ -194,14 +232,19 @@ class _NoticeFilterBarState extends ConsumerState<NoticeFilterBar> {
                                 Icons.grid_view_rounded,
                                 size: 16,
                                 color: !state.isTableView
-                                    ? (isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5))
-                                    : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                                    ? (isDark
+                                        ? const Color(0xFF818CF8)
+                                        : const Color(0xFF4F46E5))
+                                    : (isDark
+                                        ? const Color(0xFF64748B)
+                                        : const Color(0xFF94A3B8)),
                               ),
                               tooltip: 'Card View',
                               padding: const EdgeInsets.all(6),
                               constraints: const BoxConstraints(),
                               onPressed: () {
-                                if (state.isTableView) notifier.toggleViewMode();
+                                if (state.isTableView)
+                                  notifier.toggleViewMode();
                               },
                             ),
                           ],
@@ -215,9 +258,13 @@ class _NoticeFilterBarState extends ConsumerState<NoticeFilterBar> {
                         icon: const Icon(Icons.sync_rounded, size: 18),
                         tooltip: 'Refresh',
                         style: IconButton.styleFrom(
-                          backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                          foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          backgroundColor: isDark
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFFF1F5F9),
+                          foregroundColor:
+                              isDark ? Colors.white : const Color(0xFF334155),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                           padding: const EdgeInsets.all(8),
                         ),
                       ),
@@ -231,7 +278,7 @@ class _NoticeFilterBarState extends ConsumerState<NoticeFilterBar> {
 
           Builder(
             builder: (context) {
-              final audienceList = <String>[
+              final audienceList = <String>{
                 'All',
                 'Entire School',
                 'All Teachers',
@@ -240,7 +287,7 @@ class _NoticeFilterBarState extends ConsumerState<NoticeFilterBar> {
                 'Transport Users',
                 ...state.roles.map((r) => r.toUpperCase()),
                 ...state.classes,
-              ].toSet().toList();
+              }.toList();
 
               return SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -251,7 +298,9 @@ class _NoticeFilterBarState extends ConsumerState<NoticeFilterBar> {
                     // Audience Dropdown
                     _buildDropdown(
                       label: 'Audience',
-                      value: audienceList.contains(state.selectedAudience) ? state.selectedAudience : 'All',
+                      value: audienceList.contains(state.selectedAudience)
+                          ? state.selectedAudience
+                          : 'All',
                       items: audienceList,
                       onChanged: (val) {
                         if (val != null) notifier.setAudienceFilter(val);
@@ -260,48 +309,58 @@ class _NoticeFilterBarState extends ConsumerState<NoticeFilterBar> {
                     ),
                     const SizedBox(width: 8),
 
-                // Category Dropdown
-                _buildDropdown(
-                  label: 'Category',
-                  value: categoriesList.contains(state.selectedCategory) ? state.selectedCategory : 'All',
-                  items: categoriesList.toSet().toList(),
-                  onChanged: (val) {
-                    if (val != null) notifier.setCategoryFilter(val);
-                  },
-                  isDark: isDark,
-                ),
-                const SizedBox(width: 8),
+                    // Category Dropdown
+                    _buildDropdown(
+                      label: 'Category',
+                      value: categoriesList.contains(state.selectedCategory)
+                          ? state.selectedCategory
+                          : 'All',
+                      items: categoriesList.toSet().toList(),
+                      onChanged: (val) {
+                        if (val != null) notifier.setCategoryFilter(val);
+                      },
+                      isDark: isDark,
+                    ),
+                    const SizedBox(width: 8),
 
-                // Priority Dropdown
-                _buildDropdown(
-                  label: 'Priority',
-                  value: state.selectedPriority,
-                  items: const ['All', 'Urgent', 'High', 'Normal', 'Low'],
-                  onChanged: (val) {
-                    if (val != null) notifier.setPriorityFilter(val);
-                  },
-                  isDark: isDark,
-                ),
-                const SizedBox(width: 8),
+                    // Priority Dropdown
+                    _buildDropdown(
+                      label: 'Priority',
+                      value: state.selectedPriority,
+                      items: const ['All', 'Urgent', 'High', 'Normal', 'Low'],
+                      onChanged: (val) {
+                        if (val != null) notifier.setPriorityFilter(val);
+                      },
+                      isDark: isDark,
+                    ),
+                    const SizedBox(width: 8),
 
-                // Status Dropdown
-                _buildDropdown(
-                  label: 'Status',
-                  value: state.selectedStatus,
-                  items: const ['All', 'Published', 'Scheduled', 'Draft', 'Expired', 'Archived', 'Pending Approval'],
-                  onChanged: (val) {
-                    if (val != null) notifier.setStatusFilter(val);
-                  },
-                  isDark: isDark,
+                    // Status Dropdown
+                    _buildDropdown(
+                      label: 'Status',
+                      value: state.selectedStatus,
+                      items: const [
+                        'All',
+                        'Published',
+                        'Scheduled',
+                        'Draft',
+                        'Expired',
+                        'Archived',
+                        'Pending Approval'
+                      ],
+                      onChanged: (val) {
+                        if (val != null) notifier.setStatusFilter(val);
+                      },
+                      isDark: isDark,
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          );
-        },
+              );
+            },
+          ),
+        ],
       ),
-    ],
-  ),
-);
+    );
   }
 
   Widget _buildDropdown({

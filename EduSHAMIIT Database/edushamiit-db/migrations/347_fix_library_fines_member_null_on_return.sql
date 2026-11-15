@@ -3,6 +3,7 @@
 -- 1. Relax NOT NULL constraint on library_fines and library_fine_payments as defensive measure
 ALTER TABLE public.library_fines ALTER COLUMN member_id DROP NOT NULL;
 ALTER TABLE public.library_fine_payments ALTER COLUMN member_id DROP NOT NULL;
+ALTER TABLE public.library_book_copies ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 
 -- 2. Backfill any library_borrows missing member_id
 UPDATE public.library_borrows b

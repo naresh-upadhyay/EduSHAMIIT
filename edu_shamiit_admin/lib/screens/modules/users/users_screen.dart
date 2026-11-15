@@ -24,7 +24,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   List<AcademicClassModel> _academicClasses = [];
   bool _loadingUsers = true;
   bool _loadingSchools = true;
-  bool _loadingStats = true;
   bool _isInitialLoad = true;
   Map<String, dynamic>? _statsData;
 
@@ -159,9 +158,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
 
   Future<void> _fetchStats() async {
-    setState(() {
-      _loadingStats = true;
-    });
     try {
       String queryStr = '';
       if (_selectedInstitution != 'All') {
@@ -174,17 +170,13 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         }
       }
       final res = await ApiService().get('/auth/users/stats$queryStr', useCache: false);
-      if (res['success'] == true && res['data'] != null) {
+      if (res['success'] == true && res['data'] != null && mounted) {
         setState(() {
           _statsData = Map<String, dynamic>.from(res['data']);
         });
       }
     } catch (e) {
       debugPrint('Failed to load stats: $e');
-    } finally {
-      setState(() {
-        _loadingStats = false;
-      });
     }
   }
 

@@ -58,7 +58,8 @@ class NoticeActiveFilterChips extends ConsumerWidget {
 
     if (state.fromDate != null || state.toDate != null) {
       final df = DateFormat('dd MMM yyyy');
-      final dateStr = '${state.fromDate != null ? df.format(state.fromDate!.toLocal()) : 'Any'} - ${state.toDate != null ? df.format(state.toDate!.toLocal()) : 'Any'}';
+      final dateStr =
+          '${state.fromDate != null ? df.format(state.fromDate!.toLocal()) : 'Any'} - ${state.toDate != null ? df.format(state.toDate!.toLocal()) : 'Any'}';
       chips.add(_buildChip(
         label: 'Date: $dateStr',
         onDeleted: () => notifier.clearDateRange(),
@@ -68,7 +69,9 @@ class NoticeActiveFilterChips extends ConsumerWidget {
 
     if (state.requiresAck != null) {
       chips.add(_buildChip(
-        label: state.requiresAck == true ? 'Requires Acknowledgement' : 'No Acknowledgement',
+        label: state.requiresAck == true
+            ? 'Requires Acknowledgement'
+            : 'No Acknowledgement',
         onDeleted: () => notifier.clearRequiresAckFilter(),
         isDark: isDark,
       ));
@@ -76,7 +79,8 @@ class NoticeActiveFilterChips extends ConsumerWidget {
 
     if (state.hasAttachment != null) {
       chips.add(_buildChip(
-        label: state.hasAttachment == true ? 'Has Attachments' : 'No Attachments',
+        label:
+            state.hasAttachment == true ? 'Has Attachments' : 'No Attachments',
         onDeleted: () => notifier.clearHasAttachmentFilter(),
         isDark: isDark,
       ));
@@ -105,7 +109,11 @@ class NoticeActiveFilterChips extends ConsumerWidget {
               minimumSize: const Size(40, 24),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            child: const Text('Clear All', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFEF4444))),
+            child: const Text('Clear All',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFEF4444))),
           ),
         ],
       ),
@@ -122,7 +130,8 @@ class NoticeActiveFilterChips extends ConsumerWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF312E81) : const Color(0xFFEEF2FF),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFF4F46E5).withOpacity(0.3)),
+        border:
+            Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -144,7 +153,8 @@ class NoticeActiveFilterChips extends ConsumerWidget {
               child: Icon(
                 Icons.close_rounded,
                 size: 14,
-                color: isDark ? const Color(0xFFC7D2FE) : const Color(0xFF4F46E5),
+                color:
+                    isDark ? const Color(0xFFC7D2FE) : const Color(0xFF4F46E5),
               ),
             ),
           ),

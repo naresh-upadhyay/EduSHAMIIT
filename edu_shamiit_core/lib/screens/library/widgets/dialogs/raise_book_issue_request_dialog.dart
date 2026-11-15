@@ -14,14 +14,16 @@ class RaiseBookIssueRequestDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<RaiseBookIssueRequestDialog> createState() => _RaiseBookIssueRequestDialogState();
+  ConsumerState<RaiseBookIssueRequestDialog> createState() =>
+      _RaiseBookIssueRequestDialogState();
 }
 
-class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequestDialog> {
+class _RaiseBookIssueRequestDialogState
+    extends ConsumerState<RaiseBookIssueRequestDialog> {
   final _formKey = GlobalKey<FormState>();
   final _reasonCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
-  
+
   DateTime? _requiredByDate = DateTime.now().add(const Duration(days: 14));
   String _selectedPurpose = 'Coursework & Assignment';
   String _selectedFormat = 'Physical Book';
@@ -59,15 +61,20 @@ class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequ
         ? '[$_selectedPurpose] ${_reasonCtrl.text.trim()}'
         : _selectedPurpose;
 
-    final reqDateStr = _requiredByDate != null ? DateFormat('yyyy-MM-dd').format(_requiredByDate!) : null;
+    final reqDateStr = _requiredByDate != null
+        ? DateFormat('yyyy-MM-dd').format(_requiredByDate!)
+        : null;
 
-    final success = await ref.read(circulationProvider.notifier).raiseIssueRequest(
-      bookId: widget.book.id,
-      requiredBy: reqDateStr,
-      reason: reasonStr,
-      notes: _notesCtrl.text.trim().isNotEmpty ? _notesCtrl.text.trim() : null,
-      preferredFormat: _selectedFormat,
-    );
+    final success =
+        await ref.read(circulationProvider.notifier).raiseIssueRequest(
+              bookId: widget.book.id,
+              requiredBy: reqDateStr,
+              reason: reasonStr,
+              notes: _notesCtrl.text.trim().isNotEmpty
+                  ? _notesCtrl.text.trim()
+                  : null,
+              preferredFormat: _selectedFormat,
+            );
 
     if (mounted) {
       setState(() => _isSubmitting = false);
@@ -96,21 +103,30 @@ class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequ
             children: [
               // Header
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                  border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF8FAFC),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(16)),
+                  border: Border(
+                      bottom: BorderSide(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFE2E8F0))),
                 ),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.12),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.12),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.bookmark_add_rounded, size: 22, color: Color(0xFF6366F1)),
+                      child: const Icon(Icons.bookmark_add_rounded,
+                          size: 22, color: Color(0xFF6366F1)),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -122,13 +138,19 @@ class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequ
                             style: TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w700,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             'Request will be sent to the library desk for reservation and issuance.',
-                            style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: isDark
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF64748B)),
                           ),
                         ],
                       ),
@@ -137,7 +159,8 @@ class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequ
                       icon: const Icon(Icons.close_rounded, size: 20),
                       onPressed: () => Navigator.of(context).pop(),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      constraints:
+                          const BoxConstraints(minWidth: 32, minHeight: 32),
                     ),
                   ],
                 ),
@@ -154,9 +177,14 @@ class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequ
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                          color: isDark
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+                          border: Border.all(
+                              color: isDark
+                                  ? const Color(0xFF1E293B)
+                                  : const Color(0xFFE2E8F0)),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,21 +194,29 @@ class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequ
                               width: 52,
                               height: 72,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF6366F1).withOpacity(0.15),
+                                color: const Color(0xFF6366F1)
+                                    .withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                                border: Border.all(
+                                    color: isDark
+                                        ? const Color(0xFF334155)
+                                        : const Color(0xFFCBD5E1)),
                               ),
                               clipBehavior: Clip.antiAlias,
-                              child: (book.coverUrl != null && book.coverUrl!.isNotEmpty)
+                              child: (book.coverUrl != null &&
+                                      book.coverUrl!.isNotEmpty)
                                   ? Image.network(
                                       AppConfig.resolveUrl(book.coverUrl!),
                                       fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => const Center(
-                                        child: Icon(Icons.menu_book_rounded, size: 26, color: Color(0xFF6366F1)),
+                                      errorBuilder: (_, __, ___) =>
+                                          const Center(
+                                        child: Icon(Icons.menu_book_rounded,
+                                            size: 26, color: Color(0xFF6366F1)),
                                       ),
                                     )
                                   : const Center(
-                                      child: Icon(Icons.menu_book_rounded, size: 26, color: Color(0xFF6366F1)),
+                                      child: Icon(Icons.menu_book_rounded,
+                                          size: 26, color: Color(0xFF6366F1)),
                                     ),
                             ),
                             const SizedBox(width: 14),
@@ -194,7 +230,9 @@ class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequ
                                     style: TextStyle(
                                       fontSize: 14.5,
                                       fontWeight: FontWeight.w700,
-                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
                                     ),
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
@@ -204,19 +242,25 @@ class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequ
                                     'By ${book.author}',
                                     style: TextStyle(
                                       fontSize: 12.5,
-                                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                                      color: isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : const Color(0xFF475569),
                                     ),
                                   ),
                                   const SizedBox(height: 6),
                                   Row(
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 2),
                                         decoration: BoxDecoration(
                                           color: book.availableCopies > 0
-                                              ? const Color(0xFF10B981).withOpacity(0.15)
-                                              : const Color(0xFFEF4444).withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(4),
+                                              ? const Color(0xFF10B981)
+                                                  .withValues(alpha: 0.15)
+                                              : const Color(0xFFEF4444)
+                                                  .withValues(alpha: 0.15),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
                                         ),
                                         child: Text(
                                           book.availableCopies > 0
@@ -236,7 +280,9 @@ class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequ
                                         'ISBN: ${book.displayIsbn}',
                                         style: TextStyle(
                                           fontSize: 11,
-                                          color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                                          color: isDark
+                                              ? const Color(0xFF64748B)
+                                              : const Color(0xFF94A3B8),
                                         ),
                                       ),
                                     ],
@@ -253,15 +299,22 @@ class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequ
                       // Purpose Dropdown
                       const Text(
                         'Borrow Purpose / Category *',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
-                        value: _selectedPurpose,
+                        initialValue: _selectedPurpose,
                         decoration: _inputDecoration(isDark),
-                        items: _purposes.map((p) => DropdownMenuItem(value: p, child: Text(p, style: const TextStyle(fontSize: 13)))).toList(),
+                        items: _purposes
+                            .map((p) => DropdownMenuItem(
+                                value: p,
+                                child: Text(p,
+                                    style: const TextStyle(fontSize: 13))))
+                            .toList(),
                         onChanged: (val) {
-                          if (val != null) setState(() => _selectedPurpose = val);
+                          if (val != null)
+                            setState(() => _selectedPurpose = val);
                         },
                       ),
                       const SizedBox(height: 16),
@@ -277,16 +330,21 @@ class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequ
                               children: [
                                 const Text(
                                   'Required By Date',
-                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600),
                                 ),
                                 const SizedBox(height: 6),
                                 InkWell(
                                   onTap: () async {
                                     final picked = await showDatePicker(
                                       context: context,
-                                      initialDate: _requiredByDate ?? DateTime.now().add(const Duration(days: 14)),
+                                      initialDate: _requiredByDate ??
+                                          DateTime.now()
+                                              .add(const Duration(days: 14)),
                                       firstDate: DateTime.now(),
-                                      lastDate: DateTime.now().add(const Duration(days: 90)),
+                                      lastDate: DateTime.now()
+                                          .add(const Duration(days: 90)),
                                     );
                                     if (picked != null) {
                                       setState(() => _requiredByDate = picked);
@@ -294,21 +352,35 @@ class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequ
                                   },
                                   borderRadius: BorderRadius.circular(8),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 12),
                                     decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                                      color: isDark
+                                          ? const Color(0xFF1E293B)
+                                          : const Color(0xFFF8FAFC),
                                       borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                                      border: Border.all(
+                                          color: isDark
+                                              ? const Color(0xFF334155)
+                                              : const Color(0xFFCBD5E1)),
                                     ),
                                     child: Row(
                                       children: [
-                                        const Icon(Icons.calendar_today_outlined, size: 16, color: Color(0xFF6366F1)),
+                                        const Icon(
+                                            Icons.calendar_today_outlined,
+                                            size: 16,
+                                            color: Color(0xFF6366F1)),
                                         const SizedBox(width: 8),
                                         Text(
-                                          _requiredByDate != null ? DateFormat('dd MMM yyyy').format(_requiredByDate!) : 'Select date',
+                                          _requiredByDate != null
+                                              ? DateFormat('dd MMM yyyy')
+                                                  .format(_requiredByDate!)
+                                              : 'Select date',
                                           style: TextStyle(
                                             fontSize: 13,
-                                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                            color: isDark
+                                                ? Colors.white
+                                                : const Color(0xFF0F172A),
                                           ),
                                         ),
                                       ],
@@ -327,15 +399,24 @@ class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequ
                               children: [
                                 const Text(
                                   'Preferred Format',
-                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600),
                                 ),
                                 const SizedBox(height: 6),
                                 DropdownButtonFormField<String>(
-                                  value: _selectedFormat,
+                                  initialValue: _selectedFormat,
                                   decoration: _inputDecoration(isDark),
-                                  items: _formats.map((f) => DropdownMenuItem(value: f, child: Text(f, style: const TextStyle(fontSize: 13)))).toList(),
+                                  items: _formats
+                                      .map((f) => DropdownMenuItem(
+                                          value: f,
+                                          child: Text(f,
+                                              style: const TextStyle(
+                                                  fontSize: 13))))
+                                      .toList(),
                                   onChanged: (val) {
-                                    if (val != null) setState(() => _selectedFormat = val);
+                                    if (val != null)
+                                      setState(() => _selectedFormat = val);
                                   },
                                 ),
                               ],
@@ -348,7 +429,8 @@ class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequ
                       // Reason / Description
                       const Text(
                         'Reason / Reference Notes',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 6),
                       TextFormField(
@@ -357,7 +439,8 @@ class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequ
                         style: const TextStyle(fontSize: 13),
                         decoration: _inputDecoration(
                           isDark,
-                          hintText: 'e.g. Reference material for Chapter 4 project or semester exam prep',
+                          hintText:
+                              'e.g. Reference material for Chapter 4 project or semester exam prep',
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -366,20 +449,26 @@ class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequ
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF6366F1).withOpacity(0.08),
+                          color:
+                              const Color(0xFF6366F1).withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.25)),
+                          border: Border.all(
+                              color: const Color(0xFF6366F1)
+                                  .withValues(alpha: 0.25)),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFF6366F1)),
+                            const Icon(Icons.info_outline_rounded,
+                                size: 18, color: Color(0xFF6366F1)),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
                                 'Once approved by the librarian, you can collect the physical copy from the library circulation counter.',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                                  color: isDark
+                                      ? const Color(0xFFCBD5E1)
+                                      : const Color(0xFF334155),
                                 ),
                               ),
                             ),
@@ -393,17 +482,27 @@ class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequ
 
               // Footer Actions
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
-                  border: Border(top: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF8FAFC),
+                  borderRadius:
+                      const BorderRadius.vertical(bottom: Radius.circular(16)),
+                  border: Border(
+                      top: BorderSide(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFE2E8F0))),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+                      onPressed: _isSubmitting
+                          ? null
+                          : () => Navigator.of(context).pop(),
                       child: const Text('Cancel'),
                     ),
                     const SizedBox(width: 12),
@@ -411,14 +510,22 @@ class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequ
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF6366F1),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
                       ),
                       onPressed: _isSubmitting ? null : _handleSubmit,
                       icon: _isSubmitting
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
                           : const Icon(Icons.send_rounded, size: 16),
-                      label: Text(_isSubmitting ? 'Submitting...' : 'Submit Issue Request'),
+                      label: Text(_isSubmitting
+                          ? 'Submitting...'
+                          : 'Submit Issue Request'),
                     ),
                   ],
                 ),
@@ -433,17 +540,21 @@ class _RaiseBookIssueRequestDialogState extends ConsumerState<RaiseBookIssueRequ
   InputDecoration _inputDecoration(bool isDark, {String? hintText}) {
     return InputDecoration(
       hintText: hintText,
-      hintStyle: TextStyle(fontSize: 12.5, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+      hintStyle: TextStyle(
+          fontSize: 12.5,
+          color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
       filled: true,
       fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+        borderSide: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+        borderSide: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),

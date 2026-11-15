@@ -1,5 +1,9 @@
 import os
 import sys
+os.environ["DATABASE_URL"] = "postgresql://postgres:eduSHAMIIT2026_pg@localhost:54322/postgres"
+os.environ["POSTGRES_PORT"] = "54322"
+os.environ["POSTGRES_PASSWORD"] = "eduSHAMIIT2026_pg"
+os.environ["SUPABASE_URL"] = "http://localhost:8082"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import asyncio
@@ -20,7 +24,7 @@ from app.api.calendar import (
 from app.api.transport import get_trip_state
 
 USER = {
-    "id": "38a93170-997b-4b4c-bc8e-256b93169c23",
+    "id": "5198c4b0-f1cb-45db-9649-41688d0438ba",
     "role": "super_admin",
     "school_id": "11111111-1111-1111-1111-111111111111",
 }

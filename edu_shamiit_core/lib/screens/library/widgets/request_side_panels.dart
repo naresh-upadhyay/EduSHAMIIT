@@ -8,9 +8,9 @@ class RequestSidePanels extends ConsumerWidget {
   final Function(String requestId)? onViewRequest;
 
   const RequestSidePanels({
-    Key? key,
+    super.key,
     this.onViewRequest,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -21,11 +21,11 @@ class RequestSidePanels extends ConsumerWidget {
     return SingleChildScrollView(
       padding: const EdgeInsets.only(bottom: 24),
       child: Column(
-
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Panel 1: Request Types Breakdown Card
-          _buildRequestTypesCard(context, kpis.typeCounts, state.selectedType, notifier),
+          _buildRequestTypesCard(
+              context, kpis.typeCounts, state.selectedType, notifier),
           const SizedBox(height: 18),
 
           // Panel 2: Status Distribution Donut Chart Card
@@ -42,17 +42,41 @@ class RequestSidePanels extends ConsumerWidget {
   Map<String, dynamic> _getTypeStyling(String type) {
     final t = type.toLowerCase();
     if (t.contains('audio')) {
-      return {'icon': Icons.headphones_rounded, 'color': const Color(0xFFDB2777), 'bg': const Color(0xFFFCE7F3)};
+      return {
+        'icon': Icons.headphones_rounded,
+        'color': const Color(0xFFDB2777),
+        'bg': const Color(0xFFFCE7F3)
+      };
     } else if (t.contains('e-book') || t.contains('ebook')) {
-      return {'icon': Icons.tablet_mac_rounded, 'color': const Color(0xFF7C3AED), 'bg': const Color(0xFFEDE9FE)};
+      return {
+        'icon': Icons.tablet_mac_rounded,
+        'color': const Color(0xFF7C3AED),
+        'bg': const Color(0xFFEDE9FE)
+      };
     } else if (t.contains('digital') || t.contains('resource')) {
-      return {'icon': Icons.folder_zip_rounded, 'color': const Color(0xFF0284C7), 'bg': const Color(0xFFE0F2FE)};
+      return {
+        'icon': Icons.folder_zip_rounded,
+        'color': const Color(0xFF0284C7),
+        'bg': const Color(0xFFE0F2FE)
+      };
     } else if (t.contains('journal') || t.contains('magazine')) {
-      return {'icon': Icons.auto_stories_rounded, 'color': const Color(0xFFD97706), 'bg': const Color(0xFFFEF3C7)};
+      return {
+        'icon': Icons.auto_stories_rounded,
+        'color': const Color(0xFFD97706),
+        'bg': const Color(0xFFFEF3C7)
+      };
     } else if (t.contains('book')) {
-      return {'icon': Icons.menu_book_rounded, 'color': const Color(0xFF2563EB), 'bg': const Color(0xFFEFF6FF)};
+      return {
+        'icon': Icons.menu_book_rounded,
+        'color': const Color(0xFF2563EB),
+        'bg': const Color(0xFFEFF6FF)
+      };
     }
-    return {'icon': Icons.more_horiz_rounded, 'color': const Color(0xFF64748B), 'bg': const Color(0xFFF1F5F9)};
+    return {
+      'icon': Icons.more_horiz_rounded,
+      'color': const Color(0xFF64748B),
+      'bg': const Color(0xFFF1F5F9)
+    };
   }
 
   Widget _buildRequestTypesCard(
@@ -78,7 +102,10 @@ class RequestSidePanels extends ConsumerWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 6, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -103,7 +130,10 @@ class RequestSidePanels extends ConsumerWidget {
                     onTap: () => notifier.setTypeFilter('ALL'),
                     child: const Text(
                       'Clear',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF2563EB)),
                     ),
                   ),
               ],
@@ -114,7 +144,8 @@ class RequestSidePanels extends ConsumerWidget {
           // Dynamic List of types directly from DB
           ...itemsToDisplay.map((item) {
             final tName = item.type;
-            final isSelected = selectedType.toLowerCase() == tName.toLowerCase();
+            final isSelected =
+                selectedType.toLowerCase() == tName.toLowerCase();
             final style = _getTypeStyling(tName);
             final count = item.count;
 
@@ -129,7 +160,8 @@ class RequestSidePanels extends ConsumerWidget {
                   }
                 },
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   child: Row(
                     children: [
                       Container(
@@ -139,7 +171,8 @@ class RequestSidePanels extends ConsumerWidget {
                           color: style['bg'] as Color,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Icon(style['icon'] as IconData, size: 16, color: style['color'] as Color),
+                        child: Icon(style['icon'] as IconData,
+                            size: 16, color: style['color'] as Color),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -147,15 +180,22 @@ class RequestSidePanels extends ConsumerWidget {
                           tName,
                           style: TextStyle(
                             fontSize: 13,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                            color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF334155),
+                            fontWeight:
+                                isSelected ? FontWeight.w600 : FontWeight.w500,
+                            color: isSelected
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFF334155),
                           ),
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: isSelected ? (style['color'] as Color).withValues(alpha: 0.12) : const Color(0xFFF1F5F9),
+                          color: isSelected
+                              ? (style['color'] as Color)
+                                  .withValues(alpha: 0.12)
+                              : const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
@@ -163,7 +203,9 @@ class RequestSidePanels extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: isSelected ? (style['color'] as Color) : const Color(0xFF64748B),
+                            color: isSelected
+                                ? (style['color'] as Color)
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ),
@@ -192,7 +234,10 @@ class RequestSidePanels extends ConsumerWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 6, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -207,18 +252,19 @@ class RequestSidePanels extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 16),
-
           if (displayItems.isEmpty || totalCount == 0)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: Column(
                   children: [
-                    Icon(Icons.pie_chart_outline_rounded, size: 36, color: Colors.grey.shade400),
+                    Icon(Icons.pie_chart_outline_rounded,
+                        size: 36, color: Colors.grey.shade400),
                     const SizedBox(height: 8),
                     Text(
                       'No status distribution data',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.grey.shade600),
                     ),
                   ],
                 ),
@@ -251,7 +297,10 @@ class RequestSidePanels extends ConsumerWidget {
                         ),
                         const Text(
                           'Total',
-                          style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w500),
                         ),
                       ],
                     ),
@@ -279,12 +328,18 @@ class RequestSidePanels extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         item.status,
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF475569), fontWeight: FontWeight.w500),
+                        style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF475569),
+                            fontWeight: FontWeight.w500),
                       ),
                     ),
                     Text(
                       '${item.percentage.toStringAsFixed(1)}%',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1E293B)),
                     ),
                   ],
                 ),
@@ -295,7 +350,6 @@ class RequestSidePanels extends ConsumerWidget {
       ),
     );
   }
-
 
   Widget _buildRecentRequestsCard(
     BuildContext context,
@@ -312,7 +366,10 @@ class RequestSidePanels extends ConsumerWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -342,7 +399,8 @@ class RequestSidePanels extends ConsumerWidget {
                   onViewRequest?.call(item.id);
                 },
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   child: Row(
                     children: [
                       Container(
@@ -352,7 +410,8 @@ class RequestSidePanels extends ConsumerWidget {
                           color: const Color(0xFFEFF6FF),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Icon(Icons.menu_book_rounded, size: 16, color: Color(0xFF2563EB)),
+                        child: const Icon(Icons.menu_book_rounded,
+                            size: 16, color: Color(0xFF2563EB)),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -363,14 +422,18 @@ class RequestSidePanels extends ConsumerWidget {
                               item.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF1E293B)),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               '${item.requestNumber} • ${item.requesterName}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey.shade500),
                             ),
                           ],
                         ),
@@ -381,7 +444,7 @@ class RequestSidePanels extends ConsumerWidget {
                 ),
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -412,12 +475,13 @@ class RequestSidePanels extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         status.replaceAll('_', ' '),
-        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: color),
+        style:
+            TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: color),
       ),
     );
   }

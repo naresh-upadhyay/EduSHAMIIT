@@ -40,3 +40,15 @@ CREATE TABLE IF NOT EXISTS profiles (
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(school_id, user_id)
 );
+
+INSERT INTO profiles (id, school_id, user_id, full_name, role, email) VALUES
+  ('10000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'u_student_1', 'Aarav Sharma', 'student', 'aarav@shamiit.com'),
+  ('10000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'u_student_2', 'Vihaan Verma', 'student', 'vihaan@shamiit.com'),
+  ('10000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'u_student_3', 'Aditi Rao', 'student', 'aditi@shamiit.com'),
+  ('10000000-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111', 'u_student_4', 'Ananya Singh', 'student', 'ananya@shamiit.com'),
+  ('20000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'u_teacher_1', 'Dr. Ramesh Gupta', 'teacher', 'ramesh@shamiit.com'),
+  ('20000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'u_teacher_2', 'Mrs. Priya Sharma', 'teacher', 'priya@shamiit.com'),
+  ('20000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'u_teacher_3', 'Mr. Amit Patel', 'teacher', 'amit@shamiit.com'),
+  ('30000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'u_parent_1', 'Rajesh Sharma', 'parent', 'rajesh@shamiit.com')
+ON CONFLICT (id) DO NOTHING;
+

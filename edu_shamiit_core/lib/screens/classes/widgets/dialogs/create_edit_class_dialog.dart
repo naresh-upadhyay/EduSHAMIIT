@@ -37,7 +37,8 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
     final c = widget.classToEdit;
     _nameController = TextEditingController(text: c?.name ?? '');
     _codeController = TextEditingController(text: c?.code ?? '');
-    _displayOrderController = TextEditingController(text: (c?.displayOrder ?? 1).toString());
+    _displayOrderController =
+        TextEditingController(text: (c?.displayOrder ?? 1).toString());
 
     if (c != null) {
       _stage = c.stage;
@@ -57,17 +58,22 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
       setState(() {
         _stages = List<AcademicLookupItem>.from(results[0]);
         _statuses = List<AcademicLookupItem>.from(results[1]);
-        if (_stages.isNotEmpty && !_stages.any((s) => s.label.toLowerCase() == _stage.toLowerCase())) {
+        if (_stages.isNotEmpty &&
+            !_stages
+                .any((s) => s.label.toLowerCase() == _stage.toLowerCase())) {
           _stage = _stages.first.label;
         }
         if (_status.isNotEmpty) {
-          final matched = _statuses.where((s) =>
-              s.code.toUpperCase() == _status.toUpperCase() ||
-              s.label.toUpperCase() == _status.toUpperCase()).firstOrNull;
+          final matched = _statuses
+              .where((s) =>
+                  s.code.toUpperCase() == _status.toUpperCase() ||
+                  s.label.toUpperCase() == _status.toUpperCase())
+              .firstOrNull;
           if (matched != null) {
             _status = matched.code;
           } else {
-            _statuses.add(AcademicLookupItem(id: _status, code: _status, label: _status));
+            _statuses.add(
+                AcademicLookupItem(id: _status, code: _status, label: _status));
           }
         }
       });
@@ -116,13 +122,14 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
       backgroundColor: Colors.transparent,
       child: Container(
         width: 580,
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+        constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 24,
               offset: const Offset(0, 10),
             ),
@@ -137,7 +144,9 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
               ),
@@ -146,10 +155,11 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF4F46E5).withOpacity(0.1),
+                      color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.class_outlined, color: Color(0xFF4F46E5), size: 22),
+                    child: const Icon(Icons.class_outlined,
+                        color: Color(0xFF4F46E5), size: 22),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -161,14 +171,17 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                         Text(
                           'Configure class name, code, stage, and display order.',
                           style: TextStyle(
                             fontSize: 12,
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ],
@@ -176,7 +189,11 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
                   ),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: Icon(Icons.close, size: 20, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    icon: Icon(Icons.close,
+                        size: 20,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B)),
                     splashRadius: 20,
                   ),
                 ],
@@ -205,12 +222,24 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
                                 const SizedBox(height: 6),
                                 TextFormField(
                                   controller: _nameController,
-                                  decoration: _inputDecoration('e.g. Class 9', isDark),
-                                  style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
-                                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Class name is required' : null,
+                                  decoration:
+                                      _inputDecoration('e.g. Class 9', isDark),
+                                  style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
+                                      fontSize: 14),
+                                  validator: (v) =>
+                                      (v == null || v.trim().isEmpty)
+                                          ? 'Class name is required'
+                                          : null,
                                   onChanged: (v) {
-                                    if (!isEdit && _codeController.text.isEmpty) {
-                                      _codeController.text = v.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase();
+                                    if (!isEdit &&
+                                        _codeController.text.isEmpty) {
+                                      _codeController.text = v
+                                          .replaceAll(
+                                              RegExp(r'[^a-zA-Z0-9]'), '')
+                                          .toUpperCase();
                                     }
                                   },
                                 ),
@@ -227,9 +256,17 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
                                 const SizedBox(height: 6),
                                 TextFormField(
                                   controller: _codeController,
-                                  decoration: _inputDecoration('e.g. CL-09', isDark),
-                                  style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
-                                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Code is required' : null,
+                                  decoration:
+                                      _inputDecoration('e.g. CL-09', isDark),
+                                  style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
+                                      fontSize: 14),
+                                  validator: (v) =>
+                                      (v == null || v.trim().isEmpty)
+                                          ? 'Code is required'
+                                          : null,
                                 ),
                               ],
                             ),
@@ -249,22 +286,47 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
                                 _buildFieldLabel('Academic Stage', isDark),
                                 const SizedBox(height: 6),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12),
                                   decoration: BoxDecoration(
-                                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                                    border: Border.all(
+                                        color: isDark
+                                            ? const Color(0xFF334155)
+                                            : const Color(0xFFCBD5E1)),
                                     borderRadius: BorderRadius.circular(8),
-                                    color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                    color: isDark
+                                        ? const Color(0xFF0F172A)
+                                        : Colors.white,
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
-                                      value: _stages.any((s) => s.label.toLowerCase() == _stage.toLowerCase())
-                                          ? _stages.firstWhere((s) => s.label.toLowerCase() == _stage.toLowerCase()).label
-                                          : (_stages.isNotEmpty ? _stages.first.label : _stage),
+                                      value: _stages.any((s) =>
+                                              s.label.toLowerCase() ==
+                                              _stage.toLowerCase())
+                                          ? _stages
+                                              .firstWhere((s) =>
+                                                  s.label.toLowerCase() ==
+                                                  _stage.toLowerCase())
+                                              .label
+                                          : (_stages.isNotEmpty
+                                              ? _stages.first.label
+                                              : _stage),
                                       isExpanded: true,
-                                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
-                                      items: _stages.map((s) => DropdownMenuItem(value: s.label, child: Text(s.label))).toList(),
-                                      onChanged: (v) => setState(() => _stage = v ?? 'Secondary'),
+                                      dropdownColor: isDark
+                                          ? const Color(0xFF1E293B)
+                                          : Colors.white,
+                                      style: TextStyle(
+                                          color: isDark
+                                              ? Colors.white
+                                              : const Color(0xFF0F172A),
+                                          fontSize: 14),
+                                      items: _stages
+                                          .map((s) => DropdownMenuItem(
+                                              value: s.label,
+                                              child: Text(s.label)))
+                                          .toList(),
+                                      onChanged: (v) => setState(
+                                          () => _stage = v ?? 'Secondary'),
                                     ),
                                   ),
                                 ),
@@ -283,7 +345,11 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
                                   controller: _displayOrderController,
                                   keyboardType: TextInputType.number,
                                   decoration: _inputDecoration('1', isDark),
-                                  style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
+                                  style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
+                                      fontSize: 14),
                                 ),
                               ],
                             ),
@@ -302,24 +368,42 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
                                 _buildFieldLabel('Status', isDark),
                                 const SizedBox(height: 6),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12),
                                   decoration: BoxDecoration(
-                                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                                    border: Border.all(
+                                        color: isDark
+                                            ? const Color(0xFF334155)
+                                            : const Color(0xFFCBD5E1)),
                                     borderRadius: BorderRadius.circular(8),
-                                    color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                    color: isDark
+                                        ? const Color(0xFF0F172A)
+                                        : Colors.white,
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
-                                      value: _statuses.any((s) => s.code == _status)
+                                      value: _statuses
+                                              .any((s) => s.code == _status)
                                           ? _status
-                                          : (_statuses.isNotEmpty ? _statuses.first.code : 'ACTIVE'),
+                                          : (_statuses.isNotEmpty
+                                              ? _statuses.first.code
+                                              : 'ACTIVE'),
                                       isExpanded: true,
-                                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
+                                      dropdownColor: isDark
+                                          ? const Color(0xFF1E293B)
+                                          : Colors.white,
+                                      style: TextStyle(
+                                          color: isDark
+                                              ? Colors.white
+                                              : const Color(0xFF0F172A),
+                                          fontSize: 14),
                                       items: _statuses
-                                          .map((s) => DropdownMenuItem(value: s.code, child: Text(s.label)))
+                                          .map((s) => DropdownMenuItem(
+                                              value: s.code,
+                                              child: Text(s.label)))
                                           .toList(),
-                                      onChanged: (v) => setState(() => _status = v ?? 'ACTIVE'),
+                                      onChanged: (v) => setState(
+                                          () => _status = v ?? 'ACTIVE'),
                                     ),
                                   ),
                                 ),
@@ -336,16 +420,25 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
                                 Container(
                                   height: 48,
                                   alignment: Alignment.centerLeft,
-                                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14),
                                   decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF0F172A).withOpacity(0.6) : const Color(0xFFF1F5F9),
+                                    color: isDark
+                                        ? const Color(0xFF0F172A)
+                                            .withValues(alpha: 0.6)
+                                        : const Color(0xFFF1F5F9),
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                    border: Border.all(
+                                        color: isDark
+                                            ? const Color(0xFF334155)
+                                            : const Color(0xFFE2E8F0)),
                                   ),
                                   child: Text(
                                     widget.academicYear,
                                     style: TextStyle(
-                                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                                      color: isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : const Color(0xFF475569),
                                       fontWeight: FontWeight.w600,
                                       fontSize: 14,
                                     ),
@@ -366,11 +459,16 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A).withOpacity(0.5) : const Color(0xFFF8FAFC),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                color: isDark
+                    ? const Color(0xFF0F172A).withValues(alpha: 0.5)
+                    : const Color(0xFFF8FAFC),
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(16)),
                 border: Border(
                   top: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
               ),
@@ -378,15 +476,24 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   OutlinedButton(
-                    onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+                    onPressed:
+                        _isSaving ? null : () => Navigator.of(context).pop(),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      side: BorderSide(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFCBD5E1)),
                     ),
                     child: Text(
                       'Cancel',
-                      style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                      style: TextStyle(
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF475569)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -396,14 +503,17 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
                       backgroundColor: const Color(0xFF4F46E5),
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     child: _isSaving
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
                           )
                         : Text(
                             isEdit ? 'Save Changes' : 'Create Class',
@@ -442,11 +552,13 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+        borderSide: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+        borderSide: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),

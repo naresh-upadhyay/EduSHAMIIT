@@ -5,6 +5,8 @@ analytics, bulk operations, and multi-tenant isolation.
 """
 import sys
 import os
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 import json
 import uuid
 import datetime
@@ -13,7 +15,7 @@ from psycopg2.extras import RealDictCursor
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
-    "postgresql://postgres:eduSHAMIIT2026_pg@supabase-db:5432/postgres"
+    "postgresql://postgres:eduSHAMIIT2026_pg@localhost:54322/postgres"
 )
 
 def get_db():

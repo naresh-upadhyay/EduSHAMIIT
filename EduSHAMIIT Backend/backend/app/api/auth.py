@@ -493,13 +493,35 @@ async def register(request: RegisterRequest):
             if school_res.data.get("subscription_status") == "suspended":
                 raise Exception("Cannot create user: The school/institute is suspended")
 
-        auth_response = await sb.auth().admin_create_user({
-            "email": request.email,
-            "password": request.password,
-            "app_metadata": {
-                "role": request.role
-            }
-        })
+        try:
+            auth_response = await sb.auth().admin_create_user({
+                "email": request.email,
+                "password": request.password,
+                "app_metadata": {
+                    "role": request.role
+                }
+            })
+        except Exception as auth_err:
+            err_msg = str(auth_err).lower()
+            if "already" in err_msg or "exists" in err_msg:
+                # Handle orphaned user in auth.users whose profile does not exist in public.profiles
+                orphaned_user = await sb.auth().admin_get_user_by_email(request.email)
+                if orphaned_user and orphaned_user.get("id"):
+                    try:
+                        await sb.auth().admin_delete_user(orphaned_user["id"])
+                        auth_response = await sb.auth().admin_create_user({
+                            "email": request.email,
+                            "password": request.password,
+                            "app_metadata": {
+                                "role": request.role
+                            }
+                        })
+                    except Exception:
+                        raise auth_err
+                else:
+                    raise auth_err
+            else:
+                raise auth_err
 
         # Generate role-specific prefix
         role_lower = request.role.lower()
@@ -1627,7 +1649,7 @@ async def list_users(
         sb = get_supabase()
         
         # We start by querying the profiles table and joining the schools table to fetch school name and subscription status.
-        query = sb.table("profiles").select("*, schools(name, subscription_status)")
+        query = sb.table("profiles").select("*, schools:schools!profiles_school_id_fkey(name, subscription_status)")
         
         caller_role = user.get("role", "").lower()
         if caller_role != "super_admin":

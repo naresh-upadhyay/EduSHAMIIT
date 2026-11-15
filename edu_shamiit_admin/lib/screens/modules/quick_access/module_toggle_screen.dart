@@ -1,16 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' as html;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 
 class ModuleToggleScreen extends StatefulWidget {
-  const ModuleToggleScreen({super.key});
+  final int initialTab;
+  const ModuleToggleScreen({super.key, this.initialTab = 0});
 
   @override
   State<ModuleToggleScreen> createState() => _ModuleToggleScreenState();
 }
 
 class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
-  String _activeTab = 'All Modules'; // All Modules, Module Categories, Assign Modules, Module Requests
+  static const List<String> _tabNames = [
+    'All Modules',
+    'Module Categories',
+    'Assign Modules',
+    'Module Requests',
+  ];
+  late String _activeTab;
+
+  void _switchTab(int index) {
+    if (index >= 0 && index < _tabNames.length) {
+      setState(() {
+        _activeTab = _tabNames[index];
+      });
+      _syncTabUrl(index);
+    }
+  }
+
+  void _syncTabUrl(int index) {
+    if (kIsWeb) {
+      Future.microtask(() {
+        try {
+          html.window.history.replaceState(null, '', '/admin/modules?tab=$index');
+          html.window.dispatchEvent(html.CustomEvent('tab_changed'));
+        } catch (_) {}
+      });
+    }
+  }
   List<dynamic> _modules = [];
   List<dynamic> _schools = [];
   bool _isLoading = true;
@@ -58,7 +87,10 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
   List<dynamic> _requests = [];
   Map<String, dynamic>? _selectedRequest;
   String _requestsSearchQuery = '';
-  String _requestsSubTab = 'All Requests'; // All Requests, Pending, Approved, Rejected
+  String _requestsStatusFilter = 'All'; // All, Pending, Approved, Rejected
+  String _requestsInstitutionFilter = 'All';
+  String _requestsModuleFilter = 'All';
+  final TextEditingController _requestsSearchController = TextEditingController();
 
   // Master categories list (derived or static fallback)
   final List<Map<String, dynamic>> _predefinedCategories = [
@@ -75,8 +107,31 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
   @override
   void initState() {
     super.initState();
+    final idx = widget.initialTab.clamp(0, _tabNames.length - 1);
+    _activeTab = _tabNames[idx];
     _categoriesList = List<Map<String, dynamic>>.from(_predefinedCategories);
     _fetchData();
+  }
+
+  @override
+  void didUpdateWidget(ModuleToggleScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTab != oldWidget.initialTab) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          final idx = widget.initialTab.clamp(0, _tabNames.length - 1);
+          setState(() {
+            _activeTab = _tabNames[idx];
+          });
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _requestsSearchController.dispose();
+    super.dispose();
   }
 
   void _showCategoryFormDialog({Map<String, dynamic>? category}) {
@@ -90,7 +145,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
       builder: (context) {
         final textPrimary = Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black;
         return AlertDialog(
-          title: Text(isEdit ? 'Edit Category' : 'Create Category', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+          title: Text(isEdit ? 'Edit Category' : 'Create Category', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: textPrimary)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1163,41 +1218,72 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
   }
 
   Widget _buildNavigationTabs(bool isDark, Color textPrimary, Color textSecondary, Color borderColor) {
-    final tabs = ['All Modules', 'Module Categories', 'Assign Modules', 'Module Requests'];
+    final tabs = [
+      {'name': 'All Modules', 'icon': Icons.dashboard_outlined},
+      {'name': 'Module Categories', 'icon': Icons.category_outlined},
+      {'name': 'Assign Modules', 'icon': Icons.domain_verification_outlined},
+      {'name': 'Module Requests', 'icon': Icons.assignment_turned_in_outlined},
+    ];
+
     return Container(
+      height: 48,
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: borderColor, width: 1)),
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderColor),
       ),
-      child: Row(
-        children: tabs.map((tab) {
-          final isSelected = _activeTab == tab;
-          return InkWell(
-            onTap: () {
-              setState(() {
-                _activeTab = tab;
-              });
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: isSelected ? const Color(0xFF4F46E5) : Colors.transparent,
-                    width: 2,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: tabs.asMap().entries.map((entry) {
+              final index = entry.key;
+              final tab = entry.value;
+              final tabName = tab['name'] as String;
+              final icon = tab['icon'] as IconData;
+              final isSelected = _activeTab == tabName;
+
+              return InkWell(
+                onTap: () => _switchTab(index),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? const Color(0xFF4F46E5).withValues(alpha: isDark ? 0.15 : 0.08)
+                        : Colors.transparent,
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isSelected ? const Color(0xFF4F46E5) : Colors.transparent,
+                        width: 2.5,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        icon,
+                        size: 16,
+                        color: isSelected ? const Color(0xFF4F46E5) : textSecondary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        tabName,
+                        style: GoogleFonts.inter(
+                          color: isSelected ? (isDark ? Colors.white : const Color(0xFF4F46E5)) : textSecondary,
+                          fontSize: 13,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              child: Text(
-                tab,
-                style: GoogleFonts.outfit(
-                  color: isSelected ? textPrimary : textSecondary,
-                  fontSize: 14,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            ),
-          );
-        }).toList(),
+              );
+            }).toList(),
+          ),
+        ),
       ),
     );
   }
@@ -1216,13 +1302,28 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
     );
   }
 
-  Widget _buildMetricCard(String title, String value, String desc, IconData icon, Color color, Color cardBg, Color borderColor, Color textPrimary, Color textSecondary) {
-    return Container(
+  Widget _buildMetricCard(
+    String title,
+    String value,
+    String desc,
+    IconData icon,
+    Color color,
+    Color cardBg,
+    Color borderColor,
+    Color textPrimary,
+    Color textSecondary, {
+    VoidCallback? onTap,
+    bool isSelected = false,
+  }) {
+    final border = isSelected ? Border.all(color: color, width: 2) : Border.all(color: borderColor);
+    final bg = isSelected ? color.withValues(alpha: 0.08) : cardBg;
+
+    Widget card = Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: cardBg,
+        color: bg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
+        border: border,
       ),
       child: Row(
         children: [
@@ -1230,7 +1331,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
+                Text(title, style: GoogleFonts.dmSans(color: isSelected ? color : textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 Text(value, style: GoogleFonts.outfit(color: textPrimary, fontSize: 24, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
@@ -1241,7 +1342,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
+              color: color.withValues(alpha: isSelected ? 0.2 : 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -1249,6 +1350,16 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
         ],
       ),
     );
+
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        mouseCursor: SystemMouseCursors.click,
+        child: card,
+      );
+    }
+    return card;
   }
 
   Widget _buildSplitViewLayout(bool isDark, Color cardBg, Color borderColor, Color textPrimary, Color textSecondary, Color textMuted, Color accentColor, List<dynamic> filtered) {
@@ -1606,35 +1717,37 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
       child: Row(
         children: [
           Expanded(
-            child: Container(
+            child: SizedBox(
               height: 40,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                children: [
-                  const Icon(Icons.search, size: 16, color: Colors.grey),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      style: GoogleFonts.dmSans(fontSize: 13, color: textPrimary),
-                      decoration: const InputDecoration(
-                        hintText: 'Search modules by name or description...',
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                      onChanged: (val) {
-                        setState(() {
-                          _searchQuery = val;
-                        });
-                      },
-                    ),
+              child: TextField(
+                textAlignVertical: TextAlignVertical.center,
+                style: GoogleFonts.dmSans(fontSize: 13, color: textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Search modules by name or description...',
+                  hintStyle: GoogleFonts.dmSans(fontSize: 12, color: textSecondary),
+                  prefixIcon: Icon(Icons.search_rounded, size: 18, color: textSecondary),
+                  filled: true,
+                  fillColor: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                   ),
-                ],
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                onChanged: (val) {
+                  setState(() {
+                    _searchQuery = val;
+                  });
+                },
               ),
             ),
           ),
@@ -1848,35 +1961,37 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
               Text('Assign to Institutions', style: GoogleFonts.outfit(color: textPrimary, fontSize: 14, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               // Search institutions
-              Container(
+              SizedBox(
                 height: 36,
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Row(
-                  children: [
-                    const Icon(Icons.search, size: 14, color: Colors.grey),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: TextField(
-                        style: GoogleFonts.dmSans(fontSize: 12, color: textPrimary),
-                        decoration: const InputDecoration(
-                          hintText: 'Search institutions...',
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        onChanged: (val) {
-                          setState(() {
-                            _schoolSearchQuery = val;
-                          });
-                        },
-                      ),
+                child: TextField(
+                  textAlignVertical: TextAlignVertical.center,
+                  style: GoogleFonts.dmSans(fontSize: 12, color: textPrimary),
+                  decoration: InputDecoration(
+                    hintText: 'Search institutions...',
+                    hintStyle: GoogleFonts.dmSans(fontSize: 11, color: textSecondary),
+                    prefixIcon: Icon(Icons.search_rounded, size: 15, color: textSecondary),
+                    filled: true,
+                    fillColor: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
+                    isDense: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                     ),
-                  ],
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  ),
+                  onChanged: (val) {
+                    setState(() {
+                      _schoolSearchQuery = val;
+                    });
+                  },
                 ),
               ),
               const SizedBox(height: 12),
@@ -2052,36 +2167,38 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: Container(
+                  child: SizedBox(
                     height: 40,
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.search, size: 16, color: Colors.grey),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            style: GoogleFonts.dmSans(fontSize: 13, color: textPrimary),
-                            decoration: const InputDecoration(
-                              hintText: 'Search categories by name...',
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                            onChanged: (val) {
-                              setState(() {
-                                _categoriesSearchQuery = val;
-                                _categoriesCurrentPage = 1;
-                              });
-                            },
-                          ),
+                    child: TextField(
+                      textAlignVertical: TextAlignVertical.center,
+                      style: GoogleFonts.dmSans(fontSize: 13, color: textPrimary),
+                      decoration: InputDecoration(
+                        hintText: 'Search categories by name...',
+                        hintStyle: GoogleFonts.dmSans(fontSize: 12, color: textSecondary),
+                        prefixIcon: Icon(Icons.search_rounded, size: 18, color: textSecondary),
+                        filled: true,
+                        fillColor: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                         ),
-                      ],
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      onChanged: (val) {
+                        setState(() {
+                          _categoriesSearchQuery = val;
+                          _categoriesCurrentPage = 1;
+                        });
+                      },
                     ),
                   ),
                 ),
@@ -2595,35 +2712,37 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
           ),
           const SizedBox(height: 12),
           // Search bar
-          Container(
+          SizedBox(
             height: 40,
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: borderColor),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                const Icon(Icons.search, size: 16, color: Colors.grey),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    style: GoogleFonts.dmSans(fontSize: 13, color: textPrimary),
-                    decoration: const InputDecoration(
-                      hintText: 'Search institutions by name or location...',
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    onChanged: (val) {
-                      setState(() {
-                        _schoolSearchQuery = val;
-                      });
-                    },
-                  ),
+            child: TextField(
+              textAlignVertical: TextAlignVertical.center,
+              style: GoogleFonts.dmSans(fontSize: 13, color: textPrimary),
+              decoration: InputDecoration(
+                hintText: 'Search institutions by name or location...',
+                hintStyle: GoogleFonts.dmSans(fontSize: 12, color: textSecondary),
+                prefixIcon: Icon(Icons.search_rounded, size: 18, color: textSecondary),
+                filled: true,
+                fillColor: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
+                isDense: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: borderColor),
                 ),
-              ],
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: borderColor),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              onChanged: (val) {
+                setState(() {
+                  _schoolSearchQuery = val;
+                });
+              },
             ),
           ),
           const SizedBox(height: 16),
@@ -2956,36 +3075,38 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: Container(
+                  child: SizedBox(
                     height: 40,
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: borderColor),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.search, size: 16, color: Colors.grey),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            style: GoogleFonts.dmSans(fontSize: 13, color: textPrimary),
-                            decoration: const InputDecoration(
-                              hintText: 'Search modules by name or description...',
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                            onChanged: (val) {
-                              setState(() {
-                                _assignModulesSearchQuery = val;
-                                _assignCurrentPage = 1;
-                              });
-                            },
-                          ),
+                    child: TextField(
+                      textAlignVertical: TextAlignVertical.center,
+                      style: GoogleFonts.dmSans(fontSize: 13, color: textPrimary),
+                      decoration: InputDecoration(
+                        hintText: 'Search modules by name or description...',
+                        hintStyle: GoogleFonts.dmSans(fontSize: 12, color: textSecondary),
+                        prefixIcon: Icon(Icons.search_rounded, size: 18, color: textSecondary),
+                        filled: true,
+                        fillColor: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: borderColor),
                         ),
-                      ],
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: borderColor),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      onChanged: (val) {
+                        setState(() {
+                          _assignModulesSearchQuery = val;
+                          _assignCurrentPage = 1;
+                        });
+                      },
                     ),
                   ),
                 ),
@@ -3650,19 +3771,30 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
 
     // Filter requests
     final filteredRequests = _requests.where((r) {
-      // 1. Sub-tab filter
-      if (_requestsSubTab != 'All Requests') {
-        final expectedStatus = _requestsSubTab.split(' ')[0]; // Pending, Approved, Rejected
-        if (r['status'] != expectedStatus) return false;
+      // 1. Status filter
+      if (_requestsStatusFilter != 'All') {
+        final status = (r['status'] ?? '').toString();
+        if (status.toLowerCase() != _requestsStatusFilter.toLowerCase()) return false;
       }
-      // 2. Search query filter
-      if (_requestsSearchQuery.isNotEmpty) {
+      // 2. Institution filter
+      if (_requestsInstitutionFilter != 'All') {
+        final schoolName = (r['schools']?['name'] ?? '').toString();
+        if (schoolName != _requestsInstitutionFilter) return false;
+      }
+      // 3. Module filter
+      if (_requestsModuleFilter != 'All') {
+        final moduleName = (r['modules']?['name'] ?? '').toString();
+        if (moduleName != _requestsModuleFilter) return false;
+      }
+      // 4. Search query filter
+      if (_requestsSearchQuery.trim().isNotEmpty) {
         final reqId = (r['id'] ?? '').toString().toLowerCase();
         final requester = (r['requested_by_name'] ?? '').toString().toLowerCase();
+        final requesterEmail = (r['requested_by_email'] ?? '').toString().toLowerCase();
         final schoolName = (r['schools']?['name'] ?? '').toString().toLowerCase();
         final moduleName = (r['modules']?['name'] ?? '').toString().toLowerCase();
-        final q = _requestsSearchQuery.toLowerCase();
-        if (!reqId.contains(q) && !requester.contains(q) && !schoolName.contains(q) && !moduleName.contains(q)) return false;
+        final q = _requestsSearchQuery.trim().toLowerCase();
+        if (!reqId.contains(q) && !requester.contains(q) && !requesterEmail.contains(q) && !schoolName.contains(q) && !moduleName.contains(q)) return false;
       }
       return true;
     }).toList();
@@ -3670,21 +3802,105 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Sub-tabs
-        _buildRequestsSubTabs(isDark, textPrimary, textSecondary, borderColor, pendingCount, approvedCount, rejectedCount),
-        const SizedBox(height: 16),
+        // Metric Cards Row with Fluid Responsive Wrap
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final double width = constraints.maxWidth;
+            const double spacing = 12.0;
+            final int cols = width >= 1000 ? 4 : (width >= 600 ? 2 : 1);
+            final double cardWidth = ((width - (cols - 1) * spacing) / cols).floorToDouble();
 
-        // Metric Cards Row
-        Row(
-          children: [
-            Expanded(child: _buildMetricCard('Total Requests', '$totalRequests', 'All time requests', Icons.receipt_long_outlined, const Color(0xFF3B82F6), cardBg, borderColor, textPrimary, textSecondary)),
-            const SizedBox(width: 16),
-            Expanded(child: _buildMetricCard('Pending Requests', '$pendingCount', 'Awaiting review', Icons.hourglass_empty_outlined, const Color(0xFFF59E0B), cardBg, borderColor, textPrimary, textSecondary)),
-            const SizedBox(width: 16),
-            Expanded(child: _buildMetricCard('Approved Requests', '$approvedCount', 'Approved & granted', Icons.check_circle_outline, const Color(0xFF10B981), cardBg, borderColor, textPrimary, textSecondary)),
-            const SizedBox(width: 16),
-            Expanded(child: _buildMetricCard('Rejected Requests', '$rejectedCount', 'Not approved', Icons.highlight_off_outlined, const Color(0xFFEF4444), cardBg, borderColor, textPrimary, textSecondary)),
-          ],
+            return Wrap(
+              spacing: spacing,
+              runSpacing: spacing,
+              children: [
+                SizedBox(
+                  width: cardWidth,
+                  child: _buildMetricCard(
+                    'Total Requests',
+                    '$totalRequests',
+                    'All time requests',
+                    Icons.receipt_long_outlined,
+                    const Color(0xFF3B82F6),
+                    cardBg,
+                    borderColor,
+                    textPrimary,
+                    textSecondary,
+                    isSelected: _requestsStatusFilter == 'All',
+                    onTap: () {
+                      setState(() {
+                        _requestsStatusFilter = 'All';
+                        _requestsCurrentPage = 1;
+                      });
+                    },
+                  ),
+                ),
+                SizedBox(
+                  width: cardWidth,
+                  child: _buildMetricCard(
+                    'Pending Requests',
+                    '$pendingCount',
+                    'Awaiting review',
+                    Icons.hourglass_empty_outlined,
+                    const Color(0xFFF59E0B),
+                    cardBg,
+                    borderColor,
+                    textPrimary,
+                    textSecondary,
+                    isSelected: _requestsStatusFilter == 'Pending',
+                    onTap: () {
+                      setState(() {
+                        _requestsStatusFilter = 'Pending';
+                        _requestsCurrentPage = 1;
+                      });
+                    },
+                  ),
+                ),
+                SizedBox(
+                  width: cardWidth,
+                  child: _buildMetricCard(
+                    'Approved Requests',
+                    '$approvedCount',
+                    'Approved & granted',
+                    Icons.check_circle_outline,
+                    const Color(0xFF10B981),
+                    cardBg,
+                    borderColor,
+                    textPrimary,
+                    textSecondary,
+                    isSelected: _requestsStatusFilter == 'Approved',
+                    onTap: () {
+                      setState(() {
+                        _requestsStatusFilter = 'Approved';
+                        _requestsCurrentPage = 1;
+                      });
+                    },
+                  ),
+                ),
+                SizedBox(
+                  width: cardWidth,
+                  child: _buildMetricCard(
+                    'Rejected Requests',
+                    '$rejectedCount',
+                    'Not approved',
+                    Icons.highlight_off_outlined,
+                    const Color(0xFFEF4444),
+                    cardBg,
+                    borderColor,
+                    textPrimary,
+                    textSecondary,
+                    isSelected: _requestsStatusFilter == 'Rejected',
+                    onTap: () {
+                      setState(() {
+                        _requestsStatusFilter = 'Rejected';
+                        _requestsCurrentPage = 1;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 24),
 
@@ -3722,49 +3938,54 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
     );
   }
 
-  Widget _buildRequestsSubTabs(bool isDark, Color textPrimary, Color textSecondary, Color borderColor, int pending, int approved, int rejected) {
-    final subTabs = [
-      'All Requests',
-      'Pending ($pending)',
-      'Approved ($approved)',
-      'Rejected ($rejected)',
-    ];
-
+  Widget _buildRequestsDropdown({
+    required String hint,
+    required String value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+    required Color cardBg,
+    required Color borderColor,
+    required Color textPrimary,
+    required Color textSecondary,
+    double? width,
+  }) {
+    final list = List<String>.from(items);
+    if (value != 'All' && !list.contains(value)) {
+      list.add(value);
+    }
     return Container(
+      width: width,
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: borderColor, width: 1)),
+        color: cardBg,
+        border: Border.all(color: borderColor),
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
-        children: subTabs.map((tab) {
-          final isSelected = _requestsSubTab == tab;
-          return InkWell(
-            onTap: () {
-              setState(() {
-                _requestsSubTab = tab;
-                _requestsCurrentPage = 1;
-              });
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: isSelected ? const Color(0xFF4F46E5) : Colors.transparent,
-                    width: 2,
-                  ),
-                ),
-              ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          isExpanded: true,
+          dropdownColor: cardBg,
+          iconEnabledColor: textSecondary,
+          style: GoogleFonts.dmSans(fontSize: 12, color: textPrimary),
+          value: (value == 'All' || !list.contains(value)) ? null : value,
+          hint: Text(
+            hint,
+            style: GoogleFonts.dmSans(fontSize: 12, color: textSecondary),
+            overflow: TextOverflow.ellipsis,
+          ),
+          items: list.map((i) {
+            return DropdownMenuItem<String>(
+              value: i,
               child: Text(
-                tab,
-                style: GoogleFonts.outfit(
-                  color: isSelected ? textPrimary : textSecondary,
-                  fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                ),
+                i == 'All' ? hint : i,
+                style: GoogleFonts.dmSans(fontSize: 12, color: textPrimary),
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
+          onChanged: onChanged,
+        ),
       ),
     );
   }
@@ -3778,6 +3999,23 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
 
     final paginated = filtered.isEmpty ? <dynamic>[] : filtered.sublist(startIndex, endIndex);
 
+    // Extract dynamic options for Institution and Module filters
+    final schoolNames = _requests
+        .map((r) => r['schools']?['name']?.toString() ?? '')
+        .where((s) => s.isNotEmpty)
+        .toSet()
+        .toList()..sort();
+    final moduleNames = _requests
+        .map((r) => r['modules']?['name']?.toString() ?? '')
+        .where((m) => m.isNotEmpty)
+        .toSet()
+        .toList()..sort();
+
+    final hasActiveFilters = _requestsStatusFilter != 'All' ||
+        _requestsInstitutionFilter != 'All' ||
+        _requestsModuleFilter != 'All' ||
+        _requestsSearchQuery.isNotEmpty;
+
     return Container(
       decoration: BoxDecoration(
         color: cardBg,
@@ -3787,46 +4025,167 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Filter search bar
+          // Filter toolbar: Search Bar + Column Dropdown Filters + Reset Button
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: borderColor),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth >= 950;
+
+                final searchWidget = SizedBox(
+                  height: 38,
+                  child: TextField(
+                    controller: _requestsSearchController,
+                    textAlignVertical: TextAlignVertical.center,
+                    style: GoogleFonts.dmSans(fontSize: 13, color: textPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'Search requests by ID, school, module or requester...',
+                      hintStyle: GoogleFonts.dmSans(fontSize: 12, color: textSecondary),
+                      prefixIcon: Icon(Icons.search_rounded, size: 18, color: textSecondary),
+                      suffixIcon: _requestsSearchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.close, size: 16, color: textSecondary),
+                              onPressed: () {
+                                _requestsSearchController.clear();
+                                setState(() {
+                                  _requestsSearchQuery = '';
+                                  _requestsCurrentPage = 1;
+                                });
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: borderColor),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: borderColor),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.search, size: 16, color: Colors.grey),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            style: GoogleFonts.dmSans(fontSize: 13, color: textPrimary),
-                            decoration: const InputDecoration(
-                              hintText: 'Search requests by ID, school, module or requester...',
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                            onChanged: (val) {
-                              setState(() {
-                                _requestsSearchQuery = val;
-                                _requestsCurrentPage = 1;
-                              });
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
+                    onChanged: (val) {
+                      setState(() {
+                        _requestsSearchQuery = val;
+                        _requestsCurrentPage = 1;
+                      });
+                    },
                   ),
-                ),
-              ],
+                );
+
+                final filterControls = [
+                  // Status Filter
+                  _buildRequestsDropdown(
+                    hint: 'All Status',
+                    value: _requestsStatusFilter,
+                    items: ['All', 'Pending', 'Approved', 'Rejected'],
+                    onChanged: (val) {
+                      setState(() {
+                        _requestsStatusFilter = val ?? 'All';
+                        _requestsCurrentPage = 1;
+                      });
+                    },
+                    cardBg: cardBg,
+                    borderColor: borderColor,
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
+                    width: 130,
+                  ),
+                  // Institution Filter
+                  _buildRequestsDropdown(
+                    hint: 'All Institutions',
+                    value: _requestsInstitutionFilter,
+                    items: ['All', ...schoolNames],
+                    onChanged: (val) {
+                      setState(() {
+                        _requestsInstitutionFilter = val ?? 'All';
+                        _requestsCurrentPage = 1;
+                      });
+                    },
+                    cardBg: cardBg,
+                    borderColor: borderColor,
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
+                    width: 160,
+                  ),
+                  // Module Filter
+                  _buildRequestsDropdown(
+                    hint: 'All Modules',
+                    value: _requestsModuleFilter,
+                    items: ['All', ...moduleNames],
+                    onChanged: (val) {
+                      setState(() {
+                        _requestsModuleFilter = val ?? 'All';
+                        _requestsCurrentPage = 1;
+                      });
+                    },
+                    cardBg: cardBg,
+                    borderColor: borderColor,
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
+                    width: 150,
+                  ),
+                  // Reset Button
+                  if (hasActiveFilters)
+                    SizedBox(
+                      height: 40,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _requestsSearchController.clear();
+                            _requestsSearchQuery = '';
+                            _requestsStatusFilter = 'All';
+                            _requestsInstitutionFilter = 'All';
+                            _requestsModuleFilter = 'All';
+                            _requestsCurrentPage = 1;
+                          });
+                        },
+                        icon: const Icon(Icons.filter_alt_off_rounded, size: 15),
+                        label: const Text('Reset'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isDark ? const Color(0xFF312E81) : const Color(0xFFEEF2FF),
+                          foregroundColor: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                          elevation: 0,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          textStyle: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                ];
+
+                if (isWide) {
+                  return Row(
+                    children: [
+                      Expanded(child: searchWidget),
+                      const SizedBox(width: 10),
+                      ...filterControls.expand((w) => [w, const SizedBox(width: 10)]).toList()..removeLast(),
+                    ],
+                  );
+                } else {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      searchWidget,
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: filterControls,
+                      ),
+                    ],
+                  );
+                }
+              },
             ),
           ),
           const Divider(height: 1, color: Colors.white10),

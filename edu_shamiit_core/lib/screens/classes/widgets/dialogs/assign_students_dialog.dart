@@ -62,7 +62,9 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
           for (var s in results) {
             final isCurrentlyHere = widget.sectionId != null
                 ? (s.currentSectionId == widget.sectionId)
-                : (s.currentClassId == widget.classId && (s.currentSectionId == null || s.currentSectionId!.isEmpty));
+                : (s.currentClassId == widget.classId &&
+                    (s.currentSectionId == null ||
+                        s.currentSectionId!.isEmpty));
             if (isCurrentlyHere) {
               _selectedStudentIds.add(s.id);
             }
@@ -136,9 +138,12 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final targetLabel = widget.sectionName != null ? '${widget.className} - Section ${widget.sectionName}' : widget.className;
+    final targetLabel = widget.sectionName != null
+        ? '${widget.className} - Section ${widget.sectionName}'
+        : widget.className;
 
-    final allFilteredSelected = _students.isNotEmpty && _students.every((s) => _selectedStudentIds.contains(s.id));
+    final allFilteredSelected = _students.isNotEmpty &&
+        _students.every((s) => _selectedStudentIds.contains(s.id));
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -146,13 +151,14 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
       backgroundColor: Colors.transparent,
       child: Container(
         width: 620,
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.88),
+        constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.88),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 24,
               offset: const Offset(0, 10),
             ),
@@ -167,7 +173,9 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
               ),
@@ -176,10 +184,11 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withOpacity(0.1),
+                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.group_add_rounded, color: Color(0xFF10B981), size: 22),
+                    child: const Icon(Icons.group_add_rounded,
+                        color: Color(0xFF10B981), size: 22),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -191,7 +200,8 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -199,7 +209,9 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                           'Select or reassign students for $targetLabel (${widget.academicYear}).',
                           style: TextStyle(
                             fontSize: 12,
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ],
@@ -209,7 +221,9 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.close, size: 20),
                     splashRadius: 18,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                   ),
                 ],
               ),
@@ -224,9 +238,12 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                     controller: _searchController,
                     onChanged: (v) => _loadStudents(query: v),
                     decoration: InputDecoration(
-                      hintText: 'Search student by name, admission no, or roll no...',
+                      hintText:
+                          'Search student by name, admission no, or roll no...',
                       hintStyle: TextStyle(
-                        color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                        color: isDark
+                            ? const Color(0xFF64748B)
+                            : const Color(0xFF94A3B8),
                         fontSize: 13,
                       ),
                       prefixIcon: const Icon(Icons.search, size: 18),
@@ -240,18 +257,29 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                             )
                           : null,
                       filled: true,
-                      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      fillColor: isDark
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                        borderSide: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0)),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                        borderSide: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0)),
                       ),
                     ),
-                    style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                    style: TextStyle(
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        fontSize: 13),
                   ),
                   const SizedBox(height: 10),
                   Row(
@@ -261,7 +289,9 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                         'Showing ${_students.length} students',
                         style: TextStyle(
                           fontSize: 12,
-                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -270,14 +300,20 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                           TextButton.icon(
                             onPressed: _students.isEmpty
                                 ? null
-                                : (allFilteredSelected ? _deselectAllFiltered : _selectAllFiltered),
+                                : (allFilteredSelected
+                                    ? _deselectAllFiltered
+                                    : _selectAllFiltered),
                             icon: Icon(
-                              allFilteredSelected ? Icons.deselect_rounded : Icons.select_all_rounded,
+                              allFilteredSelected
+                                  ? Icons.deselect_rounded
+                                  : Icons.select_all_rounded,
                               size: 15,
                               color: const Color(0xFF10B981),
                             ),
                             label: Text(
-                              allFilteredSelected ? 'Deselect All' : 'Select All Filtered',
+                              allFilteredSelected
+                                  ? 'Deselect All'
+                                  : 'Select All Filtered',
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -288,8 +324,10 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                           if (_selectedStudentIds.isNotEmpty) ...[
                             const SizedBox(width: 8),
                             TextButton.icon(
-                              onPressed: () => setState(() => _selectedStudentIds.clear()),
-                              icon: const Icon(Icons.clear_all_rounded, size: 15, color: Color(0xFFEF4444)),
+                              onPressed: () =>
+                                  setState(() => _selectedStudentIds.clear()),
+                              icon: const Icon(Icons.clear_all_rounded,
+                                  size: 15, color: Color(0xFFEF4444)),
                               label: const Text(
                                 'Clear All',
                                 style: TextStyle(
@@ -317,29 +355,43 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.person_search_outlined, size: 40, color: isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
+                              Icon(Icons.person_search_outlined,
+                                  size: 40,
+                                  color: isDark
+                                      ? const Color(0xFF64748B)
+                                      : const Color(0xFFCBD5E1)),
                               const SizedBox(height: 12),
                               Text(
                                 'No students found matching query.',
-                                style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B), fontSize: 13),
+                                style: TextStyle(
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B),
+                                    fontSize: 13),
                               ),
                             ],
                           ),
                         )
                       : ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 4),
                           shrinkWrap: true,
                           itemCount: _students.length,
                           separatorBuilder: (_, __) => Divider(
                             height: 1,
-                            color: isDark ? const Color(0xFF334155).withOpacity(0.5) : const Color(0xFFE2E8F0),
+                            color: isDark
+                                ? const Color(0xFF334155).withValues(alpha: 0.5)
+                                : const Color(0xFFE2E8F0),
                           ),
                           itemBuilder: (context, index) {
                             final s = _students[index];
-                            final isSelected = _selectedStudentIds.contains(s.id);
+                            final isSelected =
+                                _selectedStudentIds.contains(s.id);
                             final isCurrentlyHere = widget.sectionId != null
                                 ? (s.currentSectionId == widget.sectionId)
-                                : (s.currentClassId == widget.classId && (s.currentSectionId == null || s.currentSectionId!.isEmpty));
+                                : (s.currentClassId == widget.classId &&
+                                    (s.currentSectionId == null ||
+                                        s.currentSectionId!.isEmpty));
 
                             return InkWell(
                               onTap: () {
@@ -354,10 +406,14 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                               borderRadius: BorderRadius.circular(8),
                               child: Container(
                                 margin: const EdgeInsets.symmetric(vertical: 2),
-                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 8, horizontal: 8),
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? (isDark ? const Color(0xFF10B981).withOpacity(0.12) : const Color(0xFFECFDF5))
+                                      ? (isDark
+                                          ? const Color(0xFF10B981)
+                                              .withValues(alpha: 0.12)
+                                          : const Color(0xFFECFDF5))
                                       : Colors.transparent,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
@@ -366,14 +422,22 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                                     CircleAvatar(
                                       radius: 18,
                                       backgroundColor: isCurrentlyHere
-                                          ? const Color(0xFF10B981).withOpacity(0.18)
-                                          : const Color(0xFF4F46E5).withOpacity(0.12),
-                                      backgroundImage: s.avatarUrl != null ? NetworkImage(s.avatarUrl!) : null,
+                                          ? const Color(0xFF10B981)
+                                              .withValues(alpha: 0.18)
+                                          : const Color(0xFF4F46E5)
+                                              .withValues(alpha: 0.12),
+                                      backgroundImage: s.avatarUrl != null
+                                          ? NetworkImage(s.avatarUrl!)
+                                          : null,
                                       child: s.avatarUrl == null
                                           ? Text(
-                                              s.fullName.isNotEmpty ? s.fullName[0].toUpperCase() : 'S',
+                                              s.fullName.isNotEmpty
+                                                  ? s.fullName[0].toUpperCase()
+                                                  : 'S',
                                               style: TextStyle(
-                                                color: isCurrentlyHere ? const Color(0xFF10B981) : const Color(0xFF4F46E5),
+                                                color: isCurrentlyHere
+                                                    ? const Color(0xFF10B981)
+                                                    : const Color(0xFF4F46E5),
                                                 fontWeight: FontWeight.w700,
                                                 fontSize: 13,
                                               ),
@@ -383,19 +447,23 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             s.fullName,
                                             style: TextStyle(
                                               fontSize: 13.5,
                                               fontWeight: FontWeight.w600,
-                                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                              color: isDark
+                                                  ? Colors.white
+                                                  : const Color(0xFF0F172A),
                                             ),
                                           ),
                                           const SizedBox(height: 2),
                                           Wrap(
-                                            crossAxisAlignment: WrapCrossAlignment.center,
+                                            crossAxisAlignment:
+                                                WrapCrossAlignment.center,
                                             spacing: 8,
                                             runSpacing: 4,
                                             children: [
@@ -403,29 +471,50 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                                                 '${s.admissionNumber ?? 'ADM'} • Roll: ${s.rollNumber ?? '-'}',
                                                 style: TextStyle(
                                                   fontSize: 11.5,
-                                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                                  color: isDark
+                                                      ? const Color(0xFF94A3B8)
+                                                      : const Color(0xFF64748B),
                                                 ),
                                               ),
                                               Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 1),
                                                 decoration: BoxDecoration(
                                                   color: isCurrentlyHere
-                                                      ? const Color(0xFF10B981).withOpacity(0.15)
+                                                      ? const Color(0xFF10B981)
+                                                          .withValues(
+                                                              alpha: 0.15)
                                                       : (s.isAssigned
-                                                          ? const Color(0xFFF59E0B).withOpacity(0.15)
-                                                          : const Color(0xFF64748B).withOpacity(0.12)),
-                                                  borderRadius: BorderRadius.circular(4),
+                                                          ? const Color(
+                                                                  0xFFF59E0B)
+                                                              .withValues(
+                                                                  alpha: 0.15)
+                                                          : const Color(
+                                                                  0xFF64748B)
+                                                              .withValues(
+                                                                  alpha: 0.12)),
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
                                                 ),
                                                 child: Text(
                                                   isCurrentlyHere
                                                       ? 'Currently Assigned Here'
-                                                      : (s.isAssigned ? s.assignmentSummary : 'Unassigned'),
+                                                      : (s.isAssigned
+                                                          ? s.assignmentSummary
+                                                          : 'Unassigned'),
                                                   style: TextStyle(
                                                     fontSize: 10,
                                                     fontWeight: FontWeight.w600,
                                                     color: isCurrentlyHere
-                                                      ? const Color(0xFF059669)
-                                                      : (s.isAssigned ? const Color(0xFFD97706) : const Color(0xFF64748B)),
+                                                        ? const Color(
+                                                            0xFF059669)
+                                                        : (s.isAssigned
+                                                            ? const Color(
+                                                                0xFFD97706)
+                                                            : const Color(
+                                                                0xFF64748B)),
                                                   ),
                                                 ),
                                               ),
@@ -437,7 +526,9 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                                     Checkbox(
                                       value: isSelected,
                                       activeColor: const Color(0xFF10B981),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(4)),
                                       onChanged: (val) {
                                         setState(() {
                                           if (val == true) {
@@ -460,11 +551,16 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A).withOpacity(0.5) : const Color(0xFFF8FAFC),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                color: isDark
+                    ? const Color(0xFF0F172A).withValues(alpha: 0.5)
+                    : const Color(0xFFF8FAFC),
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(16)),
                 border: Border(
                   top: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
               ),
@@ -476,21 +572,35 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: _selectedStudentIds.isNotEmpty ? const Color(0xFF10B981) : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      color: _selectedStudentIds.isNotEmpty
+                          ? const Color(0xFF10B981)
+                          : (isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B)),
                     ),
                   ),
                   Row(
                     children: [
                       OutlinedButton(
-                        onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+                        onPressed: _isSaving
+                            ? null
+                            : () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                          side: BorderSide(
+                              color: isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFCBD5E1)),
                         ),
                         child: Text(
                           'Cancel',
-                          style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                          style: TextStyle(
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF475569)),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -500,16 +610,20 @@ class _AssignStudentsDialogState extends State<AssignStudentsDialog> {
                           backgroundColor: const Color(0xFF10B981),
                           foregroundColor: Colors.white,
                           elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
                         child: _isSaving
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
                               )
-                            : const Text('Save Assignments', style: TextStyle(fontWeight: FontWeight.w600)),
+                            : const Text('Save Assignments',
+                                style: TextStyle(fontWeight: FontWeight.w600)),
                       ),
                     ],
                   ),

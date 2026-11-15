@@ -10,10 +10,12 @@ class BulkUploadNoticeDialog extends ConsumerStatefulWidget {
   const BulkUploadNoticeDialog({super.key});
 
   @override
-  ConsumerState<BulkUploadNoticeDialog> createState() => _BulkUploadNoticeDialogState();
+  ConsumerState<BulkUploadNoticeDialog> createState() =>
+      _BulkUploadNoticeDialogState();
 }
 
-class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog> {
+class _BulkUploadNoticeDialogState
+    extends ConsumerState<BulkUploadNoticeDialog> {
   final TextEditingController _csvController = TextEditingController();
   List<Map<String, dynamic>> _parsedRows = [];
   bool _isImporting = false;
@@ -75,7 +77,8 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
               _csvController.text = content;
               _parseCsvText(content);
             } else {
-              _parseError = 'Selected Excel file format. Please convert to CSV for instant browser parsing, or use the sample template.';
+              _parseError =
+                  'Selected Excel file format. Please convert to CSV for instant browser parsing, or use the sample template.';
             }
           }
         }
@@ -104,7 +107,8 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
 
       // Extract Header
       final headerLine = lines.first;
-      final headers = _splitCsvLine(headerLine).map((h) => h.trim().toLowerCase()).toList();
+      final headers =
+          _splitCsvLine(headerLine).map((h) => h.trim().toLowerCase()).toList();
 
       final rows = <Map<String, dynamic>>[];
 
@@ -127,7 +131,9 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
         final isValid = title.isNotEmpty && content.isNotEmpty;
 
         row['_is_valid'] = isValid;
-        row['_error'] = isValid ? null : (title.isEmpty ? 'Title is required' : 'Content is required');
+        row['_error'] = isValid
+            ? null
+            : (title.isEmpty ? 'Title is required' : 'Content is required');
         row['_row_index'] = i;
 
         rows.add(row);
@@ -175,7 +181,9 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
     final validRows = _parsedRows.where((r) => r['_is_valid'] == true).toList();
     if (validRows.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No valid notices to import!'), backgroundColor: Colors.red),
+        const SnackBar(
+            content: Text('No valid notices to import!'),
+            backgroundColor: Colors.red),
       );
       return;
     }
@@ -190,26 +198,43 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
         return {
           'title': r['title'] ?? '',
           'content': r['content'] ?? '',
-          'category': (r['category'] ?? '').toString().isNotEmpty ? r['category'] : 'General',
-          'priority': (r['priority'] ?? '').toString().isNotEmpty ? r['priority'] : 'normal',
-          'status': (r['status'] ?? '').toString().isNotEmpty ? r['status'] : 'published',
-          'target_scope': (r['target_scope'] ?? '').toString().isNotEmpty ? r['target_scope'] : 'entire_institute',
-          'target_roles': rolesStr.isNotEmpty ? rolesStr.split(',').map((s) => s.trim().toLowerCase()).toList() : [],
-          'target_classes': classesStr.isNotEmpty ? classesStr.split(',').map((s) => s.trim()).toList() : [],
-          'requires_acknowledgement': r['requires_acknowledgement']?.toString().toLowerCase() == 'true',
-          'is_urgent': r['is_urgent']?.toString().toLowerCase() == 'true' || r['priority']?.toString().toLowerCase() == 'urgent',
+          'category': (r['category'] ?? '').toString().isNotEmpty
+              ? r['category']
+              : 'General',
+          'priority': (r['priority'] ?? '').toString().isNotEmpty
+              ? r['priority']
+              : 'normal',
+          'status': (r['status'] ?? '').toString().isNotEmpty
+              ? r['status']
+              : 'published',
+          'target_scope': (r['target_scope'] ?? '').toString().isNotEmpty
+              ? r['target_scope']
+              : 'entire_institute',
+          'target_roles': rolesStr.isNotEmpty
+              ? rolesStr.split(',').map((s) => s.trim().toLowerCase()).toList()
+              : [],
+          'target_classes': classesStr.isNotEmpty
+              ? classesStr.split(',').map((s) => s.trim()).toList()
+              : [],
+          'requires_acknowledgement':
+              r['requires_acknowledgement']?.toString().toLowerCase() == 'true',
+          'is_urgent': r['is_urgent']?.toString().toLowerCase() == 'true' ||
+              r['priority']?.toString().toLowerCase() == 'urgent',
         };
       }).toList();
 
-      final res = await ref.read(noticeProvider.notifier).bulkImportNotices(payload);
+      final res =
+          await ref.read(noticeProvider.notifier).bulkImportNotices(payload);
 
       if (mounted) {
         Navigator.of(context).pop();
         final data = res['data'] is Map ? res['data'] as Map : res;
-        final count = data['imported_count'] ?? res['imported_count'] ?? validRows.length;
+        final count =
+            data['imported_count'] ?? res['imported_count'] ?? validRows.length;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Successfully imported $count notice${count > 1 ? "s" : ""}!'),
+            content: Text(
+                'Successfully imported $count notice${count > 1 ? "s" : ""}!'),
             backgroundColor: const Color(0xFF10B981),
           ),
         );
@@ -217,7 +242,8 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Import error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Import error: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -248,7 +274,11 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
               decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                border: Border(
+                    bottom: BorderSide(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0))),
               ),
               child: Row(
                 children: [
@@ -256,10 +286,11 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF4F46E5).withOpacity(0.12),
+                      color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.upload_file_rounded, size: 22, color: Color(0xFF4F46E5)),
+                    child: const Icon(Icons.upload_file_rounded,
+                        size: 22, color: Color(0xFF4F46E5)),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -271,7 +302,8 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -279,7 +311,9 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
                           'Select a CSV file from your computer to import multiple notices at once',
                           style: TextStyle(
                             fontSize: 12,
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ],
@@ -289,15 +323,21 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
                   ElevatedButton.icon(
                     onPressed: _downloadSampleTemplate,
                     icon: const Icon(Icons.file_download_outlined, size: 16),
-                    label: const Text('Export Template (.CSV)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                    label: const Text('Export Template (.CSV)',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w700)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFEEF2FF),
+                      backgroundColor: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFEEF2FF),
                       foregroundColor: const Color(0xFF4F46E5),
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
-                        side: const BorderSide(color: Color(0xFF4F46E5), width: 1.2),
+                        side: const BorderSide(
+                            color: Color(0xFF4F46E5), width: 1.2),
                       ),
                     ),
                   ),
@@ -320,14 +360,17 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
                     onTap: _isPickingFile ? null : _pickLocalFile,
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 28, horizontal: 20),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                        color: isDark
+                            ? const Color(0xFF0F172A)
+                            : const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: _selectedFileName != null
                               ? const Color(0xFF10B981)
-                              : const Color(0xFF4F46E5).withOpacity(0.4),
+                              : const Color(0xFF4F46E5).withValues(alpha: 0.4),
                           width: 1.8,
                           style: BorderStyle.solid,
                         ),
@@ -340,14 +383,20 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
                             height: 56,
                             decoration: BoxDecoration(
                               color: _selectedFileName != null
-                                  ? const Color(0xFF10B981).withOpacity(0.12)
-                                  : const Color(0xFF4F46E5).withOpacity(0.12),
+                                  ? const Color(0xFF10B981)
+                                      .withValues(alpha: 0.12)
+                                  : const Color(0xFF4F46E5)
+                                      .withValues(alpha: 0.12),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
-                              _selectedFileName != null ? Icons.check_circle_rounded : Icons.cloud_upload_outlined,
+                              _selectedFileName != null
+                                  ? Icons.check_circle_rounded
+                                  : Icons.cloud_upload_outlined,
                               size: 28,
-                              color: _selectedFileName != null ? const Color(0xFF10B981) : const Color(0xFF4F46E5),
+                              color: _selectedFileName != null
+                                  ? const Color(0xFF10B981)
+                                  : const Color(0xFF4F46E5),
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -357,13 +406,18 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A),
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               '${(_selectedFileSize ?? 0) / 1024 > 0 ? ((_selectedFileSize ?? 0) / 1024).toStringAsFixed(1) : "1"} KB  •  Click to change file',
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF10B981), fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF10B981),
+                                  fontWeight: FontWeight.w600),
                             ),
                           ] else ...[
                             Text(
@@ -371,7 +425,9 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A),
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -379,7 +435,9 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
                               'Supported format: .csv, .xlsx, .txt (Comma Separated Values)',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                color: isDark
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF64748B),
                               ),
                             ),
                           ],
@@ -395,12 +453,16 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
                       ElevatedButton.icon(
                         onPressed: _isPickingFile ? null : _pickLocalFile,
                         icon: const Icon(Icons.folder_open_rounded, size: 16),
-                        label: Text(_isPickingFile ? 'Selecting...' : 'Browse Local File'),
+                        label: Text(_isPickingFile
+                            ? 'Selecting...'
+                            : 'Browse Local File'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF4F46E5),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -415,14 +477,22 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
                           _selectedFileSize = 1024;
                           _parseCsvText(_csvController.text);
                         },
-                        icon: const Icon(Icons.auto_fix_high_rounded, size: 16, color: Color(0xFF6366F1)),
-                        label: const Text('Load Demo Sample Data', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6366F1))),
+                        icon: const Icon(Icons.auto_fix_high_rounded,
+                            size: 16, color: Color(0xFF6366F1)),
+                        label: const Text('Load Demo Sample Data',
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF6366F1))),
                       ),
                       const Spacer(),
                       TextButton(
-                        onPressed: () => setState(() => _showManualEditor = !_showManualEditor),
+                        onPressed: () => setState(
+                            () => _showManualEditor = !_showManualEditor),
                         child: Text(
-                          _showManualEditor ? 'Hide Text Editor' : 'Edit / Paste CSV Manually',
+                          _showManualEditor
+                              ? 'Hide Text Editor'
+                              : 'Edit / Paste CSV Manually',
                           style: const TextStyle(fontSize: 12),
                         ),
                       ),
@@ -435,12 +505,17 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
                     TextField(
                       controller: _csvController,
                       maxLines: 4,
-                      style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                      style: const TextStyle(
+                          fontFamily: 'monospace', fontSize: 11),
                       decoration: InputDecoration(
-                        hintText: "title,content,category,priority,status,target_scope,target_roles,target_classes\nNotice 1,Content 1,General,normal,published,entire_institute,,",
+                        hintText:
+                            "title,content,category,priority,status,target_scope,target_roles,target_classes\nNotice 1,Content 1,General,normal,published,entire_institute,,",
                         filled: true,
-                        fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        fillColor: isDark
+                            ? const Color(0xFF0F172A)
+                            : const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8)),
                       ),
                       onChanged: (val) => _parseCsvText(val),
                     ),
@@ -451,18 +526,24 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444).withOpacity(0.1),
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.3)),
+                        border: Border.all(
+                            color:
+                                const Color(0xFFEF4444).withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.error_outline_rounded, size: 18, color: Color(0xFFEF4444)),
+                          const Icon(Icons.error_outline_rounded,
+                              size: 18, color: Color(0xFFEF4444)),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               _parseError!,
-                              style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12, fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                  color: Color(0xFFEF4444),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600),
                             ),
                           ),
                         ],
@@ -481,28 +562,41 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                         Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF10B981).withOpacity(0.12),
+                                color: const Color(0xFF10B981)
+                                    .withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(6),
                               ),
-                              child: Text('$validCount Valid', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF10B981))),
+                              child: Text('$validCount Valid',
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF10B981))),
                             ),
                             if (errorCount > 0) ...[
                               const SizedBox(width: 8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFEF4444).withOpacity(0.12),
+                                  color: const Color(0xFFEF4444)
+                                      .withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: Text('$errorCount Errors', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFFEF4444))),
+                                child: Text('$errorCount Errors',
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFFEF4444))),
                               ),
                             ],
                           ],
@@ -512,7 +606,10 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
                     const SizedBox(height: 10),
                     Container(
                       decoration: BoxDecoration(
-                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                        border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0)),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: ClipRRect(
@@ -523,42 +620,96 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
                             headingRowHeight: 38,
                             dataRowMinHeight: 42,
                             dataRowMaxHeight: 48,
-                            headingRowColor: WidgetStateProperty.all(isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9)),
+                            headingRowColor: WidgetStateProperty.all(isDark
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFF1F5F9)),
                             columns: const [
-                              DataColumn(label: Text('Status', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                              DataColumn(label: Text('Title', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                              DataColumn(label: Text('Category', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                              DataColumn(label: Text('Priority', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                              DataColumn(label: Text('Audience / Scope', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                              DataColumn(label: Text('Target Roles / Classes', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
+                              DataColumn(
+                                  label: Text('Status',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700))),
+                              DataColumn(
+                                  label: Text('Title',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700))),
+                              DataColumn(
+                                  label: Text('Category',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700))),
+                              DataColumn(
+                                  label: Text('Priority',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700))),
+                              DataColumn(
+                                  label: Text('Audience / Scope',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700))),
+                              DataColumn(
+                                  label: Text('Target Roles / Classes',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700))),
                             ],
                             rows: _parsedRows.map((r) {
                               final isValid = r['_is_valid'] == true;
                               return DataRow(
-                                color: isValid ? null : WidgetStateProperty.all(const Color(0xFFEF4444).withOpacity(0.08)),
+                                color: isValid
+                                    ? null
+                                    : WidgetStateProperty.all(
+                                        const Color(0xFFEF4444)
+                                            .withValues(alpha: 0.08)),
                                 cells: [
                                   DataCell(
                                     isValid
-                                        ? const Icon(Icons.check_circle_rounded, size: 18, color: Color(0xFF10B981))
+                                        ? const Icon(Icons.check_circle_rounded,
+                                            size: 18, color: Color(0xFF10B981))
                                         : Tooltip(
-                                            message: r['_error'] ?? 'Invalid row',
-                                            child: const Icon(Icons.error_outline_rounded, size: 18, color: Color(0xFFEF4444)),
+                                            message:
+                                                r['_error'] ?? 'Invalid row',
+                                            child: const Icon(
+                                                Icons.error_outline_rounded,
+                                                size: 18,
+                                                color: Color(0xFFEF4444)),
                                           ),
                                   ),
                                   DataCell(
                                     ConstrainedBox(
-                                      constraints: const BoxConstraints(maxWidth: 240),
+                                      constraints:
+                                          const BoxConstraints(maxWidth: 240),
                                       child: Text(
                                         r['title'] ?? '',
-                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isValid ? null : const Color(0xFFEF4444)),
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: isValid
+                                                ? null
+                                                : const Color(0xFFEF4444)),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ),
-                                  DataCell(Text(r['category'] ?? 'General', style: const TextStyle(fontSize: 11))),
-                                  DataCell(Text((r['priority'] ?? 'normal').toString().toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                                  DataCell(Text(r['target_scope'] ?? 'entire_institute', style: const TextStyle(fontSize: 11))),
-                                  DataCell(Text(r['target_roles'] ?? r['target_classes'] ?? '-', style: const TextStyle(fontSize: 11))),
+                                  DataCell(Text(r['category'] ?? 'General',
+                                      style: const TextStyle(fontSize: 11))),
+                                  DataCell(Text(
+                                      (r['priority'] ?? 'normal')
+                                          .toString()
+                                          .toUpperCase(),
+                                      style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700))),
+                                  DataCell(Text(
+                                      r['target_scope'] ?? 'entire_institute',
+                                      style: const TextStyle(fontSize: 11))),
+                                  DataCell(Text(
+                                      r['target_roles'] ??
+                                          r['target_classes'] ??
+                                          '-',
+                                      style: const TextStyle(fontSize: 11))),
                                 ],
                               );
                             }).toList(),
@@ -575,7 +726,11 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                border: Border(
+                    top: BorderSide(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0))),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -586,16 +741,26 @@ class _BulkUploadNoticeDialogState extends ConsumerState<BulkUploadNoticeDialog>
                   ),
                   const SizedBox(width: 10),
                   ElevatedButton(
-                    onPressed: _isImporting || validCount == 0 ? null : _handleImport,
+                    onPressed:
+                        _isImporting || validCount == 0 ? null : _handleImport,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4F46E5),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 22, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     child: _isImporting
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : Text('Import $validCount Notice${validCount != 1 ? "s" : ""} to System', style: const TextStyle(fontWeight: FontWeight.w700)),
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : Text(
+                            'Import $validCount Notice${validCount != 1 ? "s" : ""} to System',
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ],
               ),

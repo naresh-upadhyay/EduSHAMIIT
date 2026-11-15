@@ -17,8 +17,6 @@ class PublicDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     // Premium dark/slate theme matching our administration panel
     const drawerBgColor = Color(0xFF0F1123);
     const accentColor = Color(0xFF6366F1);

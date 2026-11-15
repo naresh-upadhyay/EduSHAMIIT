@@ -89,6 +89,28 @@ async def student_dashboard(user=Depends(require_student), school_id=Depends(req
         mapped_homework.append(mapped_hw)
     data["pending_homework"] = mapped_homework
 
+    # Map profile to user and stats if not present
+    profile_data = data.get("profile") or {}
+    if not data.get("user"):
+        data["user"] = {
+            "id": user.get("id"),
+            "full_name": profile_data.get("full_name") or user.get("full_name", "Student"),
+            "email": user.get("email"),
+            "class": profile_data.get("class", ""),
+            "roll_no": profile_data.get("roll_no") or profile_data.get("roll_number", ""),
+            "avatar_url": profile_data.get("avatar_url"),
+            "avatar_emoji": profile_data.get("avatar_emoji", "🧑"),
+            "learning_streak": profile_data.get("learning_streak", 0),
+            "xp_points": profile_data.get("xp_points", 0),
+        }
+    if not data.get("stats"):
+        data["stats"] = {
+            "attendance_pct": data.get("attendance_percentage", 100.0),
+            "avg_score": profile_data.get("avg_score", 0),
+            "class_rank": profile_data.get("class_rank", 1),
+            "xp_points": profile_data.get("xp_points", 0),
+        }
+
     data["quick_access"] = [
         {"title": "Courses", "icon": "📚", "route": "/student/courses", "bg": "ECFDF5"},
         {"title": "Timetable", "icon": "🗓️", "route": "/student/timetable", "bg": "EEF2FF"},
@@ -1123,9 +1145,11 @@ async def student_fees(status: Optional[str] = None, user=Depends(get_current_us
 async def student_transport(user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
     transport = (await sb.table("student_transport").select("*, transport_routes(*), transport_route_stops(stop_name)").eq("school_id", school_id).eq("student_id", user["id"]).maybe_single().aexecute()).data
+    if not transport:
+        return {"success": True, "school_id": school_id, "data": {"route": None, "your_stop": None, "live_location": None}}
     bus_location = None
     try:
-        bus_location = (await sb.table("vehicle_trips").select("*").eq("school_id", school_id).eq("route_id", transport["route_id"]).order("created_at", ascending=False).limit(1).maybe_single().aexecute()).data
+        bus_location = (await sb.table("vehicle_trips").select("*").eq("school_id", school_id).eq("route_id", transport.get("route_id")).order("created_at", ascending=False).limit(1).maybe_single().aexecute()).data
     except Exception:
         pass
     return {"success": True, "school_id": school_id, "data": {"route": transport.get("transport_routes"), "your_stop": transport.get("transport_route_stops", {}).get("stop_name"), "live_location": bus_location}}
@@ -1308,16 +1332,19 @@ async def student_notices(category: str = "All", user=Depends(get_current_user),
             student_class = profile_res.data.get("class")
             
     query = sb.table("notices").select("*").eq("school_id", school_id).eq("status", "published")
-    
-    if student_class:
-        query = query.or_(f'target_audience.eq.all,target_audience.eq.students,target_classes.cs.{{"{student_class}"}}')
-    else:
-        query = query.or_('target_audience.eq.all,target_audience.eq.students')
+    query = query.or_("target_audience.eq.all,target_audience.eq.students,target_audience.is.null")
         
     if category and category.lower() != "all":
         query = query.ilike("category", category)
         
-    notices = (await query.order("published_at", ascending=False).limit(20).aexecute()).data or []
+    raw_notices = (await query.order("published_at", ascending=False).limit(50).aexecute()).data or []
+    if student_class:
+        notices = [
+            n for n in raw_notices
+            if not n.get("target_classes") or student_class in (n.get("target_classes") or []) or "all" in (n.get("target_classes") or [])
+        ][:20]
+    else:
+        notices = raw_notices[:20]
     
     # Enrich notices with registrations count and student registration status
     notice_ids = [n["id"] for n in notices if n.get("id")]
@@ -2627,64 +2654,6 @@ async def change_password(request: dict, user=Depends(get_current_user)):
 @router.post("/logout")
 async def logout(user=Depends(get_current_user)):
     return {"success": True, "message": "Logged out"}
-
-
-@router.get("/messages")
-async def get_messages(user=Depends(get_current_user), school_id=Depends(require_school_id)):
-    from app.api.shared import get_messages as shared_get_messages
-    return await shared_get_messages(user, school_id)
-
-
-@router.post("/messages/send")
-async def send_message(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
-    from app.api.shared import send_message as shared_send_message
-    return await shared_send_message(request, user, school_id)
-
-
-@router.get("/messages/chat")
-async def get_chat(chat_id: str = "", user=Depends(get_current_user), school_id=Depends(require_school_id)):
-    from app.api.shared import get_chat as shared_get_chat
-    return await shared_get_chat(chat_id, user, school_id)
-
-
-@router.post("/groups/create")
-async def create_group(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
-    from app.api.shared import create_group as shared_create_group
-    return await shared_create_group(request, user, school_id)
-
-
-@router.get("/groups")
-async def get_groups(user=Depends(get_current_user), school_id=Depends(require_school_id)):
-    from app.api.shared import get_groups as shared_get_groups
-    return await shared_get_groups(user, school_id)
-
-
-@router.post("/groups/{group_id}/join")
-async def join_group(group_id: str, user=Depends(get_current_user), school_id=Depends(require_school_id)):
-    from app.api.shared import join_group as shared_join_group
-    return await shared_join_group(group_id, user, school_id)
-
-
-@router.delete("/messages/{message_id}")
-async def delete_message(message_id: str, user=Depends(get_current_user)):
-    from app.api.shared import delete_message as shared_delete_message
-    return await shared_delete_message(message_id, user)
-
-
-@router.post("/messages/clear")
-async def clear_chat(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
-    from app.api.shared import clear_chat as shared_clear_chat
-    return await shared_clear_chat(request, user, school_id)
-
-
-@router.post("/messages/upload")
-async def upload_message_file(
-    file: UploadFile = File(...),
-    user=Depends(get_current_user),
-    school_id=Depends(require_school_id)
-):
-    from app.api.shared import upload_message_file as shared_upload_message_file
-    return await shared_upload_message_file(file, user, school_id)
 
 
 # ============================================================================

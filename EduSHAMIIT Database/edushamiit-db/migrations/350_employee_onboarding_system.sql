@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS public.onboarding_tasks (
     assigned_team TEXT DEFAULT 'HR Team',
     due_date DATE,
     priority TEXT DEFAULT 'Medium' CHECK (priority IN ('Low', 'Medium', 'High', 'Urgent')),
-    status TEXT DEFAULT 'Pending' CHECK (status IN ('To Do', 'Pending', 'In Progress', 'Completed', 'Blocked', 'Cancelled')),
+    status TEXT DEFAULT 'Pending' CHECK (status IN ('To Do', 'Pending', 'In Progress', 'Completed', 'Blocked', 'Cancelled', 'Overdue')),
     is_mandatory BOOLEAN DEFAULT true,
     completed_at TIMESTAMPTZ,
     completed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,

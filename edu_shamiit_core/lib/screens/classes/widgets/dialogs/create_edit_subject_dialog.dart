@@ -15,7 +15,8 @@ class CreateEditSubjectDialog extends StatefulWidget {
   });
 
   @override
-  State<CreateEditSubjectDialog> createState() => _CreateEditSubjectDialogState();
+  State<CreateEditSubjectDialog> createState() =>
+      _CreateEditSubjectDialogState();
 }
 
 class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
@@ -74,17 +75,22 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
       setState(() {
         _subjectTypes = List<AcademicLookupItem>.from(results[0]);
         _statuses = List<AcademicLookupItem>.from(results[1]);
-        if (_subjectTypes.isNotEmpty && !_subjectTypes.any((t) => t.label.toLowerCase() == _type.toLowerCase())) {
+        if (_subjectTypes.isNotEmpty &&
+            !_subjectTypes
+                .any((t) => t.label.toLowerCase() == _type.toLowerCase())) {
           _type = _subjectTypes.first.label;
         }
         if (_status.isNotEmpty) {
-          final matched = _statuses.where((s) =>
-              s.code.toUpperCase() == _status.toUpperCase() ||
-              s.label.toUpperCase() == _status.toUpperCase()).firstOrNull;
+          final matched = _statuses
+              .where((s) =>
+                  s.code.toUpperCase() == _status.toUpperCase() ||
+                  s.label.toUpperCase() == _status.toUpperCase())
+              .firstOrNull;
           if (matched != null) {
             _status = matched.code;
           } else {
-            _statuses.add(AcademicLookupItem(id: _status, code: _status, label: _status));
+            _statuses.add(
+                AcademicLookupItem(id: _status, code: _status, label: _status));
           }
         }
       });
@@ -125,17 +131,21 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
   InputDecoration _inputDecoration(String hint, bool isDark) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8), fontSize: 13),
+      hintStyle: TextStyle(
+          color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+          fontSize: 13),
       filled: true,
       fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+        borderSide: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+        borderSide: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
@@ -171,13 +181,14 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
       backgroundColor: Colors.transparent,
       child: Container(
         width: 600,
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.90),
+        constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.90),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 24,
               offset: const Offset(0, 10),
             ),
@@ -192,7 +203,9 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
               ),
@@ -201,10 +214,11 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6366F1).withOpacity(0.1),
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.menu_book_rounded, color: Color(0xFF6366F1), size: 22),
+                    child: const Icon(Icons.menu_book_rounded,
+                        color: Color(0xFF6366F1), size: 22),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -216,14 +230,17 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                         Text(
                           'Configure subject name, type classification, mandatory/optional status, and color tag.',
                           style: TextStyle(
                             fontSize: 12,
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ],
@@ -231,7 +248,11 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                   ),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: Icon(Icons.close, size: 20, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    icon: Icon(Icons.close,
+                        size: 20,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B)),
                     splashRadius: 20,
                   ),
                 ],
@@ -260,13 +281,27 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                                 const SizedBox(height: 6),
                                 TextFormField(
                                   controller: _nameController,
-                                  decoration: _inputDecoration('e.g. Mathematics', isDark),
-                                  style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
-                                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Subject name is required' : null,
+                                  decoration: _inputDecoration(
+                                      'e.g. Mathematics', isDark),
+                                  style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
+                                      fontSize: 14),
+                                  validator: (v) =>
+                                      (v == null || v.trim().isEmpty)
+                                          ? 'Subject name is required'
+                                          : null,
                                   onChanged: (v) {
-                                    if (!isEdit && _codeController.text.isEmpty) {
-                                      final raw = v.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase();
-                                      _codeController.text = raw.length > 5 ? raw.substring(0, 5) : raw;
+                                    if (!isEdit &&
+                                        _codeController.text.isEmpty) {
+                                      final raw = v
+                                          .replaceAll(
+                                              RegExp(r'[^a-zA-Z0-9]'), '')
+                                          .toUpperCase();
+                                      _codeController.text = raw.length > 5
+                                          ? raw.substring(0, 5)
+                                          : raw;
                                     }
                                   },
                                 ),
@@ -283,9 +318,17 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                                 const SizedBox(height: 6),
                                 TextFormField(
                                   controller: _codeController,
-                                  decoration: _inputDecoration('e.g. MATH', isDark),
-                                  style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
-                                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Code is required' : null,
+                                  decoration:
+                                      _inputDecoration('e.g. MATH', isDark),
+                                  style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
+                                      fontSize: 14),
+                                  validator: (v) =>
+                                      (v == null || v.trim().isEmpty)
+                                          ? 'Code is required'
+                                          : null,
                                 ),
                               ],
                             ),
@@ -304,28 +347,54 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                                 _buildFieldLabel('Subject Type', isDark),
                                 const SizedBox(height: 6),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12),
                                   decoration: BoxDecoration(
-                                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                                    border: Border.all(
+                                        color: isDark
+                                            ? const Color(0xFF334155)
+                                            : const Color(0xFFCBD5E1)),
                                     borderRadius: BorderRadius.circular(8),
-                                    color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                    color: isDark
+                                        ? const Color(0xFF0F172A)
+                                        : Colors.white,
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
-                                      value: _subjectTypes.any((t) => t.label.toLowerCase() == _type.toLowerCase())
-                                          ? _subjectTypes.firstWhere((t) => t.label.toLowerCase() == _type.toLowerCase()).label
-                                          : (_subjectTypes.isNotEmpty ? _subjectTypes.first.label : _type),
+                                      value: _subjectTypes.any((t) =>
+                                              t.label.toLowerCase() ==
+                                              _type.toLowerCase())
+                                          ? _subjectTypes
+                                              .firstWhere((t) =>
+                                                  t.label.toLowerCase() ==
+                                                  _type.toLowerCase())
+                                              .label
+                                          : (_subjectTypes.isNotEmpty
+                                              ? _subjectTypes.first.label
+                                              : _type),
                                       isExpanded: true,
-                                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
-                                      items: _subjectTypes.map((t) => DropdownMenuItem(value: t.label, child: Text(t.label))).toList(),
+                                      dropdownColor: isDark
+                                          ? const Color(0xFF1E293B)
+                                          : Colors.white,
+                                      style: TextStyle(
+                                          color: isDark
+                                              ? Colors.white
+                                              : const Color(0xFF0F172A),
+                                          fontSize: 14),
+                                      items: _subjectTypes
+                                          .map((t) => DropdownMenuItem(
+                                              value: t.label,
+                                              child: Text(t.label)))
+                                          .toList(),
                                       onChanged: (v) {
                                         if (v != null) {
                                           setState(() {
                                             _type = v;
-                                            if (v.toLowerCase() == 'elective' || v.toLowerCase() == 'optional') {
+                                            if (v.toLowerCase() == 'elective' ||
+                                                v.toLowerCase() == 'optional') {
                                               _isOptional = true;
-                                            } else if (v.toLowerCase() == 'core') {
+                                            } else if (v.toLowerCase() ==
+                                                'core') {
                                               _isOptional = false;
                                             }
                                           });
@@ -345,22 +414,47 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                                 _buildFieldLabel('Status', isDark),
                                 const SizedBox(height: 6),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12),
                                   decoration: BoxDecoration(
-                                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                                    border: Border.all(
+                                        color: isDark
+                                            ? const Color(0xFF334155)
+                                            : const Color(0xFFCBD5E1)),
                                     borderRadius: BorderRadius.circular(8),
-                                    color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                    color: isDark
+                                        ? const Color(0xFF0F172A)
+                                        : Colors.white,
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
-                                      value: _statuses.any((s) => s.code.toUpperCase() == _status.toUpperCase())
-                                          ? _statuses.firstWhere((s) => s.code.toUpperCase() == _status.toUpperCase()).code
-                                          : (_statuses.isNotEmpty ? _statuses.first.code : _status),
+                                      value: _statuses.any((s) =>
+                                              s.code.toUpperCase() ==
+                                              _status.toUpperCase())
+                                          ? _statuses
+                                              .firstWhere((s) =>
+                                                  s.code.toUpperCase() ==
+                                                  _status.toUpperCase())
+                                              .code
+                                          : (_statuses.isNotEmpty
+                                              ? _statuses.first.code
+                                              : _status),
                                       isExpanded: true,
-                                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
-                                      items: _statuses.map((s) => DropdownMenuItem(value: s.code, child: Text(s.label))).toList(),
-                                      onChanged: (v) => setState(() => _status = v ?? 'ACTIVE'),
+                                      dropdownColor: isDark
+                                          ? const Color(0xFF1E293B)
+                                          : Colors.white,
+                                      style: TextStyle(
+                                          color: isDark
+                                              ? Colors.white
+                                              : const Color(0xFF0F172A),
+                                          fontSize: 14),
+                                      items: _statuses
+                                          .map((s) => DropdownMenuItem(
+                                              value: s.code,
+                                              child: Text(s.label)))
+                                          .toList(),
+                                      onChanged: (v) => setState(
+                                          () => _status = v ?? 'ACTIVE'),
                                     ),
                                   ),
                                 ),
@@ -372,67 +466,102 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                       const SizedBox(height: 18),
 
                       // Mandatory vs Optional Enrollment Rule Card
-                      _buildFieldLabel('Subject Requirement & Enrollment Mode *', isDark),
+                      _buildFieldLabel(
+                          'Subject Requirement & Enrollment Mode *', isDark),
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF0F172A).withOpacity(0.5) : const Color(0xFFF8FAFC),
+                          color: isDark
+                              ? const Color(0xFF0F172A).withValues(alpha: 0.5)
+                              : const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                          border: Border.all(
+                              color: isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFE2E8F0)),
                         ),
                         child: Column(
                           children: [
                             RadioListTile<bool>(
                               title: Row(
                                 children: [
-                                  const Text('Mandatory (Compulsory)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                                  const Text('Mandatory (Compulsory)',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13.5)),
                                   const SizedBox(width: 8),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF10B981).withOpacity(0.15),
+                                      color: const Color(0xFF10B981)
+                                          .withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
-                                    child: const Text('Auto-Enrolls All Students', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFF059669))),
+                                    child: const Text(
+                                        'Auto-Enrolls All Students',
+                                        style: TextStyle(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF059669))),
                                   ),
                                 ],
                               ),
                               subtitle: Text(
                                 'When assigned to a class/section, all enrolled students are automatically assigned to this subject.',
-                                style: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                                style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B)),
                               ),
                               value: false,
                               groupValue: _isOptional,
                               activeColor: const Color(0xFF4F46E5),
                               contentPadding: EdgeInsets.zero,
-                              onChanged: (val) => setState(() => _isOptional = val ?? false),
+                              onChanged: (val) =>
+                                  setState(() => _isOptional = val ?? false),
                             ),
                             const Divider(height: 12),
                             RadioListTile<bool>(
                               title: Row(
                                 children: [
-                                  const Text('Optional / Elective', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                                  const Text('Optional / Elective',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13.5)),
                                   const SizedBox(width: 8),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFF59E0B).withOpacity(0.15),
+                                      color: const Color(0xFFF59E0B)
+                                          .withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
-                                    child: const Text('Selective Enrollment', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFFD97706))),
+                                    child: const Text('Selective Enrollment',
+                                        style: TextStyle(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFFD97706))),
                                   ),
                                 ],
                               ),
                               subtitle: Text(
                                 'Subject starts with 0 enrolled students. Admin selectively searches and enrolls students within the section.',
-                                style: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                                style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B)),
                               ),
                               value: true,
                               groupValue: _isOptional,
                               activeColor: const Color(0xFF4F46E5),
                               contentPadding: EdgeInsets.zero,
-                              onChanged: (val) => setState(() => _isOptional = val ?? true),
+                              onChanged: (val) =>
+                                  setState(() => _isOptional = val ?? true),
                             ),
                           ],
                         ),
@@ -445,8 +574,11 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                       Wrap(
                         spacing: 10,
                         children: _presetColors.map((hex) {
-                          final isSelected = _selectedColor.toUpperCase() == hex.toUpperCase();
-                          final c = Color(int.parse('FF${hex.replaceAll('#', '')}', radix: 16));
+                          final isSelected =
+                              _selectedColor.toUpperCase() == hex.toUpperCase();
+                          final c = Color(int.parse(
+                              'FF${hex.replaceAll('#', '')}',
+                              radix: 16));
                           return GestureDetector(
                             onTap: () => setState(() => _selectedColor = hex),
                             child: Container(
@@ -456,13 +588,25 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                                 color: c,
                                 shape: BoxShape.circle,
                                 border: isSelected
-                                    ? Border.all(color: isDark ? Colors.white : const Color(0xFF0F172A), width: 3)
+                                    ? Border.all(
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
+                                        width: 3)
                                     : null,
                                 boxShadow: isSelected
-                                    ? [BoxShadow(color: c.withOpacity(0.4), blurRadius: 8, spreadRadius: 1)]
+                                    ? [
+                                        BoxShadow(
+                                            color: c.withValues(alpha: 0.4),
+                                            blurRadius: 8,
+                                            spreadRadius: 1)
+                                      ]
                                     : null,
                               ),
-                              child: isSelected ? const Icon(Icons.check, color: Colors.white, size: 16) : null,
+                              child: isSelected
+                                  ? const Icon(Icons.check,
+                                      color: Colors.white, size: 16)
+                                  : null,
                             ),
                           );
                         }).toList(),
@@ -475,8 +619,13 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                       TextFormField(
                         controller: _descriptionController,
                         maxLines: 2,
-                        decoration: _inputDecoration('Brief summary of syllabus or curriculum...', isDark),
-                        style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
+                        decoration: _inputDecoration(
+                            'Brief summary of syllabus or curriculum...',
+                            isDark),
+                        style: TextStyle(
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
+                            fontSize: 14),
                       ),
                     ],
                   ),
@@ -488,11 +637,16 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A).withOpacity(0.5) : const Color(0xFFF8FAFC),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                color: isDark
+                    ? const Color(0xFF0F172A).withValues(alpha: 0.5)
+                    : const Color(0xFFF8FAFC),
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(16)),
                 border: Border(
                   top: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
               ),
@@ -500,15 +654,24 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   OutlinedButton(
-                    onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+                    onPressed:
+                        _isSaving ? null : () => Navigator.of(context).pop(),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      side: BorderSide(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFCBD5E1)),
                     ),
                     child: Text(
                       'Cancel',
-                      style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                      style: TextStyle(
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF475569)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -518,14 +681,17 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                       backgroundColor: const Color(0xFF4F46E5),
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     child: _isSaving
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
                           )
                         : Text(
                             isEdit ? 'Save Changes' : 'Add Subject',

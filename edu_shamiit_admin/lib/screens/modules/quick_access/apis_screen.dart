@@ -914,10 +914,9 @@ class _ApisScreenState extends State<ApisScreen> {
           const SizedBox(height: 16),
 
           // Pagination Bar
-          Builder(
-            builder: (context) {
-              final width = MediaQuery.of(context).size.width;
-              final isMobilePagination = width < 600;
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobilePagination = constraints.maxWidth < 700;
               
               final showingText = Text(
                 "Showing ${startIndex + 1} to $endIndex of $totalRecords APIs",
@@ -970,74 +969,125 @@ class _ApisScreenState extends State<ApisScreen> {
                 ],
               );
 
-              final navigationControls = Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    onPressed: _currentPage > 0
-                        ? () {
-                            setState(() {
-                              _currentPage--;
-                            });
-                          }
-                        : null,
-                    icon: const Icon(Icons.arrow_back_ios, size: 12),
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    disabledColor: isDark ? Colors.white24 : Colors.black26,
-                  ),
-                  ...List.generate(totalPages, (index) {
-                    final isCurrent = index == _currentPage;
-                    return InkWell(
-                      onTap: () {
-                        setState(() {
-                          _currentPage = index;
-                        });
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isCurrent ? const Color(0xFF4F46E5) : Colors.transparent,
-                          borderRadius: BorderRadius.circular(4),
+              // Calculate visible page window (at most 5 pages) to avoid horizontal overflow
+              final List<int> visiblePages = [];
+              if (totalPages <= 5) {
+                visiblePages.addAll(List.generate(totalPages, (i) => i));
+              } else {
+                int start = (_currentPage - 2).clamp(0, totalPages - 5);
+                visiblePages.addAll(List.generate(5, (i) => start + i));
+              }
+
+              final navigationControls = SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                      onPressed: _currentPage > 0
+                          ? () {
+                              setState(() {
+                                _currentPage--;
+                              });
+                            }
+                          : null,
+                      icon: const Icon(Icons.arrow_back_ios, size: 12),
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      disabledColor: isDark ? Colors.white24 : Colors.black26,
+                    ),
+                    ...visiblePages.map((pageIdx) {
+                      final isCurrent = pageIdx == _currentPage;
+                      return InkWell(
+                        onTap: () {
+                          setState(() {
+                            _currentPage = pageIdx;
+                          });
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isCurrent ? const Color(0xFF4F46E5) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            (pageIdx + 1).toString(),
+                            style: TextStyle(
+                              color: isCurrent ? Colors.white : (isDark ? Colors.white54 : const Color(0xFF64748B)),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
-                        child: Text(
-                          (index + 1).toString(),
-                          style: TextStyle(
-                            color: isCurrent ? Colors.white : (isDark ? Colors.white54 : const Color(0xFF64748B)),
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
+                      );
+                    }),
+                    if (totalPages > 5 && !visiblePages.contains(totalPages - 1)) ...[
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 2),
+                        child: Text("...", style: TextStyle(color: Color(0xFF64748B), fontSize: 11)),
+                      ),
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            _currentPage = totalPages - 1;
+                          });
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _currentPage == totalPages - 1 ? const Color(0xFF4F46E5) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            totalPages.toString(),
+                            style: TextStyle(
+                              color: _currentPage == totalPages - 1 ? Colors.white : (isDark ? Colors.white54 : const Color(0xFF64748B)),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
-                    );
-                  }),
-                  IconButton(
-                    onPressed: _currentPage < (totalPages - 1)
-                        ? () {
-                            setState(() {
-                              _currentPage++;
-                            });
-                          }
-                        : null,
-                    icon: const Icon(Icons.arrow_forward_ios, size: 12),
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    disabledColor: isDark ? Colors.white24 : Colors.black26,
-                  ),
-                ],
+                    ],
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                      onPressed: _currentPage < (totalPages - 1)
+                          ? () {
+                              setState(() {
+                                _currentPage++;
+                              });
+                            }
+                          : null,
+                      icon: const Icon(Icons.arrow_forward_ios, size: 12),
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      disabledColor: isDark ? Colors.white24 : Colors.black26,
+                    ),
+                  ],
+                ),
               );
 
               return isMobilePagination
                   ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 12,
+                          runSpacing: 8,
                           children: [
                             showingText,
                             pageSizeSelector,
                           ],
                         ),
                         const SizedBox(height: 10),
-                        navigationControls,
+                        Center(child: navigationControls),
                       ],
                     )
                   : Row(

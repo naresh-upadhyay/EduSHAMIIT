@@ -60,7 +60,7 @@ DROP INDEX IF EXISTS idx_course_progress_student;
 -- Payments: student payment history
 DROP INDEX IF EXISTS idx_payments_student_time;
 CREATE INDEX IF NOT EXISTS idx_payments_student_time
-    ON payments(student_id, created_at DESC);
+    ON payments(student_id, paid_at DESC);
 
 -- Attendance: date-range queries (already has student+date, adding school+student+date)
 DROP INDEX IF EXISTS idx_attendance_school_student_date;

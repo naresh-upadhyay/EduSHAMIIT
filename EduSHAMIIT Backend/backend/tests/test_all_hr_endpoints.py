@@ -44,7 +44,7 @@ def run_tests():
     # Generate JWT super_admin token
     from jose import jwt
     token = jwt.encode({
-        'sub': '38a93170-997b-4b4c-bc8e-256b93169c23',
+        'sub': '5198c4b0-f1cb-45db-9649-41688d0438ba',
         'school_id': '11111111-1111-1111-1111-111111111111',
         'role': 'super_admin',
         'email': 'mathematicsking888@gmail.com',

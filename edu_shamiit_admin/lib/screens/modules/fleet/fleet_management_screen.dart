@@ -8,9 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 import 'package:latlong2/latlong.dart' hide Path;
-import 'driver_management_tab.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:html' as html;
 
@@ -25,15 +23,13 @@ class FleetManagementScreen extends StatefulWidget {
 class _FleetManagementScreenState extends State<FleetManagementScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final GlobalKey<DriverManagementTabState> _driverTabKey = GlobalKey<DriverManagementTabState>();
 
   // ═══════════════════ State ═══════════════════
-  bool _isLoading = true;
+  bool _isInitialLoading = true;
+  final Set<int> _visitedTabs = <int>{};
   List<dynamic> _vehicles = [];
   List<dynamic> _categories = [];
   List<dynamic> _documents = [];
-  List<dynamic> _insuranceFitness = [];
-  List<dynamic> _gpsDevices = [];
   List<dynamic> _drivers = [];
 
   // Selected vehicle & category for details panel
@@ -118,16 +114,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
   int _docPageSize = 10;
   dynamic _selectedDocument;
 
-  // Filters & Pagination for GPS Devices
-  final TextEditingController _gpsSearchController = TextEditingController();
-  String _gpsSearchQuery = '';
-  String _gpsStatusFilter = 'All';
-  String _gpsProviderFilter = 'All';
-  String _gpsVehicleFilter = 'All';
-  int _gpsCurrentPage = 1;
-  int _gpsPageSize = 10;
-  dynamic _selectedGpsDevice;
-
   // ═══════════════════ Theme Tokens ═══════════════════
   static const _accent = Color(0xFF4F46E5); // indigo/purple accent
   static const _green = Color(0xFF22C55E);
@@ -135,32 +121,41 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
   static const _orange = Color(0xFFF59E0B);
   static const _red = Color(0xFFEF4444);
   static const _gray = Color(0xFF94A3B8);
-  static const _bg = Color(0xFFF8FAFC);
-  static const _cardBg = Colors.white;
-  static const _border = Color(0xFFE2E8F0);
-  static const _textPrimary = Color(0xFF0F172A);
-  static const _textSecondary = Color(0xFF64748B);
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+  Color get _bg => _isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+  Color get _cardBg => _isDark ? const Color(0xFF1E293B) : Colors.white;
+  Color get _border => _isDark ? Colors.white10 : const Color(0xFFE2E8F0);
+  Color get _textPrimary => _isDark ? Colors.white : const Color(0xFF0F172A);
+  Color get _textSecondary => _isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+  Color get _inputBg => _isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9);
 
-  @override
   final Set<int> _loadedTabs = {};
 
   @override
   void initState() {
     super.initState();
+    final initIdx = widget.initialTab.clamp(0, 3);
+    _visitedTabs.add(initIdx);
     // 4 Tabs
     _tabController = TabController(
       length: 4,
       vsync: this,
-      initialIndex: widget.initialTab.clamp(0, 3),
+      initialIndex: initIdx,
     );
     _tabController.addListener(() {
-      if (mounted) {
-        _loadTabIfNeeded(_tabController.index, forceReload: true);
-        if (kIsWeb && !_tabController.indexIsChanging) {
-          try {
-            html.window.history.replaceState(null, '', '/admin/fleet?tab=${_tabController.index}');
-            html.window.dispatchEvent(html.CustomEvent('tab_changed'));
-          } catch (_) {}
+      if (mounted && !_tabController.indexIsChanging) {
+        final idx = _tabController.index.clamp(0, 3);
+        _visitedTabs.add(idx);
+        if (!_loadedTabs.contains(idx)) {
+          _loadTabIfNeeded(idx);
+        }
+        if (kIsWeb) {
+          Future.microtask(() {
+            try {
+              html.window.history.replaceState(null, '', '/admin/fleet?tab=$idx');
+              html.window.dispatchEvent(html.CustomEvent('tab_changed'));
+            } catch (_) {}
+          });
         }
         setState(() {});
       }
@@ -174,18 +169,36 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     _docSearchController.addListener(() {
       setState(() => _docSearchQuery = _docSearchController.text);
     });
-    _gpsSearchController.addListener(() {
-      setState(() => _gpsSearchQuery = _gpsSearchController.text);
-    });
-    _loadTabIfNeeded(widget.initialTab.clamp(0, 3), forceReload: true);
+    _loadInitialData(initIdx);
+  }
+
+  Future<void> _loadInitialData(int tabIndex) async {
+    try {
+      await _loadTabIfNeeded(tabIndex, forceReload: true);
+      if (tabIndex != 2 && !_loadedTabs.contains(2)) {
+        await _loadTabIfNeeded(2);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isInitialLoading = false);
+      }
+    }
   }
 
   @override
   void didUpdateWidget(FleetManagementScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.initialTab != oldWidget.initialTab) {
-      _tabController.animateTo(widget.initialTab.clamp(0, 3));
-      _loadTabIfNeeded(widget.initialTab.clamp(0, 3));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          final targetIdx = widget.initialTab.clamp(0, 3);
+          _visitedTabs.add(targetIdx);
+          _tabController.animateTo(targetIdx);
+          if (!_loadedTabs.contains(targetIdx)) {
+            _loadTabIfNeeded(targetIdx);
+          }
+        }
+      });
     }
   }
 
@@ -195,7 +208,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     _searchController.dispose();
     _categorySearchController.dispose();
     _docSearchController.dispose();
-    _gpsSearchController.dispose();
     super.dispose();
   }
 
@@ -212,7 +224,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     if (!mounted) return;
     if (!forceReload && _loadedTabs.contains(tabIndex)) return;
 
-    setState(() => _isLoading = true);
     try {
       switch (tabIndex) {
         case 0: // Overview
@@ -282,24 +293,11 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             _selectedDocument = match ?? _documents.first;
           }
           break;
-        case 4: // GPS Devices
-          final res = await ApiService().get('/transport/gps-devices', useCache: false);
-          final raw = res['data'];
-          _gpsDevices = (raw is List) ? raw : [];
-          if (_gpsDevices.isNotEmpty) {
-            final match = _gpsDevices.firstWhere(
-              (dev) => dev['id'] == _selectedGpsDevice?['id'],
-              orElse: () => null,
-            );
-            _selectedGpsDevice = match ?? _gpsDevices.first;
-          }
-          break;
       }
       _loadedTabs.add(tabIndex);
+      if (mounted) setState(() {});
     } catch (e) {
       debugPrint('Error loading fleet tab $tabIndex: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -470,41 +468,16 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     }).toList();
   }
 
-  List<dynamic> get _filteredGpsDevices {
-    return _gpsDevices.where((dev) {
-      final matchesSearch = _gpsSearchQuery.isEmpty ||
-          (dev['device_id'] ?? '').toLowerCase().contains(_gpsSearchQuery.toLowerCase()) ||
-          (dev['imei_no'] ?? '').toLowerCase().contains(_gpsSearchQuery.toLowerCase()) ||
-          (dev['sim_no'] ?? '').toLowerCase().contains(_gpsSearchQuery.toLowerCase()) ||
-          (dev['model'] ?? '').toLowerCase().contains(_gpsSearchQuery.toLowerCase()) ||
-          (dev['bus_routes']?['registration_no'] ?? '').toLowerCase().contains(_gpsSearchQuery.toLowerCase()) ||
-          (dev['bus_routes']?['bus_number'] ?? '').toLowerCase().contains(_gpsSearchQuery.toLowerCase());
-
-      final matchesStatus = _gpsStatusFilter == 'All' ||
-          (_gpsStatusFilter == 'Online' && dev['status'] == 'Active') ||
-          (_gpsStatusFilter == 'Offline' && dev['status'] == 'Offline') ||
-          (_gpsStatusFilter == 'Issues' && dev['status'] == 'Faulty');
-
-      final matchesProvider = _gpsProviderFilter == 'All' ||
-          dev['operator'] == _gpsProviderFilter;
-
-      final matchesVehicle = _gpsVehicleFilter == 'All' ||
-          dev['bus_routes']?['vehicle_type'] == _gpsVehicleFilter;
-
-      return matchesSearch && matchesStatus && matchesProvider && matchesVehicle;
-    }).toList();
-  }
-
   // ═══════════════════ BUILD ═══════════════════
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
     final isDesktop = w >= 1100;
 
-    if (_isLoading) {
-      return const Scaffold(
+    if (_isInitialLoading) {
+      return Scaffold(
         backgroundColor: _bg,
-        body: Center(
+        body: const Center(
           child: CircularProgressIndicator(color: _accent),
         ),
       );
@@ -542,14 +515,14 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.calendar_today_outlined, size: 14, color: _textSecondary),
+          Icon(Icons.calendar_today_outlined, size: 14, color: _textSecondary),
           const SizedBox(width: 8),
           Text(
             'Today, 26 May 2024',
             style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: _textPrimary),
           ),
           const SizedBox(width: 4),
-          const Icon(Icons.keyboard_arrow_down, size: 16, color: _textSecondary),
+          Icon(Icons.keyboard_arrow_down, size: 16, color: _textSecondary),
         ],
       ),
     );
@@ -565,7 +538,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             label: const Text('Import Vehicles'),
             style: OutlinedButton.styleFrom(
               foregroundColor: _textPrimary,
-              side: const BorderSide(color: _border),
+              side: BorderSide(color: _border),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
@@ -647,7 +620,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
           ),
           const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.more_vert, color: _textSecondary),
+            icon: Icon(Icons.more_vert, color: _textSecondary),
             onPressed: () {},
           ),
         ],
@@ -671,7 +644,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                   children: [
                     Text('Fleet Management', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
                     const SizedBox(width: 6),
-                    const Icon(Icons.chevron_right, size: 12, color: _textSecondary),
+                    Icon(Icons.chevron_right, size: 12, color: _textSecondary),
                     const SizedBox(width: 6),
                     Text(
                       'Vehicle Documents', 
@@ -699,9 +672,9 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       height: 48,
       margin: const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _border),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
@@ -711,11 +684,17 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             if (_tabController.index != index) {
               _tabController.animateTo(index);
             }
+            _visitedTabs.add(index);
+            if (!_loadedTabs.contains(index)) {
+              _loadTabIfNeeded(index);
+            }
             if (kIsWeb) {
-              try {
-                html.window.history.replaceState(null, '', '/admin/fleet?tab=$index');
-                html.window.dispatchEvent(html.CustomEvent('tab_changed'));
-              } catch (_) {}
+              Future.microtask(() {
+                try {
+                  html.window.history.replaceState(null, '', '/admin/fleet?tab=$index');
+                  html.window.dispatchEvent(html.CustomEvent('tab_changed'));
+                } catch (_) {}
+              });
             }
             setState(() {});
           },
@@ -723,7 +702,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
           tabAlignment: TabAlignment.start,
           padding: EdgeInsets.zero,
           labelColor: const Color(0xFF4F46E5), // Indigo 600
-          unselectedLabelColor: const Color(0xFF475569), // Slate 600
+          unselectedLabelColor: _textSecondary, // Slate 600
           indicatorColor: const Color(0xFF4F46E5),
           indicatorWeight: 2.5,
           indicatorSize: TabBarIndicatorSize.tab,
@@ -755,26 +734,18 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
 
   // ─────── TAB CONTENT ───────
   Widget _buildTabContent(bool isDesktop) {
-    switch (_tabController.index) {
-      case 0:
-        return _buildOverviewTabContent();
-      case 1:
-        return _buildVehiclesTab(isDesktop);
-      case 2:
-        return _buildCategoriesTab(isDesktop);
-      case 3:
-        return _buildDocumentsTab();
-      default:
-        return Padding(
-          padding: const EdgeInsets.all(40),
-          child: Center(
-            child: Text(
-              'This sub-module is fully integrated into the administrative console.',
-              style: GoogleFonts.inter(color: _textSecondary),
-            ),
-          ),
-        );
-    }
+    final activeIdx = _tabController.index.clamp(0, 3);
+    _visitedTabs.add(activeIdx);
+
+    return IndexedStack(
+      index: activeIdx,
+      children: [
+        _visitedTabs.contains(0) ? _buildOverviewTabContent() : const SizedBox.shrink(),
+        _visitedTabs.contains(1) ? _buildVehiclesTab(isDesktop) : const SizedBox.shrink(),
+        _visitedTabs.contains(2) ? _buildCategoriesTab(isDesktop) : const SizedBox.shrink(),
+        _visitedTabs.contains(3) ? _buildDocumentsTab() : const SizedBox.shrink(),
+      ],
+    );
   }
 
   // ═══════════════════ 1. OVERVIEW TAB ═══════════════════
@@ -1159,75 +1130,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     );
   }
 
-  Widget _buildTripsSummaryCard() {
-    return Container(
-      height: 290,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: _border)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Trips Summary', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary)),
-              Text('Today', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: GridView.count(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 2.2,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _tripGridItem('Total Trips', '128', _blue, Icons.map),
-                _tripGridItem('Completed Trips', '112', _green, Icons.check_circle),
-                _tripGridItem('Ongoing Trips', '12', _orange, Icons.trending_up),
-                _tripGridItem('Cancelled Trips', '4', _red, Icons.cancel),
-              ],
-            ),
-          ),
-          Center(
-            child: TextButton(
-              onPressed: () {},
-              child: Text('View trips & schedule', style: GoogleFonts.inter(fontSize: 12, color: _blue, fontWeight: FontWeight.bold)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _tripGridItem(String label, String val, Color color, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(8)),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
-            child: Icon(icon, color: color, size: 16),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(val, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary)),
-                Text(label, style: GoogleFonts.inter(fontSize: 9, color: _textSecondary), overflow: TextOverflow.ellipsis),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildTopVehiclesDistanceCard() {
     return Container(
       height: 290,
@@ -1453,7 +1355,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       ),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        side: const BorderSide(color: _border),
+        side: BorderSide(color: _border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
     );
@@ -1496,39 +1398,34 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double maxW = constraints.maxWidth;
-        if (maxW >= 950) {
-          return Row(
-            children: [
-              Expanded(child: _buildKpiCardMini('Total Vehicles', '$totalVehicles', Icons.directions_bus_rounded, const Color(0xFF4F46E5), '100% Fleet')),
-              const SizedBox(width: 12),
-              Expanded(child: _buildKpiCardMini('Active Vehicles', '$active', Icons.directions_bus_filled_rounded, const Color(0xFF10B981), _pct(active, totalVehicles))),
-              const SizedBox(width: 12),
-              Expanded(child: _buildKpiCardMini('In Maintenance', maintenance.toString().padLeft(2, '0'), Icons.build_circle_rounded, const Color(0xFFF59E0B), _pct(maintenance, totalVehicles))),
-              const SizedBox(width: 12),
-              Expanded(child: _buildKpiCardMini('Inactive Vehicles', inactive.toString().padLeft(2, '0'), Icons.bus_alert_rounded, const Color(0xFF64748B), _pct(inactive, totalVehicles))),
-              const SizedBox(width: 12),
-              Expanded(child: _buildKpiCardMini('Avg Utilization', '78.45%', Icons.speed_rounded, const Color(0xFF10B981), 'This Month')),
-              const SizedBox(width: 12),
-              Expanded(child: _buildKpiCardMini('Total Capacity', NumberFormat('#,###').format(totalSeats), Icons.airline_seat_recline_normal_rounded, const Color(0xFF8B5CF6), 'Seats Total')),
-            ],
-          );
+        final double width = constraints.maxWidth;
+        const double spacing = 12.0;
+        final int cols;
+        if (width >= 1100) {
+          cols = 6;
+        } else if (width >= 750) {
+          cols = 3;
+        } else if (width >= 480) {
+          cols = 2;
         } else {
-          final double cardW = (maxW - 24) / 3;
-          final double finalW = cardW > 160 ? cardW : 160;
-          return Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              SizedBox(width: finalW, child: _buildKpiCardMini('Total Vehicles', '$totalVehicles', Icons.directions_bus_rounded, const Color(0xFF4F46E5), '100% Fleet')),
-              SizedBox(width: finalW, child: _buildKpiCardMini('Active Vehicles', '$active', Icons.directions_bus_filled_rounded, const Color(0xFF10B981), _pct(active, totalVehicles))),
-              SizedBox(width: finalW, child: _buildKpiCardMini('In Maintenance', maintenance.toString().padLeft(2, '0'), Icons.build_circle_rounded, const Color(0xFFF59E0B), _pct(maintenance, totalVehicles))),
-              SizedBox(width: finalW, child: _buildKpiCardMini('Inactive Vehicles', inactive.toString().padLeft(2, '0'), Icons.bus_alert_rounded, const Color(0xFF64748B), _pct(inactive, totalVehicles))),
-              SizedBox(width: finalW, child: _buildKpiCardMini('Avg Utilization', '78.45%', Icons.speed_rounded, const Color(0xFF10B981), 'This Month')),
-              SizedBox(width: finalW, child: _buildKpiCardMini('Total Capacity', NumberFormat('#,###').format(totalSeats), Icons.airline_seat_recline_normal_rounded, const Color(0xFF8B5CF6), 'Seats Total')),
-            ],
-          );
+          cols = 1;
         }
+
+        final double totalSpacing = (cols - 1) * spacing;
+        final double cardWidth = ((width - totalSpacing) / cols).floorToDouble();
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            SizedBox(width: cardWidth, child: _buildKpiCardMini('Total Vehicles', '$totalVehicles', Icons.directions_bus_rounded, const Color(0xFF4F46E5), '100% Fleet')),
+            SizedBox(width: cardWidth, child: _buildKpiCardMini('Active Vehicles', '$active', Icons.directions_bus_filled_rounded, const Color(0xFF10B981), _pct(active, totalVehicles))),
+            SizedBox(width: cardWidth, child: _buildKpiCardMini('In Maintenance', maintenance.toString().padLeft(2, '0'), Icons.build_circle_rounded, const Color(0xFFF59E0B), _pct(maintenance, totalVehicles))),
+            SizedBox(width: cardWidth, child: _buildKpiCardMini('Inactive Vehicles', inactive.toString().padLeft(2, '0'), Icons.bus_alert_rounded, const Color(0xFF64748B), _pct(inactive, totalVehicles))),
+            SizedBox(width: cardWidth, child: _buildKpiCardMini('Avg Utilization', '78.45%', Icons.speed_rounded, const Color(0xFF10B981), 'This Month')),
+            SizedBox(width: cardWidth, child: _buildKpiCardMini('Total Capacity', NumberFormat('#,###').format(totalSeats), Icons.airline_seat_recline_normal_rounded, const Color(0xFF8B5CF6), 'Seats Total')),
+          ],
+        );
       },
     );
   }
@@ -1537,12 +1434,12 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        border: Border.all(color: _border, width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1591,7 +1488,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: const Color(0xFF0F172A),
+              color: _textPrimary,
               height: 1.1,
               letterSpacing: -0.5,
             ),
@@ -1602,7 +1499,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             style: GoogleFonts.inter(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF64748B),
+              color: _textSecondary,
             ),
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
@@ -1617,12 +1514,12 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        border: Border.all(color: _border, width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1635,19 +1532,20 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             height: 38,
             child: TextField(
               controller: _searchController,
+              style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
               decoration: InputDecoration(
                 hintText: 'Search bus number, registration no., driver...',
-                hintStyle: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF94A3B8)),
-                prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF94A3B8)),
+                hintStyle: GoogleFonts.inter(fontSize: 12, color: _textSecondary),
+                prefixIcon: Icon(Icons.search_rounded, size: 18, color: _textSecondary),
                 filled: true,
-                fillColor: const Color(0xFFF8FAFC),
+                fillColor: _inputBg,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: BorderSide(color: _border),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: BorderSide(color: _border),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -1660,7 +1558,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
 
           final refreshButton = IconButton(
             onPressed: () => _loadAll(showLoading: true),
-            icon: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFF64748B)),
+            icon: Icon(Icons.refresh_rounded, size: 18, color: _textSecondary),
             tooltip: 'Refresh Vehicles Data',
           );
 
@@ -1689,8 +1587,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                 icon: const Icon(Icons.filter_list_rounded, size: 15),
                 label: const Text('Reset'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFEEF2FF),
-                  foregroundColor: const Color(0xFF4F46E5),
+                  backgroundColor: _isDark ? const Color(0xFF312E81) : const Color(0xFFEEF2FF),
+                  foregroundColor: _isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
                   elevation: 0,
                   shadowColor: Colors.transparent,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -1737,12 +1635,12 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+        border: Border.all(color: _border, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1760,7 +1658,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                 headingRowHeight: 46,
                 dataRowMinHeight: 56,
                 dataRowMaxHeight: 64,
-                headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                headingRowColor: WidgetStateProperty.all(_isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
                 showCheckboxColumn: false,
               columns: const [
                 DataColumn(label: Text('Bus Number')),
@@ -1833,13 +1731,13 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             }
                           },
                           itemBuilder: (ctx) => [
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'edit',
                               child: Row(
                                 children: [
                                   Icon(Icons.edit_outlined, size: 16, color: _textPrimary),
-                                  SizedBox(width: 8),
-                                  Text('Edit Vehicle'),
+                                  const SizedBox(width: 8),
+                                  const Text('Edit Vehicle'),
                                 ],
                               ),
                             ),
@@ -1871,7 +1769,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
   }
 
   Widget _buildFuelIndicator(int? fuelPct) {
-    if (fuelPct == null) return const Text('—', style: TextStyle(color: _textSecondary));
+    if (fuelPct == null) return Text('—', style: TextStyle(color: _textSecondary));
     Color c = _green;
     if (fuelPct < 20) {
       c = _red;
@@ -2014,12 +1912,12 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+        border: Border.all(color: _border, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -2160,7 +2058,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       final fitInfo = evalDocInfo(fitDoc);
       final polInfo = evalDocInfo(polDoc);
       final permitInfo = evalDocInfo(permitDoc);
-      final rcInfo = evalDocInfo(rcDoc);
 
       final chassisNo = rcDoc != null && (rcDoc['document_no'] ?? '').toString().isNotEmpty
           ? rcDoc['document_no'].toString()
@@ -2329,7 +2226,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                 decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(8), border: Border.all(color: _border)),
                 child: Column(
                   children: [
-                    const Icon(Icons.folder_open, size: 36, color: _textSecondary),
+                    Icon(Icons.folder_open, size: 36, color: _textSecondary),
                     const SizedBox(height: 8),
                     Text('No documents uploaded for this vehicle yet.', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
                     const SizedBox(height: 12),
@@ -2387,7 +2284,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                 decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(8), border: Border.all(color: _border)),
                 child: Column(
                   children: [
-                    const Icon(Icons.build_circle_outlined, size: 36, color: _textSecondary),
+                    Icon(Icons.build_circle_outlined, size: 36, color: _textSecondary),
                     const SizedBox(height: 8),
                     Text('No maintenance records logged for this vehicle yet.', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
                     const SizedBox(height: 12),
@@ -2515,13 +2412,13 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     const PopupMenuItem(value: 'In Progress', child: Text('Mark as In Progress')),
                     const PopupMenuItem(value: 'Scheduled', child: Text('Mark as Scheduled')),
                     const PopupMenuDivider(),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'edit',
                       child: Row(
                         children: [
                           Icon(Icons.edit_outlined, size: 16, color: _textPrimary),
-                          SizedBox(width: 8),
-                          Text('Edit Record'),
+                          const SizedBox(width: 8),
+                          const Text('Edit Record'),
                         ],
                       ),
                     ),
@@ -2807,56 +2704,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     );
   }
 
-  Widget _buildDriverRow(String name, String phone) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text('Assigned Driver', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
-        Row(
-          children: [
-            const CircleAvatar(radius: 10, backgroundColor: _border, child: Icon(Icons.person, size: 10)),
-            const SizedBox(width: 6),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(name, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary)),
-                Text(phone, style: GoogleFonts.inter(fontSize: 9, color: _textSecondary)),
-              ],
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              icon: const Icon(Icons.call, size: 14, color: _accent),
-              onPressed: () {},
-              constraints: const BoxConstraints(),
-              padding: EdgeInsets.zero,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRouteRow(String routeName) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text('Assigned Route', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
-        Row(
-          children: [
-            Text(routeName, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary)),
-            const SizedBox(width: 6),
-            IconButton(
-              icon: const Icon(Icons.open_in_new, size: 14, color: _accent),
-              onPressed: () {},
-              constraints: const BoxConstraints(),
-              padding: EdgeInsets.zero,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   Widget _buildTrackingMiniCard(String label, String value, IconData icon, Color color, {String? sub}) {
     return Container(
       padding: const EdgeInsets.all(8),
@@ -2967,7 +2814,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     children: [
                       DropdownButtonFormField<dynamic>(
                         decoration: const InputDecoration(labelText: 'Select Driver'),
-                        value: driversList.firstWhere(
+                        initialValue: driversList.firstWhere(
                           (d) => (d['full_name'] ?? d['name']) == selectedDriverName,
                           orElse: () => driversList.first,
                         ),
@@ -3045,7 +2892,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     children: [
                       DropdownButtonFormField<dynamic>(
                         decoration: const InputDecoration(labelText: 'Select Route'),
-                        value: routesList.firstWhere(
+                        initialValue: routesList.firstWhere(
                           (r) => (r['name'] ?? r['route_name']) == selectedRouteName,
                           orElse: () => routesList.first,
                         ),
@@ -3255,30 +3102,21 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double maxW = constraints.maxWidth;
-        if (maxW >= 950) {
-          return Row(
-            children: [
-              Expanded(child: _buildKpiCardMini('Total Categories', '$totalCats', Icons.category_rounded, const Color(0xFF4F46E5), 'All Categories')),
-              const SizedBox(width: 12),
-              Expanded(child: _buildKpiCardMini('Active Categories', '$active', Icons.check_circle_rounded, const Color(0xFF10B981), _pct(active, totalCats))),
-              const SizedBox(width: 12),
-              Expanded(child: _buildKpiCardMini('Inactive Categories', '$inactive', Icons.pause_circle_filled_rounded, const Color(0xFFEF4444), _pct(inactive, totalCats))),
-            ],
-          );
-        } else {
-          final double cardW = (maxW - 24) / 3;
-          final double finalW = cardW > 160 ? cardW : 160;
-          return Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              SizedBox(width: finalW, child: _buildKpiCardMini('Total Categories', '$totalCats', Icons.category_rounded, const Color(0xFF4F46E5), 'All Categories')),
-              SizedBox(width: finalW, child: _buildKpiCardMini('Active Categories', '$active', Icons.check_circle_rounded, const Color(0xFF10B981), _pct(active, totalCats))),
-              SizedBox(width: finalW, child: _buildKpiCardMini('Inactive Categories', '$inactive', Icons.pause_circle_filled_rounded, const Color(0xFFEF4444), _pct(inactive, totalCats))),
-            ],
-          );
-        }
+        final double width = constraints.maxWidth;
+        const double spacing = 12.0;
+        final int cols = width >= 780 ? 3 : (width >= 480 ? 2 : 1);
+        final double totalSpacing = (cols - 1) * spacing;
+        final double cardWidth = ((width - totalSpacing) / cols).floorToDouble();
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            SizedBox(width: cardWidth, child: _buildKpiCardMini('Total Categories', '$totalCats', Icons.category_rounded, const Color(0xFF4F46E5), 'All Categories')),
+            SizedBox(width: cardWidth, child: _buildKpiCardMini('Active Categories', '$active', Icons.check_circle_rounded, const Color(0xFF10B981), _pct(active, totalCats))),
+            SizedBox(width: cardWidth, child: _buildKpiCardMini('Inactive Categories', '$inactive', Icons.pause_circle_filled_rounded, const Color(0xFFEF4444), _pct(inactive, totalCats))),
+          ],
+        );
       },
     );
   }
@@ -3288,12 +3126,12 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        border: Border.all(color: _border, width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -3306,19 +3144,20 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             height: 38,
             child: TextField(
               controller: _categorySearchController,
+              style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
               decoration: InputDecoration(
                 hintText: 'Search categories by name or type...',
-                hintStyle: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF94A3B8)),
-                prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF94A3B8)),
+                hintStyle: GoogleFonts.inter(fontSize: 12, color: _textSecondary),
+                prefixIcon: Icon(Icons.search_rounded, size: 18, color: _textSecondary),
                 filled: true,
-                fillColor: const Color(0xFFF8FAFC),
+                fillColor: _inputBg,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: BorderSide(color: _border),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: BorderSide(color: _border),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -3354,8 +3193,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                 icon: const Icon(Icons.filter_list_rounded, size: 15),
                 label: const Text('Reset'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFEEF2FF),
-                  foregroundColor: const Color(0xFF4F46E5),
+                  backgroundColor: _isDark ? const Color(0xFF312E81) : const Color(0xFFEEF2FF),
+                  foregroundColor: _isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
                   elevation: 0,
                   shadowColor: Colors.transparent,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -3365,7 +3204,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.refresh, size: 18, color: Color(0xFF475569)),
+              icon: Icon(Icons.refresh, size: 18, color: _textSecondary),
               onPressed: _loadAll,
             ),
           ];
@@ -3405,12 +3244,12 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+        border: Border.all(color: _border, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -3428,7 +3267,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                 headingRowHeight: 46,
                 dataRowMinHeight: 56,
                 dataRowMaxHeight: 64,
-                headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                headingRowColor: WidgetStateProperty.all(_isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
                 showCheckboxColumn: false,
               columns: const [
                 DataColumn(label: Text('Category Name')),
@@ -3499,13 +3338,13 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             }
                           },
                           itemBuilder: (ctx) => [
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'edit',
                               child: Row(
                                 children: [
                                   Icon(Icons.edit_outlined, size: 16, color: _textPrimary),
-                                  SizedBox(width: 8),
-                                  Text('Edit Category'),
+                                  const SizedBox(width: 8),
+                                  const Text('Edit Category'),
                                 ],
                               ),
                             ),
@@ -3557,18 +3396,20 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
           ),
           const Spacer(),
           IconButton(
-            icon: const Icon(Icons.chevron_left),
+            icon: Icon(Icons.chevron_left, color: _textSecondary),
             onPressed: _categoryCurrentPage > 1 ? () => setState(() => _categoryCurrentPage--) : null,
           ),
-          Text('$_categoryCurrentPage / ${max(1, maxPage)}', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold)),
+          Text('$_categoryCurrentPage / ${max(1, maxPage)}', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary)),
           IconButton(
-            icon: const Icon(Icons.chevron_right),
+            icon: Icon(Icons.chevron_right, color: _textSecondary),
             onPressed: _categoryCurrentPage < maxPage ? () => setState(() => _categoryCurrentPage++) : null,
           ),
           const SizedBox(width: 12),
           DropdownButton<int>(
             value: _categoryPageSize,
-            items: [5, 10, 20, 50].map((s) => DropdownMenuItem(value: s, child: Text('$s / page'))).toList(),
+            dropdownColor: _cardBg,
+            style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
+            items: [5, 10, 20, 50].map((s) => DropdownMenuItem(value: s, child: Text('$s / page', style: GoogleFonts.inter(fontSize: 12, color: _textPrimary)))).toList(),
             onChanged: (val) {
               setState(() {
                 _categoryPageSize = val ?? 10;
@@ -3585,12 +3426,12 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     final c = _selectedCategory!;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+        border: Border.all(color: _border, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -3801,7 +3642,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
           kpiColumns = 3;
         }
 
-        final kpiCardWidth = (availableWidth - (kpiColumns - 1) * 12) / kpiColumns;
+        final kpiCardWidth = ((availableWidth - (kpiColumns - 1) * 12) / kpiColumns).floorToDouble();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3837,14 +3678,14 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Expanded(flex: 7, child: _buildTableSection()),
-                          const VerticalDivider(width: 1, color: _border),
+                          VerticalDivider(width: 1, color: _border),
                           Expanded(flex: 3, child: _buildDetailsPanelSection()),
                         ],
                       ),
                     )
                   else ...[
                     _buildTableSection(),
-                    const Divider(height: 1, color: _border),
+                    Divider(height: 1, color: _border),
                     _buildDetailsPanelSection(),
                   ],
                 ],
@@ -3861,12 +3702,12 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       width: width,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        border: Border.all(color: _border, width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -3891,7 +3732,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
               children: [
                 Text(
                   title,
-                  style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: const Color(0xFF64748B)),
+                  style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: _textSecondary),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -3902,7 +3743,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                   children: [
                     Text(
                       value,
-                      style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, color: const Color(0xFF0F172A), height: 1.1),
+                      style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, color: _textPrimary, height: 1.1),
                     ),
                     const SizedBox(width: 6),
                     Expanded(
@@ -3925,37 +3766,43 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
   Widget _buildFiltersSection(double availableWidth) {
     final showWrap = availableWidth < 1250;
     
-    final searchWidget = Container(
+    final searchWidget = SizedBox(
       height: 38,
       width: showWrap ? (availableWidth < 600 ? double.infinity : 280) : null,
-      decoration: BoxDecoration(
-        color: _bg,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: _border),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: [
-          const Icon(Icons.search, size: 16, color: _textSecondary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              controller: _docSearchController,
-              style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
-              decoration: InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                hintText: 'Search documents by name or type...',
-                hintStyle: GoogleFonts.inter(fontSize: 13, color: _textSecondary),
-              ),
-            ),
+      child: TextField(
+        controller: _docSearchController,
+        textAlignVertical: TextAlignVertical.center,
+        style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
+        decoration: InputDecoration(
+          hintText: 'Search documents by name or type...',
+          hintStyle: GoogleFonts.inter(fontSize: 12, color: _textSecondary),
+          prefixIcon: Icon(Icons.search_rounded, size: 18, color: _textSecondary),
+          suffixIcon: _docSearchController.text.isNotEmpty
+              ? IconButton(
+                  icon: Icon(Icons.close_rounded, size: 16, color: _textSecondary),
+                  onPressed: () {
+                    _docSearchController.clear();
+                    setState(() {});
+                  },
+                )
+              : null,
+          filled: true,
+          fillColor: _inputBg,
+          isDense: true,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: _border),
           ),
-          if (_docSearchController.text.isNotEmpty)
-            GestureDetector(
-              onTap: () => _docSearchController.clear(),
-              child: const Icon(Icons.close, size: 16, color: _textSecondary),
-            ),
-        ],
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: _border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
       ),
     );
 
@@ -3994,7 +3841,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       width: showWrap ? (availableWidth < 600 ? double.infinity : 180) : null,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _inputBg,
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: _border),
       ),
@@ -4002,12 +3849,14 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
         child: DropdownButton<String>(
           value: _selectedVehicleFilter,
           isExpanded: true,
+          dropdownColor: _cardBg,
+          iconEnabledColor: _textSecondary,
           style: GoogleFonts.inter(fontSize: 13, color: _textPrimary, fontWeight: FontWeight.w500),
           items: [
-            const DropdownMenuItem(value: 'All', child: Text('All Vehicles')),
+            DropdownMenuItem(value: 'All', child: Text('All Vehicles', style: GoogleFonts.inter(color: _textPrimary))),
             ..._vehicles.map((v) {
               final reg = v['registration_no'] ?? v['bus_number'] ?? 'Vehicle';
-              return DropdownMenuItem(value: v['id'].toString(), child: Text(reg));
+              return DropdownMenuItem(value: v['id'].toString(), child: Text(reg, style: GoogleFonts.inter(color: _textPrimary)));
             }),
           ],
           onChanged: (val) {
@@ -4025,18 +3874,18 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       children: [
         OutlinedButton.icon(
           onPressed: () {},
-          icon: const Icon(Icons.filter_list, size: 16),
-          label: const Text('Filters'),
+          icon: Icon(Icons.filter_list, size: 16, color: _textSecondary),
+          label: Text('Filters', style: GoogleFonts.inter(color: _textPrimary)),
           style: OutlinedButton.styleFrom(
             foregroundColor: _textPrimary,
-            side: const BorderSide(color: _border),
+            side: BorderSide(color: _border),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
           ),
         ),
         const SizedBox(width: 8),
         IconButton(
-          icon: const Icon(Icons.refresh, size: 18),
+          icon: Icon(Icons.refresh, size: 18, color: _textSecondary),
           onPressed: () {
             setState(() {
               _docSearchController.clear();
@@ -4047,7 +3896,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             });
           },
           style: IconButton.styleFrom(
-            side: const BorderSide(color: _border),
+            side: BorderSide(color: _border),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
           ),
         ),
@@ -4057,8 +3906,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     if (showWrap) {
       return Container(
         padding: const EdgeInsets.all(12),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: _cardBg,
           border: Border(bottom: BorderSide(color: _border)),
         ),
         child: Wrap(
@@ -4078,8 +3927,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: _cardBg,
         border: Border(bottom: BorderSide(color: _border)),
       ),
       child: Row(
@@ -4108,7 +3957,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       height: 38,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _inputBg,
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: _border),
       ),
@@ -4116,9 +3965,11 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
         child: DropdownButton<String>(
           value: value,
           isExpanded: true,
+          dropdownColor: _cardBg,
+          iconEnabledColor: _textSecondary,
           style: GoogleFonts.inter(fontSize: 13, color: _textPrimary, fontWeight: FontWeight.w500),
           items: items.map((s) {
-            return DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All ${label}es' : s));
+            return DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All ${label}es' : s, style: GoogleFonts.inter(color: _textPrimary)));
           }).toList(),
           onChanged: onChanged,
         ),
@@ -4417,7 +4268,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     
     return Container(
       padding: const EdgeInsets.all(16),
-      color: Colors.white,
+      color: _cardBg,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -4548,7 +4399,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             const SizedBox(width: 12),
             Text(label, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: _textPrimary)),
             const Spacer(),
-            const Icon(Icons.arrow_forward_ios, size: 12, color: _textSecondary),
+            Icon(Icons.arrow_forward_ios, size: 12, color: _textSecondary),
           ],
         ),
       ),
@@ -4570,9 +4421,9 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
           height: 180,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _isDark ? const Color(0xFF0F172A) : Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: _border),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
@@ -4630,9 +4481,9 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       height: 180,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -5150,1259 +5001,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     );
   }
 
-  // ═══════════════════ 5. INSURANCE & FITNESS TAB ═══════════════════
-  Widget _buildInsuranceFitnessTab() {
-    return Container(
-      decoration: BoxDecoration(
-        color: _cardBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Text('Insurance & Fitness Records', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columns: const [
-                DataColumn(label: Text('Vehicle')),
-                DataColumn(label: Text('Policy No.')),
-                DataColumn(label: Text('Insurance Expiry')),
-                DataColumn(label: Text('Fitness Expiry')),
-                DataColumn(label: Text('Pollution Expiry')),
-              ],
-              rows: _insuranceFitness.map((inf) {
-                return DataRow(cells: [
-                  DataCell(Text(inf['bus_routes']?['registration_no'] ?? '—')),
-                  DataCell(Text(inf['policy_no'] ?? '—')),
-                  DataCell(Text(inf['insurance_expiry'] ?? '—')),
-                  DataCell(Text(inf['fitness_expiry'] ?? '—')),
-                  DataCell(Text(inf['pollution_expiry'] ?? '—')),
-                ]);
-              }).toList(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ═══════════════════ 6. GPS DEVICES TAB ═══════════════════
-  Widget _buildGpsDevicesTab() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final availableWidth = constraints.maxWidth;
-        final isDesktop = availableWidth >= 1100;
-
-        // Stats calculation
-        final totalDevices = _gpsDevices.length;
-        final onlineDevices = _gpsDevices.where((d) => (d['status'] ?? '').toLowerCase() == 'active' || (d['status'] ?? '').toLowerCase() == 'online').length;
-        final offlineDevices = _gpsDevices.where((d) => (d['status'] ?? '').toLowerCase() == 'offline').length;
-        
-        final renewalDevices = _gpsDevices.where((d) {
-          final expStr = d['expiry_date'];
-          if (expStr == null) return false;
-          try {
-            final exp = DateTime.parse(expStr);
-            final diff = exp.difference(DateTime.now()).inDays;
-            return diff >= 0 && diff <= 30;
-          } catch (_) {
-            return false;
-          }
-        }).length;
-
-        final faultyDevices = _gpsDevices.where((d) => (d['status'] ?? '').toLowerCase() == 'faulty' || (d['status'] ?? '').toLowerCase() == 'issue').length;
-
-        final onlinePct = totalDevices > 0 ? (onlineDevices / totalDevices * 100) : 0.0;
-        final offlinePct = totalDevices > 0 ? (offlineDevices / totalDevices * 100) : 0.0;
-        final renewalPct = totalDevices > 0 ? (renewalDevices / totalDevices * 100) : 0.0;
-        final faultyPct = totalDevices > 0 ? (faultyDevices / totalDevices * 100) : 0.0;
-
-        // KPI card columns based on available width
-        int kpiColumns = 5;
-        if (availableWidth < 700) {
-          kpiColumns = 1;
-        } else if (availableWidth < 950) {
-          kpiColumns = 2;
-        } else if (availableWidth < 1300) {
-          kpiColumns = 3;
-        }
-
-        final kpiCardWidth = (availableWidth - (kpiColumns - 1) * 12) / kpiColumns;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Stats Row
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                _buildDocKpiCard('Total Devices', '$totalDevices', 'All devices', const Color(0xFF8B5CF6), Icons.router_outlined, null, kpiCardWidth),
-                _buildDocKpiCard('Online Devices', '$onlineDevices', '${onlinePct.toStringAsFixed(2)}%', const Color(0xFF10B981), Icons.check_circle_outline, _green, kpiCardWidth),
-                _buildDocKpiCard('Offline Devices', '$offlineDevices', '${offlinePct.toStringAsFixed(2)}%', const Color(0xFF94A3B8), Icons.cloud_off_outlined, _gray, kpiCardWidth),
-                _buildDocKpiCard('Devices Due for Renewal', '$renewalDevices', '${renewalPct.toStringAsFixed(2)}%', const Color(0xFF3B82F6), Icons.calendar_today_outlined, _blue, kpiCardWidth),
-                _buildDocKpiCard('Devices with Issues', '$faultyDevices', '${faultyPct.toStringAsFixed(2)}%', const Color(0xFFEF4444), Icons.error_outline, _red, kpiCardWidth),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // 2. Filters & Content Section
-            Container(
-              decoration: BoxDecoration(
-                color: _cardBg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildGpsFiltersSection(availableWidth),
-                  const Divider(height: 1),
-                  if (isDesktop)
-                    IntrinsicHeight(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(flex: 7, child: _buildGpsTableSection()),
-                          const VerticalDivider(width: 1, color: _border),
-                          Expanded(flex: 3, child: _buildGpsDetailsPanelSection()),
-                        ],
-                      ),
-                    )
-                  else ...[
-                    _buildGpsTableSection(),
-                    const Divider(height: 1),
-                    _buildGpsDetailsPanelSection(),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // ═══════════════════ GPS Filter Row ═══════════════════
-  Widget _buildGpsFiltersSection(double availableWidth) {
-    // 1. Sleek Search Input
-    final searchWidget = SizedBox(
-      height: 38,
-      child: TextField(
-        controller: _gpsSearchController,
-        onChanged: (val) => setState(() {
-          _gpsSearchQuery = val;
-          _gpsCurrentPage = 1;
-        }),
-        decoration: InputDecoration(
-          hintText: 'Search device ID, IMEI, bus...',
-          hintStyle: GoogleFonts.inter(fontSize: 12, color: _textSecondary),
-          prefixIcon: const Icon(Icons.search, size: 18, color: _textSecondary),
-          suffixIcon: _gpsSearchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear, size: 16, color: _textSecondary),
-                  onPressed: () {
-                    _gpsSearchController.clear();
-                    setState(() {
-                      _gpsSearchQuery = '';
-                      _gpsCurrentPage = 1;
-                    });
-                  },
-                )
-              : null,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _accent, width: 1.5)),
-        ),
-        style: GoogleFonts.inter(fontSize: 13),
-      ),
-    );
-
-    // 2. Status Dropdown
-    final statusWidget = SizedBox(
-      height: 38,
-      child: DropdownButtonFormField<String>(
-        initialValue: _gpsStatusFilter,
-        isExpanded: true,
-        decoration: InputDecoration(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-        ),
-        items: ['All', 'Online', 'Offline', 'Issues'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Status' : s, style: GoogleFonts.inter(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
-        onChanged: (val) => setState(() {
-          _gpsStatusFilter = val!;
-          _gpsCurrentPage = 1;
-        }),
-      ),
-    );
-
-    // 3. Provider Dropdown
-    final providerWidget = SizedBox(
-      height: 38,
-      child: DropdownButtonFormField<String>(
-        initialValue: _gpsProviderFilter,
-        isExpanded: true,
-        decoration: InputDecoration(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-        ),
-        items: ['All', 'Jio', 'Airtel', 'Vi'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Providers' : s, style: GoogleFonts.inter(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
-        onChanged: (val) => setState(() {
-          _gpsProviderFilter = val!;
-          _gpsCurrentPage = 1;
-        }),
-      ),
-    );
-
-    // 4. Vehicle Type Dropdown
-    final typeWidget = SizedBox(
-      height: 38,
-      child: DropdownButtonFormField<String>(
-        initialValue: _gpsVehicleFilter,
-        isExpanded: true,
-        decoration: InputDecoration(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-        ),
-        items: ['All', 'AC Bus', 'Non AC Bus', 'Mini Bus', 'Tempo Traveller', 'Electric Bus'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Types' : s, style: GoogleFonts.inter(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
-        onChanged: (val) => setState(() {
-          _gpsVehicleFilter = val!;
-          _gpsCurrentPage = 1;
-        }),
-      ),
-    );
-
-    // 5. Actions (Filters button + Refresh icon) with identical 38px height
-    final actionsWidget = Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        SizedBox(
-          height: 38,
-          child: OutlinedButton.icon(
-            onPressed: () {
-              setState(() {
-                // Toggle filter view if needed or apply filters
-              });
-            },
-            icon: const Icon(Icons.filter_list, size: 16),
-            label: Text('Filters', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500)),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: _textPrimary,
-              side: const BorderSide(color: _border),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-              minimumSize: const Size(0, 38),
-              maximumSize: const Size(double.infinity, 38),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 38,
-          height: 38,
-          child: IconButton(
-            icon: const Icon(Icons.refresh, size: 18, color: _textSecondary),
-            onPressed: () {
-              setState(() {
-                _gpsSearchController.clear();
-                _gpsSearchQuery = '';
-                _gpsStatusFilter = 'All';
-                _gpsProviderFilter = 'All';
-                _gpsVehicleFilter = 'All';
-                _gpsCurrentPage = 1;
-              });
-            },
-            style: IconButton.styleFrom(
-              side: const BorderSide(color: _border),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              padding: EdgeInsets.zero,
-              minimumSize: const Size(38, 38),
-              maximumSize: const Size(38, 38),
-            ),
-          ),
-        ),
-      ],
-    );
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          
-          // Large Screen / Desktop (>= 800px): Everything on 1 sleek line!
-          if (width >= 800) {
-            return Row(
-              children: [
-                SizedBox(width: 240, child: searchWidget),
-                const SizedBox(width: 10),
-                SizedBox(width: 130, child: statusWidget),
-                const SizedBox(width: 10),
-                SizedBox(width: 130, child: providerWidget),
-                const SizedBox(width: 10),
-                SizedBox(width: 140, child: typeWidget),
-                const Spacer(),
-                actionsWidget,
-              ],
-            );
-          }
-          
-          // Medium Screen / Tablet (500px to 800px): 2 clean rows
-          if (width >= 500) {
-            return Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(child: searchWidget),
-                    const SizedBox(width: 10),
-                    actionsWidget,
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(child: statusWidget),
-                    const SizedBox(width: 10),
-                    Expanded(child: providerWidget),
-                    const SizedBox(width: 10),
-                    Expanded(child: typeWidget),
-                  ],
-                ),
-              ],
-            );
-          }
-
-          // Small Screen / Mobile (< 500px): 3 clean compact rows
-          return Column(
-            children: [
-              searchWidget,
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(child: statusWidget),
-                  const SizedBox(width: 10),
-                  Expanded(child: providerWidget),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(child: typeWidget),
-                  const SizedBox(width: 10),
-                  actionsWidget,
-                ],
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  // ═══════════════════ GPS Devices Table ═══════════════════
-  Widget _buildGpsTableSection() {
-    final filtered = _filteredGpsDevices;
-    final totalCount = filtered.length;
-    final startIndex = (_gpsCurrentPage - 1) * _gpsPageSize;
-    final paginated = filtered.skip(startIndex).take(_gpsPageSize).toList();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 1100),
-            child: DataTable(
-              showCheckboxColumn: false,
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-              horizontalMargin: 16,
-              columnSpacing: 24,
-              columns: [
-                DataColumn(label: Text('Device ID', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('IMEI Number', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Provider', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Installed In', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Installed On', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Status', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Signal & Battery', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Expiry Date', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Actions', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _textPrimary))),
-              ],
-              rows: paginated.map((dev) {
-                final isSelected = _selectedGpsDevice != null && _selectedGpsDevice['id'] == dev['id'];
-                
-                // Expiry info
-                final expStr = dev['expiry_date'];
-                String daysLeftText = '';
-                bool isExpired = false;
-                bool isExpiringSoon = false;
-                if (expStr != null) {
-                  try {
-                    final exp = DateTime.parse(expStr);
-                    final diff = exp.difference(DateTime.now()).inDays;
-                    if (diff < 0) {
-                      isExpired = true;
-                      daysLeftText = '(${diff.abs()} Days Overdue)';
-                    } else {
-                      daysLeftText = '($diff Days Left)';
-                      if (diff <= 30) isExpiringSoon = true;
-                    }
-                  } catch (_) {}
-                }
-
-                return DataRow(
-                  selected: isSelected,
-                  onSelectChanged: (_) {
-                    setState(() {
-                      _selectedGpsDevice = dev;
-                    });
-                  },
-                  cells: [
-                    // Device ID
-                    DataCell(
-                      SizedBox(
-                        width: 130,
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(6)),
-                              child: const Icon(Icons.router, size: 16, color: _textSecondary),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(dev['device_id'] ?? '—', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary), overflow: TextOverflow.ellipsis),
-                                  Text(dev['model'] ?? 'GT06N', style: GoogleFonts.inter(fontSize: 10, color: _textSecondary), overflow: TextOverflow.ellipsis),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // IMEI Number
-                    DataCell(
-                      SizedBox(
-                        width: 140,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(dev['imei_no'] ?? '—', style: GoogleFonts.inter(fontSize: 12, color: _textPrimary), overflow: TextOverflow.ellipsis),
-                            Text(dev['sim_no'] ?? '—', style: GoogleFonts.inter(fontSize: 10, color: _textSecondary), overflow: TextOverflow.ellipsis),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Provider
-                    DataCell(
-                      SizedBox(
-                        width: 80,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(dev['operator'] ?? '—', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _textPrimary), overflow: TextOverflow.ellipsis),
-                            Text('4G', style: GoogleFonts.inter(fontSize: 10, color: _textSecondary)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Installed In
-                    DataCell(
-                      SizedBox(
-                        width: 120,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(dev['bus_routes']?['registration_no'] ?? dev['bus_routes']?['bus_number'] ?? 'Unassigned', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary), overflow: TextOverflow.ellipsis),
-                            Text(dev['bus_routes']?['vehicle_type'] ?? 'AC Bus', style: GoogleFonts.inter(fontSize: 10, color: _textSecondary), overflow: TextOverflow.ellipsis),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Installed On
-                    DataCell(
-                      SizedBox(
-                        width: 140,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(_formatDate(dev['installation_date']), style: GoogleFonts.inter(fontSize: 12, color: _textPrimary), overflow: TextOverflow.ellipsis),
-                            Text('by ${dev['installed_by'] ?? "Transport Manager"}', style: GoogleFonts.inter(fontSize: 10, color: _textSecondary), overflow: TextOverflow.ellipsis),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Status
-                    DataCell(
-                      SizedBox(
-                        width: 100,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _buildGpsStatusBadge(dev['status'] ?? 'Active'),
-                            const SizedBox(height: 2),
-                            Text(
-                              (dev['status'] ?? '').toLowerCase() == 'active' ? '2 mins ago' : '1 day ago', 
-                              style: GoogleFonts.inter(fontSize: 9, color: _textSecondary),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Signal & Battery
-                    DataCell(
-                      SizedBox(
-                        width: 130,
-                        child: Row(
-                          children: [
-                            _buildSignalIndicator(dev['signal_strength_pct'] ?? 100),
-                            const SizedBox(width: 8),
-                            _buildBatteryIndicator(dev['battery_level'] ?? 100),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Expiry Date
-                    DataCell(
-                      SizedBox(
-                        width: 120,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(_formatDate(dev['expiry_date']), style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _textPrimary), overflow: TextOverflow.ellipsis),
-                            if (daysLeftText.isNotEmpty)
-                              Text(daysLeftText, style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.bold, color: isExpired ? _red : (isExpiringSoon ? _orange : _green)), overflow: TextOverflow.ellipsis),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Actions
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.visibility_outlined, size: 16, color: _textSecondary),
-                            onPressed: () => setState(() => _selectedGpsDevice = dev),
-                            tooltip: 'View Details',
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.edit_outlined, size: 16, color: _accent),
-                            onPressed: () => _showEditGpsDeviceDialog(dev),
-                            tooltip: 'Edit Device',
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline, size: 16, color: _red),
-                            onPressed: () => _deleteGpsDevice(dev),
-                            tooltip: 'Delete Device',
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
-          ),
-        ),
-        
-        // Pagination Row
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Text(
-                'Showing ${totalCount == 0 ? 0 : startIndex + 1} to ${startIndex + paginated.length} of $totalCount devices',
-                style: GoogleFonts.inter(fontSize: 13, color: _textSecondary),
-              ),
-              const Spacer(),
-              
-              // Page size dropdown & Page controls
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: _border),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
-                        value: _gpsPageSize,
-                        items: [5, 10, 20, 50].map((size) {
-                          return DropdownMenuItem<int>(
-                            value: size,
-                            child: Text('$size / page', style: GoogleFonts.inter(fontSize: 12)),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          setState(() {
-                            _gpsPageSize = val!;
-                            _gpsCurrentPage = 1;
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left, size: 20),
-                    onPressed: _gpsCurrentPage > 1 ? () => setState(() => _gpsCurrentPage--) : null,
-                  ),
-                  const SizedBox(width: 8),
-                  Text('$_gpsCurrentPage', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold)),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right, size: 20),
-                    onPressed: startIndex + paginated.length < totalCount ? () => setState(() => _gpsCurrentPage++) : null,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ═══════════════════ GPS Details Panel ═══════════════════
-  Widget _buildGpsDetailsPanelSection() {
-    final doc = _selectedGpsDevice;
-    if (doc == null) {
-      return Container(
-        height: 250,
-        alignment: Alignment.center,
-        child: Text('Select a device to view details.', style: GoogleFonts.inter(color: _textSecondary)),
-      );
-    }
-
-    final isIssue = (doc['status'] ?? '').toString().toLowerCase() == 'faulty';
-    final isOffline = (doc['status'] ?? '').toString().toLowerCase() == 'offline';
-    final hasIssue = isIssue || (doc['battery_level'] ?? 100) < 20;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: Colors.white,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header Row
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(doc['device_id'] ?? '—', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: _textPrimary)),
-                      Text(doc['model'] ?? 'GT06N', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
-                    ],
-                  ),
-                ),
-                _buildGpsStatusBadge(doc['status'] ?? 'Active'),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Device Mock Visual Card
-            Container(
-              height: 100,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _border),
-              ),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.router, size: 40, color: _accent),
-                    const SizedBox(height: 4),
-                    Text(doc['firmware_version'] ?? 'GTO6N_V7.2.1', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: _textSecondary)),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Detail lines
-            _buildDocDetailRow('IMEI Number', doc['imei_no'] ?? '—'),
-            _buildDocDetailRow('SIM Number', doc['sim_no'] ?? '—'),
-            _buildDocDetailRow('Provider', doc['operator'] ?? '—'),
-            _buildDocDetailRow('Network', '4G'),
-            _buildDocDetailRow('Installed In', doc['bus_routes']?['registration_no'] ?? 'Unassigned'),
-            _buildDocDetailRow('Installed On', _formatDate(doc['installation_date'])),
-            _buildDocDetailRow('Installed By', doc['installed_by'] ?? 'Transport Manager'),
-            _buildDocDetailRow('Firmware Version', doc['firmware_version'] ?? 'GTO6N_V7.2.1'),
-            _buildDocDetailRow('Last Seen', (doc['status'] ?? '').toLowerCase() == 'active' ? '2 mins ago' : '1 day ago'),
-            
-            // Location block
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 4, child: Text('Current Location', style: GoogleFonts.inter(fontSize: 13, color: _textSecondary))),
-                  Expanded(
-                    flex: 6,
-                    child: Text(
-                      doc['current_location'] ?? 'Sector 62, Noida, UP \n28.6129° N, 77.3910° E',
-                      style: GoogleFonts.inter(fontSize: 13, color: _textPrimary, height: 1.3),
-                      textAlign: TextAlign.right,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            _buildDocDetailRow('Signal Strength', '${doc['signal_strength_pct'] ?? 100}%'),
-            _buildDocDetailRow('Battery Level', '${doc['battery_level'] ?? 100}%'),
-            
-            // Expiry Date row
-            _buildDocDetailRow('Expiry Date', _formatDate(doc['expiry_date'])),
-            
-            const SizedBox(height: 20),
-
-            // Action Buttons
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => _showLiveTrackingMapDialog(doc),
-                icon: const Icon(Icons.map_outlined, size: 16),
-                label: const Text('View Live Tracking'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _accent,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => _showDeviceHistoryDialog(doc),
-                icon: const Icon(Icons.history, size: 16),
-                label: const Text('Device History'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _accent,
-                  side: const BorderSide(color: _accent),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-
-            // Warning block if issues exist
-            if (hasIssue) ...[
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red[100]!),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.warning_amber_rounded, color: _red, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Device Issue', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _red)),
-                          const SizedBox(height: 2),
-                          Text(
-                            isIssue ? 'Critical: Device reports hardware fault or sensor failure.' : 'Low battery warning: Please connect the device to power source.',
-                            style: GoogleFonts.inter(fontSize: 11, color: _red, height: 1.3),
-                          ),
-                          const SizedBox(height: 4),
-                          Text('30 mins ago', style: GoogleFonts.inter(fontSize: 10, color: Colors.red[300])),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ═══════════════════ GPS Custom Indicators ═══════════════════
-  Widget _buildGpsStatusBadge(String status) {
-    Color bg = Colors.grey[100]!;
-    Color text = Colors.grey[700]!;
-    String label = status;
-
-    if (status.toLowerCase() == 'active' || status.toLowerCase() == 'online') {
-      bg = const Color(0xFFDCFCE7);
-      text = const Color(0xFF15803D);
-      label = 'Online';
-    } else if (status.toLowerCase() == 'offline') {
-      bg = const Color(0xFFF1F5F9);
-      text = const Color(0xFF475569);
-      label = 'Offline';
-    } else if (status.toLowerCase() == 'faulty' || status.toLowerCase() == 'issue') {
-      bg = const Color(0xFFFEE2E2);
-      text = const Color(0xFFB91C1C);
-      label = 'Issue';
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: text),
-      ),
-    );
-  }
-
-  Widget _buildSignalIndicator(int pct) {
-    Color color = Colors.red;
-    int bars = 1;
-    if (pct > 75) {
-      color = const Color(0xFF22C55E);
-      bars = 4;
-    } else if (pct > 50) {
-      color = const Color(0xFF22C55E);
-      bars = 3;
-    } else if (pct > 25) {
-      color = const Color(0xFFF59E0B);
-      bars = 2;
-    }
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: List.generate(4, (index) {
-        final active = index < bars;
-        return Container(
-          width: 3,
-          height: 4.0 + (index * 3.0),
-          margin: const EdgeInsets.symmetric(horizontal: 0.5),
-          decoration: BoxDecoration(
-            color: active ? color : Colors.grey[300],
-            borderRadius: BorderRadius.circular(1),
-          ),
-        );
-      }),
-    );
-  }
-
-  Widget _buildBatteryIndicator(int level) {
-    IconData icon = Icons.battery_alert;
-    Color color = _red;
-    if (level > 80) {
-      icon = Icons.battery_full;
-      color = _green;
-    } else if (level > 50) {
-      icon = Icons.battery_5_bar;
-      color = _green;
-    } else if (level > 20) {
-      icon = Icons.battery_3_bar;
-      color = _orange;
-    }
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: color, size: 14),
-        const SizedBox(width: 2),
-        Text('$level%', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
-      ],
-    );
-  }
-
-  // ═══════════════════ GPS CRUD dialogs ═══════════════════
-  void _showAddGpsDeviceDialog() {
-    final formKey = GlobalKey<FormState>();
-    final devIdCtrl = TextEditingController();
-    final imeiCtrl = TextEditingController();
-    final simCtrl = TextEditingController();
-    final modelCtrl = TextEditingController(text: 'GT06N');
-    final operatorCtrl = TextEditingController(text: 'Jio');
-    final installerCtrl = TextEditingController(text: 'Transport Manager');
-    final firmwareCtrl = TextEditingController(text: 'GTO6N_V7.2.1');
-    final locationCtrl = TextEditingController(text: 'Sector 62, Noida, UP');
-
-    String? selectedVehicleId = _vehicles.isNotEmpty ? _vehicles.first['id'].toString() : null;
-    String status = 'Active';
-    DateTime installDate = DateTime.now();
-    DateTime expiryDate = DateTime.now().add(const Duration(days: 365));
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text('Register GPS Device', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-              content: SizedBox(
-                width: 500,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(top: 10, bottom: 4),
-                  clipBehavior: Clip.none,
-                  child: Form(
-                    key: formKey,
-                    child: Column(
-                      children: [
-                        TextFormField(
-                          controller: devIdCtrl,
-                          decoration: const InputDecoration(labelText: 'Device ID', hintText: 'e.g. GPSD-1009'),
-                          validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: imeiCtrl,
-                          decoration: const InputDecoration(labelText: 'IMEI Number', hintText: 'e.g. 862345065432109'),
-                          validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: simCtrl,
-                          decoration: const InputDecoration(labelText: 'SIM Number', hintText: 'e.g. +919876543210'),
-                          validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          initialValue: selectedVehicleId,
-                          decoration: const InputDecoration(labelText: 'Select Vehicle'),
-                          items: _vehicles.map((v) {
-                            final reg = v['registration_no'] ?? v['bus_number'] ?? 'Vehicle';
-                            return DropdownMenuItem(value: v['id'].toString(), child: Text(reg));
-                          }).toList(),
-                          onChanged: (val) => setDialogState(() => selectedVehicleId = val),
-                          validator: (val) => val == null ? 'Required' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: modelCtrl,
-                                decoration: const InputDecoration(labelText: 'Model'),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
-                                controller: operatorCtrl,
-                                decoration: const InputDecoration(labelText: 'Operator / Provider'),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          initialValue: status,
-                          decoration: const InputDecoration(labelText: 'Status'),
-                          items: ['Active', 'Offline', 'Faulty'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                          onChanged: (val) => setDialogState(() => status = val!),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: InkWell(
-                                onTap: () async {
-                                  final picked = await showDatePicker(context: context, initialDate: installDate, firstDate: DateTime(2000), lastDate: DateTime(2100));
-                                  if (picked != null) setDialogState(() => installDate = picked);
-                                },
-                                child: InputDecorator(
-                                  decoration: const InputDecoration(labelText: 'Installation Date'),
-                                  child: Text(DateFormat('dd MMM yyyy').format(installDate)),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: InkWell(
-                                onTap: () async {
-                                  final picked = await showDatePicker(context: context, initialDate: expiryDate, firstDate: DateTime(2000), lastDate: DateTime(2100));
-                                  if (picked != null) setDialogState(() => expiryDate = picked);
-                                },
-                                child: InputDecorator(
-                                  decoration: const InputDecoration(labelText: 'Expiry Date'),
-                                  child: Text(DateFormat('dd MMM yyyy').format(expiryDate)),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (formKey.currentState!.validate()) {
-                      Navigator.pop(ctx);
-                      try {
-                        final data = {
-                          "school_id": "11111111-1111-1111-1111-111111111111",
-                          "device_id": devIdCtrl.text,
-                          "imei_no": imeiCtrl.text,
-                          "sim_no": simCtrl.text,
-                          "model": modelCtrl.text,
-                          "operator": operatorCtrl.text,
-                          "vehicle_id": selectedVehicleId,
-                          "status": status,
-                          "installation_date": DateFormat('yyyy-MM-dd').format(installDate),
-                          "expiry_date": DateFormat('yyyy-MM-dd').format(expiryDate),
-                          "installed_by": installerCtrl.text,
-                          "firmware_version": firmwareCtrl.text,
-                          "current_location": locationCtrl.text,
-                          "battery_level": 100,
-                          "signal_strength_pct": 100,
-                        };
-                        await ApiService().post('/transport/gps-devices', data);
-                        _loadAll();
-                      } catch (_) {}
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),
-                  child: const Text('Register'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _showEditGpsDeviceDialog(dynamic dev) {
-    final formKey = GlobalKey<FormState>();
-    final devIdCtrl = TextEditingController(text: dev['device_id']);
-    final imeiCtrl = TextEditingController(text: dev['imei_no']);
-    final simCtrl = TextEditingController(text: dev['sim_no']);
-    final modelCtrl = TextEditingController(text: dev['model']);
-    final operatorCtrl = TextEditingController(text: dev['operator']);
-    final installerCtrl = TextEditingController(text: dev['installed_by'] ?? 'Transport Manager');
-    final firmwareCtrl = TextEditingController(text: dev['firmware_version'] ?? 'GTO6N_V7.2.1');
-    final locationCtrl = TextEditingController(text: dev['current_location'] ?? 'Sector 62, Noida, UP');
-
-    String? selectedVehicleId = dev['vehicle_id']?.toString() ?? (_vehicles.isNotEmpty ? _vehicles.first['id'].toString() : null);
-    String status = dev['status'] ?? 'Active';
-    DateTime installDate = dev['installation_date'] != null ? DateTime.parse(dev['installation_date']) : DateTime.now();
-    DateTime expiryDate = dev['expiry_date'] != null ? DateTime.parse(dev['expiry_date']) : DateTime.now().add(const Duration(days: 365));
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text('Edit GPS Device', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-              content: SizedBox(
-                width: 500,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(top: 10, bottom: 4),
-                  clipBehavior: Clip.none,
-                  child: Form(
-                    key: formKey,
-                    child: Column(
-                      children: [
-                        TextFormField(
-                          controller: devIdCtrl,
-                          decoration: const InputDecoration(labelText: 'Device ID'),
-                          validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: imeiCtrl,
-                          decoration: const InputDecoration(labelText: 'IMEI Number'),
-                          validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: simCtrl,
-                          decoration: const InputDecoration(labelText: 'SIM Number'),
-                          validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          initialValue: selectedVehicleId,
-                          decoration: const InputDecoration(labelText: 'Select Vehicle'),
-                          items: _vehicles.map((v) {
-                            final reg = v['registration_no'] ?? v['bus_number'] ?? 'Vehicle';
-                            return DropdownMenuItem(value: v['id'].toString(), child: Text(reg));
-                          }).toList(),
-                          onChanged: (val) => setDialogState(() => selectedVehicleId = val),
-                          validator: (val) => val == null ? 'Required' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: modelCtrl,
-                                decoration: const InputDecoration(labelText: 'Model'),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
-                                controller: operatorCtrl,
-                                decoration: const InputDecoration(labelText: 'Operator / Provider'),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          initialValue: status,
-                          decoration: const InputDecoration(labelText: 'Status'),
-                          items: ['Active', 'Offline', 'Faulty'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                          onChanged: (val) => setDialogState(() => status = val!),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: InkWell(
-                                onTap: () async {
-                                  final picked = await showDatePicker(context: context, initialDate: installDate, firstDate: DateTime(2000), lastDate: DateTime(2100));
-                                  if (picked != null) setDialogState(() => installDate = picked);
-                                },
-                                child: InputDecorator(
-                                  decoration: const InputDecoration(labelText: 'Installation Date'),
-                                  child: Text(DateFormat('dd MMM yyyy').format(installDate)),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: InkWell(
-                                onTap: () async {
-                                  final picked = await showDatePicker(context: context, initialDate: expiryDate, firstDate: DateTime(2000), lastDate: DateTime(2100));
-                                  if (picked != null) setDialogState(() => expiryDate = picked);
-                                },
-                                child: InputDecorator(
-                                  decoration: const InputDecoration(labelText: 'Expiry Date'),
-                                  child: Text(DateFormat('dd MMM yyyy').format(expiryDate)),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (formKey.currentState!.validate()) {
-                      Navigator.pop(ctx);
-                      try {
-                        final data = {
-                          "device_id": devIdCtrl.text,
-                          "imei_no": imeiCtrl.text,
-                          "sim_no": simCtrl.text,
-                          "model": modelCtrl.text,
-                          "operator": operatorCtrl.text,
-                          "vehicle_id": selectedVehicleId,
-                          "status": status,
-                          "installation_date": DateFormat('yyyy-MM-dd').format(installDate),
-                          "expiry_date": DateFormat('yyyy-MM-dd').format(expiryDate),
-                          "installed_by": installerCtrl.text,
-                          "firmware_version": firmwareCtrl.text,
-                          "current_location": locationCtrl.text,
-                        };
-                        await ApiService().put('/transport/gps-devices/${dev['id']}', data);
-                        _loadAll();
-                      } catch (_) {}
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),
-                  child: const Text('Save Changes'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _deleteGpsDevice(dynamic dev) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: Text('Delete GPS Device', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-          content: Text('Are you sure you want to delete GPS Device ${dev['device_id']}? This action cannot be undone.'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(ctx);
-                try {
-                  await ApiService().delete('/transport/gps-devices/${dev['id']}');
-                  _loadAll();
-                } catch (_) {}
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   // ═══════════════════ Dialogs & Actions ═══════════════════
   void _showAddVehicleDialog() {
     final formKey = GlobalKey<FormState>();
@@ -6502,13 +5100,13 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                               width: double.infinity,
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
-                                color: _accent.withOpacity(0.08),
+                                color: _accent.withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: _accent.withOpacity(0.2)),
+                                border: Border.all(color: _accent.withValues(alpha: 0.2)),
                               ),
                               child: Row(
                                 children: [
-                                  Icon(Icons.auto_awesome, size: 16, color: _accent),
+                                  const Icon(Icons.auto_awesome, size: 16, color: _accent),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
@@ -6955,13 +5553,13 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                               width: double.infinity,
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
-                                color: _accent.withOpacity(0.08),
+                                color: _accent.withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: _accent.withOpacity(0.2)),
+                                border: Border.all(color: _accent.withValues(alpha: 0.2)),
                               ),
                               child: Row(
                                 children: [
-                                  Icon(Icons.auto_awesome, size: 16, color: _accent),
+                                  const Icon(Icons.auto_awesome, size: 16, color: _accent),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
@@ -7720,9 +6318,12 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           isExpanded: width != null,
+          dropdownColor: _cardBg,
+          iconEnabledColor: _textSecondary,
+          style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
           value: (value == 'All' || !list.contains(value)) ? null : value,
           hint: Text(hint, style: GoogleFonts.inter(fontSize: 13, color: _textSecondary), overflow: TextOverflow.ellipsis),
-          items: list.map((i) => DropdownMenuItem<String>(value: i, child: Text(i, style: GoogleFonts.inter(fontSize: 13), overflow: TextOverflow.ellipsis))).toList(),
+          items: list.map((i) => DropdownMenuItem<String>(value: i, child: Text(i, style: GoogleFonts.inter(fontSize: 13, color: _textPrimary), overflow: TextOverflow.ellipsis))).toList(),
           onChanged: onChanged,
         ),
       ),
@@ -7899,69 +6500,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       }
     } catch (_) {}
     return const LatLng(28.6129, 77.3910);
-  }
-
-  void _showDeviceHistoryDialog(dynamic doc) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: Text('GPS History Logs – ${doc['device_id']}', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-          content: SizedBox(
-            width: 500,
-            height: 400,
-            child: ListView.builder(
-              itemCount: 8,
-              itemBuilder: (context, index) {
-                final time = DateTime.now().subtract(Duration(minutes: index * 15));
-                final speedStr = index == 0 ? '0 km/h (Stopped)' : '${40 + index * 3} km/h';
-                final signalPct = index == 0 ? '0%' : '${80 - index * 2}%';
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Column(
-                        children: [
-                          Icon(index == 0 ? Icons.stop_circle : Icons.arrow_circle_up, color: index == 0 ? _red : _green, size: 20),
-                          if (index < 7)
-                            Container(width: 2, height: 40, color: Colors.grey[300]),
-                        ],
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(index == 0 ? 'Current Position' : 'Ping #${8 - index}', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary)),
-                                Text(DateFormat('hh:mm a').format(time), style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text('Location: Sector 62, Noida (28.6129° N, 77.3910° E)', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
-                            const SizedBox(height: 2),
-                            Text('Speed: $speedStr • Signal: $signalPct • Battery: ${doc['battery_level'] ?? 100}%', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
   }
 }
 

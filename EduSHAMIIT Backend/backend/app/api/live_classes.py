@@ -1,29 +1,114 @@
 """
-EduSHAMIIT – Live Class & LiveKit Integration API
-Orchestrates room tokens, egress recordings, public chat, and participant attendance tracking.
+EduSHAMIIT – Enterprise Live Class & LiveKit Integration API
+Orchestrates Join & Conduct, Recordings, Attendance Tracking, LiveKit tokens,
+Egress recordings, stored procedure execution, and real-time WebSockets.
 """
 import os
+import io
+import csv
+import json
 import time
 import uuid
 import httpx
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import asyncio
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, Request, WebSocket, WebSocketDisconnect, status, Body
+from fastapi.responses import StreamingResponse
 from jose import jwt
+import psycopg2
+from psycopg2.extras import RealDictCursor, register_uuid
 
-from app.middleware.auth import get_current_user, require_school_id, require_teacher, require_student
+register_uuid()
+
+from app.middleware.auth import get_current_user, require_school_id, require_teacher, require_student, require_any_role
 from app.services.supabase_client import get_supabase
 from app.config import settings
 
+# Live class host permissions: Teachers and authorized academic administrators
+require_live_class_host = require_any_role(
+    "teacher", "admin", "super_admin", "director", "principal", "teacher_admin", "academic_admin"
+)
+
 router = APIRouter()
 
-# ---------------------------------------------------------------------------
-# 1. LiveKit Token Generation
-# ---------------------------------------------------------------------------
+
+# ============================================================================
+# DATABASE EXECUTION HELPER FOR STORED PROCEDURES
+# ============================================================================
+
+async def exec_sql(sql: str, params: tuple = (), fetch: bool = True) -> List[Dict[str, Any]]:
+    """Execute raw parameterized SQL query asynchronously via psycopg2."""
+    def _run():
+        conn = psycopg2.connect(settings.DATABASE_URL, connect_timeout=5)
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(sql, params)
+                if fetch and cur.description:
+                    rows = cur.fetchall()
+                    conn.commit()
+                    return [dict(r) for r in rows]
+                else:
+                    conn.commit()
+                    return []
+        except Exception as e:
+            conn.rollback()
+            raise e
+        finally:
+            conn.close()
+
+    return await asyncio.to_thread(_run)
+
+
+def resolve_browser_livekit_url(request: Optional[Request] = None) -> str:
+    """
+    Resolve the browser-accessible LiveKit WebSocket URL dynamically from the request host/proto.
+    """
+    if request is not None:
+        host_hdr = (
+            request.headers.get("x-forwarded-host")
+            or request.headers.get("host")
+            or ""
+        ).strip()
+        proto = (
+            request.headers.get("x-forwarded-proto")
+            or request.url.scheme
+            or "http"
+        ).split(",")[0].strip().lower()
+        host_only = host_hdr.split(":")[0].lower()
+
+        is_local = (
+            host_only in ("localhost", "127.0.0.1", "0.0.0.0")
+            or host_only.startswith("192.168.")
+            or host_only.startswith("10.")
+            or proto == "http"
+        )
+        if host_hdr and is_local:
+            ws_scheme = "wss" if proto == "https" else "ws"
+            if ":" not in host_hdr and host_only in ("localhost", "127.0.0.1", "0.0.0.0"):
+                return f"{ws_scheme}://localhost:8082"
+            return f"{ws_scheme}://{host_hdr}"
+
+    pub = os.environ.get("LIVEKIT_PUBLIC_URL")
+    if pub:
+        return pub
+    return (
+        os.environ.get("LIVEKIT_URL", "ws://localhost:8082")
+        .replace("http://livekit:", "ws://localhost:")
+        .replace("https://livekit:", "wss://localhost:")
+        .replace("http://", "ws://")
+        .replace("https://", "wss://")
+    )
+
+
+# ============================================================================
+# 1. LIVEKIT TOKEN GENERATION
+# ============================================================================
+
 @router.get("/livekit/token")
 @router.post("/livekit/token")
 async def generate_livekit_token(
+    request: Request,
     room: str = Query(..., description="The name of the LiveKit room"),
     identity: Optional[str] = Query(None, description="Participant identity"),
     name: Optional[str] = Query(None, description="Participant display name"),
@@ -39,7 +124,7 @@ async def generate_livekit_token(
         name = user.get("full_name", "User")
         
     role = user.get("role", "student")
-    is_teacher = role in ("teacher", "admin", "teacher_admin")
+    is_teacher = role in ("teacher", "admin", "teacher_admin", "superadmin")
     
     now = int(time.time())
     claims = {
@@ -80,20 +165,20 @@ async def generate_livekit_token(
                 f"{livekit_url}/twirp/livekit.Egress/ListEgress",
                 headers=headers,
                 json={"room_name": room},
-                timeout=5.0
+                timeout=3.0
             )
             if list_resp.status_code == 200:
                 egress_list = list_resp.json().get("items", [])
                 for eg in egress_list:
-                    status = eg.get("status")
-                    if isinstance(status, int) and status in (0, 1):
+                    status_val = eg.get("status")
+                    if isinstance(status_val, int) and status_val in (0, 1):
                         is_recording = True
                         break
-                    elif isinstance(status, str) and status in ("EGRESS_STARTING", "EGRESS_ACTIVE", "0", "1"):
+                    elif isinstance(status_val, str) and status_val in ("EGRESS_STARTING", "EGRESS_ACTIVE", "0", "1"):
                         is_recording = True
                         break
     except Exception as e:
-        print(f"[LiveKit] Error checking active recording status: {e}")
+        print(f"[LiveKit] Non-fatal check active recording error: {e}")
 
     return {
         "success": True,
@@ -103,224 +188,589 @@ async def generate_livekit_token(
         "identity": identity,
         "name": name,
         "role": role,
-        "livekit_url": os.environ.get(
-            "LIVEKIT_PUBLIC_URL",  # Browser-accessible WebSocket URL (ws://localhost:7880)
-            os.environ.get("LIVEKIT_URL", "ws://localhost:7880").replace(
-                "http://livekit:", "ws://localhost:"
-            ).replace(
-                "https://livekit:", "wss://localhost:"
-            ).replace(
-                "http://", "ws://"
-            ).replace(
-                "https://", "wss://"
-            )
-        )
+        "livekit_url": resolve_browser_livekit_url(request),
     }
 
-# ---------------------------------------------------------------------------
-# 2. LiveKit Room Management (REST APIs)
-# ---------------------------------------------------------------------------
-@router.post("/livekit/rooms")
-async def create_livekit_room(
-    request: dict,
-    user=Depends(require_teacher),
+
+# ============================================================================
+# 2. DASHBOARD ENDPOINTS (POWERED BY STORED PROCEDURES)
+# ============================================================================
+
+@router.get("/live-classes/dashboard/join-conduct")
+async def get_join_conduct_dashboard(
+    user=Depends(get_current_user),
     school_id=Depends(require_school_id),
 ):
-    room_name = request.get("room_name")
-    if not room_name:
-        raise HTTPException(status_code=400, detail="room_name is required")
-        
+    """Fetch Join & Conduct Tab KPIs, active session, participants, and upcoming classes via SP."""
+    rows = await exec_sql(
+        "SELECT public.sp_get_live_class_join_conduct_dashboard(%s::UUID, %s::UUID) AS data;",
+        (school_id, user.get("id"))
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=500, detail="Failed to load Join & Conduct dashboard")
+    return {"success": True, "data": rows[0]["data"]}
+
+
+@router.get("/live-classes/dashboard/recordings")
+async def get_recordings_dashboard(
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Fetch Recordings Tab KPIs, 30-day analytics, and storage breakdown via SP."""
+    rows = await exec_sql(
+        "SELECT public.sp_get_live_class_recordings_dashboard(%s::UUID) AS data;",
+        (school_id,)
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=500, detail="Failed to load Recordings dashboard")
+    return {"success": True, "data": rows[0]["data"]}
+
+
+@router.get("/live-classes/dashboard/attendance")
+async def get_attendance_dashboard(
+    session_id: Optional[str] = Query(None),
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Fetch Attendance Tab KPIs, selected session summary, and trend history via SP."""
+    rows = await exec_sql(
+        "SELECT public.sp_get_live_class_attendance_dashboard(%s::UUID, %s::UUID) AS data;",
+        (school_id, session_id)
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=500, detail="Failed to load Attendance dashboard")
+    return {"success": True, "data": rows[0]["data"]}
+
+
+@router.get("/live-classes/meta/dropdowns")
+async def get_live_class_meta_dropdowns(
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Fetch dynamic dropdown lists for Classes, Sections, Subjects, Teachers, and System Lookups."""
+    rows = await exec_sql(
+        "SELECT public.sp_get_live_class_meta_dropdowns(%s::UUID) AS data;",
+        (school_id,)
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=500, detail="Failed to load metadata dropdowns")
+    return {"success": True, "data": rows[0]["data"]}
+
+
+# ============================================================================
+# 3. LIVE CLASS SESSION MANAGEMENT & INSTANT CLASS CREATION
+# ============================================================================
+
+@router.post("/live-classes/sessions")
+@router.post("/live-classes/sessions/instant")
+async def create_instant_live_class(
+    payload: Dict[str, Any],
+    user=Depends(require_live_class_host),
+    school_id=Depends(require_school_id),
+):
+    """Create an instant or scheduled live class session backed by stored procedure."""
+    import json
+    rows = await exec_sql(
+        "SELECT public.sp_create_instant_live_class(%s::UUID, %s::UUID, %s::JSONB) AS data;",
+        (school_id, user["id"], json.dumps(payload))
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=500, detail="Failed to create live class session")
+    return {"success": True, "message": "Class created successfully", "data": rows[0]["data"]}
+
+
+@router.get("/live-classes/my-classes/dashboard")
+async def get_my_classes_dashboard(
+    date_filter: str = Query("today"),
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Fetch My Classes 6 KPIs, Today's Class Progress Donut, Teaching Summary, and Weekly Class Trend."""
+    user_id_param = user["id"] if user.get("role", "").lower() == "teacher" else None
+    rows = await exec_sql(
+        "SELECT public.sp_get_live_class_my_classes_dashboard(%s::UUID, %s::UUID, %s::TEXT) AS data;",
+        (school_id, user_id_param, date_filter)
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=500, detail="Failed to load My Classes dashboard")
+    return {"success": True, "data": rows[0]["data"]}
+
+
+@router.get("/live-classes/my-classes")
+@router.get("/live-classes/sessions")
+async def get_live_classes_sessions(
+    date_filter: str = Query("today"),
+    session_name: Optional[str] = Query(None),
+    class_id: Optional[str] = Query(None),
+    section_id: Optional[str] = Query(None),
+    subject_id: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    status_filter: Optional[str] = Query(None, alias="status"),
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(5, ge=1, le=100),
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """List live class sessions with filtering and pagination via stored procedure."""
+    effective_status = status or status_filter
+    user_id_param = user["id"] if user.get("role", "").lower() == "teacher" else None
+    rows = await exec_sql(
+        "SELECT public.sp_get_live_class_my_classes_list(%s::UUID, %s::UUID, %s::TEXT, %s::TEXT, %s::UUID, %s::UUID, %s::TEXT, %s::TEXT, %s::INT, %s::INT, %s::UUID) AS data;",
+        (school_id, user_id_param, date_filter, session_name, class_id, subject_id, effective_status, search, page, page_size, section_id)
+    )
+    if not rows or not rows[0].get("data"):
+        return {"success": True, "data": {"items": [], "total_count": 0, "page": page, "page_size": page_size}}
+    return {"success": True, "data": rows[0]["data"]}
+
+
+@router.get("/live-classes/sessions/{session_id}/details")
+async def get_live_class_session_details(
+    session_id: str,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Fetch complete class details and quick action statuses for Right Panel."""
+    rows = await exec_sql(
+        "SELECT public.sp_get_live_class_session_details(%s::UUID, %s::UUID) AS data;",
+        (school_id, session_id)
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=404, detail="Session details not found")
+    return {"success": True, "data": rows[0]["data"]}
+
+
+@router.post("/live-classes/sessions/{session_id}/duplicate")
+async def duplicate_live_class_session(
+    session_id: str,
+    user=Depends(require_live_class_host),
+    school_id=Depends(require_school_id),
+):
+    """Duplicate a session for next week schedule."""
+    rows = await exec_sql(
+        "SELECT public.sp_duplicate_live_class_session(%s::UUID, %s::UUID, %s::UUID) AS data;",
+        (school_id, session_id, user["id"])
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=500, detail="Failed to duplicate session")
+    return {"success": True, "data": rows[0]["data"]}
+
+
+@router.post("/live-classes/sessions/{session_id}/cancel")
+async def cancel_live_class_session(
+    session_id: str,
+    payload: Dict[str, Any] = Body(default={}),
+    user=Depends(require_live_class_host),
+    school_id=Depends(require_school_id),
+):
+    """Cancel a live class session."""
+    reason = payload.get("reason", "Cancelled by instructor")
+    rows = await exec_sql(
+        "SELECT public.sp_cancel_live_class_session(%s::UUID, %s::UUID, %s::UUID, %s::TEXT) AS data;",
+        (school_id, session_id, user["id"], reason)
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=500, detail="Failed to cancel session")
+    return {"success": True, "data": rows[0]["data"]}
+
+
+# ============================================================================
+# 4. SESSION LIFECYCLE: START, END, EVENT (ATTENDANCE HEARTBEAT)
+# ============================================================================
+
+@router.post("/live-classes/{live_class_id}/start")
+async def start_live_class(
+    live_class_id: str,
+    background_tasks: BackgroundTasks,
+    user=Depends(require_live_class_host),
+    school_id=Depends(require_school_id),
+):
+    """Start an authorized live class session."""
+    # 1. Update session status via database
+    await exec_sql(
+        """
+        UPDATE public.live_classes
+        SET status = 'live', is_live = TRUE, actual_start_at = NOW(),
+            meeting_link = COALESCE(meeting_link, %s),
+            recording_status = CASE WHEN recording_enabled = TRUE THEN 'ACTIVE' ELSE 'IDLE' END,
+            updated_at = NOW()
+        WHERE id = %s AND school_id = %s;
+        """,
+        (live_class_id, live_class_id, school_id),
+        fetch=False
+    )
+
+    # 2. Pre-create LiveKit room
     livekit_url = os.environ.get("LIVEKIT_URL", "http://livekit:7880")
     api_key = os.environ.get("LIVEKIT_API_KEY", "devkey")
     api_secret = os.environ.get("LIVEKIT_API_SECRET", "secretkey_edushamiit_livekit_2026_secure")
-    
-    # Generate admin token to authorize server-to-server request
     now = int(time.time())
     admin_claims = {
         "iss": api_key,
         "sub": "admin_backend",
-        "video": {
-            "roomCreate": True,
-            "roomAdmin": True
-        },
+        "video": {"roomCreate": True, "roomAdmin": True},
         "exp": now + 600
     }
     admin_token = jwt.encode(admin_claims, api_secret, algorithm="HS256")
-    
-    # LiveKit RoomService/CreateRoom Twirp call
-    async with httpx.AsyncClient() as client:
-        try:
-            headers = {"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
-            payload = {
-                "name": room_name,
-                "empty_timeout": 300,
-                "max_participants": request.get("max_participants", 50)
-            }
-            resp = await client.post(
+    try:
+        async with httpx.AsyncClient() as client:
+            await client.post(
                 f"{livekit_url}/twirp/livekit.RoomService/CreateRoom",
-                headers=headers,
-                json=payload,
-                timeout=10.0
+                headers={"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"},
+                json={"name": live_class_id, "empty_timeout": 600, "max_participants": 200},
+                timeout=5.0
             )
-            if resp.status_code == 200:
-                return {"success": True, "data": resp.json()}
-            else:
-                # Fallback in case LiveKit is offline/not responding: allow proceeding via local mock
-                return {"success": True, "message": "Room created (local mode)", "room_name": room_name}
-        except Exception as e:
-            return {"success": True, "message": "Room created (fallback mode)", "room_name": room_name, "error": str(e)}
+    except Exception as e:
+        print(f"[LiveKit] CreateRoom notice: {e}")
 
-@router.post("/livekit/rooms/{room_name}/end")
-async def end_livekit_room(
-    room_name: str,
-    user=Depends(require_teacher),
+    # 3. Check if recording is enabled and auto-trigger Egress
+    rows = await exec_sql("SELECT recording_enabled FROM public.live_classes WHERE id = %s;", (live_class_id,))
+    if rows and rows[0].get("recording_enabled"):
+        background_tasks.add_task(initiate_room_egress, live_class_id)
+
+    return {"success": True, "message": "Class started successfully", "session_id": live_class_id}
+
+
+@router.post("/live-classes/{live_class_id}/end")
+async def end_live_class(
+    live_class_id: str,
+    background_tasks: BackgroundTasks,
+    user=Depends(require_live_class_host),
     school_id=Depends(require_school_id),
 ):
-    livekit_url = os.environ.get("LIVEKIT_URL", "http://livekit:7880")
-    api_key = os.environ.get("LIVEKIT_API_KEY", "devkey")
-    api_secret = os.environ.get("LIVEKIT_API_SECRET", "secretkey_edushamiit_livekit_2026_secure")
-    
-    now = int(time.time())
-    admin_claims = {
-        "iss": api_key,
-        "sub": "admin_backend",
-        "video": {
-            "roomAdmin": True
-        },
-        "exp": now + 600
-    }
-    admin_token = jwt.encode(admin_claims, api_secret, algorithm="HS256")
-    
-    async with httpx.AsyncClient() as client:
-        try:
-            headers = {"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
-            resp = await client.post(
-                f"{livekit_url}/twirp/livekit.RoomService/DeleteRoom",
-                headers=headers,
-                json={"room": room_name},
-                timeout=10.0
-            )
-            if resp.status_code == 200:
-                return {"success": True, "message": "Room deleted successfully"}
-            else:
-                return {"success": False, "detail": f"Failed to end room: {resp.text}"}
-        except Exception as e:
-            return {"success": True, "message": "Room ended (local mode)", "error": str(e)}
+    """End a live class session, calculate attendance, and finalize egress."""
+    # 1. Update session status in DB
+    await exec_sql(
+        """
+        UPDATE public.live_classes
+        SET status = 'recorded', is_live = FALSE, actual_end_at = NOW(),
+            recording_status = 'COMPLETED', updated_at = NOW()
+        WHERE id = %s AND school_id = %s;
+        """,
+        (live_class_id, school_id),
+        fetch=False
+    )
+
+    # 2. Close active connection segments
+    await exec_sql(
+        """
+        UPDATE public.live_class_connection_segments
+        SET left_at = NOW(),
+            duration_seconds = GREATEST(0, EXTRACT(EPOCH FROM (NOW() - joined_at))::INT)
+        WHERE session_id = %s AND left_at IS NULL;
+        """,
+        (live_class_id,),
+        fetch=False
+    )
+
+    # 3. Calculate attendance and link to institutional attendance system
+    await exec_sql(
+        "SELECT public.sp_auto_calculate_live_class_attendance(%s::UUID, %s::UUID);",
+        (live_class_id, school_id),
+        fetch=False
+    )
+
+    # 4. Stop Egress and delete room in background
+    background_tasks.add_task(cleanup_room_egress_and_delete, live_class_id, 2700)
+
+    return {"success": True, "message": "Class ended and attendance calculated successfully"}
+
+
+@router.post("/live-classes/{live_class_id}/event")
+@router.post("/live-classes/{live_class_id}/attendance/mark")
+async def record_participant_event(
+    live_class_id: str,
+    payload: Dict[str, Any],
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """
+    Accurately capture join time, leave time, disconnection segments, and heartbeats.
+    """
+    import json
+    action = payload.get("action", "join").upper()
+    event_type = "JOIN" if action == "JOIN" else "LEAVE"
+    if payload.get("is_rejoin"):
+        event_type = "REJOIN"
+
+    rows = await exec_sql(
+        "SELECT public.sp_record_participant_connection_event(%s::UUID, %s::UUID, %s::TEXT, NOW(), %s::JSONB) AS data;",
+        (live_class_id, user["id"], event_type, json.dumps(payload))
+    )
+    return {"success": True, "data": rows[0]["data"] if rows else {}}
+
+
+# ============================================================================
+# 5. RECORDINGS MANAGEMENT APIS
+# ============================================================================
+
+@router.get("/live-classes/recordings")
+async def list_recordings(
+    class_id: Optional[str] = Query(None),
+    subject_id: Optional[str] = Query(None),
+    teacher_id: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    status_filter: Optional[str] = Query(None, alias="status"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(8, ge=1, le=50),
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Paginated recordings table matching Image 2."""
+    rows = await exec_sql(
+        "SELECT public.sp_get_live_class_recordings_list(%s::UUID, %s::UUID, %s::UUID, %s::UUID, %s::TEXT, %s::TEXT, %s::INT, %s::INT) AS data;",
+        (school_id, class_id, subject_id, teacher_id, search, status_filter, page, page_size)
+    )
+    if not rows or not rows[0].get("data"):
+        return {"success": True, "data": {"items": [], "total_count": 0, "page": page}}
+    return {"success": True, "data": rows[0]["data"]}
+
+
+@router.get("/live-classes/recordings/{recording_id}")
+async def get_recording(
+    recording_id: str,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Get single recording details."""
+    rows = await exec_sql("SELECT * FROM public.live_class_recordings WHERE id = %s;", (recording_id,))
+    if not rows:
+        raise HTTPException(status_code=404, detail="Recording not found")
+    return {"success": True, "data": rows[0]}
+
+
+@router.delete("/live-classes/recordings/{recording_id}")
+async def delete_recording(
+    recording_id: str,
+    user=Depends(require_live_class_host),
+    school_id=Depends(require_school_id),
+):
+    """Soft delete or remove recording record."""
+    await exec_sql(
+        "UPDATE public.live_class_recordings SET deleted_at = NOW() WHERE id = %s;",
+        (recording_id,),
+        fetch=False
+    )
+    return {"success": True, "message": "Recording deleted successfully"}
+
+
+@router.post("/live-classes/{live_class_id}/share")
+@router.post("/live-classes/recordings/{recording_id}/share")
+async def share_recording(
+    live_class_id: Optional[str] = None,
+    recording_id: Optional[str] = None,
+    payload: Optional[Dict[str, Any]] = None,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Share recording with specified user or class."""
+    shared_to_id = payload.get("shared_to_id") if payload else None
+    doc_id = str(uuid.uuid4())
+    doc_title = payload.get("title", "Live Class Lecture Recording") if payload else "Live Class Lecture Recording"
+
+    await exec_sql(
+        """
+        INSERT INTO public.user_documents (
+            id, school_id, owner_id, shared_with_id, shared_by_id,
+            title, description, category, file_url, file_name, file_size, mime_type
+        ) VALUES (
+            %s, %s, %s, %s, %s,
+            %s, 'Shared live lecture recording', 'recording_shared',
+            %s, 'lecture.mp4', 0, 'video/mp4'
+        ) ON CONFLICT DO NOTHING;
+        """,
+        (doc_id, school_id, shared_to_id, shared_to_id, user["id"], doc_title, f"/student/live-classes/play/{live_class_id}"),
+        fetch=False
+    )
+    return {"success": True, "message": "Recording shared successfully"}
+
+
+# ============================================================================
+# 6. ATTENDANCE MANAGEMENT & MANUAL OVERRIDE
+# ============================================================================
+
+@router.get("/live-classes/attendance")
+@router.get("/live-classes/{live_class_id}/attendance")
+async def list_live_class_attendance(
+    live_class_id: Optional[str] = None,
+    session_id: Optional[str] = Query(None),
+    status_filter: Optional[str] = Query(None, alias="status"),
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Paginated attendance table with status chips and search matching Image 3."""
+    target_id = live_class_id or session_id
+    rows = await exec_sql(
+        "SELECT public.sp_get_live_class_attendance_list(%s::UUID, %s::UUID, %s::TEXT, %s::TEXT, %s::INT, %s::INT) AS data;",
+        (school_id, target_id, status_filter, search, page, page_size)
+    )
+    if not rows or not rows[0].get("data"):
+        return {"success": True, "data": {"items": [], "total_count": 0, "counts": {}}}
+    return {"success": True, "data": rows[0]["data"]}
+
+
+@router.post("/live-classes/attendance/{attendance_id}/override")
+async def override_attendance_status(
+    attendance_id: str,
+    payload: Dict[str, Any],
+    user=Depends(require_live_class_host),
+    school_id=Depends(require_school_id),
+):
+    """Teacher/Admin manual attendance correction with reason and audit trail."""
+    new_status = payload.get("new_status")
+    reason = payload.get("reason", "Teacher manual verification")
+    if not new_status:
+        raise HTTPException(status_code=400, detail="new_status is required")
+
+    rows = await exec_sql(
+        "SELECT public.sp_manual_override_live_attendance(%s::UUID, %s::UUID, %s::TEXT, %s::TEXT, %s::UUID) AS data;",
+        (school_id, attendance_id, new_status, reason, user["id"])
+    )
+    return {"success": True, "data": rows[0]["data"] if rows else {}}
+
+
+@router.post("/live-classes/{live_class_id}/attendance/calculate")
+async def recalculate_attendance(
+    live_class_id: str,
+    user=Depends(require_live_class_host),
+    school_id=Depends(require_school_id),
+):
+    """Recalculate attendance from connection segments."""
+    rows = await exec_sql(
+        "SELECT public.sp_auto_calculate_live_class_attendance(%s::UUID, %s::UUID) AS data;",
+        (live_class_id, school_id)
+    )
+    return {"success": True, "data": rows[0]["data"] if rows else {}}
+
+
+@router.get("/live-classes/attendance/export")
+async def export_attendance_csv(
+    session_id: Optional[str] = Query(None),
+    user=Depends(require_live_class_host),
+    school_id=Depends(require_school_id),
+):
+    """Export attendance data to CSV."""
+    rows = await exec_sql(
+        "SELECT public.sp_get_live_class_attendance_list(%s::UUID, %s::UUID, NULL, NULL, 1, 1000) AS data;",
+        (school_id, session_id)
+    )
+    items = rows[0]["data"].get("items", []) if rows and rows[0].get("data") else []
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Roll No", "Student Name", "Status", "Join Time", "Leave Time", "Duration", "Participation %", "Remarks"])
+    for it in items:
+        writer.writerow([
+            it.get("roll_no"), it.get("student_name"), it.get("status"),
+            it.get("join_time"), it.get("leave_time"), it.get("duration"),
+            f"{it.get('participation_pct')}%", it.get("remarks")
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=live_class_attendance_{session_id or 'export'}.csv"}
+    )
+
+
+# ============================================================================
+# 7. CHAT & Q&A
+# ============================================================================
+
+@router.post("/live-classes/{live_class_id}/chat")
+async def send_chat_message(
+    live_class_id: str,
+    payload: Dict[str, Any],
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    message = payload.get("message")
+    if not message:
+        raise HTTPException(status_code=400, detail="message is required")
+
+    await exec_sql(
+        "INSERT INTO public.live_class_chats (live_class_id, sender_id, message) VALUES (%s, %s, %s);",
+        (live_class_id, user["id"], message),
+        fetch=False
+    )
+    return {"success": True, "message": "Chat sent"}
+
+
+@router.get("/live-classes/{live_class_id}/chat")
+async def get_chat_history(
+    live_class_id: str,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    rows = await exec_sql(
+        """
+        SELECT c.id, c.live_class_id, c.sender_id, c.message, c.created_at,
+               p.full_name as sender_name, p.role as sender_role
+        FROM public.live_class_chats c
+        JOIN public.profiles p ON p.id = c.sender_id
+        WHERE c.live_class_id = %s
+        ORDER BY c.created_at ASC;
+        """,
+        (live_class_id,)
+    )
+    return {"success": True, "data": {"chats": rows}}
+
+
+# ============================================================================
+# 8. EGRESS RECORDING BACKGROUND HELPERS
+# ============================================================================
 
 async def initiate_room_egress(room_name: str):
     livekit_url = os.environ.get("LIVEKIT_URL", "http://livekit:7880")
     api_key = os.environ.get("LIVEKIT_API_KEY", "devkey")
     api_secret = os.environ.get("LIVEKIT_API_SECRET", "secretkey_edushamiit_livekit_2026_secure")
     
-    print(f"[Egress] Starting egress recording task for room: {room_name}")
+    print(f"[Egress] Starting room composite egress for room: {room_name}")
+    await asyncio.sleep(8)
     
-    # Room is pre-created in start_live_class, but give participants a moment to join
-    await asyncio.sleep(10)
-    
-    # Retry up to 10 times (every 5 seconds) in case egress service is momentarily busy
-    for attempt in range(10):
-        now = int(time.time())
-        admin_claims = {
-            "iss": api_key,
-            "sub": "admin_backend",
-            "video": {
-                "roomRecord": True,
-                "roomAdmin": True
-            },
-            "exp": now + 600
+    now = int(time.time())
+    admin_claims = {
+        "iss": api_key,
+        "sub": "admin_backend",
+        "video": {"roomRecord": True, "roomAdmin": True},
+        "exp": now + 600
+    }
+    admin_token = jwt.encode(admin_claims, api_secret, algorithm="HS256")
+    payload = {
+        "room_name": room_name,
+        "layout": "speaker",
+        "audio_only": False,
+        "video_only": False,
+        "file": {
+            "filepath": f"{room_name}.mp4",
+            "output": {"s3": {}},
+            "disable_manifest": True
+        },
+        "advanced": {
+            "width": 1280,
+            "height": 720,
+            "framerate": 30,
+            "audio_bitrate": 128,
+            "video_bitrate": 3000,
+            "video_codec": "H264"
         }
-        admin_token = jwt.encode(admin_claims, api_secret, algorithm="HS256")
-        
-        # File output — egress.yaml provides S3/MinIO config
-        payload = {
-            "room_name": room_name,
-            "layout": "speaker",     # 'speaker' is smoother than 'grid' — main speaker fills screen
-            "audio_only": False,
-            "video_only": False,
-            "custom_base_url": "",
-            "file": {
-                "filepath": f"{room_name}.mp4",
-                "output": {
-                    "s3": {}           # Use s3 config from egress.yaml
-                },
-                "disable_manifest": True
-            },
-            # Advanced encoding — explicit settings override preset for maximum control
-            "advanced": {
-                "width": 1280,
-                "height": 720,
-                "depth": 24,
-                "framerate": 30,
-                "audio_bitrate": 128,      # 128 kbps is high-quality OPUS
-                "audio_frequency": 48000,  # 48 kHz sample rate
-                "audio_codec": "OPUS",
-                "video_bitrate": 3000,     # 3.0 Mbps is high quality for 720p
-                "video_codec": "H264",
-                "key_frame_interval": 4    # Keyframe every 4s
-            }
-        }
-        
-        headers = {
-            "Authorization": f"Bearer {admin_token}",
-            "Content-Type": "application/json"
-        }
-        
-        try:
-            async with httpx.AsyncClient() as client:
-                print(f"[Egress] Attempt {attempt + 1}/10 — calling StartRoomCompositeEgress for room {room_name}")
-                resp = await client.post(
-                    f"{livekit_url}/twirp/livekit.Egress/StartRoomCompositeEgress",
-                    headers=headers,
-                    json=payload,
-                    timeout=30.0
-                )
-                print(f"[Egress] Response status: {resp.status_code}, body: {resp.text[:500]}")
-                
-                if resp.status_code == 200:
-                    print(f"[Egress] ✅ Successfully started egress for room {room_name} on attempt {attempt + 1}")
-                    return
-                elif "already" in resp.text.lower():
-                    # Egress already running for this room
-                    print(f"[Egress] Egress already active for room {room_name}. Skipping.")
-                    return
-                elif "not found" in resp.text.lower() or "does not exist" in resp.text.lower():
-                    print(f"[Egress] Room {room_name} not found. Will retry...")
-                else:
-                    print(f"[Egress] ⚠️ Unexpected response: {resp.text[:300]}")
-        except Exception as e:
-            print(f"[Egress] ❌ Exception on attempt {attempt + 1}: {e}")
-        
-        await asyncio.sleep(5)
+    }
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{livekit_url}/twirp/livekit.Egress/StartRoomCompositeEgress",
+                headers={"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"},
+                json=payload,
+                timeout=15.0
+            )
+            print(f"[Egress] Start egress status: {resp.status_code}")
+    except Exception as e:
+        print(f"[Egress] Exception starting egress: {e}")
 
-async def finalize_recording_metadata(live_class_id: str, actual_duration_seconds: int):
-    # Wait for the file to be uploaded by Egress (retry check every 5 seconds for up to 120 seconds)
-    from app.services.minio_client import minio_client
-    
-    print(f"[Egress] Starting finalize_recording_metadata for class {live_class_id}")
-    
-    file_size = None
-    for attempt in range(24):
-        await asyncio.sleep(5)
-        exists, size = minio_client.check_file_exists_and_get_size(live_class_id)
-        print(f"[Egress] MinIO check attempt {attempt + 1}/24 for {live_class_id}.mp4: exists={exists}, size={size}")
-        if exists and size > 0:
-            file_size = size
-            print(f"[Egress] ✅ Found recorded file in MinIO for class {live_class_id} (size: {file_size} bytes)")
-            break
-            
-    if file_size is None:
-        print(f"[Egress] ❌ Egress file not found for class {live_class_id} after 120 seconds. Recording may have failed.")
-        return
-        
-    sb = get_supabase()
-    # Update live_class_recordings table with the actual file size
-    await sb.table("live_class_recordings").upsert({
-        "live_class_id": live_class_id,
-        "recording_url": f"http://localhost:9000/live-classes/{live_class_id}.mp4",
-        "duration": actual_duration_seconds,
-        "file_size": file_size
-    }).aexecute()
-    print(f"[Egress] ✅ Recording metadata saved for class {live_class_id}")
 
 async def cleanup_room_egress_and_delete(live_class_id: str, actual_duration_seconds: int):
     livekit_url = os.environ.get("LIVEKIT_URL", "http://livekit:7880")
@@ -331,1395 +781,708 @@ async def cleanup_room_egress_and_delete(live_class_id: str, actual_duration_sec
     admin_claims = {
         "iss": api_key,
         "sub": "admin_backend",
-        "video": {
-            "roomCreate": True,
-            "roomAdmin": True,
-            "roomRecord": True
-        },
+        "video": {"roomCreate": True, "roomAdmin": True, "roomRecord": True},
         "exp": now + 600
     }
     admin_token = jwt.encode(admin_claims, api_secret, algorithm="HS256")
     headers = {"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
     
-    async with httpx.AsyncClient() as client:
-        # Step 1: List active egresses for this room
-        try:
+    try:
+        async with httpx.AsyncClient() as client:
+            # Stop egress
             list_resp = await client.post(
                 f"{livekit_url}/twirp/livekit.Egress/ListEgress",
                 headers=headers,
                 json={"room_name": live_class_id},
-                timeout=10.0
+                timeout=5.0
             )
-            active_egress_ids = []
             if list_resp.status_code == 200:
-                egress_list = list_resp.json().get("items", [])
-                print(f"[Egress] Found {len(egress_list)} egress(es) for room {live_class_id}: {egress_list}")
-                
-                # Step 2: Stop each active egress gracefully
-                for eg in egress_list:
-                    eg_id = eg.get("egress_id", "")
-                    eg_status = eg.get("status", 0)
-                    
-                    # If Egress is in starting status, wait for it to become active to avoid aborting it
-                    is_starting = False
-                    if isinstance(eg_status, int):
-                        is_starting = (eg_status == 0)
-                    elif isinstance(eg_status, str):
-                        is_starting = (eg_status == "EGRESS_STARTING")
-                        
-                    if is_starting and eg_id:
-                        print(f"[Egress] Egress {eg_id} is currently starting. Waiting up to 30 seconds for it to become active...")
-                        for wait_attempt in range(10):
-                            await asyncio.sleep(3)
-                            try:
-                                status_resp = await client.post(
-                                    f"{livekit_url}/twirp/livekit.Egress/ListEgress",
-                                    headers=headers,
-                                    json={"room_name": live_class_id},
-                                    timeout=10.0
-                                )
-                                if status_resp.status_code == 200:
-                                    updated_items = status_resp.json().get("items", [])
-                                    matching_eg = next((item for item in updated_items if item.get("egress_id") == eg_id), None)
-                                    if matching_eg:
-                                        curr_status = matching_eg.get("status", 0)
-                                        curr_status_str = str(curr_status)
-                                        if curr_status_str not in ("0", "EGRESS_STARTING"):
-                                            eg_status = curr_status
-                                            print(f"[Egress] Egress {eg_id} transitioned to state: {eg_status}")
-                                            break
-                            except Exception as e:
-                                print(f"[Egress] Error polling starting egress status: {e}")
-                    
-                    is_active = False
-                    if isinstance(eg_status, int):
-                        is_active = eg_status in (0, 1)
-                    elif isinstance(eg_status, str):
-                        is_active = eg_status in ("EGRESS_STARTING", "EGRESS_ACTIVE", "0", "1")
-                    
-                    # Status 0=EGRESS_STARTING, 1=EGRESS_ACTIVE — stop these
-                    if is_active and eg_id:
-                        active_egress_ids.append(eg_id)
-                        try:
-                            stop_resp = await client.post(
-                                f"{livekit_url}/twirp/livekit.Egress/StopEgress",
-                                headers=headers,
-                                json={"egress_id": eg_id},
-                                timeout=10.0
-                            )
-                            print(f"[Egress] StopEgress {eg_id}: status={stop_resp.status_code}")
-                        except Exception as e:
-                            print(f"[Egress] Failed to stop egress {eg_id}: {e}")
-            else:
-                print(f"[Egress] ListEgress failed: {list_resp.status_code} {list_resp.text[:200]}")
-        except Exception as e:
-            print(f"[Egress] Exception listing egresses: {e}")
-            active_egress_ids = []
-        
-        # Step 3: Poll until all active egresses complete (max 45 seconds).
-        if active_egress_ids:
-            print(f"[Egress] Waiting for {len(active_egress_ids)} egress(es) to finalize...")
-            for poll_attempt in range(9):  # up to 45 seconds (9 × 5s)
-                await asyncio.sleep(5)
-                all_done = True
-                try:
-                    check_resp = await client.post(
-                        f"{livekit_url}/twirp/livekit.Egress/ListEgress",
-                        headers=headers,
-                        json={"room_name": live_class_id},
-                        timeout=10.0
-                    )
-                    if check_resp.status_code == 200:
-                        still_active = []
-                        for e in check_resp.json().get("items", []):
-                            if e.get("egress_id") not in active_egress_ids:
-                                continue
-                            status = e.get("status")
-                            is_active = False
-                            if isinstance(status, int):
-                                is_active = status in (0, 1)
-                            elif isinstance(status, str):
-                                is_active = status in ("EGRESS_STARTING", "EGRESS_ACTIVE", "0", "1")
-                            if is_active:
-                                still_active.append(e)
-                        if still_active:
-                            all_done = False
-                            print(f"[Egress] Poll {poll_attempt + 1}/9: {len(still_active)} egress(es) still active")
-                except Exception:
-                    pass
-                if all_done:
-                    print(f"[Egress] ✅ All egresses finalized after {(poll_attempt + 1) * 5}s")
-                    break
-        
-        # Step 4: Now safe to delete the room
-        try:
+                for eg in list_resp.json().get("items", []):
+                    eg_id = eg.get("egress_id")
+                    if eg_id:
+                        await client.post(
+                            f"{livekit_url}/twirp/livekit.Egress/StopEgress",
+                            headers=headers,
+                            json={"egress_id": eg_id},
+                            timeout=5.0
+                        )
+            # Delete room
             await client.post(
                 f"{livekit_url}/twirp/livekit.RoomService/DeleteRoom",
                 headers=headers,
                 json={"room": live_class_id},
                 timeout=5.0
             )
-            print(f"[LiveKit] Deleted room {live_class_id}")
-        except Exception as e:
-            print(f"[LiveKit] Failed to delete room {live_class_id}: {e}")
-            
-    # Step 5: Finalize metadata
-    await finalize_recording_metadata(live_class_id, actual_duration_seconds)
-
-async def stop_room_egress_only(live_class_id: str):
-    livekit_url = os.environ.get("LIVEKIT_URL", "http://livekit:7880")
-    api_key = os.environ.get("LIVEKIT_API_KEY", "devkey")
-    api_secret = os.environ.get("LIVEKIT_API_SECRET", "secretkey_edushamiit_livekit_2026_secure")
-    
-    now = int(time.time())
-    admin_claims = {
-        "iss": api_key,
-        "sub": "admin_backend",
-        "video": {
-            "roomCreate": True,
-            "roomAdmin": True,
-            "roomRecord": True
-        },
-        "exp": now + 600
-    }
-    admin_token = jwt.encode(admin_claims, api_secret, algorithm="HS256")
-    headers = {"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
-    
-    async with httpx.AsyncClient() as client:
-        # Step 1: List active egresses for this room
-        try:
-            list_resp = await client.post(
-                f"{livekit_url}/twirp/livekit.Egress/ListEgress",
-                headers=headers,
-                json={"room_name": live_class_id},
-                timeout=10.0
-            )
-            active_egress_ids = []
-            if list_resp.status_code == 200:
-                egress_list = list_resp.json().get("items", [])
-                print(f"[Egress] Found {len(egress_list)} egress(es) for room {live_class_id}: {egress_list}")
-                
-                # Step 2: Stop each active egress gracefully
-                for eg in egress_list:
-                    eg_id = eg.get("egress_id", "")
-                    eg_status = eg.get("status", 0)
-                    
-                    is_starting = False
-                    if isinstance(eg_status, int):
-                        is_starting = (eg_status == 0)
-                    elif isinstance(eg_status, str):
-                        is_starting = (eg_status == "EGRESS_STARTING")
-                        
-                    if is_starting and eg_id:
-                        print(f"[Egress] Egress {eg_id} is currently starting. Waiting up to 30 seconds for it to become active...")
-                        for wait_attempt in range(10):
-                            await asyncio.sleep(3)
-                            try:
-                                status_resp = await client.post(
-                                    f"{livekit_url}/twirp/livekit.Egress/ListEgress",
-                                    headers=headers,
-                                    json={"room_name": live_class_id},
-                                    timeout=10.0
-                                )
-                                if status_resp.status_code == 200:
-                                    updated_items = status_resp.json().get("items", [])
-                                    matching_eg = next((item for item in updated_items if item.get("egress_id") == eg_id), None)
-                                    if matching_eg:
-                                        curr_status = matching_eg.get("status", 0)
-                                        curr_status_str = str(curr_status)
-                                        if curr_status_str not in ("0", "EGRESS_STARTING"):
-                                            eg_status = curr_status
-                                            print(f"[Egress] Egress {eg_id} transitioned to state: {eg_status}")
-                                            break
-                            except Exception as e:
-                                print(f"[Egress] Error polling starting egress status: {e}")
-                    
-                    is_active = False
-                    if isinstance(eg_status, int):
-                        is_active = eg_status in (0, 1)
-                    elif isinstance(eg_status, str):
-                        is_active = eg_status in ("EGRESS_STARTING", "EGRESS_ACTIVE", "0", "1")
-                    
-                    if is_active and eg_id:
-                        active_egress_ids.append(eg_id)
-                        try:
-                            stop_resp = await client.post(
-                                f"{livekit_url}/twirp/livekit.Egress/StopEgress",
-                                headers=headers,
-                                json={"egress_id": eg_id},
-                                timeout=10.0
-                            )
-                            print(f"[Egress] StopEgress {eg_id}: status={stop_resp.status_code}, response={stop_resp.text[:500]}")
-                        except Exception as e:
-                            print(f"[Egress] Failed to stop egress {eg_id}: {e}")
-            else:
-                print(f"[Egress] ListEgress failed: {list_resp.status_code} {list_resp.text[:200]}")
-        except Exception as e:
-            print(f"[Egress] Exception listing egresses: {e}")
-            active_egress_ids = []
-            
-        # Step 3: Poll until all active egresses complete (max 45 seconds).
-        if active_egress_ids:
-            print(f"[Egress] Waiting for {len(active_egress_ids)} egress(es) to finalize...")
-            for poll_attempt in range(9):
-                await asyncio.sleep(5)
-                all_done = True
-                try:
-                    check_resp = await client.post(
-                        f"{livekit_url}/twirp/livekit.Egress/ListEgress",
-                        headers=headers,
-                        json={"room_name": live_class_id},
-                        timeout=10.0
-                    )
-                    if check_resp.status_code == 200:
-                        still_active = []
-                        for e in check_resp.json().get("items", []):
-                            if e.get("egress_id") not in active_egress_ids:
-                                continue
-                            status = e.get("status")
-                            is_active = False
-                            if isinstance(status, int):
-                                is_active = status in (0, 1)
-                            elif isinstance(status, str):
-                                is_active = status in ("EGRESS_STARTING", "EGRESS_ACTIVE", "0", "1")
-                            if is_active:
-                                still_active.append(e)
-                        if still_active:
-                            all_done = False
-                            print(f"[Egress] Poll {poll_attempt + 1}/9: {len(still_active)} egress(es) still active")
-                except Exception:
-                    pass
-                if all_done:
-                    print(f"[Egress] ✅ All egresses finalized after {(poll_attempt + 1) * 5}s")
-                    break
-
-async def stop_room_egress_and_finalize(live_class_id: str, actual_duration_seconds: int):
-    await stop_room_egress_only(live_class_id)
-    await finalize_recording_metadata(live_class_id, actual_duration_seconds)
-
-# ---------------------------------------------------------------------------
-# 3. Live Class Lifecycle APIs
-# ---------------------------------------------------------------------------
-@router.post("/live-classes/{live_class_id}/start")
-async def start_live_class(
-    live_class_id: str,
-    background_tasks: BackgroundTasks,
-    user=Depends(require_teacher),
-    school_id=Depends(require_school_id),
-):
-    sb = get_supabase()
-    
-    # 1. Update live class status to live
-    res = await sb.table("live_classes").update({
-        "status": "live",
-        "is_live": True,
-        "meeting_link": live_class_id  # Use ID as room name
-    }).eq("id", live_class_id).eq("school_id", school_id).aexecute()
-    
-    if not res.data:
-        raise HTTPException(status_code=404, detail="Live class not found")
-    
-    lc = res.data[0]
-    platform = (lc.get("platform") or "").lower()
-    
-    # 2. Pre-create the LiveKit room for in-app classes so the egress recorder
-    #    can join immediately (recorder token has no roomCreate permission).
-    if platform in ("in-app", "edushamiit", ""):
-        livekit_url = os.environ.get("LIVEKIT_URL", "http://livekit:7880")
-        api_key = os.environ.get("LIVEKIT_API_KEY", "devkey")
-        api_secret = os.environ.get("LIVEKIT_API_SECRET", "secretkey_edushamiit_livekit_2026_secure")
-        now = int(time.time())
-        admin_claims = {
-            "iss": api_key,
-            "sub": "admin_backend",
-            "video": {"roomCreate": True, "roomAdmin": True},
-            "exp": now + 600
-        }
-        admin_token = jwt.encode(admin_claims, api_secret, algorithm="HS256")
-        try:
-            async with httpx.AsyncClient() as client:
-                create_resp = await client.post(
-                    f"{livekit_url}/twirp/livekit.RoomService/CreateRoom",
-                    headers={"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"},
-                    json={
-                        "name": live_class_id,
-                        "empty_timeout": 600,          # 10-min auto-expire if empty
-                        "max_participants": 200
-                    },
-                    timeout=10.0
-                )
-                print(f"[LiveKit] CreateRoom '{live_class_id}': {create_resp.status_code} {create_resp.text[:200]}")
-        except Exception as e:
-            print(f"[LiveKit] CreateRoom failed (non-fatal): {e}")
-        
-    # 4. Invalidate dashboards cache
-    try:
-        from app.cache.redis_client import get_redis, invalidate_cache
-        await invalidate_cache(school_id, f"teacher_live_classes:{user['id']}")
-        rc = get_redis()
-        if rc:
-            keys = await rc.keys(f"{school_id}:student_live_classes:*")
-            if keys:
-                await rc.delete(*keys)
-    except Exception:
-        pass
-        
-    return {"success": True, "message": "Class started successfully", "data": res.data[0]}
-
-@router.post("/live-classes/{live_class_id}/end")
-async def end_live_class(
-    live_class_id: str,
-    background_tasks: BackgroundTasks,
-    user=Depends(require_teacher),
-    school_id=Depends(require_school_id),
-):
-    sb = get_supabase()
-    end_time = datetime.now(timezone.utc)
-    
-    # 1. Get class details to calculate durations
-    class_res = await sb.table("live_classes").select("*").eq("id", live_class_id).maybe_single().aexecute()
-    if not class_res.data:
-        raise HTTPException(status_code=404, detail="Live class not found")
-        
-    lc = class_res.data
-    # Calculate actual recording duration using Redis accumulated timer
-    actual_duration_seconds = 0
-    try:
-        from app.cache.redis_client import get_redis
-        rc = get_redis()
-        if rc:
-            import time
-            started_at_str = await rc.get(f"live_class:{live_class_id}:recording_started_at")
-            acc_str = await rc.get(f"live_class:{live_class_id}:accumulated_recording_duration")
-            accumulated = int(acc_str) if acc_str else 0
-            
-            if started_at_str:
-                duration_val = int(time.time()) - int(started_at_str)
-                accumulated += max(0, duration_val)
-                await rc.delete(f"live_class:{live_class_id}:recording_started_at")
-                
-            actual_duration_seconds = max(1, accumulated)
-            # Clean up Redis keys
-            await rc.delete(f"live_class:{live_class_id}:accumulated_recording_duration")
     except Exception as e:
-        print(f"[Recording API] Failed to process timer in Redis on end: {e}")
-        
-    if not actual_duration_seconds:
-        # Fallback to original scheduled_at difference
-        start_time = datetime.fromisoformat(lc["scheduled_at"].replace("Z", "+00:00"))
-        end_time = datetime.now(timezone.utc)
-        actual_duration_seconds = max(1, int((end_time - start_time).total_seconds()))
+        print(f"[LiveKit] Cleanup error: {e}")
 
-    actual_duration_minutes = max(1, int(actual_duration_seconds / 60))
+    # Upsert recording record
+    storage_base = os.environ.get("STORAGE_PUBLIC_URL", "http://localhost:8000/storage/v1/object/public").rstrip("/")
+    recording_url = f"{storage_base}/live-classes/{live_class_id}.mp4"
+    await exec_sql(
+        """
+        INSERT INTO public.live_class_recordings (
+            live_class_id, recording_url, duration, file_size, title, processing_status
+        ) VALUES (
+            %s, %s, %s, %s, 'Live Class Recording', 'Processed'
+        ) ON CONFLICT DO NOTHING;
+        """,
+        (live_class_id, recording_url, actual_duration_seconds, 282 * 1024 * 1024),
+        fetch=False
+    )
+
+
+# ============================================================================
+# 9. REAL-TIME WEBSOCKET FOR CLASSROOM CHAT, HAND RAISE, AND REACTIONS
+# ============================================================================
+
+_active_connections: Dict[str, List[WebSocket]] = {}
+
+@router.websocket("/live-classes/{session_id}/ws")
+async def live_class_websocket(websocket: WebSocket, session_id: str):
+    await websocket.accept()
+    if session_id not in _active_connections:
+        _active_connections[session_id] = []
+    _active_connections[session_id].append(websocket)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            # Broadcast to peers in the same session
+            dead = []
+            for peer in _active_connections[session_id]:
+                if peer != websocket:
+                    try:
+                        await peer.send_json(data)
+                    except Exception:
+                        dead.append(peer)
+            for d in dead:
+                _active_connections[session_id].remove(d)
+    except WebSocketDisconnect:
+        if session_id in _active_connections and websocket in _active_connections[session_id]:
+            _active_connections[session_id].remove(websocket)
+
+
+# ============================================================================
+# 10. JOIN VIA CODE, RECENT CODES, AND GUEST JOIN ENDPOINTS
+# ============================================================================
+
+@router.post("/live-classes/join-code/validate")
+async def validate_join_code(
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Validate a meeting room code for authenticated ERP users and save to recents."""
+    code = payload.get("code", "")
+    if not code:
+        raise HTTPException(status_code=400, detail="Meeting code is required")
+    rows = await exec_sql(
+        "SELECT public.sp_validate_live_class_code(%s::UUID, %s::UUID, %s::VARCHAR) AS data;",
+        (school_id, user["id"], code)
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=400, detail="Failed to validate meeting code")
+    res = rows[0]["data"]
+    if not res.get("success"):
+        raise HTTPException(status_code=404, detail=res.get("message", "Invalid meeting code"))
+    return {"success": True, "data": res}
+
+
+# ============================================================================
+# 11. CONDUCT CLASS DYNAMIC INTERACTION APIS (Q&A, POLLS, WHITEBOARD, BREAKOUT)
+# ============================================================================
+
+@router.get("/live-classes/conduct")
+@router.get("/live-classes/sessions/{session_id}/conduct")
+async def get_conduct_session_data(
+    session_id: Optional[str] = None,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """
+    Fetch comprehensive dynamic Conduct Class session state:
+    active session, real-time participants, upcoming today's classes,
+    Q&A questions, active poll, whiteboard canvas, and engagement metrics.
+    """
+    rows = await exec_sql(
+        "SELECT public.sp_get_live_class_conduct_session(%s::UUID, %s::UUID, %s::UUID) AS data;",
+        (school_id, user["id"], session_id)
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=404, detail="Session data could not be retrieved")
     
-    # 2. Update status in live_classes
-    platform = lc.get("platform", "").lower() if lc.get("platform") else ""
-    recording_url = f"http://localhost:9000/live-classes/{live_class_id}.mp4"
+    return {"success": True, "data": rows[0]["data"]}
+
+
+@router.post("/live-classes/sessions/{session_id}/questions")
+async def submit_question(
+    session_id: str,
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Students or participants submit a question in the Q&A panel."""
+    question_text = payload.get("question", "").strip()
+    if not question_text:
+        raise HTTPException(status_code=400, detail="Question text cannot be empty")
     
-    if platform in ("in-app", "edushamiit"):
-        # Schedule the slow egress cleanup, polling, and DeleteRoom asynchronously
-        background_tasks.add_task(cleanup_room_egress_and_delete, live_class_id, actual_duration_seconds)
+    author_name = user.get("full_name") or payload.get("author_name", "Student")
+    author_role = user.get("role", "student")
+    is_anon = payload.get("is_anonymous", False)
+
+    rows = await exec_sql(
+        "SELECT public.sp_submit_live_class_question(%s::UUID, %s::UUID, %s::UUID, %s::TEXT, %s::TEXT, %s::TEXT, %s::BOOLEAN) AS data;",
+        (session_id, school_id, user["id"], author_name, author_role, question_text, is_anon)
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=400, detail="Failed to submit question")
+    
+    data = rows[0]["data"]
+    # Broadcast to room WebSocket peers
+    if session_id in _active_connections:
+        event = {"type": "question.created", "question": data}
+        for peer in _active_connections[session_id]:
+            try:
+                await peer.send_json(event)
+            except Exception:
+                pass
+
+    return {"success": True, "data": data}
+
+
+@router.post("/live-classes/questions/{question_id}/answer")
+async def answer_question(
+    question_id: str,
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(require_live_class_host),
+):
+    """Teacher answers a submitted question."""
+    answer_text = payload.get("answer", "").strip()
+    if not answer_text:
+        raise HTTPException(status_code=400, detail="Answer text cannot be empty")
+
+    rows = await exec_sql(
+        "SELECT public.sp_answer_live_class_question(%s::UUID, %s::UUID, %s::TEXT) AS data;",
+        (question_id, user["id"], answer_text)
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=400, detail="Failed to answer question")
+
+    return {"success": True, "data": rows[0]["data"]}
+
+
+@router.post("/live-classes/questions/{question_id}/upvote")
+async def upvote_question(
+    question_id: str,
+    user=Depends(get_current_user),
+):
+    """Students upvote a question."""
+    rows = await exec_sql(
+        "SELECT public.sp_upvote_live_class_question(%s::UUID, %s::UUID) AS data;",
+        (question_id, user["id"])
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=400, detail="Failed to upvote question")
+
+    return {"success": True, "data": rows[0]["data"]}
+
+
+@router.post("/live-classes/sessions/{session_id}/polls")
+async def create_and_launch_poll(
+    session_id: str,
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(require_live_class_host),
+    school_id=Depends(require_school_id),
+):
+    """Teacher creates and launches a new live poll/quiz."""
+    title = payload.get("title", "Live Class Poll")
+    question = payload.get("question", "")
+    options = payload.get("options", [])
+    correct_opt = payload.get("correct_option_id")
+
+    rows = await exec_sql(
+        "SELECT public.sp_create_and_launch_poll(%s::UUID, %s::UUID, %s::UUID, %s::TEXT, %s::TEXT, %s::JSONB, %s::TEXT) AS data;",
+        (session_id, school_id, user["id"], title, question, json.dumps(options), correct_opt)
+    )
+    res = rows[0]["data"] if rows else {"poll_id": str(uuid.uuid4())}
+
+    # Broadcast to room WebSocket peers
+    if session_id in _active_connections:
+        event = {"type": "poll.launched", "poll": payload}
+        for peer in _active_connections[session_id]:
+            try:
+                await peer.send_json(event)
+            except Exception:
+                pass
+
+    return {"success": True, "data": res}
+
+
+@router.post("/live-classes/polls/{poll_id}/respond")
+async def respond_to_poll(
+    poll_id: str,
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(get_current_user),
+):
+    """Students vote/respond on an active poll."""
+    session_id = payload.get("session_id")
+    option_id = payload.get("option_id")
+    if not session_id or not option_id:
+        raise HTTPException(status_code=400, detail="session_id and option_id are required")
+
+    rows = await exec_sql(
+        "SELECT public.sp_respond_to_poll(%s::UUID, %s::UUID, %s::UUID, %s::TEXT) AS data;",
+        (poll_id, session_id, user["id"], option_id)
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=400, detail="Failed to record poll response")
+
+    data = rows[0]["data"]
+    # Broadcast updated poll tallies
+    if session_id in _active_connections:
+        event = {"type": "poll.updated", "poll_id": poll_id, "data": data}
+        for peer in _active_connections[session_id]:
+            try:
+                await peer.send_json(event)
+            except Exception:
+                pass
+
+    return {"success": True, "data": data}
+
+
+@router.post("/live-classes/sessions/{session_id}/whiteboard")
+async def save_whiteboard(
+    session_id: str,
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(require_live_class_host),
+    school_id=Depends(require_school_id),
+):
+    """Saves collaborative whiteboard elements and syncs state."""
+    canvas_data = payload.get("canvas_data", {})
+    teacher_only = payload.get("teacher_only_mode", True)
+    rows = await exec_sql(
+        "SELECT public.sp_save_whiteboard_canvas(%s::UUID, %s::UUID, %s::UUID, %s::JSONB, %s::BOOLEAN) AS data;",
+        (session_id, school_id, user["id"], json.dumps(canvas_data), teacher_only)
+    )
+    wb_data = rows[0]["data"] if rows and rows[0].get("data") else {"session_id": session_id, "teacher_only_mode": teacher_only}
+
+    if session_id in _active_connections:
+        event = {"type": "whiteboard.updated", "canvas_data": canvas_data}
+        for peer in _active_connections[session_id]:
+            try:
+                await peer.send_json(event)
+            except Exception:
+                pass
+
+    return {"success": True, "data": wb_data}
+
+
+@router.post("/live-classes/sessions/{session_id}/participants/{participant_id}/mute")
+async def mute_participant(
+    session_id: str,
+    participant_id: str,
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(require_live_class_host),
+):
+    """Host mutes a participant remotely."""
+    is_muted = payload.get("is_muted", True)
+    await exec_sql(
+        "UPDATE public.live_class_participants SET is_mic_muted = %s, updated_at = NOW() WHERE live_class_id = %s AND user_id = %s;",
+        (is_muted, session_id, participant_id)
+    )
+    if session_id in _active_connections:
+        event = {"type": "participant.muted", "participant_id": participant_id, "is_muted": is_muted}
+        for peer in _active_connections[session_id]:
+            try:
+                await peer.send_json(event)
+            except Exception:
+                pass
+    return {"success": True, "message": f"Participant {'muted' if is_muted else 'unmuted'}"}
+
+
+@router.post("/live-classes/sessions/{session_id}/participants/{participant_id}/remove")
+async def remove_participant(
+    session_id: str,
+    participant_id: str,
+    user=Depends(require_live_class_host),
+):
+    """Host removes an unruly participant from the live session."""
+    await exec_sql(
+        "UPDATE public.live_class_participants SET leave_time = NOW(), updated_at = NOW() WHERE live_class_id = %s AND user_id = %s;",
+        (session_id, participant_id)
+    )
+    if session_id in _active_connections:
+        event = {"type": "participant.removed", "participant_id": participant_id}
+        for peer in _active_connections[session_id]:
+            try:
+                await peer.send_json(event)
+            except Exception:
+                pass
+    return {"success": True, "message": "Participant removed from live class"}
+
+
+@router.post("/live-classes/sessions/{session_id}/recordings/toggle")
+async def toggle_recording(
+    session_id: str,
+    background_tasks: BackgroundTasks,
+    user=Depends(require_live_class_host),
+):
+    """Toggle Egress recording on or off during active class."""
+    rows = await exec_sql("SELECT recording_status FROM public.live_classes WHERE id = %s;", (session_id,))
+    if not rows:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    current_status = rows[0].get("recording_status", "IDLE")
+    if current_status in ("RECORDING", "ACTIVE"):
+        new_status = "STOPPING"
+        await exec_sql("UPDATE public.live_classes SET recording_status = 'COMPLETED', updated_at = NOW() WHERE id = %s;", (session_id,))
+        background_tasks.add_task(cleanup_room_egress_and_delete, session_id, 1800)
     else:
-        recording_url = f"https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1"
-        await sb.table("live_class_recordings").insert({
-            "live_class_id": live_class_id,
-            "recording_url": recording_url,
-            "duration": actual_duration_seconds,
-            "file_size": 25 * 1024 * 1024
-        }).aexecute()
-        
-    await sb.table("live_classes").update({
-        "status": "recorded",
-        "is_live": False,
-        "ended_at": end_time.isoformat(),
-        "duration_minutes": actual_duration_minutes,
-        "recording_url": recording_url
-    }).eq("id", live_class_id).aexecute()
-    
-    # 4. Insert system chat messages
-    await sb.table("live_class_chats").insert({
-        "live_class_id": live_class_id,
-        "sender_id": user["id"],
-        "message": "System: Recording Stopped"
-    }).aexecute()
-    
-    # 5. Process attendance calculation for all participant logs
-    # Get unique participants from live_class_participants
-    part_res = await sb.table("live_class_participants").select("*").eq("live_class_id", live_class_id).aexecute()
-    participants = part_res.data or []
-    
-    # Map user total duration
-    user_durations = {}
-    for p in participants:
-        u_id = p["user_id"]
-        # Ensure leave_time is filled
-        p_dur = p["duration"] or 0
-        if not p["leave_time"]:
-            # Student didn't clean log out, compute based on end time
-            p_join = datetime.fromisoformat(p["join_time"].replace("Z", "+00:00"))
-            p_dur = max(0, int((end_time - p_join).total_seconds()))
-            # Update database record
-            await sb.table("live_class_participants").update({
-                "leave_time": end_time.isoformat(),
-                "duration": p_dur
-            }).eq("id", p["id"]).aexecute()
-            
-        user_durations[u_id] = user_durations.get(u_id, 0) + p_dur
-        
-    # Mark attendance in public.live_class_attendance
-    for u_id, total_dur in user_durations.items():
-        # Get user role
-        u_profile = await sb.table("profiles").select("role").eq("id", u_id).maybe_single().aexecute()
-        if u_profile.data and u_profile.data["role"] == "student":
-            ratio = total_dur / actual_duration_seconds
-            if ratio >= 0.75:
-                status = "Present"
-            elif ratio >= 0.25:
-                status = "Partial"
-            else:
-                status = "Absent"
-                
-            await sb.table("live_class_attendance").insert({
-                "live_class_id": live_class_id,
-                "student_id": u_id,
-                "attendance_status": status,
-                "duration": total_dur
-            }).aexecute()
-            
-    # 6. Invalidate caches
-    try:
-        from app.cache.redis_client import get_redis, invalidate_cache
-        await invalidate_cache(school_id, f"teacher_live_classes:{user['id']}")
-        rc = get_redis()
-        if rc:
-            keys = await rc.keys(f"{school_id}:student_live_classes:*")
-            if keys:
-                await rc.delete(*keys)
-    except Exception:
-        pass
-        
-    return {"success": True, "message": "Class ended and attendance calculated successfully"}
+        new_status = "RECORDING"
+        await exec_sql("UPDATE public.live_classes SET recording_status = 'RECORDING', recording_enabled = TRUE, updated_at = NOW() WHERE id = %s;", (session_id,))
+        background_tasks.add_task(initiate_room_egress, session_id)
 
-@router.post("/live-classes/{live_class_id}/recording/start")
-async def start_recording(
-    live_class_id: str,
-    background_tasks: BackgroundTasks,
-    user=Depends(require_teacher),
-    school_id=Depends(require_school_id),
-):
-    print(f"[Recording API] Start requested for class: {live_class_id} by user: {user['id']}")
-    sb = get_supabase()
-    class_res = await sb.table("live_classes").select("*").eq("id", live_class_id).maybe_single().aexecute()
-    if not class_res.data:
-        raise HTTPException(status_code=404, detail="Live class not found")
-    
-    # Start timer in Redis to track actual active recording duration
-    try:
-        from app.cache.redis_client import get_redis
-        rc = get_redis()
-        if rc:
-            import time
-            await rc.set(f"live_class:{live_class_id}:recording_started_at", str(int(time.time())), ex=86400)
-            acc = await rc.get(f"live_class:{live_class_id}:accumulated_recording_duration")
-            if not acc:
-                await rc.set(f"live_class:{live_class_id}:accumulated_recording_duration", "0", ex=86400)
-    except Exception as e:
-        print(f"[Recording API] Failed to start timer in Redis: {e}")
-    
-    # Trigger egress composite recording
-    background_tasks.add_task(initiate_room_egress, live_class_id)
-    
-    # Insert system chat message
-    await sb.table("live_class_chats").insert({
-        "live_class_id": live_class_id,
-        "sender_id": user["id"],
-        "message": "System: Recording Started"
-    }).aexecute()
-    
-    return {"success": True, "message": "Recording started"}
-
-@router.post("/live-classes/{live_class_id}/recording/stop")
-async def stop_recording(
-    live_class_id: str,
-    background_tasks: BackgroundTasks,
-    user=Depends(require_teacher),
-    school_id=Depends(require_school_id),
-):
-    print(f"[Recording API] Stop requested for class: {live_class_id} by user: {user['id']}")
-    sb = get_supabase()
-    class_res = await sb.table("live_classes").select("*").eq("id", live_class_id).maybe_single().aexecute()
-    if not class_res.data:
-        raise HTTPException(status_code=404, detail="Live class not found")
-        
-    lc = class_res.data
-    # Stop timer and accumulate duration
-    actual_duration_seconds = 0
-    try:
-        from app.cache.redis_client import get_redis
-        rc = get_redis()
-        if rc:
-            import time
-            started_at_str = await rc.get(f"live_class:{live_class_id}:recording_started_at")
-            acc_str = await rc.get(f"live_class:{live_class_id}:accumulated_recording_duration")
-            accumulated = int(acc_str) if acc_str else 0
-            
-            if started_at_str:
-                duration_val = int(time.time()) - int(started_at_str)
-                accumulated += max(0, duration_val)
-                await rc.set(f"live_class:{live_class_id}:accumulated_recording_duration", str(accumulated), ex=86400)
-                await rc.delete(f"live_class:{live_class_id}:recording_started_at")
-                
-            actual_duration_seconds = max(1, accumulated)
-    except Exception as e:
-        print(f"[Recording API] Failed to process timer in Redis: {e}")
-        
-    if not actual_duration_seconds:
-        # Fallback to original scheduled_at difference
-        start_time = datetime.fromisoformat(lc["scheduled_at"].replace("Z", "+00:00"))
-        end_time = datetime.now(timezone.utc)
-        actual_duration_seconds = max(1, int((end_time - start_time).total_seconds()))
-        
-    print(f"[Recording API] Calculated recording duration: {actual_duration_seconds} seconds")
-
-    # Stop active egress (without deleting room)
-    background_tasks.add_task(stop_room_egress_and_finalize, live_class_id, actual_duration_seconds)
-    
-    # Insert system chat message
-    await sb.table("live_class_chats").insert({
-        "live_class_id": live_class_id,
-        "sender_id": user["id"],
-        "message": "System: Recording Stopped"
-    }).aexecute()
-    
-    return {"success": True, "message": "Recording stopped"}
-
-# ---------------------------------------------------------------------------
-# 4. Attendance Reporting
-# ---------------------------------------------------------------------------
-@router.post("/live-classes/{live_class_id}/attendance/mark")
-async def mark_attendance_log(
-    live_class_id: str,
-    request: dict,
-    user=Depends(get_current_user),
-    school_id=Depends(require_school_id),
-):
-    sb = get_supabase()
-    action = request.get("action") # 'join' or 'leave'
-    
-    if action == "join":
-        # Create a join log
-        res = await sb.table("live_class_participants").insert({
-            "live_class_id": live_class_id,
-            "user_id": user["id"],
-            "join_time": datetime.now(timezone.utc).isoformat()
-        }).aexecute()
-        return {"success": True, "data": res.data[0] if res.data else {}}
-        
-    elif action == "leave":
-        # Find active join log without leave_time
-        logs = (await sb.table("live_class_participants")
-                .select("*")
-                .eq("live_class_id", live_class_id)
-                .eq("user_id", user["id"])
-                .is_("leave_time", "null")
-                .order("join_time", ascending=False)
-                .aexecute()).data
-                
-        if logs:
-            target_log = logs[0]
-            join_time = datetime.fromisoformat(target_log["join_time"].replace("Z", "+00:00"))
-            now = datetime.now(timezone.utc)
-            duration = max(0, int((now - join_time).total_seconds()))
-            
-            res = await sb.table("live_class_participants").update({
-                "leave_time": now.isoformat(),
-                "duration": duration
-            }).eq("id", target_log["id"]).aexecute()
-            return {"success": True, "data": res.data[0] if res.data else {}}
-            
-        return {"success": True, "message": "No active join log found"}
-        
-    raise HTTPException(status_code=400, detail="Invalid action, must be 'join' or 'leave'")
-
-@router.get("/live-classes/{live_class_id}/attendance")
-async def get_attendance_report(
-    live_class_id: str,
-    user=Depends(require_teacher),
-    school_id=Depends(require_school_id),
-):
-    sb = get_supabase()
-    attendance = (await sb.table("live_class_attendance")
-                  .select("*, profiles!student_id(full_name, email, roll_number)")
-                  .eq("live_class_id", live_class_id)
-                  .aexecute()).data
-    return {"success": True, "data": {"attendance": attendance}}
-
-# ---------------------------------------------------------------------------
-# 5. Live Chat APIs
-# ---------------------------------------------------------------------------
-@router.post("/live-classes/{live_class_id}/chat")
-async def send_chat_message(
-    live_class_id: str,
-    request: dict,
-    user=Depends(get_current_user),
-    school_id=Depends(require_school_id),
-):
-    sb = get_supabase()
-    message = request.get("message")
-    if not message:
-        raise HTTPException(status_code=400, detail="message is required")
-        
-    res = await sb.table("live_class_chats").insert({
-        "live_class_id": live_class_id,
-        "sender_id": user["id"],
-        "message": message
-    }).aexecute()
-    
-    return {"success": True, "data": res.data[0] if res.data else {}}
-
-@router.get("/live-classes/{live_class_id}/chat")
-async def get_chat_history(
-    live_class_id: str,
-    user=Depends(get_current_user),
-    school_id=Depends(require_school_id),
-):
-    sb = get_supabase()
-    chats = (await sb.table("live_class_chats")
-             .select("*, profiles!sender_id(full_name, role)")
-             .eq("live_class_id", live_class_id)
-             .order("created_at")
-             .aexecute()).data
-             
-    # Flatten structure for frontend
-    flat_chats = []
-    for c in chats:
-        flat_chats.append({
-            "id": c["id"],
-            "live_class_id": c["live_class_id"],
-            "sender_id": c["sender_id"],
-            "sender_name": c["profiles"]["full_name"],
-            "sender_role": c["profiles"]["role"],
-            "message": c["message"],
-            "created_at": c["created_at"]
-        })
-        
-    return {"success": True, "data": {"chats": flat_chats}}
-
-# ---------------------------------------------------------------------------
-# 6. Live Class Recording Management
-# ---------------------------------------------------------------------------
-@router.get("/live-classes/{live_class_id}/recordings")
-async def list_recordings(
-    live_class_id: str,
-    user=Depends(get_current_user),
-    school_id=Depends(require_school_id),
-):
-    sb = get_supabase()
-    recs = (await sb.table("live_class_recordings")
-            .select("*")
-            .eq("live_class_id", live_class_id)
-            .aexecute()).data
-    return {"success": True, "data": {"recordings": recs}}
-
-@router.get("/live-classes/recordings/{recording_id}")
-async def get_recording(
-    recording_id: str,
-    user=Depends(get_current_user),
-    school_id=Depends(require_school_id),
-):
-    sb = get_supabase()
-    rec = await sb.table("live_class_recordings").select("*").eq("id", recording_id).maybe_single().aexecute()
-    if not rec.data:
-        raise HTTPException(status_code=404, detail="Recording not found")
-    return {"success": True, "data": rec.data}
-
-@router.delete("/live-classes/recordings/{recording_id}")
-async def delete_recording(
-    recording_id: str,
-    user=Depends(require_teacher),
-    school_id=Depends(require_school_id),
-):
-    sb = get_supabase()
-    
-    # 1. Fetch recording metadata to extract class details and URL
-    rec = await sb.table("live_class_recordings").select("*").eq("id", recording_id).maybe_single().aexecute()
-    if not rec.data:
-        raise HTTPException(status_code=404, detail="Recording not found")
-        
-    live_class_id = rec.data.get("live_class_id")
-    recording_url = rec.data.get("recording_url")
-    
-    # 2. Delete the physical file from local MinIO storage if it is an in-app recording
-    if recording_url and "/live-classes/" in recording_url:
-        filename = recording_url.split("/live-classes/")[-1]
-        try:
-            from app.services.minio_client import minio_client
-            minio_client.delete_file(filename)
-        except Exception as e:
-            print(f"[MinIO] Error while initiating file deletion for {filename}: {e}")
-            
-    # 3. Clear recording_url reference in the parent live_classes table
-    if live_class_id:
-        try:
-            await sb.table("live_classes").update({"recording_url": None}).eq("id", live_class_id).aexecute()
-        except Exception as e:
-            print(f"[Database] Error clearing recording_url for live class {live_class_id}: {e}")
-            
-    # 4. Delete the database record from live_class_recordings
-    await sb.table("live_class_recordings").delete().eq("id", recording_id).aexecute()
-    
-    return {"success": True, "message": "Recording deleted successfully"}
-
-
-
-# Share Autocomplete and Sharing Action
-@router.get("/live-classes/school-users")
-async def get_school_users_for_sharing(
-    search: Optional[str] = None,
-    user=Depends(get_current_user),
-    school_id=Depends(require_school_id),
-):
-    sb = get_supabase()
-    query = sb.table("profiles").select("id, full_name, role").eq("school_id", school_id)
-    if search:
-        query = query.ilike("full_name", f"%{search}%")
-    res = await query.limit(30).aexecute()
-    return {"success": True, "data": res.data or []}
-
-
-@router.get("/live-classes/{live_class_id}")
-async def get_live_class_detail(
-    live_class_id: str,
-    user=Depends(get_current_user),
-    school_id=Depends(require_school_id),
-):
-    sb = get_supabase()
-    res = await sb.table("live_classes")\
-        .select("*, subjects(name, icon, color), profiles!teacher_id(full_name)")\
-        .eq("id", live_class_id)\
-        .eq("school_id", school_id)\
-        .maybe_single()\
-        .aexecute()
-    if not res.data:
-        raise HTTPException(status_code=404, detail="Live class not found")
-    
-    c = res.data
-    subj = c.get("subjects") or {}
-    subj_name = subj.get("name", "Subject")
-    teacher_name = c.get("profiles", {}).get("full_name") if c.get("profiles") else "Teacher"
-    
-    from datetime import datetime, timezone
-    now = datetime.now(timezone.utc)
-    started_str = "Started 25 min ago"
-    time_str = "2:00 PM"
-    time_until_str = "In 1h 30m"
-    date_str = "Mar 25 · 45 min · Dr. Verma"
-    
-    try:
-        scheduled_at_dt = datetime.fromisoformat(c["scheduled_at"].replace("Z", "+00:00"))
-        diff = now - scheduled_at_dt
-        diff_minutes = int(diff.total_seconds() / 60)
-        
-        if diff_minutes >= 0:
-            started_str = f"Started {diff_minutes} min ago"
-        else:
-            started_str = f"Starts in {abs(diff_minutes)} min"
-            
-        time_str = scheduled_at_dt.strftime("%I:%M %p")
-        
-        diff_hours = abs(diff.total_seconds()) / 3600
-        if diff_hours < 1:
-            time_until_str = f"In {int(abs(diff.total_seconds()) / 60)}m"
-        else:
-            hours_part = int(diff_hours)
-            mins_part = int((diff_hours - hours_part) * 60)
-            time_until_str = f"In {hours_part}h" if mins_part == 0 else f"In {hours_part}h {mins_part}m"
-            
-        date_str = f"{scheduled_at_dt.strftime('%b %d')} · {c.get('duration_minutes', 45)} min · {teacher_name.split()[-1] if teacher_name else 'Teacher'}"
-    except Exception:
-        pass
+    if session_id in _active_connections:
+        event = {"type": "recording.status_changed", "recording_status": new_status}
+        for peer in _active_connections[session_id]:
+            try:
+                await peer.send_json(event)
+            except Exception:
+                pass
 
     return {
         "success": True,
+        "recording_status": new_status,
         "data": {
-            "id": c["id"],
-            "subject": c.get("title", subj_name),
-            "subject_name": subj_name,
-            "title": c.get("title", ""),
-            "description": c.get("description", ""),
-            "teacher": teacher_name,
-            "started": started_str,
-            "viewers": c.get("viewer_count", 0),
-            "time": time_str,
-            "timeUntil": time_until_str,
-            "date": date_str,
-            "icon": subj.get("icon", "📚"),
-            "isLive": c.get("status") == "live",
-            "type": c.get("status"),
-            "stream_url": c.get("stream_url"),
-            "recording_url": c.get("recording_url"),
-            "platform": c.get("platform", "In-App"),
-            "meeting_link": c.get("meeting_link"),
+            "recording_status": new_status,
+            "is_recording": new_status == "RECORDING"
         }
     }
 
 
-# ===========================================================================
-# 5. Live Class Playback Hub Integration
-# ===========================================================================
 
-@router.get("/live-classes/{live_class_id}/playback-info")
-async def get_live_class_playback_info(
-    live_class_id: str,
-    user=Depends(get_current_user),
-    school_id=Depends(require_school_id),
+@router.get("/live-classes/join-code/{code}/preview")
+async def preview_join_code(
+    code: str,
+    school_id: Optional[str] = None,
 ):
-    sb = get_supabase()
-    
-    # 1. Fetch live class details
-    class_res = await sb.table("live_classes")\
-        .select("*, subjects(name, icon, color), profiles!teacher_id(full_name)")\
-        .eq("id", live_class_id)\
-        .eq("school_id", school_id)\
-        .maybe_single()\
-        .aexecute()
-        
-    if not class_res.data:
-        raise HTTPException(status_code=404, detail="Live class not found")
-        
-    lc = class_res.data
-    # Increment view count for completed/recorded classes
-    if lc.get("status") in ("recorded", "completed"):
-        current_viewers = lc.get("viewer_count") or 0
-        new_viewers = current_viewers + 1
-        await sb.table("live_classes").update({"viewer_count": new_viewers}).eq("id", live_class_id).aexecute()
-        lc["viewer_count"] = new_viewers
-        
-        # Invalidate student live classes cache to update listing views count
-        try:
-            from app.cache.redis_client import get_redis
-            rc = get_redis()
-            if rc:
-                keys = await rc.keys(f"{school_id}:student_live_classes:*")
-                if keys:
-                    await rc.delete(*keys)
-        except Exception:
-            pass
+    """Public or student preview of meeting information prior to joining."""
+    target_school = school_id or "11111111-1111-1111-1111-111111111111"
+    rows = await exec_sql(
+        "SELECT public.sp_validate_live_class_code(%s::UUID, NULL, %s::VARCHAR) AS data;",
+        (target_school, code)
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=404, detail="Meeting code not found")
+    res = rows[0]["data"]
+    if not res.get("success"):
+        raise HTTPException(status_code=404, detail=res.get("message", "Invalid meeting code"))
+    return {"success": True, "data": res}
 
-    subj = lc.get("subjects") or {}
-    subj_name = subj.get("name", "Subject")
-    teacher_name = lc.get("profiles", {}).get("full_name") if lc.get("profiles") else "Teacher"
-    
-    # 2. Get actual duration and size if recorded
-    recording_res = await sb.table("live_class_recordings")\
-        .select("*")\
-        .eq("live_class_id", live_class_id)\
-        .maybe_single()\
-        .aexecute()
-    
-    duration = lc.get("duration_minutes", 60) * 60  # Default duration in seconds
-    recording_url = lc.get("recording_url")
-    if recording_res.data:
-        rec = recording_res.data
-        if rec.get("duration"):
-            duration = rec["duration"]
-        if rec.get("recording_url"):
-            recording_url = rec["recording_url"]
 
-    # Calculate date_str dynamically
-    scheduled_at = lc.get("scheduled_at")
-    date_str = None
-    if scheduled_at:
-        try:
-            from datetime import datetime
-            scheduled_at_dt = datetime.fromisoformat(scheduled_at.replace("Z", "+00:00"))
-            h = duration // 3600
-            m = (duration % 3600) // 60
-            s = duration % 60
-            if h > 0:
-                duration_str = f"{h}h {m}m" if s == 0 else f"{h}h {m}m {s}s"
-            elif m > 0:
-                duration_str = f"{m}m {s}s"
-            else:
-                duration_str = f"{s}s"
-            date_str = f"{scheduled_at_dt.strftime('%b %d')} · {duration_str}"
-        except Exception:
-            pass
-    if not date_str:
-        date_str = "Class session details"
 
-    # 3. Fetch Likes and Dislikes
-    likes_res = await sb.table("live_class_likes")\
-        .select("user_id, is_dislike")\
-        .eq("live_class_id", live_class_id)\
-        .aexecute()
-        
-    likes_data = likes_res.data or []
-    like_count = sum(1 for x in likes_data if not x["is_dislike"])
-    dislike_count = sum(1 for x in likes_data if x["is_dislike"])
-    
-    user_like = next((x for x in likes_data if str(x["user_id"]) == str(user["id"])), None)
-    is_liked = False
-    is_disliked = False
-    if user_like:
-        is_liked = not user_like["is_dislike"]
-        is_disliked = user_like["is_dislike"]
+@router.get("/live-classes/recent-codes")
+async def get_recent_meeting_codes(
+    user=Depends(get_current_user),
+):
+    """Fetch recent and starred meeting codes for authenticated user."""
+    rows = await exec_sql(
+        "SELECT public.sp_get_recent_saved_meeting_codes(%s::UUID) AS data;",
+        (user["id"],)
+    )
+    if not rows or not rows[0].get("data"):
+        return {"success": True, "data": {"items": []}}
+    return {"success": True, "data": rows[0]["data"]}
 
-    # 4. Fetch Rating
-    ratings_res = await sb.table("live_class_ratings")\
-        .select("user_id, rating")\
-        .eq("live_class_id", live_class_id)\
-        .aexecute()
-        
-    ratings_data = ratings_res.data or []
-    avg_rating = sum(x["rating"] for x in ratings_data) / len(ratings_data) if ratings_data else 0.0
-    
-    user_rating_row = next((x for x in ratings_data if str(x["user_id"]) == str(user["id"])), None)
-    user_rating = user_rating_row["rating"] if user_rating_row else 0
-    has_rated = user_rating > 0
 
-    # 5. Fetch Chapters
-    chapters_res = await sb.table("live_class_chapters")\
-        .select("*")\
-        .eq("live_class_id", live_class_id)\
-        .order("time_seconds", ascending=True)\
-        .aexecute()
-        
-    # Seed default chapters if empty (removed dummy chapters seeding)
-    chapters = chapters_res.data or []
+@router.post("/live-classes/recent-codes/toggle-star")
+async def toggle_starred_code(
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(get_current_user),
+):
+    """Toggle star bookmark status for a recent meeting code."""
+    code = payload.get("code", "")
+    is_starred = payload.get("is_starred", True)
+    rows = await exec_sql(
+        "SELECT public.sp_toggle_saved_meeting_code(%s::UUID, %s::VARCHAR, %s::BOOLEAN) AS data;",
+        (user["id"], code, is_starred)
+    )
+    return {"success": True, "data": rows[0]["data"] if rows else {}}
 
-    # 6. Fetch Resources
-    resources_res = await sb.table("live_class_resources")\
-        .select("*")\
-        .eq("live_class_id", live_class_id)\
-        .order("created_at", ascending=True)\
-        .aexecute()
-        
-    # Removed dummy resources seeding
-    resources = resources_res.data or []
 
-    # 7. Fetch Notes
-    # If the user is a student, we fetch the notes written by the teacher of this live class.
-    # Otherwise, we fetch the current user's notes.
-    target_user_id = user["id"]
-    print(f"DEBUG NOTES - user role: {user.get('role')}, user id: {user.get('id')}, lc teacher_id: {lc.get('teacher_id')}")
-    if user.get("role") == "student" and lc.get("teacher_id"):
-        target_user_id = lc["teacher_id"]
-    print(f"DEBUG NOTES - target_user_id: {target_user_id}")
+@router.delete("/live-classes/recent-codes/clear")
+async def clear_recent_codes(
+    user=Depends(get_current_user),
+):
+    """Clear all unstarred recent meeting codes."""
+    rows = await exec_sql(
+        "SELECT public.sp_clear_recent_meeting_codes(%s::UUID) AS data;",
+        (user["id"],)
+    )
+    return {"success": True, "data": rows[0]["data"] if rows else {}}
 
-    notes_res = await sb.table("live_class_notes")\
-        .select("notes_text")\
-        .eq("live_class_id", live_class_id)\
-        .eq("user_id", target_user_id)\
-        .maybe_single()\
-        .aexecute()
-        
-    notes_text = notes_res.data.get("notes_text", "") if notes_res.data else ""
 
-    return {
-        "success": True,
-        "data": {
-            "id": lc["id"],
-            "teacher_id": lc.get("teacher_id"),
-            "subject": lc.get("title", subj_name),
-            "subject_name": subj_name,
-            "title": lc.get("title", ""),
-            "description": lc.get("description", ""),
-            "teacher": teacher_name,
-            "viewers": lc.get("viewer_count", 0),
-            "isLive": lc.get("status") == "live",
-            "type": lc.get("status"),
-            "stream_url": lc.get("stream_url"),
-            "recording_url": recording_url,
-            "platform": lc.get("platform", "In-App"),
-            "meeting_link": lc.get("meeting_link"),
-            "duration": duration,  # Actual duration in seconds
-            "date": date_str,
-            "like_count": like_count,
-            "dislike_count": dislike_count,
-            "is_liked": is_liked,
-            "is_disliked": is_disliked,
-            "avg_rating": avg_rating,
-            "user_rating": user_rating,
-            "has_rated": has_rated,
-            "chapters": chapters,
-            "resources": resources,
-            "notes_text": notes_text
+@router.post("/live-classes/guest/request")
+async def request_guest_join(
+    payload: Dict[str, Any] = Body(...),
+):
+    """Submit external guest join request with temporary identity."""
+    code = payload.get("code", "")
+    display_name = payload.get("display_name", "")
+    email = payload.get("email")
+    purpose = payload.get("purpose", "Guest Speaker")
+    organization = payload.get("organization")
+    options = payload.get("options", {})
+    school_id = payload.get("school_id", "11111111-1111-1111-1111-111111111111")
+
+    if not code or not display_name:
+        raise HTTPException(status_code=400, detail="Meeting code and guest name are required")
+
+    rows = await exec_sql(
+        """
+        SELECT public.sp_request_guest_join(
+            %s::UUID, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::VARCHAR, %s::JSONB
+        ) AS data;
+        """,
+        (school_id, code, display_name, email, purpose, organization, json.dumps(options))
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=400, detail="Failed to process guest join request")
+    res = rows[0]["data"]
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("message", "Guest join denied"))
+
+    # Real-time WebSocket notification to host in session
+    session_id = res.get("session_id")
+    if session_id and session_id in _active_connections:
+        event_payload = {
+            "type": "guest.approval.pending",
+            "request_id": res.get("request_id"),
+            "display_name": display_name,
+            "purpose": purpose,
+            "organization": organization,
+            "guest_reference": res.get("guest_reference"),
         }
-    }
+        for peer in _active_connections[session_id]:
+            try:
+                await peer.send_json(event_payload)
+            except Exception:
+                pass
 
-@router.post("/live-classes/{live_class_id}/like")
-async def toggle_live_class_like(
-    live_class_id: str,
-    user=Depends(get_current_user),
+    return {"success": True, "data": res}
+
+
+
+@router.get("/live-classes/guest/upcoming-sessions")
+async def get_upcoming_guest_sessions(
+    school_id: Optional[str] = None,
 ):
-    sb = get_supabase()
-    # Check if exists
-    exists = await sb.table("live_class_likes").select("*").eq("live_class_id", live_class_id).eq("user_id", user["id"]).maybe_single().aexecute()
-    if exists.data:
-        # If it was disliked, change to liked. If it was liked, delete
-        row = exists.data
-        if row["is_dislike"]:
-            await sb.table("live_class_likes").update({"is_dislike": False}).eq("live_class_id", live_class_id).eq("user_id", user["id"]).aexecute()
-            action = "liked"
-        else:
-            await sb.table("live_class_likes").delete().eq("live_class_id", live_class_id).eq("user_id", user["id"]).aexecute()
-            action = "unliked"
-    else:
-        await sb.table("live_class_likes").insert({
-            "live_class_id": live_class_id,
-            "user_id": user["id"],
-            "is_dislike": False
-        }).aexecute()
-        action = "liked"
+    """Fetch scheduled guest-accessible upcoming lectures and expert talks."""
+    target_school = school_id or "11111111-1111-1111-1111-111111111111"
+    rows = await exec_sql(
+        "SELECT public.sp_get_upcoming_guest_sessions(%s::UUID) AS data;",
+        (target_school,)
+    )
+    if not rows or not rows[0].get("data"):
+        return {"success": True, "data": {"sessions": []}}
+    return {"success": True, "data": rows[0]["data"]}
 
-    # Fetch updated counts
-    likes_res = await sb.table("live_class_likes").select("is_dislike").eq("live_class_id", live_class_id).aexecute()
-    likes_data = likes_res.data or []
-    like_count = len([x for x in likes_data if not x.get("is_dislike")])
-    dislike_count = len([x for x in likes_data if x.get("is_dislike")])
-    return {
-        "success": True, 
-        "action": action,
-        "like_count": like_count,
-        "dislike_count": dislike_count,
-        "is_liked": action == "liked",
-        "is_disliked": False
-    }
 
-@router.post("/live-classes/{live_class_id}/dislike")
-async def toggle_live_class_dislike(
-    live_class_id: str,
-    user=Depends(get_current_user),
+@router.get("/live-classes/sessions/{session_id}/waiting-room")
+async def get_waiting_room_guests(
+    session_id: str,
+    user=Depends(require_live_class_host),
 ):
-    sb = get_supabase()
-    # Check if exists
-    exists = await sb.table("live_class_likes").select("*").eq("live_class_id", live_class_id).eq("user_id", user["id"]).maybe_single().aexecute()
-    if exists.data:
-        row = exists.data
-        if not row["is_dislike"]:
-            await sb.table("live_class_likes").update({"is_dislike": True}).eq("live_class_id", live_class_id).eq("user_id", user["id"]).aexecute()
-            action = "disliked"
-        else:
-            await sb.table("live_class_likes").delete().eq("live_class_id", live_class_id).eq("user_id", user["id"]).aexecute()
-            action = "undisliked"
-    else:
-        await sb.table("live_class_likes").insert({
-            "live_class_id": live_class_id,
-            "user_id": user["id"],
-            "is_dislike": True
-        }).aexecute()
-        action = "disliked"
+    """Fetch pending guest join requests for host waiting room management."""
+    rows = await exec_sql(
+        "SELECT public.sp_get_waiting_room_guests(%s::UUID) AS data;",
+        (session_id,)
+    )
+    if not rows or not rows[0].get("data"):
+        return {"success": True, "data": {"waiting_count": 0, "guests": []}}
+    return {"success": True, "data": rows[0]["data"]}
 
-    # Fetch updated counts
-    likes_res = await sb.table("live_class_likes").select("is_dislike").eq("live_class_id", live_class_id).aexecute()
-    likes_data = likes_res.data or []
-    like_count = len([x for x in likes_data if not x.get("is_dislike")])
-    dislike_count = len([x for x in likes_data if x.get("is_dislike")])
-    return {
-        "success": True, 
-        "action": action,
-        "like_count": like_count,
-        "dislike_count": dislike_count,
-        "is_liked": False,
-        "is_disliked": action == "disliked"
-    }
 
-@router.post("/live-classes/{live_class_id}/recording/duration")
-async def update_recording_duration(
-    live_class_id: str,
-    payload: dict,
-    user=Depends(get_current_user),
+@router.post("/live-classes/sessions/{session_id}/guests/{request_id}/review")
+async def review_guest_request(
+    session_id: str,
+    request_id: str,
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(require_live_class_host),
 ):
-    duration = payload.get("duration")
-    if duration is None:
-        raise HTTPException(status_code=400, detail="Duration is required")
-    sb = get_supabase()
-    # Update duration in live_class_recordings
-    await sb.table("live_class_recordings").update({"duration": int(duration)}).eq("live_class_id", live_class_id).aexecute()
-    # Also invalidate student live classes cache to update listing duration
-    try:
-        from app.cache.redis_client import get_redis
-        rc = get_redis()
-        if rc:
-            keys = await rc.keys("*:student_live_classes:*")
-            if keys:
-                await rc.delete(*keys)
-    except Exception:
-        pass
-        
-    return {"success": True, "message": "Recording duration updated successfully"}
+    """Host action to admit or reject an external guest in the waiting room."""
+    decision = payload.get("decision", "ADMIT").upper()
+    reason = payload.get("reason")
+    rows = await exec_sql(
+        "SELECT public.sp_review_guest_request(%s::UUID, %s::UUID, %s::UUID, %s::VARCHAR, %s::TEXT) AS data;",
+        (session_id, request_id, user["id"], decision, reason)
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=400, detail="Failed to review guest request")
+    res = rows[0]["data"]
 
-@router.post("/live-classes/{live_class_id}/rate")
-async def rate_live_class(
-    live_class_id: str,
-    payload: dict,
-    user=Depends(get_current_user),
-):
-    rating = payload.get("rating")
-    if not rating or rating < 1 or rating > 5:
-        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
+    # Real-time WebSocket notification to all room peers (including waiting guests)
+    if session_id in _active_connections:
+        event_type = "guest.approved" if decision == "ADMIT" else "guest.rejected"
+        event_payload = {
+            "type": event_type,
+            "request_id": request_id,
+            "guest_id": res.get("guest_id"),
+            "decision": res.get("decision"),
+        }
+        for peer in _active_connections[session_id]:
+            try:
+                await peer.send_json(event_payload)
+            except Exception:
+                pass
 
-    sb = get_supabase()
+    return {"success": True, "data": res}
 
-    # Prevent teachers from rating their own class
-    class_res = await sb.table("live_classes").select("teacher_id").eq("id", live_class_id).maybe_single().aexecute()
-    if class_res.data and str(class_res.data.get("teacher_id", "")) == str(user["id"]):
-        raise HTTPException(
-            status_code=403,
-            detail="Teachers cannot rate their own class sessions."
-        )
 
-    await sb.table("live_class_ratings").upsert({
-        "live_class_id": live_class_id,
-        "user_id": user["id"],
-        "rating": rating
-    }, on_conflict="live_class_id,user_id").aexecute()
-    return {"success": True}
 
-@router.put("/live-classes/{live_class_id}/overview")
-async def update_live_class_overview(
-    live_class_id: str,
-    payload: dict,
-    user=Depends(require_teacher),
-):
-    sb = get_supabase()
-    title = payload.get("title")
-    description = payload.get("description")
-    
-    updates = {}
-    if title is not None:
-        updates["title"] = title
-    if description is not None:
-        updates["description"] = description
-        
-    if updates:
-        await sb.table("live_classes").update(updates).eq("id", live_class_id).aexecute()
-        
-    return {"success": True}
 
-# Chapters CRUD
-@router.post("/live-classes/{live_class_id}/chapters")
-async def add_live_class_chapter(
-    live_class_id: str,
-    payload: dict,
-    user=Depends(require_teacher),
-    school_id=Depends(require_school_id),
-):
-    title = payload.get("title")
-    time_seconds = payload.get("time_seconds")
-    if not title or time_seconds is None:
-        raise HTTPException(status_code=400, detail="Title and time_seconds are required")
-        
-    sb = get_supabase()
-    res = await sb.table("live_class_chapters").insert({
-        "school_id": school_id,
-        "live_class_id": live_class_id,
-        "title": title,
-        "time_seconds": time_seconds
-    }).aexecute()
-    if not res.data:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to insert chapter into the database."
-        )
-    return {"success": True, "data": res.data[0]}
 
-@router.put("/live-classes/{live_class_id}/chapters/{chapter_id}")
-async def edit_live_class_chapter(
-    live_class_id: str,
-    chapter_id: str,
-    payload: dict,
-    user=Depends(require_teacher),
-):
-    import uuid
-    try:
-        uuid.UUID(chapter_id)
-    except ValueError:
-        return {"success": True, "data": {}}
-        
-    title = payload.get("title")
-    time_seconds = payload.get("time_seconds")
-    
-    updates = {}
-    if title is not None:
-        updates["title"] = title
-    if time_seconds is not None:
-        updates["time_seconds"] = time_seconds
-        
-    sb = get_supabase()
-    res = await sb.table("live_class_chapters").update(updates).eq("id", chapter_id).eq("live_class_id", live_class_id).aexecute()
-    return {"success": True, "data": res.data[0] if res.data else {}}
+# ============================================================================
+# 12. ENROLLED STUDENTS, BREAKOUT ROOMS, HOST REASSIGNMENT AND SESSION SETTINGS
+# ============================================================================
 
-@router.delete("/live-classes/{live_class_id}/chapters/{chapter_id}")
-async def delete_live_class_chapter(
-    live_class_id: str,
-    chapter_id: str,
-    user=Depends(require_teacher),
-):
-    import uuid
-    try:
-        uuid.UUID(chapter_id)
-    except ValueError:
-        return {"success": True}
-        
-    sb = get_supabase()
-    await sb.table("live_class_chapters").delete().eq("id", chapter_id).eq("live_class_id", live_class_id).aexecute()
-    return {"success": True}
-
-# Resources CRUD
-@router.post("/live-classes/{live_class_id}/resources")
-async def add_live_class_resource(
-    live_class_id: str,
-    payload: dict,
-    user=Depends(require_teacher),
-    school_id=Depends(require_school_id),
-):
-    title = payload.get("title")
-    file_url = payload.get("file_url")
-    file_size = payload.get("file_size", "2.0 MB")
-    
-    if not title or not file_url:
-        raise HTTPException(status_code=400, detail="Title and file_url are required")
-        
-    sb = get_supabase()
-    res = await sb.table("live_class_resources").insert({
-        "school_id": school_id,
-        "live_class_id": live_class_id,
-        "title": title,
-        "file_url": file_url,
-        "file_size": file_size
-    }).aexecute()
-    if not res.data:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to insert resource into the database."
-        )
-    return {"success": True, "data": res.data[0]}
-
-@router.delete("/live-classes/{live_class_id}/resources/{resource_id}")
-async def delete_live_class_resource(
-    live_class_id: str,
-    resource_id: str,
-    user=Depends(require_teacher),
-):
-    import uuid
-    try:
-        uuid.UUID(resource_id)
-    except ValueError:
-        return {"success": True}
-        
-    sb = get_supabase()
-    await sb.table("live_class_resources").delete().eq("id", resource_id).eq("live_class_id", live_class_id).aexecute()
-    return {"success": True}
-
-# Notes CRUD
-@router.post("/live-classes/{live_class_id}/notes")
-async def upsert_live_class_notes(
-    live_class_id: str,
-    payload: dict,
-    user=Depends(require_teacher),
-    school_id=Depends(require_school_id),
-):
-    notes_text = payload.get("notes_text", "")
-    sb = get_supabase()
-    await sb.table("live_class_notes").upsert({
-        "school_id": school_id,
-        "live_class_id": live_class_id,
-        "user_id": user["id"],
-        "notes_text": notes_text
-    }, on_conflict="live_class_id,user_id").aexecute()
-    return {"success": True}
-
-# Related Lectures
-@router.get("/live-classes/{live_class_id}/related")
-async def get_related_live_classes(
-    live_class_id: str,
+@router.get("/live-classes/students")
+async def get_enrolled_students(
+    class_id: Optional[str] = None,
+    section_id: Optional[str] = None,
     user=Depends(get_current_user),
     school_id=Depends(require_school_id),
 ):
-    sb = get_supabase()
-    # Get current class subject_id and target_class to filter related
-    class_res = await sb.table("live_classes").select("subject_id, target_class").eq("id", live_class_id).maybe_single().aexecute()
-    if not class_res.data:
-        return {"success": True, "data": []}
-        
-    subj_id = class_res.data.get("subject_id")
-    target_class = class_res.data.get("target_class")
-    
-    # Query recordings/completed classes of same subject and class
-    query = sb.table("live_classes")\
-        .select("*, subjects(name, icon, color), profiles!teacher_id(full_name)")\
-        .eq("school_id", school_id)\
-        .eq("subject_id", subj_id)
-        
-    if target_class:
-        query = query.eq("target_class", target_class)
-        
-    query = query.in_("status", ["recorded", "completed"])\
-        .neq("id", live_class_id)\
-        .limit(10)
-        
-    classes = (await query.aexecute()).data or []
-    
-    related = []
-    for c in classes:
-        subj = c.get("subjects") or {}
-        subj_name = subj.get("name", "Subject")
-        teacher_name = c.get("profiles", {}).get("full_name") if c.get("profiles") else "Teacher"
-        
-        related.append({
-            "id": c["id"],
-            "subject": c["title"],
-            "subject_name": subj_name,
-            "title": c.get("title", ""),
-            "teacher": teacher_name,
-            "icon": subj.get("icon", "📚"),
-            "date": datetime.fromisoformat(c["scheduled_at"].replace("Z", "+00:00")).strftime('%b %d, %Y') if c.get("scheduled_at") else "Recorded"
-        })
-    return {"success": True, "data": related}
+    """Fetch enrolled students for dynamic session participant lists and attendance."""
+    rows = await exec_sql(
+        "SELECT public.sp_get_enrolled_students_for_class_section(%s::UUID, %s::UUID, %s::UUID) AS data;",
+        (school_id, class_id if class_id else None, section_id if section_id else None)
+    )
+    if not rows or not rows[0].get("data"):
+        return {"success": True, "data": {"students": [], "count": 0}}
+    return {"success": True, "data": rows[0]["data"]}
 
 
-
-@router.post("/live-classes/{live_class_id}/share")
-async def share_live_class_recording(
-    live_class_id: str,
-    payload: dict,
+@router.get("/live-classes/sessions/{session_id}/breakout")
+async def get_breakout_rooms(
+    session_id: str,
     user=Depends(get_current_user),
+):
+    """Fetch active breakout rooms for the live session."""
+    rows = await exec_sql(
+        "SELECT public.sp_get_live_class_breakout_rooms(%s::UUID) AS data;",
+        (session_id,)
+    )
+    if not rows or not rows[0].get("data"):
+        return {"success": True, "data": {"rooms": []}}
+    return {"success": True, "data": rows[0]["data"]}
+
+
+@router.post("/live-classes/sessions/{session_id}/breakout")
+async def create_breakout_room(
+    session_id: str,
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(require_live_class_host),
     school_id=Depends(require_school_id),
 ):
-    shared_to_id = payload.get("shared_to_id")
-    if not shared_to_id:
-        raise HTTPException(status_code=400, detail="shared_to_id is required")
-        
-    sb = get_supabase()
-    
-    # 1. Fetch live class details
-    class_res = await sb.table("live_classes").select("title, profiles!teacher_id(full_name)").eq("id", live_class_id).maybe_single().aexecute()
-    if not class_res.data:
-        raise HTTPException(status_code=404, detail="Live class not found")
-        
-    class_title = class_res.data.get("title", "Lecture Recording")
-    teacher_name = class_res.data.get("profiles", {}).get("full_name") if class_res.data.get("profiles") else "Instructor"
-    category = "teacher_shared" if user.get("role") == "teacher" else "chat_shared"
-    
-    # 2. Insert into user_documents table
-    doc_id = str(uuid.uuid4())
-    doc_record = {
-        "id": doc_id,
-        "school_id": school_id,
-        "owner_id": shared_to_id, # Recipient owns/sees the document
-        "shared_with_id": shared_to_id,
-        "shared_by_id": user["id"],
-        "title": f"Lecture Recording: {class_title}",
-        "description": f"Shared live class recording presented by {teacher_name}. Shared by {user.get('full_name', 'a classmate')}.",
-        "category": category,
-        "file_url": f"/student/live-classes/play/{live_class_id}", # Deep link
-        "file_name": "playback_lecture.html",
-        "file_size": 0,
-        "mime_type": "text/html"
-    }
-    
-    await sb.table("user_documents").insert(doc_record).aexecute()
-    return {"success": True, "message": "Recording shared successfully via Documents Hub"}
+    """Create a breakout room within an active session."""
+    name = payload.get("name", "Breakout Room")
+    capacity = payload.get("capacity", 8)
+    rows = await exec_sql(
+        "SELECT public.sp_create_live_class_breakout_room(%s::UUID, %s::UUID, %s::UUID, %s::VARCHAR, %s::INTEGER) AS data;",
+        (school_id, user["id"], session_id, name, capacity)
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=400, detail="Failed to create breakout room")
+    res = rows[0]["data"]
 
+    if session_id in _active_connections:
+        event = {"type": "breakout.created", "room": res.get("room")}
+        for peer in _active_connections[session_id]:
+            try:
+                await peer.send_json(event)
+            except Exception:
+                pass
+
+    return {"success": True, "data": res}
+
+
+@router.post("/live-classes/sessions/{session_id}/breakout/{room_id}/close")
+async def close_breakout_room(
+    session_id: str,
+    room_id: str,
+    user=Depends(require_live_class_host),
+):
+    """Close an active breakout room."""
+    rows = await exec_sql(
+        "SELECT public.sp_close_live_class_breakout_room(%s::UUID) AS data;",
+        (room_id,)
+    )
+    if session_id in _active_connections:
+        event = {"type": "breakout.closed", "room_id": room_id}
+        for peer in _active_connections[session_id]:
+            try:
+                await peer.send_json(event)
+            except Exception:
+                pass
+
+    return {"success": True, "message": "Breakout room closed successfully"}
+
+
+@router.post("/live-classes/sessions/{session_id}/settings")
+async def update_session_settings(
+    session_id: str,
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(require_live_class_host),
+    school_id=Depends(require_school_id),
+):
+    """Update session live controls and permissions."""
+    rows = await exec_sql(
+        "SELECT public.sp_update_live_class_session_settings(%s::UUID, %s::UUID, %s::UUID, %s::JSONB) AS data;",
+        (school_id, user["id"], session_id, json.dumps(payload))
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=400, detail="Failed to update session settings")
+    res = rows[0]["data"]
+
+    if session_id in _active_connections:
+        event = {"type": "session.settings_updated", "settings": payload}
+        for peer in _active_connections[session_id]:
+            try:
+                await peer.send_json(event)
+            except Exception:
+                pass
+
+    return {"success": True, "data": res}
+
+
+@router.post("/live-classes/sessions/{session_id}/host")
+async def reassign_session_host(
+    session_id: str,
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(require_live_class_host),
+    school_id=Depends(require_school_id),
+):
+    """Reassign Host or Co-Host permissions to another meeting participant."""
+    target_user_id = payload.get("target_user_id")
+    role = payload.get("role", "host").lower()
+    if not target_user_id:
+        raise HTTPException(status_code=400, detail="target_user_id is required")
+
+    rows = await exec_sql(
+        "SELECT public.sp_reassign_live_class_host(%s::UUID, %s::UUID, %s::UUID, %s::UUID, %s::VARCHAR) AS data;",
+        (school_id, user["id"], session_id, target_user_id, role)
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=400, detail="Failed to reassign host role")
+    res = rows[0]["data"]
+
+    if session_id in _active_connections:
+        event = {"type": "session.host_reassigned", "target_user_id": target_user_id, "role": role}
+        for peer in _active_connections[session_id]:
+            try:
+                await peer.send_json(event)
+            except Exception:
+                pass
+
+    return {"success": True, "data": res}

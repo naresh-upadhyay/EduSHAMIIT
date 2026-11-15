@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:google_fonts/google_fonts.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
@@ -6,7 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:html' as html;
 
 class AdminRolesScreen extends StatefulWidget {
-  const AdminRolesScreen({super.key});
+  final int initialTab;
+  const AdminRolesScreen({super.key, this.initialTab = 0});
 
   @override
   State<AdminRolesScreen> createState() => _AdminRolesScreenState();
@@ -36,7 +39,33 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
   Map<String, dynamic>? _selectedRole;
 
   // Active Tab: "Roles", "Role Hierarchy", "Assign Permissions", "Drafted Permissions"
-  String _activeTab = "Role Hierarchy";
+  static const List<String> _tabNames = [
+    "Roles",
+    "Role Hierarchy",
+    "Assign Permissions",
+    "Drafted Permissions",
+  ];
+  late String _activeTab;
+
+  void _switchTab(int index) {
+    if (index >= 0 && index < _tabNames.length) {
+      setState(() {
+        _activeTab = _tabNames[index];
+      });
+      _syncTabUrl(index);
+    }
+  }
+
+  void _syncTabUrl(int index) {
+    if (kIsWeb) {
+      Future.microtask(() {
+        try {
+          html.window.history.replaceState(null, '', '/admin/roles?tab=$index');
+          html.window.dispatchEvent(html.CustomEvent('tab_changed'));
+        } catch (_) {}
+      });
+    }
+  }
 
   // Modules data
   List<dynamic> _modules = [];
@@ -81,8 +110,25 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
   @override
   void initState() {
     super.initState();
+    final idx = widget.initialTab.clamp(0, _tabNames.length - 1);
+    _activeTab = _tabNames[idx];
     _fetchRoles();
     _fetchModules();
+  }
+
+  @override
+  void didUpdateWidget(AdminRolesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTab != oldWidget.initialTab) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          final idx = widget.initialTab.clamp(0, _tabNames.length - 1);
+          setState(() {
+            _activeTab = _tabNames[idx];
+          });
+        }
+      });
+    }
   }
 
   @override
@@ -321,14 +367,13 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                   // Top Header matching the SaaS screenshot layout
                   _buildHeader(screenWidth, isMobile),
 
+                  // Dynamic Tabs Bar: Roles | Role Hierarchy | Assign Permissions | Drafted Permissions
+                  _buildTabsRow(),
+
                   // Metrics summary row (for Roles tab)
                   if (_activeTab == "Roles") ...[
                     _buildMetricsRow(screenWidth),
-                    const SizedBox(height: 12),
                   ],
-
-                  // Dynamic Tabs Bar: Roles | Role Hierarchy | Assign Permissions | Drafted Permissions
-                  _buildTabsRow(),
 
                   // Main View Content Container
                   Expanded(
@@ -428,15 +473,11 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
         ),
 
         // Global Search bar
-        Container(
+        SizedBox(
           width: isMobile ? 180 : 220,
           height: 36,
-          decoration: BoxDecoration(
-            color: _cardBg,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: _borderColor),
-          ),
           child: TextField(
+            textAlignVertical: TextAlignVertical.center,
             style: TextStyle(color: _textPrimary, fontSize: 12),
             onChanged: (val) {
               setState(() {
@@ -444,12 +485,26 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                 _currentPage = 1;
               });
             },
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: 'Search roles...',
-              hintStyle: TextStyle(color: Color(0xFF64748B), fontSize: 11),
-              prefixIcon: Icon(Icons.search_rounded, size: 14, color: Color(0xFF64748B)),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.only(bottom: 14),
+              hintStyle: TextStyle(color: _textSecondary, fontSize: 12),
+              prefixIcon: Icon(Icons.search_rounded, size: 16, color: _textSecondary),
+              filled: true,
+              fillColor: _cardBg,
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: _borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: _borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             ),
           ),
         ),
@@ -540,26 +595,38 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
       return sum + perms.length;
     });
 
-    double cardWidth = (screenWidth - 96) / 5;
-    if (cardWidth < 180) cardWidth = 180;
-
     return Padding(
-      padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 12.0),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _buildMetricCardItem('Total Roles', '${systemRoles + customRoles}', 'Active roles in system', Icons.shield_outlined, const Color(0xFF818CF8), cardWidth),
-            const SizedBox(width: 10),
-            _buildMetricCardItem('System Roles', '$systemRoles', 'Default system roles', Icons.security_outlined, const Color(0xFF38BDF8), cardWidth),
-            const SizedBox(width: 10),
-            _buildMetricCardItem('Custom Roles', '$customRoles', 'Custom created roles', Icons.group_outlined, const Color(0xFF60A5FA), cardWidth),
-            const SizedBox(width: 10),
-            _buildMetricCardItem('Users Assigned', '$usersCount', 'Users with roles', Icons.people_outline, const Color(0xFF34D399), cardWidth),
-            const SizedBox(width: 10),
-            _buildMetricCardItem('Permissions', '$totalPermissionsAssigned', 'Total assigned permissions', Icons.key_outlined, const Color(0xFFFBBF24), cardWidth),
-          ],
-        ),
+      padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 14.0),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final double width = constraints.maxWidth;
+          const double spacing = 12.0;
+          final int cols;
+          if (width >= 1100) {
+            cols = 5;
+          } else if (width >= 750) {
+            cols = 3;
+          } else if (width >= 480) {
+            cols = 2;
+          } else {
+            cols = 1;
+          }
+
+          final double totalSpacing = (cols - 1) * spacing;
+          final double cardWidth = ((width - totalSpacing) / cols).floorToDouble();
+
+          return Wrap(
+            spacing: spacing,
+            runSpacing: spacing,
+            children: [
+              _buildMetricCardItem('Total Roles', '${systemRoles + customRoles}', 'Active roles in system', Icons.shield_outlined, const Color(0xFF818CF8), cardWidth),
+              _buildMetricCardItem('System Roles', '$systemRoles', 'Default system roles', Icons.security_outlined, const Color(0xFF38BDF8), cardWidth),
+              _buildMetricCardItem('Custom Roles', '$customRoles', 'Custom created roles', Icons.group_outlined, const Color(0xFF60A5FA), cardWidth),
+              _buildMetricCardItem('Users Assigned', '$usersCount', 'Users with roles', Icons.people_outline, const Color(0xFF34D399), cardWidth),
+              _buildMetricCardItem('Permissions', '$totalPermissionsAssigned', 'Total assigned permissions', Icons.key_outlined, const Color(0xFFFBBF24), cardWidth),
+            ],
+          );
+        },
       ),
     );
   }
@@ -628,72 +695,94 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
   // =========================================================================
   Widget _buildTabsRow() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      margin: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+      height: 48,
       decoration: BoxDecoration(
         color: _cardBg,
-        border: Border(bottom: BorderSide(color: _borderColor)),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _borderColor),
       ),
-      child: Row(
-        children: [
-          _buildTabItem("Roles"),
-          _buildTabItem("Role Hierarchy"),
-          if (_selectedRole != null) ...[
-            _buildTabItem("Assign Permissions"),
-            _buildTabItem("Drafted Permissions"),
-          ],
-          const Spacer(),
-          if (_activeTab == "Role Hierarchy")
-            InkWell(
-              onTap: _showHowHierarchyWorksDialog,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Row(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    Icon(Icons.help_outline_rounded, size: 14, color: _textSecondary),
-                    const SizedBox(width: 4),
-                    Text(
-                      'How Role Hierarchy Works?',
-                      style: TextStyle(
-                        color: _textSecondary,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    _buildTabItem("Roles", Icons.badge_outlined, 0),
+                    _buildTabItem("Role Hierarchy", Icons.account_tree_outlined, 1),
+                    _buildTabItem("Assign Permissions", Icons.security_outlined, 2),
+                    _buildTabItem("Drafted Permissions", Icons.rule_folder_outlined, 3),
                   ],
                 ),
               ),
             ),
-        ],
+            if (_activeTab == "Role Hierarchy") ...[
+              VerticalDivider(width: 1, indent: 8, endIndent: 8, color: _borderColor),
+              InkWell(
+                onTap: _showHowHierarchyWorksDialog,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.help_outline_rounded, size: 15, color: _textSecondary),
+                      const SizedBox(width: 6),
+                      Text(
+                        'How Role Hierarchy Works?',
+                        style: GoogleFonts.inter(
+                          color: _textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildTabItem(String tabName) {
+  Widget _buildTabItem(String tabName, IconData icon, int tabIndex) {
     final isActive = _activeTab == tabName;
     return InkWell(
-      onTap: () {
-        setState(() {
-          _activeTab = tabName;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      onTap: () => _switchTab(tabIndex),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         decoration: BoxDecoration(
+          color: isActive ? const Color(0xFF4F46E5).withValues(alpha: _isDark ? 0.15 : 0.08) : Colors.transparent,
           border: Border(
             bottom: BorderSide(
-              color: isActive ? const Color(0xFF6366F1) : Colors.transparent,
+              color: isActive ? const Color(0xFF4F46E5) : Colors.transparent,
               width: 2.5,
             ),
           ),
         ),
-        child: Text(
-          tabName,
-          style: TextStyle(
-            color: isActive ? (_isDark ? Colors.white : const Color(0xFF6366F1)) : _textSecondary,
-            fontSize: 13,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-            fontFamily: 'Outfit',
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isActive ? const Color(0xFF4F46E5) : _textSecondary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              tabName,
+              style: GoogleFonts.inter(
+                color: isActive ? (_isDark ? Colors.white : const Color(0xFF4F46E5)) : _textSecondary,
+                fontSize: 13,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -792,16 +881,11 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
         children: [
           Row(
             children: [
-              Container(
+              SizedBox(
                 width: 220,
                 height: 32,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: _scaffoldBg,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: _borderColor),
-                ),
                 child: TextField(
+                  textAlignVertical: TextAlignVertical.center,
                   style: TextStyle(color: _textPrimary, fontSize: 12),
                   onChanged: (val) {
                     setState(() {
@@ -809,12 +893,26 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                       _currentPage = 1;
                     });
                   },
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'Search roles...',
-                    hintStyle: TextStyle(color: Color(0xFF475569), fontSize: 11),
-                    prefixIcon: Icon(Icons.search, size: 14, color: Color(0xFF475569)),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.only(bottom: 14),
+                    hintStyle: TextStyle(color: _textSecondary, fontSize: 11),
+                    prefixIcon: Icon(Icons.search_rounded, size: 14, color: _textSecondary),
+                    filled: true,
+                    fillColor: _scaffoldBg,
+                    isDense: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(color: _borderColor),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(color: _borderColor),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   ),
                 ),
               ),
@@ -1556,10 +1654,11 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
           // Header Bar
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 720;
+
+                final titleSection = Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -1575,10 +1674,16 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                     Text(
                       'Interactive hierarchical tree showing organizational reporting lines and permission inheritance',
                       style: TextStyle(color: _textSecondary, fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                ),
-                Row(
+                );
+
+                final actionButtons = Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     // Expand All
                     OutlinedButton.icon(
@@ -1628,8 +1733,28 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                       ),
                     ),
                   ],
-                ),
-              ],
+                );
+
+                if (isNarrow) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      titleSection,
+                      const SizedBox(height: 10),
+                      actionButtons,
+                    ],
+                  );
+                }
+
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(child: titleSection),
+                    const SizedBox(width: 12),
+                    actionButtons,
+                  ],
+                );
+              },
             ),
           ),
           Divider(height: 1, color: _borderColor),
@@ -2028,16 +2153,11 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                     fontFamily: 'Outfit',
                   ),
                 ),
-                Container(
+                SizedBox(
                   width: 200,
                   height: 30,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: _scaffoldBg,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: _borderColor),
-                  ),
                   child: TextField(
+                    textAlignVertical: TextAlignVertical.center,
                     style: TextStyle(color: _textPrimary, fontSize: 11.5),
                     onChanged: (val) {
                       setState(() {
@@ -2045,12 +2165,26 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                         _hierarchyCurrentPage = 1;
                       });
                     },
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: 'Filter hierarchy...',
-                      hintStyle: TextStyle(color: Color(0xFF64748B), fontSize: 11),
-                      prefixIcon: Icon(Icons.search, size: 13, color: Color(0xFF64748B)),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.only(bottom: 15),
+                      hintStyle: TextStyle(color: _textSecondary, fontSize: 11),
+                      prefixIcon: Icon(Icons.search_rounded, size: 13, color: _textSecondary),
+                      filled: true,
+                      fillColor: _scaffoldBg,
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: _borderColor),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: _borderColor),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     ),
                   ),
                 ),
@@ -2748,27 +2882,36 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                     children: [
                       Padding(
                         padding: const EdgeInsets.all(12.0),
-                        child: Container(
+                        child: SizedBox(
                           height: 32,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          decoration: BoxDecoration(
-                            color: _scaffoldBg,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: _borderColor),
-                          ),
                           child: TextField(
+                            textAlignVertical: TextAlignVertical.center,
                             style: TextStyle(color: _textPrimary, fontSize: 12),
                             onChanged: (val) {
                               setState(() {
                                 _moduleSearchQuery = val;
                               });
                             },
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               hintText: 'Search modules...',
-                              hintStyle: TextStyle(color: Color(0xFF475569), fontSize: 11),
-                              prefixIcon: Icon(Icons.search, size: 14, color: Color(0xFF475569)),
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.only(bottom: 14),
+                              hintStyle: TextStyle(color: _textSecondary, fontSize: 11),
+                              prefixIcon: Icon(Icons.search_rounded, size: 14, color: _textSecondary),
+                              filled: true,
+                              fillColor: _scaffoldBg,
+                              isDense: true,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(6),
+                                borderSide: BorderSide(color: _borderColor),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(6),
+                                borderSide: BorderSide(color: _borderColor),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(6),
+                                borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                             ),
                           ),
                         ),
@@ -3682,15 +3825,10 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                     Divider(height: 24, color: _borderColor),
 
                     // Search input
-                    Container(
+                    SizedBox(
                       height: 36,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      decoration: BoxDecoration(
-                        color: _scaffoldBg,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: _borderColor),
-                      ),
                       child: TextField(
+                        textAlignVertical: TextAlignVertical.center,
                         style: TextStyle(color: _textPrimary, fontSize: 12),
                         onChanged: (val) {
                           setModalState(() {
@@ -3698,12 +3836,26 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                             userPage = 1;
                           });
                         },
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: 'Search assigned users by name, email or ID...',
-                          hintStyle: TextStyle(color: Color(0xFF64748B), fontSize: 11.5),
-                          prefixIcon: Icon(Icons.search, size: 14, color: Color(0xFF64748B)),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.only(bottom: 12),
+                          hintStyle: TextStyle(color: _textSecondary, fontSize: 11.5),
+                          prefixIcon: Icon(Icons.search_rounded, size: 16, color: _textSecondary),
+                          filled: true,
+                          fillColor: _scaffoldBg,
+                          isDense: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: _borderColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: _borderColor),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                         ),
                       ),
                     ),

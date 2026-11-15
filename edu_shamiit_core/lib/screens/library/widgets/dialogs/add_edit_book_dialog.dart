@@ -41,8 +41,11 @@ class DigitalFileDraft {
     this.isLiveStream = false,
     this.sortOrder = 0,
     this.isUploading = false,
-  })  : id = (id != null && id.isNotEmpty) ? id : 'draft_${DateTime.now().microsecondsSinceEpoch}_${UniqueKey().toString()}' {
-    final t = (title != null && title.trim().isNotEmpty) ? title.trim() : fileName;
+  }) : id = (id != null && id.isNotEmpty)
+            ? id
+            : 'draft_${DateTime.now().microsecondsSinceEpoch}_${UniqueKey().toString()}' {
+    final t =
+        (title != null && title.trim().isNotEmpty) ? title.trim() : fileName;
     titleCtrl = TextEditingController(text: t);
   }
 
@@ -78,8 +81,11 @@ class DigitalFileDraft {
       'file_type': fileType,
       'source_type': sourceType,
       'title': effectiveTitle,
-      'storage_key': storageKey.isNotEmpty ? storageKey : (streamUrl.isNotEmpty ? streamUrl : 'asset_${index}_$fileName'),
-      'file_name': fileName.trim().isNotEmpty ? fileName.trim() : 'Digital Resource',
+      'storage_key': storageKey.isNotEmpty
+          ? storageKey
+          : (streamUrl.isNotEmpty ? streamUrl : 'asset_${index}_$fileName'),
+      'file_name':
+          fileName.trim().isNotEmpty ? fileName.trim() : 'Digital Resource',
       'mime_type': mimeType,
       'file_size_bytes': fileSizeBytes,
       'duration_seconds': durationSeconds,
@@ -100,7 +106,8 @@ class AddEditBookDialog extends ConsumerStatefulWidget {
   ConsumerState<AddEditBookDialog> createState() => _AddEditBookDialogState();
 }
 
-class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with SingleTickerProviderStateMixin {
+class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   late TabController _tabController;
   bool _isUploadingCover = false;
@@ -153,7 +160,12 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
   List<String> _dynamicSubjects = [];
 
   static String _normalizeCondition(String raw) {
-    final s = raw.trim().toUpperCase().replaceAll(' ', '_').replaceAll('-', '_').replaceAll('/', '_');
+    final s = raw
+        .trim()
+        .toUpperCase()
+        .replaceAll(' ', '_')
+        .replaceAll('-', '_')
+        .replaceAll('/', '_');
     if (s.contains('NEW') || s.contains('MINT')) return 'NEW';
     if (s.contains('EXCELLENT')) return 'EXCELLENT';
     if (s.contains('GOOD')) return 'GOOD';
@@ -182,22 +194,30 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
     _isbn13Ctrl = TextEditingController(text: b?.isbn13 ?? '');
     _isbn10Ctrl = TextEditingController(text: b?.isbn10 ?? '');
     _publisherCtrl = TextEditingController(text: b?.publisher ?? '');
-    _pagesCtrl = TextEditingController(text: b?.pages != null ? b!.pages.toString() : '');
+    _pagesCtrl = TextEditingController(
+        text: b?.pages != null ? b!.pages.toString() : '');
     _descriptionCtrl = TextEditingController(text: b?.description ?? '');
     _rackCtrl = TextEditingController(text: b?.rackLocation ?? 'Rack A');
     _shelfCtrl = TextEditingController(text: b?.shelfLocation ?? 'Shelf 1');
     _coverUrlCtrl = TextEditingController(text: b?.coverUrl ?? '');
-    _totalCopiesCtrl = TextEditingController(text: b != null ? b.totalCopies.toString() : '1');
-    _availableCopiesCtrl = TextEditingController(text: b != null ? b.availableCopies.toString() : '1');
+    _totalCopiesCtrl =
+        TextEditingController(text: b != null ? b.totalCopies.toString() : '1');
+    _availableCopiesCtrl = TextEditingController(
+        text: b != null ? b.availableCopies.toString() : '1');
     _priceCtrl = TextEditingController(
-      text: b?.purchasePrice != null ? b!.purchasePrice!.toStringAsFixed(2) : '299.00',
+      text: b?.purchasePrice != null
+          ? b!.purchasePrice!.toStringAsFixed(2)
+          : '299.00',
     );
-    _supplierCtrl = TextEditingController(text: b?.supplier ?? 'Sapna Book House');
+    _supplierCtrl =
+        TextEditingController(text: b?.supplier ?? 'Sapna Book House');
 
     _subjectCtrl = TextEditingController(text: b?.subject ?? '');
     _gradeLevelCtrl = TextEditingController(text: b?.gradeLevel ?? '');
     _accessDurationCtrl = TextEditingController(
-      text: b?.defaultAccessDurationDays != null ? b!.defaultAccessDurationDays.toString() : '30',
+      text: b?.defaultAccessDurationDays != null
+          ? b!.defaultAccessDurationDays.toString()
+          : '30',
     );
     _tabController = TabController(length: 4, vsync: this);
 
@@ -246,7 +266,6 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
         _digitalFiles.add(DigitalFileDraft.fromModel(f));
       }
     }
-
   }
 
   @override
@@ -280,7 +299,6 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
   Uint8List? _localCoverBytes;
 
   Future<void> _pickAndUploadCover() async {
-
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -327,14 +345,22 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
     }
   }
 
-
   /// Multi-File Picker & Direct Storage Uploader
   Future<void> _pickAndUploadMultipleDigitalFiles() async {
     try {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: true,
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'epub', 'mp3', 'wav', 'm4a', 'mp4', 'webm', 'mov'],
+        allowedExtensions: [
+          'pdf',
+          'epub',
+          'mp3',
+          'wav',
+          'm4a',
+          'mp4',
+          'webm',
+          'mov'
+        ],
         withData: true,
       );
 
@@ -381,8 +407,10 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
           final res = await api.uploadDigitalFile(bytes, file.name);
           if (mounted) {
             setState(() {
-              draft.streamUrl = res['stream_url']?.toString() ?? res['url']?.toString() ?? '';
-              draft.storageKey = res['storage_key']?.toString() ?? draft.streamUrl;
+              draft.streamUrl =
+                  res['stream_url']?.toString() ?? res['url']?.toString() ?? '';
+              draft.storageKey =
+                  res['storage_key']?.toString() ?? draft.streamUrl;
               draft.isUploading = false;
             });
           }
@@ -390,7 +418,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
           if (mounted) {
             setState(() => draft.isUploading = false);
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to upload ${file.name}: $e'), backgroundColor: Colors.red),
+              SnackBar(
+                  content: Text('Failed to upload ${file.name}: $e'),
+                  backgroundColor: Colors.red),
             );
           }
         }
@@ -398,7 +428,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('File selection error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('File selection error: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -407,7 +439,8 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
   /// Add Direct Link or Live Stream URL Dialog
   void _showAddLinkOrLiveStreamDialog() {
     final titleCtrl = TextEditingController(text: 'Chapter / Live Lecture');
-    final urlCtrl = TextEditingController(text: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8');
+    final urlCtrl = TextEditingController(
+        text: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8');
 
     String selectedType = 'VIDEO_HLS';
     String sourceType = 'LIVE_STREAM';
@@ -420,12 +453,16 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
           final isDark = Theme.of(context).brightness == Brightness.dark;
           return AlertDialog(
             backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             title: Row(
               children: [
-                Icon(isLive ? Icons.live_tv_rounded : Icons.link_rounded, color: isLive ? Colors.red : const Color(0xFF6366F1)),
+                Icon(isLive ? Icons.live_tv_rounded : Icons.link_rounded,
+                    color: isLive ? Colors.red : const Color(0xFF6366F1)),
                 const SizedBox(width: 10),
-                Text(isLive ? 'Add Live Stream Link' : 'Add Direct Stream URL', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                Text(isLive ? 'Add Live Stream Link' : 'Add Direct Stream URL',
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700)),
               ],
             ),
             content: SizedBox(
@@ -436,17 +473,28 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                 children: [
                   TextField(
                     controller: titleCtrl,
-                    decoration: const InputDecoration(labelText: 'Asset / Stream Title *', hintText: 'e.g. Weekly Live Problem Solving Stream'),
+                    decoration: const InputDecoration(
+                        labelText: 'Asset / Stream Title *',
+                        hintText: 'e.g. Weekly Live Problem Solving Stream'),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: selectedType,
-                    decoration: const InputDecoration(labelText: 'Resource Type'),
+                    initialValue: selectedType,
+                    decoration:
+                        const InputDecoration(labelText: 'Resource Type'),
                     items: const [
-                      DropdownMenuItem(value: 'VIDEO_HLS', child: Text('Live Stream / HLS (.m3u8)')),
-                      DropdownMenuItem(value: 'VIDEO_MP4', child: Text('Video Lecture Stream (MP4 / WebM)')),
-                      DropdownMenuItem(value: 'AUDIO_MP3', child: Text('Audio Stream URL (MP3 / Podcast)')),
-                      DropdownMenuItem(value: 'EBOOK_PDF', child: Text('Direct PDF Document Link')),
+                      DropdownMenuItem(
+                          value: 'VIDEO_HLS',
+                          child: Text('Live Stream / HLS (.m3u8)')),
+                      DropdownMenuItem(
+                          value: 'VIDEO_MP4',
+                          child: Text('Video Lecture Stream (MP4 / WebM)')),
+                      DropdownMenuItem(
+                          value: 'AUDIO_MP3',
+                          child: Text('Audio Stream URL (MP3 / Podcast)')),
+                      DropdownMenuItem(
+                          value: 'EBOOK_PDF',
+                          child: Text('Direct PDF Document Link')),
                     ],
                     onChanged: (v) {
                       if (v != null) {
@@ -463,13 +511,19 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                     controller: urlCtrl,
                     decoration: InputDecoration(
                       labelText: 'Stream URL / Link *',
-                      hintText: isLive ? 'https://.../stream.m3u8 or YouTube / Vimeo Live' : 'https://.../audio_or_doc.mp3',
+                      hintText: isLive
+                          ? 'https://.../stream.m3u8 or YouTube / Vimeo Live'
+                          : 'https://.../audio_or_doc.mp3',
                     ),
                   ),
                   const SizedBox(height: 10),
                   CheckboxListTile(
-                    title: const Text('Mark as Active Live Stream Broadcast', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                    subtitle: const Text('Displays a pulsing live indicator in reader/player', style: TextStyle(fontSize: 11)),
+                    title: const Text('Mark as Active Live Stream Broadcast',
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600)),
+                    subtitle: const Text(
+                        'Displays a pulsing live indicator in reader/player',
+                        style: TextStyle(fontSize: 11)),
                     value: isLive,
                     activeColor: Colors.red,
                     contentPadding: EdgeInsets.zero,
@@ -479,28 +533,36 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel')),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1), foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6366F1),
+                    foregroundColor: Colors.white),
                 onPressed: () {
                   final url = urlCtrl.text.trim();
                   if (url.isEmpty) return;
 
-                  final ext = url.split('?').first.split('.').last.toLowerCase();
+                  final ext =
+                      url.split('?').first.split('.').last.toLowerCase();
                   String mime = 'video/mp4';
                   if (isLive || ext == 'm3u8') {
                     mime = 'application/x-mpegURL';
-                  } else if (['mp3', 'wav', 'm4a'].contains(ext) || selectedType == 'AUDIO_MP3') {
+                  } else if (['mp3', 'wav', 'm4a'].contains(ext) ||
+                      selectedType == 'AUDIO_MP3') {
                     mime = 'audio/mpeg';
                   } else if (ext == 'pdf' || selectedType == 'EBOOK_PDF') {
                     mime = 'application/pdf';
                   }
 
                   final draft = DigitalFileDraft(
-                    title: titleCtrl.text.trim().isNotEmpty ? titleCtrl.text.trim() : 'Live Stream Resource',
+                    title: titleCtrl.text.trim().isNotEmpty
+                        ? titleCtrl.text.trim()
+                        : 'Live Stream Resource',
                     fileName: url.split('/').last.split('?').first,
                     fileType: selectedType,
-                    sourceType: isLive ? 'LIVE_STREAM' : 'DIRECT_LINK',
+                    sourceType: sourceType,
                     mimeType: mime,
                     streamUrl: url,
                     storageKey: url,
@@ -534,18 +596,20 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
       final classesData = results[0];
       final subjectsData = results[1];
 
-      final classNames = (classesData['classes'] as List<AcademicClassModel>? ?? [])
-          .map((c) => c.name.trim())
-          .where((n) => n.isNotEmpty)
-          .toSet()
-          .toList();
+      final classNames =
+          (classesData['classes'] as List<AcademicClassModel>? ?? [])
+              .map((c) => c.name.trim())
+              .where((n) => n.isNotEmpty)
+              .toSet()
+              .toList();
       classNames.sort();
 
-      final subjectNames = (subjectsData['subjects'] as List<AcademicSubjectModel>? ?? [])
-          .map((s) => s.name.trim())
-          .where((n) => n.isNotEmpty)
-          .toSet()
-          .toList();
+      final subjectNames =
+          (subjectsData['subjects'] as List<AcademicSubjectModel>? ?? [])
+              .map((s) => s.name.trim())
+              .where((n) => n.isNotEmpty)
+              .toSet()
+              .toList();
       subjectNames.sort();
 
       if (mounted) {
@@ -553,7 +617,8 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
           _dynamicClasses = classNames;
           _dynamicSubjects = subjectNames;
         });
-        debugPrint('[AddEditBookDialog] Loaded ${_dynamicClasses.length} classes and ${_dynamicSubjects.length} subjects');
+        debugPrint(
+            '[AddEditBookDialog] Loaded ${_dynamicClasses.length} classes and ${_dynamicSubjects.length} subjects');
       }
     } catch (e) {
       debugPrint('[AddEditBookDialog] Error loading academic lookups: $e');
@@ -592,7 +657,8 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
     }
 
     _selectedCondition = _normalizeCondition(_selectedCondition);
-    if (!conditionOptions.contains(_selectedCondition) && conditionOptions.isNotEmpty) {
+    if (!conditionOptions.contains(_selectedCondition) &&
+        conditionOptions.isNotEmpty) {
       _selectedCondition = conditionOptions.first;
     }
 
@@ -603,7 +669,8 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
     for (final s in state.filterOptions.subjects) {
       if (!subjectsList.contains(s)) subjectsList.add(s);
     }
-    if (_subjectCtrl.text.trim().isNotEmpty && !subjectsList.contains(_subjectCtrl.text.trim())) {
+    if (_subjectCtrl.text.trim().isNotEmpty &&
+        !subjectsList.contains(_subjectCtrl.text.trim())) {
       subjectsList.add(_subjectCtrl.text.trim());
     }
 
@@ -614,20 +681,27 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
     for (final c in state.filterOptions.classes) {
       if (!classesList.contains(c)) classesList.add(c);
     }
-    if (_gradeLevelCtrl.text.trim().isNotEmpty && !classesList.contains(_gradeLevelCtrl.text.trim())) {
+    if (_gradeLevelCtrl.text.trim().isNotEmpty &&
+        !classesList.contains(_gradeLevelCtrl.text.trim())) {
       classesList.add(_gradeLevelCtrl.text.trim());
     }
 
-    if (!categories.contains(_selectedCategory) && categories.isNotEmpty) _selectedCategory = categories.first;
-    if (!yearOptions.contains(_selectedFinancialYear) && yearOptions.isNotEmpty) {
+    if (!categories.contains(_selectedCategory) && categories.isNotEmpty)
+      _selectedCategory = categories.first;
+    if (!yearOptions.contains(_selectedFinancialYear) &&
+        yearOptions.isNotEmpty) {
       _selectedFinancialYear = yearOptions.firstWhere(
         (fy) => fy.startsWith(_selectedFinancialYear),
         orElse: () => yearOptions.first,
       );
     }
-    if (!languages.contains(_selectedLanguage) && languages.isNotEmpty) _selectedLanguage = languages.first;
-    if (!bookTypes.contains(_selectedBookType) && bookTypes.isNotEmpty) _selectedBookType = bookTypes.first;
-    if (!conditionOptions.contains(_selectedCondition) && conditionOptions.isNotEmpty) _selectedCondition = conditionOptions.first;
+    if (!languages.contains(_selectedLanguage) && languages.isNotEmpty)
+      _selectedLanguage = languages.first;
+    if (!bookTypes.contains(_selectedBookType) && bookTypes.isNotEmpty)
+      _selectedBookType = bookTypes.first;
+    if (!conditionOptions.contains(_selectedCondition) &&
+        conditionOptions.isNotEmpty)
+      _selectedCondition = conditionOptions.first;
 
     final availableRoles = state.filterOptions.roles;
     final List<String> roleCodeOptions = [];
@@ -658,7 +732,8 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
       }
     }
 
-    if (!roleCodeOptions.contains(_selectedTargetRole) && roleCodeOptions.isNotEmpty) {
+    if (!roleCodeOptions.contains(_selectedTargetRole) &&
+        roleCodeOptions.isNotEmpty) {
       _selectedTargetRole = roleCodeOptions.first;
     }
 
@@ -675,13 +750,18 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
               padding: const EdgeInsets.fromLTRB(24, 18, 16, 14),
               decoration: BoxDecoration(
                 border: Border(
-                  bottom: BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+                  bottom: BorderSide(
+                      color: isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFE2E8F0)),
                 ),
               ),
               child: Row(
                 children: [
                   Icon(
-                    isEdit ? Icons.edit_note_rounded : Icons.auto_stories_rounded,
+                    isEdit
+                        ? Icons.edit_note_rounded
+                        : Icons.auto_stories_rounded,
                     color: const Color(0xFF6366F1),
                     size: 24,
                   ),
@@ -691,25 +771,31 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isEdit ? 'Edit Publication / Title' : 'Add New Library Publication',
+                          isEdit
+                              ? 'Edit Publication / Title'
+                              : 'Add New Library Publication',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                         Text(
                           'Multi-Asset Digital Publishing, Live Streaming & DRM Access Control',
                           style: TextStyle(
                             fontSize: 12,
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.close_rounded, color: isDark ? Colors.white70 : Colors.black54),
+                    icon: Icon(Icons.close_rounded,
+                        color: isDark ? Colors.white70 : Colors.black54),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -723,15 +809,25 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                 controller: _tabController,
                 indicatorColor: const Color(0xFF6366F1),
                 labelColor: const Color(0xFF6366F1),
-                unselectedLabelColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                unselectedLabelColor:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                labelStyle:
+                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                 tabs: [
-                  const Tab(icon: Icon(Icons.menu_book, size: 16), text: '1. Basic Info'),
-                  const Tab(icon: Icon(Icons.category, size: 16), text: '2. Classification'),
-                  const Tab(icon: Icon(Icons.inventory_2, size: 16), text: '3. Physical Stock'),
+                  const Tab(
+                      icon: Icon(Icons.menu_book, size: 16),
+                      text: '1. Basic Info'),
+                  const Tab(
+                      icon: Icon(Icons.category, size: 16),
+                      text: '2. Classification'),
+                  const Tab(
+                      icon: Icon(Icons.inventory_2, size: 16),
+                      text: '3. Physical Stock'),
                   Tab(
                     icon: const Icon(Icons.cloud_upload, size: 16),
-                    text: _digitalFiles.isNotEmpty ? '4. Digital & DRM (${_digitalFiles.length})' : '4. Digital & DRM',
+                    text: _digitalFiles.isNotEmpty
+                        ? '4. Digital & DRM (${_digitalFiles.length})'
+                        : '4. Digital & DRM',
                   ),
                 ],
               ),
@@ -750,29 +846,58 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildTextField(label: 'Book Title *', controller: _titleCtrl, isDark: isDark, isRequired: true),
+                          _buildTextField(
+                              label: 'Book Title *',
+                              controller: _titleCtrl,
+                              isDark: isDark,
+                              isRequired: true),
                           const SizedBox(height: 14),
-                          _buildTextField(label: 'Subtitle', controller: _subtitleCtrl, isDark: isDark),
+                          _buildTextField(
+                              label: 'Subtitle',
+                              controller: _subtitleCtrl,
+                              isDark: isDark),
                           const SizedBox(height: 14),
                           Row(
                             children: [
-                              Expanded(child: _buildTextField(label: 'Author *', controller: _authorCtrl, isDark: isDark, isRequired: true)),
+                              Expanded(
+                                  child: _buildTextField(
+                                      label: 'Author *',
+                                      controller: _authorCtrl,
+                                      isDark: isDark,
+                                      isRequired: true)),
                               const SizedBox(width: 14),
-                              Expanded(child: _buildTextField(label: 'Publisher', controller: _publisherCtrl, isDark: isDark)),
+                              Expanded(
+                                  child: _buildTextField(
+                                      label: 'Publisher',
+                                      controller: _publisherCtrl,
+                                      isDark: isDark)),
                             ],
                           ),
                           const SizedBox(height: 14),
                           Row(
                             children: [
-                              Expanded(child: _buildTextField(label: 'ISBN-13', controller: _isbn13Ctrl, isDark: isDark)),
+                              Expanded(
+                                  child: _buildTextField(
+                                      label: 'ISBN-13',
+                                      controller: _isbn13Ctrl,
+                                      isDark: isDark)),
                               const SizedBox(width: 14),
-                              Expanded(child: _buildTextField(label: 'ISBN-10', controller: _isbn10Ctrl, isDark: isDark)),
+                              Expanded(
+                                  child: _buildTextField(
+                                      label: 'ISBN-10',
+                                      controller: _isbn10Ctrl,
+                                      isDark: isDark)),
                             ],
                           ),
                           const SizedBox(height: 14),
                           Row(
                             children: [
-                              Expanded(child: _buildTextField(label: 'Pages', controller: _pagesCtrl, isDark: isDark, isNumber: true)),
+                              Expanded(
+                                  child: _buildTextField(
+                                      label: 'Pages',
+                                      controller: _pagesCtrl,
+                                      isDark: isDark,
+                                      isNumber: true)),
                               const SizedBox(width: 14),
                               Expanded(
                                 child: _buildDropdownField(
@@ -780,7 +905,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                   value: _selectedFinancialYear,
                                   items: yearOptions,
                                   onChanged: (v) {
-                                    if (v != null) setState(() => _selectedFinancialYear = v);
+                                    if (v != null)
+                                      setState(
+                                          () => _selectedFinancialYear = v);
                                   },
                                   isDark: isDark,
                                 ),
@@ -788,7 +915,11 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                             ],
                           ),
                           const SizedBox(height: 14),
-                          _buildTextField(label: 'Description / Abstract', controller: _descriptionCtrl, isDark: isDark, maxLines: 3),
+                          _buildTextField(
+                              label: 'Description / Abstract',
+                              controller: _descriptionCtrl,
+                              isDark: isDark,
+                              maxLines: 3),
                         ],
                       ),
                     ),
@@ -807,7 +938,8 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                   value: _selectedCategory,
                                   items: categories,
                                   onChanged: (v) {
-                                    if (v != null) setState(() => _selectedCategory = v);
+                                    if (v != null)
+                                      setState(() => _selectedCategory = v);
                                   },
                                   isDark: isDark,
                                 ),
@@ -819,7 +951,8 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                   value: _selectedLanguage,
                                   items: languages,
                                   onChanged: (v) {
-                                    if (v != null) setState(() => _selectedLanguage = v);
+                                    if (v != null)
+                                      setState(() => _selectedLanguage = v);
                                   },
                                   isDark: isDark,
                                 ),
@@ -839,7 +972,11 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                       setState(() {
                                         _selectedBookType = v;
                                         final lower = v.toLowerCase();
-                                        if (lower.contains('ebook') || lower.contains('e-book') || lower.contains('audio') || lower.contains('video') || lower.contains('digital')) {
+                                        if (lower.contains('ebook') ||
+                                            lower.contains('e-book') ||
+                                            lower.contains('audio') ||
+                                            lower.contains('video') ||
+                                            lower.contains('digital')) {
                                           _isDigital = true;
                                         }
                                       });
@@ -853,9 +990,15 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                 child: _buildDropdownField(
                                   label: 'Difficulty Level',
                                   value: _difficultyLevel,
-                                  items: const ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
+                                  items: const [
+                                    'Beginner',
+                                    'Intermediate',
+                                    'Advanced',
+                                    'Expert'
+                                  ],
                                   onChanged: (v) {
-                                    if (v != null) setState(() => _difficultyLevel = v);
+                                    if (v != null)
+                                      setState(() => _difficultyLevel = v);
                                   },
                                   isDark: isDark,
                                 ),
@@ -868,10 +1011,15 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                               Expanded(
                                 child: _buildDropdownField(
                                   label: 'Academic Subject (Class Management)',
-                                  value: _subjectCtrl.text.trim().isNotEmpty ? _subjectCtrl.text.trim() : (subjectsList.isNotEmpty ? subjectsList.first : ''),
+                                  value: _subjectCtrl.text.trim().isNotEmpty
+                                      ? _subjectCtrl.text.trim()
+                                      : (subjectsList.isNotEmpty
+                                          ? subjectsList.first
+                                          : ''),
                                   items: subjectsList,
                                   onChanged: (v) {
-                                    if (v != null) setState(() => _subjectCtrl.text = v);
+                                    if (v != null)
+                                      setState(() => _subjectCtrl.text = v);
                                   },
                                   isDark: isDark,
                                 ),
@@ -879,11 +1027,17 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                               const SizedBox(width: 14),
                               Expanded(
                                 child: _buildDropdownField(
-                                  label: 'Grade / Target Class (Class Management)',
-                                  value: _gradeLevelCtrl.text.trim().isNotEmpty ? _gradeLevelCtrl.text.trim() : (classesList.isNotEmpty ? classesList.first : ''),
+                                  label:
+                                      'Grade / Target Class (Class Management)',
+                                  value: _gradeLevelCtrl.text.trim().isNotEmpty
+                                      ? _gradeLevelCtrl.text.trim()
+                                      : (classesList.isNotEmpty
+                                          ? classesList.first
+                                          : ''),
                                   items: classesList,
                                   onChanged: (v) {
-                                    if (v != null) setState(() => _gradeLevelCtrl.text = v);
+                                    if (v != null)
+                                      setState(() => _gradeLevelCtrl.text = v);
                                   },
                                   isDark: isDark,
                                 ),
@@ -904,23 +1058,45 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                         children: [
                           Row(
                             children: [
-                              Expanded(child: _buildTextField(label: 'Rack Location', controller: _rackCtrl, isDark: isDark)),
+                              Expanded(
+                                  child: _buildTextField(
+                                      label: 'Rack Location',
+                                      controller: _rackCtrl,
+                                      isDark: isDark)),
                               const SizedBox(width: 14),
-                              Expanded(child: _buildTextField(label: 'Shelf Location', controller: _shelfCtrl, isDark: isDark)),
+                              Expanded(
+                                  child: _buildTextField(
+                                      label: 'Shelf Location',
+                                      controller: _shelfCtrl,
+                                      isDark: isDark)),
                             ],
                           ),
                           const SizedBox(height: 14),
                           Row(
                             children: [
-                              Expanded(child: _buildTextField(label: 'Initial Copies Count', controller: _totalCopiesCtrl, isDark: isDark, isNumber: true)),
+                              Expanded(
+                                  child: _buildTextField(
+                                      label: 'Initial Copies Count',
+                                      controller: _totalCopiesCtrl,
+                                      isDark: isDark,
+                                      isNumber: true)),
                               const SizedBox(width: 14),
-                              Expanded(child: _buildTextField(label: 'Purchase Price (₹)', controller: _priceCtrl, isDark: isDark, isNumber: true)),
+                              Expanded(
+                                  child: _buildTextField(
+                                      label: 'Purchase Price (₹)',
+                                      controller: _priceCtrl,
+                                      isDark: isDark,
+                                      isNumber: true)),
                             ],
                           ),
                           const SizedBox(height: 14),
                           Row(
                             children: [
-                              Expanded(child: _buildTextField(label: 'Supplier / Vendor', controller: _supplierCtrl, isDark: isDark)),
+                              Expanded(
+                                  child: _buildTextField(
+                                      label: 'Supplier / Vendor',
+                                      controller: _supplierCtrl,
+                                      isDark: isDark)),
                               const SizedBox(width: 14),
                               Expanded(
                                 child: _buildDropdownField(
@@ -938,10 +1114,12 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                       'UNDER_REPAIR': 'Under Repair',
                                       'LOST': 'Lost / Missing',
                                     };
-                                    return map[code] ?? _formatOptionLabel(code);
+                                    return map[code] ??
+                                        _formatOptionLabel(code);
                                   },
                                   onChanged: (v) {
-                                    if (v != null) setState(() => _selectedCondition = v);
+                                    if (v != null)
+                                      setState(() => _selectedCondition = v);
                                   },
                                   isDark: isDark,
                                 ),
@@ -959,10 +1137,12 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SwitchListTile(
-                            title: const Text('Digital Edition Available', style: TextStyle(fontWeight: FontWeight.w700)),
-                            subtitle: const Text('Enable multi-asset reading, audio listening, video lectures, and live streaming.'),
+                            title: const Text('Digital Edition Available',
+                                style: TextStyle(fontWeight: FontWeight.w700)),
+                            subtitle: const Text(
+                                'Enable multi-asset reading, audio listening, video lectures, and live streaming.'),
                             value: _isDigital,
-                            activeColor: const Color(0xFF6366F1),
+                            activeThumbColor: const Color(0xFF6366F1),
                             onChanged: (v) => setState(() => _isDigital = v),
                           ),
                           const Divider(),
@@ -975,9 +1155,14 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                 Expanded(
                                   flex: 3,
                                   child: _buildDropdownField(
-                                    label: 'Display Mode / Digital Visibility *',
+                                    label:
+                                        'Display Mode / Digital Visibility *',
                                     value: _digitalVisibility,
-                                    items: const ['PUBLIC', 'INTERNAL', 'RESTRICTED'],
+                                    items: const [
+                                      'PUBLIC',
+                                      'INTERNAL',
+                                      'RESTRICTED'
+                                    ],
                                     labelBuilder: (v) {
                                       switch (v) {
                                         case 'PUBLIC':
@@ -1008,17 +1193,23 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                       label: 'Allowed Role (from App Roles) *',
                                       value: _selectedTargetRole,
                                       items: roleCodeOptions,
-                                      labelBuilder: (code) => roleDisplayMap[code] ?? _formatOptionLabel(code),
+                                      labelBuilder: (code) =>
+                                          roleDisplayMap[code] ??
+                                          _formatOptionLabel(code),
                                       onChanged: (v) {
-                                        if (v != null) setState(() => _selectedTargetRole = v);
+                                        if (v != null)
+                                          setState(
+                                              () => _selectedTargetRole = v);
                                       },
                                       isDark: isDark,
                                     ),
                                   ),
                                 ],
                                 if (_digitalVisibility != 'PUBLIC' &&
-                                    (_selectedTargetRole.toUpperCase() == 'STUDENT' ||
-                                        _selectedTargetRole.toUpperCase() == 'STUDENTS')) ...[
+                                    (_selectedTargetRole.toUpperCase() ==
+                                            'STUDENT' ||
+                                        _selectedTargetRole.toUpperCase() ==
+                                            'STUDENTS')) ...[
                                   const SizedBox(width: 14),
                                   Expanded(
                                     flex: 3,
@@ -1036,7 +1227,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                         '18+ Years',
                                       ],
                                       onChanged: (v) {
-                                        if (v != null) setState(() => _selectedMinAgeLimit = v);
+                                        if (v != null)
+                                          setState(
+                                              () => _selectedMinAgeLimit = v);
                                       },
                                       isDark: isDark,
                                     ),
@@ -1061,27 +1254,40 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                             // Dynamic Informative Access Mode Cards
                             if (_digitalVisibility == 'PUBLIC')
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 11),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.15 : 0.08),
+                                  color: const Color(0xFF10B981)
+                                      .withValues(alpha: isDark ? 0.15 : 0.08),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                                  border: Border.all(
+                                      color: const Color(0xFF10B981)
+                                          .withValues(alpha: 0.3)),
                                 ),
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.public, color: Color(0xFF10B981), size: 20),
+                                    const Icon(Icons.public,
+                                        color: Color(0xFF10B981), size: 20),
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           const Text(
                                             'Public Open Access',
-                                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: Color(0xFF10B981)),
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 12.5,
+                                                color: Color(0xFF10B981)),
                                           ),
                                           Text(
                                             'All registered school members can read, listen, and access this publication immediately with zero approval or permission requests required.',
-                                            style: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+                                            style: TextStyle(
+                                                fontSize: 11.5,
+                                                color: isDark
+                                                    ? const Color(0xFFCBD5E1)
+                                                    : const Color(0xFF475569)),
                                           ),
                                         ],
                                       ),
@@ -1091,27 +1297,40 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                               )
                             else if (_digitalVisibility == 'INTERNAL')
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 11),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF6366F1).withValues(alpha: isDark ? 0.15 : 0.08),
+                                  color: const Color(0xFF6366F1)
+                                      .withValues(alpha: isDark ? 0.15 : 0.08),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
+                                  border: Border.all(
+                                      color: const Color(0xFF6366F1)
+                                          .withValues(alpha: 0.3)),
                                 ),
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.verified_user_outlined, color: Color(0xFF6366F1), size: 20),
+                                    const Icon(Icons.verified_user_outlined,
+                                        color: Color(0xFF6366F1), size: 20),
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             'Internal Role Access (${roleDisplayMap[_selectedTargetRole] ?? _selectedTargetRole})',
-                                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: Color(0xFF6366F1)),
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 12.5,
+                                                color: Color(0xFF6366F1)),
                                           ),
                                           Text(
                                             'Members matching the selected role can read immediately inside the school. No request or approval workflow required.',
-                                            style: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+                                            style: TextStyle(
+                                                fontSize: 11.5,
+                                                color: isDark
+                                                    ? const Color(0xFFCBD5E1)
+                                                    : const Color(0xFF475569)),
                                           ),
                                         ],
                                       ),
@@ -1121,27 +1340,40 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                               )
                             else if (_digitalVisibility == 'RESTRICTED')
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 11),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.15 : 0.08),
+                                  color: const Color(0xFFF59E0B)
+                                      .withValues(alpha: isDark ? 0.15 : 0.08),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+                                  border: Border.all(
+                                      color: const Color(0xFFF59E0B)
+                                          .withValues(alpha: 0.3)),
                                 ),
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.lock_clock_rounded, color: Color(0xFFF59E0B), size: 20),
+                                    const Icon(Icons.lock_clock_rounded,
+                                        color: Color(0xFFF59E0B), size: 20),
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             'Restricted Access with Librarian Approval (${roleDisplayMap[_selectedTargetRole] ?? _selectedTargetRole})',
-                                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: Color(0xFFF59E0B)),
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 12.5,
+                                                color: Color(0xFFF59E0B)),
                                           ),
                                           Text(
                                             'Users must raise a digital access request. Content is unlocked only after a librarian approves the request for ${_accessDurationCtrl.text.trim().isEmpty ? '30' : _accessDurationCtrl.text.trim()} days.',
-                                            style: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+                                            style: TextStyle(
+                                                fontSize: 11.5,
+                                                color: isDark
+                                                    ? const Color(0xFFCBD5E1)
+                                                    : const Color(0xFF475569)),
                                           ),
                                         ],
                                       ),
@@ -1154,31 +1386,48 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
 
                             // Multi-Asset Header & Action Buttons
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF6366F1).withValues(alpha: isDark ? 0.15 : 0.06),
+                                color: const Color(0xFF6366F1)
+                                    .withValues(alpha: isDark ? 0.15 : 0.06),
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
+                                border: Border.all(
+                                    color: const Color(0xFF6366F1)
+                                        .withValues(alpha: 0.3)),
                               ),
                               child: Row(
                                 children: [
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Row(
                                           children: [
-                                            const Text('Digital Assets & Live Streams', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                                            const Text(
+                                                'Digital Assets & Live Streams',
+                                                style: TextStyle(
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 13.5)),
                                             const SizedBox(width: 8),
                                             Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 7,
+                                                      vertical: 2),
                                               decoration: BoxDecoration(
                                                 color: const Color(0xFF6366F1),
-                                                borderRadius: BorderRadius.circular(10),
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
                                               ),
                                               child: Text(
                                                 '${_digitalFiles.length} attached',
-                                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                                                style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                    fontWeight:
+                                                        FontWeight.w700),
                                               ),
                                             ),
                                           ],
@@ -1186,7 +1435,11 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                         const SizedBox(height: 2),
                                         Text(
                                           'Upload multiple PDFs/ePubs, audio chapters, video recordings, or live stream links.',
-                                          style: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                                          style: TextStyle(
+                                              fontSize: 11.5,
+                                              color: isDark
+                                                  ? const Color(0xFF94A3B8)
+                                                  : const Color(0xFF64748B)),
                                         ),
                                       ],
                                     ),
@@ -1196,23 +1449,40 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                     children: [
                                       ElevatedButton.icon(
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFF6366F1),
+                                          backgroundColor:
+                                              const Color(0xFF6366F1),
                                           foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 8),
                                         ),
-                                        onPressed: _pickAndUploadMultipleDigitalFiles,
-                                        icon: const Icon(Icons.file_upload_outlined, size: 16),
-                                        label: const Text('Upload Files', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                        onPressed:
+                                            _pickAndUploadMultipleDigitalFiles,
+                                        icon: const Icon(
+                                            Icons.file_upload_outlined,
+                                            size: 16),
+                                        label: const Text('Upload Files',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600)),
                                       ),
                                       OutlinedButton.icon(
                                         style: OutlinedButton.styleFrom(
-                                          foregroundColor: const Color(0xFF6366F1),
-                                          side: const BorderSide(color: Color(0xFF6366F1)),
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                          foregroundColor:
+                                              const Color(0xFF6366F1),
+                                          side: const BorderSide(
+                                              color: Color(0xFF6366F1)),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 8),
                                         ),
-                                        onPressed: _showAddLinkOrLiveStreamDialog,
-                                        icon: const Icon(Icons.live_tv_rounded, size: 16),
-                                        label: const Text('Add Stream / Live Link', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                        onPressed:
+                                            _showAddLinkOrLiveStreamDialog,
+                                        icon: const Icon(Icons.live_tv_rounded,
+                                            size: 16),
+                                        label: const Text(
+                                            'Add Stream / Live Link',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600)),
                                       ),
                                     ],
                                   ),
@@ -1224,20 +1494,40 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                             // Multi-Asset Cards List
                             if (_digitalFiles.isEmpty)
                               Container(
-                                padding: const EdgeInsets.symmetric(vertical: 24),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 24),
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                                  color: isDark
+                                      ? const Color(0xFF1E293B)
+                                      : const Color(0xFFF8FAFC),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0), style: BorderStyle.solid),
+                                  border: Border.all(
+                                      color: isDark
+                                          ? const Color(0xFF334155)
+                                          : const Color(0xFFE2E8F0),
+                                      style: BorderStyle.solid),
                                 ),
                                 child: Column(
                                   children: [
-                                    Icon(Icons.cloud_upload_outlined, size: 36, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                                    Icon(Icons.cloud_upload_outlined,
+                                        size: 36,
+                                        color: isDark
+                                            ? const Color(0xFF64748B)
+                                            : const Color(0xFF94A3B8)),
                                     const SizedBox(height: 6),
-                                    Text('No digital assets attached yet', style: TextStyle(fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF475569))),
+                                    Text('No digital assets attached yet',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark
+                                                ? Colors.white70
+                                                : const Color(0xFF475569))),
                                     const SizedBox(height: 4),
-                                    const Text('Click "Upload Files" or "Add Stream / Live Link" to attach multi-format media.', style: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8))),
+                                    const Text(
+                                        'Click "Upload Files" or "Add Stream / Live Link" to attach multi-format media.',
+                                        style: TextStyle(
+                                            fontSize: 11.5,
+                                            color: Color(0xFF94A3B8))),
                                   ],
                                 ),
                               )
@@ -1246,19 +1536,25 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
                                 itemCount: _digitalFiles.length,
-                                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 10),
                                 itemBuilder: (context, idx) {
                                   final file = _digitalFiles[idx];
-                                  return _buildDigitalAssetCard(file, idx, isDark);
+                                  return _buildDigitalAssetCard(
+                                      file, idx, isDark);
                                 },
                               ),
 
                             const SizedBox(height: 22),
-                            Row(
+                            const Row(
                               children: [
-                                const Icon(Icons.shield_outlined, size: 17, color: Color(0xFF6366F1)),
-                                const SizedBox(width: 6),
-                                const Text('DRM Security & Interaction Rules', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                                Icon(Icons.shield_outlined,
+                                    size: 17, color: Color(0xFF6366F1)),
+                                SizedBox(width: 6),
+                                Text('DRM Security & Interaction Rules',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13)),
                               ],
                             ),
                             const SizedBox(height: 10),
@@ -1269,11 +1565,13 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                     Expanded(
                                       child: _buildDrmRuleTile(
                                         title: 'Allow In-App Notes',
-                                        subtitle: 'Enable note-taking tool in reader',
+                                        subtitle:
+                                            'Enable note-taking tool in reader',
                                         icon: Icons.note_alt_outlined,
                                         color: const Color(0xFF6366F1),
                                         value: _allowNotes,
-                                        onChanged: (v) => setState(() => _allowNotes = v),
+                                        onChanged: (v) =>
+                                            setState(() => _allowNotes = v),
                                         isDark: isDark,
                                       ),
                                     ),
@@ -1281,11 +1579,13 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                     Expanded(
                                       child: _buildDrmRuleTile(
                                         title: 'Allow Highlights',
-                                        subtitle: 'Enable text color highlighting',
+                                        subtitle:
+                                            'Enable text color highlighting',
                                         icon: Icons.highlight_alt_rounded,
                                         color: const Color(0xFFF59E0B),
                                         value: _allowHighlights,
-                                        onChanged: (v) => setState(() => _allowHighlights = v),
+                                        onChanged: (v) => setState(
+                                            () => _allowHighlights = v),
                                         isDark: isDark,
                                       ),
                                     ),
@@ -1297,11 +1597,13 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                     Expanded(
                                       child: _buildDrmRuleTile(
                                         title: 'Allow Bookmarks',
-                                        subtitle: 'Save reading progress & markers',
+                                        subtitle:
+                                            'Save reading progress & markers',
                                         icon: Icons.bookmark_added_outlined,
                                         color: const Color(0xFF10B981),
                                         value: _allowBookmarks,
-                                        onChanged: (v) => setState(() => _allowBookmarks = v),
+                                        onChanged: (v) =>
+                                            setState(() => _allowBookmarks = v),
                                         isDark: isDark,
                                       ),
                                     ),
@@ -1309,11 +1611,13 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                     Expanded(
                                       child: _buildDrmRuleTile(
                                         title: 'Allow Copy Text',
-                                        subtitle: 'Allow clipboard text copying',
+                                        subtitle:
+                                            'Allow clipboard text copying',
                                         icon: Icons.copy_rounded,
                                         color: const Color(0xFF8B5CF6),
                                         value: _allowCopyText,
-                                        onChanged: (v) => setState(() => _allowCopyText = v),
+                                        onChanged: (v) =>
+                                            setState(() => _allowCopyText = v),
                                         isDark: isDark,
                                       ),
                                     ),
@@ -1322,11 +1626,13 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                 const SizedBox(height: 10),
                                 _buildDrmRuleTile(
                                   title: 'Allow Screenshots & Screen Capture',
-                                  subtitle: 'Permit device screen recording and screenshots on web & mobile readers',
+                                  subtitle:
+                                      'Permit device screen recording and screenshots on web & mobile readers',
                                   icon: Icons.screenshot_monitor_rounded,
                                   color: const Color(0xFF06B6D4),
                                   value: _allowScreenshots,
-                                  onChanged: (v) => setState(() => _allowScreenshots = v),
+                                  onChanged: (v) =>
+                                      setState(() => _allowScreenshots = v),
                                   isDark: isDark,
                                 ),
                               ],
@@ -1344,7 +1650,11 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0))),
+                border: Border(
+                    top: BorderSide(
+                        color: isDark
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFFE2E8F0))),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -1358,14 +1668,21 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF6366F1),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     onPressed: _isSaving ? null : _submitForm,
                     icon: _isSaving
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
                         : const Icon(Icons.check_circle_outline, size: 18),
-                    label: Text(isEdit ? 'Save Changes' : 'Publish Publication', style: const TextStyle(fontWeight: FontWeight.w700)),
+                    label: Text(isEdit ? 'Save Changes' : 'Publish Publication',
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ],
               ),
@@ -1406,7 +1723,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: file.isPrimary ? const Color(0xFF6366F1) : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+          color: file.isPrimary
+              ? const Color(0xFF6366F1)
+              : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
           width: file.isPrimary ? 1.5 : 1,
         ),
       ),
@@ -1414,7 +1733,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8)),
             child: Icon(icon, color: color, size: 22),
           ),
           const SizedBox(width: 12),
@@ -1431,7 +1752,8 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                         decoration: const InputDecoration(
                           isDense: true,
@@ -1443,12 +1765,17 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                     ),
                     if (file.isPrimary)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: const Color(0xFF6366F1),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Text('DEFAULT', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)),
+                        child: const Text('DEFAULT',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700)),
                       ),
                   ],
                 ),
@@ -1456,22 +1783,38 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                      child: Text(typeLabel, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4)),
+                      child: Text(typeLabel,
+                          style: TextStyle(
+                              color: color,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700)),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        file.streamUrl.isNotEmpty ? file.streamUrl : file.fileName,
-                        style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                        file.streamUrl.isNotEmpty
+                            ? file.streamUrl
+                            : file.fileName,
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B)),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     if (file.isUploading) ...[
                       const SizedBox(width: 8),
-                      const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)),
+                      const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(strokeWidth: 2)),
                     ],
                   ],
                 ),
@@ -1480,7 +1823,10 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
           ),
           const SizedBox(width: 10),
           PopupMenuButton<String>(
-            icon: Icon(Icons.more_vert, size: 18, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+            icon: Icon(Icons.more_vert,
+                size: 18,
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
             onSelected: (val) {
               if (val == 'set_primary') {
                 setState(() {
@@ -1500,8 +1846,13 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
               }
             },
             itemBuilder: (ctx) => [
-              if (!file.isPrimary) const PopupMenuItem(value: 'set_primary', child: Text('Set as Default Asset')),
-              const PopupMenuItem(value: 'delete', child: Text('Delete Asset', style: TextStyle(color: Colors.red))),
+              if (!file.isPrimary)
+                const PopupMenuItem(
+                    value: 'set_primary', child: Text('Set as Default Asset')),
+              const PopupMenuItem(
+                  value: 'delete',
+                  child: Text('Delete Asset',
+                      style: TextStyle(color: Colors.red))),
             ],
           ),
         ],
@@ -1543,13 +1894,19 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
               decoration: BoxDecoration(
                 color: value
                     ? color.withValues(alpha: 0.2)
-                    : (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
+                    : (isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFF1F5F9)),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 icon,
                 size: 18,
-                color: value ? color : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                color: value
+                    ? color
+                    : (isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B)),
               ),
             ),
             const SizedBox(width: 12),
@@ -1569,7 +1926,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                     subtitle,
                     style: TextStyle(
                       fontSize: 11,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                     ),
                   ),
                 ],
@@ -1578,7 +1937,8 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
             Checkbox(
               value: value,
               activeColor: color,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4)),
               onChanged: (v) => onChanged(v ?? false),
             ),
           ],
@@ -1586,7 +1946,6 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
       ),
     );
   }
-
 
   Widget _buildTextField({
     required String label,
@@ -1613,12 +1972,18 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
           controller: controller,
           maxLines: maxLines,
           keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-          style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+          style: TextStyle(
+              fontSize: 13,
+              color: isDark ? Colors.white : const Color(0xFF0F172A)),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+            hintStyle: TextStyle(
+                fontSize: 12,
+                color:
+                    isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           ),
           validator: (v) {
             if (isRequired && (v == null || v.trim().isEmpty)) {
@@ -1670,7 +2035,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
     if (key == key.toUpperCase() && key != key.toLowerCase()) {
       return key
           .split('_')
-          .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}' : '')
+          .map((w) => w.isNotEmpty
+              ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}'
+              : '')
           .join(' ');
     }
     return key;
@@ -1713,7 +2080,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+            border: Border.all(
+                color:
+                    isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
@@ -1723,7 +2092,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                 'Select ${label.split('(').first.trim()}',
                 style: TextStyle(
                   fontSize: 12.5,
-                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                  color: isDark
+                      ? const Color(0xFF64748B)
+                      : const Color(0xFF94A3B8),
                 ),
               ),
               dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1734,18 +2105,24 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
               ),
               selectedItemBuilder: (context) {
                 return effectiveItems.map((item) {
-                  final displayText = labelBuilder != null ? labelBuilder(item) : _formatOptionLabel(item);
+                  final displayText = labelBuilder != null
+                      ? labelBuilder(item)
+                      : _formatOptionLabel(item);
                   return Align(
                     alignment: Alignment.centerLeft,
-                    child: Text(displayText, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    child: Text(displayText,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
                   );
                 }).toList();
               },
               items: effectiveItems.map((item) {
-                final displayText = labelBuilder != null ? labelBuilder(item) : _formatOptionLabel(item);
+                final displayText = labelBuilder != null
+                    ? labelBuilder(item)
+                    : _formatOptionLabel(item);
                 return DropdownMenuItem<String>(
                   value: item,
-                  child: Text(displayText, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  child: Text(displayText,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
                 );
               }).toList(),
               onChanged: onChanged,
@@ -1757,8 +2134,8 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
   }
 
   Widget _buildCoverPhotoSection(bool isDark) {
-
-    final hasCover = _localCoverBytes != null || _coverUrlCtrl.text.trim().isNotEmpty;
+    final hasCover =
+        _localCoverBytes != null || _coverUrlCtrl.text.trim().isNotEmpty;
     final rawUrl = _coverUrlCtrl.text.trim();
     final resolvedUrl = rawUrl.isNotEmpty ? AppConfig.resolveUrl(rawUrl) : '';
 
@@ -1767,7 +2144,8 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1780,9 +2158,12 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                 width: 80,
                 height: 110,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.08),
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFCBD5E1)),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: _isUploadingCover
@@ -1790,7 +2171,8 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                         child: SizedBox(
                           width: 24,
                           height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF6366F1)),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2.5, color: Color(0xFF6366F1)),
                         ),
                       )
                     : _localCoverBytes != null
@@ -1810,7 +2192,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                   child: Icon(
                                     Icons.broken_image_rounded,
                                     size: 32,
-                                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                                    color: isDark
+                                        ? const Color(0xFF64748B)
+                                        : const Color(0xFF94A3B8),
                                   ),
                                 ),
                               )
@@ -1818,7 +2202,8 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                 child: Icon(
                                   Icons.auto_stories_rounded,
                                   size: 36,
-                                  color: const Color(0xFF6366F1).withOpacity(0.5),
+                                  color: const Color(0xFF6366F1)
+                                      .withValues(alpha: 0.5),
                                 ),
                               ),
               ),
@@ -1842,7 +2227,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                       'Upload a high-resolution picture (JPG, PNG, WebP up to 5MB). The cover will be visible across search, smart cards, and readers.',
                       style: TextStyle(
                         fontSize: 12,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                         height: 1.35,
                       ),
                     ),
@@ -1855,20 +2242,30 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF6366F1),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
                           ),
-                          onPressed: _isUploadingCover ? null : _pickAndUploadCover,
+                          onPressed:
+                              _isUploadingCover ? null : _pickAndUploadCover,
                           icon: _isUploadingCover
                               ? const SizedBox(
                                   width: 14,
                                   height: 14,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white),
                                 )
-                              : const Icon(Icons.photo_library_rounded, size: 16),
+                              : const Icon(Icons.photo_library_rounded,
+                                  size: 16),
                           label: Text(
-                            _isUploadingCover ? 'Uploading...' : (hasCover ? 'Change Picture' : 'Upload from Local Device'),
-                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                            _isUploadingCover
+                                ? 'Uploading...'
+                                : (hasCover
+                                    ? 'Change Picture'
+                                    : 'Upload from Local Device'),
+                            style: const TextStyle(
+                                fontSize: 12.5, fontWeight: FontWeight.w600),
                           ),
                         ),
                         if (hasCover)
@@ -1876,8 +2273,10 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.red,
                               side: const BorderSide(color: Colors.redAccent),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
                             ),
                             onPressed: () {
                               setState(() {
@@ -1885,8 +2284,12 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                                 _coverUrlCtrl.clear();
                               });
                             },
-                            icon: const Icon(Icons.delete_outline_rounded, size: 16),
-                            label: const Text('Remove', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                            icon: const Icon(Icons.delete_outline_rounded,
+                                size: 16),
+                            label: const Text('Remove',
+                                style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600)),
                           ),
                       ],
                     ),
@@ -1895,14 +2298,20 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
               ),
             ],
           ),
-
           if (resolvedUrl.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Divider(height: 1, color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+            Divider(
+                height: 1,
+                color:
+                    isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
             const SizedBox(height: 10),
             Row(
               children: [
-                Icon(Icons.link_rounded, size: 14, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                Icon(Icons.link_rounded,
+                    size: 14,
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B)),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -1910,7 +2319,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
                     style: TextStyle(
                       fontSize: 11,
                       fontFamily: 'monospace',
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1925,7 +2336,6 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
   }
 
   void _submitForm() async {
-
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSaving = true);
@@ -1941,7 +2351,8 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
     }
 
     final totalCopies = int.tryParse(_totalCopiesCtrl.text) ?? 1;
-    final availableCopies = int.tryParse(_availableCopiesCtrl.text) ?? totalCopies;
+    final availableCopies =
+        int.tryParse(_availableCopiesCtrl.text) ?? totalCopies;
 
     final typeLower = _selectedBookType.toLowerCase();
     final isDigitalEffective = _isDigital ||
@@ -1952,7 +2363,6 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
         typeLower.contains('video') ||
         typeLower.contains('digital');
 
-
     final isPublic = _digitalVisibility == 'PUBLIC';
     final isRestricted = _digitalVisibility == 'RESTRICTED';
 
@@ -1962,12 +2372,15 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
 
     final effectiveRequiresPermission = isRestricted;
 
-    final effectiveRoles = isPublic ? <String>[] : <String>[_selectedTargetRole];
+    final effectiveRoles =
+        isPublic ? <String>[] : <String>[_selectedTargetRole];
 
     final effectiveAgeGroup = (!isPublic &&
             (_selectedTargetRole.toUpperCase() == 'STUDENT' ||
                 _selectedTargetRole.toUpperCase() == 'STUDENTS'))
-        ? (_selectedMinAgeLimit == 'None / All Ages' ? null : _selectedMinAgeLimit)
+        ? (_selectedMinAgeLimit == 'None / All Ages'
+            ? null
+            : _selectedMinAgeLimit)
         : null;
 
     final effectiveDuration = isRestricted
@@ -1976,11 +2389,16 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
 
     final payload = {
       'title': _titleCtrl.text.trim(),
-      'subtitle': _subtitleCtrl.text.trim().isEmpty ? null : _subtitleCtrl.text.trim(),
+      'subtitle':
+          _subtitleCtrl.text.trim().isEmpty ? null : _subtitleCtrl.text.trim(),
       'author': _authorCtrl.text.trim(),
-      'isbn13': _isbn13Ctrl.text.trim().isEmpty ? null : _isbn13Ctrl.text.trim(),
-      'isbn10': _isbn10Ctrl.text.trim().isEmpty ? null : _isbn10Ctrl.text.trim(),
-      'publisher': _publisherCtrl.text.trim().isEmpty ? null : _publisherCtrl.text.trim(),
+      'isbn13':
+          _isbn13Ctrl.text.trim().isEmpty ? null : _isbn13Ctrl.text.trim(),
+      'isbn10':
+          _isbn10Ctrl.text.trim().isEmpty ? null : _isbn10Ctrl.text.trim(),
+      'publisher': _publisherCtrl.text.trim().isEmpty
+          ? null
+          : _publisherCtrl.text.trim(),
       'pages': int.tryParse(_pagesCtrl.text.trim()),
       'category_name': _selectedCategory,
       'language_name': _selectedLanguage,
@@ -1990,12 +2408,19 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
       'status': _selectedStatus,
       'total_copies': totalCopies,
       'available_copies': availableCopies,
-      'description': _descriptionCtrl.text.trim().isEmpty ? null : _descriptionCtrl.text.trim(),
-      'rack_location': _rackCtrl.text.trim().isEmpty ? 'Rack A' : _rackCtrl.text.trim(),
-      'shelf_location': _shelfCtrl.text.trim().isEmpty ? 'Shelf 1' : _shelfCtrl.text.trim(),
-      'cover_url': _coverUrlCtrl.text.trim().isEmpty ? null : _coverUrlCtrl.text.trim(),
+      'description': _descriptionCtrl.text.trim().isEmpty
+          ? null
+          : _descriptionCtrl.text.trim(),
+      'rack_location':
+          _rackCtrl.text.trim().isEmpty ? 'Rack A' : _rackCtrl.text.trim(),
+      'shelf_location':
+          _shelfCtrl.text.trim().isEmpty ? 'Shelf 1' : _shelfCtrl.text.trim(),
+      'cover_url':
+          _coverUrlCtrl.text.trim().isEmpty ? null : _coverUrlCtrl.text.trim(),
       'purchase_price': double.tryParse(_priceCtrl.text) ?? 299.0,
-      'supplier': _supplierCtrl.text.trim().isEmpty ? 'Sapna Book House' : _supplierCtrl.text.trim(),
+      'supplier': _supplierCtrl.text.trim().isEmpty
+          ? 'Sapna Book House'
+          : _supplierCtrl.text.trim(),
       'condition': _normalizeCondition(_selectedCondition),
       'initial_condition': _normalizeCondition(_selectedCondition),
       'acquisition_type': _selectedAcquisitionType,
@@ -2007,15 +2432,20 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
       'allowed_roles': effectiveRoles,
       'age_group': effectiveAgeGroup,
       'default_access_duration_days': effectiveDuration,
-      'subject': _subjectCtrl.text.trim().isEmpty ? null : _subjectCtrl.text.trim(),
-      'grade_level': _gradeLevelCtrl.text.trim().isEmpty ? null : _gradeLevelCtrl.text.trim(),
+      'subject':
+          _subjectCtrl.text.trim().isEmpty ? null : _subjectCtrl.text.trim(),
+      'grade_level': _gradeLevelCtrl.text.trim().isEmpty
+          ? null
+          : _gradeLevelCtrl.text.trim(),
       'difficulty_level': _difficultyLevel,
       'allow_notes': _allowNotes,
       'allow_highlights': _allowHighlights,
       'allow_bookmarks': _allowBookmarks,
       'allow_copy_text': _allowCopyText,
       'allow_screenshots': _allowScreenshots,
-      'digital_files': _digitalFiles.map((f) => f.toPayload(_digitalFiles.indexOf(f) + 1)).toList(),
+      'digital_files': _digitalFiles
+          .map((f) => f.toPayload(_digitalFiles.indexOf(f) + 1))
+          .toList(),
     };
 
     if (!isEdit) {
@@ -2040,7 +2470,9 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog> with Sing
       if (mounted) {
         setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save book: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Failed to save book: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }

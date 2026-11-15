@@ -111,10 +111,10 @@ fi
 if [ ! -z "$S3_BUCKET" ] || [ ! -z "$AWS_BUCKET" ]; then
 cat <<EOF >> /egress.yaml
 s3:
-  access_key: "${S3_ACCESS_KEY:-${AWS_ACCESS_KEY_ID:-minio_admin}}"
-  secret: "${S3_SECRET:-${AWS_SECRET_ACCESS_KEY:-minio_password_2026}}"
+  access_key: "${S3_ACCESS_KEY:-${AWS_ACCESS_KEY_ID:-625729a08b95bf1b7ff351a663f3a23c}}"
+  secret: "${S3_SECRET:-${AWS_SECRET_ACCESS_KEY:-850181e4652dd023b7a98c58ae0d2d34bd487ee0cc3254aed6eda37307425907}}"
   region: "${S3_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}"
-  endpoint: "${S3_ENDPOINT:-http://minio:9000}"
+  endpoint: "${S3_ENDPOINT:-http://storage:5000/s3}"
   bucket: "${S3_BUCKET:-${AWS_BUCKET:-live-classes}}"
   force_path_style: true
 EOF

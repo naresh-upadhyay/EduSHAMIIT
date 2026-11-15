@@ -129,3 +129,62 @@ export 'screens/library/widgets/dialogs/scan_book_dialog.dart';
 export 'screens/library/widgets/dialogs/advanced_filter_dialog.dart';
 export 'screens/library/widgets/dialogs/bulk_operations_dialog.dart';
 
+// URL & Navigation Sync
+export 'utils/tab_url_sync.dart';
+export 'utils/nav_helper.dart';
+
+// Messaging & AI Chat
+export 'screens/messaging/messaging_screen.dart';
+export 'screens/ai_chat/ai_chat_screen.dart';
+
+// Documents
+export 'screens/documents/documents_screen.dart';
+
+// Profile
+export 'screens/profile/my_profile_screen.dart';
+
+// Exams Module
+export 'screens/exams/exams_management_screen.dart';
+export 'screens/exams/screens/create_exam_screen.dart';
+export 'screens/exams/screens/question_bank_screen.dart';
+export 'screens/exams/screens/assign_exam_screen.dart';
+export 'screens/exams/screens/exam_analytics_screen.dart';
+export 'screens/exams/screens/exam_paper_builder_screen.dart';
+export 'screens/exams/screens/exam_prestart_screen.dart';
+export 'screens/exams/screens/manual_evaluation_screen.dart';
+export 'screens/exams/screens/publish_result_screen.dart';
+export 'screens/exams/screens/take_exam_screen.dart';
+export 'screens/exams/screens/live_monitoring_screen.dart';
+
+// Live Classes
+export 'screens/live_classes/live_class_management_screen.dart';
+export 'screens/live_classes/utils/live_class_theme.dart';
+
+// Hostel Module
+export 'screens/hostel/hostel_management_screen.dart';
+
+// Campus Module
+export 'screens/campus/campus_management_screen.dart';
+export 'screens/campus/models/campus_models.dart';
+export 'screens/campus/models/space_booking_models.dart';
+export 'screens/campus/providers/campus_provider.dart';
+
+// Visitors Module
+export 'screens/visitors/visitors_management_screen.dart';
+
+// Work Management Module
+export 'screens/work_management/work_management_screen.dart';
+
+// Inventory Module
+export 'screens/inventory/inventory_management_screen.dart';
+
+// Payment / Finance Module
+export 'screens/payment_management/student_fee_management_screen.dart';
+export 'screens/payment_management/staff_salary_management_screen.dart';
+
+// Calls & Overlay
+export 'services/call_service.dart';
+export 'widgets/call_notification_overlay.dart';
+
+
+

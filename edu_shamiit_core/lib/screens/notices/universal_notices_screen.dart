@@ -12,7 +12,8 @@ import 'widgets/notice_analytics_sidebar.dart';
 import 'widgets/notice_pagination_bar.dart';
 
 class UniversalNoticesScreen extends ConsumerStatefulWidget {
-  const UniversalNoticesScreen({super.key});
+  final int initialTab;
+  const UniversalNoticesScreen({super.key, this.initialTab = 0});
 
   @override
   ConsumerState<UniversalNoticesScreen> createState() => _UniversalNoticesScreenState();

@@ -5,7 +5,7 @@ import '../models/attendance_models.dart';
 import '../providers/attendance_provider.dart';
 
 class BulkOperationsTab extends ConsumerStatefulWidget {
-  const BulkOperationsTab({Key? key}) : super(key: key);
+  const BulkOperationsTab({super.key});
 
   @override
   ConsumerState<BulkOperationsTab> createState() => _BulkOperationsTabState();
@@ -48,7 +48,10 @@ class _BulkOperationsTabState extends ConsumerState<BulkOperationsTab> {
           const SizedBox(height: 4),
           Text(
             'Perform class-wide updates, mass status overwrites, locking/unlocking, and rapid batch exports.',
-            style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B), fontSize: 12),
+            style: TextStyle(
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                fontSize: 12),
           ),
           const SizedBox(height: 20),
 
@@ -58,7 +61,8 @@ class _BulkOperationsTabState extends ConsumerState<BulkOperationsTab> {
             iconColor: const Color(0xFF4F46E5),
             iconBgColor: const Color(0xFFEEF2FF),
             title: '1. Bulk Mark Entire Class Status',
-            subtitle: 'Quickly set all students in the selected class and section to a specific status in one batch.',
+            subtitle:
+                'Quickly set all students in the selected class and section to a specific status in one batch.',
             isDark: isDark,
             content: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,7 +84,10 @@ class _BulkOperationsTabState extends ConsumerState<BulkOperationsTab> {
                       decoration: BoxDecoration(
                         color: isDark ? const Color(0xFF1E293B) : Colors.white,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                        border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFCBD5E1)),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<AttendanceStatus>(
@@ -96,15 +103,27 @@ class _BulkOperationsTabState extends ConsumerState<BulkOperationsTab> {
                               value: st,
                               child: Row(
                                 children: [
-                                  Container(width: 8, height: 8, decoration: BoxDecoration(color: st.color, shape: BoxShape.circle)),
+                                  Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                          color: st.color,
+                                          shape: BoxShape.circle)),
                                   const SizedBox(width: 8),
-                                  Text(st.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                                  Text(st.label,
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark
+                                              ? Colors.white
+                                              : const Color(0xFF0F172A))),
                                 ],
                               ),
                             );
                           }).toList(),
                           onChanged: (val) {
-                            if (val != null) setState(() => _selectedTargetStatus = val);
+                            if (val != null)
+                              setState(() => _selectedTargetStatus = val);
                           },
                         ),
                       ),
@@ -116,20 +135,34 @@ class _BulkOperationsTabState extends ConsumerState<BulkOperationsTab> {
                   height: 38,
                   child: TextField(
                     controller: _remarksController,
-                    style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A)),
                     decoration: InputDecoration(
-                      hintText: 'Optional bulk remarks (e.g. Rainy Day / Field Trip / Sports Tournament)',
-                      hintStyle: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      hintText:
+                          'Optional bulk remarks (e.g. Rainy Day / Field Trip / Sports Tournament)',
+                      hintStyle: TextStyle(
+                          fontSize: 12,
+                          color: isDark
+                              ? const Color(0xFF64748B)
+                              : const Color(0xFF94A3B8)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                       filled: true,
-                      fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                      fillColor: isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFF8FAFC),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                        borderSide: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFCBD5E1)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                        borderSide: const BorderSide(
+                            color: Color(0xFF4F46E5), width: 1.5),
                       ),
                     ),
                   ),
@@ -139,7 +172,8 @@ class _BulkOperationsTabState extends ConsumerState<BulkOperationsTab> {
                   onPressed: state.isSaving
                       ? null
                       : () {
-                          final allIds = state.roster.map((s) => s.studentId).toList();
+                          final allIds =
+                              state.roster.map((s) => s.studentId).toList();
                           notifier.executeBulkOperation(
                             operation: 'MARK_STATUS',
                             studentIds: allIds,
@@ -148,12 +182,16 @@ class _BulkOperationsTabState extends ConsumerState<BulkOperationsTab> {
                           );
                         },
                   icon: const Icon(Icons.check_rounded, size: 16),
-                  label: const Text('Apply to All Students in Class', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  label: const Text('Apply to All Students in Class',
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4F46E5),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 11),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                     elevation: 0,
                   ),
                 ),
@@ -168,44 +206,60 @@ class _BulkOperationsTabState extends ConsumerState<BulkOperationsTab> {
             iconColor: const Color(0xFFF59E0B),
             iconBgColor: const Color(0xFFFFFBEB),
             title: '2. Mass Lock / Unlock Records',
-            subtitle: 'Freeze attendance records across the selected class or allow teacher revisions.',
+            subtitle:
+                'Freeze attendance records across the selected class or allow teacher revisions.',
             isDark: isDark,
             content: Row(
               children: [
                 ElevatedButton.icon(
                   onPressed: () {
-                    final allIds = state.roster.map((s) => s.studentId).toList();
+                    final allIds =
+                        state.roster.map((s) => s.studentId).toList();
                     notifier.executeBulkOperation(
                       operation: 'LOCK',
                       studentIds: allIds,
                     );
                   },
                   icon: const Icon(Icons.lock_rounded, size: 15),
-                  label: const Text('Lock Entire Class', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  label: const Text('Lock Entire Class',
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4F46E5),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                     elevation: 0,
                   ),
                 ),
                 const SizedBox(width: 10),
                 OutlinedButton.icon(
                   onPressed: () {
-                    final allIds = state.roster.map((s) => s.studentId).toList();
+                    final allIds =
+                        state.roster.map((s) => s.studentId).toList();
                     notifier.executeBulkOperation(
                       operation: 'UNLOCK',
                       studentIds: allIds,
                     );
                   },
                   icon: const Icon(Icons.lock_open_rounded, size: 15),
-                  label: const Text('Unlock Entire Class', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  label: const Text('Unlock Entire Class',
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
-                    side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    foregroundColor: isDark
+                        ? const Color(0xFFCBD5E1)
+                        : const Color(0xFF475569),
+                    side: BorderSide(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFCBD5E1)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
               ],
@@ -219,7 +273,8 @@ class _BulkOperationsTabState extends ConsumerState<BulkOperationsTab> {
             iconColor: const Color(0xFF10B981),
             iconBgColor: const Color(0xFFECFDF5),
             title: '3. Export Attendance CSV & Spreadsheets',
-            subtitle: 'Download complete, formatted attendance logs for administrative auditing and official records.',
+            subtitle:
+                'Download complete, formatted attendance logs for administrative auditing and official records.',
             isDark: isDark,
             content: Row(
               children: [
@@ -228,13 +283,17 @@ class _BulkOperationsTabState extends ConsumerState<BulkOperationsTab> {
                     notifier.exportAttendanceCsv();
                   },
                   icon: const Icon(Icons.download_rounded, size: 15),
-                  label: const Text('Download Class CSV', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  label: const Text('Download Class CSV',
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF10B981),
                     backgroundColor: const Color(0xFFECFDF5),
                     side: const BorderSide(color: Color(0xFFBBF7D0)),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
               ],
@@ -260,7 +319,8 @@ class _BulkOperationsTabState extends ConsumerState<BulkOperationsTab> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -278,7 +338,8 @@ class _BulkOperationsTabState extends ConsumerState<BulkOperationsTab> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: isDark ? iconColor.withValues(alpha: 0.15) : iconBgColor,
+                  color:
+                      isDark ? iconColor.withValues(alpha: 0.15) : iconBgColor,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: iconColor, size: 18),
@@ -299,7 +360,11 @@ class _BulkOperationsTabState extends ConsumerState<BulkOperationsTab> {
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B), fontSize: 11.5),
+                      style: TextStyle(
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B),
+                          fontSize: 11.5),
                     ),
                   ],
                 ),

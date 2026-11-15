@@ -5,10 +5,11 @@ import '../models/attendance_models.dart';
 import '../providers/attendance_provider.dart';
 
 class AttendanceSettingsTab extends ConsumerStatefulWidget {
-  const AttendanceSettingsTab({Key? key}) : super(key: key);
+  const AttendanceSettingsTab({super.key});
 
   @override
-  ConsumerState<AttendanceSettingsTab> createState() => _AttendanceSettingsTabState();
+  ConsumerState<AttendanceSettingsTab> createState() =>
+      _AttendanceSettingsTabState();
 }
 
 class _AttendanceSettingsTabState extends ConsumerState<AttendanceSettingsTab> {
@@ -62,7 +63,10 @@ class _AttendanceSettingsTabState extends ConsumerState<AttendanceSettingsTab> {
           const SizedBox(height: 4),
           Text(
             'Configure school-wide attendance rules, late cutoff thresholds, lock durations, and automated parent notifications.',
-            style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B), fontSize: 12),
+            style: TextStyle(
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                fontSize: 12),
           ),
           const SizedBox(height: 20),
 
@@ -72,7 +76,10 @@ class _AttendanceSettingsTabState extends ConsumerState<AttendanceSettingsTab> {
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : Colors.white,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFE2E8F0)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.02),
@@ -90,7 +97,11 @@ class _AttendanceSettingsTabState extends ConsumerState<AttendanceSettingsTab> {
                   (val) => setState(() => _allowLate = val),
                   isDark,
                 ),
-                Divider(height: 24, color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                Divider(
+                    height: 24,
+                    color: isDark
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFF1F5F9)),
                 _buildSliderTile(
                   'Late Entry Cutoff: $_lateCutoffMinutes Minutes',
                   'Grace period in minutes after schedule start time when attendance can be marked as Late.',
@@ -98,7 +109,11 @@ class _AttendanceSettingsTabState extends ConsumerState<AttendanceSettingsTab> {
                   (val) => setState(() => _lateCutoffMinutes = val),
                   isDark,
                 ),
-                Divider(height: 24, color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                Divider(
+                    height: 24,
+                    color: isDark
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFF1F5F9)),
                 _buildSwitchTile(
                   'Require Remark for Absent Students',
                   'Mandates a justification or reason note when marking any student Absent.',
@@ -106,7 +121,11 @@ class _AttendanceSettingsTabState extends ConsumerState<AttendanceSettingsTab> {
                   (val) => setState(() => _requireAbsentRemark = val),
                   isDark,
                 ),
-                Divider(height: 24, color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                Divider(
+                    height: 24,
+                    color: isDark
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFF1F5F9)),
                 _buildSwitchTile(
                   'Require Remark for Late Entries',
                   'Mandates a reason note when marking a student or staff member Late.',
@@ -114,7 +133,11 @@ class _AttendanceSettingsTabState extends ConsumerState<AttendanceSettingsTab> {
                   (val) => setState(() => _requireLateRemark = val),
                   isDark,
                 ),
-                Divider(height: 24, color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                Divider(
+                    height: 24,
+                    color: isDark
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFF1F5F9)),
                 _buildSwitchTile(
                   'Auto-Mark Approved Leave',
                   'Approved leave applications are automatically synchronized into daily attendance rosters as On Leave (O).',
@@ -122,7 +145,11 @@ class _AttendanceSettingsTabState extends ConsumerState<AttendanceSettingsTab> {
                   (val) => setState(() => _autoMarkApprovedLeave = val),
                   isDark,
                 ),
-                Divider(height: 24, color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                Divider(
+                    height: 24,
+                    color: isDark
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFF1F5F9)),
                 _buildSwitchTile(
                   'Allow Teachers to Override Locked Records',
                   'If disabled, only Super Admins, Directors, and Principals can override locked attendance.',
@@ -130,7 +157,11 @@ class _AttendanceSettingsTabState extends ConsumerState<AttendanceSettingsTab> {
                   (val) => setState(() => _allowTeacherOverride = val),
                   isDark,
                 ),
-                Divider(height: 24, color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                Divider(
+                    height: 24,
+                    color: isDark
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFF1F5F9)),
                 _buildSwitchTile(
                   'Enable Automated Notifications to Parents',
                   'Send immediate SMS / WhatsApp / Push alerts to parents when their child is marked Absent or Late.',
@@ -164,14 +195,22 @@ class _AttendanceSettingsTabState extends ConsumerState<AttendanceSettingsTab> {
                         notifier.updateSettings(updated);
                       },
                 icon: state.isSaving
-                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.save_rounded, size: 16),
-                label: Text(state.isSaving ? 'Saving...' : 'Save Settings', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                label: Text(state.isSaving ? 'Saving...' : 'Save Settings',
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w700)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4F46E5),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                   elevation: 0,
                 ),
               ),
@@ -198,12 +237,19 @@ class _AttendanceSettingsTabState extends ConsumerState<AttendanceSettingsTab> {
             children: [
               Text(
                 title,
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A)),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                style: TextStyle(
+                    fontSize: 11.5,
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B)),
               ),
             ],
           ),
@@ -232,7 +278,10 @@ class _AttendanceSettingsTabState extends ConsumerState<AttendanceSettingsTab> {
           children: [
             Text(
               title,
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+              style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A)),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -242,7 +291,10 @@ class _AttendanceSettingsTabState extends ConsumerState<AttendanceSettingsTab> {
               ),
               child: Text(
                 '$value mins',
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Color(0xFF4F46E5)),
+                style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                    color: Color(0xFF4F46E5)),
               ),
             ),
           ],
@@ -250,7 +302,10 @@ class _AttendanceSettingsTabState extends ConsumerState<AttendanceSettingsTab> {
         const SizedBox(height: 2),
         Text(
           subtitle,
-          style: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+          style: TextStyle(
+              fontSize: 11.5,
+              color:
+                  isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
         ),
         Slider(
           value: value.toDouble(),

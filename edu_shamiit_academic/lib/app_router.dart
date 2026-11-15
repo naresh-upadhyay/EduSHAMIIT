@@ -5,15 +5,13 @@ import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:edu_shamiit_academic/features/shared/splash/screens/splash_screen.dart';
 import 'package:edu_shamiit_academic/features/shared/login/screens/login_screen.dart';
 import 'package:edu_shamiit_academic/features/shared/settings/screens/settings_screen.dart';
-import 'package:edu_shamiit_academic/features/shared/ai_chat/screens/ai_chat_screen.dart';
-import 'package:edu_shamiit_academic/features/shared/documents/screens/documents_screen.dart';
 import 'package:edu_shamiit_academic/features/student/dashboard/screens/student_dashboard.dart';
 import 'package:edu_shamiit_academic/features/student/results/screens/student_results.dart';
 import 'package:edu_shamiit_academic/features/student/homework/screens/student_homework.dart';
 import 'package:edu_shamiit_academic/features/student/attendance/screens/student_attendance.dart';
 import 'package:edu_shamiit_academic/features/student/fees/screens/student_fees.dart';
 import 'package:edu_shamiit_academic/features/shared/leave/screens/leave_screen.dart';
-import 'package:edu_shamiit_academic/features/student/profile/screens/student_profile.dart';
+// StudentProfileScreen replaced by shared MyProfileScreen from edu_shamiit_core
 import 'package:edu_shamiit_academic/features/student/courses/screens/student_courses.dart';
 import 'package:edu_shamiit_academic/features/student/courses/screens/student_course_details.dart';
 import 'package:edu_shamiit_academic/features/teacher/my_classes/screens/teacher_class_subjects.dart';
@@ -24,8 +22,6 @@ import 'package:edu_shamiit_academic/features/student/transport/screens/student_
 import 'package:edu_shamiit_academic/features/student/achievements/screens/student_achievements_screen.dart';
 import 'package:edu_shamiit_academic/features/teacher/achievements/screens/teacher_achievements_screen.dart';
 import 'package:edu_shamiit_academic/features/student/live_classes/screens/student_live_classes.dart';
-import 'package:edu_shamiit_academic/features/student/messaging/screens/student_messaging.dart';
-import 'package:edu_shamiit_academic/features/teacher/messaging/screens/teacher_messaging.dart';
 import 'package:edu_shamiit_academic/features/student/settings/screens/student_settings.dart';
 import 'package:edu_shamiit_academic/features/student/exams/screens/student_exams.dart';
 import 'package:edu_shamiit_academic/features/student/exams/screens/online_exam_screen.dart';
@@ -41,16 +37,8 @@ import 'package:edu_shamiit_academic/features/teacher/dashboard/screens/teacher_
 import 'package:edu_shamiit_academic/features/teacher/homework/screens/teacher_homework.dart';
 import 'package:edu_shamiit_academic/features/teacher/gradebook/screens/teacher_gradebook.dart';
 import 'package:edu_shamiit_academic/features/teacher/my_classes/screens/teacher_my_classes.dart';
-import 'package:edu_shamiit_academic/features/teacher/profile/screens/teacher_profile.dart';
-import 'package:edu_shamiit_academic/features/teacher/exams/screens/teacher_exams.dart';
-import 'package:edu_shamiit_academic/features/teacher/exams/screens/create_exam_screen.dart';
-import 'package:edu_shamiit_academic/features/teacher/exams/screens/question_bank_screen.dart';
-import 'package:edu_shamiit_academic/features/teacher/exams/screens/exam_paper_builder_screen.dart';
-import 'package:edu_shamiit_academic/features/teacher/exams/screens/assign_exam_screen.dart';
-import 'package:edu_shamiit_academic/features/teacher/exams/screens/live_monitoring_screen.dart';
-import 'package:edu_shamiit_academic/features/teacher/exams/screens/manual_evaluation_screen.dart';
-import 'package:edu_shamiit_academic/features/teacher/exams/screens/publish_result_screen.dart';
-import 'package:edu_shamiit_academic/features/teacher/exams/screens/teacher_exam_analytics.dart';
+// TeacherProfileScreen replaced by shared MyProfileScreen from edu_shamiit_core
+// Teacher exam screens are now universally imported via edu_shamiit_core
 // teacher_leave.dart replaced by shared leave_screen.dart
 import 'package:edu_shamiit_academic/features/teacher/salary/screens/teacher_salary.dart';
 import 'package:edu_shamiit_academic/features/teacher/submissions/screens/teacher_submissions.dart';
@@ -270,7 +258,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
         GoRoute(
           path: '/student/profile',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentProfileScreen()),
+          pageBuilder: (_, __) => const NoTransitionPage(child: MyProfileScreen()),
         ),
         GoRoute(
           path: '/student/leave-application',
@@ -318,7 +306,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: '/student/messaging',
           pageBuilder: (context, state) {
             final chatId = state.uri.queryParameters['chat_id'];
-            return NoTransitionPage(child: StudentMessaging(initialChatId: chatId));
+            return NoTransitionPage(
+              child: MessagingScreen(
+                role: 'student',
+                initialChatId: chatId,
+              ),
+            );
           },
         ),
         GoRoute(
@@ -390,6 +383,20 @@ final routerProvider = Provider<GoRouter>((ref) {
           pageBuilder: (_, __) => const NoTransitionPage(child: OnlineExamScreen()),
         ),
         GoRoute(
+          path: '/student/exams/instructions',
+          pageBuilder: (context, state) {
+            final examId = state.uri.queryParameters['examId'] ?? state.uri.queryParameters['exam_id'];
+            return NoTransitionPage(child: ExamPrestartScreen(examId: examId));
+          },
+        ),
+        GoRoute(
+          path: '/student/exams/take',
+          pageBuilder: (context, state) {
+            final examId = state.uri.queryParameters['examId'] ?? state.uri.queryParameters['exam_id'];
+            return NoTransitionPage(child: TakeExamScreen(examId: examId));
+          },
+        ),
+        GoRoute(
           path: '/student/ai-chat',
           pageBuilder: (context, state) {
             final from = state.uri.queryParameters['from'];
@@ -449,6 +456,22 @@ final routerProvider = Provider<GoRouter>((ref) {
           pageBuilder: (_, __) => const NoTransitionPage(child: ClassManagementScreen()),
         ),
         GoRoute(
+          path: '/academic/hostel',
+          pageBuilder: (_, __) => const NoTransitionPage(child: HostelManagementScreen()),
+        ),
+        GoRoute(
+          path: '/teacher/hostel',
+          pageBuilder: (_, __) => const NoTransitionPage(child: HostelManagementScreen()),
+        ),
+        GoRoute(
+          path: '/hostel',
+          pageBuilder: (_, __) => const NoTransitionPage(child: HostelManagementScreen()),
+        ),
+        GoRoute(
+          path: '/hostel/rooms',
+          pageBuilder: (_, __) => const NoTransitionPage(child: HostelManagementScreen()),
+        ),
+        GoRoute(
           path: '/academic/classes',
           pageBuilder: (_, __) => const NoTransitionPage(child: ClassManagementScreen()),
         ),
@@ -496,7 +519,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
         GoRoute(
           path: '/teacher/profile',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherProfileScreen()),
+          pageBuilder: (_, __) => const NoTransitionPage(child: MyProfileScreen()),
         ),
         GoRoute(
           path: '/teacher/grading',
@@ -530,6 +553,20 @@ final routerProvider = Provider<GoRouter>((ref) {
           pageBuilder: (context, state) {
             final examId = state.uri.queryParameters['examId'] ?? state.uri.queryParameters['exam_id'];
             return NoTransitionPage(child: ExamPaperBuilderScreen(examId: examId));
+          },
+        ),
+        GoRoute(
+          path: '/teacher/exams/instructions',
+          pageBuilder: (context, state) {
+            final examId = state.uri.queryParameters['examId'] ?? state.uri.queryParameters['exam_id'];
+            return NoTransitionPage(child: ExamPrestartScreen(examId: examId));
+          },
+        ),
+        GoRoute(
+          path: '/teacher/exams/take',
+          pageBuilder: (context, state) {
+            final examId = state.uri.queryParameters['examId'] ?? state.uri.queryParameters['exam_id'];
+            return NoTransitionPage(child: TakeExamScreen(examId: examId));
           },
         ),
         GoRoute(
@@ -630,7 +667,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: '/teacher/messaging',
           pageBuilder: (context, state) {
             final chatId = state.uri.queryParameters['chat_id'];
-            return NoTransitionPage(child: TeacherMessaging(initialChatId: chatId));
+            return NoTransitionPage(
+              child: MessagingScreen(
+                role: 'teacher',
+                initialChatId: chatId,
+              ),
+            );
           },
         ),
       ],

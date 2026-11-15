@@ -36,7 +36,8 @@ class RoomsTabView extends ConsumerWidget {
                       ? _buildEmptyState(context, isDark, notifier)
                       : isCompact
                           ? _buildMobileLayout(context, state, notifier, isDark)
-                          : _buildDesktopLayout(context, state, notifier, isDark),
+                          : _buildDesktopLayout(
+                              context, state, notifier, isDark),
             ),
           ],
         );
@@ -47,7 +48,8 @@ class RoomsTabView extends ConsumerWidget {
   // =========================================================================
   // 1. KPI CARDS ROW
   // =========================================================================
-  Widget _buildKpiDashboard(BuildContext context, ClassState state, bool isDark) {
+  Widget _buildKpiDashboard(
+      BuildContext context, ClassState state, bool isDark) {
     final stats = state.stats;
 
     return LayoutBuilder(
@@ -97,19 +99,31 @@ class RoomsTabView extends ConsumerWidget {
         ];
 
         return Container(
-          padding: EdgeInsets.symmetric(horizontal: hPadding, vertical: vPadding),
+          padding:
+              EdgeInsets.symmetric(horizontal: hPadding, vertical: vPadding),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
             border: Border(
-              bottom: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+              bottom: BorderSide(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0)),
             ),
           ),
           child: isSmall
               ? Column(
                   children: [
-                    Row(children: [Expanded(child: cards[0]), SizedBox(width: isVerySmall ? 8 : 12), Expanded(child: cards[1])]),
+                    Row(children: [
+                      Expanded(child: cards[0]),
+                      SizedBox(width: isVerySmall ? 8 : 12),
+                      Expanded(child: cards[1])
+                    ]),
                     SizedBox(height: isVerySmall ? 8 : 12),
-                    Row(children: [Expanded(child: cards[2]), SizedBox(width: isVerySmall ? 8 : 12), Expanded(child: cards[3])]),
+                    Row(children: [
+                      Expanded(child: cards[2]),
+                      SizedBox(width: isVerySmall ? 8 : 12),
+                      Expanded(child: cards[3])
+                    ]),
                   ],
                 )
               : Row(
@@ -145,10 +159,11 @@ class RoomsTabView extends ConsumerWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -159,7 +174,7 @@ class RoomsTabView extends ConsumerWidget {
           Container(
             padding: EdgeInsets.all(isCompact ? 7 : 10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: isCompact ? 18 : 22),
@@ -175,7 +190,9 @@ class RoomsTabView extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: isCompact ? 10.5 : 11.5,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -193,7 +210,9 @@ class RoomsTabView extends ConsumerWidget {
                   subtitle,
                   style: TextStyle(
                     fontSize: isCompact ? 10 : 11,
-                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                    color: isDark
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF94A3B8),
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -208,7 +227,8 @@ class RoomsTabView extends ConsumerWidget {
   // =========================================================================
   // 2. FILTER & SEARCH TOOLBAR
   // =========================================================================
-  Widget _buildFilterToolbar(BuildContext context, ClassState state, ClassNotifier notifier, bool isDark) {
+  Widget _buildFilterToolbar(BuildContext context, ClassState state,
+      ClassNotifier notifier, bool isDark) {
     final lookupHelper = AcademicLookupHelper.instance;
     final activeTypes = lookupHelper.getCachedLookup('ROOM_TYPE');
     final activeBuildings = lookupHelper.getCachedLookup('CAMPUS_BUILDING');
@@ -224,7 +244,9 @@ class RoomsTabView extends ConsumerWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         border: Border(
-          bottom: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+          bottom: BorderSide(
+              color:
+                  isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
         ),
       ),
       child: LayoutBuilder(
@@ -240,27 +262,39 @@ class RoomsTabView extends ConsumerWidget {
                 hintText: 'Search rooms, codes, buildings...',
                 hintStyle: TextStyle(
                   fontSize: 12.5,
-                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                  color: isDark
+                      ? const Color(0xFF64748B)
+                      : const Color(0xFF94A3B8),
                 ),
                 prefixIcon: const Icon(Icons.search, size: 18),
                 isDense: true,
                 filled: true,
-                fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                fillColor:
+                    isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  borderSide: BorderSide(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFCBD5E1)),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  borderSide: BorderSide(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFCBD5E1)),
                 ),
               ),
             ),
           );
 
           final typeDropdown = _buildSmallDropdown(
-            value: roomTypes.contains(state.roomTypeFilter) ? state.roomTypeFilter : 'ALL',
+            value: roomTypes.contains(state.roomTypeFilter)
+                ? state.roomTypeFilter
+                : 'ALL',
             items: roomTypes,
             labelPrefix: 'Type: ',
             isDark: isDark,
@@ -270,7 +304,9 @@ class RoomsTabView extends ConsumerWidget {
           );
 
           final buildingDropdown = _buildSmallDropdown(
-            value: buildings.contains(state.roomBuildingFilter) ? state.roomBuildingFilter : 'ALL',
+            value: buildings.contains(state.roomBuildingFilter)
+                ? state.roomBuildingFilter
+                : 'ALL',
             items: buildings,
             labelPrefix: 'Building: ',
             isDark: isDark,
@@ -280,7 +316,9 @@ class RoomsTabView extends ConsumerWidget {
           );
 
           final floorDropdown = _buildSmallDropdown(
-            value: floors.contains(state.roomFloorFilter) ? state.roomFloorFilter : 'ALL',
+            value: floors.contains(state.roomFloorFilter)
+                ? state.roomFloorFilter
+                : 'ALL',
             items: floors,
             labelPrefix: 'Floor: ',
             isDark: isDark,
@@ -296,11 +334,16 @@ class RoomsTabView extends ConsumerWidget {
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFCBD5E1)),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: statusItems.contains(state.roomStatusFilter) ? state.roomStatusFilter : 'ALL',
+                value: statusItems.contains(state.roomStatusFilter)
+                    ? state.roomStatusFilter
+                    : 'ALL',
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                 style: TextStyle(
                   fontSize: 12,
@@ -308,7 +351,8 @@ class RoomsTabView extends ConsumerWidget {
                   color: isDark ? Colors.white : const Color(0xFF0F172A),
                 ),
                 items: [
-                  const DropdownMenuItem(value: 'ALL', child: Text('Status: All')),
+                  const DropdownMenuItem(
+                      value: 'ALL', child: Text('Status: All')),
                   ...activeStatuses.map((s) => DropdownMenuItem(
                         value: s.code,
                         child: Text('Status: ${s.label}'),
@@ -327,7 +371,10 @@ class RoomsTabView extends ConsumerWidget {
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFCBD5E1)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -413,7 +460,8 @@ class RoomsTabView extends ConsumerWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
@@ -450,10 +498,17 @@ class RoomsTabView extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? (isDark ? const Color(0xFF4F46E5) : Colors.white) : Colors.transparent,
+          color: isSelected
+              ? (isDark ? const Color(0xFF4F46E5) : Colors.white)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
           boxShadow: isSelected
-              ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1))]
+              ? [
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 2,
+                      offset: const Offset(0, 1))
+                ]
               : null,
         ),
         child: Row(
@@ -464,7 +519,9 @@ class RoomsTabView extends ConsumerWidget {
               size: 14,
               color: isSelected
                   ? (isDark ? Colors.white : const Color(0xFF4F46E5))
-                  : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                  : (isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B)),
             ),
             const SizedBox(width: 6),
             Text(
@@ -474,7 +531,9 @@ class RoomsTabView extends ConsumerWidget {
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected
                     ? (isDark ? Colors.white : const Color(0xFF0F172A))
-                    : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    : (isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B)),
               ),
             ),
           ],
@@ -486,7 +545,8 @@ class RoomsTabView extends ConsumerWidget {
   // =========================================================================
   // 3. DESKTOP LAYOUT (TABLE + CONDITIONAL RIGHT SIDEBAR)
   // =========================================================================
-  Widget _buildDesktopLayout(BuildContext context, ClassState state, ClassNotifier notifier, bool isDark) {
+  Widget _buildDesktopLayout(BuildContext context, ClassState state,
+      ClassNotifier notifier, bool isDark) {
     final hasSelectedRoom = state.selectedRoom != null;
 
     return LayoutBuilder(
@@ -510,10 +570,14 @@ class RoomsTabView extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF1E293B) : Colors.white,
                   border: Border(
-                    left: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                    left: BorderSide(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0)),
                   ),
                 ),
-                child: _buildRoomSidebarDetail(context, state, notifier, isDark),
+                child:
+                    _buildRoomSidebarDetail(context, state, notifier, isDark),
               ),
           ],
         );
@@ -521,7 +585,8 @@ class RoomsTabView extends ConsumerWidget {
     );
   }
 
-  Widget _buildMobileLayout(BuildContext context, ClassState state, ClassNotifier notifier, bool isDark) {
+  Widget _buildMobileLayout(BuildContext context, ClassState state,
+      ClassNotifier notifier, bool isDark) {
     final hasSelectedRoom = state.selectedRoom != null;
     final mainContent = state.roomViewMode == 'FLOOR'
         ? _buildFloorLayoutView(context, state, notifier, isDark)
@@ -539,7 +604,7 @@ class RoomsTabView extends ConsumerWidget {
           child: GestureDetector(
             onTap: () => notifier.clearSelectedRoom(),
             child: Container(
-              color: Colors.black.withOpacity(0.4),
+              color: Colors.black.withValues(alpha: 0.4),
             ),
           ),
         ),
@@ -548,7 +613,8 @@ class RoomsTabView extends ConsumerWidget {
           alignment: Alignment.centerRight,
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final drawerWidth = (constraints.maxWidth * 0.88).clamp(280.0, 420.0);
+              final drawerWidth =
+                  (constraints.maxWidth * 0.88).clamp(280.0, 420.0);
               return Container(
                 width: drawerWidth,
                 height: double.infinity,
@@ -556,13 +622,14 @@ class RoomsTabView extends ConsumerWidget {
                   color: isDark ? const Color(0xFF1E293B) : Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.25),
+                      color: Colors.black.withValues(alpha: 0.25),
                       blurRadius: 16,
                       offset: const Offset(-4, 0),
                     ),
                   ],
                 ),
-                child: _buildRoomSidebarDetail(context, state, notifier, isDark),
+                child:
+                    _buildRoomSidebarDetail(context, state, notifier, isDark),
               );
             },
           ),
@@ -574,7 +641,8 @@ class RoomsTabView extends ConsumerWidget {
   // =========================================================================
   // ROOMS TABLE VIEW
   // =========================================================================
-  Widget _buildRoomsTable(BuildContext context, ClassState state, ClassNotifier notifier, bool isDark) {
+  Widget _buildRoomsTable(BuildContext context, ClassState state,
+      ClassNotifier notifier, bool isDark) {
     return Column(
       children: [
         Expanded(
@@ -588,13 +656,17 @@ class RoomsTabView extends ConsumerWidget {
                     constraints: BoxConstraints(minWidth: constraints.maxWidth),
                     child: DataTable(
                       showCheckboxColumn: false,
-                      headingRowColor: MaterialStateProperty.all(
-                        isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      headingRowColor: WidgetStateProperty.all(
+                        isDark
+                            ? const Color(0xFF0F172A)
+                            : const Color(0xFFF8FAFC),
                       ),
                       headingTextStyle: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF475569),
                       ),
                       dataRowMinHeight: 58,
                       dataRowMaxHeight: 64,
@@ -608,176 +680,203 @@ class RoomsTabView extends ConsumerWidget {
                         DataColumn(label: Text('CURRENT STATUS')),
                         DataColumn(label: Text('ACTIONS')),
                       ],
-              rows: state.rooms.map((room) {
-                final isSelected = state.selectedRoom?.id == room.id;
+                      rows: state.rooms.map((room) {
+                        final isSelected = state.selectedRoom?.id == room.id;
 
-                return DataRow(
-                  selected: isSelected,
-                  onSelectChanged: (_) => notifier.selectRoom(room),
-                  color: MaterialStateProperty.resolveWith((states) {
-                    if (isSelected) {
-                      return const Color(0xFF4F46E5).withOpacity(0.08);
-                    }
-                    return null;
-                  }),
-                  cells: [
-                    // Name & Code
-                    DataCell(
-                      Row(
-                        children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: _getRoomTypeColor(room.type).withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(8),
+                        return DataRow(
+                          selected: isSelected,
+                          onSelectChanged: (_) => notifier.selectRoom(room),
+                          color: WidgetStateProperty.resolveWith((states) {
+                            if (isSelected) {
+                              return const Color(0xFF4F46E5)
+                                  .withValues(alpha: 0.08);
+                            }
+                            return null;
+                          }),
+                          cells: [
+                            // Name & Code
+                            DataCell(
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: _getRoomTypeColor(room.type)
+                                          .withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      _getRoomTypeIcon(room.type),
+                                      color: _getRoomTypeColor(room.type),
+                                      size: 18,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        room.name,
+                                        style: TextStyle(
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: isDark
+                                              ? Colors.white
+                                              : const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      Text(
+                                        room.code,
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark
+                                              ? const Color(0xFF94A3B8)
+                                              : const Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
-                            child: Icon(
-                              _getRoomTypeIcon(room.type),
-                              color: _getRoomTypeColor(room.type),
-                              size: 18,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                room.name,
-                                style: TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+
+                            // Type
+                            DataCell(
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: _getRoomTypeColor(room.type)
+                                      .withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                      color: _getRoomTypeColor(room.type)
+                                          .withValues(alpha: 0.25)),
+                                ),
+                                child: Text(
+                                  room.type,
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: _getRoomTypeColor(room.type),
+                                  ),
                                 ),
                               ),
-                              Text(
-                                room.code,
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Type
-                    DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _getRoomTypeColor(room.type).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: _getRoomTypeColor(room.type).withOpacity(0.25)),
-                        ),
-                        child: Text(
-                          room.type,
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            color: _getRoomTypeColor(room.type),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Building & Floor
-                    DataCell(
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            room.building,
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
                             ),
-                          ),
-                          Text(
-                            room.floor,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
 
-                    // Capacity & Facilities
-                    DataCell(
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.people_alt_outlined, size: 14, color: Color(0xFF64748B)),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${room.capacity} seats',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                ),
+                            // Building & Floor
+                            DataCell(
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    room.building,
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  Text(
+                                    room.floor,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          if (room.facilities.isNotEmpty) ...[
-                            Text(
-                              room.facilities.take(2).join(', ') + (room.facilities.length > 2 ? ' +${room.facilities.length - 2}' : ''),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            ),
+
+                            // Capacity & Facilities
+                            DataCell(
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.people_alt_outlined,
+                                          size: 14, color: Color(0xFF64748B)),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${room.capacity} seats',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark
+                                              ? Colors.white
+                                              : const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (room.facilities.isNotEmpty) ...[
+                                    Text(
+                                      room.facilities.take(2).join(', ') +
+                                          (room.facilities.length > 2
+                                              ? ' +${room.facilities.length - 2}'
+                                              : ''),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark
+                                            ? const Color(0xFF94A3B8)
+                                            : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+
+                            // Live Status
+                            DataCell(
+                              _buildRoomStatusBadge(room, isDark),
+                            ),
+
+                            // Actions
+                            DataCell(
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit_outlined,
+                                        size: 18),
+                                    color: const Color(0xFF64748B),
+                                    tooltip: 'Edit Room',
+                                    onPressed: () => _showEditDialog(
+                                        context, room, state, notifier),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline,
+                                        size: 18),
+                                    color: const Color(0xFFEF4444),
+                                    tooltip: 'Archive Room',
+                                    onPressed: () => _showArchiveDialog(
+                                        context, room, notifier),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
-                        ],
-                      ),
+                        );
+                      }).toList(),
                     ),
-
-                    // Live Status
-                    DataCell(
-                      _buildRoomStatusBadge(room, isDark),
-                    ),
-
-                    // Actions
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit_outlined, size: 18),
-                            color: const Color(0xFF64748B),
-                            tooltip: 'Edit Room',
-                            onPressed: () => _showEditDialog(context, room, state, notifier),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline, size: 18),
-                            color: const Color(0xFFEF4444),
-                            tooltip: 'Archive Room',
-                            onPressed: () => _showArchiveDialog(context, room, notifier),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
-      );
-    },
-  ),
-),
 
         // Pagination Bar
         _buildPaginationBar(context, state, notifier, isDark),
@@ -788,7 +887,8 @@ class RoomsTabView extends ConsumerWidget {
   // =========================================================================
   // 4. FLOOR MAP VIEW MODE
   // =========================================================================
-  Widget _buildFloorLayoutView(BuildContext context, ClassState state, ClassNotifier notifier, bool isDark) {
+  Widget _buildFloorLayoutView(BuildContext context, ClassState state,
+      ClassNotifier notifier, bool isDark) {
     // Group rooms by building and floor
     final Map<String, Map<String, List<AcademicRoomModel>>> grouped = {};
 
@@ -809,23 +909,33 @@ class RoomsTabView extends ConsumerWidget {
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+            border: Border.all(
+                color:
+                    isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  color: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFFF8FAFC),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(12)),
                   border: Border(
-                    bottom: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                    bottom: BorderSide(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0)),
                   ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.apartment_rounded, color: Color(0xFF4F46E5), size: 20),
+                    const Icon(Icons.apartment_rounded,
+                        color: Color(0xFF4F46E5), size: 20),
                     const SizedBox(width: 10),
                     Text(
                       buildingName,
@@ -866,7 +976,9 @@ class RoomsTabView extends ConsumerWidget {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
-                                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                                  color: isDark
+                                      ? const Color(0xFFCBD5E1)
+                                      : const Color(0xFF334155),
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -874,7 +986,9 @@ class RoomsTabView extends ConsumerWidget {
                                 '(${roomsOnFloor.length} rooms)',
                                 style: TextStyle(
                                   fontSize: 11.5,
-                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
                                 ),
                               ),
                             ],
@@ -884,7 +998,8 @@ class RoomsTabView extends ConsumerWidget {
                           spacing: 14,
                           runSpacing: 14,
                           children: roomsOnFloor.map((room) {
-                            final isSelected = state.selectedRoom?.id == room.id;
+                            final isSelected =
+                                state.selectedRoom?.id == room.id;
 
                             return InkWell(
                               onTap: () => notifier.selectRoom(room),
@@ -894,13 +1009,18 @@ class RoomsTabView extends ConsumerWidget {
                                 padding: const EdgeInsets.all(14),
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? const Color(0xFF4F46E5).withOpacity(0.1)
-                                      : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
+                                      ? const Color(0xFF4F46E5)
+                                          .withValues(alpha: 0.1)
+                                      : (isDark
+                                          ? const Color(0xFF0F172A)
+                                          : const Color(0xFFF8FAFC)),
                                   borderRadius: BorderRadius.circular(10),
                                   border: Border.all(
                                     color: isSelected
                                         ? const Color(0xFF4F46E5)
-                                        : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                                        : (isDark
+                                            ? const Color(0xFF334155)
+                                            : const Color(0xFFCBD5E1)),
                                     width: isSelected ? 1.5 : 1,
                                   ),
                                 ),
@@ -908,7 +1028,8 @@ class RoomsTabView extends ConsumerWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
                                           room.code,
@@ -927,7 +1048,9 @@ class RoomsTabView extends ConsumerWidget {
                                       style: TextStyle(
                                         fontSize: 13.5,
                                         fontWeight: FontWeight.w700,
-                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
                                       ),
                                     ),
                                     const SizedBox(height: 4),
@@ -935,7 +1058,9 @@ class RoomsTabView extends ConsumerWidget {
                                       '${room.type} • ${room.capacity} seats',
                                       style: TextStyle(
                                         fontSize: 11.5,
-                                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                        color: isDark
+                                            ? const Color(0xFF94A3B8)
+                                            : const Color(0xFF64748B),
                                       ),
                                     ),
                                   ],
@@ -960,7 +1085,8 @@ class RoomsTabView extends ConsumerWidget {
   // =========================================================================
   // 5. RIGHT SIDEBAR DETAIL PANEL
   // =========================================================================
-  Widget _buildRoomSidebarDetail(BuildContext context, ClassState state, ClassNotifier notifier, bool isDark) {
+  Widget _buildRoomSidebarDetail(BuildContext context, ClassState state,
+      ClassNotifier notifier, bool isDark) {
     final room = state.selectedRoom!;
     final detail = state.selectedRoomDetail ?? room;
     final typeColor = _getRoomTypeColor(room.type);
@@ -974,7 +1100,10 @@ class RoomsTabView extends ConsumerWidget {
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
             border: Border(
-              bottom: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+              bottom: BorderSide(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0)),
             ),
           ),
           child: Column(
@@ -985,11 +1114,13 @@ class RoomsTabView extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: typeColor.withOpacity(0.12),
+                      color: typeColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: typeColor.withOpacity(0.3)),
+                      border:
+                          Border.all(color: typeColor.withValues(alpha: 0.3)),
                     ),
                     child: Text(
                       room.type,
@@ -1006,28 +1137,37 @@ class RoomsTabView extends ConsumerWidget {
                       IconButton(
                         icon: const Icon(Icons.edit_outlined, size: 17),
                         tooltip: 'Edit Room',
-                        onPressed: () => _showEditDialog(context, room, state, notifier),
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        onPressed: () =>
+                            _showEditDialog(context, room, state, notifier),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        constraints:
+                            const BoxConstraints(minWidth: 28, minHeight: 28),
                         splashRadius: 16,
                       ),
                       IconButton(
                         icon: const Icon(Icons.delete_outline, size: 17),
                         tooltip: 'Archive Room',
-                        onPressed: () => _showArchiveDialog(context, room, notifier),
+                        onPressed: () =>
+                            _showArchiveDialog(context, room, notifier),
                         color: const Color(0xFFEF4444),
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        constraints:
+                            const BoxConstraints(minWidth: 28, minHeight: 28),
                         splashRadius: 16,
                       ),
                       IconButton(
                         icon: const Icon(Icons.close_rounded, size: 18),
                         tooltip: 'Close details',
                         onPressed: () => notifier.clearSelectedRoom(),
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        constraints:
+                            const BoxConstraints(minWidth: 28, minHeight: 28),
                         splashRadius: 16,
                       ),
                     ],
@@ -1044,9 +1184,10 @@ class RoomsTabView extends ConsumerWidget {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: typeColor.withOpacity(0.12),
+                      color: typeColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: typeColor.withOpacity(0.3)),
+                      border:
+                          Border.all(color: typeColor.withValues(alpha: 0.3)),
                     ),
                     child: Icon(typeIcon, color: typeColor, size: 22),
                   ),
@@ -1060,7 +1201,8 @@ class RoomsTabView extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -1068,7 +1210,9 @@ class RoomsTabView extends ConsumerWidget {
                           'Code: ${room.code} • ${room.building} (${room.floor})',
                           style: TextStyle(
                             fontSize: 12,
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -1106,7 +1250,8 @@ class RoomsTabView extends ConsumerWidget {
                 const SizedBox(height: 20),
 
                 // 5. Description & Operational Notes
-                if (detail.description != null && detail.description!.trim().isNotEmpty) ...[
+                if (detail.description != null &&
+                    detail.description!.trim().isNotEmpty) ...[
                   _buildDescriptionCard(detail, isDark),
                   const SizedBox(height: 20),
                 ],
@@ -1125,7 +1270,10 @@ class RoomsTabView extends ConsumerWidget {
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
             border: Border(
-              top: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+              top: BorderSide(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0)),
             ),
           ),
           child: SizedBox(
@@ -1138,7 +1286,8 @@ class RoomsTabView extends ConsumerWidget {
                 backgroundColor: const Color(0xFF4F46E5),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 11),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
                 elevation: 0,
               ),
             ),
@@ -1199,7 +1348,8 @@ class RoomsTabView extends ConsumerWidget {
                 child: _buildMetricTile(
                   title: 'Active Students',
                   value: '${detail.totalStudentsSeated} Enrolled',
-                  subtitle: '${detail.capacityUtilization.toStringAsFixed(0)}% Seating Utilized',
+                  subtitle:
+                      '${detail.capacityUtilization.toStringAsFixed(0)}% Seating Utilized',
                   icon: Icons.school_rounded,
                   color: const Color(0xFF10B981),
                   isDark: isDark,
@@ -1225,7 +1375,8 @@ class RoomsTabView extends ConsumerWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1241,7 +1392,9 @@ class RoomsTabView extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                     letterSpacing: 0.2,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -1264,7 +1417,8 @@ class RoomsTabView extends ConsumerWidget {
               subtitle,
               style: TextStyle(
                 fontSize: 10.5,
-                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -1286,14 +1440,15 @@ class RoomsTabView extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                 letterSpacing: 0.5,
               ),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: const Color(0xFF4F46E5).withOpacity(0.1),
+                color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -1315,18 +1470,24 @@ class RoomsTabView extends ConsumerWidget {
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0)),
             ),
             child: Column(
               children: [
-                Icon(Icons.meeting_room_outlined, size: 28, color: isDark ? Colors.white38 : Colors.grey),
+                Icon(Icons.meeting_room_outlined,
+                    size: 28, color: isDark ? Colors.white38 : Colors.grey),
                 const SizedBox(height: 6),
                 Text(
                   'No sections currently assigned to this room.',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -1335,7 +1496,9 @@ class RoomsTabView extends ConsumerWidget {
                   'Assign this room to batches in the Sections tab.',
                   style: TextStyle(
                     fontSize: 11,
-                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                    color: isDark
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF94A3B8),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -1353,9 +1516,14 @@ class RoomsTabView extends ConsumerWidget {
               return Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  color: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                  border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1368,13 +1536,16 @@ class RoomsTabView extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withOpacity(0.12),
+                            color:
+                                const Color(0xFF10B981).withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -1391,14 +1562,19 @@ class RoomsTabView extends ConsumerWidget {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF64748B)),
+                        const Icon(Icons.person_outline_rounded,
+                            size: 14, color: Color(0xFF64748B)),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            sec.classTeacher != null ? sec.classTeacher!.fullName : 'No Class Teacher',
+                            sec.classTeacher != null
+                                ? sec.classTeacher!.fullName
+                                : 'No Class Teacher',
                             style: TextStyle(
                               fontSize: 11.5,
-                              color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                              color: isDark
+                                  ? const Color(0xFFCBD5E1)
+                                  : const Color(0xFF475569),
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -1408,13 +1584,16 @@ class RoomsTabView extends ConsumerWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.people_alt_outlined, size: 14, color: Color(0xFF64748B)),
+                        const Icon(Icons.people_alt_outlined,
+                            size: 14, color: Color(0xFF64748B)),
                         const SizedBox(width: 4),
                         Text(
                           '${sec.studentsCount} / ${sec.capacity} Enrolled Students',
                           style: TextStyle(
                             fontSize: 11,
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ],
@@ -1449,13 +1628,17 @@ class RoomsTabView extends ConsumerWidget {
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0)),
             ),
             child: Text(
               'No specialized facilities recorded.',
               style: TextStyle(
                 fontSize: 12,
-                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
               ),
             ),
           )
@@ -1465,23 +1648,31 @@ class RoomsTabView extends ConsumerWidget {
             runSpacing: 8,
             children: detail.facilities.map((fac) {
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                  color: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                  border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(_getFacilityIcon(fac), size: 14, color: const Color(0xFF4F46E5)),
+                    Icon(_getFacilityIcon(fac),
+                        size: 14, color: const Color(0xFF4F46E5)),
                     const SizedBox(width: 6),
                     Text(
                       fac,
                       style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white70 : const Color(0xFF334155),
+                        color:
+                            isDark ? Colors.white70 : const Color(0xFF334155),
                       ),
                     ),
                   ],
@@ -1499,7 +1690,8 @@ class RoomsTabView extends ConsumerWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1519,13 +1711,16 @@ class RoomsTabView extends ConsumerWidget {
           _buildSpecRow('Floor Level', detail.floor, isDark),
           _buildSpecRow('Room Identifier', detail.code, isDark),
           _buildSpecRow('Seating Capacity', '${detail.capacity} Seats', isDark),
-          _buildSpecRow('Current Status', detail.status.replaceAll('_', ' '), isDark, isLast: true),
+          _buildSpecRow(
+              'Current Status', detail.status.replaceAll('_', ' '), isDark,
+              isLast: true),
         ],
       ),
     );
   }
 
-  Widget _buildSpecRow(String label, String val, bool isDark, {bool isLast = false}) {
+  Widget _buildSpecRow(String label, String val, bool isDark,
+      {bool isLast = false}) {
     return Padding(
       padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
       child: Row(
@@ -1557,21 +1752,25 @@ class RoomsTabView extends ConsumerWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.notes_rounded, size: 14, color: Color(0xFF4F46E5)),
+              const Icon(Icons.notes_rounded,
+                  size: 14, color: Color(0xFF4F46E5)),
               const SizedBox(width: 6),
               Text(
                 'OPERATIONAL NOTES & DESCRIPTION',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
                   letterSpacing: 0.5,
                 ),
               ),
@@ -1622,14 +1821,31 @@ class RoomsTabView extends ConsumerWidget {
 
   IconData _getFacilityIcon(String fac) {
     final lower = fac.toLowerCase();
-    if (lower.contains('projector') || lower.contains('screen')) return Icons.videocam_rounded;
-    if (lower.contains('smart') || lower.contains('board') || lower.contains('whiteboard')) return Icons.developer_board_rounded;
-    if (lower.contains('ac') || lower.contains('air') || lower.contains('conditioning')) return Icons.ac_unit_rounded;
-    if (lower.contains('computer') || lower.contains('pc') || lower.contains('laptop')) return Icons.computer_rounded;
-    if (lower.contains('audio') || lower.contains('speaker') || lower.contains('mic') || lower.contains('sound')) return Icons.volume_up_rounded;
-    if (lower.contains('microscope') || lower.contains('lab') || lower.contains('specimen') || lower.contains('fume')) return Icons.biotech_rounded;
-    if (lower.contains('wifi') || lower.contains('internet') || lower.contains('lan')) return Icons.wifi_rounded;
-    if (lower.contains('pottery') || lower.contains('easel') || lower.contains('art')) return Icons.palette_rounded;
+    if (lower.contains('projector') || lower.contains('screen'))
+      return Icons.videocam_rounded;
+    if (lower.contains('smart') ||
+        lower.contains('board') ||
+        lower.contains('whiteboard')) return Icons.developer_board_rounded;
+    if (lower.contains('ac') ||
+        lower.contains('air') ||
+        lower.contains('conditioning')) return Icons.ac_unit_rounded;
+    if (lower.contains('computer') ||
+        lower.contains('pc') ||
+        lower.contains('laptop')) return Icons.computer_rounded;
+    if (lower.contains('audio') ||
+        lower.contains('speaker') ||
+        lower.contains('mic') ||
+        lower.contains('sound')) return Icons.volume_up_rounded;
+    if (lower.contains('microscope') ||
+        lower.contains('lab') ||
+        lower.contains('specimen') ||
+        lower.contains('fume')) return Icons.biotech_rounded;
+    if (lower.contains('wifi') ||
+        lower.contains('internet') ||
+        lower.contains('lan')) return Icons.wifi_rounded;
+    if (lower.contains('pottery') ||
+        lower.contains('easel') ||
+        lower.contains('art')) return Icons.palette_rounded;
     return Icons.check_circle_outline_rounded;
   }
 
@@ -1646,7 +1862,9 @@ class RoomsTabView extends ConsumerWidget {
     Color textCol;
     IconData icon;
 
-    if (upper.contains('MAINT') || upper.contains('REPAIR') || upper.contains('OUT OF SERVICE')) {
+    if (upper.contains('MAINT') ||
+        upper.contains('REPAIR') ||
+        upper.contains('OUT OF SERVICE')) {
       bg = isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2);
       border = const Color(0xFFF87171);
       textCol = const Color(0xFFDC2626);
@@ -1661,7 +1879,10 @@ class RoomsTabView extends ConsumerWidget {
       border = const Color(0xFFA5B4FC);
       textCol = const Color(0xFF4F46E5);
       icon = Icons.bookmark_rounded;
-    } else if (upper.contains('AVAIL') || upper.contains('ACTIVE') || upper.contains('READY') || upper.contains('IN SERVICE')) {
+    } else if (upper.contains('AVAIL') ||
+        upper.contains('ACTIVE') ||
+        upper.contains('READY') ||
+        upper.contains('IN SERVICE')) {
       bg = isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5);
       border = const Color(0xFF6EE7B7);
       textCol = const Color(0xFF059669);
@@ -1675,8 +1896,13 @@ class RoomsTabView extends ConsumerWidget {
 
     final lookupHelper = AcademicLookupHelper.instance;
     final cachedStatuses = lookupHelper.getCachedLookup('ROOM_STATUS');
-    final match = cachedStatuses.where((s) => s.code.toUpperCase() == status.toUpperCase() || s.label.toUpperCase() == status.toUpperCase()).firstOrNull;
-    final displayLabel = match?.label ?? (status.isEmpty ? 'AVAILABLE' : status.replaceAll('_', ' '));
+    final match = cachedStatuses
+        .where((s) =>
+            s.code.toUpperCase() == status.toUpperCase() ||
+            s.label.toUpperCase() == status.toUpperCase())
+        .firstOrNull;
+    final displayLabel = match?.label ??
+        (status.isEmpty ? 'AVAILABLE' : status.replaceAll('_', ' '));
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1692,7 +1918,8 @@ class RoomsTabView extends ConsumerWidget {
           const SizedBox(width: 4),
           Text(
             displayLabel.toUpperCase(),
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: textCol),
+            style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w700, color: textCol),
           ),
         ],
       ),
@@ -1702,13 +1929,17 @@ class RoomsTabView extends ConsumerWidget {
   Widget _buildSmallStatusDot(AcademicRoomModel room) {
     Color dotColor;
     final upper = room.status.toUpperCase().replaceAll('_', ' ');
-    if (upper.contains('MAINT') || upper.contains('REPAIR') || upper.contains('OUT OF SERVICE')) {
+    if (upper.contains('MAINT') ||
+        upper.contains('REPAIR') ||
+        upper.contains('OUT OF SERVICE')) {
       dotColor = const Color(0xFFDC2626);
     } else if (upper.contains('IN USE') || upper.contains('OCCUPIED')) {
       dotColor = const Color(0xFFD97706);
     } else if (upper.contains('RESERV')) {
       dotColor = const Color(0xFF4F46E5);
-    } else if (upper.contains('AVAIL') || upper.contains('ACTIVE') || upper.contains('READY')) {
+    } else if (upper.contains('AVAIL') ||
+        upper.contains('ACTIVE') ||
+        upper.contains('READY')) {
       dotColor = const Color(0xFF059669);
     } else {
       dotColor = const Color(0xFF64748B);
@@ -1724,16 +1955,22 @@ class RoomsTabView extends ConsumerWidget {
     );
   }
 
-  Widget _buildPaginationBar(BuildContext context, ClassState state, ClassNotifier notifier, bool isDark) {
-    final startItem = state.totalCount == 0 ? 0 : (state.page - 1) * state.pageSize + 1;
-    final endItem = (state.page * state.pageSize) > state.totalCount ? state.totalCount : (state.page * state.pageSize);
+  Widget _buildPaginationBar(BuildContext context, ClassState state,
+      ClassNotifier notifier, bool isDark) {
+    final startItem =
+        state.totalCount == 0 ? 0 : (state.page - 1) * state.pageSize + 1;
+    final endItem = (state.page * state.pageSize) > state.totalCount
+        ? state.totalCount
+        : (state.page * state.pageSize);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         border: Border(
-          top: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+          top: BorderSide(
+              color:
+                  isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
         ),
       ),
       child: LayoutBuilder(
@@ -1748,7 +1985,9 @@ class RoomsTabView extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
                 ),
               ),
               const SizedBox(width: 16),
@@ -1759,7 +1998,9 @@ class RoomsTabView extends ConsumerWidget {
                     'Per page:',
                     style: TextStyle(
                       fontSize: 12,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                     ),
                   ),
                   const SizedBox(width: 6),
@@ -1769,16 +2010,23 @@ class RoomsTabView extends ConsumerWidget {
                     decoration: BoxDecoration(
                       color: isDark ? const Color(0xFF1E293B) : Colors.white,
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                      border: Border.all(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFCBD5E1)),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<int>(
-                        value: [10, 25, 50, 100].contains(state.pageSize) ? state.pageSize : 10,
-                        dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        value: [10, 25, 50, 100].contains(state.pageSize)
+                            ? state.pageSize
+                            : 10,
+                        dropdownColor:
+                            isDark ? const Color(0xFF1E293B) : Colors.white,
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                         items: const [
                           DropdownMenuItem(value: 10, child: Text('10')),
@@ -1809,7 +2057,9 @@ class RoomsTabView extends ConsumerWidget {
                 splashRadius: 16,
               ),
               IconButton(
-                onPressed: state.page > 1 ? () => notifier.setPage(state.page - 1) : null,
+                onPressed: state.page > 1
+                    ? () => notifier.setPage(state.page - 1)
+                    : null,
                 icon: const Icon(Icons.chevron_left, size: 20),
                 tooltip: 'Previous Page',
                 padding: EdgeInsets.zero,
@@ -1828,7 +2078,9 @@ class RoomsTabView extends ConsumerWidget {
                 ),
               ),
               IconButton(
-                onPressed: state.page < state.totalPages ? () => notifier.setPage(state.page + 1) : null,
+                onPressed: state.page < state.totalPages
+                    ? () => notifier.setPage(state.page + 1)
+                    : null,
                 icon: const Icon(Icons.chevron_right, size: 20),
                 tooltip: 'Next Page',
                 padding: EdgeInsets.zero,
@@ -1836,7 +2088,9 @@ class RoomsTabView extends ConsumerWidget {
                 splashRadius: 16,
               ),
               IconButton(
-                onPressed: state.page < state.totalPages ? () => notifier.setPage(state.totalPages) : null,
+                onPressed: state.page < state.totalPages
+                    ? () => notifier.setPage(state.totalPages)
+                    : null,
                 icon: const Icon(Icons.last_page, size: 18),
                 tooltip: 'Last Page',
                 padding: EdgeInsets.zero,
@@ -1869,14 +2123,16 @@ class RoomsTabView extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context, bool isDark, ClassNotifier notifier) {
+  Widget _buildEmptyState(
+      BuildContext context, bool isDark, ClassNotifier notifier) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.meeting_room_outlined, size: 56, color: Colors.grey),
+            const Icon(Icons.meeting_room_outlined,
+                size: 56, color: Colors.grey),
             const SizedBox(height: 14),
             Text(
               'No rooms or facilities found',
@@ -1891,7 +2147,8 @@ class RoomsTabView extends ConsumerWidget {
               'Try adjusting your search criteria or add new rooms.',
               style: TextStyle(
                 fontSize: 13,
-                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
               ),
             ),
           ],
@@ -1900,7 +2157,8 @@ class RoomsTabView extends ConsumerWidget {
     );
   }
 
-  void _showEditDialog(BuildContext context, AcademicRoomModel room, ClassState state, ClassNotifier notifier) {
+  void _showEditDialog(BuildContext context, AcademicRoomModel room,
+      ClassState state, ClassNotifier notifier) {
     showDialog(
       context: context,
       builder: (ctx) => CreateEditRoomDialog(
@@ -1923,7 +2181,8 @@ class RoomsTabView extends ConsumerWidget {
     );
   }
 
-  void _showArchiveDialog(BuildContext context, AcademicRoomModel room, ClassNotifier notifier) {
+  void _showArchiveDialog(
+      BuildContext context, AcademicRoomModel room, ClassNotifier notifier) {
     showDialog(
       context: context,
       builder: (ctx) => ArchiveConfirmationDialog(

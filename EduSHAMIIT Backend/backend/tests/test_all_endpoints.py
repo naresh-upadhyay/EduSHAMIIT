@@ -132,7 +132,7 @@ check("POST /api/auth/login (bad creds -> 401)", resp, expected_status=401, chec
 # User Registration and OTP recovery endpoints
 reg_payload = {
     "email": "testrecovery_temp@gmail.com",
-    "password": "TempPassword1A",
+    "password": "TempPassword1A@",
     "school_id": STUDENT_SCHOOL_ID,
     "full_name": "Temp Test User",
     "role": "student",
@@ -243,14 +243,14 @@ temp_s_email = "temp_test_student_profile@gmail.com"
 requests.delete(f"{BASE_URL}/api/auth/user/{temp_s_email}") # Pre-cleanup
 reg_resp_s = requests.post(f"{BASE_URL}/api/auth/register", json={
     "email": temp_s_email,
-    "password": "TempPassword1A",
+    "password": "TempPassword1A@",
     "school_id": STUDENT_SCHOOL_ID,
     "full_name": "Temp Test Student Profile",
     "role": "student",
     "class_name": "10A"
 })
 if reg_resp_s.status_code == 200:
-    login_resp_s = requests.post(f"{BASE_URL}/api/auth/login", json={"email": temp_s_email, "password": "TempPassword1A"})
+    login_resp_s = requests.post(f"{BASE_URL}/api/auth/login", json={"email": temp_s_email, "password": "TempPassword1A@"})
     S_TEMP_TOKEN = login_resp_s.json()["data"]["token"]
     S_TEMP = {"Authorization": f"Bearer {S_TEMP_TOKEN}"}
     
@@ -487,14 +487,14 @@ else:
     requests.delete(f"{BASE_URL}/api/auth/user/{temp_t_email}") # Pre-cleanup
     reg_resp_t = requests.post(f"{BASE_URL}/api/auth/register", json={
         "email": temp_t_email,
-        "password": "TempPassword1A",
+        "password": "TempPassword1A@",
         "school_id": STUDENT_SCHOOL_ID,
         "full_name": "Temp Test Teacher Profile",
         "role": "teacher",
         "class_name": "10A"
     })
     if reg_resp_t.status_code == 200:
-        login_resp_t = requests.post(f"{BASE_URL}/api/auth/login", json={"email": temp_t_email, "password": "TempPassword1A"})
+        login_resp_t = requests.post(f"{BASE_URL}/api/auth/login", json={"email": temp_t_email, "password": "TempPassword1A@"})
         T_TEMP_TOKEN = login_resp_t.json()["data"]["token"]
         T_TEMP = {"Authorization": f"Bearer {T_TEMP_TOKEN}"}
         
@@ -937,7 +937,7 @@ def run_sql(sql_cmd):
 # Setup temp student_admin user
 sa_reg_data = {
     "email": "temp_student_admin@gmail.com",
-    "password": "TempPassword1A",
+    "password": "TempPassword1A@",
     "school_id": STUDENT_SCHOOL_ID,
     "full_name": "Temp Student Admin",
     "role": "student",
@@ -954,7 +954,7 @@ else:
 # Setup temp teacher_admin user
 ta_reg_data = {
     "email": "temp_teacher_admin@gmail.com",
-    "password": "TempPassword1A",
+    "password": "TempPassword1A@",
     "school_id": STUDENT_SCHOOL_ID,
     "full_name": "Temp Teacher Admin",
     "role": "teacher",
@@ -969,12 +969,12 @@ else:
     warn("Skipping teacher admin registration - already exists or failed")
 
 # Logins
-resp_sa_login = requests.post(f"{BASE_URL}/api/auth/login", json={"email": "temp_student_admin@gmail.com", "password": "TempPassword1A"})
+resp_sa_login = requests.post(f"{BASE_URL}/api/auth/login", json={"email": "temp_student_admin@gmail.com", "password": "TempPassword1A@"})
 b_sa = check("POST /api/auth/login (student_admin)", resp_sa_login)
 SA_TOKEN = (b_sa.get("data") or {}).get("token", "")
 SA = {"Authorization": f"Bearer {SA_TOKEN}"} if SA_TOKEN else None
 
-resp_ta_login = requests.post(f"{BASE_URL}/api/auth/login", json={"email": "temp_teacher_admin@gmail.com", "password": "TempPassword1A"})
+resp_ta_login = requests.post(f"{BASE_URL}/api/auth/login", json={"email": "temp_teacher_admin@gmail.com", "password": "TempPassword1A@"})
 b_ta = check("POST /api/auth/login (teacher_admin)", resp_ta_login)
 TA_TOKEN = (b_ta.get("data") or {}).get("token", "")
 TA = {"Authorization": f"Bearer {TA_TOKEN}"} if TA_TOKEN else None
@@ -986,8 +986,9 @@ else:
     # Fetch list and properties to get IDs dynamically
     stud_list = check("GET /api/admin/students/list", requests.get(f"{BASE_URL}/api/admin/students/list", headers=SA))
     students = (stud_list.get("data") or {}).get("students", [])
-    student_id = students[0]["id"] if students else None
-    student_class = students[0]["class"] if students else "10A"
+    student_obj = next((s for s in students if s.get("class")), students[0] if students else {})
+    student_id = student_obj.get("id")
+    student_class = student_obj.get("class") or "10A"
 
     sub_list = check("GET /api/admin/students/subjects", requests.get(f"{BASE_URL}/api/admin/students/subjects", headers=SA))
     subjects = (sub_list.get("data") or {}).get("subjects", [])
@@ -1101,7 +1102,8 @@ else:
     bcast_payload = {
         "title": "Broadcast Test",
         "body": "This is a test notification from admin",
-        "target_classes": [student_class]
+        "target_classes": [student_class],
+        "target_student_ids": [student_id] if student_id else []
     }
     check("POST /api/admin/students/notifications/broadcast", requests.post(f"{BASE_URL}/api/admin/students/notifications/broadcast", headers=SA, json=bcast_payload))
 
@@ -1139,7 +1141,8 @@ else:
         "fee_type": "Tuition Fee",
         "amount": 2500.0,
         "due_date": "2026-06-30",
-        "target_class": student_class
+        "target_class": student_class,
+        "student_id": student_id
     }
     check("POST /api/admin/students/fees", requests.post(f"{BASE_URL}/api/admin/students/fees", headers=SA, json=fees_payload))
 

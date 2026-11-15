@@ -18,6 +18,10 @@ Tests:
 
 import os
 import sys
+os.environ["DATABASE_URL"] = "postgresql://postgres:eduSHAMIIT2026_pg@localhost:54322/postgres"
+os.environ["POSTGRES_PORT"] = "54322"
+os.environ["POSTGRES_PASSWORD"] = "eduSHAMIIT2026_pg"
+os.environ["SUPABASE_URL"] = "http://localhost:8082"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import sys
@@ -31,7 +35,7 @@ from app.config import settings
 
 SCHOOL_A = "11111111-1111-1111-1111-111111111111"
 SCHOOL_B = "22222222-2222-2222-2222-222222222222"
-ADMIN_USER_ID = "38a93170-997b-4b4c-bc8e-256b93169c23"
+ADMIN_USER_ID = "5198c4b0-f1cb-45db-9649-41688d0438ba"
 INTERVIEWER_USER_ID = "44444444-4444-4444-4444-444444444444"
 
 JWT_SECRET = settings.SUPABASE_JWT_SECRET or settings.JWT_SECRET

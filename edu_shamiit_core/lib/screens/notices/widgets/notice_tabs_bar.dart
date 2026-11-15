@@ -12,8 +12,17 @@ class NoticeTabsBar extends ConsumerWidget {
 
   List<Map<String, String>> getTabsForRole(String role) {
     final r = role.toLowerCase();
-    final isAdmin = r == 'super_admin' || r == 'admin' || r == 'principal' || r == 'vice_principal' || r == 'director';
-    final isStaff = r == 'teacher' || r == 'class_teacher' || r == 'transport_manager' || r == 'accountant' || r == 'hr' || r == 'librarian';
+    final isAdmin = r == 'super_admin' ||
+        r == 'admin' ||
+        r == 'principal' ||
+        r == 'vice_principal' ||
+        r == 'director';
+    final isStaff = r == 'teacher' ||
+        r == 'class_teacher' ||
+        r == 'transport_manager' ||
+        r == 'accountant' ||
+        r == 'hr' ||
+        r == 'librarian';
 
     if (isAdmin) {
       return [
@@ -75,11 +84,13 @@ class NoticeTabsBar extends ConsumerWidget {
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2.0),
               child: InkWell(
-                onTap: () => ref.read(noticeProvider.notifier).setTab(tab['id']!),
+                onTap: () =>
+                    ref.read(noticeProvider.notifier).setTab(tab['id']!),
                 borderRadius: BorderRadius.circular(8),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
                     color: isSelected
                         ? (isDark ? const Color(0xFF4F46E5) : Colors.white)
@@ -88,7 +99,7 @@ class NoticeTabsBar extends ConsumerWidget {
                     boxShadow: isSelected && !isDark
                         ? [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.06),
+                              color: Colors.black.withValues(alpha: 0.06),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -99,10 +110,13 @@ class NoticeTabsBar extends ConsumerWidget {
                     tab['label']!,
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w600,
                       color: isSelected
                           ? (isDark ? Colors.white : const Color(0xFF4F46E5))
-                          : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                          : (isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B)),
                     ),
                   ),
                 ),

@@ -27,7 +27,8 @@ class _ClassHeaderBarState extends ConsumerState<ClassHeaderBar> {
   }
 
   Future<void> _loadAcademicYears() async {
-    final list = await AcademicLookupHelper.instance.getActiveLookup('FINANCIAL_YEAR');
+    final list =
+        await AcademicLookupHelper.instance.getActiveLookup('FINANCIAL_YEAR');
     if (mounted) {
       setState(() {
         _academicYears = list;
@@ -49,7 +50,9 @@ class _ClassHeaderBarState extends ConsumerState<ClassHeaderBar> {
 
     final selectedYear = availableYearLabels.contains(state.academicYear)
         ? state.academicYear
-        : (availableYearLabels.isNotEmpty ? availableYearLabels.first : state.academicYear);
+        : (availableYearLabels.isNotEmpty
+            ? availableYearLabels.first
+            : state.academicYear);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
@@ -66,24 +69,30 @@ class _ClassHeaderBarState extends ConsumerState<ClassHeaderBar> {
           final isMobile = constraints.maxWidth < 750;
 
           String titleText = 'Academic Management';
-          String subtitleText = 'Create and manage classes, sections, subjects and rooms.';
+          String subtitleText =
+              'Create and manage classes, sections, subjects and rooms.';
 
           if (isTeacher) {
             titleText = 'My Academic Classes';
-            subtitleText = 'View and manage your assigned classes, sections and subjects.';
+            subtitleText =
+                'View and manage your assigned classes, sections and subjects.';
           } else {
             if (state.activeTab == 0) {
               titleText = 'Class Management';
-              subtitleText = 'Manage grade levels, streams, student rosters and class teachers.';
+              subtitleText =
+                  'Manage grade levels, streams, student rosters and class teachers.';
             } else if (state.activeTab == 1) {
               titleText = 'Sections & Batches';
-              subtitleText = 'Configure section capacities, room assignments, and student distribution.';
+              subtitleText =
+                  'Configure section capacities, room assignments, and student distribution.';
             } else if (state.activeTab == 2) {
               titleText = 'Subjects Management';
-              subtitleText = 'Create and manage all subjects used in teaching and learning.';
+              subtitleText =
+                  'Create and manage all subjects used in teaching and learning.';
             } else if (state.activeTab == 3) {
               titleText = 'Rooms & Facilities';
-              subtitleText = 'Manage classrooms, laboratories, computer labs, and physical spaces.';
+              subtitleText =
+                  'Manage classrooms, laboratories, computer labs, and physical spaces.';
             }
           }
 
@@ -108,11 +117,14 @@ class _ClassHeaderBarState extends ConsumerState<ClassHeaderBar> {
                   ),
                   const SizedBox(width: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF4F46E5).withOpacity(0.12),
+                      color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFF4F46E5).withOpacity(0.3)),
+                      border: Border.all(
+                          color:
+                              const Color(0xFF4F46E5).withValues(alpha: 0.3)),
                     ),
                     child: Text(
                       selectedYear,
@@ -130,7 +142,9 @@ class _ClassHeaderBarState extends ConsumerState<ClassHeaderBar> {
                 subtitleText,
                 style: TextStyle(
                   fontSize: isMobile ? 11.5 : 13,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
                 ),
               ),
             ],
@@ -144,15 +158,21 @@ class _ClassHeaderBarState extends ConsumerState<ClassHeaderBar> {
                 height: 38,
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  color: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFCBD5E1)),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: selectedYear,
                     icon: const Icon(Icons.calendar_today_outlined, size: 14),
-                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    dropdownColor:
+                        isDark ? const Color(0xFF1E293B) : Colors.white,
                     style: TextStyle(
                       color: isDark ? Colors.white : const Color(0xFF0F172A),
                       fontSize: 12.5,
@@ -179,14 +199,19 @@ class _ClassHeaderBarState extends ConsumerState<ClassHeaderBar> {
                   onPressed: () {
                     showDialog(
                       context: context,
-                      builder: (ctx) => CsvImportExportDialog(initialEntityIndex: state.activeTab),
+                      builder: (ctx) => CsvImportExportDialog(
+                          initialEntityIndex: state.activeTab),
                     );
                   },
                   icon: const Icon(Icons.import_export_rounded, size: 16),
-                  label: const Text('CSV', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  label: const Text('CSV',
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
 
@@ -207,7 +232,8 @@ class _ClassHeaderBarState extends ConsumerState<ClassHeaderBar> {
                             displayOrder: payload['display_order'] as int? ?? 1,
                             academicYear: state.academicYear,
                             sections: (payload['sections'] as List<dynamic>?)
-                                    ?.map((e) => Map<String, dynamic>.from(e as Map))
+                                    ?.map((e) =>
+                                        Map<String, dynamic>.from(e as Map))
                                     .toList() ??
                                 const [],
                           ),
@@ -243,7 +269,8 @@ class _ClassHeaderBarState extends ConsumerState<ClassHeaderBar> {
                             color: payload['color'] as String? ?? '#4F46E5',
                             description: payload['description'] as String?,
                             status: payload['status'] as String? ?? 'ACTIVE',
-                            isOptional: payload['is_optional'] as bool? ?? false,
+                            isOptional:
+                                payload['is_optional'] as bool? ?? false,
                             classIds: const [],
                           ),
                         ),
@@ -258,10 +285,16 @@ class _ClassHeaderBarState extends ConsumerState<ClassHeaderBar> {
                             name: payload['name'] as String,
                             code: payload['code'] as String,
                             type: payload['type'] as String? ?? 'Classroom',
-                            building: payload['building'] as String? ?? 'Academic Block',
-                            floor: payload['floor'] as String? ?? 'Ground Floor',
+                            building: payload['building'] as String? ??
+                                'Academic Block',
+                            floor:
+                                payload['floor'] as String? ?? 'Ground Floor',
                             capacity: payload['capacity'] as int? ?? 40,
-                            facilities: (payload['facilities'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
+                            facilities:
+                                (payload['facilities'] as List<dynamic>?)
+                                        ?.map((e) => e.toString())
+                                        .toList() ??
+                                    const [],
                             status: payload['status'] as String? ?? 'AVAILABLE',
                             description: payload['description'] as String?,
                           ),
@@ -278,13 +311,16 @@ class _ClassHeaderBarState extends ConsumerState<ClassHeaderBar> {
                             : state.activeTab == 2
                                 ? 'Add Subject'
                                 : 'Add Room',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4F46E5),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
               ],

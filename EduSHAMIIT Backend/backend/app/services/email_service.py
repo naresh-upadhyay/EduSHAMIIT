@@ -142,13 +142,32 @@ class EmailService:
     """Email service for sending OTP, notification, and interview scheduling calendar emails."""
     
     def __init__(self):
-        self.smtp_host = settings.SMTP_HOST
-        self.smtp_port = settings.SMTP_PORT
-        self.smtp_user = settings.SMTP_USER
-        self.smtp_password = settings.SMTP_PASSWORD
-        self.email_from = settings.EMAIL_FROM
-        self.retry_attempts = settings.EMAIL_RETRY_ATTEMPTS
-        self.retry_delay = settings.EMAIL_RETRY_DELAY
+        self._refresh_credentials()
+        self.retry_attempts = getattr(settings, 'EMAIL_RETRY_ATTEMPTS', 3)
+        self.retry_delay = getattr(settings, 'EMAIL_RETRY_DELAY', 2)
+
+    def _refresh_credentials(self):
+        """Dynamically refresh SMTP credentials from environment variables / settings (synced from Supabase Vault)."""
+        import os
+        self.smtp_host = os.getenv('SMTP_HOST') or getattr(settings, 'SMTP_HOST', 'smtp.gmail.com')
+        raw_port = os.getenv('SMTP_PORT') or getattr(settings, 'SMTP_PORT', 587)
+        try:
+            self.smtp_port = int(raw_port)
+        except (ValueError, TypeError):
+            self.smtp_port = 587
+        
+        self.smtp_user = os.getenv('SMTP_USER') or getattr(settings, 'SMTP_USER', '')
+        self.smtp_password = (
+            os.getenv('SMTP_PASSWORD') 
+            or os.getenv('SMTP_PASS') 
+            or getattr(settings, 'SMTP_PASSWORD', '')
+        )
+        self.email_from = (
+            os.getenv('EMAIL_FROM') 
+            or getattr(settings, 'EMAIL_FROM', '') 
+            or self.smtp_user 
+            or 'noreply@edushamiit.com'
+        )
     
     def _create_message(
         self,
@@ -209,6 +228,7 @@ class EmailService:
         attachments: Optional[List[Dict[str, Any]]] = None
     ) -> bool:
         """Send email with retry logic, optional calendar attachment, and optional file attachments."""
+        self._refresh_credentials()
         last_error = None
         
         for attempt in range(self.retry_attempts):

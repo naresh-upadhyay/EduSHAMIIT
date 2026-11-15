@@ -383,7 +383,9 @@ class TeacherDashboard {
             QuickAccessItem(
                 title: 'My Classes', icon: '📚', route: '/teacher/my-classes'),
             QuickAccessItem(
-                title: 'Achievements', icon: '🏆', route: '/teacher/achievements'),
+                title: 'Achievements',
+                icon: '🏆',
+                route: '/teacher/achievements'),
             QuickAccessItem(
                 title: 'Timetable', icon: '🗓️', route: '/teacher/timetable'),
             QuickAccessItem(
@@ -395,7 +397,9 @@ class TeacherDashboard {
             QuickAccessItem(
                 title: 'Exams', icon: '✍️', route: '/teacher/exams'),
             QuickAccessItem(
-                title: 'Submissions', icon: '📁', route: '/teacher/submissions'),
+                title: 'Submissions',
+                icon: '📁',
+                route: '/teacher/submissions'),
             QuickAccessItem(
                 title: 'Notices', icon: '📢', route: '/teacher/notices'),
             QuickAccessItem(
@@ -805,7 +809,8 @@ class TeacherHomeworkAssignment {
       status: _toStr(json['status'], fallback: 'active'),
       submittedCount: _toInt(json['submitted_count']),
       totalCount: _toInt(json['total_count']),
-      gradedCount: json['graded_count'] == null ? null : _toInt(json['graded_count']),
+      gradedCount:
+          json['graded_count'] == null ? null : _toInt(json['graded_count']),
       attachmentUrl: _toStr(json['attachment_url']).isEmpty
           ? null
           : _toStr(json['attachment_url']),
@@ -924,7 +929,8 @@ class HomeworkSubmission {
       gradedBy:
           _toStr(json['graded_by']).isEmpty ? null : _toStr(json['graded_by']),
       gradedAt: _toDateTime(json['graded_at']),
-      maxMarks: json['homework'] != null && (json['homework'] as Map<String, dynamic>)['max_marks'] != null
+      maxMarks: json['homework'] != null &&
+              (json['homework'] as Map<String, dynamic>)['max_marks'] != null
           ? _toDouble((json['homework'] as Map<String, dynamic>)['max_marks'])
           : null,
     );
@@ -960,9 +966,11 @@ class TeacherExam {
   final DateTime examDate;
   final String duration;
   final int totalMarks;
+  final int? passingMarks;
   final String? syllabus;
   final String examType; // online, offline
-  final String examCategory; // Practice Test, Weekly Test, Unit Test, Mock Test, Mid Term, Final Exam
+  final String
+      examCategory; // Practice Test, Weekly Test, Unit Test, Mock Test, Mid Term, Final Exam
   final String? roomNumber;
   final DateTime? createdAt;
   final String? instructions;
@@ -993,6 +1001,7 @@ class TeacherExam {
     required this.examDate,
     required this.duration,
     required this.totalMarks,
+    this.passingMarks,
     this.syllabus,
     required this.examType,
     required this.examCategory,
@@ -1030,9 +1039,11 @@ class TeacherExam {
           : DateTime.now(),
       duration: json['duration'] as String? ?? '',
       totalMarks: json['total_marks'] as int? ?? 0,
+      passingMarks: json['passing_marks'] as int?,
       syllabus: json['syllabus'] as String?,
       examType: (json['exam_type'] ?? 'offline').toString(),
-      examCategory: (json['exam_category'] ?? json['exam_type'] ?? 'Unit Test').toString(),
+      examCategory: (json['exam_category'] ?? json['exam_type'] ?? 'Unit Test')
+          .toString(),
       roomNumber: (json['room_number'] ?? json['venue'] ?? '').toString(),
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
@@ -1111,6 +1122,17 @@ class QuestionBankItem {
   final String correctAnswer;
   final String difficulty; // Easy, Medium, Hard
   final int marks;
+  final String? title;
+  final String? topic;
+  final String className;
+  final double negativeMarks;
+  final String? explanation;
+  final String? modelAnswer;
+  final String? questionCode;
+  final String status;
+  final String languageCode;
+  final List<dynamic> attachments;
+  final List<String> tags;
 
   const QuestionBankItem({
     required this.id,
@@ -1125,6 +1147,17 @@ class QuestionBankItem {
     required this.correctAnswer,
     required this.difficulty,
     required this.marks,
+    this.title,
+    this.topic,
+    this.className = '',
+    this.negativeMarks = 0.0,
+    this.explanation,
+    this.modelAnswer,
+    this.questionCode,
+    this.status = 'approved',
+    this.languageCode = 'en',
+    this.attachments = const [],
+    this.tags = const [],
   });
 
   factory QuestionBankItem.fromJson(Map<String, dynamic> json) {
@@ -1133,18 +1166,24 @@ class QuestionBankItem {
     if (optsRaw is List) {
       opts = optsRaw.map((e) => e.toString()).toList();
     }
-    
+
     String subName = '';
     if (json['subjects'] != null && json['subjects'] is Map) {
       subName = json['subjects']['name'] ?? '';
     }
+
+    final rawAtts = json['attachments'] as List<dynamic>? ?? [];
+    final rawTags = json['tags'] as List<dynamic>? ?? [];
+    final tags = rawTags.map((e) => e.toString()).toList();
 
     return QuestionBankItem(
       id: (json['id'] ?? '').toString(),
       schoolId: json['school_id']?.toString(),
       teacherId: json['teacher_id']?.toString(),
       subjectId: (json['subject_id'] ?? '').toString(),
-      subjectName: subName,
+      subjectName: subName.isNotEmpty
+          ? subName
+          : (json['subject_name'] ?? '').toString(),
       chapter: json['chapter']?.toString(),
       questionText: (json['question_text'] ?? '').toString(),
       questionType: (json['question_type'] ?? 'mcq').toString(),
@@ -1152,6 +1191,17 @@ class QuestionBankItem {
       correctAnswer: (json['correct_answer'] ?? '').toString(),
       difficulty: (json['difficulty'] ?? 'Medium').toString(),
       marks: _toInt(json['marks'], fallback: 1),
+      title: json['title'] as String?,
+      topic: json['topic'] as String?,
+      className: (json['class_name'] ?? json['class'] ?? '').toString(),
+      negativeMarks: (json['negative_marks'] as num?)?.toDouble() ?? 0.0,
+      explanation: json['explanation'] as String?,
+      modelAnswer: json['model_answer'] as String?,
+      questionCode: json['question_code'] as String?,
+      status: (json['status'] ?? 'approved').toString(),
+      languageCode: (json['language_code'] ?? 'en').toString(),
+      attachments: rawAtts,
+      tags: tags,
     );
   }
 
@@ -1168,6 +1218,17 @@ class QuestionBankItem {
       'correct_answer': correctAnswer,
       'difficulty': difficulty,
       'marks': marks,
+      'title': title,
+      'topic': topic,
+      'class_name': className,
+      'negative_marks': negativeMarks,
+      'explanation': explanation,
+      'model_answer': modelAnswer,
+      'question_code': questionCode,
+      'status': status,
+      'language_code': languageCode,
+      'attachments': attachments,
+      'tags': tags,
     };
   }
 }
@@ -1493,8 +1554,6 @@ class TeacherLiveClass {
     };
   }
 }
-
-
 
 /// Salary slip model
 @immutable

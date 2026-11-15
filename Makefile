@@ -114,5 +114,5 @@ help:
 	@echo "    :6379   → Redis"
 	@echo "    :1883   → MQTT (Mosquitto)"
 	@echo "    :9001   → MQTT over WebSockets"
-	@echo "    :6543   → Supavisor (connection pooler)"
+	@echo "    :5000   → Supabase Storage API & S3 Gateway"
 	@echo ""

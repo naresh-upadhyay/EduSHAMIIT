@@ -64,7 +64,6 @@ class BookKpiCards extends ConsumerWidget {
       ),
     ];
 
-
     return Container(
       margin: EdgeInsets.fromLTRB(
         isDesktop ? 28 : 16,
@@ -124,15 +123,15 @@ class BookKpiCards extends ConsumerWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: item.isSelected
-                ? item.color.withOpacity(0.8)
+                ? item.color.withValues(alpha: 0.8)
                 : (isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
             width: item.isSelected ? 1.5 : 1.0,
           ),
           boxShadow: [
             BoxShadow(
               color: item.isSelected
-                  ? item.color.withOpacity(0.08)
-                  : Colors.black.withOpacity(isDark ? 0.2 : 0.02),
+                  ? item.color.withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -146,9 +145,9 @@ class BookKpiCards extends ConsumerWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: item.color.withOpacity(isDark ? 0.16 : 0.1),
+                color: item.color.withValues(alpha: isDark ? 0.16 : 0.1),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: item.color.withOpacity(0.2)),
+                border: Border.all(color: item.color.withValues(alpha: 0.2)),
               ),
               child: Icon(item.icon, color: item.color, size: 22),
             ),
@@ -165,7 +164,9 @@ class BookKpiCards extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w500,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -185,7 +186,9 @@ class BookKpiCards extends ConsumerWidget {
                     item.subtitle,
                     style: TextStyle(
                       fontSize: 11,
-                      color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                      color: isDark
+                          ? const Color(0xFF64748B)
+                          : const Color(0xFF94A3B8),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

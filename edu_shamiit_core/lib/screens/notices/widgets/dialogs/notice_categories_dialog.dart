@@ -6,10 +6,12 @@ class NoticeCategoriesDialog extends ConsumerStatefulWidget {
   const NoticeCategoriesDialog({super.key});
 
   @override
-  ConsumerState<NoticeCategoriesDialog> createState() => _NoticeCategoriesDialogState();
+  ConsumerState<NoticeCategoriesDialog> createState() =>
+      _NoticeCategoriesDialogState();
 }
 
-class _NoticeCategoriesDialogState extends ConsumerState<NoticeCategoriesDialog> {
+class _NoticeCategoriesDialogState
+    extends ConsumerState<NoticeCategoriesDialog> {
   final _nameController = TextEditingController();
   final _codeController = TextEditingController();
   String _selectedColor = '#3B82F6';
@@ -113,7 +115,12 @@ class _NoticeCategoriesDialogState extends ConsumerState<NoticeCategoriesDialog>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Add New Category', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                  Text('Add New Category',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A))),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -121,15 +128,20 @@ class _NoticeCategoriesDialogState extends ConsumerState<NoticeCategoriesDialog>
                         child: TextField(
                           controller: _nameController,
                           onChanged: (val) {
-                            if (_codeController.text.isEmpty || _codeController.text == val.toLowerCase().replaceAll(' ', '_')) {
-                              _codeController.text = val.toLowerCase().replaceAll(' ', '_');
+                            if (_codeController.text.isEmpty ||
+                                _codeController.text ==
+                                    val.toLowerCase().replaceAll(' ', '_')) {
+                              _codeController.text =
+                                  val.toLowerCase().replaceAll(' ', '_');
                             }
                           },
                           decoration: InputDecoration(
                             labelText: 'Category Name',
                             hintText: 'e.g. Sports',
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 8),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8)),
                           ),
                           style: const TextStyle(fontSize: 12),
                         ),
@@ -141,8 +153,10 @@ class _NoticeCategoriesDialogState extends ConsumerState<NoticeCategoriesDialog>
                           decoration: InputDecoration(
                             labelText: 'Code',
                             hintText: 'e.g. sports',
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 8),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8)),
                           ),
                           style: const TextStyle(fontSize: 12),
                         ),
@@ -159,7 +173,9 @@ class _NoticeCategoriesDialogState extends ConsumerState<NoticeCategoriesDialog>
                         spacing: 6,
                         children: _colors.map((hex) {
                           final isSelected = _selectedColor == hex;
-                          final color = Color(int.parse('FF${hex.replaceAll("#", "")}', radix: 16));
+                          final color = Color(int.parse(
+                              'FF${hex.replaceAll("#", "")}',
+                              radix: 16));
                           return InkWell(
                             onTap: () => setState(() => _selectedColor = hex),
                             child: Container(
@@ -168,8 +184,16 @@ class _NoticeCategoriesDialogState extends ConsumerState<NoticeCategoriesDialog>
                               decoration: BoxDecoration(
                                 color: color,
                                 shape: BoxShape.circle,
-                                border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
-                                boxShadow: isSelected ? [const BoxShadow(color: Colors.black26, blurRadius: 4)] : null,
+                                border: isSelected
+                                    ? Border.all(color: Colors.white, width: 2)
+                                    : null,
+                                boxShadow: isSelected
+                                    ? [
+                                        const BoxShadow(
+                                            color: Colors.black26,
+                                            blurRadius: 4)
+                                      ]
+                                    : null,
                               ),
                             ),
                           );
@@ -178,8 +202,12 @@ class _NoticeCategoriesDialogState extends ConsumerState<NoticeCategoriesDialog>
                       ElevatedButton.icon(
                         onPressed: _isSaving ? null : _saveNewCategory,
                         icon: const Icon(Icons.add, size: 14),
-                        label: const Text('Add Category', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5), foregroundColor: Colors.white),
+                        label: const Text('Add Category',
+                            style: TextStyle(
+                                fontSize: 11, fontWeight: FontWeight.w700)),
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF4F46E5),
+                            foregroundColor: Colors.white),
                       ),
                     ],
                   ),
@@ -202,14 +230,21 @@ class _NoticeCategoriesDialogState extends ConsumerState<NoticeCategoriesDialog>
                       width: 28,
                       height: 28,
                       decoration: BoxDecoration(
-                        color: cat.colorValue.withOpacity(0.15),
+                        color: cat.colorValue.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Icon(Icons.circle, size: 12, color: cat.colorValue),
+                      child:
+                          Icon(Icons.circle, size: 12, color: cat.colorValue),
                     ),
-                    title: Text(cat.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                    subtitle: Text('Code: ${cat.code}', style: const TextStyle(fontSize: 11)),
-                    trailing: Text(cat.isActive ? 'Active' : 'Inactive', style: TextStyle(fontSize: 11, color: cat.isActive ? Colors.green : Colors.grey)),
+                    title: Text(cat.name,
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w700)),
+                    subtitle: Text('Code: ${cat.code}',
+                        style: const TextStyle(fontSize: 11)),
+                    trailing: Text(cat.isActive ? 'Active' : 'Inactive',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: cat.isActive ? Colors.green : Colors.grey)),
                   );
                 },
               ),

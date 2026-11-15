@@ -12,9 +12,9 @@ from psycopg2.extras import RealDictCursor
 from jose import jwt
 
 # Database and API base configuration
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@supabase-db:5432/postgres")
-API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8000")
-JWT_SECRET = os.environ.get("JWT_SECRET", "super-secret-jwt-token-key-for-edushamiit-backend-auth")
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:eduSHAMIIT2026_pg@localhost:54322/postgres")
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8082")
+JWT_SECRET = os.environ.get("JWT_SECRET", "super-secret-jwt-token-with-at-least-32-characters-long")
 
 def get_db():
     return psycopg2.connect(DATABASE_URL)
@@ -50,7 +50,7 @@ def run_e2e_tests():
 
     # 1. Obtain Real User Context (King Doe / School 11111111-1111-1111-1111-111111111111)
     school_id = "11111111-1111-1111-1111-111111111111"
-    user_id = "38a93170-997b-4b4c-bc8e-256b93169c23" # King Doe
+    user_id = "5198c4b0-f1cb-45db-9649-41688d0438ba" # King Doe
     token = get_test_token(user_id, school_id, "super_admin", "mathematicsking888@gmail.com")
 
     headers = {

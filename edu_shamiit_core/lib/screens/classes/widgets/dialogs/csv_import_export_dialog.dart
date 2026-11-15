@@ -7,7 +7,8 @@ import '../../providers/class_provider.dart';
 import '../../services/class_api_service.dart';
 
 class CsvImportExportDialog extends ConsumerStatefulWidget {
-  final int initialEntityIndex; // 0: Classes, 1: Sections, 2: Subjects, 3: Rooms
+  final int
+      initialEntityIndex; // 0: Classes, 1: Sections, 2: Subjects, 3: Rooms
 
   const CsvImportExportDialog({
     super.key,
@@ -15,7 +16,8 @@ class CsvImportExportDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<CsvImportExportDialog> createState() => _CsvImportExportDialogState();
+  ConsumerState<CsvImportExportDialog> createState() =>
+      _CsvImportExportDialogState();
 }
 
 class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
@@ -42,7 +44,14 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
       'name': 'classes',
       'label': 'Classes & Grades',
       'icon': Icons.class_outlined,
-      'columns': ['Class Name*', 'Code*', 'Stage', 'Academic Year', 'Display Order', 'Status'],
+      'columns': [
+        'Class Name*',
+        'Code*',
+        'Stage',
+        'Academic Year',
+        'Display Order',
+        'Status'
+      ],
       'sample': "Class Name,Code,Stage,Academic Year,Display Order,Status\n"
           "Class 9,C9,Secondary,2026-27,9,ACTIVE\n"
           "Class 10,C10,Secondary,2026-27,10,ACTIVE\n"
@@ -53,7 +62,14 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
       'name': 'sections',
       'label': 'Sections & Batches',
       'icon': Icons.grid_view_rounded,
-      'columns': ['Class*', 'Section Name*', 'Section Code*', 'Capacity', 'Room', 'Status'],
+      'columns': [
+        'Class*',
+        'Section Name*',
+        'Section Code*',
+        'Capacity',
+        'Room',
+        'Status'
+      ],
       'sample': "Class,Section Name,Section Code,Capacity,Room,Status\n"
           "Class 10,Section A,10A,40,Room 101,ACTIVE\n"
           "Class 10,Section B,10B,40,Room 102,ACTIVE\n"
@@ -75,7 +91,16 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
       'name': 'rooms',
       'label': 'Rooms & Facilities',
       'icon': Icons.meeting_room_outlined,
-      'columns': ['Room Name*', 'Room Code*', 'Type', 'Building', 'Floor', 'Capacity', 'Facilities', 'Status'],
+      'columns': [
+        'Room Name*',
+        'Room Code*',
+        'Type',
+        'Building',
+        'Floor',
+        'Capacity',
+        'Facilities',
+        'Status'
+      ],
       'sample': "Room Name,Room Code,Type,Building,Floor,Capacity,Facilities,Status\n"
           "Classroom 101,CR-101,Classroom,Academic Block,1st Floor,40,\"Projector, AC, Smart Board\",AVAILABLE\n"
           "Classroom 102,CR-102,Classroom,Academic Block,1st Floor,40,\"Projector, AC\",AVAILABLE\n"
@@ -87,7 +112,8 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
   @override
   void initState() {
     super.initState();
-    _selectedEntityIndex = widget.initialEntityIndex.clamp(0, _entities.length - 1);
+    _selectedEntityIndex =
+        widget.initialEntityIndex.clamp(0, _entities.length - 1);
   }
 
   void _onEntityChanged(int newIndex) {
@@ -109,7 +135,6 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
   /// 1. Download Sample CSV Template
   Future<void> _downloadTemplate() async {
     final entityMap = _entities[_selectedEntityIndex];
-    final entity = entityMap['name'] as String;
     final sampleCsv = entityMap['sample'] as String;
 
     try {
@@ -125,7 +150,8 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                const Icon(Icons.check_circle_rounded,
+                    color: Colors.white, size: 18),
                 const SizedBox(width: 8),
                 Text('Downloaded CSV template for ${entityMap['label']}!'),
               ],
@@ -160,7 +186,8 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
     final academicYear = ref.read(classProvider).academicYear;
 
     try {
-      final csvText = await _apiService.exportCsv(entity, academicYear: academicYear);
+      final csvText =
+          await _apiService.exportCsv(entity, academicYear: academicYear);
       final uri = Uri.dataFromString(
         csvText,
         mimeType: 'text/csv',
@@ -171,13 +198,15 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
       if (mounted) {
         setState(() {
           _isDownloading = false;
-          _statusMessage = 'Exported ${entityMap['label']} dataset successfully!';
+          _statusMessage =
+              'Exported ${entityMap['label']} dataset successfully!';
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                const Icon(Icons.check_circle_rounded,
+                    color: Colors.white, size: 18),
                 const SizedBox(width: 8),
                 Text('Exported ${entityMap['label']} for AY $academicYear!'),
               ],
@@ -239,8 +268,13 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
   /// Parse CSV content into preview and structured JSON rows
   void _parseCsv(String content) {
     _rawCsvContent = content;
-    final cleanContent = content.replaceAll('\r\n', '\n').replaceAll('\r', '\n').trim().lstrip('\ufeff');
-    final rawLines = cleanContent.split('\n').where((l) => l.trim().isNotEmpty).toList();
+    final cleanContent = content
+        .replaceAll('\r\n', '\n')
+        .replaceAll('\r', '\n')
+        .trim()
+        .lstrip('\ufeff');
+    final rawLines =
+        cleanContent.split('\n').where((l) => l.trim().isNotEmpty).toList();
 
     if (rawLines.isEmpty) {
       setState(() => _parseError = 'The selected file is empty.');
@@ -248,13 +282,17 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
     }
 
     final headerLine = rawLines.first;
-    final headers = _splitCsvLine(headerLine).map((h) => h.trim().replaceAll('"', '')).toList();
+    final headers = _splitCsvLine(headerLine)
+        .map((h) => h.trim().replaceAll('"', ''))
+        .toList();
 
     final previewRows = <List<String>>[];
     final jsonRecords = <Map<String, dynamic>>[];
 
     for (int i = 1; i < rawLines.length; i++) {
-      final parts = _splitCsvLine(rawLines[i]).map((p) => p.trim().replaceAll('"', '')).toList();
+      final parts = _splitCsvLine(rawLines[i])
+          .map((p) => p.trim().replaceAll('"', ''))
+          .toList();
       if (parts.isEmpty || parts.every((p) => p.isEmpty)) continue;
 
       if (previewRows.length < 5) {
@@ -274,7 +312,8 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
       _csvHeaders = headers;
       _previewRows = previewRows;
       _parsedJsonRecords = jsonRecords;
-      _parseError = jsonRecords.isEmpty ? 'No data rows found in the CSV file.' : null;
+      _parseError =
+          jsonRecords.isEmpty ? 'No data rows found in the CSV file.' : null;
     });
   }
 
@@ -348,15 +387,20 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
             content: Row(
               children: [
                 Icon(
-                  failedCount == 0 ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                  failedCount == 0
+                      ? Icons.check_circle_rounded
+                      : Icons.info_outline_rounded,
                   color: Colors.white,
                   size: 18,
                 ),
                 const SizedBox(width: 8),
-                Text(res['message']?.toString() ?? 'Bulk import completed! ($importedCount imported, $failedCount failed)'),
+                Text(res['message']?.toString() ??
+                    'Bulk import completed! ($importedCount imported, $failedCount failed)'),
               ],
             ),
-            backgroundColor: failedCount == 0 ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+            backgroundColor: failedCount == 0
+                ? const Color(0xFF10B981)
+                : const Color(0xFFF59E0B),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -381,7 +425,9 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
       backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: dialogWidth, maxHeight: MediaQuery.of(context).size.height * 0.9),
+        constraints: BoxConstraints(
+            maxWidth: dialogWidth,
+            maxHeight: MediaQuery.of(context).size.height * 0.9),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -397,10 +443,12 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF4F46E5).withOpacity(0.12),
+                          color:
+                              const Color(0xFF4F46E5).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.import_export_rounded, color: Color(0xFF4F46E5), size: 22),
+                        child: const Icon(Icons.import_export_rounded,
+                            color: Color(0xFF4F46E5), size: 22),
                       ),
                       const SizedBox(width: 12),
                       Column(
@@ -411,14 +459,18 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                             style: TextStyle(
                               fontSize: 16.5,
                               fontWeight: FontWeight.w700,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
                             ),
                           ),
                           Text(
                             'Download templates, export datasets, and bulk import records',
                             style: TextStyle(
                               fontSize: 12,
-                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B),
                             ),
                           ),
                         ],
@@ -428,7 +480,9 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.close, size: 20),
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                   ),
                 ],
               ),
@@ -440,7 +494,9 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                  color: isDark
+                      ? const Color(0xFFCBD5E1)
+                      : const Color(0xFF334155),
                 ),
               ),
               const SizedBox(height: 8),
@@ -453,17 +509,23 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                       borderRadius: BorderRadius.circular(8),
                       onTap: () => _onEntityChanged(idx),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-                        margin: EdgeInsets.only(right: idx < _entities.length - 1 ? 8 : 0),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 10, horizontal: 4),
+                        margin: EdgeInsets.only(
+                            right: idx < _entities.length - 1 ? 8 : 0),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? const Color(0xFF4F46E5).withOpacity(0.12)
-                              : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
+                              ? const Color(0xFF4F46E5).withValues(alpha: 0.12)
+                              : (isDark
+                                  ? const Color(0xFF0F172A)
+                                  : const Color(0xFFF8FAFC)),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                             color: isSelected
                                 ? const Color(0xFF4F46E5)
-                                : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                                : (isDark
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFCBD5E1)),
                             width: isSelected ? 1.5 : 1,
                           ),
                         ),
@@ -473,15 +535,25 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                             Icon(
                               e['icon'] as IconData,
                               size: 20,
-                              color: isSelected ? const Color(0xFF4F46E5) : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                              color: isSelected
+                                  ? const Color(0xFF4F46E5)
+                                  : (isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B)),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               (e['label'] as String).split(' ').first,
                               style: TextStyle(
                                 fontSize: 11.5,
-                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                color: isSelected ? const Color(0xFF4F46E5) : (isDark ? Colors.white70 : Colors.black87),
+                                fontWeight: isSelected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                color: isSelected
+                                    ? const Color(0xFF4F46E5)
+                                    : (isDark
+                                        ? Colors.white70
+                                        : Colors.black87),
                               ),
                             ),
                           ],
@@ -505,12 +577,16 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.check_circle_outline, color: Color(0xFF059669), size: 18),
+                      const Icon(Icons.check_circle_outline,
+                          color: Color(0xFF059669), size: 18),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _statusMessage!,
-                          style: const TextStyle(color: Color(0xFF059669), fontSize: 12.5, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                              color: Color(0xFF059669),
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
@@ -524,9 +600,12 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  color: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.35)),
+                  border: Border.all(
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.35)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -536,10 +615,12 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF4F46E5).withOpacity(0.12),
+                            color:
+                                const Color(0xFF4F46E5).withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(Icons.table_chart_outlined, color: Color(0xFF4F46E5), size: 20),
+                          child: const Icon(Icons.table_chart_outlined,
+                              color: Color(0xFF4F46E5), size: 20),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -553,19 +634,26 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                                     style: TextStyle(
                                       fontSize: 13.5,
                                       fontWeight: FontWeight.w700,
-                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
                                     ),
                                   ),
                                   const SizedBox(width: 6),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF4F46E5).withOpacity(0.12),
+                                      color: const Color(0xFF4F46E5)
+                                          .withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: const Text(
                                       'Recommended First',
-                                      style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF4F46E5)),
+                                      style: TextStyle(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF4F46E5)),
                                     ),
                                   ),
                                 ],
@@ -574,7 +662,9 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                                 'Download sample .csv template with columns & format pre-configured for ${selectedEntity['label']}',
                                 style: TextStyle(
                                   fontSize: 11.5,
-                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
                                 ),
                               ),
                             ],
@@ -582,13 +672,18 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                         ),
                         ElevatedButton.icon(
                           onPressed: _downloadTemplate,
-                          icon: const Icon(Icons.file_download_outlined, size: 16),
-                          label: const Text('Download CSV Template', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          icon: const Icon(Icons.file_download_outlined,
+                              size: 16),
+                          label: const Text('Download CSV Template',
+                              style: TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w600)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF4F46E5),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
                           ),
                         ),
                       ],
@@ -598,25 +693,43 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                     Wrap(
                       spacing: 6,
                       runSpacing: 4,
-                      children: (selectedEntity['columns'] as List<String>).map((col) {
+                      children: (selectedEntity['columns'] as List<String>)
+                          .map((col) {
                         final isMandatory = col.contains('*');
                         return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 3),
                           decoration: BoxDecoration(
                             color: isMandatory
-                                ? (isDark ? const Color(0xFF312E81).withOpacity(0.5) : const Color(0xFFEEF2FF))
-                                : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                                ? (isDark
+                                    ? const Color(0xFF312E81)
+                                        .withValues(alpha: 0.5)
+                                    : const Color(0xFFEEF2FF))
+                                : (isDark
+                                    ? const Color(0xFF1E293B)
+                                    : const Color(0xFFF1F5F9)),
                             borderRadius: BorderRadius.circular(4),
                             border: Border.all(
-                              color: isMandatory ? const Color(0xFF6366F1).withOpacity(0.4) : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                              color: isMandatory
+                                  ? const Color(0xFF6366F1)
+                                      .withValues(alpha: 0.4)
+                                  : (isDark
+                                      ? const Color(0xFF334155)
+                                      : const Color(0xFFCBD5E1)),
                             ),
                           ),
                           child: Text(
                             col,
                             style: TextStyle(
                               fontSize: 10.5,
-                              fontWeight: isMandatory ? FontWeight.w700 : FontWeight.w500,
-                              color: isMandatory ? const Color(0xFF4F46E5) : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                              fontWeight: isMandatory
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: isMandatory
+                                  ? const Color(0xFF4F46E5)
+                                  : (isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B)),
                             ),
                           ),
                         );
@@ -633,19 +746,25 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  color: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                  border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0)),
                 ),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF10B981).withOpacity(0.12),
+                        color: const Color(0xFF10B981).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.cloud_download_rounded, color: Color(0xFF10B981), size: 20),
+                      child: const Icon(Icons.cloud_download_rounded,
+                          color: Color(0xFF10B981), size: 20),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -657,14 +776,18 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                             style: TextStyle(
                               fontSize: 13.5,
                               fontWeight: FontWeight.w700,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
                             ),
                           ),
                           Text(
                             'Download all active ${selectedEntity['label']} records for the current academic year as CSV',
                             style: TextStyle(
                               fontSize: 11.5,
-                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B),
                             ),
                           ),
                         ],
@@ -673,14 +796,22 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                     ElevatedButton.icon(
                       onPressed: _isDownloading ? null : _triggerExport,
                       icon: _isDownloading
-                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
                           : const Icon(Icons.download_rounded, size: 16),
-                      label: const Text('Export CSV', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      label: const Text('Export CSV',
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w600)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF10B981),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
                       ),
                     ),
                   ],
@@ -694,10 +825,16 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  color: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: _parsedJsonRecords.isNotEmpty ? const Color(0xFF10B981).withOpacity(0.5) : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                    color: _parsedJsonRecords.isNotEmpty
+                        ? const Color(0xFF10B981).withValues(alpha: 0.5)
+                        : (isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0)),
                   ),
                 ),
                 child: Column(
@@ -708,10 +845,12 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF8B5CF6).withOpacity(0.12),
+                            color:
+                                const Color(0xFF8B5CF6).withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(Icons.upload_file_rounded, color: Color(0xFF8B5CF6), size: 20),
+                          child: const Icon(Icons.upload_file_rounded,
+                              color: Color(0xFF8B5CF6), size: 20),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -723,14 +862,18 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                                 style: TextStyle(
                                   fontSize: 13.5,
                                   fontWeight: FontWeight.w700,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A),
                                 ),
                               ),
                               Text(
                                 'Upload completed .csv spreadsheet to bulk create or update records',
                                 style: TextStyle(
                                   fontSize: 11.5,
-                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
                                 ),
                               ),
                             ],
@@ -739,12 +882,23 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                         OutlinedButton.icon(
                           onPressed: _isPickingFile ? null : _pickFile,
                           icon: _isPickingFile
-                              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2))
                               : const Icon(Icons.folder_open_rounded, size: 16),
-                          label: Text(_selectedFileName != null ? 'Change File' : 'Choose File', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          label: Text(
+                              _selectedFileName != null
+                                  ? 'Change File'
+                                  : 'Choose File',
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w600)),
                           style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
                           ),
                         ),
                       ],
@@ -753,15 +907,20 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                     if (_selectedFileName != null) ...[
                       const SizedBox(height: 12),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withOpacity(0.08),
+                          color:
+                              const Color(0xFF10B981).withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+                          border: Border.all(
+                              color: const Color(0xFF10B981)
+                                  .withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.insert_drive_file_rounded, color: Color(0xFF10B981), size: 18),
+                            const Icon(Icons.insert_drive_file_rounded,
+                                color: Color(0xFF10B981), size: 18),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -769,7 +928,9 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: isDark ? const Color(0xFF34D399) : const Color(0xFF065F46),
+                                  color: isDark
+                                      ? const Color(0xFF34D399)
+                                      : const Color(0xFF065F46),
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -790,10 +951,13 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 18),
+                            const Icon(Icons.error_outline_rounded,
+                                color: Color(0xFFDC2626), size: 18),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: Text(_parseError!, style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12)),
+                              child: Text(_parseError!,
+                                  style: const TextStyle(
+                                      color: Color(0xFFDC2626), fontSize: 12)),
                             ),
                           ],
                         ),
@@ -811,12 +975,17 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                             style: TextStyle(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
-                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF475569),
                             ),
                           ),
                           Text(
                             '${_parsedJsonRecords.length} Total Rows',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF4F46E5)),
+                            style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF4F46E5)),
                           ),
                         ],
                       ),
@@ -824,7 +993,10 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                       Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                          border: Border.all(
+                              color: isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFE2E8F0)),
                         ),
                         child: SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
@@ -832,13 +1004,24 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                             headingRowHeight: 36,
                             dataRowMinHeight: 32,
                             dataRowMaxHeight: 36,
-                            headingRowColor: WidgetStateProperty.all(isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
-                            columns: _csvHeaders.map((h) => DataColumn(label: Text(h, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)))).toList(),
+                            headingRowColor: WidgetStateProperty.all(isDark
+                                ? const Color(0xFF1E293B)
+                                : const Color(0xFFF1F5F9)),
+                            columns: _csvHeaders
+                                .map((h) => DataColumn(
+                                    label: Text(h,
+                                        style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700))))
+                                .toList(),
                             rows: _previewRows.map((row) {
                               return DataRow(
-                                cells: List.generate(_csvHeaders.length, (colIdx) {
-                                  final val = colIdx < row.length ? row[colIdx] : '';
-                                  return DataCell(Text(val, style: const TextStyle(fontSize: 11)));
+                                cells:
+                                    List.generate(_csvHeaders.length, (colIdx) {
+                                  final val =
+                                      colIdx < row.length ? row[colIdx] : '';
+                                  return DataCell(Text(val,
+                                      style: const TextStyle(fontSize: 11)));
                                 }),
                               );
                             }).toList(),
@@ -851,17 +1034,26 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                         child: ElevatedButton.icon(
                           onPressed: _isImporting ? null : _submitImport,
                           icon: _isImporting
-                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : const Icon(Icons.cloud_upload_rounded, size: 18),
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.cloud_upload_rounded,
+                                  size: 18),
                           label: Text(
-                            _isImporting ? 'Importing Dataset...' : 'Upload & Import ${_parsedJsonRecords.length} Records',
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                            _isImporting
+                                ? 'Importing Dataset...'
+                                : 'Upload & Import ${_parsedJsonRecords.length} Records',
+                            style: const TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w700),
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF4F46E5),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
                           ),
                         ),
                       ),
@@ -873,10 +1065,14 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: (_importResult!['failed_count'] ?? 0) == 0 ? const Color(0xFFECFDF5) : const Color(0xFFFFFBEB),
+                          color: (_importResult!['failed_count'] ?? 0) == 0
+                              ? const Color(0xFFECFDF5)
+                              : const Color(0xFFFFFBEB),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: (_importResult!['failed_count'] ?? 0) == 0 ? const Color(0xFF34D399) : const Color(0xFFFCD34D),
+                            color: (_importResult!['failed_count'] ?? 0) == 0
+                                ? const Color(0xFF34D399)
+                                : const Color(0xFFFCD34D),
                           ),
                         ),
                         child: Column(
@@ -885,28 +1081,48 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
                             Row(
                               children: [
                                 Icon(
-                                  (_importResult!['failed_count'] ?? 0) == 0 ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
-                                  color: (_importResult!['failed_count'] ?? 0) == 0 ? const Color(0xFF059669) : const Color(0xFFD97706),
+                                  (_importResult!['failed_count'] ?? 0) == 0
+                                      ? Icons.check_circle_rounded
+                                      : Icons.warning_amber_rounded,
+                                  color:
+                                      (_importResult!['failed_count'] ?? 0) == 0
+                                          ? const Color(0xFF059669)
+                                          : const Color(0xFFD97706),
                                   size: 20,
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    _importResult!['message']?.toString() ?? 'Import processing complete.',
+                                    _importResult!['message']?.toString() ??
+                                        'Import processing complete.',
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w700,
-                                      color: (_importResult!['failed_count'] ?? 0) == 0 ? const Color(0xFF065F46) : const Color(0xFF92400E),
+                                      color: (_importResult!['failed_count'] ??
+                                                  0) ==
+                                              0
+                                          ? const Color(0xFF065F46)
+                                          : const Color(0xFF92400E),
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            if ((_importResult!['errors'] as List? ?? []).isNotEmpty) ...[
+                            if ((_importResult!['errors'] as List? ?? [])
+                                .isNotEmpty) ...[
                               const SizedBox(height: 8),
-                              const Text('Errors Encountered:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFB91C1C))),
+                              const Text('Errors Encountered:',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFFB91C1C))),
                               const SizedBox(height: 4),
-                              ...((_importResult!['errors'] as List).take(5).map((err) => Text('• $err', style: const TextStyle(fontSize: 10.5, color: Color(0xFFB91C1C))))),
+                              ...((_importResult!['errors'] as List)
+                                  .take(5)
+                                  .map((err) => Text('• $err',
+                                      style: const TextStyle(
+                                          fontSize: 10.5,
+                                          color: Color(0xFFB91C1C))))),
                             ],
                           ],
                         ),
@@ -922,6 +1138,7 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
     );
   }
 }
+
 extension StringExtensions on String {
   String lstrip(String pattern) {
     if (startsWith(pattern)) {

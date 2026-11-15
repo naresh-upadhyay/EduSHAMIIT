@@ -33,15 +33,24 @@ CREATE INDEX IF NOT EXISTS idx_fts_library_books_search
 ON public.library_books 
 USING gin(to_tsvector('english', COALESCE(title, '') || ' ' || COALESCE(author, '') || ' ' || COALESCE(isbn, '')));
 
+-- Ensure knowledge_base has title and category columns
+ALTER TABLE public.knowledge_base ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE public.knowledge_base ADD COLUMN IF NOT EXISTS category TEXT;
+UPDATE public.knowledge_base SET title = COALESCE(title, subject), category = COALESCE(category, source);
+
 -- Fast GIN index for Knowledge Base search (Title, Category, Content)
 CREATE INDEX IF NOT EXISTS idx_fts_knowledge_base_search 
 ON public.knowledge_base 
-USING gin(to_tsvector('english', COALESCE(title, '') || ' ' || COALESCE(category, '') || ' ' || COALESCE(content, '')));
+USING gin(to_tsvector('english', COALESCE(title, subject, '') || ' ' || COALESCE(category, source, '') || ' ' || COALESCE(content, '')));
+
+-- Ensure notices has message column
+ALTER TABLE public.notices ADD COLUMN IF NOT EXISTS message TEXT;
+UPDATE public.notices SET message = COALESCE(message, content);
 
 -- Fast GIN index for Notices search (Title, Message)
 CREATE INDEX IF NOT EXISTS idx_fts_notices_search 
 ON public.notices 
-USING gin(to_tsvector('english', COALESCE(title, '') || ' ' || COALESCE(message, '')));
+USING gin(to_tsvector('english', COALESCE(title, '') || ' ' || COALESCE(message, content, '')));
 
 -- Fast GIN index for Courses search (Title, Description)
 CREATE INDEX IF NOT EXISTS idx_fts_courses_search 

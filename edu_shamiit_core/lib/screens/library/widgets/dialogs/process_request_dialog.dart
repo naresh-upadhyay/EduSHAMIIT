@@ -8,13 +8,14 @@ class ProcessRequestDialog extends ConsumerStatefulWidget {
   final String? initialAction;
 
   const ProcessRequestDialog({
-    Key? key,
+    super.key,
     required this.request,
     this.initialAction,
-  }) : super(key: key);
+  });
 
   @override
-  ConsumerState<ProcessRequestDialog> createState() => _ProcessRequestDialogState();
+  ConsumerState<ProcessRequestDialog> createState() =>
+      _ProcessRequestDialogState();
 }
 
 class _ProcessRequestDialogState extends ConsumerState<ProcessRequestDialog> {
@@ -71,7 +72,6 @@ class _ProcessRequestDialogState extends ConsumerState<ProcessRequestDialog> {
     final state = ref.watch(requestProvider);
     final options = state.options;
 
-
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: Container(
@@ -90,7 +90,8 @@ class _ProcessRequestDialogState extends ConsumerState<ProcessRequestDialog> {
                     color: const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.tune_rounded, color: Color(0xFF2563EB), size: 20),
+                  child: const Icon(Icons.tune_rounded,
+                      color: Color(0xFF2563EB), size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -99,14 +100,18 @@ class _ProcessRequestDialogState extends ConsumerState<ProcessRequestDialog> {
                     children: [
                       Text(
                         'Process ${widget.request.requestNumber}',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0F172A)),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         widget.request.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade600),
                       ),
                     ],
                   ),
@@ -122,7 +127,11 @@ class _ProcessRequestDialogState extends ConsumerState<ProcessRequestDialog> {
             const SizedBox(height: 18),
 
             // Action Selector Dropdown
-            const Text('Action', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+            const Text('Action',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF334155))),
             const SizedBox(height: 6),
             Container(
               height: 42,
@@ -137,19 +146,35 @@ class _ProcessRequestDialogState extends ConsumerState<ProcessRequestDialog> {
                   value: _action,
                   isExpanded: true,
                   items: const [
-                    DropdownMenuItem(value: 'TRANSITION_ACTIVE', child: Text('Accept & Mark Active')),
-                    DropdownMenuItem(value: 'TRANSITION_IN_PROGRESS', child: Text('Move to In Progress (Procuring / Processing)')),
-                    DropdownMenuItem(value: 'TRANSITION_RESOLVED', child: Text('Mark Resolved (Ready on Hold Shelf)')),
-                    DropdownMenuItem(value: 'TRANSITION_COMPLETED', child: Text('Mark Completed (Issued / Delivered)')),
-                    DropdownMenuItem(value: 'ASSIGN_LIBRARIAN', child: Text('Assign to Librarian')),
-                    DropdownMenuItem(value: 'REJECT', child: Text('Reject Request', style: TextStyle(color: Color(0xFFDC2626)))),
-                    DropdownMenuItem(value: 'CANCEL', child: Text('Cancel Request')),
+                    DropdownMenuItem(
+                        value: 'TRANSITION_ACTIVE',
+                        child: Text('Accept & Mark Active')),
+                    DropdownMenuItem(
+                        value: 'TRANSITION_IN_PROGRESS',
+                        child: Text(
+                            'Move to In Progress (Procuring / Processing)')),
+                    DropdownMenuItem(
+                        value: 'TRANSITION_RESOLVED',
+                        child: Text('Mark Resolved (Ready on Hold Shelf)')),
+                    DropdownMenuItem(
+                        value: 'TRANSITION_COMPLETED',
+                        child: Text('Mark Completed (Issued / Delivered)')),
+                    DropdownMenuItem(
+                        value: 'ASSIGN_LIBRARIAN',
+                        child: Text('Assign to Librarian')),
+                    DropdownMenuItem(
+                        value: 'REJECT',
+                        child: Text('Reject Request',
+                            style: TextStyle(color: Color(0xFFDC2626)))),
+                    DropdownMenuItem(
+                        value: 'CANCEL', child: Text('Cancel Request')),
                   ],
                   onChanged: (val) {
                     if (val != null) {
                       setState(() {
                         _action = val;
-                        _targetStatus = _getDefaultTargetStatus(widget.request.status, val);
+                        _targetStatus =
+                            _getDefaultTargetStatus(widget.request.status, val);
                       });
                     }
                   },
@@ -160,7 +185,11 @@ class _ProcessRequestDialogState extends ConsumerState<ProcessRequestDialog> {
 
             // Assign Librarian Selector
             if (_action == 'ASSIGN_LIBRARIAN') ...[
-              const Text('Select Librarian *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+              const Text('Select Librarian *',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF334155))),
               const SizedBox(height: 6),
               Container(
                 height: 42,
@@ -173,7 +202,8 @@ class _ProcessRequestDialogState extends ConsumerState<ProcessRequestDialog> {
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _selectedLibrarianId,
-                    hint: const Text('Choose a staff member', style: TextStyle(fontSize: 13)),
+                    hint: const Text('Choose a staff member',
+                        style: TextStyle(fontSize: 13)),
                     isExpanded: true,
                     items: options.librarians.map((lib) {
                       return DropdownMenuItem<String>(
@@ -181,7 +211,8 @@ class _ProcessRequestDialogState extends ConsumerState<ProcessRequestDialog> {
                         child: Text('${lib['full_name']} (${lib['role']})'),
                       );
                     }).toList(),
-                    onChanged: (val) => setState(() => _selectedLibrarianId = val),
+                    onChanged: (val) =>
+                        setState(() => _selectedLibrarianId = val),
                   ),
                 ),
               ),
@@ -190,18 +221,26 @@ class _ProcessRequestDialogState extends ConsumerState<ProcessRequestDialog> {
 
             // Mandatory Rejection Reason
             if (_action == 'REJECT') ...[
-              const Text('Rejection Reason *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFDC2626))),
+              const Text('Rejection Reason *',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFDC2626))),
               const SizedBox(height: 6),
               TextField(
                 controller: _reasonController,
                 maxLines: 2,
                 style: const TextStyle(fontSize: 13),
                 decoration: InputDecoration(
-                  hintText: 'e.g. Duplicate request, budget cap exceeded, or out of print',
-                  hintStyle: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+                  hintText:
+                      'e.g. Duplicate request, budget cap exceeded, or out of print',
+                  hintStyle:
+                      TextStyle(fontSize: 12, color: Colors.grey.shade400),
                   filled: true,
                   fillColor: const Color(0xFFFEF2F2),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFFECACA))),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFFFECACA))),
                   isDense: true,
                 ),
               ),
@@ -209,7 +248,11 @@ class _ProcessRequestDialogState extends ConsumerState<ProcessRequestDialog> {
             ],
 
             // Optional Comment / Audit Note
-            const Text('Comment / Note (Optional)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+            const Text('Comment / Note (Optional)',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF334155))),
             const SizedBox(height: 6),
             TextField(
               controller: _commentController,
@@ -220,7 +263,9 @@ class _ProcessRequestDialogState extends ConsumerState<ProcessRequestDialog> {
                 hintStyle: TextStyle(fontSize: 12, color: Colors.grey.shade400),
                 filled: true,
                 fillColor: const Color(0xFFF8FAFC),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
                 isDense: true,
               ),
             ),
@@ -231,20 +276,37 @@ class _ProcessRequestDialogState extends ConsumerState<ProcessRequestDialog> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
-                  onPressed: _isProcessing ? null : () => Navigator.of(context).pop(),
-                  child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+                  onPressed:
+                      _isProcessing ? null : () => Navigator.of(context).pop(),
+                  child: const Text('Cancel',
+                      style: TextStyle(color: Color(0xFF64748B))),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton(
                   onPressed: _isProcessing ? null : _executeAction,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _action == 'REJECT' ? const Color(0xFFDC2626) : const Color(0xFF1E3A8A),
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    backgroundColor: _action == 'REJECT'
+                        ? const Color(0xFFDC2626)
+                        : const Color(0xFF1E3A8A),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                   child: _isProcessing
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : Text(_action == 'REJECT' ? 'Confirm Rejection' : 'Update Status', style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w600)),
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : Text(
+                          _action == 'REJECT'
+                              ? 'Confirm Rejection'
+                              : 'Update Status',
+                          style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600)),
                 ),
               ],
             ),
@@ -259,14 +321,18 @@ class _ProcessRequestDialogState extends ConsumerState<ProcessRequestDialog> {
 
     if (_action == 'REJECT' && _reasonController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please specify a rejection reason'), backgroundColor: Color(0xFFEF4444)),
+        const SnackBar(
+            content: Text('Please specify a rejection reason'),
+            backgroundColor: Color(0xFFEF4444)),
       );
       return;
     }
 
     if (_action == 'ASSIGN_LIBRARIAN' && _selectedLibrarianId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a librarian'), backgroundColor: Color(0xFFEF4444)),
+        const SnackBar(
+            content: Text('Please select a librarian'),
+            backgroundColor: Color(0xFFEF4444)),
       );
       return;
     }
@@ -278,28 +344,39 @@ class _ProcessRequestDialogState extends ConsumerState<ProcessRequestDialog> {
         await notifier.assignRequest(
           requestId: widget.request.id,
           assignedTo: _selectedLibrarianId!,
-          notes: _commentController.text.trim().isNotEmpty ? _commentController.text.trim() : null,
+          notes: _commentController.text.trim().isNotEmpty
+              ? _commentController.text.trim()
+              : null,
         );
       } else {
         await notifier.transitionStatus(
           requestId: widget.request.id,
           toStatus: _targetStatus,
-          reason: _reasonController.text.trim().isNotEmpty ? _reasonController.text.trim() : null,
-          comment: _commentController.text.trim().isNotEmpty ? _commentController.text.trim() : null,
+          reason: _reasonController.text.trim().isNotEmpty
+              ? _reasonController.text.trim()
+              : null,
+          comment: _commentController.text.trim().isNotEmpty
+              ? _commentController.text.trim()
+              : null,
         );
       }
 
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Status updated successfully!'), backgroundColor: Color(0xFF10B981)),
+          const SnackBar(
+              content: Text('Status updated successfully!'),
+              backgroundColor: Color(0xFF10B981)),
         );
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isProcessing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString().replaceAll('Exception:', '').trim()}'), backgroundColor: const Color(0xFFEF4444)),
+          SnackBar(
+              content: Text(
+                  'Error: ${e.toString().replaceAll('Exception:', '').trim()}'),
+              backgroundColor: const Color(0xFFEF4444)),
         );
       }
     }

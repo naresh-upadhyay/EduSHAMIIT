@@ -28,7 +28,9 @@ def make_token(user_id: str, role: str, email: str, school_id: str = SCHOOL_ID) 
         "email": email,
         "exp": 9999999999
     }
-    return jwt.encode(payload, os.getenv("JWT_SECRET", "super-secret-jwt-key-for-local-testing-only-12345"), algorithm="HS256")
+    from app.config import settings
+    jwt_secret = settings.SUPABASE_JWT_SECRET or settings.JWT_SECRET or os.getenv("JWT_SECRET", "super-secret-jwt-key-for-local-testing-only-12345")
+    return jwt.encode(payload, jwt_secret, algorithm="HS256")
 
 
 async def run_tests():

@@ -26,6 +26,13 @@ class RecruitmentScreen extends StatefulWidget {
 class _RecruitmentScreenState extends State<RecruitmentScreen> {
   final ApiService _apiService = ApiService();
 
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+  Color get _cardBg => _isDark ? const Color(0xFF1E293B) : Colors.white;
+  Color get _subBg => _isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+  Color get _border => _isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+  Color get _textPrimary => _isDark ? Colors.white : const Color(0xFF0F172A);
+  Color get _textSecondary => _isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
   bool _isLoading = true;
   String? _errorMessage;
   Timer? _autoSyncTimer;
@@ -650,9 +657,9 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _border),
         boxShadow: [boxUnderShadow],
       ),
       child: Column(
@@ -672,23 +679,24 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
                     child: const Icon(Icons.account_tree_outlined, size: 18, color: Color(0xFF4F46E5)),
                   ),
                   const SizedBox(width: 10),
-                  const Text(
+                  Text(
                     'Recruitment Pipeline',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _textPrimary),
                   ),
                 ],
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
+                  color: _subBg,
                   borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: _border),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Text('Last 30 Days', style: TextStyle(fontSize: 12, color: Color(0xFF475569))),
-                    SizedBox(width: 4),
-                    Icon(Icons.keyboard_arrow_down, size: 16, color: Color(0xFF475569)),
+                    Text('Last 30 Days', style: TextStyle(fontSize: 12, color: _textSecondary)),
+                    const SizedBox(width: 4),
+                    Icon(Icons.keyboard_arrow_down, size: 16, color: _textSecondary),
                   ],
                 ),
               ),
@@ -828,9 +836,9 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
   }
 
   Widget _buildPipelineArrow() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 2),
-      child: Icon(Icons.arrow_forward_rounded, color: Color(0xFFCBD5E1), size: 16),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Icon(Icons.arrow_forward_rounded, color: _isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1), size: 16),
     );
   }
 
@@ -869,7 +877,7 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
               child: Center(
                 child: Text(
                   title,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _textSecondary),
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -879,19 +887,19 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
             const SizedBox(height: 4),
             Text(
               count,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textPrimary),
             ),
             const SizedBox(height: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: _subBg,
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: _border),
               ),
               child: Text(
                 conversion,
-                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: _textSecondary),
               ),
             ),
           ],
@@ -1009,9 +1017,9 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _border),
         boxShadow: [boxUnderShadow],
       ),
       child: Column(
@@ -1028,7 +1036,7 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
                 _jobStatusFilter == 'Active'
                     ? 'Active Job Openings'
                     : (_jobStatusFilter == 'Draft' ? 'Draft Job Openings' : 'All Job Openings'),
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _textPrimary),
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -1039,20 +1047,24 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
                     child: TextField(
                       controller: _jobSearchController,
                       onChanged: (v) => setState(() => _jobCurrentPage = 1),
-                      style: const TextStyle(fontSize: 12),
+                      style: TextStyle(fontSize: 12, color: _textPrimary),
                       decoration: InputDecoration(
                         hintText: 'Search title, code, dept, loc...',
-                        prefixIcon: const Icon(Icons.search, size: 18),
+                        hintStyle: TextStyle(fontSize: 12, color: _textSecondary),
+                        filled: true,
+                        fillColor: _subBg,
+                        prefixIcon: Icon(Icons.search, size: 18, color: _textSecondary),
                         suffixIcon: _jobSearchController.text.isNotEmpty
                             ? IconButton(
-                                icon: const Icon(Icons.clear, size: 16),
+                                icon: Icon(Icons.clear, size: 16, color: _textSecondary),
                                 onPressed: () {
                                   _jobSearchController.clear();
                                   setState(() => _jobCurrentPage = 1);
                                 },
                               )
                             : null,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: _border)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: _border)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                       ),
                     ),
@@ -1171,15 +1183,16 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFFF1F5F9),
+          color: isSelected ? const Color(0xFF4F46E5) : _subBg,
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isSelected ? const Color(0xFF4F46E5) : _border),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? Colors.white : const Color(0xFF475569),
+            color: isSelected ? Colors.white : _textSecondary,
           ),
         ),
       ),
@@ -1219,9 +1232,9 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _border),
         boxShadow: [boxUnderShadow],
       ),
       child: Column(
@@ -1393,9 +1406,9 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _border),
         boxShadow: [boxUnderShadow],
       ),
       child: Column(
@@ -1404,10 +1417,10 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Department-wise Hiring', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+              Text('Department-wise Hiring', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: _textPrimary)),
               InkWell(
                 onTap: _openDepartmentHiringReportDialog,
-                child: const Text('View Report →', style: TextStyle(fontSize: 12, color: Color(0xFF4F46E5), fontWeight: FontWeight.w600)),
+                child: const Text('View Report →', style: TextStyle(fontSize: 12, color: Color(0xFF818CF8), fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -1429,16 +1442,16 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF4F46E5).withValues(alpha: 0.1) : Colors.transparent,
+          color: isSelected ? const Color(0xFF4F46E5).withValues(alpha: 0.15) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFFE2E8F0)),
+          border: Border.all(color: isSelected ? const Color(0xFF4F46E5) : _border),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
+            color: isSelected ? const Color(0xFF818CF8) : _textSecondary,
           ),
         ),
       ),
@@ -1491,8 +1504,8 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
                   children: [
                     // Header
                     TableRow(
-                      decoration: const BoxDecoration(
-                        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1.5)),
+                      decoration: BoxDecoration(
+                        border: Border(bottom: BorderSide(color: _border, width: 1.5)),
                       ),
                       children: [
                         _tableHeader('Job Title'),
@@ -1523,8 +1536,8 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
                       final slug = j['slug'] ?? j['id']?.toString() ?? '';
 
                       return TableRow(
-                        decoration: const BoxDecoration(
-                          border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
+                        decoration: BoxDecoration(
+                          border: Border(bottom: BorderSide(color: _border.withValues(alpha: 0.4))),
                         ),
                         children: [
                           // Title + icon
@@ -1579,7 +1592,7 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: applicants > 0 ? const Color(0xFF4F46E5).withValues(alpha: 0.1) : const Color(0xFFF1F5F9),
+                                  color: applicants > 0 ? const Color(0xFF4F46E5).withValues(alpha: 0.15) : _subBg,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Row(
@@ -2008,7 +2021,7 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         label,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _textSecondary),
       ),
     );
   }
@@ -2298,12 +2311,12 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
                             width: 44,
                             padding: const EdgeInsets.symmetric(vertical: 5),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: _cardBg,
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFCBD5E1)),
+                              border: Border.all(color: _border),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.03),
+                                  color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.03),
                                   blurRadius: 4,
                                   offset: const Offset(0, 2),
                                 )
@@ -2468,7 +2481,7 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
+                              color: _isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(5),
                             ),
                             child: Row(
@@ -2678,9 +2691,9 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _border),
         boxShadow: [boxUnderShadow],
       ),
       child: Column(
@@ -2689,10 +2702,10 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Recent Applications', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+              Text('Recent Applications', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: _textPrimary)),
               InkWell(
                 onTap: () => _openStageDetails('All'),
-                child: const Text('View All →', style: TextStyle(fontSize: 12, color: Color(0xFF4F46E5), fontWeight: FontWeight.w600)),
+                child: const Text('View All →', style: TextStyle(fontSize: 12, color: Color(0xFF818CF8), fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -2707,9 +2720,9 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _border),
         boxShadow: [boxUnderShadow],
       ),
       child: Column(
@@ -2718,10 +2731,10 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Recruitment Analytics', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+              Text('Recruitment Analytics', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: _textPrimary)),
               InkWell(
                 onTap: _openRecruitmentAnalyticsReportDialog,
-                child: const Text('View Report →', style: TextStyle(fontSize: 12, color: Color(0xFF4F46E5), fontWeight: FontWeight.w600)),
+                child: const Text('View Report →', style: TextStyle(fontSize: 12, color: Color(0xFF818CF8), fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -2780,16 +2793,16 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
             children: [
               CircleAvatar(
                 radius: 16,
-                backgroundColor: const Color(0xFFE2E8F0),
-                child: Text(name.isNotEmpty ? name[0] : 'C', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+                backgroundColor: _isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                child: Text(name.isNotEmpty ? name[0] : 'C', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary)),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                    Text(pos, style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                    Text(name, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary)),
+                    Text(pos, style: TextStyle(fontSize: 10, color: _textSecondary)),
                   ],
                 ),
               ),
@@ -2851,15 +2864,16 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
               child: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: _subBg,
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _border),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Hired vs Target', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                    Text('Hired vs Target', style: TextStyle(fontSize: 10, color: _textSecondary)),
                     const SizedBox(height: 2),
-                    Text('$totalFilled / $totalVacancies', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                    Text('$totalFilled / $totalVacancies', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary)),
                     const SizedBox(height: 4),
                     LinearProgressIndicator(value: fillRatio, minHeight: 4, color: const Color(0xFF4F46E5)),
                   ],
@@ -2873,15 +2887,16 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
               child: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: _subBg,
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _border),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Open Positions', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                    Text('Open Positions', style: TextStyle(fontSize: 10, color: _textSecondary)),
                     const SizedBox(height: 2),
-                    Text('${_jobs.length}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                    Text('${_jobs.length}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary)),
                     const SizedBox(height: 4),
                     Text('${_recentApplications.length} Applicants', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
                   ],
@@ -2895,15 +2910,16 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
               child: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: _subBg,
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _border),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Offer Acceptance', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                    Text('Offer Acceptance', style: TextStyle(fontSize: 10, color: _textSecondary)),
                     const SizedBox(height: 2),
-                    Text('$acceptanceRate%', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                    Text('$acceptanceRate%', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary)),
                     const SizedBox(height: 4),
                     Text('$totalHired Hired', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
                   ],
@@ -2915,10 +2931,10 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
         const SizedBox(height: 16),
 
         // Line Chart: Hiring Trend
-        const Row(
+        Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Application Trend (Monthly)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+            Text('Application Trend (Monthly)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary)),
           ],
         ),
         const SizedBox(height: 8),
