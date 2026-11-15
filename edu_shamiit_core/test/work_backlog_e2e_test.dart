@@ -6,6 +6,7 @@ import 'package:edu_shamiit_core/screens/work_management/models/work_models.dart
 import 'package:edu_shamiit_core/screens/work_management/services/work_api_service.dart';
 import 'package:edu_shamiit_core/screens/work_management/providers/work_management_provider.dart';
 import 'package:edu_shamiit_core/screens/work_management/widgets/backlog/work_backlog_tab_view.dart';
+import 'package:edu_shamiit_core/screens/work_management/widgets/drawers/work_item_detail_drawer.dart';
 
 class _TestHttpOverrides extends HttpOverrides {
   @override
