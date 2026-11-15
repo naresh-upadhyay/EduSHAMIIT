@@ -284,4 +284,37 @@ void main() {
     expect(find.textContaining('Showing'), findsOneWidget);
     expect(find.textContaining('work items'), findsWidgets);
   });
+
+  testWidgets('Close button of Detail Drawer closes the drawer, and clicking item re-opens it', (tester) async {
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(createBacklogWidget());
+    await tester.pump(const Duration(milliseconds: 200));
+
+    // Initially, drawer is rendered with first item and "Effort & Progress" card
+    expect(find.byType(WorkItemDetailDrawer), findsOneWidget);
+    expect(find.text('Effort & Progress'), findsOneWidget);
+
+    // Find and tap close button on WorkItemDetailDrawer
+    final closeBtn = find.widgetWithTooltip(IconButton, 'Close');
+    expect(closeBtn, findsOneWidget);
+    await tester.tap(closeBtn);
+    await tester.pump(const Duration(milliseconds: 200));
+
+    // Drawer is now completely closed and removed from tree
+    expect(find.byType(WorkItemDetailDrawer), findsNothing);
+    expect(find.text('Effort & Progress'), findsNothing);
+
+    // Tapping a story row re-opens the drawer
+    final storyRow = find.text('ST-101');
+    expect(storyRow, findsWidgets);
+    await tester.tap(storyRow.first);
+    await tester.pump(const Duration(milliseconds: 200));
+
+    // Drawer is open again
+    expect(find.byType(WorkItemDetailDrawer), findsOneWidget);
+    expect(find.text('Effort & Progress'), findsOneWidget);
+  });
 }
