@@ -365,8 +365,8 @@ void main() {
       expect(find.textContaining('Activity'), findsOneWidget);
       expect(find.textContaining('Links'), findsOneWidget);
 
-      // Verify Azure DevOps Effort Box & Progress
-      expect(find.text('Azure DevOps Effort & Progress'), findsOneWidget);
+      // Verify Effort Box & Progress
+      expect(find.text('Effort & Progress'), findsOneWidget);
       expect(find.text('Original (h)'), findsOneWidget);
       expect(find.text('Remaining (h)'), findsOneWidget);
       expect(find.text('Completed (h)'), findsOneWidget);

@@ -2517,7 +2517,7 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
           const SizedBox(height: 18),
 
           // ==========================================
-          // AZURE DEVOPS EFFORT & PROGRESS CARD
+          // EFFORT & PROGRESS CARD
           // ==========================================
           Container(
             padding: const EdgeInsets.all(14),
@@ -2537,7 +2537,7 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Azure DevOps Effort & Progress',
+                        'Effort & Progress',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,

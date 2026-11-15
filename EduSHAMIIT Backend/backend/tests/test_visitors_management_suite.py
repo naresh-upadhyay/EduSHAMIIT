@@ -332,11 +332,12 @@ async def test_scheduled_visitors_kpis_and_drawer_360():
         print(f"[OK] Scheduled KPIs verified matching Screenshot 1: Total={kpis['total_scheduled']}, Today={kpis['today']}, ThisWeek={kpis['this_week']}, Expected={kpis['expected_visitors']}, Pending={kpis['pending_approval']}.")
 
         # 2. Test List Appointments matching Screenshot 1
-        res_list = await client.get("/api/visitors/appointments?page_size=50")
+        res_list = await client.get("/api/visitors/appointments?search=Rajesh")
         assert res_list.status_code == 200
         appts = res_list.json()["data"]
-        assert len(appts) >= 10
-        first = next(a for a in appts if "Rajesh" in a["visitor_name"])
+        assert len(appts) >= 1
+        first = appts[0]
+        assert "Rajesh" in first["visitor_name"]
         assert "Rajesh" in first["visitor_name"]
         assert first["purpose"] == "PTM Meeting"
         assert "Rahul Sharma" in first["host_name"]

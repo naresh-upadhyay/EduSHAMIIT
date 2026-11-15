@@ -60,7 +60,7 @@ class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
           ],
         ),
         content: const Text(
-          'Use the Azure DevOps inline filter bar directly below the sub-filters in Board, List, Backlog, or Sprints to filter in real-time by keyword, type, priority, status, and assignee.',
+          'Use the inline filter bar directly below the sub-filters in Board, List, Backlog, or Sprints to filter in real-time by keyword, type, priority, status, and assignee.',
         ),
         actions: [
           TextButton(

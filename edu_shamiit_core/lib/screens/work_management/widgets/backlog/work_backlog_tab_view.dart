@@ -68,6 +68,7 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
   final Set<String> _expandedStoryIds = {'ST-101', 'ST-102', 'ST-103', 'ST-301', 'ST-302'};
   final Set<String> _selectedItemIds = {};
   WorkItemModel? _activeDrawerItem;
+  bool _isDrawerClosedByUser = false;
   final TextEditingController _searchController = TextEditingController();
 
   final List<BacklogEpicModel> _fallbackEpics = const [
@@ -105,7 +106,7 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
     _loadAssignees();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final backlogState = ref.read(workBacklogProvider);
-      if (backlogState.stories.isNotEmpty && _activeDrawerItem == null) {
+      if (!_isDrawerClosedByUser && backlogState.stories.isNotEmpty && _activeDrawerItem == null) {
         setState(() {
           _activeDrawerItem = backlogState.stories.first;
         });
@@ -143,8 +144,8 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
     final epics = _getEpics(backlogState);
     final activeEpic = _getActiveEpic(epics, backlogState);
 
-    // If active item not selected, pick first story
-    if (_activeDrawerItem == null && backlogState.stories.isNotEmpty) {
+    // If active item not selected and drawer wasn't closed by user, pick first story
+    if (!_isDrawerClosedByUser && _activeDrawerItem == null && backlogState.stories.isNotEmpty) {
       _activeDrawerItem = backlogState.stories.first;
     }
 
@@ -246,7 +247,10 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                     WorkItemDetailDrawer(
                       item: _activeDrawerItem,
                       onUpdated: (updated) => setState(() => _activeDrawerItem = updated),
-                      onClose: () => setState(() => _activeDrawerItem = null),
+                      onClose: () => setState(() {
+                        _activeDrawerItem = null;
+                        _isDrawerClosedByUser = true;
+                      }),
                     ),
                   ],
                 ],
@@ -1897,7 +1901,10 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                 // Story Parent Row
                 InkWell(
                   onTap: () {
-                    setState(() => _activeDrawerItem = story);
+                    setState(() {
+                      _activeDrawerItem = story;
+                      _isDrawerClosedByUser = false;
+                    });
                   },
                   child: Container(
                     color: isActive
@@ -2092,7 +2099,10 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                           color: const Color(0xFF94A3B8),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                          onPressed: () => setState(() => _activeDrawerItem = story),
+                          onPressed: () => setState(() {
+                            _activeDrawerItem = story;
+                            _isDrawerClosedByUser = false;
+                          }),
                         ),
                       ],
                     ),
@@ -2107,7 +2117,10 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
 
                     return InkWell(
                       onTap: () {
-                        setState(() => _activeDrawerItem = child);
+                        setState(() {
+                          _activeDrawerItem = child;
+                          _isDrawerClosedByUser = false;
+                        });
                       },
                       child: Container(
                         color: isChildActive
@@ -2276,7 +2289,10 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                               color: const Color(0xFF94A3B8),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                              onPressed: () => setState(() => _activeDrawerItem = child),
+                              onPressed: () => setState(() {
+                                _activeDrawerItem = child;
+                                _isDrawerClosedByUser = false;
+                              }),
                             ),
                           ],
                         ),

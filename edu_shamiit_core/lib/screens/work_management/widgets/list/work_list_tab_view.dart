@@ -45,6 +45,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
 
   final Set<String> _selectedItemIds = {};
   WorkItemModel? _activeDrawerItem;
+  bool _isDrawerClosedByUser = false;
   String _selectedKpi = 'ALL';
 
   @override
@@ -54,7 +55,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
     // Default select first item (WM-1050) as seen in screenshot 2
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final listState = ref.read(workListProvider);
-      if (listState.items.isNotEmpty && _activeDrawerItem == null) {
+      if (!_isDrawerClosedByUser && listState.items.isNotEmpty && _activeDrawerItem == null) {
         setState(() {
           _activeDrawerItem = listState.items.first;
         });
@@ -217,8 +218,8 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
       return true;
     }).toList();
 
-    // If active item is not set yet, pick first item from filteredItems
-    if (_activeDrawerItem == null && filteredItems.isNotEmpty) {
+    // If active item is not set yet and drawer was not closed by user, pick first item from filteredItems
+    if (!_isDrawerClosedByUser && _activeDrawerItem == null && filteredItems.isNotEmpty) {
       _activeDrawerItem = filteredItems.first;
     }
 
@@ -307,7 +308,10 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
                 WorkItemDetailDrawer(
                   item: _activeDrawerItem,
                   onUpdated: (updated) => setState(() => _activeDrawerItem = updated),
-                  onClose: () => setState(() => _activeDrawerItem = null),
+                  onClose: () => setState(() {
+                    _activeDrawerItem = null;
+                    _isDrawerClosedByUser = true;
+                  }),
                 ),
               ],
             ],
@@ -1140,28 +1144,40 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
             cells: [
               // ID
               DataCell(
-                Text(
-                  item.itemNumber,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF2563EB),
+                InkWell(
+                  onTap: () => setState(() {
+                    _activeDrawerItem = item;
+                    _isDrawerClosedByUser = false;
+                  }),
+                  child: Text(
+                    item.itemNumber,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF2563EB),
+                    ),
                   ),
                 ),
               ),
 
               // Title
               DataCell(
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 240),
-                  child: Text(
-                    item.title,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                InkWell(
+                  onTap: () => setState(() {
+                    _activeDrawerItem = item;
+                    _isDrawerClosedByUser = false;
+                  }),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 240),
+                    child: Text(
+                      item.title,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
@@ -1327,7 +1343,10 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
                   icon: const Icon(Icons.more_vert, size: 16),
                   color: const Color(0xFF94A3B8),
                   onPressed: () {
-                    setState(() => _activeDrawerItem = item);
+                    setState(() {
+                      _activeDrawerItem = item;
+                      _isDrawerClosedByUser = false;
+                    });
                   },
                 ),
               ),
