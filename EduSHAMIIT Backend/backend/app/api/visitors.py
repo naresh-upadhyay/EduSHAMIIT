@@ -135,7 +135,7 @@ def generate_qr_bytes(text: Optional[str]) -> bytes:
             qr.make(fit=True)
             img = qr.make_image(fill_color="black", back_color="white")
             buf = io.BytesIO()
-            img.save(buf, format="PNG")
+            img.save(buf)
             return buf.getvalue()
         except Exception as e:
             logger.error(f"Error in qrcode generation for '{clean_text}': {e}")
