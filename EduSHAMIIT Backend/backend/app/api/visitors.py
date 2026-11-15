@@ -23,9 +23,20 @@ register_uuid()
 
 import base64
 import re
-import cv2
-import numpy as np
-import qrcode
+try:
+    import cv2
+except ImportError:
+    cv2 = None
+
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
+try:
+    import qrcode
+except ImportError:
+    qrcode = None
 from app.config import settings
 from app.middleware.auth import get_current_user
 
@@ -112,26 +123,44 @@ def _normalize_pagination(pag: dict, page: int = 1, page_size: int = 10) -> dict
 def generate_qr_bytes(text: Optional[str]) -> bytes:
     """Generate high-resolution, high-contrast crisp PNG image bytes for QR code."""
     clean_text = str(text or "GP-EMPTY").strip()
+    if qrcode is not None:
+        try:
+            qr = qrcode.QRCode(
+                version=None,  # Auto-size version to fit any length of string without overflow
+                error_correction=qrcode.constants.ERROR_CORRECT_M,
+                box_size=10,
+                border=3,
+            )
+            qr.add_data(clean_text)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            return buf.getvalue()
+        except Exception as e:
+            logger.error(f"Error in qrcode generation for '{clean_text}': {e}")
+
+    if cv2 is not None and np is not None:
+        try:
+            blank = np.ones((300, 300, 3), dtype=np.uint8) * 255
+            cv2.putText(blank, clean_text[:24], (15, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+            _, enc = cv2.imencode(".png", blank)
+            return enc.tobytes()
+        except Exception:
+            pass
+
     try:
-        qr = qrcode.QRCode(
-            version=None,  # Auto-size version to fit any length of string without overflow
-            error_correction=qrcode.constants.ERROR_CORRECT_M,
-            box_size=10,
-            border=3,
-        )
-        qr.add_data(clean_text)
-        qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
+        from PIL import Image, ImageDraw
+        img = Image.new("RGB", (300, 300), color="white")
+        draw = ImageDraw.Draw(img)
+        draw.text((15, 140), clean_text[:24], fill="black")
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         return buf.getvalue()
-    except Exception as e:
-        logger.error(f"Error in qrcode generation for '{clean_text}', falling back to cv2: {e}")
-        # Robust fallback using OpenCV rendering
-        blank = np.ones((300, 300, 3), dtype=np.uint8) * 255
-        cv2.putText(blank, clean_text[:24], (15, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
-        _, enc = cv2.imencode(".png", blank)
-        return enc.tobytes()
+    except Exception:
+        pass
+
+    return b""
 
 
 def generate_qr_base64(text: Optional[str]) -> str:
@@ -142,7 +171,7 @@ def generate_qr_base64(text: Optional[str]) -> str:
 
 def decode_qr_from_bytes(image_bytes: Optional[bytes]) -> Optional[str]:
     """Decode QR code from image bytes using OpenCV detector with multi-stage adaptive preprocessing."""
-    if not image_bytes or len(image_bytes) < 10:
+    if not image_bytes or len(image_bytes) < 10 or cv2 is None or np is None:
         return None
     try:
         nparr = np.frombuffer(image_bytes, np.uint8)
