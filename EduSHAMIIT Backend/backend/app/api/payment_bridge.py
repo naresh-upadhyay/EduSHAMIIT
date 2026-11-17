@@ -668,6 +668,19 @@ async def process_notification_matching(
                 "receipt_number": receipt_num,
             }
 
+    # Auto-expire any stale pending intents whose grace period has lapsed
+    await exec_sql(
+        """
+        UPDATE public.payment_intents
+        SET status = 'EXPIRED'
+        WHERE school_id = %s
+          AND status = 'PENDING'
+          AND grace_expires_at < NOW()
+        """,
+        (school_id,),
+        fetch=False,
+    )
+
     # Rule 2: Exact total_amount_paise match (unique-paise mechanism)
     amount_intents = await exec_sql(
         """
@@ -679,11 +692,27 @@ async def process_notification_matching(
         WHERE pi.school_id = %s
           AND pi.total_amount_paise = %s
           AND pi.status IN ('PENDING', 'AWAITING_VERIFICATION')
-          AND pi.created_at >= (NOW() - INTERVAL '48 hours')
+          AND (pi.grace_expires_at IS NULL OR pi.grace_expires_at >= (NOW() - INTERVAL '5 minutes'))
         ORDER BY pi.created_at DESC
         """,
         (school_id, amount_paise),
     )
+
+    if len(amount_intents) > 1:
+        # Contextual heuristic: check if student name or invoice matches notification raw text
+        raw_upper = (raw_text or "").upper()
+        sender_upper = (masked_sender or "").upper()
+        matched_by_context = []
+        for cand in amount_intents:
+            c_name = (cand["student_name"] or "").upper()
+            c_inv = (cand["invoice_number"] or "").upper()
+            if (c_name and (c_name in raw_upper or c_name in sender_upper)) or (c_inv and c_inv in raw_upper):
+                matched_by_context.append(cand)
+        if len(matched_by_context) == 1:
+            amount_intents = matched_by_context
+        elif len(amount_intents) > 1:
+            # If multiple active intents exist, select the most recently created active intent
+            amount_intents = [amount_intents[0]]
 
     if len(amount_intents) == 1:
         # High confidence single candidate match!
@@ -1346,9 +1375,10 @@ async def get_dashboard_data(request: Request):
         })
 
     last_sync_dt = device.get("last_sync_at")
-    last_sync_str = (
-        last_sync_dt.strftime("%I:%M %p") if isinstance(last_sync_dt, datetime) else "10:24 AM"
-    )
+    if isinstance(last_sync_dt, datetime):
+        last_sync_str = last_sync_dt.strftime("%I:%M %p")
+    else:
+        last_sync_str = datetime.now(timezone.utc).strftime("%I:%M %p")
 
     return {
         "app_name": "EduSHAMIIT Payment Bridge",
