@@ -19,6 +19,7 @@ jobs:
 
       - name: Zip Repository
         run: |
+          rm -f project.zip app.zip
           zip -q -r project.zip . -x "*.git*" "*.github*" "*.idea*" "*.vscode*" "*node_modules/*" "*/build/*" "build/*" "*/.dart_tool/*" ".dart_tool/*" "app.zip" "project.zip" "*.apk" "*.aab" "*.ipa" "*.tar.gz" "scratch/*"
 
       - name: Upload and Deploy

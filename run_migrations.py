@@ -249,6 +249,8 @@ def ensure_tracking_table(conn):
         try:
             cur.execute("""
                 CREATE SCHEMA IF NOT EXISTS public;
+                ALTER TABLE IF EXISTS public.lookup_keys ALTER COLUMN created_by DROP NOT NULL;
+                ALTER TABLE IF EXISTS public.lookup_values ALTER COLUMN created_by DROP NOT NULL;
                 GRANT ALL ON SCHEMA public TO postgres;
                 GRANT ALL ON SCHEMA public TO anon;
                 GRANT ALL ON SCHEMA public TO authenticated;
@@ -300,7 +302,8 @@ def apply_migration(conn, filepath: str, record: bool = True) -> tuple:
     except Exception as e:
         err_msg = str(e).strip().split("\n")[0]
         try:
-            conn.rollback()
+            with conn.cursor() as cur:
+                cur.execute("ROLLBACK;")
         except Exception:
             pass
         return False, err_msg
