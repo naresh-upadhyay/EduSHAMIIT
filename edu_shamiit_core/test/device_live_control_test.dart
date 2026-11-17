@@ -103,6 +103,16 @@ void main() {
       });
       expect(switchItem.channels, [1, 2, 4]);
 
+      // Edge case test for TypeError crash: channels stored as booleans [true, false, true, true]
+      final boolSwitchItem = LiveControlDeviceItem.fromJson({
+        'id': 'c1c00000-0000-0000-0000-000000000021',
+        'device_name': 'Smart Switch (G002)',
+        'device_code': 'SW-G002',
+        'device_type_name': 'Power & Switches',
+        'current_state': {'power': true, 'channels': [true, false, true, true]},
+      });
+      expect(boolSwitchItem.channels, [1, 3, 4]);
+
       final doorItem = LiveControlDeviceItem.fromJson({
         'id': 'c1c00000-0000-0000-0000-000000000022',
         'device_name': 'Access Door',
@@ -125,6 +135,71 @@ void main() {
       expect(log.commandType, 'set_temperature');
       expect(log.payload['temperature'], 24);
       expect(log.status, 'acknowledged');
+    });
+  });
+
+  group('Live Control - Selection & Pagination Notifier Tests', () {
+    test('Multi-selection and Select All toggle logic', () {
+      final dev1 = const LiveControlDeviceItem(id: 'dev-1', deviceName: 'D1', deviceCode: 'C1');
+      final dev2 = const LiveControlDeviceItem(id: 'dev-2', deviceName: 'D2', deviceCode: 'C2');
+      final initial = DeviceManagementState(
+        liveControlDevices: [dev1, dev2],
+        liveControlTotal: 2,
+        liveControlTotalPages: 1,
+      );
+      final notifier = TestLiveControlNotifier(initial);
+
+      // Select dev-1
+      notifier.toggleLiveControlSelectDevice('dev-1');
+      expect(notifier.state.liveControlSelectedDeviceIds, {'dev-1'});
+
+      // Select dev-2
+      notifier.toggleLiveControlSelectDevice('dev-2');
+      expect(notifier.state.liveControlSelectedDeviceIds, {'dev-1', 'dev-2'});
+
+      // Toggle dev-1 off
+      notifier.toggleLiveControlSelectDevice('dev-1');
+      expect(notifier.state.liveControlSelectedDeviceIds, {'dev-2'});
+
+      // Toggle select all
+      notifier.toggleLiveControlSelectAll();
+      expect(notifier.state.liveControlSelectedDeviceIds, {'dev-1', 'dev-2'});
+
+      // Toggle select all again to deselect
+      notifier.toggleLiveControlSelectAll();
+      expect(notifier.state.liveControlSelectedDeviceIds, isEmpty);
+
+      // Clear selection
+      notifier.toggleLiveControlSelectDevice('dev-1');
+      notifier.clearLiveControlSelection();
+      expect(notifier.state.liveControlSelectedDeviceIds, isEmpty);
+    });
+
+    test('Sorting and Page state updates', () {
+      final initial = const DeviceManagementState(
+        liveControlSortBy: 'device_name',
+        liveControlSortOrder: 'asc',
+        liveControlPage: 1,
+        liveControlPageSize: 10,
+        liveControlTotal: 50,
+        liveControlTotalPages: 5,
+      );
+      final notifier = TestLiveControlNotifier(initial);
+
+      notifier.setLiveControlPage(3);
+      expect(notifier.state.liveControlPage, 3);
+
+      notifier.setLiveControlPageSize(25);
+      expect(notifier.state.liveControlPageSize, 25);
+      expect(notifier.state.liveControlPage, 1);
+
+      notifier.setLiveControlSorting('status');
+      expect(notifier.state.liveControlSortBy, 'status');
+      expect(notifier.state.liveControlSortOrder, 'asc');
+
+      // Toggling same column flips asc -> desc
+      notifier.setLiveControlSorting('status');
+      expect(notifier.state.liveControlSortOrder, 'desc');
     });
   });
 

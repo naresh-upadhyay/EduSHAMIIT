@@ -9,6 +9,8 @@ import com.shamiit.edu_shamiit_payment_bridge.parser.NotificationParserFactory
 import com.shamiit.edu_shamiit_payment_bridge.storage.PaymentDatabaseHelper
 import com.shamiit.edu_shamiit_payment_bridge.sync.SyncManager
 
+import java.util.concurrent.Executors
+
 class PaymentNotificationListenerService : NotificationListenerService() {
 
     companion object {
@@ -22,7 +24,8 @@ class PaymentNotificationListenerService : NotificationListenerService() {
             "com.phonepe.app",
             "com.google.android.apps.nbu.paisa.user",
             "net.one97.paytm",
-            "in.org.npci.upiapp"
+            "in.org.npci.upiapp",
+            "com.android.shell"
         )
 
         private const val PREFS_APPS = "monitored_apps_prefs"
@@ -44,15 +47,24 @@ class PaymentNotificationListenerService : NotificationListenerService() {
         }
     }
 
-    private val parserFactory = NotificationParserFactory()
+    private lateinit var parserFactory: NotificationParserFactory
     private lateinit var dbHelper: PaymentDatabaseHelper
     private lateinit var syncManager: SyncManager
+    private val backgroundExecutor = Executors.newSingleThreadExecutor()
 
     override fun onCreate() {
         super.onCreate()
         dbHelper = PaymentDatabaseHelper.getInstance(this)
         syncManager = SyncManager.getInstance(this)
+        parserFactory = NotificationParserFactory(this)
         Log.i(TAG, "PaymentNotificationListenerService initialized")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            backgroundExecutor.shutdown()
+        } catch (_: Throwable) {}
     }
 
     override fun onListenerConnected() {
@@ -92,31 +104,41 @@ class PaymentNotificationListenerService : NotificationListenerService() {
 
         val postTime = sbn.postTime
 
-        Log.d(TAG, "Processing notification from: $packageName - Title: $title")
+        // Immediately offload all database and sync work to backgroundExecutor
+        backgroundExecutor.execute {
+            try {
+                Log.d(TAG, "Processing notification on background thread from: $packageName - Title: $title")
 
-        // Parse notification
-        val parser = parserFactory.getParser(packageName)
-        val event = parser.parse(packageName, title, effectiveText, postTime)
+                // Parse notification
+                val parser = parserFactory.getParser(packageName)
+                val event = parser.parse(packageName, title, effectiveText, postTime)
 
-        // Privacy check: reject any notification with OTP/PIN keywords
-        val combined = "$title $effectiveText".lowercase()
-        if (combined.contains("otp") || combined.contains("secret code") || combined.contains("pin")) {
-            Log.w(TAG, "Notification contains authentication OTP/PIN keywords; ignoring.")
-            return
-        }
+                // Privacy check: reject any notification with OTP/PIN keywords
+                val combined = "$title $effectiveText".lowercase()
+                if (combined.contains("otp") || combined.contains("secret code") || 
+                    combined.contains("pin") || combined.contains("password") || 
+                    combined.contains("login") || combined.contains("auth") || 
+                    combined.contains("passcode")) {
+                    Log.w(TAG, "Notification contains authentication keywords; ignoring.")
+                    return@execute
+                }
 
-        // Deduplication check: 5-minute window for identical amounts and references
-        val isDup = dbHelper.isDuplicate(event.amountPaise, event.transactionReference, windowMinutes = 5)
-        if (isDup) {
-            Log.w(TAG, "Duplicate notification detected for ref: ${event.transactionReference}, amount: ${event.amountPaise}")
-        }
+                // Deduplication check: 5-minute window for identical amounts and references
+                val isDup = dbHelper.isDuplicate(event.amountPaise, event.transactionReference, windowMinutes = 5)
+                if (isDup) {
+                    Log.w(TAG, "Duplicate notification detected for ref: ${event.transactionReference}, amount: ${event.amountPaise}")
+                }
 
-        // Store into SQLite persistent queue
-        val inserted = dbHelper.insertEvent(event)
-        if (inserted) {
-            Log.i(TAG, "Queued event ${event.eventUuid} (Amount: Rs ${event.amountPaise / 100.0})")
-            // Trigger background sync immediately
-            syncManager.triggerSync()
+                // Store into SQLite persistent queue
+                val inserted = dbHelper.insertEvent(event)
+                if (inserted) {
+                    Log.i(TAG, "Queued event ${event.eventUuid} (Amount: Rs ${event.amountPaise / 100.0})")
+                    // Trigger background sync immediately
+                    syncManager.triggerSync()
+                }
+            } catch (t: Throwable) {
+                Log.e(TAG, "Error processing notification in background", t)
+            }
         }
     }
 }

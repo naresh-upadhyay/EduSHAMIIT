@@ -316,6 +316,23 @@ class LiveClassApiService {
     );
   }
 
+  /// Fetch cascading academic subjects strictly mapped to a class and optional section
+  Future<List<SubjectDropdownItem>> fetchCascadingSubjects(String classId, {String? sectionId}) async {
+    try {
+      final params = <String>['class_id=${Uri.encodeComponent(classId)}'];
+      if (sectionId != null && sectionId.isNotEmpty && sectionId != 'All Sections') {
+        params.add('section_id=${Uri.encodeComponent(sectionId)}');
+      }
+      final res = await _apiService.get('/live-classes/cascading-subjects?${params.join('&')}');
+      final data = res['data'];
+      final rawList = data is Map ? (data['subjects'] as List? ?? []) : (data is List ? data : []);
+      return rawList.map((item) => SubjectDropdownItem.fromJson(item)).toList();
+    } catch (e) {
+      debugPrint('[LiveClassApiService] Error fetching cascading subjects: $e');
+    }
+    return [];
+  }
+
   Future<Map<String, dynamic>> fetchMyClassesList({
     String dateFilter = 'today',
     String? sessionName,
@@ -324,6 +341,8 @@ class LiveClassApiService {
     String? subjectId,
     String? status,
     String? search,
+    String? sortBy = 'scheduled_at',
+    String? sortOrder = 'DESC',
     int page = 1,
     int pageSize = 5,
   }) async {
@@ -351,6 +370,12 @@ class LiveClassApiService {
       if (search != null && search.isNotEmpty) {
         params.add('search=${Uri.encodeComponent(search)}');
       }
+      if (sortBy != null && sortBy.isNotEmpty) {
+        params.add('sort_by=${Uri.encodeComponent(sortBy)}');
+      }
+      if (sortOrder != null && sortOrder.isNotEmpty) {
+        params.add('sort_order=${Uri.encodeComponent(sortOrder)}');
+      }
 
       final res = await _apiService.get('/live-classes/my-classes?${params.join('&')}');
       final data = res['data'] ?? {};
@@ -359,10 +384,12 @@ class LiveClassApiService {
               .toList() ??
           <MyClassItem>[];
       final totalCount = data['total_count'] ?? items.length;
+      final totalPages = data['total_pages'] ?? 1;
 
       return {
         'items': items,
         'total_count': totalCount,
+        'total_pages': totalPages,
         'page': page,
         'page_size': pageSize,
       };
@@ -371,6 +398,7 @@ class LiveClassApiService {
       return {
         'items': <MyClassItem>[],
         'total_count': 0,
+        'total_pages': 1,
         'page': page,
         'page_size': pageSize,
       };
@@ -405,6 +433,51 @@ class LiveClassApiService {
       return res['data']?['success'] == true;
     } catch (e) {
       debugPrint('[LiveClassApiService] Error cancelling session: $e');
+      return false;
+    }
+  }
+
+  Future<bool> updateSession(String sessionId, Map<String, dynamic> payload) async {
+    try {
+      final res = await _apiService.put('/live-classes/sessions/$sessionId', payload);
+      return res['data']?['success'] == true;
+    } catch (e) {
+      debugPrint('[LiveClassApiService] Error updating session: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteSession(String sessionId) async {
+    try {
+      final res = await _apiService.delete('/live-classes/sessions/$sessionId');
+      return res['data']?['success'] == true;
+    } catch (e) {
+      debugPrint('[LiveClassApiService] Error deleting session: $e');
+      return false;
+    }
+  }
+
+  Future<bool> bulkCancelSessions(List<String> sessionIds, {String reason = 'Bulk cancellation'}) async {
+    try {
+      final res = await _apiService.post('/live-classes/sessions/bulk-cancel', {
+        'session_ids': sessionIds,
+        'reason': reason,
+      });
+      return res['data']?['success'] == true;
+    } catch (e) {
+      debugPrint('[LiveClassApiService] Error bulk cancelling sessions: $e');
+      return false;
+    }
+  }
+
+  Future<bool> bulkDeleteSessions(List<String> sessionIds) async {
+    try {
+      final res = await _apiService.post('/live-classes/sessions/bulk-delete', {
+        'session_ids': sessionIds,
+      });
+      return res['data']?['success'] == true;
+    } catch (e) {
+      debugPrint('[LiveClassApiService] Error bulk deleting sessions: $e');
       return false;
     }
   }

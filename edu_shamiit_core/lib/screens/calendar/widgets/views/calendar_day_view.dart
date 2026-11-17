@@ -23,7 +23,9 @@ class CalendarDayView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUser = ref.watch(authProvider).userData;
     final currentUserId = currentUser?['id']?.toString();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.primaryColor;
 
     final startOfDay = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
     final endOfDay = DateTime(selectedDate.year, selectedDate.month, selectedDate.day, 23, 59, 59);
@@ -85,7 +87,7 @@ class CalendarDayView extends ConsumerWidget {
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: isMobile ? 6 : 10, vertical: 2),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4F46E5).withValues(alpha: isDark ? 0.25 : 0.1),
+                    color: primaryColor.withValues(alpha: isDark ? 0.25 : 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -93,7 +95,7 @@ class CalendarDayView extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: (11 * ts).roundToDouble(),
                       fontWeight: FontWeight.w700,
-                      color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                      color: isDark ? Color.lerp(primaryColor, Colors.white, 0.4)! : primaryColor,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),

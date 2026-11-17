@@ -135,7 +135,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       future: _summaryFuture,
                       builder: (context, snapshot) {
                         final s = snapshot.data ??
-                            {'successful': 38, 'pending': 3, 'unmatched': 2, 'refunds': 1};
+                            {'successful': 0, 'pending': 0, 'unmatched': 0, 'refunds': 0};
                         return Row(
                           children: [
                             Expanded(
@@ -194,7 +194,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             child: CircularProgressIndicator(),
                           );
                         }
-                        final items = snapshot.data ?? [];
+                        if (snapshot.hasError) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: Text('Offline: Could not connect to server', style: TextStyle(color: AppColors.errorRed)),
+                  );
+                }
+                final items = snapshot.data ?? [];
                         if (items.isEmpty) {
                           return const Padding(
                             padding: EdgeInsets.symmetric(vertical: 40),

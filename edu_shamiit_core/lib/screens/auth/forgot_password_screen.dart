@@ -100,22 +100,39 @@ class _SharedForgotPasswordScreenState
       backgroundColor:
           isDesktop ? const Color(0xFFF8FAFC) : const Color(0xFF0F1026),
       body: isDesktop
-          ? SingleChildScrollView(
-              child: IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      flex: 5,
-                      child: _buildLeftBanner(),
+          ? LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints:
+                        BoxConstraints(minHeight: constraints.maxHeight),
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Color(0xFF1B1D3A), // Left side background fallback
+                            Color(0xFFF8FAFC), // Right side background fallback
+                          ],
+                          stops: [0.4545, 0.4545],
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 5,
+                            child: _buildLeftBanner(),
+                          ),
+                          Expanded(
+                            flex: 6,
+                            child: _buildRightForm(isMobile: false),
+                          ),
+                        ],
+                      ),
                     ),
-                    Expanded(
-                      flex: 6,
-                      child: _buildRightForm(),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             )
           : Container(
               decoration: const BoxDecoration(
@@ -131,7 +148,7 @@ class _SharedForgotPasswordScreenState
               child: Center(
                 child: SingleChildScrollView(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 480),
                     child: Column(
@@ -140,20 +157,7 @@ class _SharedForgotPasswordScreenState
                       children: [
                         _buildMobileHeader(),
                         const SizedBox(height: 24),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.25),
-                                blurRadius: 25,
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
-                          ),
-                          child: _buildRightForm(isMobile: true),
-                        ),
+                        _buildRightForm(isMobile: true),
                       ],
                     ),
                   ),
@@ -228,6 +232,8 @@ class _SharedForgotPasswordScreenState
   Widget _buildLeftBanner({bool isMobile = false}) {
     final logoUrl = widget.systemLogo;
     final name = widget.systemName ?? 'School ERP';
+    final screenWidth = MediaQuery.of(context).size.width;
+    final horizontalPadding = (screenWidth * 0.04).clamp(24.0, 48.0);
 
     return Container(
       decoration: const BoxDecoration(
@@ -248,7 +254,7 @@ class _SharedForgotPasswordScreenState
         children: [
           // Logo & Name
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 48),
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
             child: Row(
               children: [
                 if (logoUrl != null && logoUrl.isNotEmpty)
@@ -310,9 +316,9 @@ class _SharedForgotPasswordScreenState
             ),
           ),
           if (!isMobile) ...[
-            const SizedBox(height: 48),
+            const SizedBox(height: 36),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 48),
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -355,7 +361,7 @@ class _SharedForgotPasswordScreenState
                 ],
               ),
             ),
-            const SizedBox(height: 48),
+            const SizedBox(height: 36),
             // 3D illustration (dynamic with fallback)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -377,7 +383,7 @@ class _SharedForgotPasswordScreenState
                   builder: (context) {
                     final screenHeight = MediaQuery.of(context).size.height;
                     final imageHeight =
-                        (screenHeight * 0.38).clamp(240.0, 420.0);
+                        (screenHeight * 0.35).clamp(200.0, 380.0);
                     final imageUrl = widget.illustrationUrl ?? '';
                     if (imageUrl.isNotEmpty) {
                       return Image.network(
@@ -398,10 +404,10 @@ class _SharedForgotPasswordScreenState
                 ),
               ),
             ),
-            const SizedBox(height: 48),
+            const SizedBox(height: 36),
             // Feature grid & bottom banner
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 48),
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
               child: Column(
                 children: [
                   Row(
@@ -522,8 +528,8 @@ class _SharedForgotPasswordScreenState
   Widget _buildRightForm({bool isMobile = false}) {
     return Padding(
       padding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 16 : 48,
-        vertical: 24,
+        horizontal: isMobile ? 0 : 48,
+        vertical: isMobile ? 0 : 24,
       ),
       child: Center(
         child: ConstrainedBox(
@@ -539,26 +545,34 @@ class _SharedForgotPasswordScreenState
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isMobile
+                          ? Colors.white.withValues(alpha: 0.12)
+                          : Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      border: Border.all(
+                        color: isMobile
+                            ? Colors.white.withValues(alpha: 0.2)
+                            : const Color(0xFFE2E8F0),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.language_outlined,
-                            size: 14, color: Colors.black54),
+                        Icon(Icons.language_outlined,
+                            size: 14,
+                            color: isMobile ? Colors.white70 : Colors.black54),
                         const SizedBox(width: 6),
                         Text(
                           'English',
                           style: GoogleFonts.dmSans(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: Colors.black54,
+                            color: isMobile ? Colors.white70 : Colors.black54,
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Icon(Icons.keyboard_arrow_down,
-                            size: 14, color: Colors.black54),
+                        Icon(Icons.keyboard_arrow_down,
+                            size: 14,
+                            color: isMobile ? Colors.white70 : Colors.black54),
                       ],
                     ),
                   ),
@@ -566,30 +580,38 @@ class _SharedForgotPasswordScreenState
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isMobile
+                          ? Colors.white.withValues(alpha: 0.12)
+                          : Colors.white,
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      border: Border.all(
+                        color: isMobile
+                            ? Colors.white.withValues(alpha: 0.2)
+                            : const Color(0xFFE2E8F0),
+                      ),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.wb_sunny_outlined,
                       size: 14,
-                      color: Colors.black54,
+                      color: isMobile ? Colors.white70 : Colors.black54,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               // Main Form Card
               Container(
-                padding: const EdgeInsets.all(32),
+                padding: EdgeInsets.all(isMobile ? 24 : 32),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 24,
-                      spreadRadius: 4,
+                      color: Colors.black
+                          .withValues(alpha: isMobile ? 0.25 : 0.04),
+                      blurRadius: isMobile ? 25 : 24,
+                      spreadRadius: isMobile ? 0 : 4,
+                      offset: isMobile ? const Offset(0, 10) : Offset.zero,
                     ),
                   ],
                   border: Border.all(
@@ -817,14 +839,18 @@ class _SharedForgotPasswordScreenState
                   text: TextSpan(
                     style: GoogleFonts.dmSans(
                       fontSize: 12,
-                      color: const Color(0xFF64748B),
+                      color: isMobile
+                          ? Colors.white70
+                          : const Color(0xFF64748B),
                     ),
-                    children: const [
-                      TextSpan(text: 'Still having trouble? '),
+                    children: [
+                      const TextSpan(text: 'Still having trouble? '),
                       TextSpan(
                         text: 'Contact your administrator',
                         style: TextStyle(
-                          color: Color(0xFF4F46E5),
+                          color: isMobile
+                              ? const Color(0xFF818CF8)
+                              : const Color(0xFF4F46E5),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -836,17 +862,21 @@ class _SharedForgotPasswordScreenState
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.security_outlined,
                     size: 14,
-                    color: Color(0xFF94A3B8),
+                    color: isMobile
+                        ? Colors.white38
+                        : const Color(0xFF94A3B8),
                   ),
                   const SizedBox(width: 6),
                   Text(
                     'School ERP © 2025. All rights reserved.',
                     style: GoogleFonts.dmSans(
                       fontSize: 11,
-                      color: const Color(0xFF94A3B8),
+                      color: isMobile
+                          ? Colors.white38
+                          : const Color(0xFF94A3B8),
                     ),
                   ),
                 ],

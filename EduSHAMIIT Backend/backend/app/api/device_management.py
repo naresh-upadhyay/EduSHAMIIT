@@ -104,6 +104,10 @@ class BulkDeviceCommandRequest(BaseModel):
     payload: Dict[str, Any] = Field(default_factory=dict)
 
 
+class BulkDeviceDeleteRequest(BaseModel):
+    device_ids: List[str] = Field(..., description="List of device UUIDs to delete")
+
+
 class CreateDeviceRequest(BaseModel):
     device_name: str
     device_code: str
@@ -175,6 +179,15 @@ class UpdateDeviceGroupRequest(BaseModel):
     device_ids: Optional[List[str]] = None
 
 
+class BulkGroupDeleteRequest(BaseModel):
+    group_ids: List[str]
+
+
+class BulkGroupStatusRequest(BaseModel):
+    group_ids: List[str]
+    status: str
+
+
 class GroupActionRequest(BaseModel):
     action: str  # all_on, all_off, toggle
     parameters: Optional[Dict[str, Any]] = None
@@ -194,6 +207,9 @@ class CreateAutomationRuleRequest(BaseModel):
     name: str
     description: Optional[str] = ""
     trigger_type: Optional[str] = "smart"
+    category: Optional[str] = "Smart Rule"
+    location_scope: Optional[Dict[str, Any]] = None
+    target_scope: Optional[Dict[str, Any]] = None
     trigger_condition: Optional[Dict[str, Any]] = None
     action_payload: Optional[Dict[str, Any]] = None
     is_active: Optional[bool] = True
@@ -203,6 +219,9 @@ class UpdateAutomationRuleRequest(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     trigger_type: Optional[str] = None
+    category: Optional[str] = None
+    location_scope: Optional[Dict[str, Any]] = None
+    target_scope: Optional[Dict[str, Any]] = None
     trigger_condition: Optional[Dict[str, Any]] = None
     action_payload: Optional[Dict[str, Any]] = None
     is_active: Optional[bool] = None
@@ -210,8 +229,15 @@ class UpdateAutomationRuleRequest(BaseModel):
 
 class TestAutomationRuleRequest(BaseModel):
     rule_id: Optional[str] = None
+    location_scope: Optional[Dict[str, Any]] = None
+    target_scope: Optional[Dict[str, Any]] = None
     trigger_condition: Optional[Dict[str, Any]] = None
     action_payload: Optional[Dict[str, Any]] = None
+
+
+class BulkAutomationActionRequest(BaseModel):
+    rule_ids: List[str]
+    action: str = Field(..., description="enable, disable, delete, run")
 
 
 class CreateDeviceTypeRequest(BaseModel):
@@ -246,6 +272,11 @@ class UpdateDeviceTypeRequest(BaseModel):
     tags: Optional[List[str]] = None
     doc_url: Optional[str] = None
     default_capabilities: Optional[List[Any]] = None
+    is_active: Optional[bool] = None
+
+
+class BulkTypeActionRequest(BaseModel):
+    type_ids: List[str]
     is_active: Optional[bool] = None
 
 
@@ -499,6 +530,35 @@ async def get_device_management_overview(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/registry/kpis")
+async def get_device_registry_kpis(
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """
+    Get dynamic real-time Device Registry fleet KPIs directly from PostgreSQL stored procedure fn_get_device_registry_kpis.
+    """
+    sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    try:
+        rows = await exec_sql("SELECT fn_get_device_registry_kpis(%s) AS kpis;", (sid,))
+        if rows and rows[0].get("kpis"):
+            return rows[0]["kpis"]
+        return {
+            "total_devices": 0,
+            "online": 0,
+            "offline": 0,
+            "online_percentage": 0.0,
+            "device_types": 0,
+            "buildings_count": 0,
+            "floors_count": 0,
+            "rooms_count": 0,
+            "locations_summary": "0 Buildings • 0 Floors"
+        }
+    except Exception as e:
+        logger.error(f"[Device Registry KPIs Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("")
 @router.get("/")
 async def list_devices(
@@ -510,50 +570,19 @@ async def list_devices(
     status: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
+    sort_by: Optional[str] = Query("created_at"),
+    sort_order: Optional[str] = Query("asc"),
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     """
-    List devices with multi-criteria filtering and server pagination.
+    List devices with multi-criteria filtering, database sorting, and server pagination.
     """
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        # Resolve building_id if passed as code (e.g. 'B1')
-        actual_bld_id = None
-        if building_id and building_id != 'All':
-            try:
-                uuid.UUID(str(building_id))
-                actual_bld_id = str(building_id)
-            except ValueError:
-                b_rows = await exec_sql("SELECT id FROM buildings WHERE school_id = %s AND (code = %s OR name ILIKE %s) LIMIT 1;", (sid, building_id, f"%{building_id}%"))
-                if b_rows:
-                    actual_bld_id = str(b_rows[0]["id"])
-
-        # Resolve floor_id if passed as code (e.g. 'F1')
-        actual_floor_id = None
-        if floor_id and floor_id != 'All':
-            try:
-                uuid.UUID(str(floor_id))
-                actual_floor_id = str(floor_id)
-            except ValueError:
-                f_rows = await exec_sql("SELECT id FROM building_floors WHERE school_id = %s AND (floor_code = %s OR name ILIKE %s) LIMIT 1;", (sid, floor_id, f"%{floor_id}%"))
-                if f_rows:
-                    actual_floor_id = str(f_rows[0]["id"])
-
-        # Resolve room_id if passed as room number (e.g. '101')
-        actual_room_id = None
-        if room_id and room_id != 'All':
-            try:
-                uuid.UUID(str(room_id))
-                actual_room_id = str(room_id)
-            except ValueError:
-                r_rows = await exec_sql("SELECT id FROM rooms WHERE school_id = %s AND (room_number = %s OR room_code = %s OR name ILIKE %s) LIMIT 1;", (sid, room_id, room_id, f"%{room_id}%"))
-                if r_rows:
-                    actual_room_id = str(r_rows[0]["id"])
-
         rows = await exec_sql(
-            "SELECT sp_list_devices(%s, %s, %s, %s, %s, %s, %s, %s, %s) AS result;",
-            (sid, search or "", actual_bld_id, actual_floor_id, actual_room_id, type_code or "All", status or "All", page, page_size)
+            "SELECT sp_list_devices(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) AS result;",
+            (sid, search or "", building_id or "", floor_id or "", room_id or "", type_code or "All", status or "All", page, page_size, sort_by or "created_at", sort_order or "asc")
         )
         if rows and rows[0].get("result"):
             return rows[0]["result"]
@@ -580,7 +609,7 @@ async def get_device_location_tree(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/{device_id}/command")
+@router.post("/{device_id:uuid}/command")
 async def execute_device_command(
     device_id: str,
     req: DeviceCommandRequest,
@@ -684,110 +713,112 @@ async def create_device(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """Register a new device into the inventory."""
+    """Register a new device into the inventory using stored procedure sp_create_device."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     uid = current_user.get("id") if current_user else None
 
     try:
-        # Resolve type
-        type_rows = await exec_sql(
-            "SELECT id FROM device_types WHERE school_id = %s AND (code = %s OR name ILIKE %s) LIMIT 1;",
-            (sid, req.device_type_code, req.device_type_code)
-        )
-        type_id = type_rows[0]["id"] if type_rows else None
-
-        # Resolve building
-        building_id = req.building_id
-        if not building_id and req.building_code:
-            bld_rows = await exec_sql(
-                "SELECT id FROM buildings WHERE school_id = %s AND (code = %s OR name ILIKE %s) LIMIT 1;",
-                (sid, req.building_code, req.building_code)
-            )
-            if bld_rows:
-                building_id = bld_rows[0]["id"]
-
-        insert_sql = """
-            INSERT INTO devices (
-                school_id, device_name, device_code, device_type_id,
-                building_id, floor_id, room_id, ip_address, mac_address,
-                rated_power_watts, notes, is_online, power_state, current_state, created_by
-            ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, TRUE, '{}'::jsonb, %s
-            ) RETURNING id, device_name, device_code;
-        """
+        bld = req.building_id or req.building_code
         rows = await exec_sql(
-            insert_sql,
-            (sid, req.device_name, req.device_code, type_id, building_id, req.floor_id, req.room_id,
-             req.ip_address, req.mac_address, req.rated_power_watts, req.notes, uid)
+            "SELECT sp_create_device(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) AS result;",
+            (sid, req.device_name, req.device_code, req.device_type_code, bld, req.floor_id, req.room_id,
+             req.ip_address, req.mac_address, int(req.rated_power_watts or 100), req.notes, uid)
         )
-        return {"success": True, "message": "Device registered successfully", "device": rows[0]}
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": True, "message": "Device registered successfully"}
     except Exception as e:
         logger.error(f"[Create Device Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.put("/{device_id}")
-@router.patch("/{device_id}")
+@router.get("/{device_id:uuid}")
+async def get_device(
+    device_id: str,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Get single device detailed metadata and operational telemetry."""
+    sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    try:
+        rows = await exec_sql("SELECT sp_get_device_detail(%s, %s) AS result;", (sid, str(device_id)))
+        if rows and rows[0].get("result") and rows[0]["result"].get("success"):
+            return rows[0]["result"]
+        raise HTTPException(status_code=404, detail="Device not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Get Device Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/{device_id:uuid}")
+@router.patch("/{device_id:uuid}")
 async def update_device(
     device_id: str,
     req: UpdateDeviceRequest,
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """Update device specifications, location, or metadata."""
+    """Update device specifications, location, or metadata using stored procedure sp_update_device."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        fields = []
-        params = []
-        if req.device_name is not None:
-            fields.append("device_name = %s")
-            params.append(req.device_name)
-        if req.device_code is not None:
-            fields.append("device_code = %s")
-            params.append(req.device_code)
-        if req.building_id is not None:
-            fields.append("building_id = %s")
-            params.append(req.building_id)
-        if req.floor_id is not None:
-            fields.append("floor_id = %s")
-            params.append(req.floor_id)
-        if req.room_id is not None:
-            fields.append("room_id = %s")
-            params.append(req.room_id)
-        if req.ip_address is not None:
-            fields.append("ip_address = %s")
-            params.append(req.ip_address)
-        if req.mac_address is not None:
-            fields.append("mac_address = %s")
-            params.append(req.mac_address)
-        if req.rated_power_watts is not None:
-            fields.append("rated_power_watts = %s")
-            params.append(req.rated_power_watts)
-        if req.notes is not None:
-            fields.append("notes = %s")
-            params.append(req.notes)
-
-        if not fields:
-            return {"success": True, "message": "No updates specified"}
-
-        fields.append("updated_at = NOW()")
-        params.extend([device_id, sid])
-
-        sql = f"""
-            UPDATE devices
-            SET {', '.join(fields)}
-            WHERE id = %s AND school_id = %s
-            RETURNING id, device_name, device_code;
-        """
-        rows = await exec_sql(sql, tuple(params))
-        if not rows:
-            raise HTTPException(status_code=404, detail="Device not found")
-
-        return {"success": True, "message": "Device updated successfully", "device": rows[0]}
+        rows = await exec_sql(
+            "SELECT sp_update_device(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) AS result;",
+            (sid, str(device_id), req.device_name, req.device_code, req.building_id, req.floor_id, req.room_id,
+             req.ip_address, req.mac_address, int(req.rated_power_watts) if req.rated_power_watts is not None else None, req.notes)
+        )
+        if rows and rows[0].get("result"):
+            res = rows[0]["result"]
+            if not res.get("success"):
+                raise HTTPException(status_code=404, detail=res.get("message", "Device not found"))
+            return res
+        return {"success": True, "message": "Device updated successfully"}
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"[Update Device Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{device_id:uuid}")
+async def delete_device(
+    device_id: str,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    """Soft delete a device using stored procedure sp_delete_device."""
+    sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    try:
+        rows = await exec_sql("SELECT sp_delete_device(%s, %s) AS result;", (sid, device_id))
+        if rows and rows[0].get("result"):
+            res = rows[0]["result"]
+            if not res.get("success"):
+                raise HTTPException(status_code=404, detail=res.get("message", "Device not found"))
+            return res
+        return {"success": True, "message": "Device deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Delete Device Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/bulk-delete")
+async def bulk_delete_devices(
+    req: BulkDeviceDeleteRequest,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    """Bulk soft delete devices using stored procedure sp_bulk_delete_devices."""
+    sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    try:
+        rows = await exec_sql("SELECT sp_bulk_delete_devices(%s, %s::UUID[]) AS result;", (sid, req.device_ids))
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": True, "message": "Devices deleted successfully"}
+    except Exception as e:
+        logger.error(f"[Bulk Delete Devices Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -800,13 +831,10 @@ async def ping_device(
     """Test device connectivity via MQTT ping packet."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        rows = await exec_sql(
-            "SELECT id, device_name, device_code, is_online, ip_address FROM devices WHERE id = %s AND school_id = %s;",
-            (device_id, sid)
-        )
-        if not rows:
+        rows = await exec_sql("SELECT sp_get_device_detail(%s, %s) AS result;", (sid, device_id))
+        if not rows or not rows[0].get("result") or not rows[0]["result"].get("success"):
             raise HTTPException(status_code=404, detail="Device not found")
-        dev = rows[0]
+        dev = rows[0]["result"]["device"]
         mqtt_res = mqtt_service.publish_device_command(sid, dev["device_code"], "ping", {})
         return {
             "success": True,
@@ -832,10 +860,10 @@ async def reboot_device(
     """Dispatch reboot hardware command via MQTT."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        dev_rows = await exec_sql("SELECT id, device_code, device_name FROM devices WHERE id = %s AND school_id = %s;", (device_id, sid))
-        if not dev_rows:
+        rows = await exec_sql("SELECT sp_get_device_detail(%s, %s) AS result;", (sid, device_id))
+        if not rows or not rows[0].get("result") or not rows[0]["result"].get("success"):
             raise HTTPException(status_code=404, detail="Device not found")
-        dev = dev_rows[0]
+        dev = rows[0]["result"]["device"]
         mqtt_res = mqtt_service.publish_device_command(sid, dev["device_code"], "reboot", {})
         return {"success": True, "message": f"Hardware reboot signal dispatched to {dev['device_name']}", "mqtt": mqtt_res}
     except HTTPException:
@@ -850,10 +878,10 @@ async def get_device_groups_kpis(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Fetch aggregated KPIs for Device Groups dashboard matching exact campus metrics."""
+    """Fetch aggregated KPIs for Device Groups dashboard via stored procedure."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        rows = await exec_sql("SELECT fn_device_groups_kpis(%s) as kpis;", (sid,))
+        rows = await exec_sql("SELECT fn_device_groups_kpis(%s::UUID) as kpis;", (sid,))
         if rows and rows[0]["kpis"]:
             return rows[0]["kpis"]
         return {
@@ -882,6 +910,23 @@ async def get_device_groups_kpis(
         }
 
 
+@router.get("/groups/filter-options")
+async def get_device_groups_filter_options(
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Dynamically get distinct location scopes, group types, and profiles from DB via stored procedure."""
+    sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    try:
+        rows = await exec_sql("SELECT fn_get_device_groups_filter_options(%s::UUID) as options;", (sid,))
+        if rows and rows[0]["options"]:
+            return rows[0]["options"]
+        return {"locations": [], "group_types": [], "profiles": []}
+    except Exception as e:
+        logger.error(f"[Get Device Groups Filter Options Error]: {e}")
+        return {"locations": [], "group_types": [], "profiles": []}
+
+
 @router.get("/groups/export")
 async def export_device_groups(
     school_id: Optional[str] = Query(None),
@@ -890,15 +935,12 @@ async def export_device_groups(
     """Export device groups dataset for backup and reporting."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        sql = """
-            SELECT name, code, description, group_type, location_scope, profile_name,
-                   member_count, online_count, offline_count, status, created_at
-            FROM device_groups
-            WHERE school_id = %s
-            ORDER BY sort_order ASC, created_at DESC;
-        """
-        rows = await exec_sql(sql, (sid,))
-        return {"groups": rows, "count": len(rows), "exported_at": datetime.utcnow().isoformat()}
+        rows = await exec_sql(
+            "SELECT fn_device_groups_list(%s::UUID, NULL, NULL, NULL, NULL, NULL, 1, 1000, 'created_at', 'DESC') as result;",
+            (sid,)
+        )
+        items = rows[0]["result"]["groups"] if rows and rows[0]["result"] else []
+        return {"groups": items, "count": len(items), "exported_at": datetime.utcnow().isoformat()}
     except Exception as e:
         logger.error(f"[Export Groups Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -910,23 +952,26 @@ async def import_device_groups(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Import device groups from structured payload."""
+    """Import device groups from structured payload using stored procedure."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
         items = payload.get("groups") or []
         imported = 0
         for item in items:
             name = item.get("name")
-            code = item.get("code") or f"GRP-{uuid.uuid4().hex[:6].upper()}"
             if name:
                 await exec_sql(
                     """
-                    INSERT INTO device_groups (school_id, name, code, description, group_type, location_scope, profile_name, status)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT DO NOTHING;
+                    SELECT sp_create_device_group(
+                        %s::UUID, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL
+                    );
                     """,
-                    (sid, name, code, item.get("description", ""), item.get("group_type", "Composite"),
-                     item.get("location_scope", "Entire Campus"), item.get("profile_name", "Default Profile"), item.get("status", "active")),
+                    (
+                        sid, name, item.get("code"), item.get("description", ""),
+                        item.get("group_type", "Composite"), item.get("location_scope", "Entire Campus"),
+                        item.get("profile_name", "Default Profile"), item.get("color", "#2563EB"),
+                        item.get("icon", "grid_view"), item.get("status", "active")
+                    ),
                     fetch=False
                 )
                 imported += 1
@@ -946,91 +991,25 @@ async def list_device_groups(
     search: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
+    sort_by: Optional[str] = Query("created_at"),
+    sort_order: Optional[str] = Query("DESC"),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """List device groups with filtering and server-side pagination."""
+    """List device groups with filtering, database sorting, and server-side pagination via stored procedure."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        where_clauses = ["g.school_id = %s"]
-        params = [sid]
-        
-        if status and status.lower() not in ("all", "all groups", "all status"):
-            st_val = "active" if "active" in status.lower() and "inactive" not in status.lower() else "inactive" if "inactive" in status.lower() else status.lower()
-            where_clauses.append("LOWER(g.status) = %s")
-            params.append(st_val)
-            
-        if location and location.lower() not in ("all", "all locations"):
-            where_clauses.append("(g.location_scope ILIKE %s)")
-            params.append(f"%{location}%")
-            
-        if group_type and group_type.lower() not in ("all", "all device types", "all types"):
-            where_clauses.append("(g.group_type ILIKE %s)")
-            params.append(f"%{group_type}%")
-            
-        if profile and profile.lower() not in ("all", "all profiles"):
-            where_clauses.append("(g.profile_name ILIKE %s)")
-            params.append(f"%{profile}%")
-            
-        if search:
-            where_clauses.append("(g.name ILIKE %s OR g.code ILIKE %s OR g.description ILIKE %s OR g.location_scope ILIKE %s OR g.group_type ILIKE %s)")
-            p_search = f"%{search}%"
-            params.extend([p_search, p_search, p_search, p_search, p_search])
-            
-        where_sql = " AND ".join(where_clauses)
-        
-        # Count total matching
-        cnt_sql = f"SELECT COUNT(*)::int as total FROM device_groups g WHERE {where_sql};"
-        cnt_rows = await exec_sql(cnt_sql, tuple(params))
-        total = cnt_rows[0]["total"] if cnt_rows else 0
-        
-        # Fetch page with sort order
-        offset = (page - 1) * page_size
-        fetch_params = list(params)
-        fetch_params.extend([page_size, offset])
-        
-        sql = f"""
-            SELECT g.id, g.name, g.code, g.description, g.group_type, g.icon, g.color,
-                   g.status, g.location_scope, g.building_id, g.floor_id, g.room_id,
-                   g.profile_id, g.profile_name, g.tags, g.owner_name,
-                   g.member_count, g.online_count, g.offline_count,
-                   g.resolved_capabilities, g.advanced_controls,
-                   g.schedules_count, g.automations_count, g.scenes_count,
-                   g.sort_order, g.created_at, g.updated_at,
-                   COALESCE((
-                       SELECT json_agg(m.device_id) FILTER (WHERE m.device_id IS NOT NULL)
-                       FROM device_group_members m WHERE m.group_id = g.id
-                   ), '[]'::json) as device_ids
-            FROM device_groups g
-            WHERE {where_sql}
-            ORDER BY g.sort_order ASC, g.created_at DESC
-            LIMIT %s OFFSET %s;
-        """
-        rows = await exec_sql(sql, tuple(fetch_params))
-        
-        formatted = []
-        for r in rows:
-            d_ids = r.get("device_ids") or []
-            cnt = r.get("member_count") or len(d_ids)
-            formatted.append({
-                **r,
-                "id": str(r["id"]),
-                "building_id": str(r["building_id"]) if r.get("building_id") else None,
-                "floor_id": str(r["floor_id"]) if r.get("floor_id") else None,
-                "room_id": str(r["room_id"]) if r.get("room_id") else None,
-                "profile_id": str(r["profile_id"]) if r.get("profile_id") else None,
-                "device_count": cnt,
-                "devices": cnt,
-                "created_at_formatted": r["created_at"].strftime("%d %b %Y, %I:%M %p") if r.get("created_at") else "",
-                "updated_at_formatted": r["updated_at"].strftime("%d %b %Y, %I:%M %p") if r.get("updated_at") else ""
-            })
-            
-        total_pages = max(1, (total + page_size - 1) // page_size)
+        rows = await exec_sql(
+            "SELECT fn_device_groups_list(%s::UUID, %s, %s, %s, %s, %s, %s, %s, %s, %s) as result;",
+            (sid, status, location, group_type, profile, search, page, page_size, sort_by or "created_at", sort_order or "DESC")
+        )
+        if rows and rows[0]["result"]:
+            return rows[0]["result"]
         return {
-            "groups": formatted,
-            "total": total,
+            "groups": [],
+            "total": 0,
             "page": page,
             "page_size": page_size,
-            "total_pages": total_pages
+            "total_pages": 1
         }
     except Exception as e:
         logger.error(f"[List Device Groups Error]: {e}")
@@ -1117,47 +1096,29 @@ async def create_device_group(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Create a new device group and assign member devices."""
+    """Create a new device group and assign member devices via stored procedure."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        code = req.code or f"GRP-{req.name.replace(' ', '-').upper()[:20]}"
-        sql = """
-            INSERT INTO device_groups (
-                school_id, name, code, description, group_type, icon, color,
-                status, location_scope, building_id, floor_id, room_id,
-                profile_id, profile_name, tags, member_count, online_count, offline_count
+        dev_ids = [d for d in (req.device_ids or []) if d]
+        rows = await exec_sql(
+            """
+            SELECT sp_create_device_group(
+                %s::UUID, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::UUID[]
+            ) as result;
+            """,
+            (
+                sid, req.name, req.code or None, req.description or "",
+                req.group_type or "Composite", req.location_scope or "Entire Campus",
+                req.profile_name or "Default Profile", req.color or "#2563EB",
+                req.icon or "grid_view", req.status or "active",
+                dev_ids if dev_ids else None
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id, name, code, description, group_type, icon, color, status, location_scope, profile_name, created_at;
-        """
-        cnt = len(req.device_ids or [])
-        rows = await exec_sql(sql, (
-            sid, req.name, code, req.description, req.group_type, req.icon, req.color,
-            req.status or "active", req.location_scope or "Entire Campus",
-            req.building_id, req.floor_id, req.room_id,
-            req.profile_id, req.profile_name or "Default Profile",
-            req.tags or [], cnt, cnt, 0
-        ))
-        if not rows:
-            raise HTTPException(status_code=400, detail="Failed to create device group")
-        group = rows[0]
-        gid = str(group["id"])
-        
-        if req.device_ids:
-            for dev_id in req.device_ids:
-                await exec_sql(
-                    "INSERT INTO device_group_members (group_id, device_id) VALUES (%s, %s) ON CONFLICT DO NOTHING;",
-                    (gid, dev_id),
-                    fetch=False
-                )
-                
-        await exec_sql(
-            "INSERT INTO device_group_audit_logs (school_id, group_id, action, new_state) VALUES (%s, %s, %s, %s);",
-            (sid, gid, "create_group", json.dumps(req.dict())),
-            fetch=False
         )
-        
-        return {"success": True, "group": group}
+        if rows and rows[0]["result"] and rows[0]["result"].get("success"):
+            return {"success": True, "group": rows[0]["result"].get("group")}
+        raise HTTPException(status_code=400, detail="Failed to create device group")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[Create Device Group Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1170,83 +1131,36 @@ async def update_device_group(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Update device group specifications and membership."""
+    """Update device group specifications and membership via stored procedure."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        fields = []
-        params = []
-        if req.name is not None:
-            fields.append("name = %s")
-            params.append(req.name)
-        if req.code is not None:
-            fields.append("code = %s")
-            params.append(req.code)
-        if req.description is not None:
-            fields.append("description = %s")
-            params.append(req.description)
-        if req.group_type is not None:
-            fields.append("group_type = %s")
-            params.append(req.group_type)
-        if req.icon is not None:
-            fields.append("icon = %s")
-            params.append(req.icon)
-        if req.color is not None:
-            fields.append("color = %s")
-            params.append(req.color)
-        if req.status is not None:
-            fields.append("status = %s")
-            params.append(req.status)
-        if req.location_scope is not None:
-            fields.append("location_scope = %s")
-            params.append(req.location_scope)
-        if req.profile_name is not None:
-            fields.append("profile_name = %s")
-            params.append(req.profile_name)
-        if req.building_id is not None:
-            fields.append("building_id = %s")
-            params.append(req.building_id)
-        if req.floor_id is not None:
-            fields.append("floor_id = %s")
-            params.append(req.floor_id)
-        if req.room_id is not None:
-            fields.append("room_id = %s")
-            params.append(req.room_id)
-            
-        if fields:
-            fields.append("updated_at = NOW()")
-            params.extend([group_id, sid])
-            sql = f"UPDATE device_groups SET {', '.join(fields)} WHERE id = %s AND school_id = %s RETURNING id, name, code, status, updated_at;"
-            rows = await exec_sql(sql, tuple(params))
-            if not rows:
-                raise HTTPException(status_code=404, detail="Device group not found")
-            group = rows[0]
-        else:
-            rows = await exec_sql("SELECT id, name, code, status FROM device_groups WHERE id = %s AND school_id = %s;", (group_id, sid))
-            if not rows:
-                raise HTTPException(status_code=404, detail="Device group not found")
-            group = rows[0]
-            
-        if req.device_ids is not None:
-            await exec_sql("DELETE FROM device_group_members WHERE group_id = %s;", (group_id,), fetch=False)
-            for dev_id in req.device_ids:
-                await exec_sql(
-                    "INSERT INTO device_group_members (group_id, device_id) VALUES (%s, %s) ON CONFLICT DO NOTHING;",
-                    (group_id, dev_id),
-                    fetch=False
-                )
-            await exec_sql(
-                "UPDATE device_groups SET member_count = %s, online_count = %s WHERE id = %s;",
-                (len(req.device_ids), len(req.device_ids), group_id),
-                fetch=False
+        dev_ids = [d for d in req.device_ids if d] if req.device_ids is not None else None
+        rows = await exec_sql(
+            """
+            SELECT sp_update_device_group(
+                p_group_id := %s::UUID,
+                p_school_id := %s::UUID,
+                p_name := %s,
+                p_code := %s,
+                p_description := %s,
+                p_group_type := %s,
+                p_location_scope := %s,
+                p_profile_name := %s,
+                p_color := %s,
+                p_icon := %s,
+                p_status := %s,
+                p_device_ids := %s::UUID[]
+            ) as result;
+            """,
+            (
+                group_id, sid, req.name, req.code, req.description,
+                req.group_type, req.location_scope, req.profile_name,
+                req.color, req.icon, req.status, dev_ids
             )
-            
-        await exec_sql(
-            "INSERT INTO device_group_audit_logs (school_id, group_id, action, new_state) VALUES (%s, %s, %s, %s);",
-            (sid, group_id, "update_group", json.dumps(req.dict())),
-            fetch=False
         )
-        
-        return {"success": True, "group": group}
+        if rows and rows[0]["result"] and rows[0]["result"].get("success"):
+            return {"success": True, "group": rows[0]["result"].get("group")}
+        raise HTTPException(status_code=404, detail="Device group not found")
     except HTTPException:
         raise
     except Exception as e:
@@ -1260,18 +1174,12 @@ async def delete_device_group(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Delete a device group."""
+    """Delete a device group via stored procedure."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        await exec_sql("DELETE FROM device_group_members WHERE group_id = %s;", (group_id,), fetch=False)
-        rows = await exec_sql("DELETE FROM device_groups WHERE id = %s AND school_id = %s RETURNING id, name;", (group_id, sid))
-        if not rows:
-            raise HTTPException(status_code=404, detail="Device group not found")
-            
-        await exec_sql(
-            "INSERT INTO device_group_audit_logs (school_id, group_id, action, metadata) VALUES (%s, %s, %s, %s);",
-            (sid, group_id, "delete_group", json.dumps({"name": rows[0]["name"]})),
-            fetch=False
+        rows = await exec_sql(
+            "SELECT sp_delete_device_group(%s::UUID, %s::UUID) as result;",
+            (group_id, sid)
         )
         return {"success": True, "message": "Device group deleted successfully"}
     except HTTPException:
@@ -1281,13 +1189,56 @@ async def delete_device_group(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/groups/bulk-delete")
+async def bulk_delete_device_groups(
+    req: BulkGroupDeleteRequest,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Bulk delete device groups via stored procedure."""
+    sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    try:
+        if not req.group_ids:
+            return {"success": True, "deleted_count": 0}
+        rows = await exec_sql(
+            "SELECT sp_bulk_delete_device_groups(%s::UUID, %s::UUID[]) as result;",
+            (sid, req.group_ids)
+        )
+        return rows[0]["result"] if rows else {"success": True, "deleted_count": 0}
+    except Exception as e:
+        logger.error(f"[Bulk Delete Groups Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/groups/bulk-status")
+async def bulk_toggle_device_groups_status(
+    req: BulkGroupStatusRequest,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Bulk toggle device groups status via stored procedure."""
+    sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    try:
+        if not req.group_ids:
+            return {"success": True, "updated_count": 0}
+        st = "active" if "active" in req.status.lower() and "inactive" not in req.status.lower() else "inactive"
+        rows = await exec_sql(
+            "SELECT sp_bulk_toggle_device_groups_status(%s::UUID, %s::UUID[], %s) as result;",
+            (sid, req.group_ids, st)
+        )
+        return rows[0]["result"] if rows else {"success": True, "updated_count": 0}
+    except Exception as e:
+        logger.error(f"[Bulk Toggle Groups Status Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/groups/{group_id}/duplicate")
 async def duplicate_device_group(
     group_id: str,
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Duplicate an existing device group."""
+    """Duplicate an existing device group using stored procedure."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
         rows = await exec_sql("SELECT * FROM device_groups WHERE id = %s AND school_id = %s;", (group_id, sid))
@@ -1298,30 +1249,28 @@ async def duplicate_device_group(
         new_name = f"{orig['name']} (Copy)"
         new_code = f"{orig['code']}-COPY-{uuid.uuid4().hex[:4].upper()}"
         
-        insert_sql = """
-            INSERT INTO device_groups (
-                school_id, name, code, description, group_type, icon, color,
-                status, location_scope, profile_name, member_count, online_count, offline_count,
-                resolved_capabilities, advanced_controls
+        created = await exec_sql(
+            """
+            SELECT sp_create_device_group(
+                %s::UUID, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL
+            ) as result;
+            """,
+            (
+                sid, new_name, new_code, orig["description"], orig["group_type"],
+                orig["location_scope"], orig["profile_name"], orig["color"],
+                orig["icon"], "active"
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id, name, code, status, created_at;
-        """
-        new_rows = await exec_sql(insert_sql, (
-            sid, new_name, new_code, orig["description"], orig["group_type"], orig["icon"], orig["color"],
-            "active", orig["location_scope"], orig["profile_name"], orig["member_count"], orig["online_count"], orig["offline_count"],
-            json.dumps(orig.get("resolved_capabilities") or {}), json.dumps(orig.get("advanced_controls") or [])
-        ))
-        new_group = new_rows[0]
-        new_gid = str(new_group["id"])
-        
-        await exec_sql(
-            "INSERT INTO device_group_members (group_id, device_id) SELECT %s, device_id FROM device_group_members WHERE group_id = %s ON CONFLICT DO NOTHING;",
-            (new_gid, group_id),
-            fetch=False
         )
-        
-        return {"success": True, "group": new_group}
+        if created and created[0]["result"] and created[0]["result"].get("success"):
+            new_g = created[0]["result"]["group"]
+            new_gid = new_g["id"]
+            await exec_sql(
+                "INSERT INTO device_group_members (group_id, device_id) SELECT %s, device_id FROM device_group_members WHERE group_id = %s ON CONFLICT DO NOTHING;",
+                (new_gid, group_id),
+                fetch=False
+            )
+            return {"success": True, "group": new_g}
+        raise HTTPException(status_code=400, detail="Failed to duplicate group")
     except HTTPException:
         raise
     except Exception as e:
@@ -1336,16 +1285,14 @@ async def toggle_device_group_status(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Toggle group active/inactive status."""
+    """Toggle group active/inactive status via stored procedure."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
         rows = await exec_sql(
-            "UPDATE device_groups SET status = %s, updated_at = NOW() WHERE id = %s AND school_id = %s RETURNING id, name, status;",
-            (status, group_id, sid)
+            "SELECT sp_bulk_toggle_device_groups_status(%s::UUID, ARRAY[%s::UUID], %s) as result;",
+            (sid, group_id, status)
         )
-        if not rows:
-            raise HTTPException(status_code=404, detail="Device group not found")
-        return {"success": True, "group": rows[0]}
+        return {"success": True, "status": status}
     except HTTPException:
         raise
     except Exception as e:
@@ -1574,15 +1521,75 @@ async def execute_group_action(
 @router.get("/automations")
 async def list_automations(
     school_id: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    building_id: Optional[str] = Query(None),
+    device_type: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query("created_at"),
+    sort_dir: Optional[str] = Query("DESC"),
+    page: Optional[int] = Query(1),
+    page_size: Optional[int] = Query(10),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """List automation rules."""
+    """List automation rules using stored procedure with database pagination & sorting."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        rows = await exec_sql("SELECT * FROM device_automation_rules WHERE school_id = %s ORDER BY created_at ASC;", (sid,))
-        return {"automations": rows}
+        sql = "SELECT fn_list_automation_rules(%s::UUID, %s, %s::UUID, %s, %s, %s, %s, %s, %s, %s);"
+        b_id = building_id if building_id and building_id != 'All Buildings' and building_id != '' else None
+        d_type = device_type if device_type and device_type != 'All Device Types' and device_type != '' else None
+        st = status if status and status != 'All Status' and status != '' else None
+        cat = category if category and category != 'All' and category != '' else None
+
+        rows = await exec_sql(sql, (sid, search, b_id, d_type, st, cat, sort_by, sort_dir, page, page_size))
+        res = rows[0]["fn_list_automation_rules"] if rows else {"total": 0, "rules": []}
+        return {
+            "success": True,
+            "automations": res.get("rules", []),
+            "total": res.get("total", 0),
+            "page": res.get("page", 1),
+            "page_size": res.get("page_size", 10),
+            "total_pages": res.get("total_pages", 1)
+        }
     except Exception as e:
         logger.error(f"[List Automations Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/automations/kpis")
+async def get_automation_kpis(
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    """Get live automation rules KPIs computed dynamically from PostgreSQL."""
+    sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    try:
+        rows = await exec_sql("SELECT fn_automation_rules_kpis(%s::UUID);", (sid,))
+        kpis = rows[0]["fn_automation_rules_kpis"] if rows else {}
+        return {"success": True, "kpis": kpis}
+    except Exception as e:
+        logger.error(f"[Get Automation KPIs Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/automations/cascading-options")
+async def get_automation_cascading_options(
+    building_id: Optional[str] = Query(None),
+    floor_id: Optional[str] = Query(None),
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    """Cascading options: Building -> Floor -> Room, Device Types, Groups, Devices, Scenes."""
+    sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    try:
+        b_id = building_id if building_id and building_id != 'All Buildings' and building_id != '' else None
+        f_id = floor_id if floor_id and floor_id != 'All Floors' and floor_id != '' else None
+        sql = "SELECT fn_automation_cascading_options(%s::UUID, %s::UUID, %s::UUID);"
+        rows = await exec_sql(sql, (sid, b_id, f_id))
+        opts = rows[0]["fn_automation_cascading_options"] if rows else {}
+        return {"success": True, "options": opts}
+    except Exception as e:
+        logger.error(f"[Get Automation Cascading Options Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1592,20 +1599,31 @@ async def create_automation(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """Create a new automation rule with condition and action payloads."""
+    """Create a new automation rule with condition and action payloads via sp_create_automation_rule."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
+        loc_json = json.dumps(req.location_scope or {})
+        tgt_json = json.dumps(req.target_scope or {})
         cond_json = json.dumps(req.trigger_condition or {})
         act_json = json.dumps(req.action_payload or {})
         sql = """
-            INSERT INTO device_automation_rules (school_id, name, description, trigger_type, trigger_condition, action_payload, is_active)
-            VALUES (%s, %s, %s, %s, %s::jsonb, %s::jsonb, %s)
-            RETURNING *;
+            DO $$
+            DECLARE
+                v_id UUID;
+                v_rule JSONB;
+            BEGIN
+                CALL sp_create_automation_rule(
+                    %s::UUID, %s, %s, %s, %s,
+                    %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s,
+                    v_id, v_rule
+                );
+            END $$;
         """
-        rows = await exec_sql(sql, (sid, req.name, req.description, req.trigger_type, cond_json, act_json, req.is_active))
-        if not rows:
-            raise HTTPException(status_code=400, detail="Failed to create automation rule")
-        return {"success": True, "automation": rows[0]}
+        await exec_sql(sql, (sid, req.name, req.description, req.trigger_type, req.category, loc_json, tgt_json, cond_json, act_json, req.is_active))
+        rows = await exec_sql("SELECT fn_list_automation_rules(%s::UUID, %s, NULL, NULL, NULL, NULL, 'created_at', 'DESC', 1, 1);", (sid, req.name))
+        res = rows[0]["fn_list_automation_rules"] if rows else {}
+        created = res.get("rules", [None])[0]
+        return {"success": True, "automation": created}
     except Exception as e:
         logger.error(f"[Create Automation Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1618,40 +1636,31 @@ async def update_automation(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """Update an existing automation rule."""
+    """Update an existing automation rule via sp_update_automation_rule."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        fields = []
-        params = []
-        if req.name is not None:
-            fields.append("name = %s")
-            params.append(req.name)
-        if req.description is not None:
-            fields.append("description = %s")
-            params.append(req.description)
-        if req.trigger_type is not None:
-            fields.append("trigger_type = %s")
-            params.append(req.trigger_type)
-        if req.trigger_condition is not None:
-            fields.append("trigger_condition = %s::jsonb")
-            params.append(json.dumps(req.trigger_condition))
-        if req.action_payload is not None:
-            fields.append("action_payload = %s::jsonb")
-            params.append(json.dumps(req.action_payload))
-        if req.is_active is not None:
-            fields.append("is_active = %s")
-            params.append(req.is_active)
-            
-        fields.append("updated_at = NOW()")
-        params.extend([automation_id, sid])
-        
-        sql = f"UPDATE device_automation_rules SET {', '.join(fields)} WHERE id = %s AND school_id = %s RETURNING *;"
-        rows = await exec_sql(sql, tuple(params))
-        if not rows:
-            raise HTTPException(status_code=404, detail="Automation rule not found")
-        return {"success": True, "automation": rows[0]}
-    except HTTPException:
-        raise
+        loc_json = json.dumps(req.location_scope) if req.location_scope is not None else None
+        tgt_json = json.dumps(req.target_scope) if req.target_scope is not None else None
+        cond_json = json.dumps(req.trigger_condition) if req.trigger_condition is not None else None
+        act_json = json.dumps(req.action_payload) if req.action_payload is not None else None
+        sql = """
+            DO $$
+            DECLARE
+                v_success BOOLEAN;
+                v_rule JSONB;
+            BEGIN
+                CALL sp_update_automation_rule(
+                    %s::UUID, %s::UUID, %s, %s, %s, %s,
+                    %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s,
+                    v_success, v_rule
+                );
+            END $$;
+        """
+        await exec_sql(sql, (sid, automation_id, req.name, req.description, req.trigger_type, req.category, loc_json, tgt_json, cond_json, act_json, req.is_active))
+        rows = await exec_sql("SELECT fn_list_automation_rules(%s::UUID, %s, NULL, NULL, NULL, NULL, 'created_at', 'DESC', 1, 1);", (sid, req.name or automation_id))
+        res = rows[0]["fn_list_automation_rules"] if rows else {}
+        updated = res.get("rules", [None])[0]
+        return {"success": True, "automation": updated}
     except Exception as e:
         logger.error(f"[Update Automation Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1663,15 +1672,19 @@ async def delete_automation(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """Delete an automation rule."""
+    """Delete an automation rule via sp_delete_automation_rule."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        rows = await exec_sql("DELETE FROM device_automation_rules WHERE id = %s AND school_id = %s RETURNING id;", (automation_id, sid))
-        if not rows:
-            raise HTTPException(status_code=404, detail="Automation rule not found")
+        sql = """
+            DO $$
+            DECLARE
+                v_success BOOLEAN;
+            BEGIN
+                CALL sp_delete_automation_rule(%s::UUID, %s::UUID, v_success);
+            END $$;
+        """
+        await exec_sql(sql, (sid, automation_id))
         return {"success": True, "message": "Automation rule deleted successfully"}
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"[Delete Automation Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1683,26 +1696,23 @@ async def duplicate_automation(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """Duplicate an automation rule."""
+    """Duplicate an automation rule via sp_duplicate_automation_rule."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        rows = await exec_sql("SELECT * FROM device_automation_rules WHERE id = %s AND school_id = %s;", (automation_id, sid))
-        if not rows:
-            raise HTTPException(status_code=404, detail="Automation rule not found")
-        orig = rows[0]
-        new_name = f"Copy of {orig['name']}"
-        cond_json = json.dumps(orig.get("trigger_condition") or {})
-        act_json = json.dumps(orig.get("action_payload") or {})
-        
-        ins_sql = """
-            INSERT INTO device_automation_rules (school_id, name, description, trigger_type, trigger_condition, action_payload, is_active)
-            VALUES (%s, %s, %s, %s, %s::jsonb, %s::jsonb, %s)
-            RETURNING *;
+        sql = """
+            DO $$
+            DECLARE
+                v_new_id UUID;
+                v_rule JSONB;
+            BEGIN
+                CALL sp_duplicate_automation_rule(%s::UUID, %s::UUID, v_new_id, v_rule);
+            END $$;
         """
-        ins_rows = await exec_sql(ins_sql, (sid, new_name, orig.get("description"), orig.get("trigger_type"), cond_json, act_json, True))
-        return {"success": True, "automation": ins_rows[0]}
-    except HTTPException:
-        raise
+        await exec_sql(sql, (sid, automation_id))
+        rows = await exec_sql("SELECT fn_list_automation_rules(%s::UUID, NULL, NULL, NULL, NULL, NULL, 'created_at', 'DESC', 1, 1);", (sid,))
+        res = rows[0]["fn_list_automation_rules"] if rows else {}
+        dup = res.get("rules", [None])[0]
+        return {"success": True, "automation": dup}
     except Exception as e:
         logger.error(f"[Duplicate Automation Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1714,26 +1724,17 @@ async def test_automation_rule(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """Test and simulate an automation rule against live telemetry."""
+    """Test and simulate an automation rule against live telemetry using fn_test_automation_rule."""
+    sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        conds = (req.trigger_condition or {}).get("conditions", [])
-        actions = (req.action_payload or {}).get("actions", [])
-        
-        simulated_actions = []
-        for a in actions:
-            target = a.get("target", "Target Device")
-            act = a.get("action", "Trigger")
-            param = a.get("parameter", "")
-            simulated_actions.append(f"{target} ➔ {act} {param}".strip())
-            
-        evaluation = f"Evaluated {len(conds)} condition(s). All conditions passed against live campus IoT telemetry. {len(simulated_actions)} action(s) verified."
-        return {
-            "success": True,
-            "condition_met": True,
-            "evaluation": evaluation,
-            "simulated_actions": simulated_actions,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+        loc_json = json.dumps(req.location_scope or {})
+        tgt_json = json.dumps(req.target_scope or {})
+        cond_json = json.dumps(req.trigger_condition or {})
+        act_json = json.dumps(req.action_payload or {})
+        sql = "SELECT fn_test_automation_rule(%s::UUID, %s::UUID, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb);"
+        rows = await exec_sql(sql, (sid, req.rule_id if req.rule_id else None, loc_json, tgt_json, cond_json, act_json))
+        res = rows[0]["fn_test_automation_rule"] if rows else {}
+        return {"success": True, **res}
     except Exception as e:
         logger.error(f"[Test Automation Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1745,20 +1746,75 @@ async def toggle_automation(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """Toggle automation rule active status."""
+    """Toggle automation rule active status via sp_toggle_automation_rule."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        rows = await exec_sql(
-            "UPDATE device_automation_rules SET is_active = NOT is_active, updated_at = NOW() WHERE id = %s AND school_id = %s RETURNING id, is_active;",
-            (automation_id, sid)
-        )
-        if not rows:
-            raise HTTPException(status_code=404, detail="Automation rule not found")
-        return {"success": True, "automation": rows[0]}
-    except HTTPException:
-        raise
+        sql = """
+            DO $$
+            DECLARE
+                v_success BOOLEAN;
+                v_is_active BOOLEAN;
+            BEGIN
+                CALL sp_toggle_automation_rule(%s::UUID, %s::UUID, v_success, v_is_active);
+            END $$;
+        """
+        await exec_sql(sql, (sid, automation_id))
+        rows = await exec_sql("SELECT fn_list_automation_rules(%s::UUID, %s, NULL, NULL, NULL, NULL, 'created_at', 'DESC', 1, 1);", (sid, automation_id))
+        res = rows[0]["fn_list_automation_rules"] if rows else {}
+        rule = res.get("rules", [{}])[0]
+        return {"success": True, "automation": rule}
     except Exception as e:
         logger.error(f"[Toggle Automation Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/automations/bulk")
+async def bulk_automation_action(
+    req: BulkAutomationActionRequest,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    """Execute bulk batch action (enable, disable, delete, run) on selected automation rules."""
+    sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    try:
+        sql = """
+            DO $$
+            DECLARE
+                v_success BOOLEAN;
+                v_affected INT;
+            BEGIN
+                CALL sp_bulk_automation_rules_action(%s::UUID, %s::UUID[], %s, v_success, v_affected);
+            END $$;
+        """
+        await exec_sql(sql, (sid, req.rule_ids, req.action))
+        return {"success": True, "message": f"Bulk {req.action} applied to {len(req.rule_ids)} rules"}
+    except Exception as e:
+        logger.error(f"[Bulk Automation Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/automations/{automation_id}/execute")
+async def execute_automation_endpoint(
+    automation_id: str,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    """Immediately execute an automation rule on real campus devices via sp_execute_automation_rule."""
+    sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    try:
+        sql = """
+            DO $$
+            DECLARE
+                v_success BOOLEAN;
+                v_summary JSONB;
+            BEGIN
+                CALL sp_execute_automation_rule(%s::UUID, %s::UUID, v_success, v_summary);
+            END $$;
+        """
+        await exec_sql(sql, (sid, automation_id))
+        return {"success": True, "message": "Automation rule executed successfully"}
+    except Exception as e:
+        logger.error(f"[Execute Automation Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2005,38 +2061,28 @@ async def get_automation_cron_status(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Get the live status and metrics of the automation cron engine."""
-    sid = school_id or "11111111-1111-1111-1111-111111111111"
+    """Get the live status and metrics of the automation cron engine via fn_automation_rules_kpis."""
+    sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        stats = await exec_sql(
-            """
-            SELECT 
-                COUNT(*) FILTER (WHERE is_active = TRUE) as active_rules,
-                COALESCE(SUM(execution_count), 0) as total_executions,
-                MAX(last_triggered_at) as last_triggered_at
-            FROM device_automation_rules
-            WHERE (school_id = %s OR %s IS NULL);
-            """,
-            (sid, sid)
-        )
-        row = stats[0] if stats else {}
+        rows = await exec_sql("SELECT fn_automation_rules_kpis(%s::UUID);", (sid,))
+        kpis = rows[0]["fn_automation_rules_kpis"] if rows else {}
         return {
             "success": True,
             "is_active": True,
             "interval_seconds": 60,
-            "active_rules_count": row.get("active_rules", 0),
-            "total_executions": int(row.get("total_executions") or 0),
-            "last_run_at": str(row.get("last_triggered_at") or _cron_stats["last_run_at"] or ""),
-            "total_runs": _cron_stats["total_runs"] or int(row.get("total_executions") or 0),
+            "active_rules_count": kpis.get("active_rules", 0),
+            "total_executions": int(kpis.get("total_executions") or 0),
+            "last_run_at": str(kpis.get("last_cron_run") or _cron_stats["last_run_at"] or ""),
+            "total_runs": _cron_stats["total_runs"] or int(kpis.get("total_executions") or 0),
+            "kpis": kpis
         }
     except Exception as e:
         logger.error(f"[Cron Status Error]: {e}")
         return {
-            "success": True,
+            "success": False,
+            "error": str(e),
             "is_active": True,
             "interval_seconds": 60,
-            "last_run_at": _cron_stats["last_run_at"],
-            "total_runs": _cron_stats["total_runs"]
         }
 
 
@@ -3061,20 +3107,7 @@ async def create_custom_scene(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/{device_id}")
-async def delete_device(
-    device_id: str,
-    school_id: Optional[str] = Query(None),
-    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
-):
-    """Soft delete a device."""
-    sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
-    try:
-        await exec_sql("UPDATE devices SET deleted_at = NOW() WHERE id = %s AND school_id = %s;", (device_id, sid), fetch=False)
-        return {"success": True, "message": "Device deleted successfully"}
-    except Exception as e:
-        logger.error(f"[Delete Device Error]: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @router.get("/export")
@@ -3146,6 +3179,22 @@ async def get_types_and_profiles_kpis(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/categories")
+async def get_device_categories(
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Return distinct active device categories dynamically from the database."""
+    sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    try:
+        rows = await exec_sql("SELECT fn_get_device_categories(%s::UUID) as categories;", (sid,))
+        cats = rows[0]["categories"] if rows and rows[0].get("categories") else []
+        return {"categories": cats}
+    except Exception as e:
+        logger.error(f"[Get Device Categories Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/types")
 async def list_device_types(
     category: Optional[str] = Query(None),
@@ -3153,14 +3202,16 @@ async def list_device_types(
     search: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
+    sort_by: Optional[str] = Query("created_at"),
+    sort_order: Optional[str] = Query("asc"),
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """List device types with pagination, category filtering, search, and profile counts."""
+    """List device types with pagination, category filtering, search, database-driven sorting, and profile counts."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        sql = "SELECT fn_device_types_list(%s::UUID, %s, %s, %s, %s, %s) as result;"
-        rows = await exec_sql(sql, (sid, category, status, search, page, page_size))
+        sql = "SELECT fn_device_types_list(%s::UUID, %s, %s, %s, %s, %s, %s, %s) as result;"
+        rows = await exec_sql(sql, (sid, category, status, search, page, page_size, sort_by, sort_order))
         res = rows[0]["result"] if rows and rows[0].get("result") else {}
         return {
             "types": res.get("items", []),
@@ -3171,6 +3222,41 @@ async def list_device_types(
         }
     except Exception as e:
         logger.error(f"[List Device Types Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/types/bulk-delete")
+async def bulk_delete_device_types(
+    req: BulkTypeActionRequest,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Bulk deactivate/delete device types."""
+    sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    try:
+        rows = await exec_sql("SELECT sp_bulk_delete_device_types(%s::UUID, %s::UUID[]) as result;", (sid, req.type_ids))
+        res = rows[0]["result"] if rows else {}
+        return res
+    except Exception as e:
+        logger.error(f"[Bulk Delete Device Types Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/types/bulk-status")
+async def bulk_toggle_device_types_status(
+    req: BulkTypeActionRequest,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Bulk activate or deactivate device types."""
+    sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    try:
+        is_active = True if req.is_active is None else req.is_active
+        rows = await exec_sql("SELECT sp_bulk_toggle_device_types_status(%s::UUID, %s::UUID[], %s::BOOLEAN) as result;", (sid, req.type_ids, is_active))
+        res = rows[0]["result"] if rows else {}
+        return res
+    except Exception as e:
+        logger.error(f"[Bulk Toggle Device Types Status Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -3429,32 +3515,26 @@ async def list_device_profiles(
     profile_type: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    sort_by: Optional[str] = Query("name"),
+    sort_order: Optional[str] = Query("asc"),
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """List device profiles (both default and custom) across device types."""
+    """List device profiles (both default and custom) across device types using stored procedure."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        sql = """
-            SELECT 
-                dp.*,
-                dt.name as device_type_name,
-                dt.code as device_type_code,
-                dt.icon as device_type_icon,
-                dt.color as device_type_color,
-                COALESCE(dc.name, dt.system_category, 'General') as category_name
-            FROM device_profiles dp
-            JOIN device_types dt ON dp.device_type_id = dt.id
-            LEFT JOIN device_categories dc ON dt.category_id = dc.id
-            WHERE dp.school_id = %s::UUID
-              AND (%s IS NULL OR dp.device_type_id = %s::UUID)
-              AND (%s IS NULL OR dp.profile_type = %s)
-              AND (%s IS NULL OR dp.status ILIKE %s)
-              AND (%s IS NULL OR dp.name ILIKE '%%' || %s || '%%' OR dp.code ILIKE '%%' || %s || '%%')
-            ORDER BY dp.is_default DESC, dp.usage_count DESC, dp.name ASC;
-        """
-        rows = await exec_sql(sql, (sid, device_type_id, device_type_id, profile_type, profile_type, status, status, search, search, search))
-        return {"profiles": rows, "total": len(rows)}
+        sql = "SELECT fn_device_profiles_list(%s::UUID, %s::UUID, %s, %s, %s, %s, %s, %s, %s) as result;"
+        rows = await exec_sql(sql, (sid, device_type_id, profile_type, status, search, page, page_size, sort_by, sort_order))
+        res = rows[0]["result"] if rows and rows[0].get("result") else {}
+        return {
+            "profiles": res.get("items", []),
+            "total": res.get("total_count", 0),
+            "page": res.get("page", page),
+            "page_size": res.get("page_size", page_size),
+            "total_pages": res.get("total_pages", 1)
+        }
     except Exception as e:
         logger.error(f"[List Device Profiles Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -3982,30 +4062,16 @@ async def get_locations_mapping_kpis(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Retrieve high-level KPIs for campus spatial mapping."""
+    """Retrieve high-level KPIs for campus spatial mapping via fn_get_locations_kpis."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        rows = await exec_sql("SELECT fn_locations_mapping_kpis(%s) AS kpis;", (sid,))
+        rows = await exec_sql("SELECT fn_get_locations_kpis(%s::UUID) AS kpis;", (sid,))
         if rows and rows[0].get("kpis"):
             return {"success": True, "data": rows[0]["kpis"]}
     except Exception as e:
         logger.error(f"[Location KPIs Error]: {e}")
-    
-    return {
-        "success": True,
-        "data": {
-            "buildings": 6,
-            "floors": 42,
-            "rooms": 276,
-            "total_devices": 8742,
-            "mapped_devices": 8296,
-            "mapped_pct": 95.0,
-            "unmapped_devices": 446,
-            "unmapped_pct": 5.0,
-            "locations_with_devices": 268,
-            "coverage_pct": 97.1
-        }
-    }
+        raise HTTPException(status_code=500, detail=str(e))
+    return {"success": True, "data": {}}
 
 
 @router.get("/locations/hierarchy")
@@ -4013,122 +4079,13 @@ async def get_locations_hierarchy(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Retrieve full hierarchical tree of campus, buildings, and floors."""
+    """Retrieve full hierarchical tree of campus, buildings, and floors via fn_get_locations_hierarchy."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        b_rows = await exec_sql("""
-            SELECT id, name, code, total_floors, building_type
-            FROM buildings
-            WHERE school_id = %s AND deleted_at IS NULL
-            ORDER BY 
-                CASE 
-                    WHEN POSITION('Admin' IN name) > 0 THEN 1
-                    WHEN POSITION('Academic Block (A)' IN name) > 0 THEN 2
-                    WHEN POSITION('Academic' IN name) > 0 THEN 3
-                    WHEN POSITION('Lab' IN name) > 0 THEN 4
-                    WHEN POSITION('Library' IN name) > 0 THEN 5
-                    WHEN POSITION('Auditorium' IN name) > 0 THEN 6
-                    WHEN POSITION('Sports' IN name) > 0 THEN 7
-                    ELSE 8
-                END;
-        """, (sid,))
-
-        f_rows = await exec_sql("""
-            SELECT f.id, f.building_id, f.name, f.floor_code, f.floor_level,
-                   COUNT(d.id) AS device_count,
-                   (SELECT COUNT(*) FROM rooms r WHERE r.floor_id = f.id AND r.deleted_at IS NULL) AS room_count
-            FROM building_floors f
-            LEFT JOIN devices d ON d.floor_id = f.id AND d.deleted_at IS NULL
-            WHERE f.school_id = %s AND f.deleted_at IS NULL
-            GROUP BY f.id, f.building_id, f.name, f.floor_code, f.floor_level
-            ORDER BY f.floor_level ASC;
-        """, (sid,))
-
-        # Fetch all active rooms grouped by floor
-        r_rows = await exec_sql("""
-            SELECT r.id, r.floor_id, r.name, r.room_number, r.room_type,
-                   (SELECT COUNT(*) FROM devices d WHERE d.room_id = r.id AND d.deleted_at IS NULL) AS dev_count
-            FROM rooms r
-            WHERE r.school_id = %s AND r.deleted_at IS NULL
-            ORDER BY r.room_number ASC;
-        """, (sid,))
-
-        rooms_by_floor: Dict[str, List[Dict[str, Any]]] = {}
-        for r in r_rows:
-            fid = str(r["floor_id"])
-            if fid not in rooms_by_floor:
-                rooms_by_floor[fid] = []
-            rooms_by_floor[fid].append({
-                "id": str(r["id"]),
-                "name": f"{r['room_number']} ({r['name']})",
-                "code": r["room_number"],
-                "room_name": r["name"],
-                "room_type": r["room_type"],
-                "floor_id": fid,
-                "device_count": int(r.get("dev_count") or 0),
-                "room_count": 0,
-                "level": 3,
-                "type": "room",
-                "children": []
-            })
-
-        floors_by_bldg: Dict[str, List[Dict[str, Any]]] = {}
-        for f in f_rows:
-            bid = str(f["building_id"])
-            fid = str(f["id"])
-            if bid not in floors_by_bldg:
-                floors_by_bldg[bid] = []
-            
-            f_rooms = rooms_by_floor.get(fid, [])
-
-            # Formulate accurate counts matching UI design
-            d_count = int(f.get("device_count") or 0)
-            r_count = len(f_rooms) if f_rooms else int(f.get("room_count") or 0)
-            if "Academic Block (A)" in str(f.get("building_id")):
-                if f["floor_level"] == 0:
-                    d_count = d_count or 12
-                elif f["floor_level"] == 1:
-                    d_count = d_count or 14
-                elif f["floor_level"] == 2:
-                    d_count = d_count or 10
-            
-            floors_by_bldg[bid].append({
-                "id": fid,
-                "building_id": bid,
-                "name": f["name"],
-                "code": f["floor_code"],
-                "level": f["floor_level"],
-                "device_count": d_count if d_count > 0 else (len(f_rooms) if len(f_rooms) > 0 else (8 if f["floor_level"] == 0 else 6)),
-                "room_count": r_count if r_count > 0 else (8 if f["floor_level"] == 0 else 6),
-                "type": "floor",
-                "children": f_rooms
-            })
-
-        building_nodes = []
-        for b in b_rows:
-            bid = str(b["id"])
-            bfloors = floors_by_bldg.get(bid, [])
-            total_devs = sum(f["device_count"] for f in bfloors)
-            building_nodes.append({
-                "id": bid,
-                "name": b["name"],
-                "code": b["code"],
-                "building_type": b["building_type"],
-                "device_count": total_devs,
-                "type": "building",
-                "children": bfloors
-            })
-
-        return {
-            "success": True,
-            "tree": {
-                "id": sid,
-                "name": "Greenwood High School",
-                "type": "campus",
-                "total_buildings": len(building_nodes),
-                "children": building_nodes
-            }
-        }
+        rows = await exec_sql("SELECT fn_get_locations_hierarchy(%s::UUID) AS result;", (sid,))
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": True, "tree": {"id": sid, "name": "Greenwood High School", "type": "campus", "total_buildings": 0, "children": []}}
     except Exception as e:
         logger.error(f"[Locations Hierarchy Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -4141,86 +4098,14 @@ async def get_location_details(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Retrieve detailed specifications and child resources for selected location."""
+    """Retrieve detailed specifications and child resources for selected location via fn_get_location_details."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
-    target_floor_id = floor_id or "b8b4c4de-11e1-4d42-b4ad-27b86c8c823a"
-    
+    target_floor_id = floor_id or "d1b49946-edcc-46e0-9d26-57c09dbb6306"
     try:
-        f_rows = await exec_sql("""
-            SELECT f.id, f.name AS floor_name, f.floor_code, f.floor_level,
-                   b.id AS building_id, b.name AS building_name, b.code AS building_code
-            FROM building_floors f
-            JOIN buildings b ON b.id = f.building_id
-            WHERE f.id = %s;
-        """, (target_floor_id,))
-        
-        b_name = f_rows[0]["building_name"] if f_rows else "Academic Block (A)"
-        f_name = f_rows[0]["floor_name"] if f_rows else "First Floor"
-        f_level = f_rows[0]["floor_level"] if f_rows else 1
-
-        r_rows = await exec_sql("""
-            SELECT id, room_number, name, room_type, max_capacity, operational_status
-            FROM rooms
-            WHERE floor_id = %s AND deleted_at IS NULL
-            ORDER BY room_number ASC;
-        """, (target_floor_id,))
-
-        rooms_list = [
-            {
-                "id": str(r["id"]),
-                "room_number": r["room_number"],
-                "name": r["name"],
-                "room_type": r["room_type"],
-                "capacity": r["max_capacity"],
-                "status": r["operational_status"]
-            }
-            for r in r_rows
-        ]
-
-        # Assigned groups
-        g_rows = await exec_sql("""
-            SELECT id, name, code, group_type, member_count
-            FROM device_groups
-            WHERE (floor_id = %s OR floor_id IS NULL) AND status = 'active'
-            ORDER BY member_count DESC
-            LIMIT 8;
-        """, (target_floor_id,))
-
-        assigned_groups = [
-            {
-                "id": str(g["id"]),
-                "name": g["name"],
-                "code": g["code"],
-                "type": g["group_type"],
-                "device_count": g["member_count"]
-            }
-            for g in g_rows
-        ]
-
-        return {
-            "success": True,
-            "data": {
-                "id": target_floor_id,
-                "title": f"{b_name} – {f_name}",
-                "building_id": str(f_rows[0]["building_id"]) if f_rows else None,
-                "building_name": b_name,
-                "location_type": "Floor",
-                "parent_location": b_name,
-                "floor_no": f_level,
-                "status": "Active",
-                "total_rooms": len(rooms_list) if len(rooms_list) >= 14 else 14,
-                "mapped_devices": 132,
-                "unmapped_devices": 4,
-                "groups_assigned": 8,
-                "profiles_in_use": 5,
-                "coverage_pct": 97.1,
-                "image_url": "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=600&q=80",
-                "rooms": rooms_list,
-                "assigned_groups": assigned_groups,
-                "automations_count": 3,
-                "scenes_count": 2
-            }
-        }
+        rows = await exec_sql("SELECT fn_get_location_details(%s::UUID, %s::UUID) AS result;", (target_floor_id, sid))
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": True, "data": None}
     except Exception as e:
         logger.error(f"[Location Details Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -4236,150 +4121,50 @@ async def get_location_mapped_devices(
     profile_id: Optional[str] = Query("All"),
     mapping_status: Optional[str] = Query("All"),
     search: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query("device_name"),
+    sort_order: Optional[str] = Query("ASC"),
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Retrieve paginated and filtered list of mapped/unmapped devices for location."""
+    """Retrieve paginated, filtered, and sorted devices for location via fn_get_location_devices."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
-    target_floor_id = floor_id or "b8b4c4de-11e1-4d42-b4ad-27b86c8c823a"
+    fid = None if (not floor_id or floor_id.lower() in ("all", "none")) else floor_id
+    bid = None if (not building_id or building_id.lower() in ("all", "none")) else building_id
+    rid = None if (not room_id or room_id.lower() in ("all", "none")) else room_id
 
     try:
-        where_clauses = ["d.school_id = %s", "d.deleted_at IS NULL"]
-        params: List[Any] = [sid]
+        rows = await exec_sql("""
+            SELECT fn_get_location_devices(
+                p_school_id := %s::UUID,
+                p_floor_id := %s::UUID,
+                p_building_id := %s::UUID,
+                p_room_id := %s::UUID,
+                p_device_type := %s,
+                p_group_id := %s,
+                p_profile_id := %s,
+                p_mapping_status := %s,
+                p_search := %s,
+                p_sort_by := %s,
+                p_sort_order := %s,
+                p_page := %s,
+                p_limit := %s
+            ) AS result;
+        """, (sid, fid, bid, rid, device_type, group_id, profile_id, mapping_status, search, sort_by or "device_name", sort_order or "ASC", page, limit))
 
-        if target_floor_id and target_floor_id != "all":
-            where_clauses.append("d.floor_id = %s")
-            params.append(target_floor_id)
-
-        if room_id and room_id != "all":
-            where_clauses.append("d.room_id = %s")
-            params.append(room_id)
-
-        if device_type and device_type != "All" and not device_type.startswith("All"):
-            where_clauses.append("(dt.name ILIKE %s OR dt.code ILIKE %s)")
-            params.extend([f"%{device_type}%", f"%{device_type}%"])
-
-        if group_id and group_id != "All" and not group_id.startswith("All"):
-            where_clauses.append("(d.id IN (SELECT device_id FROM device_group_members WHERE group_id::text = %s) OR d.id IN (SELECT dgm.device_id FROM device_group_members dgm JOIN device_groups dg ON dg.id = dgm.group_id WHERE dg.name ILIKE %s))")
-            params.extend([group_id, f"%{group_id}%"])
-
-        if profile_id and profile_id != "All" and not profile_id.startswith("All"):
-            where_clauses.append("(d.profile_id::text = %s OR dt.id IN (SELECT device_type_id FROM device_profiles WHERE id::text = %s OR name ILIKE %s))")
-            params.extend([profile_id, profile_id, f"%{profile_id}%"])
-
-        if mapping_status and mapping_status != "All" and not mapping_status.startswith("All"):
-            if mapping_status.lower() == "mapped":
-                where_clauses.append("d.room_id IS NOT NULL")
-            elif mapping_status.lower() == "unmapped":
-                where_clauses.append("d.room_id IS NULL")
-
-        if search:
-            where_clauses.append("(d.device_name ILIKE %s OR d.device_code ILIKE %s OR r.room_number ILIKE %s)")
-            params.extend([f"%{search}%", f"%{search}%", f"%{search}%"])
-
-        where_sql = " AND ".join(where_clauses)
-
-        # Count total devices
-        count_rows = await exec_sql(f"""
-            SELECT COUNT(*) AS total
-            FROM devices d
-            LEFT JOIN device_types dt ON dt.id = d.device_type_id
-            LEFT JOIN rooms r ON r.id = d.room_id
-            WHERE {where_sql};
-        """, tuple(params))
-        total_count = count_rows[0]["total"] if count_rows else 0
-
-        # Paginated fetch
-        offset = (page - 1) * limit
-        data_params = list(params) + [limit, offset]
-
-        rows = await exec_sql(f"""
-            SELECT d.id, d.device_name, d.device_code, d.is_online, d.power_state, d.operational_status,
-                   dt.name AS device_type_name, dt.code AS device_type_code, dt.icon AS device_type_icon,
-                   r.id AS room_id, r.room_number, r.name AS room_name,
-                   b.name AS building_name, f.name AS floor_name, f.floor_code
-            FROM devices d
-            LEFT JOIN device_types dt ON dt.id = d.device_type_id
-            LEFT JOIN rooms r ON r.id = d.room_id
-            LEFT JOIN buildings b ON b.id = d.building_id
-            LEFT JOIN building_floors f ON f.id = d.floor_id
-            WHERE {where_sql}
-            ORDER BY 
-                CASE 
-                    WHEN d.device_code = 'CAM-A1-101' THEN 1
-                    WHEN d.device_code = 'LIGHT-A1-101' THEN 2
-                    WHEN d.device_code = 'AC-A1-101' THEN 3
-                    WHEN d.device_code = 'PRJ-A1-102' THEN 4
-                    WHEN d.device_code = 'AP-A1-1F-01' THEN 5
-                    WHEN d.device_code = 'SPK-A1-1F-01' THEN 6
-                    ELSE 7
-                END, d.created_at ASC
-            LIMIT %s OFFSET %s;
-        """, tuple(data_params))
-
-        items = []
-        for r in rows:
-            # Format room display and location path
-            r_num = r["room_number"] or "Unassigned"
-            r_name = r["room_name"] or ""
-            space_label = f"{r_num} ({r_name})" if r_name and r_name != r_num else r_num
-            b_name = r["building_name"] or "Academic Block (A)"
-            f_code = r["floor_code"] or "1F"
-            loc_path = f"{b_name} > {f_code}"
-            
-            # Room space formatting
-            r_num = r["room_number"] or "Unassigned"
-            r_name = r["room_name"] or ""
-            if r_num == "A1-Common Area" or not r_name or r_name == r_num:
-                space_label = r_num
-            else:
-                space_label = f"{r_num} ({r_name})"
-
-            b_name = r["building_name"] or "Academic Block (A)"
-            f_code = r["floor_code"] or "1F"
-            loc_path = f"{b_name} > {f_code}"
-            
-            # Category formatting
-            d_type = r["device_type_name"] or "Device"
-            code = str(r.get("device_type_code") or "").lower()
-            if code in ["ac", "hvac", "air_conditioner"]:
-                d_type = "HVAC (AC)"
-            elif "speaker" in code or "audio" in code:
-                d_type = "Audio / Speaker"
-            elif "access_point" in code or "wifi" in code:
-                d_type = "Access Point"
-            elif "cctv" in code:
-                d_type = "CCTV"
-            elif "light" in code:
-                d_type = "Lighting"
-            elif "proj" in code:
-                d_type = "Projector"
-            elif "fan" in code:
-                d_type = "Fan"
-
-            items.append({
-                "id": str(r["id"]),
-                "device_name": r["device_name"],
-                "device_code": r["device_code"],
-                "device_type": d_type,
-                "device_type_code": r["device_type_code"] or "general",
-                "room_id": str(r["room_id"]) if r["room_id"] else None,
-                "room_space": space_label,
-                "location_path": loc_path,
-                "mapping_status": "Mapped" if r["room_id"] else "Unmapped",
-                "is_online": r["is_online"],
-                "power_state": r["power_state"]
-            })
-
-        return {
-            "success": True,
-            "total": total_count,
-            "page": page,
-            "limit": limit,
-            "devices": items
-        }
+        if rows and rows[0].get("result"):
+            res = rows[0]["result"]
+            data = res.get("data", {})
+            return {
+                "success": True,
+                "total": data.get("total", 0),
+                "page": data.get("page", page),
+                "limit": data.get("limit", limit),
+                "total_pages": data.get("total_pages", 1),
+                "devices": data.get("devices", [])
+            }
+        return {"success": True, "total": 0, "page": page, "limit": limit, "devices": []}
     except Exception as e:
         logger.error(f"[Locations Devices Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -4391,7 +4176,7 @@ async def map_devices_to_location(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Assign devices to a building, floor, and room location."""
+    """Assign devices to a building, floor, and room location via sp_bulk_map_devices."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     user_id = current_user.get("id") if current_user else None
 
@@ -4399,38 +4184,20 @@ async def map_devices_to_location(
         raise HTTPException(status_code=400, detail="No devices provided for mapping")
 
     try:
-        for did in req.device_ids:
-            # Update device record
-            await exec_sql("""
-                UPDATE devices 
-                SET building_id = %s, floor_id = %s, room_id = %s, updated_at = now()
-                WHERE id = %s AND school_id = %s;
-            """, (req.building_id, req.floor_id, req.room_id, did, sid), fetch=False)
-
-            # Upsert into location_device_assignments
-            await exec_sql("""
-                INSERT INTO location_device_assignments (
-                    school_id, device_id, building_id, floor_id, room_id, 
-                    mount_type, mount_height_meters, asset_tag, install_notes, mapped_by, status
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Mapped')
-                ON CONFLICT (device_id, is_primary) DO UPDATE SET 
-                    building_id = EXCLUDED.building_id,
-                    floor_id = EXCLUDED.floor_id,
-                    room_id = EXCLUDED.room_id,
-                    mount_type = EXCLUDED.mount_type,
-                    mount_height_meters = EXCLUDED.mount_height_meters,
-                    asset_tag = EXCLUDED.asset_tag,
-                    install_notes = EXCLUDED.install_notes,
-                    mapped_at = now(),
-                    status = 'Mapped';
-            """, (sid, did, req.building_id, req.floor_id, req.room_id, req.mount_type, req.mount_height_meters, req.asset_tag, req.notes, user_id), fetch=False)
-
-            # Record history
-            await exec_sql("""
-                INSERT INTO location_device_assignment_history (
-                    school_id, device_id, action, to_building_id, to_floor_id, to_room_id, changed_by, notes
-                ) VALUES (%s, %s, 'MAP', %s, %s, %s, %s, %s);
-            """, (sid, did, req.building_id, req.floor_id, req.room_id, user_id, req.notes or "Mapped to location"), fetch=False)
+        await exec_sql("""
+            CALL sp_bulk_map_devices(
+                p_device_ids := %s::UUID[],
+                p_building_id := %s::UUID,
+                p_floor_id := %s::UUID,
+                p_room_id := %s::UUID,
+                p_school_id := %s::UUID,
+                p_user_id := %s::UUID,
+                p_mount_type := %s,
+                p_mount_height := %s,
+                p_asset_tag_prefix := %s,
+                p_notes := %s
+            );
+        """, (req.device_ids, req.building_id, req.floor_id, req.room_id, sid, user_id, req.mount_type or 'Wall', req.mount_height_meters or 1.8, req.asset_tag, req.notes), fetch=False)
 
         return {
             "success": True,
@@ -4448,7 +4215,7 @@ async def bulk_map_devices(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Bulk map multiple devices with sequential asset tag allocation."""
+    """Bulk map multiple devices with sequential asset tag allocation via sp_bulk_map_devices."""
     map_req = MapDeviceLocationRequest(
         device_ids=req.device_ids,
         building_id=req.building_id,
@@ -4468,7 +4235,7 @@ async def unmap_devices_from_location(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Unmap devices from physical room/floor."""
+    """Unmap devices from physical room/floor via sp_bulk_unmap_devices."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     user_id = current_user.get("id") if current_user else None
 
@@ -4476,36 +4243,14 @@ async def unmap_devices_from_location(
         raise HTTPException(status_code=400, detail="No devices provided for unmapping")
 
     try:
-        for did in req.device_ids:
-            # Query existing location for audit history
-            cur_rows = await exec_sql("SELECT building_id, floor_id, room_id FROM devices WHERE id = %s;", (did,))
-            from_b = cur_rows[0]["building_id"] if cur_rows else None
-            from_f = cur_rows[0]["floor_id"] if cur_rows else None
-            from_r = cur_rows[0]["room_id"] if cur_rows else None
-
-            # Reset room_id in devices
-            await exec_sql("""
-                UPDATE devices 
-                SET room_id = NULL, updated_at = now()
-                WHERE id = %s AND school_id = %s;
-            """, (did, sid), fetch=False)
-
-            # Update assignment status
-            await exec_sql("""
-                UPDATE location_device_assignments
-                SET status = 'Unmapped', updated_at = now()
-                WHERE device_id = %s;
-            """, (did,), fetch=False)
-
-            # Remove marker if present
-            await exec_sql("DELETE FROM floor_plan_markers WHERE device_id = %s;", (did,), fetch=False)
-
-            # Audit record
-            await exec_sql("""
-                INSERT INTO location_device_assignment_history (
-                    school_id, device_id, action, from_building_id, from_floor_id, from_room_id, changed_by, notes
-                ) VALUES (%s, %s, 'UNMAP', %s, %s, %s, %s, %s);
-            """, (sid, did, from_b, from_f, from_r, user_id, req.reason), fetch=False)
+        await exec_sql("""
+            CALL sp_bulk_unmap_devices(
+                p_device_ids := %s::UUID[],
+                p_school_id := %s::UUID,
+                p_user_id := %s::UUID,
+                p_reason := %s
+            );
+        """, (req.device_ids, sid, user_id, req.reason or "Unmapped from location"), fetch=False)
 
         return {
             "success": True,
@@ -4523,37 +4268,22 @@ async def move_device_to_location(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Relocate a device to a new physical room/floor."""
+    """Relocate a device to a new physical room/floor via sp_relocate_device."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     user_id = current_user.get("id") if current_user else None
 
     try:
-        cur_rows = await exec_sql("SELECT building_id, floor_id, room_id FROM devices WHERE id = %s;", (req.device_id,))
-        from_b = cur_rows[0]["building_id"] if cur_rows else None
-        from_f = cur_rows[0]["floor_id"] if cur_rows else None
-        from_r = cur_rows[0]["room_id"] if cur_rows else None
-
-        # Update device
         await exec_sql("""
-            UPDATE devices
-            SET building_id = %s, floor_id = %s, room_id = %s, updated_at = now()
-            WHERE id = %s AND school_id = %s;
-        """, (req.to_building_id, req.to_floor_id, req.to_room_id, req.device_id, sid), fetch=False)
-
-        # Update assignment
-        await exec_sql("""
-            UPDATE location_device_assignments
-            SET building_id = %s, floor_id = %s, room_id = %s, status = 'Mapped', updated_at = now()
-            WHERE device_id = %s;
-        """, (req.to_building_id, req.to_floor_id, req.to_room_id, req.device_id), fetch=False)
-
-        # Record history
-        await exec_sql("""
-            INSERT INTO location_device_assignment_history (
-                school_id, device_id, action, from_building_id, from_floor_id, from_room_id,
-                to_building_id, to_floor_id, to_room_id, changed_by, notes
-            ) VALUES (%s, %s, 'MOVE', %s, %s, %s, %s, %s, %s, %s, %s);
-        """, (sid, req.device_id, from_b, from_f, from_r, req.to_building_id, req.to_floor_id, req.to_room_id, user_id, req.reason), fetch=False)
+            CALL sp_relocate_device(
+                p_device_id := %s::UUID,
+                p_new_building_id := %s::UUID,
+                p_new_floor_id := %s::UUID,
+                p_new_room_id := %s::UUID,
+                p_school_id := %s::UUID,
+                p_user_id := %s::UUID,
+                p_reason := %s
+            );
+        """, (req.device_id, req.to_building_id, req.to_floor_id, req.to_room_id, sid, user_id, req.reason or "Relocated device"), fetch=False)
 
         return {"success": True, "message": "Device moved successfully"}
     except Exception as e:
@@ -4567,234 +4297,13 @@ async def get_floor_plan_and_markers(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Retrieve 2D floor plan asset, room spatial layouts, device markers, and category metrics."""
+    """Retrieve 2D floor plan asset, room spatial layouts, device markers, and synchronized category metrics via fn_get_floor_plan_and_markers."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        plan_rows = await exec_sql("""
-            SELECT id, title, version, dimensions_width, dimensions_height, scale_pixels_per_meter, rooms_layout
-            FROM floor_plan_assets
-            WHERE floor_id = %s AND is_active = true
-            LIMIT 1;
-        """, (floor_id,))
-
-        f_info = await exec_sql("""
-            SELECT f.id, f.name AS floor_name, b.id AS building_id, b.name AS building_name
-            FROM building_floors f
-            JOIN buildings b ON b.id = f.building_id
-            WHERE f.id = %s;
-        """, (floor_id,))
-        b_name = f_info[0]["building_name"] if f_info else "Academic Block (A)"
-        f_name = f_info[0]["floor_name"] if f_info else "First Floor"
-
-        if plan_rows:
-            plan_data = plan_rows[0]
-            rooms_layout = plan_data.get("rooms_layout") or []
-        else:
-            r_rows = await exec_sql("""
-                SELECT id, room_number, name, room_type
-                FROM rooms
-                WHERE floor_id = %s AND deleted_at IS NULL
-                ORDER BY room_number ASC;
-            """, (floor_id,))
-
-            rooms_layout = []
-            if r_rows:
-                n_rooms = len(r_rows)
-                if n_rooms <= 4:
-                    room_w = round((0.92 - (n_rooms - 1) * 0.02) / max(n_rooms, 1), 3)
-                    for i, r in enumerate(r_rows):
-                        x_pos = round(0.04 + i * (room_w + 0.02), 3)
-                        rooms_layout.append({
-                            "room_id": str(r["id"]),
-                            "code": r["room_number"],
-                            "name": r["name"],
-                            "x": x_pos,
-                            "y": 0.08,
-                            "w": room_w,
-                            "h": 0.36
-                        })
-                    rooms_layout.append({
-                        "room_id": "corridor",
-                        "code": "Corridor",
-                        "name": "Corridor",
-                        "x": 0.04,
-                        "y": 0.48,
-                        "w": 0.92,
-                        "h": 0.12
-                    })
-                else:
-                    k1 = (n_rooms + 1) // 2
-                    k2 = n_rooms - k1
-                    w1 = round((0.92 - (k1 - 1) * 0.02) / max(k1, 1), 3)
-                    for i in range(k1):
-                        r = r_rows[i]
-                        x_pos = round(0.04 + i * (w1 + 0.02), 3)
-                        rooms_layout.append({
-                            "room_id": str(r["id"]),
-                            "code": r["room_number"],
-                            "name": r["name"],
-                            "x": x_pos,
-                            "y": 0.08,
-                            "w": w1,
-                            "h": 0.36
-                        })
-                    rooms_layout.append({
-                        "room_id": "corridor",
-                        "code": "Corridor",
-                        "name": "Corridor",
-                        "x": 0.04,
-                        "y": 0.46,
-                        "w": 0.92,
-                        "h": 0.10
-                    })
-                    w2 = round((0.92 - (k2 - 1) * 0.02) / max(k2, 1), 3)
-                    for j in range(k2):
-                        r = r_rows[k1 + j]
-                        x_pos = round(0.04 + j * (w2 + 0.02), 3)
-                        rooms_layout.append({
-                            "room_id": str(r["id"]),
-                            "code": r["room_number"],
-                            "name": r["name"],
-                            "x": x_pos,
-                            "y": 0.58,
-                            "w": w2,
-                            "h": 0.36
-                        })
-            else:
-                rooms_layout = [
-                    {"room_id": "r1", "code": "R-101", "name": "Classroom", "x": 0.04, "y": 0.08, "w": 0.21, "h": 0.36},
-                    {"room_id": "r2", "code": "R-102", "name": "Classroom", "x": 0.27, "y": 0.08, "w": 0.21, "h": 0.36},
-                    {"room_id": "r3", "code": "R-103", "name": "Classroom", "x": 0.50, "y": 0.08, "w": 0.21, "h": 0.36},
-                    {"room_id": "r4", "code": "R-104", "name": "Classroom", "x": 0.73, "y": 0.08, "w": 0.23, "h": 0.36},
-                    {"room_id": "corridor", "code": "Corridor", "name": "Corridor", "x": 0.04, "y": 0.46, "w": 0.92, "h": 0.10},
-                ]
-
-            plan_data = {
-                "id": f"fp-{floor_id}",
-                "floor_id": floor_id,
-                "title": f"{b_name} – {f_name} Architectural Plan",
-                "dimensions_width": 1200.0,
-                "dimensions_height": 750.0,
-                "scale_pixels_per_meter": 25.0,
-                "rooms_layout": rooms_layout
-            }
-
-        # Fetch markers
-        marker_rows = await exec_sql("""
-            SELECT m.id, m.floor_plan_id, m.floor_id, m.room_id, m.device_id, m.pos_x, m.pos_y,
-                   m.rotation_degrees, m.marker_label,
-                   d.device_name, d.device_code, d.is_online, d.power_state,
-                   dt.name AS device_type_name, dt.code AS device_type_code, dt.icon AS device_type_icon
-            FROM floor_plan_markers m
-            JOIN devices d ON d.id = m.device_id
-            LEFT JOIN device_types dt ON dt.id = d.device_type_id
-            WHERE m.floor_id = %s AND m.is_active = true;
-        """, (floor_id,))
-
-        markers = []
-        cat_counts = {"CCTV": 0, "Lighting": 0, "HVAC": 0, "Projector": 0, "Access Point": 0, "Audio": 0}
-
-        for m in marker_rows:
-            d_type = m["device_type_name"] or "Device"
-            code = str(m.get("device_type_code") or "").lower()
-            if code in ["ac", "hvac", "air_conditioner"]:
-                d_type = "HVAC"
-            elif "speaker" in code or "audio" in code:
-                d_type = "Audio"
-            elif "access_point" in code or "wifi" in code:
-                d_type = "Access Point"
-            elif "cctv" in code:
-                d_type = "CCTV"
-            elif "light" in code:
-                d_type = "Lighting"
-            elif "proj" in code:
-                d_type = "Projector"
-
-            if d_type in cat_counts:
-                cat_counts[d_type] += 1
-
-            markers.append({
-                "id": str(m["id"]),
-                "device_id": str(m["device_id"]),
-                "device_name": m["device_name"],
-                "device_code": m["device_code"],
-                "marker_label": m["marker_label"] or m["device_code"],
-                "device_type": d_type,
-                "device_type_code": m["device_type_code"],
-                "pos_x": float(m["pos_x"]),
-                "pos_y": float(m["pos_y"]),
-                "rotation": float(m["rotation_degrees"] or 0),
-                "is_online": m["is_online"],
-                "power_state": m["power_state"],
-                "is_mapped": True,
-                "room_id": str(m.get("room_id") or "")
-            })
-
-        # If no explicit markers found, auto-generate markers from devices on this floor mapped to rooms
-        if not markers:
-            dev_floor_rows = await exec_sql("""
-                SELECT d.id, d.device_name, d.device_code, d.is_online, d.power_state, d.room_id,
-                       dt.name AS device_type_name, dt.code AS device_type_code, dt.icon AS device_type_icon
-                FROM devices d
-                LEFT JOIN device_types dt ON dt.id = d.device_type_id
-                WHERE d.floor_id = %s AND d.deleted_at IS NULL;
-            """, (floor_id,))
-
-            room_coords = {str(rm["room_id"]): rm for rm in rooms_layout if rm.get("room_id")}
-            for idx, d in enumerate(dev_floor_rows):
-                rm_id = str(d.get("room_id") or "")
-                rm = room_coords.get(rm_id)
-                pos_x = (rm["x"] + rm["w"] / 2.0) if rm else (0.1 + (idx % 6) * 0.14)
-                pos_y = (rm["y"] + rm["h"] / 2.0) if rm else (0.2 + (idx // 6) * 0.15)
-
-                d_type = d["device_type_name"] or "Device"
-                code = str(d.get("device_type_code") or "").lower()
-                if code in ["ac", "hvac", "air_conditioner"]:
-                    d_type = "HVAC"
-                elif "speaker" in code or "audio" in code:
-                    d_type = "Audio"
-                elif "access_point" in code or "wifi" in code:
-                    d_type = "Access Point"
-                elif "cctv" in code:
-                    d_type = "CCTV"
-                elif "light" in code:
-                    d_type = "Lighting"
-                elif "proj" in code:
-                    d_type = "Projector"
-
-                if d_type in cat_counts:
-                    cat_counts[d_type] += 1
-
-                markers.append({
-                    "id": f"marker-{d['id']}",
-                    "device_id": str(d["id"]),
-                    "device_name": d["device_name"],
-                    "device_code": d["device_code"],
-                    "marker_label": d["device_code"],
-                    "device_type": d_type,
-                    "device_type_code": d["device_type_code"],
-                    "pos_x": float(pos_x),
-                    "pos_y": float(pos_y),
-                    "rotation": 0.0,
-                    "is_online": d["is_online"],
-                    "power_state": d["power_state"],
-                    "is_mapped": True,
-                    "room_id": rm_id
-                })
-
-        return {
-            "success": True,
-            "floor_plan": plan_data,
-            "markers": markers,
-            "legend": {
-                "cctv": cat_counts["CCTV"] or 2,
-                "lighting": cat_counts["Lighting"] or 6,
-                "hvac": cat_counts["HVAC"] or 3,
-                "projector": cat_counts["Projector"] or 1,
-                "access_point": cat_counts["Access Point"] or 1,
-                "audio": cat_counts["Audio"] or 1
-            }
-        }
+        rows = await exec_sql("SELECT fn_get_floor_plan_and_markers(%s::UUID, %s::UUID) AS result;", (floor_id, sid))
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": False, "message": "Floor plan could not be loaded"}
     except Exception as e:
         logger.error(f"[Floor Plan Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -4807,30 +4316,15 @@ async def save_floor_plan_marker(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Save or reposition a device marker on the floor plan."""
+    """Save or reposition a device marker on the floor plan via sp_save_floor_plan_marker."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        plan_id = req.floor_plan_id
-        if not plan_id:
-            plan_rows = await exec_sql("SELECT id FROM floor_plan_assets WHERE floor_id = %s LIMIT 1;", (floor_id,))
-            plan_id = str(plan_rows[0]["id"]) if plan_rows else "a1111111-aaaa-1111-aaaa-111111111111"
-
-        rows = await exec_sql("""
-            INSERT INTO floor_plan_markers (
-                school_id, floor_plan_id, floor_id, room_id, device_id,
-                pos_x, pos_y, rotation_degrees, marker_label, is_active
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, true)
-            ON CONFLICT (floor_plan_id, device_id) DO UPDATE SET 
-                pos_x = EXCLUDED.pos_x,
-                pos_y = EXCLUDED.pos_y,
-                rotation_degrees = EXCLUDED.rotation_degrees,
-                marker_label = EXCLUDED.marker_label,
-                room_id = EXCLUDED.room_id,
-                updated_at = now()
-            RETURNING id, pos_x, pos_y;
-        """, (sid, plan_id, floor_id, req.room_id, req.device_id, req.pos_x, req.pos_y, req.rotation_degrees, req.marker_label))
-
-        return {"success": True, "marker": rows[0]}
+        await exec_sql(
+            "CALL sp_save_floor_plan_marker(%s::UUID, %s::UUID, %s::NUMERIC, %s::NUMERIC, %s::NUMERIC, %s, %s::UUID, %s::UUID, %s::UUID);",
+            (floor_id, req.device_id, req.pos_x, req.pos_y, req.rotation_degrees, req.marker_label, req.room_id, req.floor_plan_id, sid),
+            fetch=False
+        )
+        return {"success": True, "message": "Marker saved successfully"}
     except Exception as e:
         logger.error(f"[Save Marker Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -4841,9 +4335,13 @@ async def delete_floor_plan_marker(
     floor_id: str,
     marker_id: str
 ):
-    """Delete a marker from the floor plan."""
+    """Delete a marker from the floor plan via sp_delete_floor_plan_marker."""
     try:
-        await exec_sql("DELETE FROM floor_plan_markers WHERE id = %s AND floor_id = %s;", (marker_id, floor_id), fetch=False)
+        await exec_sql(
+            "CALL sp_delete_floor_plan_marker(%s::UUID, %s::UUID);",
+            (floor_id, marker_id),
+            fetch=False
+        )
         return {"success": True, "message": "Marker deleted successfully"}
     except Exception as e:
         logger.error(f"[Delete Marker Error]: {e}")
@@ -4905,37 +4403,44 @@ class LiveControlCommandRequest(BaseModel):
     payload: Dict[str, Any] = Field(default_factory=dict, description="Command parameters e.g. {'power': true}, {'temperature': 24}")
 
 
+class LiveControlBulkCommandRequest(BaseModel):
+    device_ids: List[str] = Field(..., description="List of device IDs to control")
+    command_type: str = Field(..., description="Command type to execute across all selected devices")
+    payload: Dict[str, Any] = Field(default_factory=dict, description="Command payload")
+
+
 @router.get("/live-control/kpis")
 async def get_live_control_kpis(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     """
-    Get the 6 live operational KPIs for Live Control top bar:
-    - Online Devices: 8,342 (95.4%)
-    - Offline Devices: 400 (4.6%)
-    - Controllable Now: 8,106
-    - Active Groups: 118
-    - Running Automations: 27
-    - Active Schedules: 63
+    Get the 6 live operational KPIs for Live Control top bar dynamically from database:
+    - Online Devices
+    - Offline Devices
+    - Controllable Now
+    - Active Groups
+    - Running Automations
+    - Active Schedules
     """
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        rows = await exec_sql("SELECT fn_live_control_kpis(%s) AS kpis;", (sid,))
+        rows = await exec_sql("SELECT fn_live_control_kpis(%s::UUID) AS kpis;", (sid,))
         if rows and rows[0].get("kpis"):
             return rows[0]["kpis"]
     except Exception as e:
         logger.error(f"[Live Control KPIs DB Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
     return {
-        "online_devices": 8342,
-        "online_percentage": 95.4,
-        "offline_devices": 400,
-        "offline_percentage": 4.6,
-        "controllable_now": 8106,
-        "active_groups": 118,
-        "running_automations": 27,
-        "active_schedules": 63
+        "online_devices": 0,
+        "online_percentage": 0.0,
+        "offline_devices": 0,
+        "offline_percentage": 0.0,
+        "controllable_now": 0,
+        "active_groups": 0,
+        "running_automations": 0,
+        "active_schedules": 0
     }
 
 
@@ -4949,113 +4454,43 @@ async def get_live_control_devices(
     category: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query("device_name"),
+    sort_order: Optional[str] = Query("asc"),
+    page: Optional[int] = Query(1),
+    page_size: Optional[int] = Query(10),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     """
-    Get controllable devices for the selected location hierarchy with real-time state.
+    Get controllable devices for the selected location hierarchy with real-time state,
+    dynamic sorting from database, and server-side pagination via fn_live_control_devices.
     """
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        where_clauses = ["d.school_id = %s", "d.deleted_at IS NULL"]
-        params = [sid]
-
-        if room_id:
-            where_clauses.append("d.room_id = %s")
-            params.append(room_id)
-        elif floor_id:
-            where_clauses.append("d.floor_id = %s")
-            params.append(floor_id)
-        elif building_id:
-            where_clauses.append("d.building_id = %s")
-            params.append(building_id)
-
-        if device_type_id:
-            where_clauses.append("d.device_type_id = %s")
-            params.append(device_type_id)
-
-        if category and category.lower() != "all" and not category.lower().startswith("all"):
-            where_clauses.append("(dt.system_category ILIKE %s OR dt.name ILIKE %s)")
-            params.extend([f"%{category}%", f"%{category}%"])
-
-        if status and status.lower() != "all" and not status.lower().startswith("all"):
-            if status.lower() == "online":
-                where_clauses.append("d.is_online = true")
-            elif status.lower() == "offline":
-                where_clauses.append("d.is_online = false")
-
-        if search:
-            where_clauses.append("(d.device_name ILIKE %s OR d.device_code ILIKE %s OR r.name ILIKE %s OR r.room_number ILIKE %s)")
-            s_term = f"%{search}%"
-            params.extend([s_term, s_term, s_term, s_term])
-
-        where_sql = " AND ".join(where_clauses)
-
-        query = f"""
-            SELECT 
-                d.id, d.device_name, d.device_code, d.ip_address, d.mac_address,
-                d.mqtt_topic, d.is_online, d.power_state, d.current_state,
-                d.operational_status, d.rated_power_watts, d.notes,
-                d.building_id, b.name AS building_name,
-                d.floor_id, f.name AS floor_name,
-                d.room_id, r.name AS room_name, r.room_number,
-                d.device_type_id, dt.name AS device_type_name, dt.code AS device_type_code,
-                dt.icon AS device_type_icon, dt.color AS device_type_color, dt.system_category,
-                dp.name AS profile_name
-            FROM devices d
-            LEFT JOIN device_types dt ON dt.id = d.device_type_id
-            LEFT JOIN device_profiles dp ON dp.id = d.profile_id
-            LEFT JOIN buildings b ON b.id = d.building_id
-            LEFT JOIN building_floors f ON f.id = d.floor_id
-            LEFT JOIN rooms r ON r.id = d.room_id
-            WHERE {where_sql}
-            ORDER BY 
-                CASE 
-                    WHEN d.device_name ILIKE '%%Light%%' THEN 1
-                    WHEN d.device_name ILIKE '%%AC%%' OR d.device_name ILIKE '%%HVAC%%' THEN 2
-                    WHEN d.device_name ILIKE '%%Projector%%' THEN 3
-                    WHEN d.device_name ILIKE '%%Fan%%' THEN 4
-                    WHEN d.device_name ILIKE '%%Switch%%' THEN 5
-                    WHEN d.device_name ILIKE '%%CCTV%%' OR d.device_name ILIKE '%%Camera%%' THEN 6
-                    WHEN d.device_name ILIKE '%%Door%%' OR d.device_name ILIKE '%%Access%%' THEN 7
-                    WHEN d.device_name ILIKE '%%Speaker%%' OR d.device_name ILIKE '%%Audio%%' THEN 8
-                    ELSE 9
-                END,
-                d.device_name;
-        """
-
-        rows = await exec_sql(query, tuple(params))
-        devices = []
-        for r in rows:
-            c_state = r["current_state"] if isinstance(r["current_state"], dict) else {}
-            devices.append({
-                "id": str(r["id"]),
-                "device_name": r["device_name"],
-                "device_code": r["device_code"],
-                "ip_address": r["ip_address"] or "192.168.1.100",
-                "mac_address": r["mac_address"] or "00:1A:2B:3C:4D:5E",
-                "mqtt_topic": r["mqtt_topic"] or f"edu/{sid}/{r['device_code']}/command",
-                "is_online": bool(r["is_online"]),
-                "power_state": bool(r["power_state"]),
-                "current_state": c_state,
-                "operational_status": r["operational_status"] or "operational",
-                "rated_power_watts": float(r["rated_power_watts"] or 0),
-                "building_id": str(r["building_id"]) if r["building_id"] else None,
-                "building_name": r["building_name"] or "Academic Block (A)",
-                "floor_id": str(r["floor_id"]) if r["floor_id"] else None,
-                "floor_name": r["floor_name"] or "First Floor",
-                "room_id": str(r["room_id"]) if r["room_id"] else None,
-                "room_name": r["room_name"] or "Classroom",
-                "room_number": r["room_number"] or "A1-103",
-                "device_type_id": str(r["device_type_id"]) if r["device_type_id"] else None,
-                "device_type_name": r["device_type_name"] or "Generic Device",
-                "device_type_code": r["device_type_code"] or "generic",
-                "icon": r["device_type_icon"] or "devices",
-                "color": r["device_type_color"] or "#2563EB",
-                "system_category": r["system_category"] or "General",
-                "profile_name": r["profile_name"] or "Standard Profile"
-            })
-
-        return {"devices": devices, "total": len(devices)}
+        rows = await exec_sql(
+            """
+            SELECT fn_live_control_devices(
+                %s::UUID, %s::UUID, %s::UUID, %s::UUID, %s::UUID,
+                %s, %s, %s, %s, %s, %s, %s
+            ) AS result;
+            """,
+            (
+                sid,
+                building_id if building_id else None,
+                floor_id if floor_id else None,
+                room_id if room_id else None,
+                device_type_id if device_type_id else None,
+                category,
+                status,
+                search,
+                sort_by or "device_name",
+                sort_order or "asc",
+                page or 1,
+                page_size or 10
+            )
+        )
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"devices": [], "total": 0, "page": page, "page_size": page_size, "total_pages": 0}
     except Exception as e:
         logger.error(f"[Live Control Devices Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -5068,94 +4503,30 @@ async def execute_live_control_command(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     """
-    Execute real-time command on a device, synchronize PostgreSQL current_state,
-    record audit log in device_commands, and publish MQTT control packet.
+    Execute real-time command on a device via stored procedure sp_execute_live_control_command,
+    synchronize PostgreSQL current_state, record audit log in device_commands, and publish MQTT packet.
     """
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     uid = current_user.get("id") if current_user else None
 
     try:
-        # 1. Fetch current device details
-        dev_rows = await exec_sql(
-            "SELECT id, device_code, device_name, current_state, power_state FROM devices WHERE id = %s AND school_id = %s AND deleted_at IS NULL;",
-            (req.device_id, sid)
-        )
-        if not dev_rows:
-            raise HTTPException(status_code=404, detail="Device not found")
-
-        dev = dev_rows[0]
-        device_code = dev["device_code"]
-        current_state = dev["current_state"] if isinstance(dev["current_state"], dict) else {}
-
-        # 2. Merge command payload into current_state
-        updated_state = dict(current_state)
-        new_power = dev["power_state"]
-
-        if req.command_type in ["set_power", "turn_on", "turn_off"]:
-            p_val = req.payload.get("power", True if req.command_type == "turn_on" else False)
-            updated_state["power"] = p_val
-            new_power = p_val
-        elif req.command_type == "set_brightness":
-            updated_state["brightness"] = req.payload.get("brightness", 80)
-            updated_state["power"] = True
-            new_power = True
-        elif req.command_type == "set_temperature":
-            updated_state["temperature"] = req.payload.get("temperature", 24)
-        elif req.command_type == "set_mode":
-            updated_state["mode"] = req.payload.get("mode", "Cool")
-        elif req.command_type == "set_fan_speed":
-            updated_state["fan_speed"] = req.payload.get("fan_speed", "Medium")
-        elif req.command_type == "set_swing":
-            updated_state["swing"] = bool(req.payload.get("swing", True))
-        elif req.command_type == "quick_preset":
-            preset = req.payload.get("preset", "Classroom")
-            updated_state["quick_preset"] = preset
-            if preset == "Classroom":
-                updated_state["temperature"] = 24
-                updated_state["mode"] = "Cool"
-            elif preset == "Meeting":
-                updated_state["temperature"] = 22
-                updated_state["mode"] = "Cool"
-            elif preset == "Energy Save":
-                updated_state["temperature"] = 26
-                updated_state["mode"] = "Cool"
-        elif req.command_type == "set_channels":
-            updated_state["channels"] = req.payload.get("channels", [1, 2, 4])
-        elif req.command_type == "set_lock":
-            l_val = req.payload.get("status", "locked")
-            updated_state["status"] = l_val
-            updated_state["lock_state"] = (l_val == "locked")
-        elif req.command_type == "set_volume":
-            updated_state["volume"] = req.payload.get("volume", 65)
-        elif req.command_type == "set_input":
-            updated_state["input"] = req.payload.get("input", "HDMI 1")
-        else:
-            for k, v in req.payload.items():
-                updated_state[k] = v
-
-        # 3. Persist to DB
-        await exec_sql(
+        rows = await exec_sql(
             """
-            UPDATE devices 
-            SET current_state = %s, power_state = %s, updated_at = now()
-            WHERE id = %s AND school_id = %s;
+            CALL sp_execute_live_control_command(
+                %s::UUID, %s::UUID, %s, %s::JSONB, %s::UUID,
+                NULL, NULL, NULL, NULL, NULL
+            );
             """,
-            (json.dumps(updated_state), new_power, req.device_id, sid),
-            fetch=False
+            (sid, req.device_id, req.command_type, json.dumps(req.payload), uid)
         )
+        res = rows[0] if rows else {}
+        success = res.get("p_success", True)
+        msg = res.get("p_message", f"Command '{req.command_type}' applied")
+        device_code = res.get("p_device_code", "")
+        power_state = res.get("p_power_state", True)
+        updated_state = res.get("p_updated_state", {})
 
-        # 4. Insert into device_commands
-        await exec_sql(
-            """
-            INSERT INTO device_commands (
-                school_id, device_id, command_type, payload, status, executed_by, created_at, executed_at
-            ) VALUES (%s, %s, %s, %s, 'acknowledged', %s, now(), now());
-            """,
-            (sid, req.device_id, req.command_type, json.dumps(req.payload), uid),
-            fetch=False
-        )
-
-        # 5. Dispatch via MQTT
+        # Dispatch via MQTT
         mqtt_res = mqtt_service.publish_device_command(
             school_id=sid,
             device_code=device_code,
@@ -5164,18 +4535,49 @@ async def execute_live_control_command(
         )
 
         return {
-            "success": True,
-            "message": f"Command '{req.command_type}' applied to {dev['device_name']}",
+            "success": bool(success),
+            "message": msg,
             "device_id": req.device_id,
             "device_code": device_code,
-            "power_state": new_power,
-            "current_state": updated_state,
+            "power_state": bool(power_state),
+            "current_state": updated_state if isinstance(updated_state, dict) else {},
             "mqtt_dispatched": bool(mqtt_res)
         }
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"[Live Control Command Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/live-control/bulk-command")
+async def bulk_execute_live_control_commands(
+    req: LiveControlBulkCommandRequest,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """
+    Bulk execute real-time command across multiple selected devices via stored procedure.
+    """
+    sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    uid = current_user.get("id") if current_user else None
+
+    try:
+        rows = await exec_sql(
+            """
+            CALL sp_bulk_execute_live_control_commands(
+                %s::UUID, %s::UUID[], %s, %s::JSONB, %s::UUID,
+                NULL, NULL, NULL
+            );
+            """,
+            (sid, req.device_ids, req.command_type, json.dumps(req.payload), uid)
+        )
+        res = rows[0] if rows else {}
+        return {
+            "success": bool(res.get("p_success", True)),
+            "count": int(res.get("p_count", len(req.device_ids))),
+            "message": res.get("p_message", f"Executed {req.command_type} on {len(req.device_ids)} devices")
+        }
+    except Exception as e:
+        logger.error(f"[Live Control Bulk Command Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -5186,82 +4588,17 @@ async def get_live_control_device_details(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     """
-    Get deep specifications, command audit logs, usage stats, and status for the right inspector panel.
+    Get deep specifications, command audit logs, usage stats, and status via fn_get_live_control_device_details.
     """
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        dev_rows = await exec_sql(
-            """
-            SELECT 
-                d.id, d.device_name, d.device_code, d.ip_address, d.mac_address,
-                d.mqtt_topic, d.is_online, d.power_state, d.current_state,
-                d.operational_status, d.rated_power_watts, d.firmware_version,
-                d.vendor, d.installation_date,
-                b.name AS building_name, f.name AS floor_name, r.name AS room_name, r.room_number,
-                dt.name AS device_type_name, dt.code AS device_type_code,
-                dp.name AS profile_name
-            FROM devices d
-            LEFT JOIN device_types dt ON dt.id = d.device_type_id
-            LEFT JOIN device_profiles dp ON dp.id = d.profile_id
-            LEFT JOIN buildings b ON b.id = d.building_id
-            LEFT JOIN building_floors f ON f.id = d.floor_id
-            LEFT JOIN rooms r ON r.id = d.room_id
-            WHERE d.id = %s AND d.school_id = %s AND d.deleted_at IS NULL;
-            """,
-            (device_id, sid)
+        rows = await exec_sql(
+            "SELECT fn_get_live_control_device_details(%s::UUID, %s::UUID) AS details;",
+            (sid, device_id)
         )
-        if not dev_rows:
-            raise HTTPException(status_code=404, detail="Device not found")
-
-        dev = dev_rows[0]
-
-        # Recent command logs
-        cmd_rows = await exec_sql(
-            """
-            SELECT id, command_type, payload, status, created_at, executed_at
-            FROM device_commands
-            WHERE device_id = %s AND school_id = %s
-            ORDER BY created_at DESC
-            LIMIT 10;
-            """,
-            (device_id, sid)
-        )
-
-        logs = []
-        for c in cmd_rows:
-            logs.append({
-                "id": str(c["id"]),
-                "command_type": c["command_type"],
-                "payload": c["payload"] if isinstance(c["payload"], dict) else {},
-                "status": c["status"],
-                "created_at": c["created_at"].isoformat() if c["created_at"] else None
-            })
-
-        return {
-            "device": {
-                "id": str(dev["id"]),
-                "device_name": dev["device_name"],
-                "device_code": dev["device_code"],
-                "ip_address": dev["ip_address"] or "192.168.1.103",
-                "mac_address": dev["mac_address"] or "00:1A:2B:3C:4D:5F",
-                "mqtt_topic": dev["mqtt_topic"] or f"edu/{sid}/{dev['device_code']}/command",
-                "is_online": bool(dev["is_online"]),
-                "power_state": bool(dev["power_state"]),
-                "current_state": dev["current_state"] if isinstance(dev["current_state"], dict) else {},
-                "operational_status": dev["operational_status"] or "operational",
-                "rated_power_watts": float(dev["rated_power_watts"] or 0),
-                "firmware_version": dev["firmware_version"] or "v2.4.12",
-                "vendor": dev["vendor"] or "Enterprise SmartIoT Corp",
-                "building_name": dev["building_name"] or "Academic Block (A)",
-                "floor_name": dev["floor_name"] or "First Floor",
-                "room_name": dev["room_name"] or "Classroom",
-                "room_number": dev["room_number"] or "A1-103",
-                "device_type_name": dev["device_type_name"] or "HVAC (AC)",
-                "profile_name": dev["profile_name"] or "AC Standard",
-                "status_label": "Online (Controllable)" if dev["is_online"] else "Offline"
-            },
-            "recent_logs": logs
-        }
+        if rows and rows[0].get("details"):
+            return rows[0]["details"]
+        raise HTTPException(status_code=404, detail="Device not found")
     except HTTPException:
         raise
     except Exception as e:
@@ -5312,100 +4649,110 @@ async def get_bulk_operations_overview(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Retrieve operational KPIs, recent bulk operations and templates matching Reference Design."""
+    """Retrieve operational KPIs, recent bulk operations and templates using stored procedures."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        # Operations summary
-        ops_rows = await exec_sql("""
-            SELECT 
-                COUNT(*) FILTER (WHERE status = 'running') AS running_count,
-                COUNT(*) FILTER (WHERE status = 'completed' AND DATE(completed_at) = CURRENT_DATE) AS completed_today,
-                COUNT(*) FILTER (WHERE status = 'failed' OR status = 'completed_with_errors') AS failed_count,
-                COUNT(*) AS total_count
-            FROM public.bulk_operations
-            WHERE school_id = %s;
-        """, (sid,))
-        ops_stats = ops_rows[0] if ops_rows else {"running_count": 0, "completed_today": 0, "failed_count": 0, "total_count": 0}
+        kpi_rows = await exec_sql("SELECT public.fn_bulk_operations_kpis(%s::UUID) AS kpis;", (sid,))
+        kpis = kpi_rows[0]["kpis"] if kpi_rows else {}
 
-        # Recent Bulk Operations
-        recent_rows = await exec_sql("""
-            SELECT id, operation_code, name, operation_type, target_type, target_configuration,
-                   action_configuration, status, total_devices, eligible_devices,
-                   successful_devices, failed_devices, skipped_devices,
-                   initiated_by_name, created_at, started_at, completed_at
-            FROM public.bulk_operations
-            WHERE school_id = %s
-            ORDER BY created_at DESC
-            LIMIT 10;
-        """, (sid,))
+        recent_rows = await exec_sql("SELECT public.fn_list_bulk_operations(%s::UUID, NULL, NULL, NULL, 'created_at', 'desc', 1, 10) AS ops;", (sid,))
+        ops_data = recent_rows[0]["ops"] if recent_rows else {}
+        recent_ops = ops_data.get("items", [])
 
-        recent_ops = []
-        for r in recent_rows:
-            target_scope = "Devices"
-            if isinstance(r.get("target_configuration"), dict):
-                target_scope = r["target_configuration"].get("scope") or r["target_configuration"].get("building") or f"{r['total_devices']} devices"
-
-            result_str = f"✓ {r['successful_devices']}/{r['total_devices']} completed" if r["status"] == "completed" else f"↻ {r['successful_devices']}/{r['total_devices']} completed"
-
-            recent_ops.append({
-                "id": str(r["id"]),
-                "operation_code": r["operation_code"],
-                "name": r["name"],
-                "operation_type": r["operation_type"],
-                "target_scope": target_scope,
-                "status": "Success" if r["status"] == "completed" else ("In Progress" if r["status"] == "running" else r["status"].capitalize()),
-                "status_raw": r["status"],
-                "initiated_by": r["initiated_by_name"] or "Admin",
-                "result": result_str,
-                "total_devices": r["total_devices"],
-                "successful_devices": r["successful_devices"],
-                "created_at": r["created_at"].strftime("%d %b %Y, %I:%M %p") if r.get("created_at") else None,
-                "created_at_iso": r["created_at"].isoformat() if r.get("created_at") else None
-            })
-
-        # Bulk Operation Templates
-        tmpl_rows = await exec_sql("""
-            SELECT id, template_name, description, operation_type, target_type,
-                   target_rules, action_configuration, icon, color
-            FROM public.bulk_operation_templates
-            WHERE school_id = %s AND is_active = true
-            ORDER BY created_at ASC;
-        """, (sid,))
-
-        templates = []
-        for t in tmpl_rows:
-            templates.append({
-                "id": str(t["id"]),
-                "template_name": t["template_name"],
-                "description": t["description"],
-                "operation_type": t["operation_type"],
-                "target_type": t["target_type"],
-                "target_rules": t["target_rules"] if isinstance(t["target_rules"], dict) else {},
-                "action_configuration": t["action_configuration"] if isinstance(t["action_configuration"], dict) else {},
-                "icon": t["icon"] or "tune",
-                "color": t["color"] or "#2563EB"
-            })
+        tmpl_rows = await exec_sql("SELECT public.fn_list_bulk_templates(%s::UUID) AS templates;", (sid,))
+        templates = tmpl_rows[0]["templates"] if tmpl_rows else []
 
         return {
-            "kpis": {
-                "total_devices": 8742,
-                "online_devices": 8342,
-                "online_percentage": 95.4,
-                "offline_devices": 400,
-                "offline_percentage": 4.6,
-                "selected_devices": 0,
-                "selected_groups": 0,
-                "selected_locations": 0,
-                "affected_devices": 0,
-                "operations_running": int(ops_stats.get("running_count") or 1),
-                "operations_completed_today": int(ops_stats.get("completed_today") or 3),
-                "failed_commands": int(ops_stats.get("failed_count") or 0)
-            },
+            "kpis": kpis,
             "recent_operations": recent_ops,
             "templates": templates
         }
     except Exception as e:
         logger.error(f"[Bulk Operations Overview Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/bulk-operations/cascading-locations")
+async def get_bulk_cascading_locations(
+    building_id: Optional[str] = Query(None),
+    floor_id: Optional[str] = Query(None),
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Retrieve true cascading buildings, floors, rooms, types, profiles, groups and scenes from DB."""
+    sid = resolve_school_id(school_id, current_user)
+    try:
+        b_uuid = building_id if building_id and building_id != 'null' and len(building_id) == 36 else None
+        f_uuid = floor_id if floor_id and floor_id != 'null' and len(floor_id) == 36 else None
+
+        rows = await exec_sql(
+            "SELECT public.fn_bulk_cascading_locations(%s::UUID, %s::UUID, %s::UUID) AS locs;",
+            (sid, b_uuid, f_uuid)
+        )
+        return rows[0]["locs"] if rows else {
+            "buildings": [],
+            "floors": [],
+            "rooms": [],
+            "device_types": [],
+            "profiles": [],
+            "groups": [],
+            "scenes": []
+        }
+    except Exception as e:
+        logger.error(f"[Bulk Cascading Locations Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/bulk-operations/targets")
+async def get_bulk_target_devices(
+    building_id: Optional[str] = Query(None),
+    floor_id: Optional[str] = Query(None),
+    room_id: Optional[str] = Query(None),
+    building: Optional[str] = Query(None),
+    floor: Optional[str] = Query(None),
+    room: Optional[str] = Query(None),
+    device_type: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    profile: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    sort_by: str = Query("device_name"),
+    sort_order: str = Query("asc"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Retrieve paginated, sorted, and dynamically filtered target devices using stored procedure."""
+    sid = resolve_school_id(school_id, current_user)
+    try:
+        b_uuid = building_id if building_id and len(building_id) == 36 else None
+        f_uuid = floor_id if floor_id and len(floor_id) == 36 else None
+        r_uuid = room_id if room_id and len(room_id) == 36 else None
+
+        rows = await exec_sql(
+            """
+            SELECT public.fn_bulk_target_devices(
+                %s::UUID, %s::UUID, %s::UUID, %s::UUID,
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+            ) AS result;
+            """,
+            (
+                sid, b_uuid, f_uuid, r_uuid,
+                building, floor, room, device_type, status, profile, search,
+                sort_by, sort_order, page, page_size
+            )
+        )
+        return rows[0]["result"] if rows else {
+            "devices": [],
+            "total": 0,
+            "online_count": 0,
+            "offline_count": 0,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": 1
+        }
+    except Exception as e:
+        logger.error(f"[Bulk Target Devices Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -5415,128 +4762,47 @@ async def resolve_bulk_targets(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Dynamically resolves eligible, offline and breakdown of targeted devices."""
+    """Dynamically resolves eligible, offline and breakdown of targeted devices via stored procedure."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        where_clauses = ["d.school_id = %s"]
-        params = [sid]
+        bldg = req.filters.get("building") if req.filters else None
+        flr = req.filters.get("floor") if req.filters else None
+        rm = req.filters.get("room") if req.filters else None
+        dtype = req.filters.get("device_type") if req.filters else None
+        status = req.filters.get("status") if req.filters else None
+        prof = req.filters.get("profile") if req.filters else None
+        search = req.filters.get("search") if req.filters else None
 
-        if req.target_type == "devices":
-            dev_ids = req.target_configuration.get("device_ids", [])
-            if dev_ids:
-                where_clauses.append("d.id = ANY(%s::UUID[])")
-                params.append(dev_ids)
-        elif req.target_type == "groups":
-            group_ids = req.target_configuration.get("group_ids", [])
-            if group_ids:
-                where_clauses.append("""
-                    d.id IN (
-                        SELECT dgm.device_id FROM public.device_group_members dgm
-                        WHERE dgm.group_id = ANY(%s::UUID[])
-                    )
-                """)
-                params.append(group_ids)
-        elif req.target_type == "locations":
-            if req.target_configuration.get("building_id"):
-                where_clauses.append("d.building_id = %s::UUID")
-                params.append(req.target_configuration["building_id"])
-            if req.target_configuration.get("floor_id"):
-                where_clauses.append("d.floor_id = %s::UUID")
-                params.append(req.target_configuration["floor_id"])
-            if req.target_configuration.get("room_id"):
-                where_clauses.append("d.room_id = %s::UUID")
-                params.append(req.target_configuration["room_id"])
-        elif req.target_type == "by_device_type":
-            type_codes = req.target_configuration.get("type_codes", [])
-            if type_codes:
-                where_clauses.append("dt.code = ANY(%s::VARCHAR[])")
-                params.append(type_codes)
+        b_uuid = req.target_configuration.get("building_id") if req.target_configuration else None
+        f_uuid = req.target_configuration.get("floor_id") if req.target_configuration else None
+        r_uuid = req.target_configuration.get("room_id") if req.target_configuration else None
 
-        # Filters
-        if req.filters:
-            status = req.filters.get("status")
-            if status == "Online":
-                where_clauses.append("d.is_online = true")
-            elif status == "Offline":
-                where_clauses.append("d.is_online = false")
-
-            bldg = req.filters.get("building")
-            if bldg and not bldg.lower().startswith("all"):
-                where_clauses.append("(b.name ILIKE %s OR b.code ILIKE %s)")
-                params.extend([f"%{bldg}%", f"%{bldg}%"])
-
-            flr = req.filters.get("floor")
-            if flr and not flr.lower().startswith("all"):
-                where_clauses.append("(bf.name ILIKE %s OR bf.code ILIKE %s)")
-                params.extend([f"%{flr}%", f"%{flr}%"])
-
-            rm = req.filters.get("room")
-            if rm and not rm.lower().startswith("all"):
-                where_clauses.append("(r.room_number ILIKE %s OR r.name ILIKE %s)")
-                params.extend([f"%{rm}%", f"%{rm}%"])
-
-            dev_type = req.filters.get("device_type")
-            if dev_type and not dev_type.lower().startswith("all"):
-                where_clauses.append("(dt.name ILIKE %s OR dt.code ILIKE %s)")
-                params.extend([f"%{dev_type}%", f"%{dev_type}%"])
-
-            prof = req.filters.get("profile")
-            if prof and not prof.lower().startswith("all"):
-                where_clauses.append("p.name ILIKE %s")
-                params.append(f"%{prof}%")
-
-            search = req.filters.get("search")
-            if search and search.strip():
-                term = f"%{search.strip()}%"
-                where_clauses.append("(d.device_name ILIKE %s OR d.device_code ILIKE %s OR r.room_number ILIKE %s OR b.name ILIKE %s)")
-                params.extend([term, term, term, term])
-
-        query = f"""
-            SELECT d.id, d.device_name, d.device_code, d.is_online, d.power_state,
-                   dt.name AS type_name, dt.code AS type_code, dt.icon AS type_icon,
-                   b.name AS building_name, bf.name AS floor_name, r.room_number
-            FROM public.devices d
-            LEFT JOIN public.device_types dt ON d.device_type_id = dt.id
-            LEFT JOIN public.buildings b ON d.building_id = b.id
-            LEFT JOIN public.building_floors bf ON d.floor_id = bf.id
-            LEFT JOIN public.rooms r ON d.room_id = r.id
-            LEFT JOIN public.device_profiles p ON d.profile_id = p.id
-            WHERE {' AND '.join(where_clauses)}
-            ORDER BY d.created_at DESC
-            LIMIT 200;
-        """
-        rows = await exec_sql(query, tuple(params))
-
-        total_selected = len(rows)
-        online_count = sum(1 for r in rows if r["is_online"])
-        offline_count = total_selected - online_count
+        rows = await exec_sql(
+            """
+            SELECT public.fn_bulk_target_devices(
+                %s::UUID, %s::UUID, %s::UUID, %s::UUID,
+                %s, %s, %s, %s, %s, %s, %s, 'device_name', 'asc', 1, 200
+            ) AS result;
+            """,
+            (sid, b_uuid, f_uuid, r_uuid, bldg, flr, rm, dtype, status, prof, search)
+        )
+        res = rows[0]["result"] if rows else {}
+        devices = res.get("devices", [])
 
         # Detected device types aggregation
         types_map: Dict[str, int] = {}
-        devices_list = []
-        for r in rows:
-            tname = r["type_name"] or "Unknown"
+        for d in devices:
+            tname = d.get("type_name") or "General"
             types_map[tname] = types_map.get(tname, 0) + 1
-            devices_list.append({
-                "id": str(r["id"]),
-                "device_name": r["device_name"],
-                "device_code": r["device_code"],
-                "type_name": tname,
-                "type_code": r["type_code"],
-                "location": f"{r['building_name'] or 'Academic Block (A)'} > {r['room_number'] or 'Room'}",
-                "is_online": bool(r["is_online"]),
-                "power_state": bool(r["power_state"])
-            })
-
         detected_types = [{"type": k, "count": v} for k, v in types_map.items()]
 
         return {
-            "total_selected": total_selected,
-            "online_count": online_count,
-            "offline_count": offline_count,
-            "eligible_count": online_count,
+            "total_selected": res.get("total", len(devices)),
+            "online_count": res.get("online_count", len(devices)),
+            "offline_count": res.get("offline_count", 0),
+            "eligible_count": res.get("online_count", len(devices)),
             "detected_types": detected_types,
-            "devices": devices_list
+            "devices": devices
         }
     except Exception as e:
         logger.error(f"[Resolve Bulk Targets Error]: {e}")
@@ -5544,6 +4810,7 @@ async def resolve_bulk_targets(
 
 
 @router.post("/bulk-operations")
+@router.post("/bulk-operations/execute")
 async def create_and_execute_bulk_operation(
     req: CreateBulkOperationRequest,
     school_id: Optional[str] = Query(None),
@@ -5569,8 +4836,7 @@ async def create_and_execute_bulk_operation(
                 uid, uname
             )
         )
-        res = rows[0]["result"] if rows else {}
-        return res
+        return rows[0]["result"] if rows else {"success": False}
     except Exception as e:
         logger.error(f"[Create & Execute Bulk Operation Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -5583,74 +4849,28 @@ async def list_bulk_operations(
     status: Optional[str] = Query(None),
     operation_type: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    sort_by: str = Query("created_at"),
+    sort_order: str = Query("desc"),
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Retrieve full paginated list of Bulk Operations with filters."""
+    """Retrieve full paginated list of Bulk Operations with filters via stored procedure."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        where = ["school_id = %s"]
-        params = [sid]
-
-        if status:
-            where.append("status = %s")
-            params.append(status.lower())
-        if operation_type:
-            where.append("operation_type = %s")
-            params.append(operation_type.lower())
-        if search:
-            where.append("(name ILIKE %s OR operation_code ILIKE %s)")
-            params.extend([f"%{search}%", f"%{search}%"])
-
-        count_rows = await exec_sql(f"SELECT COUNT(*) AS total FROM public.bulk_operations WHERE {' AND '.join(where)};", tuple(params))
-        total = count_rows[0]["total"] if count_rows else 0
-
-        offset = (page - 1) * page_size
-        params.extend([page_size, offset])
-
-        rows = await exec_sql(f"""
-            SELECT id, operation_code, name, description, operation_type, target_type,
-                   target_configuration, action_configuration, execution_configuration,
-                   status, total_devices, eligible_devices, successful_devices,
-                   failed_devices, skipped_devices, pending_devices,
-                   initiated_by_name, created_at, started_at, completed_at
-            FROM public.bulk_operations
-            WHERE {' AND '.join(where)}
-            ORDER BY created_at DESC
-            LIMIT %s OFFSET %s;
-        """, tuple(params))
-
-        items = []
-        for r in rows:
-            target_scope = "Devices"
-            if isinstance(r.get("target_configuration"), dict):
-                target_scope = r["target_configuration"].get("scope") or r["target_configuration"].get("building") or f"{r['total_devices']} devices"
-
-            items.append({
-                "id": str(r["id"]),
-                "operation_code": r["operation_code"],
-                "name": r["name"],
-                "description": r["description"],
-                "operation_type": r["operation_type"],
-                "target_type": r["target_type"],
-                "target_scope": target_scope,
-                "status": r["status"],
-                "total_devices": r["total_devices"],
-                "eligible_devices": r["eligible_devices"],
-                "successful_devices": r["successful_devices"],
-                "failed_devices": r["failed_devices"],
-                "skipped_devices": r["skipped_devices"],
-                "pending_devices": r["pending_devices"],
-                "initiated_by": r["initiated_by_name"] or "Admin",
-                "created_at": r["created_at"].strftime("%d %b %Y, %I:%M %p") if r.get("created_at") else None,
-                "completed_at": r["completed_at"].strftime("%d %b %Y, %I:%M %p") if r.get("completed_at") else None
-            })
-
-        return {
+        rows = await exec_sql(
+            """
+            SELECT public.fn_list_bulk_operations(
+                %s::UUID, %s, %s, %s, %s, %s, %s, %s
+            ) AS result;
+            """,
+            (sid, status, operation_type, search, sort_by, sort_order, page, page_size)
+        )
+        return rows[0]["result"] if rows else {
             "page": page,
             "page_size": page_size,
-            "total": total,
-            "items": items
+            "total": 0,
+            "total_pages": 1,
+            "items": []
         }
     except Exception as e:
         logger.error(f"[List Bulk Operations Error]: {e}")
@@ -5666,70 +4886,14 @@ async def get_bulk_operation_details(
     """Retrieve full specification, target devices and execution results for a bulk operation."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        rows = await exec_sql("""
-            SELECT id, operation_code, name, description, operation_type, target_type,
-                   target_configuration, action_configuration, execution_configuration,
-                   status, total_devices, eligible_devices, successful_devices,
-                   failed_devices, skipped_devices, pending_devices,
-                   initiated_by_name, created_at, started_at, completed_at
-            FROM public.bulk_operations
-            WHERE id = %s::UUID AND school_id = %s;
-        """, (operation_id, sid))
-
-        if not rows:
+        rows = await exec_sql(
+            "SELECT public.fn_get_bulk_operation_details(%s::UUID, %s::UUID) AS details;",
+            (sid, operation_id)
+        )
+        res = rows[0]["details"] if rows else {}
+        if not res.get("success"):
             raise HTTPException(status_code=404, detail="Bulk Operation not found")
-        op = rows[0]
-
-        # Device items
-        dev_rows = await exec_sql("""
-            SELECT id, device_id, device_name, device_code, device_type_code,
-                   location_display, action_payload, target_state, eligibility_status,
-                   exclusion_reason, execution_status, error_message, attempts,
-                   mqtt_topic, published_at, acknowledged_at, verified_at
-            FROM public.bulk_operation_devices
-            WHERE operation_id = %s::UUID
-            ORDER BY created_at ASC;
-        """, (operation_id,))
-
-        devices = []
-        for d in dev_rows:
-            devices.append({
-                "id": str(d["id"]),
-                "device_id": str(d["device_id"]),
-                "device_name": d["device_name"],
-                "device_code": d["device_code"],
-                "device_type_code": d["device_type_code"],
-                "location_display": d["location_display"],
-                "eligibility_status": d["eligibility_status"],
-                "exclusion_reason": d["exclusion_reason"],
-                "execution_status": d["execution_status"],
-                "error_message": d["error_message"],
-                "mqtt_topic": d["mqtt_topic"]
-            })
-
-        return {
-            "operation": {
-                "id": str(op["id"]),
-                "operation_code": op["operation_code"],
-                "name": op["name"],
-                "description": op["description"],
-                "operation_type": op["operation_type"],
-                "target_type": op["target_type"],
-                "target_configuration": op["target_configuration"] if isinstance(op["target_configuration"], dict) else {},
-                "action_configuration": op["action_configuration"] if isinstance(op["action_configuration"], dict) else {},
-                "execution_configuration": op["execution_configuration"] if isinstance(op["execution_configuration"], dict) else {},
-                "status": op["status"],
-                "total_devices": op["total_devices"],
-                "eligible_devices": op["eligible_devices"],
-                "successful_devices": op["successful_devices"],
-                "failed_devices": op["failed_devices"],
-                "skipped_devices": op["skipped_devices"],
-                "initiated_by": op["initiated_by_name"] or "Admin",
-                "created_at": op["created_at"].isoformat() if op.get("created_at") else None,
-                "completed_at": op["completed_at"].isoformat() if op.get("completed_at") else None
-            },
-            "devices": devices
-        }
+        return res
     except HTTPException:
         raise
     except Exception as e:
@@ -5744,7 +4908,9 @@ async def pause_bulk_operation(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     sid = resolve_school_id(school_id, current_user)
-    await exec_sql("UPDATE public.bulk_operations SET status = 'paused', updated_at = NOW() WHERE id = %s::UUID AND school_id = %s;", (operation_id, sid))
+    uid = current_user.get("id") if current_user else "b06057ff-fde8-40f8-8a92-b74d2f52632c"
+    uname = current_user.get("full_name") or "Admin"
+    await exec_sql("CALL public.sp_cancel_bulk_operation(%s::UUID, %s::UUID, %s::UUID, %s);", (sid, operation_id, uid, uname))
     return {"success": True, "status": "paused"}
 
 
@@ -5755,7 +4921,9 @@ async def resume_bulk_operation(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     sid = resolve_school_id(school_id, current_user)
-    await exec_sql("UPDATE public.bulk_operations SET status = 'running', updated_at = NOW() WHERE id = %s::UUID AND school_id = %s;", (operation_id, sid))
+    uid = current_user.get("id") if current_user else "b06057ff-fde8-40f8-8a92-b74d2f52632c"
+    uname = current_user.get("full_name") or "Admin"
+    await exec_sql("CALL public.sp_retry_failed_bulk_operation(%s::UUID, %s::UUID, %s::UUID, %s);", (sid, operation_id, uid, uname))
     return {"success": True, "status": "running"}
 
 
@@ -5766,7 +4934,9 @@ async def cancel_bulk_operation(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     sid = resolve_school_id(school_id, current_user)
-    await exec_sql("UPDATE public.bulk_operations SET status = 'cancelled', updated_at = NOW() WHERE id = %s::UUID AND school_id = %s;", (operation_id, sid))
+    uid = current_user.get("id") if current_user else "b06057ff-fde8-40f8-8a92-b74d2f52632c"
+    uname = current_user.get("full_name") or "Admin"
+    await exec_sql("CALL public.sp_cancel_bulk_operation(%s::UUID, %s::UUID, %s::UUID, %s);", (sid, operation_id, uid, uname))
     return {"success": True, "status": "cancelled"}
 
 
@@ -5777,16 +4947,9 @@ async def retry_failed_bulk_operation(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     sid = resolve_school_id(school_id, current_user)
-    await exec_sql("""
-        UPDATE public.bulk_operation_devices
-        SET execution_status = 'completed', attempts = attempts + 1, updated_at = NOW()
-        WHERE operation_id = %s::UUID AND execution_status IN ('failed', 'skipped');
-    """, (operation_id,))
-    await exec_sql("""
-        UPDATE public.bulk_operations
-        SET status = 'completed', failed_devices = 0, successful_devices = total_devices, updated_at = NOW()
-        WHERE id = %s::UUID AND school_id = %s;
-    """, (operation_id, sid))
+    uid = current_user.get("id") if current_user else "b06057ff-fde8-40f8-8a92-b74d2f52632c"
+    uname = current_user.get("full_name") or "Admin"
+    await exec_sql("CALL public.sp_retry_failed_bulk_operation(%s::UUID, %s::UUID, %s::UUID, %s);", (sid, operation_id, uid, uname))
     return {"success": True, "status": "completed"}
 
 
@@ -5796,14 +4959,8 @@ async def list_bulk_templates(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     sid = resolve_school_id(school_id, current_user)
-    rows = await exec_sql("""
-        SELECT id, template_name, description, operation_type, target_type,
-               target_rules, action_configuration, icon, color
-        FROM public.bulk_operation_templates
-        WHERE school_id = %s AND is_active = true
-        ORDER BY created_at ASC;
-    """, (sid,))
-    return {"templates": rows}
+    rows = await exec_sql("SELECT public.fn_list_bulk_templates(%s::UUID) AS templates;", (sid,))
+    return {"templates": rows[0]["templates"] if rows else []}
 
 
 @router.post("/bulk-operations/templates")
@@ -5813,20 +4970,30 @@ async def create_bulk_template(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     sid = resolve_school_id(school_id, current_user)
-    uid = current_user.get("id") if current_user else "b06057ff-fde8-40f8-8a92-b74d2f52632c"
-    rows = await exec_sql("""
-        INSERT INTO public.bulk_operation_templates (
-            school_id, template_name, description, operation_type, target_type,
-            target_rules, action_configuration, execution_configuration, icon, color, created_by
-        ) VALUES (
-            %s, %s, %s, %s, %s, %s::JSONB, %s::JSONB, %s::JSONB, %s, %s, %s::UUID
-        ) RETURNING id;
-    """, (
-        sid, req.template_name, req.description, req.operation_type, req.target_type,
-        json.dumps(req.target_rules), json.dumps(req.action_configuration),
-        json.dumps(req.execution_configuration), req.icon, req.color, uid
-    ))
-    return {"success": True, "template_id": str(rows[0]["id"])}
+    await exec_sql(
+        """
+        CALL public.sp_create_bulk_template(
+            %s::UUID, %s, %s, %s, %s, %s::JSONB, %s::JSONB, %s::JSONB, %s, %s
+        );
+        """,
+        (
+            sid, req.template_name, req.description, req.operation_type, req.target_type,
+            json.dumps(req.target_rules), json.dumps(req.action_configuration),
+            json.dumps(req.execution_configuration), req.icon, req.color
+        )
+    )
+    return {"success": True}
+
+
+@router.delete("/bulk-operations/templates/{template_id}")
+async def delete_bulk_template(
+    template_id: str,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    sid = resolve_school_id(school_id, current_user)
+    await exec_sql("CALL public.sp_delete_bulk_template(%s::UUID, %s::UUID);", (sid, template_id))
+    return {"success": True}
 
 
 @router.post("/bulk-operations/templates/{template_id}/execute")

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:edu_shamiit_admin/providers/system_config_provider.dart';
+import 'widgets/payment_configuration_center_widget.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'dart:typed_data';
@@ -2658,36 +2659,7 @@ class _AdminSystemConfigScreenState
   }
 
   Widget _buildPaymentsTab(bool isDark) {
-    return _buildConfigCard(
-      isDark,
-      title: "Tuition & Payments Settings",
-      subtitle:
-          "Configure gateways, invoice generation, base currencies, and merchant accounts.",
-      child: Column(
-        children: [
-          _buildDropdownField(
-            "Base Currency",
-            _paymentsSettings['currency'] ?? "INR",
-            ["INR", "USD", "EUR", "AED"],
-            (val) {
-              if (val != null) {
-                setState(() {
-                  _paymentsSettings['currency'] = val;
-                });
-              }
-            },
-            isDark,
-          ),
-          const SizedBox(height: 16),
-          _buildSwitchRow(
-              "Automatic Invoice Dispatch",
-              "Automatically create and email invoices upon fee due",
-              _paymentsSettings['auto_invoice'] ?? true, (val) {
-            setState(() => _paymentsSettings['auto_invoice'] = val);
-          }, isDark),
-        ],
-      ),
-    );
+    return PaymentConfigurationCenterWidget(isDark: isDark);
   }
 
   Widget _buildIntegrationsTab(bool isDark) {

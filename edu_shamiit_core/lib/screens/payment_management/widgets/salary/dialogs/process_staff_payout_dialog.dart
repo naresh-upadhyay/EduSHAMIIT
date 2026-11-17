@@ -221,32 +221,50 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                     ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedStaffId,
-                        isExpanded: true,
-                        dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                        items: state.staffRoster.map((s) {
-                          return DropdownMenuItem<String>(
-                            value: s.staffId,
-                            child: Text(
-                              '${s.staffName} (${s.designation} - ${s.department})',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() {
-                              _selectedStaffId = val;
-                              _populateStaffDetails(val);
-                            });
+                    child: Builder(
+                      builder: (context) {
+                        final Map<String, String> staffMap = {};
+                        for (final s in state.staffRoster) {
+                          if (s.staffId.isNotEmpty) {
+                            staffMap[s.staffId] = '${s.staffName} (${s.designation} - ${s.department})';
                           }
-                        },
-                      ),
+                        }
+                        if (_selectedStaffId != null && _selectedStaffId!.isNotEmpty && !staffMap.containsKey(_selectedStaffId)) {
+                          staffMap[_selectedStaffId!] = 'Staff Member';
+                        }
+                        final effectiveStaffId = staffMap.containsKey(_selectedStaffId)
+                            ? _selectedStaffId
+                            : (staffMap.isNotEmpty ? staffMap.keys.first : null);
+
+                        return DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            key: ValueKey('process_staff_${effectiveStaffId ?? "none"}'),
+                            value: effectiveStaffId,
+                            isExpanded: true,
+                            dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                            items: staffMap.entries.map((e) {
+                              return DropdownMenuItem<String>(
+                                value: e.key,
+                                child: Text(
+                                  e.value,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() {
+                                  _selectedStaffId = val;
+                                  _populateStaffDetails(val);
+                                });
+                              }
+                            },
+                          ),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -333,21 +351,67 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                     ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _paymentModes.any((m) => m.label == _paymentMode) ? _paymentMode : (_paymentModes.isNotEmpty ? _paymentModes.first.label : _paymentMode),
-                        isExpanded: true,
-                        dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                        items: const [
-                          DropdownMenuItem(value: 'Direct Bank Transfer (NEFT/RTGS)', child: Text('Direct Bank Transfer (NEFT/RTGS)')),
-                          DropdownMenuItem(value: 'UPI / Corporate IMPS', child: Text('UPI / Corporate IMPS')),
-                          DropdownMenuItem(value: 'Corporate Cheque', child: Text('Corporate Cheque')),
-                          DropdownMenuItem(value: 'Cash Voucher', child: Text('Cash Voucher')),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) setState(() => _paymentMode = val);
-                        },
-                      ),
+                    child: Builder(
+                      builder: (context) {
+                        final Map<String, String> modeMap = {};
+                        if (_paymentModes.isNotEmpty) {
+                          for (final m in _paymentModes) {
+                            if (m.label.isNotEmpty) {
+                              modeMap[m.label] = m.label;
+                            }
+                          }
+                        }
+                        final defaultModes = <String, String>{
+                          'UPI': 'UPI / Corporate IMPS',
+                          'Direct Bank Transfer (NEFT/RTGS)': 'Direct Bank Transfer (NEFT/RTGS)',
+                          'UPI / Corporate IMPS': 'UPI / Corporate IMPS',
+                          'Corporate Cheque': 'Corporate Cheque',
+                          'Cash Voucher': 'Cash Voucher',
+                          'Cash': 'Cash Voucher',
+                          'Bank Transfer': 'Direct Bank Transfer (NEFT/RTGS)',
+                        };
+
+                        if (modeMap.isEmpty) {
+                          modeMap['Direct Bank Transfer (NEFT/RTGS)'] = 'Direct Bank Transfer (NEFT/RTGS)';
+                          modeMap['UPI / Corporate IMPS'] = 'UPI / Corporate IMPS';
+                          modeMap['Corporate Cheque'] = 'Corporate Cheque';
+                          modeMap['Cash Voucher'] = 'Cash Voucher';
+                        }
+
+                        String effectiveMode = _paymentMode;
+                        if (!modeMap.containsKey(effectiveMode)) {
+                          final matchedKey = modeMap.keys.firstWhere(
+                            (k) => k.toLowerCase() == effectiveMode.toLowerCase() ||
+                                   k.toLowerCase().contains(effectiveMode.toLowerCase()) ||
+                                   effectiveMode.toLowerCase().contains(k.toLowerCase()),
+                            orElse: () => '',
+                          );
+                          if (matchedKey.isNotEmpty) {
+                            effectiveMode = matchedKey;
+                          } else {
+                            final label = defaultModes[effectiveMode] ?? effectiveMode;
+                            modeMap[effectiveMode] = label;
+                          }
+                        }
+
+                        return DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            key: ValueKey('process_pay_mode_$effectiveMode'),
+                            value: effectiveMode,
+                            isExpanded: true,
+                            dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                            items: modeMap.entries.map((entry) {
+                              return DropdownMenuItem<String>(
+                                value: entry.key,
+                                child: Text(entry.value),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) setState(() => _paymentMode = val);
+                            },
+                          ),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(height: 12),

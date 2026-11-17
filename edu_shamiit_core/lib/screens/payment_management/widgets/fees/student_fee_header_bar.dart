@@ -11,9 +11,14 @@ class StudentFeeHeaderBar extends ConsumerWidget {
     final notifier = ref.read(studentFeeProvider.notifier);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final availableYears = state.availableAcademicYears.contains(state.selectedAcademicYear)
-        ? state.availableAcademicYears
-        : [state.selectedAcademicYear, ...state.availableAcademicYears];
+    final availableYears = {
+      if (state.selectedAcademicYear.isNotEmpty) state.selectedAcademicYear,
+      ...state.availableAcademicYears,
+      '2026 - 2027',
+    }.toList();
+    final effectiveYear = availableYears.contains(state.selectedAcademicYear)
+        ? state.selectedAcademicYear
+        : availableYears.first;
 
     return Container(
       color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -95,7 +100,8 @@ class StudentFeeHeaderBar extends ConsumerWidget {
                 const SizedBox(width: 8),
                 DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
-                    value: state.selectedAcademicYear,
+                    key: ValueKey('fee_year_$effectiveYear'),
+                    value: effectiveYear,
                     isDense: true,
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                     style: TextStyle(

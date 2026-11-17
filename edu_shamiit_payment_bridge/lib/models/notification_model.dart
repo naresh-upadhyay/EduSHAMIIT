@@ -49,6 +49,9 @@ class PaymentNotificationItem {
 
   bool get isIncoming => eventType == 'PAYMENT_RECEIVED';
   bool get isPaymentReceived => isIncoming;
+  bool get isMatched => candidateMatchStatus == 'MATCHED_CANDIDATE';
+  bool get isUnmatched => candidateMatchStatus == 'UNMATCHED';
+  bool get isIgnored => candidateMatchStatus == 'IGNORED';
 
   String get formattedTime {
     return DateFormat('hh:mm a').format(notificationTimestamp.toLocal());
@@ -186,3 +189,20 @@ class PaymentNotificationItem {
     ];
   }
 }
+
+class NotificationsResult {
+  final List<PaymentNotificationItem> items;
+  final int allCount;
+  final int matchedCount;
+  final int unmatchedCount;
+  final int ignoredCount;
+
+  const NotificationsResult({
+    required this.items,
+    this.allCount = 0,
+    this.matchedCount = 0,
+    this.unmatchedCount = 0,
+    this.ignoredCount = 0,
+  });
+}
+

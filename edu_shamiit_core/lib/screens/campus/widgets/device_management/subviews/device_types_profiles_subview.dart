@@ -77,8 +77,8 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
               _buildSectionHeader(context, notifier, state),
               const SizedBox(height: 14),
 
-              // 3. Sub-Tabs Bar (Device Types (24), Control Profiles (76), Capability Templates, Presets & Scenes)
-              _buildSubTabsBar(state.typesActiveSubTab, notifier),
+              // 3. Sub-Tabs Bar (Dynamic Counts)
+              _buildSubTabsBar(state.typesActiveSubTab, notifier, state),
               const SizedBox(height: 14),
 
               // 4. Filters & Search Row
@@ -306,10 +306,12 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
   // 3. SUB-TABS BAR
   // ============================================================================
 
-  Widget _buildSubTabsBar(String activeSubTab, DeviceManagementNotifier notifier) {
+  Widget _buildSubTabsBar(String activeSubTab, DeviceManagementNotifier notifier, DeviceManagementState state) {
+    final typeCount = state.totalDeviceTypes > 0 ? state.totalDeviceTypes : 24;
+    final profileCount = state.typesProfilesKpis.activeProfiles > 0 ? state.typesProfilesKpis.activeProfiles : 76;
     final tabs = [
-      'Device Types (24)',
-      'Control Profiles (76)',
+      'Device Types ($typeCount)',
+      'Control Profiles ($profileCount)',
       'Capability Templates',
       'Presets & Scenes',
     ];
@@ -318,7 +320,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
       scrollDirection: Axis.horizontal,
       child: Row(
         children: tabs.map((tab) {
-          final isSelected = activeSubTab == tab;
+          final isSelected = activeSubTab.startsWith(tab.split(' (').first);
 
           return Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -442,6 +444,11 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
   }
 
   Widget _buildCategoryDropdown(DeviceManagementState state, DeviceManagementNotifier notifier) {
+    final categories = state.typesCategories.isNotEmpty ? state.typesCategories : _categoriesFilter;
+    final selectedCat = categories.contains(state.typesFilterCategory)
+        ? state.typesFilterCategory
+        : (categories.isNotEmpty ? categories.first : 'All Categories');
+
     return Container(
       height: 38,
       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -452,11 +459,11 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: state.typesFilterCategory,
+          value: selectedCat,
           isExpanded: true,
           icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
           style: const TextStyle(fontSize: 12, color: Color(0xFF0F172A), fontWeight: FontWeight.w500),
-          items: _categoriesFilter.map((cat) {
+          items: categories.map((cat) {
             return DropdownMenuItem<String>(
               value: cat,
               child: Text(cat, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -724,6 +731,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                     const SizedBox(width: 8),
                     // Deselect All
                     TextButton(
+                      key: const ValueKey('types_deselect_all_btn'),
                       onPressed: () => setState(() => _selectedTypeIds.clear()),
                       child: Text('Deselect All', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                     ),
@@ -732,214 +740,493 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
               ),
             ),
 
-          // Table Layout
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 700),
-              child: DataTable(
-                showCheckboxColumn: false,
-                headingRowHeight: 40,
-                dataRowMinHeight: 52,
-                dataRowMaxHeight: 52,
-                horizontalMargin: 16,
-                columnSpacing: 18,
-                headingRowColor: WidgetStateProperty.all(
-                  isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                ),
-                headingTextStyle: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
-                  letterSpacing: 0.3,
-                ),
-                columns: [
-                  DataColumn(
-                    label: Checkbox(
-                      value: _selectedTypeIds.isNotEmpty && _selectedTypeIds.length == types.length,
-                      tristate: _selectedTypeIds.isNotEmpty && _selectedTypeIds.length < types.length,
-                      activeColor: primaryColor,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                      onChanged: (val) {
-                        setState(() {
-                          if (val == true) {
-                            _selectedTypeIds.addAll(types.map((t) => t.id));
-                          } else {
-                            _selectedTypeIds.clear();
-                          }
-                        });
-                      },
-                    ),
-                  ),
-                  const DataColumn(label: Text('Device Type ↑')),
-                  const DataColumn(label: Text('Category')),
-                  const DataColumn(label: Text('Mapped Devices')),
-                  const DataColumn(label: Text('Profiles')),
-                  const DataColumn(label: Text('Status')),
-                  const DataColumn(label: Text('Last Updated')),
-                  const DataColumn(label: Text('Actions')),
-                ],
-                rows: types.map((dt) {
-                  final isRowSelected = dt.id == selectedId;
-                  final isChecked = _selectedTypeIds.contains(dt.id);
-
-                  return DataRow(
-                    selected: isRowSelected,
-                    onSelectChanged: (_) => notifier.selectDeviceType(dt.id),
-                    color: WidgetStateProperty.resolveWith((states) {
-                      if (isRowSelected) return primaryColor.withValues(alpha: isDark ? 0.25 : 0.08);
-                      if (states.contains(WidgetState.hovered)) return isDark ? const Color(0xFF334155).withValues(alpha: 0.5) : const Color(0xFFF8FAFC);
-                      return isDark ? const Color(0xFF1E293B) : Colors.white;
+          // Custom Robust Table Layout (Zero Double Checkboxes, Zero Semantics Conflicts)
+          if (types.isEmpty)
+            _buildEmptyTypesState(isDark)
+          else
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: 980,
+                child: Column(
+                  children: [
+                    _buildTypesTableHeader(state, notifier, isDark, primaryColor, _selectedTypeIds.isNotEmpty && _selectedTypeIds.length == types.length),
+                    ...types.map((dt) {
+                      final isRowActive = dt.id == selectedId;
+                      final isChecked = _selectedTypeIds.contains(dt.id);
+                      return _buildTypeRow(dt, state, notifier, isDark, primaryColor, isChecked, isRowActive);
                     }),
-                    cells: [
-                      DataCell(
-                        Checkbox(
-                          value: isChecked,
-                          activeColor: primaryColor,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                          onChanged: (val) {
-                            setState(() {
-                              if (val == true) {
-                                _selectedTypeIds.add(dt.id);
-                              } else {
-                                _selectedTypeIds.remove(dt.id);
-                              }
-                            });
-                          },
-                        ),
-                      ),
-                      DataCell(
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: primaryColor.withValues(alpha: isDark ? 0.2 : 0.1),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: primaryColor.withValues(alpha: 0.2)),
-                              ),
-                              child: Icon(
-                                _resolveTypeIcon(dt.icon),
-                                size: 18,
-                                color: primaryColor,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  dt.name,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                  ),
-                                ),
-                                if (dt.description.isNotEmpty)
-                                  SizedBox(
-                                    width: 180,
-                                    child: Text(
-                                      dt.description,
-                                      style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      DataCell(_buildCategoryBadge(dt.categoryName)),
-                      DataCell(
-                        Text(
-                          _formatNumber(dt.mappedDevicesCount),
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
-                        ),
-                      ),
-                      DataCell(
-                        Text(
-                          '${dt.profilesCount}',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
-                        ),
-                      ),
-                      DataCell(_buildActiveStatusPill(dt.status)),
-                      DataCell(
-                        Text(
-                          dt.updatedAt ?? '12 Jan 2025, 10:24 AM',
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                        ),
-                      ),
-                      DataCell(
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF2563EB)),
-                              splashRadius: 16,
-                              tooltip: 'Edit Device Type',
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  barrierDismissible: false,
-                                  builder: (ctx) => CreateEditDeviceTypeWizardDialog(
-                                    initialType: dt,
-                                    onSave: (payload) => notifier.updateDeviceType(dt.id, payload),
-                                  ),
-                                );
-                              },
-                            ),
-                            PopupMenuButton<String>(
-                              icon: const Icon(Icons.more_vert_rounded, size: 16, color: Color(0xFF64748B)),
-                              splashRadius: 16,
-                              onSelected: (action) {
-                                if (action == 'duplicate') {
-                                  notifier.duplicateDeviceType(dt.id);
-                                } else if (action == 'delete') {
-                                  _confirmDeleteType(context, dt, notifier);
-                                } else if (action == 'add_profile') {
-                                  showDialog(
-                                    context: context,
-                                    barrierDismissible: false,
-                                    builder: (ctx) => CreateEditDeviceProfileDialog(
-                                      defaultDeviceTypeId: dt.id,
-                                      defaultDeviceTypeName: dt.name,
-                                      onSave: (payload) => notifier.createDeviceProfile(payload),
-                                    ),
-                                  );
-                                }
-                              },
-                              itemBuilder: (ctx) => [
-                                const PopupMenuItem(
-                                  value: 'add_profile',
-                                  child: Text('Add Control Profile', style: TextStyle(fontSize: 12)),
-                                ),
-                                const PopupMenuItem(
-                                  value: 'duplicate',
-                                  child: Text('Duplicate Device Type', style: TextStyle(fontSize: 12)),
-                                ),
-                                const PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text('Delete / Deactivate', style: TextStyle(fontSize: 12, color: Colors.red)),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                }).toList(),
+                  ],
+                ),
+              ),
+            ),
+
+          // Premium & Powerful Pagination Footer
+          _buildPaginationFooter(state, notifier, isDark, primaryColor),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypesTableHeader(
+    DeviceManagementState state,
+    DeviceManagementNotifier notifier,
+    bool isDark,
+    Color primaryColor,
+    bool isAllSelected,
+  ) {
+    return Container(
+      height: 42,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Single Header Checkbox (Zero Double Checkboxes)
+          SizedBox(
+            width: 32,
+            child: Checkbox(
+              value: isAllSelected,
+              tristate: _selectedTypeIds.isNotEmpty && _selectedTypeIds.length < state.deviceTypesList.length,
+              activeColor: primaryColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              onChanged: (val) {
+                setState(() {
+                  if (val == true) {
+                    _selectedTypeIds.addAll(state.deviceTypesList.map((t) => t.id));
+                  } else {
+                    _selectedTypeIds.clear();
+                  }
+                });
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Device Type (sortable: 'name')
+          _buildSortableColumnHeader(
+            title: 'Device Type',
+            columnKey: 'name',
+            width: 200,
+            currentSortBy: state.typesSortBy,
+            currentSortOrder: state.typesSortOrder,
+            onTap: () => notifier.sortDeviceTypes('name'),
+            isDark: isDark,
+            primaryColor: primaryColor,
+          ),
+          const SizedBox(width: 8),
+
+          // Category (sortable: 'category')
+          _buildSortableColumnHeader(
+            title: 'Category',
+            columnKey: 'category',
+            width: 130,
+            currentSortBy: state.typesSortBy,
+            currentSortOrder: state.typesSortOrder,
+            onTap: () => notifier.sortDeviceTypes('category'),
+            isDark: isDark,
+            primaryColor: primaryColor,
+          ),
+          const SizedBox(width: 8),
+
+          // Mapped Devices (sortable: 'mapped_devices')
+          _buildSortableColumnHeader(
+            title: 'Mapped Devices',
+            columnKey: 'mapped_devices',
+            width: 110,
+            currentSortBy: state.typesSortBy,
+            currentSortOrder: state.typesSortOrder,
+            onTap: () => notifier.sortDeviceTypes('mapped_devices'),
+            isDark: isDark,
+            primaryColor: primaryColor,
+          ),
+          const SizedBox(width: 8),
+
+          // Profiles (sortable: 'profiles')
+          _buildSortableColumnHeader(
+            title: 'Profiles',
+            columnKey: 'profiles',
+            width: 85,
+            currentSortBy: state.typesSortBy,
+            currentSortOrder: state.typesSortOrder,
+            onTap: () => notifier.sortDeviceTypes('profiles'),
+            isDark: isDark,
+            primaryColor: primaryColor,
+          ),
+          const SizedBox(width: 8),
+
+          // Status (sortable: 'status')
+          _buildSortableColumnHeader(
+            title: 'Status',
+            columnKey: 'status',
+            width: 90,
+            currentSortBy: state.typesSortBy,
+            currentSortOrder: state.typesSortOrder,
+            onTap: () => notifier.sortDeviceTypes('status'),
+            isDark: isDark,
+            primaryColor: primaryColor,
+          ),
+          const SizedBox(width: 8),
+
+          // Last Updated (sortable: 'updated_at')
+          _buildSortableColumnHeader(
+            title: 'Last Updated',
+            columnKey: 'updated_at',
+            width: 125,
+            currentSortBy: state.typesSortBy,
+            currentSortOrder: state.typesSortOrder,
+            onTap: () => notifier.sortDeviceTypes('updated_at'),
+            isDark: isDark,
+            primaryColor: primaryColor,
+          ),
+          const SizedBox(width: 8),
+
+          // Actions
+          SizedBox(
+            width: 96,
+            child: Text(
+              'Actions',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                letterSpacing: 0.3,
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-          // Pagination Footer matching screenshot
-          _buildPaginationFooter(state, notifier),
+  Widget _buildSortableColumnHeader({
+    required String title,
+    required String columnKey,
+    required double width,
+    required String currentSortBy,
+    required String currentSortOrder,
+    required VoidCallback onTap,
+    required bool isDark,
+    required Color primaryColor,
+  }) {
+    final isSorted = currentSortBy == columnKey;
+    return SizedBox(
+      width: width,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: isSorted
+                        ? primaryColor
+                        : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                    letterSpacing: 0.3,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                isSorted
+                    ? (currentSortOrder.toLowerCase() == 'asc'
+                        ? Icons.arrow_upward_rounded
+                        : Icons.arrow_downward_rounded)
+                    : Icons.unfold_more_rounded,
+                size: 13,
+                color: isSorted
+                    ? primaryColor
+                    : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTypeRow(
+    DeviceTypeDetailItem dt,
+    DeviceManagementState state,
+    DeviceManagementNotifier notifier,
+    bool isDark,
+    Color primaryColor,
+    bool isChecked,
+    bool isRowActive,
+  ) {
+    final rowBg = isRowActive
+        ? primaryColor.withValues(alpha: isDark ? 0.25 : 0.08)
+        : (isChecked
+            ? primaryColor.withValues(alpha: isDark ? 0.15 : 0.04)
+            : (isDark ? const Color(0xFF1E293B) : Colors.white));
+
+    return InkWell(
+      onTap: () => notifier.selectDeviceType(dt.id),
+      child: Container(
+        height: 52,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: rowBg,
+          border: Border(
+            bottom: BorderSide(
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+              width: 1,
+            ),
+          ),
+        ),
+        child: Row(
+          children: [
+            // Single Row Checkbox (Zero Double Checkboxes)
+            SizedBox(
+              width: 32,
+              child: Checkbox(
+                value: isChecked,
+                activeColor: primaryColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                onChanged: (val) {
+                  setState(() {
+                    if (val == true) {
+                      _selectedTypeIds.add(dt.id);
+                    } else {
+                      _selectedTypeIds.remove(dt.id);
+                    }
+                  });
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Device Type Name + Icon + Description
+            SizedBox(
+              width: 200,
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: isDark ? 0.2 : 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: primaryColor.withValues(alpha: 0.2)),
+                    ),
+                    child: Icon(
+                      _resolveTypeIcon(dt.icon),
+                      size: 18,
+                      color: primaryColor,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          dt.name,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (dt.description.isNotEmpty)
+                          Text(
+                            dt.description,
+                            style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Category Badge
+            SizedBox(
+              width: 130,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _buildCategoryBadge(dt.categoryName),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Mapped Devices
+            SizedBox(
+              width: 110,
+              child: Text(
+                _formatNumber(dt.mappedDevicesCount),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Profiles Count
+            SizedBox(
+              width: 85,
+              child: Text(
+                '${dt.profilesCount}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Status Pill
+            SizedBox(
+              width: 90,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _buildActiveStatusPill(dt.status),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Last Updated
+            SizedBox(
+              width: 125,
+              child: Text(
+                dt.updatedAt ?? 'Just now',
+                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Actions (Edit, More)
+            SizedBox(
+              width: 96,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF2563EB)),
+                    splashRadius: 16,
+                    tooltip: 'Edit Device Type',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (ctx) => CreateEditDeviceTypeWizardDialog(
+                          initialType: dt,
+                          onSave: (payload) => notifier.updateDeviceType(dt.id, payload),
+                        ),
+                      );
+                    },
+                  ),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert_rounded, size: 16, color: Color(0xFF64748B)),
+                    splashRadius: 16,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    onSelected: (action) {
+                      if (action == 'duplicate') {
+                        notifier.duplicateDeviceType(dt.id);
+                      } else if (action == 'delete') {
+                        _confirmDeleteType(context, dt, notifier);
+                      } else if (action == 'add_profile') {
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (ctx) => CreateEditDeviceProfileDialog(
+                            defaultDeviceTypeId: dt.id,
+                            defaultDeviceTypeName: dt.name,
+                            onSave: (payload) => notifier.createDeviceProfile(payload),
+                          ),
+                        );
+                      }
+                    },
+                    itemBuilder: (ctx) => [
+                      const PopupMenuItem(
+                        value: 'add_profile',
+                        child: Text('Add Control Profile', style: TextStyle(fontSize: 12)),
+                      ),
+                      const PopupMenuItem(
+                        value: 'duplicate',
+                        child: Text('Duplicate Device Type', style: TextStyle(fontSize: 12)),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Delete / Deactivate', style: TextStyle(fontSize: 12, color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyTypesState(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.layers_clear_rounded,
+              size: 36,
+              color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No Device Types Found',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'No device types match your search or filter criteria.',
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            ),
+          ),
         ],
       ),
     );
@@ -996,12 +1283,16 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
         children: [
           Icon(icon, size: 12, color: text),
           const SizedBox(width: 4),
-          Text(
-            categoryName,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: text,
+          Flexible(
+            child: Text(
+              categoryName,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: text,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -1013,51 +1304,64 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
     final isActive = status.toLowerCase() == 'active';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: isActive ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isActive ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isActive ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
+              ),
             ),
-          ),
-          const SizedBox(width: 5),
-          Text(
-            isActive ? 'Active' : 'Inactive',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: isActive ? const Color(0xFF15803D) : const Color(0xFF64748B),
+            const SizedBox(width: 4),
+            Text(
+              isActive ? 'Active' : 'Inactive',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: isActive ? const Color(0xFF15803D) : const Color(0xFF64748B),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildPaginationFooter(DeviceManagementState state, DeviceManagementNotifier notifier) {
+  Widget _buildPaginationFooter(
+    DeviceManagementState state,
+    DeviceManagementNotifier notifier,
+    bool isDark,
+    Color primaryColor,
+  ) {
     final currentPage = state.deviceTypesPage;
     final totalPages = state.deviceTypesTotalPages;
     final total = state.totalDeviceTypes;
-    final startIdx = total == 0 ? 0 : ((currentPage - 1) * state.deviceTypesPageSize) + 1;
+    final pageSize = state.deviceTypesPageSize;
+    final startIdx = total == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
     final endIdx = total == 0
         ? 0
-        : (currentPage * state.deviceTypesPageSize > total
+        : (currentPage * pageSize > total
             ? total
-            : currentPage * state.deviceTypesPageSize);
+            : currentPage * pageSize);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+          ),
+        ),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -1065,20 +1369,54 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
           children: [
             Text(
               'Showing $startIdx – $endIdx of $total device types',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
             ),
             const SizedBox(width: 24),
             Row(
               children: [
-                const Text('Rows per page:', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFFCBD5E1)),
-                    borderRadius: BorderRadius.circular(4),
+                Text(
+                  'Rows per page:',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                   ),
-                  child: const Text('10', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  height: 30,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                    ),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<int>(
+                      value: [5, 10, 20, 50, 100].contains(pageSize) ? pageSize : 10,
+                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                      items: [5, 10, 20, 50, 100].map((s) {
+                        return DropdownMenuItem<int>(
+                          value: s,
+                          child: Text('$s'),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          notifier.setTypesPageSize(val);
+                        }
+                      },
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -1088,6 +1426,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                 IconButton(
                   icon: const Icon(Icons.chevron_left_rounded, size: 20),
                   splashRadius: 16,
+                  tooltip: 'Previous Page',
                   onPressed: currentPage > 1 ? () => notifier.setTypesPage(currentPage - 1) : null,
                 ),
                 for (int i = 1; i <= totalPages; i++)
@@ -1098,7 +1437,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                       margin: const EdgeInsets.symmetric(horizontal: 2),
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: currentPage == i ? const Color(0xFF2563EB) : Colors.transparent,
+                        color: currentPage == i ? primaryColor : Colors.transparent,
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -1106,7 +1445,9 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: currentPage == i ? Colors.white : const Color(0xFF0F172A),
+                          color: currentPage == i
+                              ? Colors.white
+                              : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF0F172A)),
                         ),
                       ),
                     ),
@@ -1114,6 +1455,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                 IconButton(
                   icon: const Icon(Icons.chevron_right_rounded, size: 20),
                   splashRadius: 16,
+                  tooltip: 'Next Page',
                   onPressed: currentPage < totalPages ? () => notifier.setTypesPage(currentPage + 1) : null,
                 ),
               ],
@@ -1305,16 +1647,22 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.tune_rounded, size: 16, color: Color(0xFF2563EB)),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Control Profiles (${profiles.length})',
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
-                        ),
-                      ],
+                    Expanded(
+                      child: Row(
+                        children: [
+                          const Icon(Icons.tune_rounded, size: 16, color: Color(0xFF2563EB)),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'Control Profiles (${profiles.length})',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     OutlinedButton.icon(
                       icon: const Icon(Icons.add_rounded, size: 14),
                       label: const Text('Add Profile'),
@@ -1388,11 +1736,15 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+          ),
         ),
       ],
     );

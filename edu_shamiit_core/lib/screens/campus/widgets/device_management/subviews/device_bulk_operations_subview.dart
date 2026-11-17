@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -10,10 +11,20 @@ import '../../../models/device_management_models.dart';
 /// Campus Management -> Device Management & Control -> Bulk Operations
 class DeviceBulkOperationsSubview extends StatefulWidget {
   final String? apiBaseUrl;
+  final bool initialIsLoading;
+  final BulkOperationOverview? initialOverview;
+  final List<BulkTargetDeviceItem>? initialDevices;
+  final List<BulkRecentOperationItem>? initialRecentOperations;
+  final List<BulkOperationTemplateItem>? initialTemplates;
 
   const DeviceBulkOperationsSubview({
     super.key,
     this.apiBaseUrl,
+    this.initialIsLoading = false,
+    this.initialOverview,
+    this.initialDevices,
+    this.initialRecentOperations,
+    this.initialTemplates,
   });
 
   @override
@@ -61,6 +72,25 @@ class _DeviceBulkOperationsSubviewState
   String _selectedStatus = 'All Status';
   String _selectedProfile = 'All Profiles';
   final TextEditingController _searchController = TextEditingController();
+
+  // Cascading Location & Filter Lookup Lists
+  List<Map<String, dynamic>> _buildingsList = [];
+  List<Map<String, dynamic>> _floorsList = [];
+  List<Map<String, dynamic>> _roomsList = [];
+  List<Map<String, dynamic>> _deviceTypesList = [];
+  List<Map<String, dynamic>> _profilesList = [];
+  List<Map<String, dynamic>> _groupsList = [];
+  List<Map<String, dynamic>> _scenesList = [];
+
+  String? _selectedBuildingId;
+  String? _selectedFloorId;
+  String? _selectedRoomId;
+
+  // Sorting & Database Pagination
+  String _sortBy = 'device_name';
+  String _sortOrder = 'asc';
+  int _totalDevicesCount = 0;
+  int _totalPages = 1;
 
   // Selected Devices in Table
   final Set<String> _selectedDeviceIds = {};
@@ -125,7 +155,29 @@ class _DeviceBulkOperationsSubviewState
   @override
   void initState() {
     super.initState();
-    _loadInitialData();
+    if (widget.initialOverview != null ||
+        widget.initialDevices != null ||
+        (widget.apiBaseUrl != null && widget.apiBaseUrl!.contains('mock'))) {
+      _isLoading = widget.initialIsLoading;
+      if (widget.initialOverview != null) {
+        _overview = widget.initialOverview!;
+      } else {
+        _seedFallbackData();
+      }
+      if (widget.initialDevices != null) {
+        _devices = List.from(widget.initialDevices!);
+        _totalDevicesCount = _devices.length;
+        _totalPages = 1;
+      }
+      if (widget.initialRecentOperations != null) {
+        _recentOperations = List.from(widget.initialRecentOperations!);
+      }
+      if (widget.initialTemplates != null) {
+        _templates = List.from(widget.initialTemplates!);
+      }
+    } else {
+      _loadInitialData();
+    }
   }
 
   @override
@@ -135,16 +187,12 @@ class _DeviceBulkOperationsSubviewState
   }
 
   Future<void> _loadInitialData() async {
-    if (_baseUrl.contains('mock') || _baseUrl.contains('test')) {
-      _seedFallbackData();
-      setState(() {
-        _isLoading = false;
-      });
-      return;
-    }
     setState(() => _isLoading = true);
     try {
-      // 1. Fetch Overview KPIs, Recent Ops and Templates
+      // 1. Fetch Cascading Locations (Strict database tables)
+      await _fetchCascadingLocations();
+
+      // 2. Fetch Overview KPIs, Recent Ops and Templates
       final headers = await _getHeaders();
       final overviewRes = await http.get(
           Uri.parse('$_baseUrl/bulk-operations/overview'),
@@ -164,38 +212,260 @@ class _DeviceBulkOperationsSubviewState
               .map((e) => BulkOperationTemplateItem.fromJson(e))
               .toList();
         }
-      } else {
+      }
+
+      // 3. Fetch Initial Target Devices from Database
+      await _fetchTargetDevices();
+    } catch (e) {
+      debugPrint('[Bulk Operations Initial Load Error]: $e');
+      if (_devices.isEmpty) {
         _seedFallbackData();
       }
-
-      // 2. Fetch Initial Target Devices
-      await _fetchTargetDevices();
-
-      // Pre-select 4 lighting devices to match reference UI screenshot exactly
-      if (_devices.isNotEmpty && _selectedDeviceIds.isEmpty) {
-        final lights = _devices
-            .where(
-                (d) => d.typeCode == 'lighting' || d.typeName.contains('Light'))
-            .take(4)
-            .toList();
-        for (var l in lights) {
-          _selectedDeviceIds.add(l.id);
-        }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
-
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      // Graceful fallback to canonical preview items
-      _seedFallbackData();
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
+  /// True cascading locations from PostgreSQL fn_bulk_cascading_locations
+  Future<void> _fetchCascadingLocations({String? buildingId, String? floorId}) async {
+    try {
+      final headers = await _getHeaders();
+      final queryParams = <String, String>{};
+      if (buildingId != null && buildingId.isNotEmpty) {
+        queryParams['building_id'] = buildingId;
+      }
+      if (floorId != null && floorId.isNotEmpty) {
+        queryParams['floor_id'] = floorId;
+      }
+      final uri = Uri.parse('$_baseUrl/bulk-operations/cascading-locations')
+          .replace(queryParameters: queryParams);
+      final res = await http.get(uri, headers: headers);
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            if (buildingId == null && floorId == null) {
+              _buildingsList =
+                  List<Map<String, dynamic>>.from(data['buildings'] ?? []);
+              _deviceTypesList =
+                  List<Map<String, dynamic>>.from(data['device_types'] ?? []);
+              _profilesList =
+                  List<Map<String, dynamic>>.from(data['profiles'] ?? []);
+              _groupsList =
+                  List<Map<String, dynamic>>.from(data['groups'] ?? []);
+              _scenesList =
+                  List<Map<String, dynamic>>.from(data['scenes'] ?? []);
+            }
+            _floorsList =
+                List<Map<String, dynamic>>.from(data['floors'] ?? []);
+            _roomsList =
+                List<Map<String, dynamic>>.from(data['rooms'] ?? []);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('[Cascading Locations Error]: $e');
+    }
+  }
+
+  void _onBuildingChanged(String? val) {
+    if (val == null || val == _selectedBuilding) return;
+    setState(() {
+      _selectedBuilding = val;
+      if (val == 'All Buildings') {
+        _selectedBuildingId = null;
+      } else {
+        final found = _buildingsList.firstWhere(
+          (b) => b['name']?.toString() == val,
+          orElse: () => {'id': null},
+        );
+        _selectedBuildingId = found['id']?.toString();
+      }
+      _selectedFloor = 'All Floors';
+      _selectedFloorId = null;
+      _selectedRoom = 'All Rooms';
+      _selectedRoomId = null;
+      _currentPage = 1;
+    });
+    _fetchCascadingLocations(buildingId: _selectedBuildingId);
+    _fetchTargetDevices();
+  }
+
+  void _onFloorChanged(String? val) {
+    if (val == null || val == _selectedFloor) return;
+    setState(() {
+      _selectedFloor = val;
+      if (val == 'All Floors') {
+        _selectedFloorId = null;
+      } else {
+        final found = _floorsList.firstWhere(
+          (f) => f['name']?.toString() == val,
+          orElse: () => {'id': null},
+        );
+        _selectedFloorId = found['id']?.toString();
+      }
+      _selectedRoom = 'All Rooms';
+      _selectedRoomId = null;
+      _currentPage = 1;
+    });
+    _fetchCascadingLocations(
+        buildingId: _selectedBuildingId, floorId: _selectedFloorId);
+    _fetchTargetDevices();
+  }
+
+  void _onRoomChanged(String? val) {
+    if (val == null || val == _selectedRoom) return;
+    setState(() {
+      _selectedRoom = val;
+      if (val == 'All Rooms') {
+        _selectedRoomId = null;
+      } else {
+        final found = _roomsList.firstWhere(
+          (r) => r['name']?.toString() == val,
+          orElse: () => {'id': null},
+        );
+        _selectedRoomId = found['id']?.toString();
+      }
+      _currentPage = 1;
+    });
+    _fetchTargetDevices();
+  }
+
+  void _onDeviceTypeChanged(String? val) {
+    if (val == null || val == _selectedDeviceType) return;
+    setState(() {
+      _selectedDeviceType = val;
+      _currentPage = 1;
+    });
+    _fetchTargetDevices();
+  }
+
+  void _onStatusChanged(String? val) {
+    if (val == null || val == _selectedStatus) return;
+    setState(() {
+      _selectedStatus = val;
+      _currentPage = 1;
+    });
+    _fetchTargetDevices();
+  }
+
+  void _onProfileChanged(String? val) {
+    if (val == null || val == _selectedProfile) return;
+    setState(() {
+      _selectedProfile = val;
+      _currentPage = 1;
+    });
+    _fetchTargetDevices();
+  }
+
+  void _toggleSort(String column) {
+    setState(() {
+      if (_sortBy == column) {
+        _sortOrder = _sortOrder == 'asc' ? 'desc' : 'asc';
+      } else {
+        _sortBy = column;
+        _sortOrder = 'asc';
+      }
+      _currentPage = 1;
+    });
+    _fetchTargetDevices();
+  }
+
+  List<String> get _buildingDropdownItems => [
+        'All Buildings',
+        ..._buildingsList
+            .map((b) => b['name']?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+      ];
+
+  List<String> get _floorDropdownItems => [
+        'All Floors',
+        ..._floorsList
+            .map((f) => f['name']?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+      ];
+
+  List<String> get _roomDropdownItems => [
+        'All Rooms',
+        ..._roomsList
+            .map((r) => r['name']?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+      ];
+
+  List<String> get _deviceTypeDropdownItems => [
+        'All Types',
+        ..._deviceTypesList
+            .map((d) => d['name']?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+      ];
+
+  List<String> get _statusDropdownItems =>
+      const ['All Status', 'Online', 'Offline'];
+
+  List<String> get _profileDropdownItems => [
+        'All Profiles',
+        ..._profilesList
+            .map((p) => p['name']?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+      ];
+
+  List<String> get _groupDropdownItems {
+    final list = _groupsList
+        .map((g) => g['name']?.toString() ?? '')
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (list.isEmpty) {
+      return const [
+        'Classroom A1 AV Group',
+        'Academic Block Lighting Core',
+        'HVAC Energy Optimization Group',
+        'Corridor Safety & Security',
+        'Lab Computer & IoT Stations',
+        'Auditorium Multimedia Rack',
+      ];
+    }
+    return list;
+  }
+
+  List<String> get _targetProfileDropdownItems {
+    final list = _profilesList
+        .map((p) => p['name']?.toString() ?? '')
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (list.isEmpty) {
+      return const [
+        'Default Classroom Standard',
+        'Energy Saver Profile',
+        'High Performance Lab Profile',
+        'Auditorium Event Setup',
+        'Night / Lockdown Profile',
+      ];
+    }
+    return list;
+  }
+
+  List<String> get _sceneDropdownItems {
+    final list = _scenesList
+        .map((s) => s['name']?.toString() ?? '')
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (list.isEmpty) {
+      return const [
+        'Morning Campus Startup',
+        'Class In Session Mode',
+        'Lunch Break Low Power',
+        'Presentation / Movie Mode',
+        'Emergency Evacuation Lighting',
+        'Campus Night Lockdown',
+      ];
+    }
+    return list;
+  }
+
   void _seedFallbackData() {
+    _isLoading = false;
     _overview = const BulkOperationOverview(
       totalDevices: 8742,
       onlineDevices: 8342,
@@ -296,6 +566,8 @@ class _DeviceBulkOperationsSubviewState
 
     _selectedDeviceIds.clear();
     _selectedDeviceIds.addAll(['dev-1', 'dev-2', 'dev-3', 'dev-4']);
+    _totalDevicesCount = _devices.length;
+    _totalPages = 1;
 
     _recentOperations = [
       const BulkRecentOperationItem(
@@ -388,88 +660,76 @@ class _DeviceBulkOperationsSubviewState
     ];
   }
 
-  List<BulkTargetDeviceItem> get _filteredDevices {
-    return _devices.where((d) {
-      if (_selectedBuilding != 'All Buildings' &&
-          !d.location.toLowerCase().contains(_selectedBuilding.toLowerCase())) {
-        return false;
-      }
-      if (_selectedFloor != 'All Floors' &&
-          !d.location.toLowerCase().contains(_selectedFloor.toLowerCase())) {
-        return false;
-      }
-      if (_selectedRoom != 'All Rooms' &&
-          !d.location.toLowerCase().contains(_selectedRoom.toLowerCase())) {
-        return false;
-      }
-      if (_selectedDeviceType != 'All Types') {
-        final t = _selectedDeviceType.toLowerCase();
-        if (!d.typeName.toLowerCase().contains(t) &&
-            !d.typeCode.toLowerCase().contains(t)) {
-          return false;
-        }
-      }
-      if (_selectedStatus == 'Online' && !d.isOnline) return false;
-      if (_selectedStatus == 'Offline' && d.isOnline) return false;
-      if (_searchController.text.trim().isNotEmpty) {
-        final q = _searchController.text.trim().toLowerCase();
-        if (!d.deviceName.toLowerCase().contains(q) &&
-            !d.deviceCode.toLowerCase().contains(q) &&
-            !d.location.toLowerCase().contains(q)) {
-          return false;
-        }
-      }
-      return true;
-    }).toList();
-  }
-
   Future<void> _fetchTargetDevices() async {
-    if (_baseUrl.contains('mock') || _baseUrl.contains('test')) {
-      if (_devices.isEmpty) _seedFallbackData();
-      setState(() => _currentPage = 1);
-      return;
-    }
     try {
       final headers = await _getHeaders();
-      final res = await http.post(
-        Uri.parse('$_baseUrl/bulk-operations/resolve-targets'),
-        headers: headers,
-        body: jsonEncode({
-          'target_type': _selectedTargetTab.toLowerCase().replaceAll(' ', '_'),
-          'target_configuration': {},
-          'filters': {
-            'building':
-                _selectedBuilding == 'All Buildings' ? null : _selectedBuilding,
-            'floor': _selectedFloor == 'All Floors' ? null : _selectedFloor,
-            'room': _selectedRoom == 'All Rooms' ? null : _selectedRoom,
-            'device_type':
-                _selectedDeviceType == 'All Types' ? null : _selectedDeviceType,
-            'status': _selectedStatus == 'All Status' ? null : _selectedStatus,
-            'profile':
-                _selectedProfile == 'All Profiles' ? null : _selectedProfile,
-            'search': _searchController.text.trim().isEmpty
-                ? null
-                : _searchController.text.trim(),
-          }
-        }),
-      );
+      final queryParams = <String, String>{
+        'page': _currentPage.toString(),
+        'page_size': _rowsPerPage.toString(),
+        'sort_by': _sortBy,
+        'sort_order': _sortOrder,
+      };
+
+      if (_selectedBuildingId != null && _selectedBuildingId!.isNotEmpty) {
+        queryParams['building_id'] = _selectedBuildingId!;
+      } else if (_selectedBuilding != 'All Buildings') {
+        queryParams['building'] = _selectedBuilding;
+      }
+
+      if (_selectedFloorId != null && _selectedFloorId!.isNotEmpty) {
+        queryParams['floor_id'] = _selectedFloorId!;
+      } else if (_selectedFloor != 'All Floors') {
+        queryParams['floor'] = _selectedFloor;
+      }
+
+      if (_selectedRoomId != null && _selectedRoomId!.isNotEmpty) {
+        queryParams['room_id'] = _selectedRoomId!;
+      } else if (_selectedRoom != 'All Rooms') {
+        queryParams['room'] = _selectedRoom;
+      }
+
+      if (_selectedDeviceType != 'All Types') {
+        queryParams['device_type'] = _selectedDeviceType;
+      }
+
+      if (_selectedStatus != 'All Status') {
+        queryParams['status'] = _selectedStatus.toLowerCase();
+      }
+
+      if (_selectedProfile != 'All Profiles') {
+        queryParams['profile'] = _selectedProfile;
+      }
+
+      final search = _searchController.text.trim();
+      if (search.isNotEmpty) {
+        queryParams['search'] = search;
+      }
+
+      final uri = Uri.parse('$_baseUrl/bulk-operations/targets')
+          .replace(queryParameters: queryParams);
+      final res = await http.get(uri, headers: headers);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         if (data['devices'] is List) {
-          setState(() {
-            _devices = (data['devices'] as List)
-                .map((e) => BulkTargetDeviceItem.fromJson(e))
-                .toList();
-            _currentPage = 1;
-          });
+          final list = (data['devices'] as List)
+              .map((e) => BulkTargetDeviceItem.fromJson(e))
+              .toList();
+          if (mounted) {
+            setState(() {
+              _devices = list;
+              _totalDevicesCount = data['total'] ?? list.length;
+              _totalPages = (data['total_pages'] is int && data['total_pages'] > 0)
+                  ? data['total_pages'] as int
+                  : math.max(
+                      1,
+                      ((data['total'] ?? list.length) / _rowsPerPage).ceil());
+            });
+          }
+          return;
         }
-      } else if (_devices.isEmpty) {
-        _seedFallbackData();
       }
-    } catch (_) {
-      if (_devices.isEmpty) {
-        _seedFallbackData();
-      }
+    } catch (e) {
+      debugPrint('[Fetch Target Devices Error]: $e');
     }
   }
 
@@ -792,11 +1052,17 @@ class _DeviceBulkOperationsSubviewState
   // 1. Top 6 KPI Metrics Bar
   // ---------------------------------------------------------------------------
   Widget _buildKpiMetricsBar(bool isDark) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
     final selectedCount = _selectedDeviceIds.length;
     final onlineCount = _overview.onlineDevices;
     final onlinePct = _overview.onlinePercentage;
     final offlineCount = _overview.offlineDevices;
     final offlinePct = _overview.offlinePercentage;
+    final groupsCount = _overview.selectedGroups;
+    final locationsCount = _overview.selectedLocations;
+    final affectedCount =
+        selectedCount > 0 ? selectedCount : _overview.affectedDevices;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -805,7 +1071,7 @@ class _DeviceBulkOperationsSubviewState
             title: 'Selected Devices',
             value: '$selectedCount',
             icon: Icons.layers_outlined,
-            accentColor: const Color(0xFF2563EB),
+            accentColor: primaryColor,
             isDark: isDark,
           ),
           _buildKpiCard(
@@ -824,23 +1090,23 @@ class _DeviceBulkOperationsSubviewState
           ),
           _buildKpiCard(
             title: 'Selected Groups',
-            value: '0',
+            value: '$groupsCount',
             icon: Icons.group_work_outlined,
-            accentColor: const Color(0xFF2563EB),
+            accentColor: primaryColor,
             isDark: isDark,
           ),
           _buildKpiCard(
             title: 'Selected Locations',
-            value: '0',
+            value: '$locationsCount',
             icon: Icons.place_outlined,
-            accentColor: const Color(0xFF2563EB),
+            accentColor: primaryColor,
             isDark: isDark,
           ),
           _buildKpiCard(
             title: 'Affected Devices',
-            value: '$selectedCount',
+            value: '$affectedCount',
             icon: Icons.devices_other_outlined,
-            accentColor: const Color(0xFF2563EB),
+            accentColor: primaryColor,
             isDark: isDark,
           ),
         ];
@@ -1324,6 +1590,9 @@ class _DeviceBulkOperationsSubviewState
         _buildFilterDevicesBox(isDark),
         const SizedBox(height: 12),
 
+        // Operation after multi-selection on grid toolbar
+        _buildMultiSelectionActionBar(isDark),
+
         // Target Devices Table
         _buildTargetDevicesTable(isDark),
       ],
@@ -1432,17 +1701,8 @@ class _DeviceBulkOperationsSubviewState
                       child: _buildSmallDropdown(
                         label: 'Building',
                         value: _selectedBuilding,
-                        items: const [
-                          'All Buildings',
-                          'Academic Block (A)',
-                          'Academic Block (B)',
-                          'Library Block',
-                          'Sports Complex'
-                        ],
-                        onChanged: (val) {
-                          setState(() => _selectedBuilding = val!);
-                          _fetchTargetDevices();
-                        },
+                        items: _buildingDropdownItems,
+                        onChanged: _onBuildingChanged,
                         isDark: isDark,
                       ),
                     ),
@@ -1451,16 +1711,8 @@ class _DeviceBulkOperationsSubviewState
                       child: _buildSmallDropdown(
                         label: 'Floor',
                         value: _selectedFloor,
-                        items: const [
-                          'All Floors',
-                          'Ground Floor',
-                          'First Floor',
-                          'Second Floor'
-                        ],
-                        onChanged: (val) {
-                          setState(() => _selectedFloor = val!);
-                          _fetchTargetDevices();
-                        },
+                        items: _floorDropdownItems,
+                        onChanged: _onFloorChanged,
                         isDark: isDark,
                       ),
                     ),
@@ -1469,18 +1721,8 @@ class _DeviceBulkOperationsSubviewState
                       child: _buildSmallDropdown(
                         label: 'Room / Space',
                         value: _selectedRoom,
-                        items: const [
-                          'All Rooms',
-                          'A1-101',
-                          'A1-102',
-                          'A1-103',
-                          'A1-104',
-                          'Corridor'
-                        ],
-                        onChanged: (val) {
-                          setState(() => _selectedRoom = val!);
-                          _fetchTargetDevices();
-                        },
+                        items: _roomDropdownItems,
+                        onChanged: _onRoomChanged,
                         isDark: isDark,
                       ),
                     ),
@@ -1489,18 +1731,8 @@ class _DeviceBulkOperationsSubviewState
                       child: _buildSmallDropdown(
                         label: 'Device Type',
                         value: _selectedDeviceType,
-                        items: const [
-                          'All Types',
-                          'Lighting',
-                          'HVAC (AC)',
-                          'Fan',
-                          'Projector',
-                          'CCTV'
-                        ],
-                        onChanged: (val) {
-                          setState(() => _selectedDeviceType = val!);
-                          _fetchTargetDevices();
-                        },
+                        items: _deviceTypeDropdownItems,
+                        onChanged: _onDeviceTypeChanged,
                         isDark: isDark,
                       ),
                     ),
@@ -1515,17 +1747,8 @@ class _DeviceBulkOperationsSubviewState
                           child: _buildSmallDropdown(
                             label: 'Building',
                             value: _selectedBuilding,
-                            items: const [
-                              'All Buildings',
-                              'Academic Block (A)',
-                              'Academic Block (B)',
-                              'Library Block',
-                              'Sports Complex'
-                            ],
-                            onChanged: (val) {
-                              setState(() => _selectedBuilding = val!);
-                              _fetchTargetDevices();
-                            },
+                            items: _buildingDropdownItems,
+                            onChanged: _onBuildingChanged,
                             isDark: isDark,
                           ),
                         ),
@@ -1534,16 +1757,8 @@ class _DeviceBulkOperationsSubviewState
                           child: _buildSmallDropdown(
                             label: 'Floor',
                             value: _selectedFloor,
-                            items: const [
-                              'All Floors',
-                              'Ground Floor',
-                              'First Floor',
-                              'Second Floor'
-                            ],
-                            onChanged: (val) {
-                              setState(() => _selectedFloor = val!);
-                              _fetchTargetDevices();
-                            },
+                            items: _floorDropdownItems,
+                            onChanged: _onFloorChanged,
                             isDark: isDark,
                           ),
                         ),
@@ -1556,18 +1771,8 @@ class _DeviceBulkOperationsSubviewState
                           child: _buildSmallDropdown(
                             label: 'Room / Space',
                             value: _selectedRoom,
-                            items: const [
-                              'All Rooms',
-                              'A1-101',
-                              'A1-102',
-                              'A1-103',
-                              'A1-104',
-                              'Corridor'
-                            ],
-                            onChanged: (val) {
-                              setState(() => _selectedRoom = val!);
-                              _fetchTargetDevices();
-                            },
+                            items: _roomDropdownItems,
+                            onChanged: _onRoomChanged,
                             isDark: isDark,
                           ),
                         ),
@@ -1576,18 +1781,8 @@ class _DeviceBulkOperationsSubviewState
                           child: _buildSmallDropdown(
                             label: 'Device Type',
                             value: _selectedDeviceType,
-                            items: const [
-                              'All Types',
-                              'Lighting',
-                              'HVAC (AC)',
-                              'Fan',
-                              'Projector',
-                              'CCTV'
-                            ],
-                            onChanged: (val) {
-                              setState(() => _selectedDeviceType = val!);
-                              _fetchTargetDevices();
-                            },
+                            items: _deviceTypeDropdownItems,
+                            onChanged: _onDeviceTypeChanged,
                             isDark: isDark,
                           ),
                         ),
@@ -1606,11 +1801,8 @@ class _DeviceBulkOperationsSubviewState
                       child: _buildSmallDropdown(
                         label: 'Status',
                         value: _selectedStatus,
-                        items: const ['All Status', 'Online', 'Offline'],
-                        onChanged: (val) {
-                          setState(() => _selectedStatus = val!);
-                          _fetchTargetDevices();
-                        },
+                        items: _statusDropdownItems,
+                        onChanged: _onStatusChanged,
                         isDark: isDark,
                       ),
                     ),
@@ -1620,16 +1812,8 @@ class _DeviceBulkOperationsSubviewState
                       child: _buildSmallDropdown(
                         label: 'Profile',
                         value: _selectedProfile,
-                        items: const [
-                          'All Profiles',
-                          'Default Lighting',
-                          'AC Standard',
-                          'High Security'
-                        ],
-                        onChanged: (val) {
-                          setState(() => _selectedProfile = val!);
-                          _fetchTargetDevices();
-                        },
+                        items: _profileDropdownItems,
+                        onChanged: _onProfileChanged,
                         isDark: isDark,
                       ),
                     ),
@@ -1678,11 +1862,8 @@ class _DeviceBulkOperationsSubviewState
                           child: _buildSmallDropdown(
                             label: 'Status',
                             value: _selectedStatus,
-                            items: const ['All Status', 'Online', 'Offline'],
-                            onChanged: (val) {
-                              setState(() => _selectedStatus = val!);
-                              _fetchTargetDevices();
-                            },
+                            items: _statusDropdownItems,
+                            onChanged: _onStatusChanged,
                             isDark: isDark,
                           ),
                         ),
@@ -1691,16 +1872,8 @@ class _DeviceBulkOperationsSubviewState
                           child: _buildSmallDropdown(
                             label: 'Profile',
                             value: _selectedProfile,
-                            items: const [
-                              'All Profiles',
-                              'Default Lighting',
-                              'AC Standard',
-                              'High Security'
-                            ],
-                            onChanged: (val) {
-                              setState(() => _selectedProfile = val!);
-                              _fetchTargetDevices();
-                            },
+                            items: _profileDropdownItems,
+                            onChanged: _onProfileChanged,
                             isDark: isDark,
                           ),
                         ),
@@ -1764,7 +1937,9 @@ class _DeviceBulkOperationsSubviewState
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: items.contains(value) ? value : items.first,
+          value: items.contains(value)
+              ? value
+              : (items.isNotEmpty ? items.first : null),
           isDense: true,
           isExpanded: true,
           icon: const Icon(Icons.arrow_drop_down, size: 18),
@@ -1783,17 +1958,352 @@ class _DeviceBulkOperationsSubviewState
     );
   }
 
+  Widget _buildSortableHeader(
+      String title, String column, int flex, bool isDark) {
+    final isSorted = _sortBy == column;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    return Expanded(
+      flex: flex,
+      child: InkWell(
+        onTap: () => _toggleSort(column),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: isSorted
+                      ? primaryColor
+                      : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              isSorted
+                  ? (_sortOrder == 'asc'
+                      ? Icons.arrow_upward
+                      : Icons.arrow_downward)
+                  : Icons.unfold_more,
+              size: 13,
+              color: isSorted
+                  ? primaryColor
+                  : (isDark
+                      ? const Color(0xFF64748B)
+                      : const Color(0xFF94A3B8)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMultiSelectionActionBar(bool isDark) {
+    if (_selectedDeviceIds.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isDark ? const Color(0xFF3B82F6) : const Color(0xFFBFDBFE),
+        ),
+      ),
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 8,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: primaryColor.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.check_circle_rounded,
+                    size: 16, color: primaryColor),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  '${_selectedDeviceIds.length} target devices selected',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                    color: isDark ? Colors.white : const Color(0xFF1E3A8A),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              ElevatedButton.icon(
+                onPressed: () => _executeQuickAction('turn_on'),
+                icon: const Icon(Icons.power_settings_new, size: 14),
+                label: const Text('Turn ON'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF16A34A),
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  textStyle: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => _executeQuickAction('turn_off'),
+                icon: const Icon(Icons.power_off, size: 14),
+                label: const Text('Turn OFF'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFDC2626),
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  textStyle: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => _executeQuickAction('toggle'),
+                icon: const Icon(Icons.sync_alt, size: 14),
+                label: const Text('Toggle'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD97706),
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  textStyle: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _showApplyProfileDialog,
+                icon: const Icon(Icons.tune, size: 14),
+                label: const Text('Apply Profile'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: primaryColor,
+                  side: BorderSide(color: primaryColor.withValues(alpha: 0.5)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  textStyle: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _showSetSceneDialog,
+                icon: const Icon(Icons.auto_awesome, size: 14),
+                label: const Text('Run Scene'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: primaryColor,
+                  side: BorderSide(color: primaryColor.withValues(alpha: 0.5)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  textStyle: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _selectedDeviceIds.clear()),
+                child: const Text('Clear All',
+                    style: TextStyle(fontSize: 11, color: Color(0xFFEF4444))),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _executeQuickAction(String action,
+      {Map<String, dynamic>? extraParams}) async {
+    if (_selectedDeviceIds.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Execute Quick Bulk Action ($action)'),
+        content: Text(
+          'Are you sure you want to apply "$action" to ${_selectedDeviceIds.length} selected devices?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Execute'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      final headers = await _getHeaders();
+      final payload = {
+        'name': 'Quick Bulk Action: $action',
+        'operation_type': 'control',
+        'target_type': 'devices',
+        'target_configuration': {'device_ids': _selectedDeviceIds.toList()},
+        'action_configuration': {
+          'action': action,
+          'parameters': extraParams ?? {},
+        },
+        'execution_configuration': {'batch_size': 50, 'delay_seconds': 0.2},
+      };
+      final res = await http.post(
+        Uri.parse('$_baseUrl/bulk-operations/execute'),
+        headers: headers,
+        body: jsonEncode(payload),
+      );
+      if (res.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Successfully executed $action across ${_selectedDeviceIds.length} devices!',
+              ),
+              backgroundColor: const Color(0xFF16A34A),
+            ),
+          );
+        }
+        await _fetchTargetDevices();
+        await _loadInitialData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to execute bulk action: $e'),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showApplyProfileDialog() {
+    String selectedProf = _targetProfileDropdownItems.first;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          title: const Text('Apply Profile to Selected Devices'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Target devices: ${_selectedDeviceIds.length}'),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: selectedProf,
+                decoration: const InputDecoration(
+                  labelText: 'Select Profile',
+                  border: OutlineInputBorder(),
+                ),
+                items: _targetProfileDropdownItems
+                    .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                    .toList(),
+                onChanged: (v) => setDlgState(() => selectedProf = v!),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _executeQuickAction('apply_profile',
+                    extraParams: {'profile_name': selectedProf});
+              },
+              child: const Text('Apply'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSetSceneDialog() {
+    String selectedScn = _sceneDropdownItems.first;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          title: const Text('Run Scene on Selected Devices'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Target devices: ${_selectedDeviceIds.length}'),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: selectedScn,
+                decoration: const InputDecoration(
+                  labelText: 'Select Scene',
+                  border: OutlineInputBorder(),
+                ),
+                items: _sceneDropdownItems
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                    .toList(),
+                onChanged: (v) => setDlgState(() => selectedScn = v!),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _executeQuickAction('run_scene',
+                    extraParams: {'scene_name': selectedScn});
+              },
+              child: const Text('Run Scene'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildTargetDevicesTable(bool isDark) {
-    final filtered = _filteredDevices;
-    final totalCount = filtered.length;
-    final totalPages = (totalCount / _rowsPerPage).ceil().clamp(1, 9999);
-    final currentPageClamped = _currentPage.clamp(1, totalPages);
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+    final pagedDevices = _devices;
+    final totalCount = _totalDevicesCount;
+    final totalPages = _totalPages;
+    final int currentPageClamped =
+        _currentPage.clamp(1, math.max(1, totalPages)).toInt();
     final startIndex =
         totalCount == 0 ? 0 : (currentPageClamped - 1) * _rowsPerPage;
-    final endIndex = math.min(startIndex + _rowsPerPage, totalCount);
-    final pagedDevices = totalCount > 0
-        ? filtered.sublist(startIndex, endIndex)
-        : <BulkTargetDeviceItem>[];
+    final endIndex = math.min(startIndex + pagedDevices.length, totalCount);
     final allOnPageSelected = pagedDevices.isNotEmpty &&
         pagedDevices.every((d) => _selectedDeviceIds.contains(d.id));
 
@@ -1856,30 +2366,10 @@ class _DeviceBulkOperationsSubviewState
                           ),
                         ),
                         const SizedBox(width: 6),
-                        const Expanded(
-                            flex: 4,
-                            child: Text('Device Name',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700))),
-                        const Expanded(
-                            flex: 3,
-                            child: Text('Type',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700))),
-                        const Expanded(
-                            flex: 4,
-                            child: Text('Location (Building > Room)',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700))),
-                        const Expanded(
-                            flex: 2,
-                            child: Text('Status',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700))),
+                        _buildSortableHeader('Device Name', 'device_name', 4, isDark),
+                        _buildSortableHeader('Type', 'device_type', 3, isDark),
+                        _buildSortableHeader('Location (Building > Room)', 'location', 4, isDark),
+                        _buildSortableHeader('Status', 'status', 2, isDark),
                       ],
                     ),
                   ),
@@ -1936,7 +2426,7 @@ class _DeviceBulkOperationsSubviewState
                           },
                           child: Container(
                             color: isChecked
-                                ? (const Color(0xFF2563EB)
+                                ? (primaryColor
                                     .withValues(alpha: isDark ? 0.15 : 0.05))
                                 : Colors.transparent,
                             padding: const EdgeInsets.symmetric(
@@ -2044,7 +2534,7 @@ class _DeviceBulkOperationsSubviewState
                       },
                     ),
 
-                  // Table Footer: Selected Count & Premium Pagination
+                  // Table Footer: Selected Count & Database Pagination
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -2098,9 +2588,9 @@ class _DeviceBulkOperationsSubviewState
                                 allOnPageSelected
                                     ? 'Deselect Page'
                                     : 'Select Page',
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontSize: 11,
-                                    color: Color(0xFF2563EB),
+                                    color: primaryColor,
                                     fontWeight: FontWeight.w600),
                               ),
                             ),
@@ -2118,8 +2608,10 @@ class _DeviceBulkOperationsSubviewState
                             ),
                           ],
                         ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text(
                               'Showing ${totalCount == 0 ? 0 : startIndex + 1} - $endIndex of $totalCount devices',
@@ -2128,7 +2620,6 @@ class _DeviceBulkOperationsSubviewState
                                   color: Color(0xFF64748B),
                                   fontWeight: FontWeight.w500),
                             ),
-                            const SizedBox(width: 10),
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -2147,7 +2638,7 @@ class _DeviceBulkOperationsSubviewState
                                           : const Color(0xFF0F172A),
                                       fontWeight: FontWeight.bold,
                                     ),
-                                    items: const [10, 25, 50, 100]
+                                    items: const [10, 20, 50, 100]
                                         .map((v) => DropdownMenuItem(
                                             value: v, child: Text('$v')))
                                         .toList(),
@@ -2157,94 +2648,112 @@ class _DeviceBulkOperationsSubviewState
                                           _rowsPerPage = v;
                                           _currentPage = 1;
                                         });
+                                        _fetchTargetDevices();
                                       }
                                     },
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(width: 8),
-                            // First Page
-                            IconButton(
-                              icon: const Icon(Icons.first_page, size: 16),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: currentPageClamped > 1
-                                  ? () => setState(() => _currentPage = 1)
-                                  : null,
-                            ),
-                            const SizedBox(width: 4),
-                            // Prev Page
-                            IconButton(
-                              icon: const Icon(Icons.chevron_left, size: 16),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: currentPageClamped > 1
-                                  ? () => setState(() => _currentPage--)
-                                  : null,
-                            ),
-                            const SizedBox(width: 4),
-                            // Page numbers
-                            ...List.generate(math.min(5, totalPages), (i) {
-                              int pNum = i + 1;
-                              if (totalPages > 5 && currentPageClamped > 3) {
-                                pNum = currentPageClamped - 2 + i;
-                                if (pNum > totalPages) {
-                                  pNum = totalPages - 4 + i;
-                                }
-                              }
-                              final isCurrent = pNum == currentPageClamped;
-                              return InkWell(
-                                onTap: () =>
-                                    setState(() => _currentPage = pNum),
-                                child: Container(
-                                  margin:
-                                      const EdgeInsets.symmetric(horizontal: 2),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 7, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: isCurrent
-                                        ? const Color(0xFF2563EB)
-                                        : (isDark
-                                            ? const Color(0xFF334155)
-                                            : const Color(0xFFE2E8F0)),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    '$pNum',
-                                    style: TextStyle(
-                                      color: isCurrent
-                                          ? Colors.white
-                                          : (isDark
-                                              ? const Color(0xFFCBD5E1)
-                                              : const Color(0xFF475569)),
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // First Page
+                                IconButton(
+                                  icon: const Icon(Icons.first_page, size: 16),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  onPressed: currentPageClamped > 1
+                                      ? () {
+                                          setState(() => _currentPage = 1);
+                                          _fetchTargetDevices();
+                                        }
+                                      : null,
                                 ),
-                              );
-                            }),
-                            const SizedBox(width: 4),
-                            // Next Page
-                            IconButton(
-                              icon: const Icon(Icons.chevron_right, size: 16),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: currentPageClamped < totalPages
-                                  ? () => setState(() => _currentPage++)
-                                  : null,
-                            ),
-                            const SizedBox(width: 4),
-                            // Last Page
-                            IconButton(
-                              icon: const Icon(Icons.last_page, size: 16),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: currentPageClamped < totalPages
-                                  ? () =>
-                                      setState(() => _currentPage = totalPages)
-                                  : null,
+                                const SizedBox(width: 4),
+                                // Prev Page
+                                IconButton(
+                                  icon: const Icon(Icons.chevron_left, size: 16),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  onPressed: currentPageClamped > 1
+                                      ? () {
+                                          setState(() => _currentPage--);
+                                          _fetchTargetDevices();
+                                        }
+                                      : null,
+                                ),
+                                const SizedBox(width: 4),
+                                // Page numbers
+                                ...List.generate(math.min(5, totalPages), (i) {
+                                  int pNum = i + 1;
+                                  if (totalPages > 5 && currentPageClamped > 3) {
+                                    pNum = currentPageClamped - 2 + i;
+                                    if (pNum > totalPages) {
+                                      pNum = totalPages - 4 + i;
+                                    }
+                                  }
+                                  final isCurrent = pNum == currentPageClamped;
+                                  return InkWell(
+                                    onTap: () {
+                                      setState(() => _currentPage = pNum);
+                                      _fetchTargetDevices();
+                                    },
+                                    child: Container(
+                                      margin:
+                                          const EdgeInsets.symmetric(horizontal: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 7, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: isCurrent
+                                            ? primaryColor
+                                            : (isDark
+                                                ? const Color(0xFF334155)
+                                                : const Color(0xFFE2E8F0)),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        '$pNum',
+                                        style: TextStyle(
+                                          color: isCurrent
+                                              ? Colors.white
+                                              : (isDark
+                                                  ? const Color(0xFFCBD5E1)
+                                                  : const Color(0xFF475569)),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                                const SizedBox(width: 4),
+                                // Next Page
+                                IconButton(
+                                  icon: const Icon(Icons.chevron_right, size: 16),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  onPressed: currentPageClamped < totalPages
+                                      ? () {
+                                          setState(() => _currentPage++);
+                                          _fetchTargetDevices();
+                                        }
+                                      : null,
+                                ),
+                                const SizedBox(width: 4),
+                                // Last Page
+                                IconButton(
+                                  icon: const Icon(Icons.last_page, size: 16),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  onPressed: currentPageClamped < totalPages
+                                      ? () {
+                                          setState(() => _currentPage = totalPages);
+                                          _fetchTargetDevices();
+                                        }
+                                      : null,
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -3305,14 +3814,7 @@ class _DeviceBulkOperationsSubviewState
         _buildSmallDropdown(
           label: 'Target Group',
           value: _targetGroupName,
-          items: const [
-            'Classroom A1 AV Group',
-            'Academic Block Lighting Core',
-            'HVAC Energy Optimization Group',
-            'Corridor Safety & Security',
-            'Lab Computer & IoT Stations',
-            'Auditorium Multimedia Rack',
-          ],
+          items: _groupDropdownItems,
           onChanged: (val) {
             if (val != null) setState(() => _targetGroupName = val);
           },
@@ -3336,13 +3838,7 @@ class _DeviceBulkOperationsSubviewState
         _buildSmallDropdown(
           label: 'Control Profile',
           value: _targetProfileName,
-          items: const [
-            'Default Classroom Standard',
-            'Energy Saver Profile',
-            'High Performance Lab Profile',
-            'Auditorium Event Setup',
-            'Night / Lockdown Profile',
-          ],
+          items: _targetProfileDropdownItems,
           onChanged: (val) {
             if (val != null) setState(() => _targetProfileName = val);
           },
@@ -3386,14 +3882,7 @@ class _DeviceBulkOperationsSubviewState
         _buildSmallDropdown(
           label: 'Preset Scene',
           value: _selectedScene,
-          items: const [
-            'Morning Campus Startup',
-            'Class In Session Mode',
-            'Lunch Break Low Power',
-            'Presentation / Movie Mode',
-            'Emergency Evacuation Lighting',
-            'Campus Night Lockdown',
-          ],
+          items: _sceneDropdownItems,
           onChanged: (val) {
             if (val != null) setState(() => _selectedScene = val);
           },
@@ -3764,12 +4253,93 @@ class _DeviceBulkOperationsSubviewState
                       onPressed: () {},
                     ),
                     const SizedBox(width: 6),
-                    IconButton(
+                    PopupMenuButton<String>(
                       icon: const Icon(Icons.more_vert,
                           size: 15, color: Color(0xFF64748B)),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
-                      onPressed: () {},
+                      tooltip: 'Template Options',
+                      onSelected: (val) async {
+                        if (val == 'run') {
+                          _showLiveExecutionModal();
+                          try {
+                            final headers = await _getHeaders();
+                            await http.post(
+                                Uri.parse(
+                                    '$_baseUrl/bulk-operations/templates/${tmpl.id}/execute'),
+                                headers: headers);
+                            await _loadInitialData();
+                          } catch (_) {}
+                        } else if (val == 'delete') {
+                          final scaffold = ScaffoldMessenger.of(context);
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Delete Template'),
+                              content: Text(
+                                  'Are you sure you want to delete template "${tmpl.templateName}"?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFDC2626),
+                                      foregroundColor: Colors.white),
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Delete'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirmed == true) {
+                            try {
+                              final headers = await _getHeaders();
+                              await http.delete(
+                                  Uri.parse(
+                                      '$_baseUrl/bulk-operations/templates/${tmpl.id}'),
+                                  headers: headers);
+                              if (mounted) {
+                                scaffold.showSnackBar(
+                                  SnackBar(
+                                      content: Text(
+                                          'Template "${tmpl.templateName}" deleted successfully.')),
+                                );
+                              }
+                              await _loadInitialData();
+                            } catch (_) {}
+                          }
+                        }
+                      },
+                      itemBuilder: (ctx) => [
+                        const PopupMenuItem(
+                          value: 'run',
+                          child: Row(
+                            children: [
+                              Icon(Icons.play_arrow_outlined,
+                                  size: 16, color: Color(0xFF2563EB)),
+                              SizedBox(width: 8),
+                              Text('Run Template',
+                                  style: TextStyle(fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete_outline,
+                                  size: 16, color: Color(0xFFDC2626)),
+                              SizedBox(width: 8),
+                              Text('Delete Template',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFFDC2626))),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -3982,9 +4552,9 @@ class _LiveExecutionProgressDialogState
 }
 
 // ====================================================================
-// MODAL DIALOG 2: Operation History Dialog
+// MODAL DIALOG 2: Operation History & Details Dialog
 // ====================================================================
-class _BulkOperationHistoryDialog extends StatelessWidget {
+class _BulkOperationHistoryDialog extends StatefulWidget {
   final List<BulkRecentOperationItem> operations;
   final String apiBaseUrl;
 
@@ -3992,12 +4562,77 @@ class _BulkOperationHistoryDialog extends StatelessWidget {
       {required this.operations, required this.apiBaseUrl});
 
   @override
+  State<_BulkOperationHistoryDialog> createState() =>
+      _BulkOperationHistoryDialogState();
+}
+
+class _BulkOperationHistoryDialogState
+    extends State<_BulkOperationHistoryDialog> {
+  late List<BulkRecentOperationItem> _ops;
+
+  @override
+  void initState() {
+    super.initState();
+    _ops = List.from(widget.operations);
+    _refreshOperations();
+  }
+
+  Future<void> _refreshOperations() async {
+    try {
+      final res = await http.get(
+        Uri.parse('${widget.apiBaseUrl}/bulk-operations?page=1&page_size=50'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final rawList = data is Map ? (data['operations'] as List? ?? []) : [];
+        if (rawList.isNotEmpty && mounted) {
+          setState(() {
+            _ops = rawList.map((m) {
+              final map = m as Map<String, dynamic>;
+              return BulkRecentOperationItem(
+                id: map['id']?.toString() ?? '',
+                operationCode: map['operation_code']?.toString() ?? 'OP-000',
+                name: map['operation_name']?.toString() ?? 'Bulk Operation',
+                operationType: map['operation_type']?.toString() ?? 'control',
+                targetScope: map['target_type']?.toString() ?? 'Devices',
+                totalDevices: (map['total_targets'] as num?)?.toInt() ?? 0,
+                successfulDevices: (map['success_count'] as num?)?.toInt() ?? 0,
+                status: map['status']?.toString() ?? 'completed',
+                result: map['status'] == 'completed'
+                    ? '100% Success'
+                    : (map['status'] ?? 'Completed'),
+                initiatedBy:
+                    map['initiated_by_name']?.toString() ?? 'Super Admin',
+                createdAt: map['created_at']?.toString(),
+              );
+            }).toList();
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _openDetails(BulkRecentOperationItem op) {
+    showDialog(
+      context: context,
+      builder: (ctx) => _BulkOperationDetailsDialog(
+        operationId: op.id,
+        operationCode: op.operationCode,
+        operationName: op.name,
+        apiBaseUrl: widget.apiBaseUrl,
+        onActionCompleted: () => _refreshOperations(),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
-        width: 780,
-        height: 520,
+        width: 820,
+        height: 560,
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -4021,39 +4656,462 @@ class _BulkOperationHistoryDialog extends StatelessWidget {
                     ],
                   ),
                 ),
-                IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop()),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.refresh, size: 18),
+                      tooltip: 'Refresh',
+                      onPressed: _refreshOperations,
+                    ),
+                    IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(context).pop()),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: ListView.separated(
-                itemCount: operations.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (ctx, i) {
-                  final op = operations[i];
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const CircleAvatar(
-                      backgroundColor: Color(0xFFEFF6FF),
-                      child: Icon(Icons.layers_rounded,
-                          color: Color(0xFF2563EB), size: 18),
+              child: _ops.isEmpty
+                  ? const Center(
+                      child: Text('No bulk operations recorded yet.',
+                          style: TextStyle(color: Color(0xFF64748B))),
+                    )
+                  : ListView.separated(
+                      itemCount: _ops.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (ctx, i) {
+                        final op = _ops[i];
+                        final isFailed = op.status == 'failed' ||
+                            op.status == 'partially_failed' ||
+                            (op.totalDevices > op.successfulDevices &&
+                                op.status == 'completed' &&
+                                op.successfulDevices < op.totalDevices);
+                        final isInProgress = op.status == 'in_progress' ||
+                            op.status == 'pending';
+
+                        return ListTile(
+                          contentPadding:
+                              const EdgeInsets.symmetric(horizontal: 4),
+                          onTap: () => _openDetails(op),
+                          leading: CircleAvatar(
+                            backgroundColor: isInProgress
+                                ? const Color(0xFFFEF3C7)
+                                : (isFailed
+                                    ? const Color(0xFFFEE2E2)
+                                    : const Color(0xFFEFF6FF)),
+                            child: Icon(
+                              isInProgress
+                                  ? Icons.sync_rounded
+                                  : (isFailed
+                                      ? Icons.error_outline_rounded
+                                      : Icons.layers_rounded),
+                              color: isInProgress
+                                  ? const Color(0xFFD97706)
+                                  : (isFailed
+                                      ? const Color(0xFFDC2626)
+                                      : const Color(0xFF2563EB)),
+                              size: 18,
+                            ),
+                          ),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text('${op.operationCode} – ${op.name}',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13),
+                                    overflow: TextOverflow.ellipsis),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: isInProgress
+                                      ? const Color(0xFFFEF3C7)
+                                      : (isFailed
+                                          ? const Color(0xFFFEE2E2)
+                                          : const Color(0xFFDCFCE7)),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  op.status.toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: isInProgress
+                                        ? const Color(0xFFB45309)
+                                        : (isFailed
+                                            ? const Color(0xFFB91C1C)
+                                            : const Color(0xFF15803D)),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          subtitle: Text(
+                              'Scope: ${op.targetScope} • ${op.totalDevices} targets • Initiated by ${op.initiatedBy} • ${op.createdAt ?? "Recent"}',
+                              style: const TextStyle(fontSize: 11),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(op.result,
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11,
+                                      color: isFailed
+                                          ? const Color(0xFFDC2626)
+                                          : const Color(0xFF16A34A))),
+                              const SizedBox(width: 6),
+                              const Icon(Icons.chevron_right,
+                                  size: 16, color: Color(0xFF94A3B8)),
+                            ],
+                          ),
+                        );
+                      },
                     ),
-                    title: Text('${op.operationCode} – ${op.name}',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 13)),
-                    subtitle: Text(
-                        'Scope: ${op.targetScope} • Initiated by ${op.initiatedBy} • ${op.createdAt ?? "Recent"}',
-                        style: const TextStyle(fontSize: 11)),
-                    trailing: Text(op.result,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF16A34A))),
-                  );
-                },
-              ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ====================================================================
+// MODAL DIALOG 2B: Detailed Operation Inspection Modal
+// ====================================================================
+class _BulkOperationDetailsDialog extends StatefulWidget {
+  final String operationId;
+  final String operationCode;
+  final String operationName;
+  final String apiBaseUrl;
+  final VoidCallback onActionCompleted;
+
+  const _BulkOperationDetailsDialog({
+    required this.operationId,
+    required this.operationCode,
+    required this.operationName,
+    required this.apiBaseUrl,
+    required this.onActionCompleted,
+  });
+
+  @override
+  State<_BulkOperationDetailsDialog> createState() =>
+      _BulkOperationDetailsDialogState();
+}
+
+class _BulkOperationDetailsDialogState
+    extends State<_BulkOperationDetailsDialog> {
+  Map<String, dynamic>? _details;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDetails();
+  }
+
+  Future<void> _fetchDetails() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final res = await http.get(
+        Uri.parse(
+            '${widget.apiBaseUrl}/bulk-operations/${widget.operationId}'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (mounted) {
+          setState(() {
+            _details = data is Map<String, dynamic> ? data : {};
+            _isLoading = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _error = 'Failed to load details: ${res.statusCode}';
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Error: $e';
+        });
+      }
+    }
+  }
+
+  Future<void> _cancelOperation() async {
+    try {
+      await http.post(
+        Uri.parse(
+            '${widget.apiBaseUrl}/bulk-operations/${widget.operationId}/cancel'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      widget.onActionCompleted();
+      _fetchDetails();
+    } catch (_) {}
+  }
+
+  Future<void> _retryFailed() async {
+    try {
+      await http.post(
+        Uri.parse(
+            '${widget.apiBaseUrl}/bulk-operations/${widget.operationId}/retry-failed'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      widget.onActionCompleted();
+      _fetchDetails();
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final op = _details?['operation'] as Map<String, dynamic>? ?? {};
+    final items = (_details?['items'] as List?) ?? [];
+    final status = op['status']?.toString() ?? 'completed';
+    final isFailed = status == 'failed' || status == 'partially_failed';
+    final isInProgress = status == 'in_progress' || status == 'pending';
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        width: 700,
+        height: 520,
+        padding: const EdgeInsets.all(20),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(_error!,
+                            style: const TextStyle(color: Colors.red)),
+                        const SizedBox(height: 8),
+                        ElevatedButton(
+                            onPressed: _fetchDetails,
+                            child: const Text('Retry')),
+                      ],
+                    ),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Header
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${widget.operationCode} • ${widget.operationName}',
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Type: ${op['operation_type'] ?? 'Unknown'} • Initiated: ${op['created_at'] ?? 'N/A'}',
+                                  style: const TextStyle(
+                                      fontSize: 11, color: Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => Navigator.of(context).pop()),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // KPI mini row
+                      Row(
+                        children: [
+                          _buildMiniBadge(
+                              'Total Targets',
+                              '${op['total_targets'] ?? items.length}',
+                              const Color(0xFF2563EB)),
+                          const SizedBox(width: 8),
+                          _buildMiniBadge(
+                              'Success',
+                              '${op['success_count'] ?? 0}',
+                              const Color(0xFF16A34A)),
+                          const SizedBox(width: 8),
+                          _buildMiniBadge(
+                              'Failures',
+                              '${op['failure_count'] ?? 0}',
+                              const Color(0xFFDC2626)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Target Items Section
+                      const Text(
+                        'Target Devices & Status',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 6),
+                      Expanded(
+                        child: items.isEmpty
+                            ? Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Center(
+                                  child: Text('No per-device logs recorded.',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF64748B))),
+                                ),
+                              )
+                            : ListView.separated(
+                                itemCount: items.length,
+                                separatorBuilder: (_, __) =>
+                                    const Divider(height: 1),
+                                itemBuilder: (ctx, idx) {
+                                  final item =
+                                      items[idx] as Map<String, dynamic>;
+                                  final itemStatus =
+                                      item['status']?.toString() ?? 'completed';
+                                  final hasErr = itemStatus == 'failed' ||
+                                      (item['error_message'] != null &&
+                                          item['error_message']
+                                              .toString()
+                                              .isNotEmpty);
+
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 6, horizontal: 4),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          hasErr
+                                              ? Icons.cancel_outlined
+                                              : Icons.check_circle_outline,
+                                          size: 16,
+                                          color: hasErr
+                                              ? const Color(0xFFDC2626)
+                                              : const Color(0xFF16A34A),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                item['device_name']
+                                                        ?.toString() ??
+                                                    'Device ${idx + 1}',
+                                                style: const TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight:
+                                                        FontWeight.w600),
+                                              ),
+                                              if (hasErr)
+                                                Text(
+                                                  item['error_message']
+                                                          ?.toString() ??
+                                                      'Execution error',
+                                                  style: const TextStyle(
+                                                      fontSize: 10,
+                                                      color:
+                                                          Color(0xFFDC2626)),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                        Text(
+                                          itemStatus.toUpperCase(),
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: hasErr
+                                                ? const Color(0xFFDC2626)
+                                                : const Color(0xFF16A34A),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Action buttons: Cancel / Retry / Close
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (isInProgress)
+                            ElevatedButton.icon(
+                              onPressed: _cancelOperation,
+                              icon: const Icon(Icons.cancel, size: 14),
+                              label: const Text('Cancel Operation'),
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFDC2626),
+                                  foregroundColor: Colors.white),
+                            ),
+                          if (isFailed)
+                            ElevatedButton.icon(
+                              onPressed: _retryFailed,
+                              icon: const Icon(Icons.refresh, size: 14),
+                              label: const Text('Retry Failed Devices'),
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF2563EB),
+                                  foregroundColor: Colors.white),
+                            ),
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('Close'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+      ),
+    );
+  }
+
+  Widget _buildMiniBadge(String label, String value, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          children: [
+            Text(label,
+                style: TextStyle(
+                    fontSize: 9,
+                    color: color,
+                    fontWeight: FontWeight.w600)),
+            Text(value,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: color)),
           ],
         ),
       ),
@@ -4146,8 +5204,23 @@ class _CreateBulkOperationWizardDialogState
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () async {
-                    Navigator.of(context).pop();
-                    widget.onOperationCreated();
+                    final nav = Navigator.of(context);
+                    try {
+                      await http.post(
+                        Uri.parse('${widget.apiBaseUrl}/bulk-operations'),
+                        headers: {'Content-Type': 'application/json'},
+                        body: jsonEncode({
+                          'operation_name': _nameController.text.trim(),
+                          'operation_type': _opType,
+                          'target_type': 'devices',
+                          'target_filter': {},
+                          'action_configuration': {'action': _opType},
+                          'execution_mode': 'immediate',
+                        }),
+                      );
+                      widget.onOperationCreated();
+                    } catch (_) {}
+                    nav.pop();
                   },
                   style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2563EB),
@@ -4242,6 +5315,7 @@ class _SaveBulkTemplateDialogState extends State<_SaveBulkTemplateDialog> {
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () async {
+                    final nav = Navigator.of(context);
                     try {
                       await http.post(
                         Uri.parse(
@@ -4261,7 +5335,7 @@ class _SaveBulkTemplateDialogState extends State<_SaveBulkTemplateDialog> {
                       );
                       widget.onSaved();
                     } catch (_) {}
-                    if (mounted) Navigator.of(context).pop();
+                    nav.pop();
                   },
                   style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2563EB),

@@ -5,9 +5,11 @@ class PlatformBridge {
   static const MethodChannel _channel =
       MethodChannel('com.shamiit.payment_bridge/channel');
 
+  /// Checks if notification access is granted by the user in Android OS.
+  /// Never defaults to true when permission is missing!
   static Future<bool> isNotificationAccessGranted() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      return true; // Mock granted for desktop/web development
+      return false;
     }
     try {
       final bool? granted =
@@ -15,7 +17,7 @@ class PlatformBridge {
       return granted ?? false;
     } catch (e) {
       debugPrint('isNotificationAccessGranted error: $e');
-      return true;
+      return false;
     }
   }
 
@@ -37,7 +39,7 @@ class PlatformBridge {
 
   static Future<bool> isListenerRunning() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      return true;
+      return false;
     }
     try {
       final bool? running =
@@ -45,7 +47,7 @@ class PlatformBridge {
       return running ?? false;
     } catch (e) {
       debugPrint('isListenerRunning error: $e');
-      return true;
+      return false;
     }
   }
 
@@ -58,10 +60,36 @@ class PlatformBridge {
     try {
       final bool? res =
           await _channel.invokeMethod<bool>('startListenerService');
-      return res ?? true;
+      return res ?? false;
     } catch (e) {
       debugPrint('startListenerService error: $e');
-      return true;
+      return false;
+    }
+  }
+
+  static Future<String> getUniqueDeviceId() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return 'PB-DEV-WEB001';
+    }
+    try {
+      final String? id = await _channel.invokeMethod<String>('getUniqueDeviceId');
+      return id ?? 'PB-UNKNOWN';
+    } catch (e) {
+      debugPrint('getUniqueDeviceId error: $e');
+      return 'PB-FALLBACK';
+    }
+  }
+
+  static Future<bool> isDeviceEmulator() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return false;
+    }
+    try {
+      final bool? emu = await _channel.invokeMethod<bool>('isEmulator');
+      return emu ?? false;
+    } catch (e) {
+      debugPrint('isEmulator error: $e');
+      return false;
     }
   }
 
@@ -70,10 +98,12 @@ class PlatformBridge {
       return true;
     }
     try {
-      final diag = await getDiagnostics();
-      return diag['battery_optimization_disabled'] ?? true;
+      final bool? isIgnoring =
+          await _channel.invokeMethod<bool>('isIgnoringBatteryOptimizations');
+      return isIgnoring ?? false;
     } catch (e) {
-      return true;
+      debugPrint('isIgnoringBatteryOptimizations error: $e');
+      return false;
     }
   }
 
@@ -84,10 +114,10 @@ class PlatformBridge {
     try {
       final bool? res =
           await _channel.invokeMethod<bool>('requestIgnoreBatteryOptimizations');
-      return res ?? true;
+      return res ?? false;
     } catch (e) {
       debugPrint('requestIgnoreBatteryOptimizations error: $e');
-      return true;
+      return false;
     }
   }
 
@@ -106,14 +136,16 @@ class PlatformBridge {
   static Future<Map<String, dynamic>> getDiagnostics() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
       return {
-        'notification_access_granted': true,
-        'listener_service_running': true,
-        'battery_level': 95,
-        'battery_optimization_disabled': true,
+        'notification_access_granted': false,
+        'listener_service_running': false,
+        'battery_level': 100,
+        'battery_optimization_disabled': false,
         'pending_queue_count': 0,
-        'total_events_count': 42,
-        'android_version': 'Android 14 (API 34)',
-        'device_model': 'Pixel 8 Pro (Enterprise Terminal)',
+        'total_events_count': 0,
+        'android_version': 'Desktop/Web',
+        'device_model': 'Simulator',
+        'device_id': 'PB-DEV-WEB001',
+        'is_emulator': true,
         'app_version': '1.0.0',
       };
     }
@@ -124,10 +156,10 @@ class PlatformBridge {
     } catch (e) {
       debugPrint('getDiagnostics error: $e');
       return {
-        'notification_access_granted': true,
-        'listener_service_running': true,
-        'battery_level': 92,
-        'android_version': 'Android 14',
+        'notification_access_granted': false,
+        'listener_service_running': false,
+        'battery_level': 0,
+        'android_version': 'Android',
       };
     }
   }
@@ -203,6 +235,27 @@ class PlatformBridge {
       return res?['success'] == true;
     } catch (e) {
       debugPrint('simulateNotification error: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> setCustomFormat({
+    required String package,
+    required String type,
+    required String regex,
+  }) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
+    try {
+      final bool? res = await _channel.invokeMethod<bool>('setCustomFormat', {
+        'package': package,
+        'type': type,
+        'regex': regex,
+      });
+      return res ?? false;
+    } catch (e) {
+      debugPrint('setCustomFormat error: $e');
       return false;
     }
   }

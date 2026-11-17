@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/live_class_models.dart';
 import '../providers/live_class_management_provider.dart';
 
 class CreateInstantClassDialog extends ConsumerStatefulWidget {
@@ -40,11 +41,58 @@ class _CreateInstantClassDialogState
     super.initState();
     final meta = ref.read(liveClassManagementProvider).dropdownsData;
     if (meta != null) {
-      if (meta.classes.isNotEmpty) _selectedClassId = meta.classes.first.id;
-      if (meta.sections.isNotEmpty) _selectedSectionId = meta.sections.first.id;
-      if (meta.subjects.isNotEmpty) _selectedSubjectId = meta.subjects.first.id;
+      if (meta.classes.isNotEmpty) {
+        _selectedClassId = meta.classes.first.id;
+        final validSections = meta.sections.where((s) => s.classId == _selectedClassId).toList();
+        if (validSections.isNotEmpty) {
+          _selectedSectionId = validSections.first.id;
+        } else if (meta.sections.isNotEmpty) {
+          _selectedSectionId = meta.sections.first.id;
+        }
+        final validSubjects = _getValidSubjects(meta, _selectedClassId, _selectedSectionId);
+        if (validSubjects.isNotEmpty) {
+          _selectedSubjectId = validSubjects.first.id;
+        } else if (meta.subjects.isNotEmpty) {
+          _selectedSubjectId = meta.subjects.first.id;
+        }
+      }
       if (meta.teachers.isNotEmpty) _selectedTeacherId = meta.teachers.first.id;
     }
+  }
+
+  List<SubjectDropdownItem> _getValidSubjects(MetaDropdownsData? meta, String? classId, String? sectionId) {
+    if (meta == null || classId == null || classId.isEmpty) return meta?.subjects ?? [];
+    // 1. Check class_subjects mapping from class management
+    if (meta.classSubjects.isNotEmpty) {
+      final matches = meta.classSubjects.where((cs) {
+        if (cs.classId != classId) return false;
+        if (sectionId != null && sectionId.isNotEmpty && cs.sectionId != null && cs.sectionId!.isNotEmpty) {
+          return cs.sectionId == sectionId;
+        }
+        return true;
+      }).toList();
+      if (matches.isNotEmpty) {
+        final seen = <String>{};
+        final list = <SubjectDropdownItem>[];
+        for (final m in matches) {
+          if (!seen.contains(m.subjectId)) {
+            seen.add(m.subjectId);
+            list.add(SubjectDropdownItem(
+              id: m.subjectId,
+              name: m.subjectName,
+              icon: m.subjectIcon,
+              classId: m.classId,
+              sectionId: m.sectionId,
+            ));
+          }
+        }
+        return list;
+      }
+    }
+    // 2. Fallback to subjects assigned to classId
+    final classMatches = meta.subjects.where((s) => s.classId == classId).toList();
+    if (classMatches.isNotEmpty) return classMatches;
+    return meta.subjects;
   }
 
   @override
@@ -211,136 +259,177 @@ class _CreateInstantClassDialogState
                       ),
                       const SizedBox(height: 16),
 
-                      // Class, Section, Subject in row
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Class *',
-                                    style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: textSecondary)),
-                                const SizedBox(height: 6),
-                                DropdownButtonFormField<String>(
-                                  initialValue: _selectedClassId,
-                                  isExpanded: true,
-                                  style: TextStyle(color: textPrimary, fontSize: 13),
-                                  dropdownColor: surfaceColor,
-                                  decoration: InputDecoration(
-                                    filled: true,
-                                    fillColor: cardBgColor,
-                                    border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                        borderSide: BorderSide(color: borderColor)),
-                                    enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                        borderSide: BorderSide(color: borderColor)),
-                                    contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 10),
+                      // Class, Section, Subject strictly cascaded
+                      Builder(builder: (context) {
+                        final availableSections = (meta?.sections ?? [])
+                            .where((s) => s.classId == _selectedClassId)
+                            .toList();
+                        final effectiveSectionId = availableSections.any((s) => s.id == _selectedSectionId)
+                            ? _selectedSectionId
+                            : (availableSections.isNotEmpty ? availableSections.first.id : null);
+
+                        final availableSubjects = _getValidSubjects(meta, _selectedClassId, effectiveSectionId);
+                        final effectiveSubjectId = availableSubjects.any((s) => s.id == _selectedSubjectId)
+                            ? _selectedSubjectId
+                            : (availableSubjects.isNotEmpty ? availableSubjects.first.id : null);
+
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Class *',
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: textSecondary)),
+                                  const SizedBox(height: 6),
+                                  DropdownButtonFormField<String>(
+                                    value: _selectedClassId,
+                                    isExpanded: true,
+                                    style: TextStyle(color: textPrimary, fontSize: 13),
+                                    dropdownColor: surfaceColor,
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: cardBgColor,
+                                      border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                          borderSide: BorderSide(color: borderColor)),
+                                      enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                          borderSide: BorderSide(color: borderColor)),
+                                      contentPadding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 10),
+                                    ),
+                                    items: (meta?.classes ?? [])
+                                        .map((c) => DropdownMenuItem(
+                                              value: c.id,
+                                              child: Text(c.name,
+                                                  style: TextStyle(color: textPrimary),
+                                                  overflow: TextOverflow.ellipsis),
+                                            ))
+                                        .toList(),
+                                    onChanged: (v) {
+                                      if (v == null) return;
+                                      final nextSecs = (meta?.sections ?? []).where((s) => s.classId == v).toList();
+                                      final nextSecId = nextSecs.isNotEmpty ? nextSecs.first.id : null;
+                                      final nextSubs = _getValidSubjects(meta, v, nextSecId);
+                                      final nextSubId = nextSubs.isNotEmpty ? nextSubs.first.id : null;
+                                      setState(() {
+                                        _selectedClassId = v;
+                                        _selectedSectionId = nextSecId;
+                                        _selectedSubjectId = nextSubId;
+                                      });
+                                    },
                                   ),
-                                  items: (meta?.classes ?? [])
-                                      .map((c) => DropdownMenuItem(
-                                            value: c.id,
-                                            child: Text(c.name,
-                                                style: TextStyle(color: textPrimary),
-                                                overflow: TextOverflow.ellipsis),
-                                          ))
-                                      .toList(),
-                                  onChanged: (v) =>
-                                      setState(() => _selectedClassId = v),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Section *',
-                                    style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: textSecondary)),
-                                const SizedBox(height: 6),
-                                DropdownButtonFormField<String>(
-                                  initialValue: _selectedSectionId,
-                                  isExpanded: true,
-                                  style: TextStyle(color: textPrimary, fontSize: 13),
-                                  dropdownColor: surfaceColor,
-                                  decoration: InputDecoration(
-                                    filled: true,
-                                    fillColor: cardBgColor,
-                                    border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                        borderSide: BorderSide(color: borderColor)),
-                                    enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                        borderSide: BorderSide(color: borderColor)),
-                                    contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 10),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Section *',
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: textSecondary)),
+                                  const SizedBox(height: 6),
+                                  DropdownButtonFormField<String>(
+                                    value: effectiveSectionId,
+                                    isExpanded: true,
+                                    style: TextStyle(color: textPrimary, fontSize: 13),
+                                    dropdownColor: surfaceColor,
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: cardBgColor,
+                                      border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                          borderSide: BorderSide(color: borderColor)),
+                                      enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                          borderSide: BorderSide(color: borderColor)),
+                                      contentPadding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 10),
+                                    ),
+                                    items: availableSections
+                                        .map((s) => DropdownMenuItem(
+                                              value: s.id,
+                                              child: Text(s.name,
+                                                  style: TextStyle(color: textPrimary),
+                                                  overflow: TextOverflow.ellipsis),
+                                            ))
+                                        .toList(),
+                                    onChanged: (v) {
+                                      final nextSubs = _getValidSubjects(meta, _selectedClassId, v);
+                                      final nextSubId = nextSubs.any((s) => s.id == _selectedSubjectId)
+                                          ? _selectedSubjectId
+                                          : (nextSubs.isNotEmpty ? nextSubs.first.id : null);
+                                      setState(() {
+                                        _selectedSectionId = v;
+                                        _selectedSubjectId = nextSubId;
+                                      });
+                                    },
                                   ),
-                                  items: (meta?.sections ?? [])
-                                      .map((s) => DropdownMenuItem(
-                                            value: s.id,
-                                            child: Text(s.name,
-                                                style: TextStyle(color: textPrimary),
-                                                overflow: TextOverflow.ellipsis),
-                                          ))
-                                      .toList(),
-                                  onChanged: (v) =>
-                                      setState(() => _selectedSectionId = v),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Subject *',
-                                    style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: textSecondary)),
-                                const SizedBox(height: 6),
-                                DropdownButtonFormField<String>(
-                                  initialValue: _selectedSubjectId,
-                                  isExpanded: true,
-                                  style: TextStyle(color: textPrimary, fontSize: 13),
-                                  dropdownColor: surfaceColor,
-                                  decoration: InputDecoration(
-                                    filled: true,
-                                    fillColor: cardBgColor,
-                                    border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                        borderSide: BorderSide(color: borderColor)),
-                                    enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                        borderSide: BorderSide(color: borderColor)),
-                                    contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 10),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Subject *',
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: textSecondary)),
+                                  const SizedBox(height: 6),
+                                  DropdownButtonFormField<String>(
+                                    value: effectiveSubjectId,
+                                    isExpanded: true,
+                                    style: TextStyle(color: textPrimary, fontSize: 13),
+                                    dropdownColor: surfaceColor,
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: cardBgColor,
+                                      border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                          borderSide: BorderSide(color: borderColor)),
+                                      enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                          borderSide: BorderSide(color: borderColor)),
+                                      contentPadding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 10),
+                                    ),
+                                    items: availableSubjects
+                                        .map((s) => DropdownMenuItem(
+                                              value: s.id,
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(s.icon ?? '📚', style: const TextStyle(fontSize: 13)),
+                                                  const SizedBox(width: 6),
+                                                  Expanded(
+                                                    child: Text(s.name,
+                                                        style: TextStyle(color: textPrimary),
+                                                        overflow: TextOverflow.ellipsis),
+                                                  ),
+                                                ],
+                                              ),
+                                            ))
+                                        .toList(),
+                                    onChanged: (v) =>
+                                        setState(() => _selectedSubjectId = v),
                                   ),
-                                  items: (meta?.subjects ?? [])
-                                      .map((s) => DropdownMenuItem(
-                                            value: s.id,
-                                            child: Text(s.name,
-                                                style: TextStyle(color: textPrimary),
-                                                overflow: TextOverflow.ellipsis),
-                                          ))
-                                      .toList(),
-                                  onChanged: (v) =>
-                                      setState(() => _selectedSubjectId = v),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        );
+                      }),
                       const SizedBox(height: 16),
 
                       // Teacher & Duration in row

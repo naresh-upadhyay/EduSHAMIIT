@@ -2,8 +2,12 @@ package com.shamiit.edu_shamiit_payment_bridge.bridge
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
 import com.shamiit.edu_shamiit_payment_bridge.notification.PaymentNotificationListenerService
@@ -12,16 +16,59 @@ import com.shamiit.edu_shamiit_payment_bridge.storage.PaymentDatabaseHelper
 import com.shamiit.edu_shamiit_payment_bridge.sync.SyncManager
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.util.UUID
 
 class PaymentBridgeChannel(private val context: Context) : MethodChannel.MethodCallHandler {
 
     companion object {
         const val CHANNEL_NAME = "com.shamiit.payment_bridge/channel"
+        private const val PREFS_DEVICE = "payment_bridge_device_prefs"
+        private const val KEY_UNIQUE_DEVICE_ID = "unique_device_id"
     }
 
     private val dbHelper = PaymentDatabaseHelper.getInstance(context)
     private val syncManager = SyncManager.getInstance(context)
-    private val parserFactory = NotificationParserFactory()
+    private val parserFactory = NotificationParserFactory(context)
+
+    /**
+     * Retrieves or generates a persistent unique device ID backed by Android hardware ID or UUID.
+     */
+    private fun getOrCreateUniqueDeviceId(): String {
+        val prefs = context.getSharedPreferences(PREFS_DEVICE, Context.MODE_PRIVATE)
+        var deviceId = prefs.getString(KEY_UNIQUE_DEVICE_ID, null)
+        if (deviceId.isNullOrEmpty()) {
+            val androidId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+            deviceId = if (!androidId.isNullOrEmpty() && androidId != "9774d56d682e549c") {
+                "PB-$androidId".uppercase()
+            } else {
+                "PB-" + UUID.randomUUID().toString().substring(0, 8).uppercase()
+            }
+            prefs.edit().putString(KEY_UNIQUE_DEVICE_ID, deviceId).apply()
+        }
+        return deviceId
+    }
+
+    private fun isEmulator(): Boolean {
+        return (Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic"))
+                || Build.FINGERPRINT.startsWith("generic")
+                || Build.FINGERPRINT.startsWith("unknown")
+                || Build.HARDWARE.contains("goldfish")
+                || Build.HARDWARE.contains("ranchu")
+                || Build.MODEL.contains("google_sdk")
+                || Build.MODEL.contains("Emulator")
+                || Build.MODEL.contains("Android SDK built for x86")
+                || Build.MANUFACTURER.contains("Genymotion")
+                || Build.PRODUCT.contains("sdk_google")
+                || Build.PRODUCT.contains("google_sdk")
+                || Build.PRODUCT.contains("sdk")
+                || Build.PRODUCT.contains("sdk_x86")
+                || Build.PRODUCT.contains("vbox86p")
+                || Build.PRODUCT.contains("emulator")
+                || Build.PRODUCT.contains("simulator")
+    }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
@@ -48,6 +95,42 @@ class PaymentBridgeChannel(private val context: Context) : MethodChannel.MethodC
                 result.success(PaymentNotificationListenerService.isServiceConnected)
             }
 
+            "getUniqueDeviceId" -> {
+                result.success(getOrCreateUniqueDeviceId())
+            }
+
+            "isEmulator" -> {
+                result.success(isEmulator())
+            }
+
+            "isIgnoringBatteryOptimizations" -> {
+                val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+                val isIgnoring = powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: false
+                result.success(isIgnoring)
+            }
+
+            "requestIgnoreBatteryOptimizations" -> {
+                try {
+                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = Uri.parse("package:${context.packageName}")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                    result.success(true)
+                } catch (e: Exception) {
+                    // Fallback to battery optimization settings
+                    try {
+                        val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(intent)
+                        result.success(true)
+                    } catch (ex: Exception) {
+                        result.error("ERROR", "Unable to open battery optimization: ${ex.message}", null)
+                    }
+                }
+            }
+
             "getDiagnostics" -> {
                 val bm = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
                 val batteryLevel = bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 95
@@ -55,26 +138,39 @@ class PaymentBridgeChannel(private val context: Context) : MethodChannel.MethodC
                 val pkgName = context.packageName
                 val isAccessGranted = NotificationManagerCompat.getEnabledListenerPackages(context).contains(pkgName)
                 val isListenerRunning = PaymentNotificationListenerService.isServiceConnected
-                val pendingQueueCount = dbHelper.getPendingQueueCount()
-                val totalEventsCount = dbHelper.getTotalEventsCount()
+                val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+                val isBatteryOptDisabled = powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: false
+                val uniqueDeviceId = getOrCreateUniqueDeviceId()
+                val isDeviceEmulator = isEmulator()
 
-                val diagnosticsMap = mapOf(
-                    "notification_access_granted" to isAccessGranted,
-                    "listener_service_running" to isListenerRunning,
-                    "battery_level" to batteryLevel,
-                    "battery_optimization_disabled" to true,
-                    "pending_queue_count" to pendingQueueCount,
-                    "total_events_count" to totalEventsCount,
-                    "android_version" to "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
-                    "device_model" to "${Build.MANUFACTURER} ${Build.MODEL}",
-                    "app_version" to "1.0.0"
-                )
-                result.success(diagnosticsMap)
+                CoroutineScope(Dispatchers.IO).launch {
+                    val pendingQueueCount = dbHelper.getPendingQueueCount()
+                    val totalEventsCount = dbHelper.getTotalEventsCount()
+
+                    val diagnosticsMap = mapOf(
+                        "notification_access_granted" to isAccessGranted,
+                        "listener_service_running" to isListenerRunning,
+                        "battery_level" to batteryLevel,
+                        "battery_optimization_disabled" to isBatteryOptDisabled,
+                        "pending_queue_count" to pendingQueueCount,
+                        "total_events_count" to totalEventsCount,
+                        "android_version" to "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
+                        "device_model" to "${Build.MANUFACTURER} ${Build.MODEL}",
+                        "device_id" to uniqueDeviceId,
+                        "is_emulator" to isDeviceEmulator,
+                        "app_version" to "1.0.0"
+                    )
+                    Handler(Looper.getMainLooper()).post {
+                        result.success(diagnosticsMap)
+                    }
+                }
             }
 
             "syncNow" -> {
                 syncManager.triggerSync { success, count ->
-                    result.success(mapOf("success" to success, "synced_count" to count))
+                    Handler(Looper.getMainLooper()).post {
+                        result.success(mapOf("success" to success, "synced_count" to count))
+                    }
                 }
             }
 
@@ -106,12 +202,29 @@ class PaymentBridgeChannel(private val context: Context) : MethodChannel.MethodC
 
                 val parser = parserFactory.getParser(packageName)
                 val event = parser.parse(packageName, title, text, System.currentTimeMillis())
-                val inserted = dbHelper.insertEvent(event)
-                if (inserted) {
-                    syncManager.triggerSync()
-                    result.success(mapOf("success" to true, "event_uuid" to event.eventUuid))
+                CoroutineScope(Dispatchers.IO).launch {
+                    val inserted = dbHelper.insertEvent(event)
+                    Handler(Looper.getMainLooper()).post {
+                        if (inserted) {
+                            syncManager.triggerSync()
+                            result.success(mapOf("success" to true, "event_uuid" to event.eventUuid))
+                        } else {
+                            result.success(mapOf("success" to false, "reason" to "duplicate or DB insert error"))
+                        }
+                    }
+                }
+            }
+
+            "setCustomFormat" -> {
+                val pkg = call.argument<String>("package")
+                val type = call.argument<String>("type")
+                val regex = call.argument<String>("regex")
+                if (pkg != null && type != null && regex != null) {
+                    val prefs = context.getSharedPreferences("custom_formats", Context.MODE_PRIVATE)
+                    prefs.edit().putString("${pkg}_$type", regex).apply()
+                    result.success(true)
                 } else {
-                    result.success(mapOf("success" to false, "reason" to "duplicate or DB insert error"))
+                    result.error("INVALID_ARGS", "Package, type, and regex are required", null)
                 }
             }
 

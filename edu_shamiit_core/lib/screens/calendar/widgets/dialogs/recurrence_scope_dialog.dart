@@ -19,10 +19,17 @@ class _RecurrenceScopeDialogState extends State<RecurrenceScopeDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.primaryColor;
     final isDelete = widget.actionTitle.toLowerCase().contains('delete');
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+      ),
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
         constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width < 600 ? MediaQuery.sizeOf(context).width - 32 : 440),
@@ -39,12 +46,12 @@ class _RecurrenceScopeDialogState extends State<RecurrenceScopeDialog> {
                   decoration: BoxDecoration(
                     color: isDelete
                         ? const Color(0xFFEF4444).withValues(alpha: 0.12)
-                        : const Color(0xFF4F46E5).withValues(alpha: 0.12),
+                        : primaryColor.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     isDelete ? Icons.delete_forever_rounded : Icons.repeat_rounded,
-                    color: isDelete ? const Color(0xFFEF4444) : const Color(0xFF4F46E5),
+                    color: isDelete ? const Color(0xFFEF4444) : primaryColor,
                     size: 20,
                   ),
                 ),
@@ -52,24 +59,29 @@ class _RecurrenceScopeDialogState extends State<RecurrenceScopeDialog> {
                 Expanded(
                   child: Text(
                     widget.actionTitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                     ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 10),
-            const Text(
+            Text(
               'This is a recurring event series. Which occurrences would you like to affect?',
-              style: TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                height: 1.4,
+              ),
             ),
             const SizedBox(height: 18),
 
             // Option 1: This event only
             _buildOptionTile(
+              context: context,
               scope: 'this_event',
               title: 'This event only',
               subtitle: isDelete
@@ -81,6 +93,7 @@ class _RecurrenceScopeDialogState extends State<RecurrenceScopeDialog> {
 
             // Option 2: This and following events
             _buildOptionTile(
+              context: context,
               scope: 'following_events',
               title: 'This and following events',
               subtitle: isDelete
@@ -92,6 +105,7 @@ class _RecurrenceScopeDialogState extends State<RecurrenceScopeDialog> {
 
             // Option 3: All events in the series
             _buildOptionTile(
+              context: context,
               scope: 'entire_series',
               title: 'All events in the series',
               subtitle: isDelete
@@ -109,12 +123,12 @@ class _RecurrenceScopeDialogState extends State<RecurrenceScopeDialog> {
                   onPressed: () => Navigator.of(context).pop(),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Cancel',
-                    style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w700),
+                    style: TextStyle(color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B), fontWeight: FontWeight.w700),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -124,7 +138,7 @@ class _RecurrenceScopeDialogState extends State<RecurrenceScopeDialog> {
                     widget.onScopeSelected(_selectedScope);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isDelete ? const Color(0xFFEF4444) : const Color(0xFF4F46E5),
+                    backgroundColor: isDelete ? const Color(0xFFEF4444) : primaryColor,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
                     elevation: 2,
@@ -144,11 +158,15 @@ class _RecurrenceScopeDialogState extends State<RecurrenceScopeDialog> {
   }
 
   Widget _buildOptionTile({
+    required BuildContext context,
     required String scope,
     required String title,
     required String subtitle,
     required IconData icon,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.primaryColor;
     final isSelected = _selectedScope == scope;
 
     return InkWell(
@@ -160,10 +178,14 @@ class _RecurrenceScopeDialogState extends State<RecurrenceScopeDialog> {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF4F46E5).withValues(alpha: 0.06) : const Color(0xFFF8FAFC),
+          color: isSelected
+              ? primaryColor.withValues(alpha: isDark ? 0.2 : 0.08)
+              : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFFE2E8F0),
+            color: isSelected
+                ? primaryColor
+                : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
             width: isSelected ? 1.5 : 1.0,
           ),
         ),
@@ -175,10 +197,10 @@ class _RecurrenceScopeDialogState extends State<RecurrenceScopeDialog> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
+                  color: isSelected ? primaryColor : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
                   width: isSelected ? 6 : 2,
                 ),
-                color: Colors.white,
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
               ),
             ),
             const SizedBox(width: 12),
@@ -191,13 +213,18 @@ class _RecurrenceScopeDialogState extends State<RecurrenceScopeDialog> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
-                      color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFF0F172A),
+                      color: isSelected
+                          ? (isDark ? Color.lerp(primaryColor, Colors.white, 0.4)! : primaryColor)
+                          : (isDark ? Colors.white : const Color(0xFF0F172A)),
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    ),
                   ),
                 ],
               ),

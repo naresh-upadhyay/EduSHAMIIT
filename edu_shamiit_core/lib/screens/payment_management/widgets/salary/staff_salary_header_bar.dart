@@ -11,9 +11,15 @@ class StaffSalaryHeaderBar extends ConsumerWidget {
     final notifier = ref.read(staffSalaryProvider.notifier);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final availableMonths = state.availableMonths.contains(state.selectedMonthStr)
-        ? state.availableMonths
-        : [state.selectedMonthStr, ...state.availableMonths];
+    final availableMonths = {
+      if (state.selectedMonthStr.isNotEmpty) state.selectedMonthStr,
+      ...state.availableMonths,
+      'October 2026',
+      'November 2026',
+    }.toList();
+    final effectiveMonth = availableMonths.contains(state.selectedMonthStr)
+        ? state.selectedMonthStr
+        : availableMonths.first;
 
     return Container(
       color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -29,7 +35,9 @@ class StaffSalaryHeaderBar extends ConsumerWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFEFF6FF),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: const Color(0xFF16A34A).withValues(alpha: 0.3),
@@ -52,7 +60,8 @@ class StaffSalaryHeaderBar extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                           letterSpacing: -0.5,
                         ),
                       ),
@@ -61,7 +70,9 @@ class StaffSalaryHeaderBar extends ConsumerWidget {
                         'Manage staff payroll, base pay structures, monthly disbursals, deductions, and payslips',
                         style: TextStyle(
                           fontSize: 13,
-                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -81,7 +92,8 @@ class StaffSalaryHeaderBar extends ConsumerWidget {
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                color:
+                    isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
               ),
             ),
             child: Row(
@@ -90,14 +102,18 @@ class StaffSalaryHeaderBar extends ConsumerWidget {
                 Icon(
                   Icons.date_range_rounded,
                   size: 16,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
                 ),
                 const SizedBox(width: 8),
                 DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
-                    value: state.selectedMonthStr,
+                    key: ValueKey('salary_month_$effectiveMonth'),
+                    value: effectiveMonth,
                     isDense: true,
-                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    dropdownColor:
+                        isDark ? const Color(0xFF1E293B) : Colors.white,
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,

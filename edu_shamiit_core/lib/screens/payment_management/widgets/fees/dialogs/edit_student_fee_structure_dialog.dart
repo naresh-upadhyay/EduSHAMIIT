@@ -166,23 +166,43 @@ class _EditStudentFeeStructureDialogState extends ConsumerState<EditStudentFeeSt
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                             ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: _feeTypes.any((t) => t.label == _feeType) ? _feeType : (_feeTypes.isNotEmpty ? _feeTypes.first.label : _feeType),
-                                isExpanded: true,
-                                dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                items: (_feeTypes.isNotEmpty
-                                    ? _feeTypes.map((t) => DropdownMenuItem(value: t.label, child: Text(t.label, style: const TextStyle(fontSize: 12)))).toList()
-                                    : const [
-                                        DropdownMenuItem(value: 'Tuition Fee', child: Text('Tuition Fee')),
-                                        DropdownMenuItem(value: 'Laboratory Fee', child: Text('Laboratory Fee')),
-                                        DropdownMenuItem(value: 'Transport Fee', child: Text('Transport Fee')),
-                                        DropdownMenuItem(value: 'Hostel Fee', child: Text('Hostel Fee')),
-                                      ]),
-                                onChanged: (val) {
-                                  if (val != null) setState(() => _feeType = val);
-                                },
-                              ),
+                            child: Builder(
+                              builder: (context) {
+                                final Map<String, String> typeMap = {};
+                                for (final t in _feeTypes) {
+                                  if (t.label.isNotEmpty) typeMap[t.label] = t.label;
+                                }
+                                if (typeMap.isEmpty) {
+                                  typeMap['Tuition Fee'] = 'Tuition Fee';
+                                  typeMap['Laboratory Fee'] = 'Laboratory Fee';
+                                  typeMap['Transport Fee'] = 'Transport Fee';
+                                  typeMap['Hostel Fee'] = 'Hostel Fee';
+                                }
+                                String effectiveType = _feeType;
+                                if (!typeMap.containsKey(effectiveType)) {
+                                  final match = typeMap.keys.firstWhere(
+                                    (k) => k.toLowerCase() == effectiveType.toLowerCase(),
+                                    orElse: () => '',
+                                  );
+                                  if (match.isNotEmpty) {
+                                    effectiveType = match;
+                                  } else {
+                                    typeMap[effectiveType] = effectiveType;
+                                  }
+                                }
+                                return DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    key: ValueKey('fee_struct_type_$effectiveType'),
+                                    value: effectiveType,
+                                    isExpanded: true,
+                                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                    items: typeMap.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, style: const TextStyle(fontSize: 12)))).toList(),
+                                    onChanged: (val) {
+                                      if (val != null) setState(() => _feeType = val);
+                                    },
+                                  ),
+                                );
+                              },
                             ),
                           ),
                         ],
@@ -202,23 +222,43 @@ class _EditStudentFeeStructureDialogState extends ConsumerState<EditStudentFeeSt
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                             ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: _cycles.any((c) => c.label == _billingCycle) ? _billingCycle : (_cycles.isNotEmpty ? _cycles.first.label : _billingCycle),
-                                isExpanded: true,
-                                dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                items: (_cycles.isNotEmpty
-                                    ? _cycles.map((c) => DropdownMenuItem(value: c.label, child: Text(c.label, style: const TextStyle(fontSize: 12)))).toList()
-                                    : const [
-                                        DropdownMenuItem(value: 'Monthly', child: Text('Monthly')),
-                                        DropdownMenuItem(value: 'Quarterly', child: Text('Quarterly')),
-                                        DropdownMenuItem(value: 'Half-Yearly', child: Text('Half-Yearly')),
-                                        DropdownMenuItem(value: 'Annually', child: Text('Annually')),
-                                      ]),
-                                onChanged: (val) {
-                                  if (val != null) setState(() => _billingCycle = val);
-                                },
-                              ),
+                            child: Builder(
+                              builder: (context) {
+                                final Map<String, String> cycleMap = {};
+                                for (final c in _cycles) {
+                                  if (c.label.isNotEmpty) cycleMap[c.label] = c.label;
+                                }
+                                if (cycleMap.isEmpty) {
+                                  cycleMap['Monthly'] = 'Monthly';
+                                  cycleMap['Quarterly'] = 'Quarterly';
+                                  cycleMap['Half-Yearly'] = 'Half-Yearly';
+                                  cycleMap['Annually'] = 'Annually';
+                                }
+                                String effectiveCycle = _billingCycle;
+                                if (!cycleMap.containsKey(effectiveCycle)) {
+                                  final match = cycleMap.keys.firstWhere(
+                                    (k) => k.toLowerCase() == effectiveCycle.toLowerCase(),
+                                    orElse: () => '',
+                                  );
+                                  if (match.isNotEmpty) {
+                                    effectiveCycle = match;
+                                  } else {
+                                    cycleMap[effectiveCycle] = effectiveCycle;
+                                  }
+                                }
+                                return DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    key: ValueKey('fee_struct_cycle_$effectiveCycle'),
+                                    value: effectiveCycle,
+                                    isExpanded: true,
+                                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                    items: cycleMap.entries.map((c) => DropdownMenuItem(value: c.key, child: Text(c.value, style: const TextStyle(fontSize: 12)))).toList(),
+                                    onChanged: (val) {
+                                      if (val != null) setState(() => _billingCycle = val);
+                                    },
+                                  ),
+                                );
+                              },
                             ),
                           ),
                         ],
@@ -243,23 +283,33 @@ class _EditStudentFeeStructureDialogState extends ConsumerState<EditStudentFeeSt
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                             ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: _classGrade,
-                                isExpanded: true,
-                                dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                items: const [
-                                  DropdownMenuItem(value: 'All Classes', child: Text('All Enrolled Classes', style: TextStyle(fontSize: 12))),
-                                  DropdownMenuItem(value: 'Class 5', child: Text('Class 5', style: TextStyle(fontSize: 12))),
-                                  DropdownMenuItem(value: 'Class 9', child: Text('Class 9', style: TextStyle(fontSize: 12))),
-                                  DropdownMenuItem(value: 'Class 10', child: Text('Class 10', style: TextStyle(fontSize: 12))),
-                                  DropdownMenuItem(value: 'Class 11', child: Text('Class 11', style: TextStyle(fontSize: 12))),
-                                  DropdownMenuItem(value: 'Class 12', child: Text('Class 12', style: TextStyle(fontSize: 12))),
-                                ],
-                                onChanged: (val) {
-                                  if (val != null) setState(() => _classGrade = val);
-                                },
-                              ),
+                            child: Builder(
+                              builder: (context) {
+                                final Map<String, String> gradeMap = {
+                                  'All Classes': 'All Enrolled Classes',
+                                  'Class 5': 'Class 5',
+                                  'Class 9': 'Class 9',
+                                  'Class 10': 'Class 10',
+                                  'Class 11': 'Class 11',
+                                  'Class 12': 'Class 12',
+                                };
+                                String effectiveGrade = _classGrade;
+                                if (!gradeMap.containsKey(effectiveGrade)) {
+                                  gradeMap[effectiveGrade] = effectiveGrade;
+                                }
+                                return DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    key: ValueKey('fee_struct_grade_$effectiveGrade'),
+                                    value: effectiveGrade,
+                                    isExpanded: true,
+                                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                    items: gradeMap.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, style: const TextStyle(fontSize: 12)))).toList(),
+                                    onChanged: (val) {
+                                      if (val != null) setState(() => _classGrade = val);
+                                    },
+                                  ),
+                                );
+                              },
                             ),
                           ),
                         ],

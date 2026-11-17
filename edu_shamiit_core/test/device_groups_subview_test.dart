@@ -397,5 +397,81 @@ void main() {
 
       tester.view.resetPhysicalSize();
     });
+
+    testWidgets('Multi-selection activates batch action toolbar with Activate, Deactivate, Delete, and Deselect All', (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(createTestApp());
+      await tester.pumpAndSettle();
+
+      // Find checkboxes in table: header checkbox + row checkboxes
+      final checkboxes = find.byType(Checkbox);
+      expect(checkboxes, findsWidgets);
+
+      // Tap first row checkbox (index 1, as index 0 is header)
+      await tester.tap(checkboxes.at(1));
+      await tester.pumpAndSettle();
+
+      // Verify batch action toolbar appears
+      expect(find.textContaining('selected'), findsOneWidget);
+      expect(find.text('Activate'), findsOneWidget);
+      expect(find.text('Deactivate'), findsOneWidget);
+      expect(find.text('Delete'), findsOneWidget);
+      expect(find.text('Deselect All'), findsOneWidget);
+
+      // Tap Deselect All
+      await tester.tap(find.text('Deselect All'));
+      await tester.pumpAndSettle();
+
+      // Toolbar is dismissed
+      expect(find.text('Deselect All'), findsNothing);
+    });
+
+    testWidgets('Header sorting click updates sort column and direction', (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(createTestApp());
+      await tester.pumpAndSettle();
+
+      final groupNameHeader = find.text('Group Name');
+      expect(groupNameHeader, findsOneWidget);
+
+      await tester.tap(groupNameHeader);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Rows per page dropdown contains choices [5, 10, 20, 50, 100]', (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(createTestApp());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Rows per page: '), findsOneWidget);
+      expect(find.byType(DropdownButton<int>), findsOneWidget);
+    });
+
+    testWidgets('Zero double ++ and zero double checkboxes exist', (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(createTestApp());
+      await tester.pumpAndSettle();
+
+      // Verify no double ++ exists in any button text
+      expect(find.textContaining('++'), findsNothing);
+      expect(find.textContaining('+ +'), findsNothing);
+
+      // Verify single header checkbox + sampleGroups.length checkboxes = 1 + 4 = 5 checkboxes total
+      final checkboxes = find.byType(Checkbox);
+      expect(checkboxes, findsNWidgets(5));
+    });
   });
 }

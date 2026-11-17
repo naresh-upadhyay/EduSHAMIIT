@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../models/device_management_models.dart';
 
@@ -122,8 +123,24 @@ class DeviceLiveControlTable extends StatelessWidget {
   final Function(DeviceItemModel)? onRebootDevice;
   final VoidCallback? onOpenFilters;
   final int currentPage;
+  final int pageSize;
   final int totalCount;
   final ValueChanged<int> onPageChanged;
+  final ValueChanged<int>? onPageSizeChanged;
+  final String? sortColumn;
+  final bool sortAscending;
+  final ValueChanged<String>? onSortChanged;
+  final String? activeLocationBreadcrumb;
+  final VoidCallback? onClearLocation;
+  final String? activeTypeFilter;
+  final VoidCallback? onClearType;
+  final String? activeStatusFilter;
+  final VoidCallback? onClearStatus;
+  final VoidCallback? onResetAllFilters;
+  final Function(bool turnOn)? onBulkPowerToggle;
+  final VoidCallback? onBulkReboot;
+  final VoidCallback? onBulkDelete;
+  final VoidCallback? onClearSelection;
 
   const DeviceLiveControlTable({
     super.key,
@@ -149,13 +166,30 @@ class DeviceLiveControlTable extends StatelessWidget {
     this.onRebootDevice,
     this.onOpenFilters,
     required this.currentPage,
+    this.pageSize = 10,
     required this.totalCount,
     required this.onPageChanged,
+    this.onPageSizeChanged,
+    this.sortColumn,
+    this.sortAscending = true,
+    this.onSortChanged,
+    this.activeLocationBreadcrumb,
+    this.onClearLocation,
+    this.activeTypeFilter,
+    this.onClearType,
+    this.activeStatusFilter,
+    this.onClearStatus,
+    this.onResetAllFilters,
+    this.onBulkPowerToggle,
+    this.onBulkReboot,
+    this.onBulkDelete,
+    this.onClearSelection,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     final tabs = [
       'Live Device Control',
@@ -166,6 +200,10 @@ class DeviceLiveControlTable extends StatelessWidget {
     ];
 
     final isAllSelected = devices.isNotEmpty && selectedDeviceIds.length == devices.length;
+    final hasActiveFilters = (activeLocationBreadcrumb != null && activeLocationBreadcrumb!.isNotEmpty) ||
+        (activeTypeFilter != null && activeTypeFilter!.isNotEmpty && activeTypeFilter != 'All') ||
+        (activeStatusFilter != null && activeStatusFilter!.isNotEmpty && activeStatusFilter != 'All') ||
+        searchQuery.trim().isNotEmpty;
 
     return Container(
       decoration: BoxDecoration(
@@ -202,7 +240,7 @@ class DeviceLiveControlTable extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               color: isActive
-                                  ? const Color(0xFF2563EB)
+                                   ? theme.colorScheme.primary
                                   : (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
                               borderRadius: BorderRadius.circular(6),
                             ),
@@ -230,7 +268,7 @@ class DeviceLiveControlTable extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       SizedBox(
-                        width: 200,
+                        width: 220,
                         height: 32,
                         child: TextField(
                           onChanged: onSearchChanged,
@@ -240,9 +278,9 @@ class DeviceLiveControlTable extends StatelessWidget {
                           ),
                           decoration: InputDecoration(
                             hintText: 'Search device (name, ID, room)...',
-                            hintStyle: TextStyle(
+                            hintStyle: const TextStyle(
                               fontSize: 11.5,
-                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF94A3B8),
+                              color: Color(0xFF94A3B8),
                             ),
                             prefixIcon: const Icon(Icons.search, size: 16, color: Color(0xFF94A3B8)),
                             contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
@@ -265,24 +303,49 @@ class DeviceLiveControlTable extends StatelessWidget {
                         borderRadius: BorderRadius.circular(6),
                         child: Container(
                           height: 32,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
                           decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                            color: hasActiveFilters
+                                ? theme.colorScheme.primary.withValues(alpha: 0.15)
+                                : (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0)),
+                            border: Border.all(
+                              color: hasActiveFilters
+                                  ? theme.colorScheme.primary
+                                  : (isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0)),
+                            ),
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.filter_list_rounded, size: 16, color: isDark ? Colors.white : const Color(0xFF334155)),
+                              Icon(
+                                Icons.filter_list_rounded,
+                                size: 16,
+                                color: hasActiveFilters
+                                    ? theme.colorScheme.primary
+                                    : (isDark ? Colors.white : const Color(0xFF334155)),
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 'Filters',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: isDark ? Colors.white : const Color(0xFF334155),
+                                  fontWeight: FontWeight.w600,
+                                  color: hasActiveFilters
+                                      ? theme.colorScheme.primary
+                                      : (isDark ? Colors.white : const Color(0xFF334155)),
                                 ),
                               ),
+                              if (hasActiveFilters) ...[
+                                const SizedBox(width: 4),
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -293,6 +356,15 @@ class DeviceLiveControlTable extends StatelessWidget {
               ],
             ),
           ),
+
+          // Active Filter Chips Bar (if filters are active)
+          if (hasActiveFilters)
+            _buildActiveFiltersBar(context, isDark, theme),
+
+          // Multi-Selection Operations Toolbar (sticky when selectedDeviceIds is non-empty)
+          if (selectedDeviceIds.isNotEmpty)
+            _buildMultiSelectToolbar(context, isDark, theme),
+
           const Divider(height: 1, color: Color(0xFFE2E8F0)),
 
           // Table Content with robust horizontal scroll and zero RenderFlex overflows
@@ -307,12 +379,20 @@ class DeviceLiveControlTable extends StatelessWidget {
                             const Icon(Icons.devices_other, size: 40, color: Color(0xFF94A3B8)),
                             const SizedBox(height: 8),
                             Text(
-                              'No devices found',
+                              'No devices found matching current filters',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                               ),
                             ),
+                            if (hasActiveFilters) ...[
+                              const SizedBox(height: 8),
+                              OutlinedButton.icon(
+                                onPressed: onResetAllFilters,
+                                icon: const Icon(Icons.refresh_rounded, size: 14),
+                                label: const Text('Reset All Filters', style: TextStyle(fontSize: 11.5)),
+                              ),
+                            ],
                           ],
                         ),
                       )
@@ -330,7 +410,7 @@ class DeviceLiveControlTable extends StatelessWidget {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
                                   children: [
-                                    // Table Header Row
+                                    // Table Header Row with dynamic database sorting
                                     _buildTableHeader(context, isDark, isAllSelected),
                                     const Divider(height: 1, color: Color(0xFFE2E8F0)),
 
@@ -348,56 +428,255 @@ class DeviceLiveControlTable extends StatelessWidget {
                       ),
           ),
 
-          // Pagination Footer
+          // Pagination Footer with Page Size Selector & Full Navigation Controls
           const Divider(height: 1, color: Color(0xFFE2E8F0)),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Showing ${devices.length} of $totalCount devices',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.chevron_left_rounded, size: 18),
-                        onPressed: currentPage > 1 ? () => onPageChanged(currentPage - 1) : null,
-                      ),
-                      Text(
-                        '$currentPage',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.chevron_right_rounded, size: 18),
-                        onPressed: (currentPage * 10 < totalCount) ? () => onPageChanged(currentPage + 1) : null,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+          _buildPaginationFooter(context, isDark),
         ],
       ),
     );
   }
 
+  // --- Active Filters Strip ---
+  Widget _buildActiveFiltersBar(BuildContext context, bool isDark, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            Text(
+              'Active Filters:',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Location Chip
+            if (activeLocationBreadcrumb != null && activeLocationBreadcrumb!.isNotEmpty)
+              _buildFilterChip(
+                icon: Icons.place_rounded,
+                label: activeLocationBreadcrumb!,
+                onRemove: onClearLocation,
+                isDark: isDark,
+              ),
+
+            // Type Chip
+            if (activeTypeFilter != null && activeTypeFilter!.isNotEmpty && activeTypeFilter != 'All')
+              _buildFilterChip(
+                icon: Icons.category_rounded,
+                label: 'Type: $activeTypeFilter',
+                onRemove: onClearType,
+                isDark: isDark,
+              ),
+
+            // Status Chip
+            if (activeStatusFilter != null && activeStatusFilter!.isNotEmpty && activeStatusFilter != 'All')
+              _buildFilterChip(
+                icon: Icons.circle,
+                label: 'Status: $activeStatusFilter',
+                onRemove: onClearStatus,
+                isDark: isDark,
+              ),
+
+            // Search Query Chip
+            if (searchQuery.trim().isNotEmpty)
+              _buildFilterChip(
+                icon: Icons.search_rounded,
+                label: '"$searchQuery"',
+                onRemove: () => onSearchChanged(''),
+                isDark: isDark,
+              ),
+
+            const SizedBox(width: 6),
+            InkWell(
+              onTap: onResetAllFilters,
+              child: Text(
+                'Clear All',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.primary,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChip({
+    required IconData icon,
+    required String label,
+    required VoidCallback? onRemove,
+    required bool isDark,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(right: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: const Color(0xFF2563EB)),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
+          ),
+          if (onRemove != null) ...[
+            const SizedBox(width: 4),
+            InkWell(
+              onTap: onRemove,
+              borderRadius: BorderRadius.circular(8),
+              child: Icon(
+                Icons.close_rounded,
+                size: 13,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // --- Multi-Select Batch Actions Toolbar ---
+  Widget _buildMultiSelectToolbar(BuildContext context, bool isDark, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark
+            ? const Color(0xFF1E3A8A).withValues(alpha: 0.35)
+            : const Color(0xFFEFF6FF),
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? const Color(0xFF3B82F6) : const Color(0xFF93C5FD),
+            width: 1.5,
+          ),
+        ),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2563EB),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '${selectedDeviceIds.length} Selected',
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Bulk Turn ON
+            ElevatedButton.icon(
+              onPressed: () => onBulkPowerToggle?.call(true),
+              icon: const Icon(Icons.power_settings_new_rounded, size: 14, color: Colors.white),
+              label: const Text('Turn ON', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF16A34A),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+            const SizedBox(width: 6),
+
+            // Bulk Turn OFF
+            ElevatedButton.icon(
+              onPressed: () => onBulkPowerToggle?.call(false),
+              icon: const Icon(Icons.power_off_rounded, size: 14, color: Colors.white),
+              label: const Text('Turn OFF', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+            const SizedBox(width: 6),
+
+            // Bulk Reboot
+            OutlinedButton.icon(
+              onPressed: onBulkReboot,
+              icon: const Icon(Icons.restart_alt_rounded, size: 14, color: Color(0xFF2563EB)),
+              label: const Text('Reboot Selected', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF2563EB))),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+            const SizedBox(width: 6),
+
+            // Bulk Delete
+            OutlinedButton.icon(
+              onPressed: onBulkDelete,
+              icon: const Icon(Icons.delete_outline_rounded, size: 14, color: Color(0xFFDC2626)),
+              label: const Text('Delete Selected', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFFDC2626))),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0xFFDC2626)),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+            const SizedBox(width: 10),
+
+            // Clear Selection
+            InkWell(
+              onTap: onClearSelection,
+              borderRadius: BorderRadius.circular(4),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Row(
+                  children: [
+                    Icon(Icons.close_rounded, size: 15, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    const SizedBox(width: 3),
+                    Text(
+                      'Deselect All',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- Header Row with dynamic Database Sorting ---
   Widget _buildTableHeader(BuildContext context, bool isDark, bool isAllSelected) {
     final headerBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
-    final headerStyle = TextStyle(
-      fontSize: 11.5,
-      fontWeight: FontWeight.w700,
-      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
-    );
 
     return Container(
       height: 38,
@@ -405,7 +684,7 @@ class DeviceLiveControlTable extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: [
-          // Selection Checkbox
+          // Single Selection Checkbox
           SizedBox(
             width: 28,
             child: Checkbox(
@@ -415,47 +694,122 @@ class DeviceLiveControlTable extends StatelessWidget {
           ),
           const SizedBox(width: 8),
 
-          // Device Name (Width: 160)
+          // Device Name (Sortable, column: 'device_name')
           SizedBox(
             width: 160,
-            child: Text('Device Name', style: headerStyle),
+            child: _buildSortableHeaderCell(
+              label: 'Device Name',
+              columnKey: 'device_name',
+              isDark: isDark,
+            ),
           ),
           const SizedBox(width: 8),
 
-          // Type (Width: 100)
+          // Type (Sortable, column: 'type_name')
           SizedBox(
             width: 100,
-            child: Text('Type', style: headerStyle),
+            child: _buildSortableHeaderCell(
+              label: 'Type',
+              columnKey: 'type_name',
+              isDark: isDark,
+            ),
           ),
           const SizedBox(width: 8),
 
-          // Location (Width: 180)
+          // Location (Sortable, column: 'location_path')
           SizedBox(
             width: 180,
-            child: Text('Location (Building > Floor > Room)', style: headerStyle),
+            child: _buildSortableHeaderCell(
+              label: 'Location (Building > Floor > Room)',
+              columnKey: 'location_path',
+              isDark: isDark,
+            ),
           ),
           const SizedBox(width: 8),
 
-          // Status (Width: 85)
+          // Status (Sortable, column: 'is_online')
           SizedBox(
-            width: 85,
-            child: Text('Status', style: headerStyle),
+            width: 95,
+            child: _buildSortableHeaderCell(
+              label: 'Status',
+              columnKey: 'is_online',
+              isDark: isDark,
+            ),
           ),
           const SizedBox(width: 8),
 
-          // Control / Current State (Width: 280)
+          // Control / Current State (Width: 280, non-sortable)
           SizedBox(
             width: 280,
-            child: Text('Control / Current State', style: headerStyle),
+            child: Text(
+              'Control / Current State',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+              ),
+            ),
           ),
           const SizedBox(width: 8),
 
-          // Actions (Width: 40)
+          // Actions (Width: 40, non-sortable)
           SizedBox(
             width: 40,
-            child: Text('Actions', style: headerStyle, textAlign: TextAlign.center),
+            child: Text(
+              'Actions',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+              ),
+              textAlign: TextAlign.center,
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSortableHeaderCell({
+    required String label,
+    required String columnKey,
+    required bool isDark,
+  }) {
+    final isSorted = sortColumn == columnKey;
+
+    return InkWell(
+      onTap: onSortChanged != null ? () => onSortChanged!(columnKey) : null,
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: isSorted
+                      ? const Color(0xFF2563EB)
+                      : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              isSorted
+                  ? (sortAscending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                  : Icons.unfold_more_rounded,
+              size: 13,
+              color: isSorted
+                  ? const Color(0xFF2563EB)
+                  : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -484,7 +838,7 @@ class DeviceLiveControlTable extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Single Checkbox
+          // Single Checkbox (No double checkboxes anywhere)
           SizedBox(
             width: 28,
             child: Checkbox(
@@ -536,7 +890,7 @@ class DeviceLiveControlTable extends StatelessWidget {
 
           // Status Badge Cell
           SizedBox(
-            width: 85,
+            width: 95,
             child: Align(
               alignment: Alignment.centerLeft,
               child: _buildStatusBadge(d.isOnline),
@@ -605,7 +959,7 @@ class DeviceLiveControlTable extends StatelessWidget {
 
   Widget _buildStatusBadge(bool isOnline) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       decoration: BoxDecoration(
         color: isOnline ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
         borderRadius: BorderRadius.circular(4),
@@ -622,12 +976,15 @@ class DeviceLiveControlTable extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 4),
-          Text(
-            isOnline ? 'Online' : 'Offline',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: isOnline ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+          Flexible(
+            child: Text(
+              isOnline ? 'Online' : 'Offline',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: isOnline ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -670,9 +1027,16 @@ class DeviceLiveControlTable extends StatelessWidget {
       ),
     );
 
+    num? parseNum(dynamic val) {
+      if (val is num) return val;
+      if (val is String) return num.tryParse(val);
+      if (val is bool) return val ? 1 : 0;
+      return null;
+    }
+
     // 1. AC (HVAC) Controls
     if (lowerCode.contains('ac')) {
-      final temp = (state['temperature'] as num?)?.toInt() ?? 24;
+      final temp = parseNum(state['temperature'])?.toInt() ?? 24;
       final rawMode = state['mode']?.toString() ?? 'Cool';
       final mode = ['Cool', 'Heat', 'Fan', 'Auto', 'Dry'].contains(rawMode) ? rawMode : 'Cool';
       final rawFan = state['fan_speed']?.toString() ?? 'Medium';
@@ -796,7 +1160,7 @@ class DeviceLiveControlTable extends StatelessWidget {
 
     // 2. Lighting Controls (Power + Brightness Level Track)
     if (lowerCode.contains('light')) {
-      final brightness = (state['brightness'] as num?)?.toDouble() ?? 80.0;
+      final brightness = parseNum(state['brightness'])?.toDouble() ?? 80.0;
 
       return Row(
         mainAxisSize: MainAxisSize.min,
@@ -870,7 +1234,7 @@ class DeviceLiveControlTable extends StatelessWidget {
     if (lowerCode.contains('projector')) {
       final rawInput = state['input']?.toString() ?? 'HDMI 1';
       final input = ['HDMI 1', 'HDMI 2', 'Type-C', 'Wireless', 'VGA'].contains(rawInput) ? rawInput : 'HDMI 1';
-      final vol = (state['volume'] as num?)?.toDouble() ?? 70.0;
+      final vol = parseNum(state['volume'])?.toDouble() ?? 70.0;
 
       return Row(
         mainAxisSize: MainAxisSize.min,
@@ -996,5 +1360,163 @@ class DeviceLiveControlTable extends StatelessWidget {
         const PopupMenuItem(value: 'delete', child: Text('Delete Device', style: TextStyle(color: Colors.red))),
       ],
     );
+  }
+
+  // --- Premium Pagination Footer with Page Size & Full Steppers ---
+  Widget _buildPaginationFooter(BuildContext context, bool isDark) {
+    final totalPages = max(1, (totalCount / pageSize).ceil());
+    final startIdx = totalCount == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    final endIdx = min(currentPage * pageSize, totalCount);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 8,
+        children: [
+          // Left: Showing count & Rows per page
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Showing $startIdx - $endIdx of $totalCount devices',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Text(
+                  'Rows per page:',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  height: 28,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                    ),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<int>(
+                      value: [5, 10, 20, 50, 100].contains(pageSize) ? pageSize : 10,
+                      icon: const Icon(Icons.arrow_drop_down, size: 16),
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      onChanged: (newSize) {
+                        if (newSize != null && onPageSizeChanged != null) {
+                          onPageSizeChanged!(newSize);
+                        }
+                      },
+                      items: [5, 10, 20, 50, 100].map((s) {
+                        return DropdownMenuItem<int>(
+                          value: s,
+                          child: Text('$s'),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Right: First, Prev, Page Numbers, Next, Last
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // First Page
+                IconButton(
+                  icon: const Icon(Icons.first_page_rounded, size: 18),
+                  tooltip: 'First Page',
+                  onPressed: currentPage > 1 ? () => onPageChanged(1) : null,
+                  visualDensity: VisualDensity.compact,
+                ),
+
+                // Prev Page
+                IconButton(
+                  icon: const Icon(Icons.chevron_left_rounded, size: 18),
+                  tooltip: 'Previous Page',
+                  onPressed: currentPage > 1 ? () => onPageChanged(currentPage - 1) : null,
+                  visualDensity: VisualDensity.compact,
+                ),
+
+                // Numbered Page Buttons
+                ..._buildPageNumbers(currentPage, totalPages, isDark),
+
+                // Next Page
+                IconButton(
+                  icon: const Icon(Icons.chevron_right_rounded, size: 18),
+                  tooltip: 'Next Page',
+                  onPressed: currentPage < totalPages ? () => onPageChanged(currentPage + 1) : null,
+                  visualDensity: VisualDensity.compact,
+                ),
+
+                // Last Page
+                IconButton(
+                  icon: const Icon(Icons.last_page_rounded, size: 18),
+                  tooltip: 'Last Page',
+                  onPressed: currentPage < totalPages ? () => onPageChanged(totalPages) : null,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildPageNumbers(int current, int total, bool isDark) {
+    List<Widget> buttons = [];
+    final start = max(1, current - 2);
+    final end = min(total, current + 2);
+
+    for (int p = start; p <= end; p++) {
+      final isCur = p == current;
+      buttons.add(
+        InkWell(
+          onTap: isCur ? null : () => onPageChanged(p),
+          borderRadius: BorderRadius.circular(4),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isCur
+                  ? const Color(0xFF2563EB)
+                  : (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              '$p',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: isCur ? FontWeight.w700 : FontWeight.w500,
+                color: isCur
+                    ? Colors.white
+                    : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155)),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return buttons;
   }
 }

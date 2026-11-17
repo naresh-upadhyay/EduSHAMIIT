@@ -40,46 +40,6 @@ class _DeviceGroupsSubviewState extends ConsumerState<DeviceGroupsSubview> {
   bool _isScenesExpanded = false;
   bool _isEnergyExpanded = false;
 
-  final List<String> _locationFilters = [
-    'All Locations',
-    'Block A > Classrooms',
-    'Academic Block',
-    'All Buildings > Classrooms',
-    'Campus > Perimeter',
-    'Library, Canteen, Common Areas',
-    'All Buildings > Labs',
-    'Admin Block, Labs, Data Center',
-    'Main Building > Auditorium',
-    'All Buildings',
-    'Block B > Classrooms',
-  ];
-
-  final List<String> _deviceTypeFilters = [
-    'All Device Types',
-    'Lighting',
-    'HVAC (AC)',
-    'AV & Display',
-    'Security',
-    'Network',
-    'Environment',
-    'Access Control',
-    'Composite',
-  ];
-
-  final List<String> _profileFilters = [
-    'All Profiles',
-    'Default Lighting',
-    'AC Standard',
-    'Projector Base',
-    'High Security',
-    'Wi-Fi Standard',
-    'Fan Standard',
-    'Secure Access',
-    'Audio Standard',
-    'Sensor Standard',
-    'Smart Classroom',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -248,13 +208,14 @@ class _DeviceGroupsSubviewState extends ConsumerState<DeviceGroupsSubview> {
                 TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
                 ElevatedButton(
                   onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
                     Navigator.of(ctx).pop();
                     final notifier = ref.read(deviceManagementProvider.notifier);
                     await notifier.executeGroupControlCommand(group.id, 'set_brightness', {
                       'brightness': currentBrightness.toInt(),
                     });
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      messenger.showSnackBar(
                         SnackBar(content: Text('Brightness set to ${currentBrightness.toInt()}% for all members.')),
                       );
                     }
@@ -664,6 +625,20 @@ class _DeviceGroupsSubviewState extends ConsumerState<DeviceGroupsSubview> {
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 800;
 
+        // Dynamic Options loaded from database
+        final locationOptions = [
+          'All Locations',
+          ...state.groupsDynamicLocations.where((l) => l.trim().isNotEmpty && l != 'All Locations'),
+        ];
+        final typeOptions = [
+          'All Device Types',
+          ...state.groupsDynamicTypes.where((t) => t.trim().isNotEmpty && t != 'All Device Types'),
+        ];
+        final profileOptions = [
+          'All Profiles',
+          ...state.groupsDynamicProfiles.where((p) => p.trim().isNotEmpty && p != 'All Profiles'),
+        ];
+
         final searchField = SizedBox(
           width: isMobile ? double.infinity : 320,
           child: TextField(
@@ -696,8 +671,10 @@ class _DeviceGroupsSubviewState extends ConsumerState<DeviceGroupsSubview> {
           ),
         );
 
-        final dropdowns = Row(
-          mainAxisSize: MainAxisSize.min,
+        final dropdowns = Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             // Location dropdown
             Container(
@@ -708,20 +685,19 @@ class _DeviceGroupsSubviewState extends ConsumerState<DeviceGroupsSubview> {
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
-                  value: _locationFilters.contains(state.groupsFilterLocation) ? state.groupsFilterLocation : _locationFilters.first,
+                  value: locationOptions.contains(state.groupsFilterLocation) ? state.groupsFilterLocation : locationOptions.first,
                   isDense: true,
                   style: TextStyle(
                     fontSize: 12.5,
                     color: isDark ? Colors.white : const Color(0xFF334155),
                   ),
-                  items: _locationFilters.map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(),
+                  items: locationOptions.map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(),
                   onChanged: (val) {
                     if (val != null) notifier.setGroupsFilterLocation(val);
                   },
                 ),
               ),
             ),
-            const SizedBox(width: 8),
 
             // Device Type dropdown
             Container(
@@ -732,20 +708,19 @@ class _DeviceGroupsSubviewState extends ConsumerState<DeviceGroupsSubview> {
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
-                  value: _deviceTypeFilters.contains(state.groupsFilterType) ? state.groupsFilterType : _deviceTypeFilters.first,
+                  value: typeOptions.contains(state.groupsFilterType) ? state.groupsFilterType : typeOptions.first,
                   isDense: true,
                   style: TextStyle(
                     fontSize: 12.5,
                     color: isDark ? Colors.white : const Color(0xFF334155),
                   ),
-                  items: _deviceTypeFilters.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                  items: typeOptions.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                   onChanged: (val) {
                     if (val != null) notifier.setGroupsFilterType(val);
                   },
                 ),
               ),
             ),
-            const SizedBox(width: 8),
 
             // Profile dropdown
             Container(
@@ -756,13 +731,13 @@ class _DeviceGroupsSubviewState extends ConsumerState<DeviceGroupsSubview> {
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
-                  value: _profileFilters.contains(state.groupsFilterProfile) ? state.groupsFilterProfile : _profileFilters.first,
+                  value: profileOptions.contains(state.groupsFilterProfile) ? state.groupsFilterProfile : profileOptions.first,
                   isDense: true,
                   style: TextStyle(
                     fontSize: 12.5,
                     color: isDark ? Colors.white : const Color(0xFF334155),
                   ),
-                  items: _profileFilters.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+                  items: profileOptions.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
                   onChanged: (val) {
                     if (val != null) notifier.setGroupsFilterProfile(val);
                   },
@@ -1021,52 +996,101 @@ class _DeviceGroupsSubviewState extends ConsumerState<DeviceGroupsSubview> {
                 ),
               ),
 
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 860),
-                child: DataTable(
-                  showCheckboxColumn: false,
-                  headingRowHeight: 44,
-                  dataRowMinHeight: 52,
-                  dataRowMaxHeight: 56,
-                  horizontalMargin: 12,
-                  columnSpacing: 16,
-                  headingRowColor: WidgetStateProperty.all(
-                    isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                  ),
-                  columns: [
-                    DataColumn(
-                      label: Checkbox(
-                        value: groups.isNotEmpty && _selectedGroupIds.length == groups.length,
-                        activeColor: primaryColor,
-                        onChanged: (val) {
-                          setState(() {
-                            if (val == true) {
-                              _selectedGroupIds.addAll(groups.map((g) => g.id));
-                            } else {
-                              _selectedGroupIds.clear();
-                            }
-                          });
-                        },
+            if (state.isGroupsLoading)
+              Container(
+                height: 240,
+                alignment: Alignment.center,
+                child: const CircularProgressIndicator(),
+              )
+            else if (groups.isEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.hub_outlined, size: 54, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                    const SizedBox(height: 14),
+                    Text(
+                      'No device groups found',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : const Color(0xFF1E293B),
                       ),
                     ),
-                    const DataColumn(
-                      label: Row(
-                        children: [
-                          Text('Group Name', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
-                          SizedBox(width: 4),
-                          Icon(Icons.unfold_more, size: 14, color: Color(0xFF94A3B8)),
-                        ],
+                    const SizedBox(height: 6),
+                    Text(
+                      'Try adjusting your search or filters, or create a new group.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                       ),
                     ),
-                    const DataColumn(label: Text('Group Type', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5))),
-                    const DataColumn(label: Text('Location / Scope', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5))),
-                    const DataColumn(label: Text('Devices', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5))),
-                    const DataColumn(label: Text('Profile', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5))),
-                    const DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5))),
-                    const DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5))),
+                    const SizedBox(height: 18),
+                    ElevatedButton.icon(
+                      onPressed: _openCreateDialog,
+                      icon: const Icon(Icons.add_rounded, size: 16),
+                      label: const Text('Create Group'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryColor,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
                   ],
+                ),
+              )
+            else
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 860),
+                  child: DataTable(
+                    showCheckboxColumn: false,
+                    headingRowHeight: 44,
+                    dataRowMinHeight: 52,
+                    dataRowMaxHeight: 56,
+                    horizontalMargin: 12,
+                    columnSpacing: 16,
+                    headingRowColor: WidgetStateProperty.all(
+                      isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    ),
+                    columns: [
+                      DataColumn(
+                        label: Checkbox(
+                          value: groups.isNotEmpty && _selectedGroupIds.length == groups.length,
+                          activeColor: primaryColor,
+                          onChanged: (val) {
+                            setState(() {
+                              if (val == true) {
+                                _selectedGroupIds.addAll(groups.map((g) => g.id));
+                              } else {
+                                _selectedGroupIds.clear();
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                      DataColumn(
+                        label: _buildSortHeader('Group Name', 'name', state, primaryColor),
+                      ),
+                      DataColumn(
+                        label: _buildSortHeader('Group Type', 'group_type', state, primaryColor),
+                      ),
+                      DataColumn(
+                        label: _buildSortHeader('Location / Scope', 'location_scope', state, primaryColor),
+                      ),
+                      DataColumn(
+                        label: _buildSortHeader('Devices', 'devices', state, primaryColor),
+                      ),
+                      DataColumn(
+                        label: _buildSortHeader('Profile', 'profile_name', state, primaryColor),
+                      ),
+                      DataColumn(
+                        label: _buildSortHeader('Status', 'status', state, primaryColor),
+                      ),
+                      const DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5))),
+                    ],
                   rows: groups.map((g) {
                     final isSelected = state.selectedGroupId == g.id;
                     final isChecked = _selectedGroupIds.contains(g.id);
@@ -1305,6 +1329,36 @@ class _DeviceGroupsSubviewState extends ConsumerState<DeviceGroupsSubview> {
 );
   }
 
+  Widget _buildSortHeader(String title, String columnKey, DeviceManagementState state, Color primaryColor) {
+    final isActive = state.groupsSortBy.toLowerCase() == columnKey.toLowerCase();
+    final isAsc = state.groupsSortOrder.toLowerCase() == 'asc';
+    return InkWell(
+      onTap: () => ref.read(deviceManagementProvider.notifier).sortDeviceGroups(columnKey),
+      borderRadius: BorderRadius.circular(4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 12.5,
+              color: isActive ? primaryColor : null,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Icon(
+            isActive
+                ? (isAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                : Icons.unfold_more_rounded,
+            size: 14,
+            color: isActive ? primaryColor : const Color(0xFF94A3B8),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ============================================================================
   // GRID VIEW
   // ============================================================================
@@ -1499,9 +1553,28 @@ class _DeviceGroupsSubviewState extends ConsumerState<DeviceGroupsSubview> {
                 border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Text(
-                '${state.groupsPageSize}',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  value: [5, 10, 20, 50, 100].contains(state.groupsPageSize) ? state.groupsPageSize : 10,
+                  isDense: true,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF334155),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 5, child: Text('5')),
+                    DropdownMenuItem(value: 10, child: Text('10')),
+                    DropdownMenuItem(value: 20, child: Text('20')),
+                    DropdownMenuItem(value: 50, child: Text('50')),
+                    DropdownMenuItem(value: 100, child: Text('100')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      notifier.setGroupsPageSize(val);
+                    }
+                  },
+                ),
               ),
             ),
           ],

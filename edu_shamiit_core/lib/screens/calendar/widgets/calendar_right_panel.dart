@@ -39,21 +39,30 @@ class CalendarRightPanelWidget extends ConsumerWidget {
           _buildMiniCalendar(context, ref, state, notifier),
 
           const SizedBox(height: 24),
-          Divider(height: 1, color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
+          Divider(
+              height: 1,
+              color:
+                  isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
           const SizedBox(height: 24),
 
           // 2. Category Counters ("My Schedule")
           _buildCategoryCounters(context, ref, state, notifier),
 
           const SizedBox(height: 24),
-          Divider(height: 1, color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
+          Divider(
+              height: 1,
+              color:
+                  isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
           const SizedBox(height: 24),
 
           // 3. "Assigned to Me" Task Cards
           _buildAssignedToMeSection(context, ref, state, notifier),
 
           const SizedBox(height: 24),
-          Divider(height: 1, color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
+          Divider(
+              height: 1,
+              color:
+                  isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
           const SizedBox(height: 24),
 
           // 4. "Upcoming Reminders"
@@ -67,13 +76,16 @@ class CalendarRightPanelWidget extends ConsumerWidget {
   // --------------------------------------------------------------------------
   // 1. MINI MONTH CALENDAR
   // --------------------------------------------------------------------------
-  Widget _buildMiniCalendar(
-      BuildContext context, WidgetRef ref, CalendarState state, CalendarNotifier notifier) {
+  Widget _buildMiniCalendar(BuildContext context, WidgetRef ref,
+      CalendarState state, CalendarNotifier notifier) {
     final selectedDate = state.selectedDate;
     final firstDayOfMonth = DateTime(selectedDate.year, selectedDate.month, 1);
-    final daysInMonth = DateTime(selectedDate.year, selectedDate.month + 1, 0).day;
+    final daysInMonth =
+        DateTime(selectedDate.year, selectedDate.month + 1, 0).day;
     final startWeekday = firstDayOfMonth.weekday % 7; // Sunday = 0
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.primaryColor;
 
     final weekdays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
@@ -86,10 +98,13 @@ class CalendarRightPanelWidget extends ConsumerWidget {
           children: [
             IconButton(
               onPressed: () {
-                final prevMonth = DateTime(selectedDate.year, selectedDate.month - 1, 1);
+                final prevMonth =
+                    DateTime(selectedDate.year, selectedDate.month - 1, 1);
                 notifier.selectDate(prevMonth);
               },
-              icon: Icon(Icons.chevron_left_rounded, size: 20, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+              icon: Icon(Icons.chevron_left_rounded,
+                  size: 20,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A)),
               style: IconButton.styleFrom(
                 padding: const EdgeInsets.all(4),
                 minimumSize: const Size(28, 28),
@@ -106,10 +121,13 @@ class CalendarRightPanelWidget extends ConsumerWidget {
             ),
             IconButton(
               onPressed: () {
-                final nextMonth = DateTime(selectedDate.year, selectedDate.month + 1, 1);
+                final nextMonth =
+                    DateTime(selectedDate.year, selectedDate.month + 1, 1);
                 notifier.selectDate(nextMonth);
               },
-              icon: Icon(Icons.chevron_right_rounded, size: 20, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+              icon: Icon(Icons.chevron_right_rounded,
+                  size: 20,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A)),
               style: IconButton.styleFrom(
                 padding: const EdgeInsets.all(4),
                 minimumSize: const Size(28, 28),
@@ -131,7 +149,9 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF94A3B8),
+                  color: isDark
+                      ? const Color(0xFFCBD5E1)
+                      : const Color(0xFF94A3B8),
                 ),
               ),
             );
@@ -155,7 +175,8 @@ class CalendarRightPanelWidget extends ConsumerWidget {
               return const SizedBox.shrink();
             }
             final day = index - startWeekday + 1;
-            final cellDate = DateTime(selectedDate.year, selectedDate.month, day);
+            final cellDate =
+                DateTime(selectedDate.year, selectedDate.month, day);
             final isSelected = cellDate.year == selectedDate.year &&
                 cellDate.month == selectedDate.month &&
                 cellDate.day == selectedDate.day;
@@ -171,11 +192,13 @@ class CalendarRightPanelWidget extends ConsumerWidget {
               child: Container(
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? const Color(0xFF4F46E5)
-                      : (isToday ? const Color(0xFF4F46E5).withValues(alpha: 0.25) : Colors.transparent),
+                      ? primaryColor
+                      : (isToday
+                          ? primaryColor.withValues(alpha: 0.25)
+                          : Colors.transparent),
                   shape: BoxShape.circle,
                   border: isToday && !isSelected
-                      ? Border.all(color: const Color(0xFF4F46E5), width: 1.5)
+                      ? Border.all(color: primaryColor, width: 1.5)
                       : null,
                 ),
                 child: Center(
@@ -183,12 +206,18 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                     '$day',
                     style: TextStyle(
                       fontSize: 12,
-                      fontWeight: isSelected || isToday ? FontWeight.w800 : FontWeight.w600,
+                      fontWeight: isSelected || isToday
+                          ? FontWeight.w800
+                          : FontWeight.w600,
                       color: isSelected
                           ? Colors.white
                           : (isToday
-                              ? (isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5))
-                              : (isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B))),
+                              ? (isDark
+                                  ? Color.lerp(primaryColor, Colors.white, 0.4)!
+                                  : primaryColor)
+                              : (isDark
+                                  ? const Color(0xFFF1F5F9)
+                                  : const Color(0xFF1E293B))),
                     ),
                   ),
                 ),
@@ -203,38 +232,47 @@ class CalendarRightPanelWidget extends ConsumerWidget {
   // --------------------------------------------------------------------------
   // 2. MY SCHEDULE CATEGORY SUMMARY
   // --------------------------------------------------------------------------
-  Widget _buildCategoryCounters(
-      BuildContext context, WidgetRef ref, CalendarState state, CalendarNotifier notifier) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildCategoryCounters(BuildContext context, WidgetRef ref,
+      CalendarState state, CalendarNotifier notifier) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.primaryColor;
 
     // Filter schedule dataset dynamically matched with active visible schedules on the board
-    final dataset = state.schedules.isNotEmpty ? state.schedules : state.rawSchedules;
+    final dataset =
+        state.schedules.isNotEmpty ? state.schedules : state.rawSchedules;
     DateTime periodStart;
     DateTime periodEnd;
     String periodLabel;
 
     switch (state.viewMode) {
       case CalendarViewMode.day:
-        periodStart = DateTime(state.selectedDate.year, state.selectedDate.month, state.selectedDate.day, 0, 0, 0);
-        periodEnd = DateTime(state.selectedDate.year, state.selectedDate.month, state.selectedDate.day, 23, 59, 59);
+        periodStart = DateTime(state.selectedDate.year,
+            state.selectedDate.month, state.selectedDate.day, 0, 0, 0);
+        periodEnd = DateTime(state.selectedDate.year, state.selectedDate.month,
+            state.selectedDate.day, 23, 59, 59);
         periodLabel = 'This Day';
         break;
       case CalendarViewMode.threeDay:
-        periodStart = DateTime(state.selectedDate.year, state.selectedDate.month, state.selectedDate.day, 0, 0, 0);
+        periodStart = DateTime(state.selectedDate.year,
+            state.selectedDate.month, state.selectedDate.day, 0, 0, 0);
         periodEnd = periodStart.add(const Duration(days: 3, microseconds: -1));
         periodLabel = '3 Days';
         break;
       case CalendarViewMode.week:
       case CalendarViewMode.timeline:
       case CalendarViewMode.agenda:
-        final monday = state.selectedDate.subtract(Duration(days: state.selectedDate.weekday - 1));
+        final monday = state.selectedDate
+            .subtract(Duration(days: state.selectedDate.weekday - 1));
         periodStart = DateTime(monday.year, monday.month, monday.day, 0, 0, 0);
         periodEnd = periodStart.add(const Duration(days: 7, microseconds: -1));
         periodLabel = 'This Week';
         break;
       case CalendarViewMode.month:
-        periodStart = DateTime(state.selectedDate.year, state.selectedDate.month, 1, 0, 0, 0);
-        periodEnd = DateTime(state.selectedDate.year, state.selectedDate.month + 1, 0, 23, 59, 59);
+        periodStart = DateTime(
+            state.selectedDate.year, state.selectedDate.month, 1, 0, 0, 0);
+        periodEnd = DateTime(state.selectedDate.year,
+            state.selectedDate.month + 1, 0, 23, 59, 59);
         periodLabel = 'This Month';
         break;
       case CalendarViewMode.year:
@@ -262,14 +300,16 @@ class CalendarRightPanelWidget extends ConsumerWidget {
     final Map<String, String> displayNames = {};
 
     for (final s in activePeriodSchedules) {
-      final rawKey = (s.scheduleType.isNotEmpty && s.scheduleType.toLowerCase() != 'general')
+      final rawKey = (s.scheduleType.isNotEmpty &&
+              s.scheduleType.toLowerCase() != 'general')
           ? s.scheduleType
           : (s.category.isNotEmpty ? s.category : s.scheduleType);
       final key = rawKey.trim();
       if (key.isNotEmpty) {
         final lowerKey = key.toLowerCase();
         counts[lowerKey] = (counts[lowerKey] ?? 0) + 1;
-        if (!displayNames.containsKey(lowerKey) || key[0] == key[0].toUpperCase()) {
+        if (!displayNames.containsKey(lowerKey) ||
+            key[0] == key[0].toUpperCase()) {
           displayNames[lowerKey] = key;
         }
       }
@@ -287,13 +327,14 @@ class CalendarRightPanelWidget extends ConsumerWidget {
           'name': rawName,
           'label': label,
           'count': count,
-          'color': _getCategoryColor(lowerKey, hex),
+          'color': _getCategoryColor(lowerKey, hex, primaryColor),
         });
       }
     });
 
     // Sort categories by count descending
-    activeCategories.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+    activeCategories
+        .sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -313,9 +354,12 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                 ),
                 const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -323,7 +367,9 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
+                      color: isDark
+                          ? const Color(0xFFCBD5E1)
+                          : const Color(0xFF64748B),
                     ),
                   ),
                 ),
@@ -339,14 +385,15 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                  color: isDark
+                      ? Color.lerp(primaryColor, Colors.white, 0.4)!
+                      : primaryColor,
                 ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 14),
-
         if (activeCategories.isEmpty)
           Container(
             width: double.infinity,
@@ -355,7 +402,8 @@ class CalendarRightPanelWidget extends ConsumerWidget {
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                color:
+                    isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
               ),
             ),
             child: Row(
@@ -363,7 +411,9 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                 Icon(
                   Icons.calendar_today_outlined,
                   size: 18,
-                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                  color: isDark
+                      ? const Color(0xFF64748B)
+                      : const Color(0xFF94A3B8),
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -371,7 +421,9 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                   ),
                 ),
               ],
@@ -392,7 +444,8 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(8),
                   hoverColor: (cat['color'] as Color).withValues(alpha: 0.12),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                     child: Row(
                       children: [
                         Container(
@@ -409,10 +462,17 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                             cat['label'] as String,
                             style: TextStyle(
                               fontSize: 13,
-                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                              fontWeight: isSelected
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
                               color: isSelected
-                                  ? (isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5))
-                                  : (isDark ? const Color(0xFFF1F5F9) : const Color(0xFF475569)),
+                                  ? (isDark
+                                      ? Color.lerp(
+                                          primaryColor, Colors.white, 0.4)!
+                                      : primaryColor)
+                                  : (isDark
+                                      ? const Color(0xFFF1F5F9)
+                                      : const Color(0xFF475569)),
                             ),
                           ),
                         ),
@@ -421,7 +481,8 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                       ],
@@ -438,21 +499,27 @@ class CalendarRightPanelWidget extends ConsumerWidget {
   // --------------------------------------------------------------------------
   // 3. ASSIGNED TO ME SECTION
   // --------------------------------------------------------------------------
-  Widget _buildAssignedToMeSection(
-      BuildContext context, WidgetRef ref, CalendarState state, CalendarNotifier notifier) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildAssignedToMeSection(BuildContext context, WidgetRef ref,
+      CalendarState state, CalendarNotifier notifier) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.primaryColor;
     final currentUser = ref.watch(authProvider).userData;
     final currentUserId = currentUser?['id']?.toString();
 
     final now = DateTime.now();
     // Filter REAL assigned items from active visible dataset that are IN THE FUTURE from current time
-    final dataset = state.schedules.isNotEmpty ? state.schedules : state.rawSchedules;
+    final dataset =
+        state.schedules.isNotEmpty ? state.schedules : state.rawSchedules;
     final assignedSchedules = dataset.where((s) {
-      final isFutureOrCurrent = s.endTime.isAfter(now) || s.startTime.isAfter(now);
+      final isFutureOrCurrent =
+          s.endTime.isAfter(now) || s.startTime.isAfter(now);
       bool isAssigned = false;
       if (currentUserId != null && currentUserId.isNotEmpty) {
-        final isParticipant = s.participants.any((p) => p.userId == currentUserId);
-        final isOrganizer = s.organizerId == currentUserId || s.createdBy == currentUserId;
+        final isParticipant =
+            s.participants.any((p) => p.userId == currentUserId);
+        final isOrganizer =
+            s.organizerId == currentUserId || s.createdBy == currentUserId;
         isAssigned = isParticipant || isOrganizer;
       } else {
         isAssigned = s.participants.isNotEmpty;
@@ -482,11 +549,14 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                 if (assignedSchedules.isNotEmpty) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
                       color: const Color(0xFF10B981).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                      border: Border.all(
+                          color:
+                              const Color(0xFF10B981).withValues(alpha: 0.4)),
                     ),
                     child: Text(
                       '${assignedSchedules.length}',
@@ -511,14 +581,15 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                    color: isDark
+                        ? Color.lerp(primaryColor, Colors.white, 0.4)!
+                        : primaryColor,
                   ),
                 ),
               ),
           ],
         ),
         const SizedBox(height: 14),
-
         if (assignedSchedules.isEmpty)
           Container(
             width: double.infinity,
@@ -527,7 +598,8 @@ class CalendarRightPanelWidget extends ConsumerWidget {
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                color:
+                    isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
               ),
             ),
             child: Column(
@@ -535,7 +607,9 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                 Icon(
                   Icons.assignment_outlined,
                   size: 26,
-                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                  color: isDark
+                      ? const Color(0xFF64748B)
+                      : const Color(0xFF94A3B8),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -543,7 +617,9 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                   ),
                 ),
               ],
@@ -561,10 +637,14 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      color: isDark
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0),
                       ),
                     ),
                     child: Row(
@@ -589,7 +669,9 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A),
                                   height: 1.2,
                                 ),
                               ),
@@ -599,7 +681,9 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w500,
-                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -608,7 +692,9 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF94A3B8),
+                                  color: isDark
+                                      ? const Color(0xFFCBD5E1)
+                                      : const Color(0xFF94A3B8),
                                 ),
                               ),
                             ],
@@ -628,15 +714,19 @@ class CalendarRightPanelWidget extends ConsumerWidget {
   // --------------------------------------------------------------------------
   // 4. UPCOMING REMINDERS SECTION
   // --------------------------------------------------------------------------
-  Widget _buildUpcomingReminders(
-      BuildContext context, WidgetRef ref, CalendarState state, CalendarNotifier notifier) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildUpcomingReminders(BuildContext context, WidgetRef ref,
+      CalendarState state, CalendarNotifier notifier) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.primaryColor;
 
     final now = DateTime.now();
     // Filter REAL schedules with reminders or type Reminder from active visible dataset that are IN THE FUTURE from current time
-    final dataset = state.schedules.isNotEmpty ? state.schedules : state.rawSchedules;
+    final dataset =
+        state.schedules.isNotEmpty ? state.schedules : state.rawSchedules;
     final reminderSchedules = dataset.where((s) {
-      final isFutureOrCurrent = s.endTime.isAfter(now) || s.startTime.isAfter(now);
+      final isFutureOrCurrent =
+          s.endTime.isAfter(now) || s.startTime.isAfter(now);
       final isReminder = s.reminders.isNotEmpty ||
           s.scheduleType.toLowerCase() == 'reminder' ||
           s.category.toLowerCase() == 'reminders';
@@ -670,14 +760,15 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                  color: isDark
+                      ? Color.lerp(primaryColor, Colors.white, 0.4)!
+                      : primaryColor,
                 ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 14),
-
         if (reminderSchedules.isEmpty)
           Container(
             width: double.infinity,
@@ -686,7 +777,8 @@ class CalendarRightPanelWidget extends ConsumerWidget {
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                color:
+                    isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
               ),
             ),
             child: Column(
@@ -694,7 +786,9 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                 Icon(
                   Icons.notifications_none_rounded,
                   size: 26,
-                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                  color: isDark
+                      ? const Color(0xFF64748B)
+                      : const Color(0xFF94A3B8),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -702,7 +796,9 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                   ),
                 ),
               ],
@@ -720,10 +816,14 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      color: isDark
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0),
                       ),
                     ),
                     child: Row(
@@ -731,13 +831,16 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: s.color.withValues(alpha: isDark ? 0.22 : 0.12),
+                            color:
+                                s.color.withValues(alpha: isDark ? 0.22 : 0.12),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
                             Icons.notifications_active_outlined,
                             size: 18,
-                            color: isDark ? Color.lerp(s.color, Colors.white, 0.3)! : s.color,
+                            color: isDark
+                                ? Color.lerp(s.color, Colors.white, 0.3)!
+                                : s.color,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -750,7 +853,9 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A),
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -759,7 +864,9 @@ class CalendarRightPanelWidget extends ConsumerWidget {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
                                 ),
                               ),
                             ],
@@ -776,19 +883,19 @@ class CalendarRightPanelWidget extends ConsumerWidget {
     );
   }
 
-  Color _parseHexColor(String hex) {
+  Color _parseHexColor(String hex, [Color? fallback]) {
     try {
       final str = hex.replaceAll('#', '');
       if (str.length == 6) {
         return Color(int.parse('FF$str', radix: 16));
       }
     } catch (_) {}
-    return const Color(0xFF4F46E5);
+    return fallback ?? const Color(0xFF4F46E5);
   }
 
-  Color _getCategoryColor(String name, String? hex) {
+  Color _getCategoryColor(String name, String? hex, [Color? fallback]) {
     if (hex != null && hex.isNotEmpty) {
-      return _parseHexColor(hex);
+      return _parseHexColor(hex, fallback);
     }
     switch (name.toLowerCase()) {
       case 'meeting':
@@ -817,7 +924,7 @@ class CalendarRightPanelWidget extends ConsumerWidget {
       case 'public holidays':
         return const Color(0xFFEC4899);
       default:
-        return const Color(0xFF4F46E5);
+        return fallback ?? const Color(0xFF4F46E5);
     }
   }
 }

@@ -92,7 +92,9 @@ class CalendarFilterBarWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(calendarProvider);
     final notifier = ref.read(calendarProvider.notifier);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.primaryColor;
 
     // Dynamically generated filter chips from database calendars
     final List<_FilterPillData> filterPills = [];
@@ -116,7 +118,7 @@ class CalendarFilterBarWidget extends ConsumerWidget {
       }
     } else {
       filterPills.addAll([
-        _FilterPillData(id: 'my_schedule', label: 'My Schedule', color: const Color(0xFF4F46E5)),
+        _FilterPillData(id: 'my_schedule', label: 'My Schedule', color: primaryColor),
         _FilterPillData(id: 'assigned_to_me', label: 'Assigned to Me', color: const Color(0xFF10B981)),
         _FilterPillData(id: 'team_schedule', label: 'Team Schedule', color: const Color(0xFF06B6D4)),
         _FilterPillData(id: 'department', label: 'Department', color: const Color(0xFFF59E0B)),
@@ -163,18 +165,18 @@ class CalendarFilterBarWidget extends ConsumerWidget {
                               notifier.selectAllCalendars(!allSelected);
                             },
                             borderRadius: BorderRadius.circular(6),
-                            hoverColor: const Color(0xFF4F46E5).withValues(alpha: 0.08),
+                            hoverColor: primaryColor.withValues(alpha: 0.08),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               padding: EdgeInsets.symmetric(horizontal: isMobile ? 6 : 10, vertical: isMobile ? 4 : 6),
                               decoration: BoxDecoration(
                                 color: allSelected
-                                    ? const Color(0xFF4F46E5).withValues(alpha: isDark ? 0.25 : 0.12)
+                                    ? primaryColor.withValues(alpha: isDark ? 0.25 : 0.12)
                                     : (isDark ? const Color(0xFF0F172A) : Colors.transparent),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
                                   color: allSelected
-                                      ? const Color(0xFF4F46E5).withValues(alpha: isDark ? 0.7 : 0.4)
+                                      ? primaryColor.withValues(alpha: isDark ? 0.7 : 0.4)
                                       : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                                   width: 1,
                                 ),
@@ -186,9 +188,9 @@ class CalendarFilterBarWidget extends ConsumerWidget {
                                     width: isMobile ? 12 : 16,
                                     height: isMobile ? 12 : 16,
                                     decoration: BoxDecoration(
-                                      color: allSelected ? const Color(0xFF4F46E5) : Colors.transparent,
+                                      color: allSelected ? primaryColor : Colors.transparent,
                                       borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(color: const Color(0xFF4F46E5), width: 1.5),
+                                      border: Border.all(color: primaryColor, width: 1.5),
                                     ),
                                     child: allSelected
                                         ? const Icon(Icons.check, size: 12, color: Colors.white)
@@ -302,14 +304,14 @@ class CalendarFilterBarWidget extends ConsumerWidget {
                     child: Container(
                       padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 12, vertical: isMobile ? 4 : 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4F46E5).withValues(alpha: isDark ? 0.2 : 0.08),
+                        color: primaryColor.withValues(alpha: isDark ? 0.2 : 0.08),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: isDark ? 0.5 : 0.2)),
+                        border: Border.all(color: primaryColor.withValues(alpha: isDark ? 0.5 : 0.2)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.add_rounded, size: isMobile ? 14 : 16, color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5)),
+                          Icon(Icons.add_rounded, size: isMobile ? 14 : 16, color: isDark ? Color.lerp(primaryColor, Colors.white, 0.4)! : primaryColor),
                           if (!isMobile) ...[
                             const SizedBox(width: 4),
                             Text(
@@ -317,7 +319,7 @@ class CalendarFilterBarWidget extends ConsumerWidget {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
-                                color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                                color: isDark ? Color.lerp(primaryColor, Colors.white, 0.4)! : primaryColor,
                               ),
                             ),
                           ],

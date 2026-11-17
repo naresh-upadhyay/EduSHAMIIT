@@ -14,12 +14,16 @@ class RequestSalaryAdvanceDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<RequestSalaryAdvanceDialog> createState() => _RequestSalaryAdvanceDialogState();
+  ConsumerState<RequestSalaryAdvanceDialog> createState() =>
+      _RequestSalaryAdvanceDialogState();
 }
 
-class _RequestSalaryAdvanceDialogState extends ConsumerState<RequestSalaryAdvanceDialog> {
-  final TextEditingController _amountController = TextEditingController(text: '15000');
-  final TextEditingController _reasonController = TextEditingController(text: 'Medical Emergency');
+class _RequestSalaryAdvanceDialogState
+    extends ConsumerState<RequestSalaryAdvanceDialog> {
+  final TextEditingController _amountController =
+      TextEditingController(text: '15000');
+  final TextEditingController _reasonController =
+      TextEditingController(text: 'Medical Emergency');
   String _purposeType = 'Medical Emergency';
   int _repaymentMonths = 3;
   bool _submitting = false;
@@ -57,27 +61,47 @@ class _RequestSalaryAdvanceDialogState extends ConsumerState<RequestSalaryAdvanc
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF059669).withValues(alpha: 0.12),
+                          color:
+                              const Color(0xFF059669).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.request_quote_rounded, color: Color(0xFF059669), size: 20),
+                        child: const Icon(Icons.request_quote_rounded,
+                            color: Color(0xFF059669), size: 20),
                       ),
                       const SizedBox(width: 10),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Salary Advance Request', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
-                          Text(widget.staffName, style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                          Text('Salary Advance Request',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A))),
+                          Text(widget.staffName,
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B))),
                         ],
                       ),
                     ],
                   ),
-                  IconButton(icon: const Icon(Icons.close_rounded, size: 20), onPressed: () => Navigator.of(context).pop()),
+                  IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                      onPressed: () => Navigator.of(context).pop()),
                 ],
               ),
               const Divider(height: 24),
-
-              Text('Advance Amount (₹)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+              Text('Advance Amount (₹)',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B))),
               const SizedBox(height: 6),
               TextFormField(
                 controller: _amountController,
@@ -85,42 +109,75 @@ class _RequestSalaryAdvanceDialogState extends ConsumerState<RequestSalaryAdvanc
                 decoration: InputDecoration(
                   prefixText: '₹ ',
                   filled: true,
-                  fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  fillColor: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
               ),
               const SizedBox(height: 16),
-
-              Text('Purpose / Emergency Category', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+              Text('Purpose / Emergency Category',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B))),
               const SizedBox(height: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  color: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFCBD5E1)),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _purposeType,
-                    isExpanded: true,
-                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    items: const [
-                      DropdownMenuItem(value: 'Medical Emergency', child: Text('Medical Emergency')),
-                      DropdownMenuItem(value: 'Family Event / Wedding', child: Text('Family Event / Wedding')),
-                      DropdownMenuItem(value: 'Home Repair / Relocation', child: Text('Home Repair / Relocation')),
-                      DropdownMenuItem(value: 'Educational Course', child: Text('Educational Course')),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setState(() => _purposeType = val);
-                    },
-                  ),
+                child: Builder(
+                  builder: (context) {
+                    final Map<String, String> purposeMap = {
+                      'Medical Emergency': 'Medical Emergency',
+                      'Family Event / Wedding': 'Family Event / Wedding',
+                      'Home Repair / Relocation': 'Home Repair / Relocation',
+                      'Educational Course': 'Educational Course',
+                    };
+                    String effectivePurpose = _purposeType;
+                    if (!purposeMap.containsKey(effectivePurpose)) {
+                      purposeMap[effectivePurpose] = effectivePurpose;
+                    }
+                    return DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        key: ValueKey('advance_purpose_$effectivePurpose'),
+                        value: effectivePurpose,
+                        isExpanded: true,
+                        dropdownColor:
+                            isDark ? const Color(0xFF1E293B) : Colors.white,
+                        items: purposeMap.entries
+                            .map((e) => DropdownMenuItem(
+                                value: e.key, child: Text(e.value)))
+                            .toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _purposeType = val);
+                        },
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 16),
-
-              Text('Repayment Installment Plan (Months)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+              Text('Repayment Installment Plan (Months)',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B))),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 8,
@@ -135,23 +192,31 @@ class _RequestSalaryAdvanceDialogState extends ConsumerState<RequestSalaryAdvanc
                 }).toList(),
               ),
               const SizedBox(height: 24),
-
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+                  TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Cancel')),
                   const SizedBox(width: 12),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF059669),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     onPressed: _submitting ? null : _submit,
                     child: _submitting
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Text('Disburse Advance', style: TextStyle(fontWeight: FontWeight.w600)),
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Text('Disburse Advance',
+                            style: TextStyle(fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),
@@ -167,7 +232,8 @@ class _RequestSalaryAdvanceDialogState extends ConsumerState<RequestSalaryAdvanc
     if (amt <= 0) return;
 
     setState(() => _submitting = true);
-    final ok = await PaymentManagementApiService.instance.requestStaffSalaryAdvance({
+    final ok =
+        await PaymentManagementApiService.instance.requestStaffSalaryAdvance({
       'staff_id': widget.staffId,
       'amount': amt,
       'purpose_type': _purposeType,
@@ -181,7 +247,9 @@ class _RequestSalaryAdvanceDialogState extends ConsumerState<RequestSalaryAdvanc
         Navigator.of(context).pop();
         ref.read(staffSalaryProvider.notifier).loadAllData();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Salary advance recorded successfully!'), backgroundColor: Color(0xFF16A34A)),
+          const SnackBar(
+              content: Text('Salary advance recorded successfully!'),
+              backgroundColor: Color(0xFF16A34A)),
         );
       }
     }

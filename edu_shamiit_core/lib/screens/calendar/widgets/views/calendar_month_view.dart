@@ -18,7 +18,9 @@ class CalendarMonthView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.primaryColor;
     final firstDayOfMonth = DateTime(selectedDate.year, selectedDate.month, 1);
     final daysInMonth = DateTime(selectedDate.year, selectedDate.month + 1, 0).day;
     final startWeekday = (firstDayOfMonth.weekday - 1) % 7; // Monday = 0
@@ -114,7 +116,7 @@ class CalendarMonthView extends StatelessWidget {
                               width: isMobile ? 18 : 22,
                               height: isMobile ? 18 : 22,
                               decoration: BoxDecoration(
-                                color: isToday ? const Color(0xFF4F46E5) : Colors.transparent,
+                                color: isToday ? primaryColor : Colors.transparent,
                                 shape: BoxShape.circle,
                               ),
                               child: Center(
@@ -190,7 +192,7 @@ class CalendarMonthView extends StatelessWidget {
                                   style: TextStyle(
                                     fontSize: (9 * ts).roundToDouble(),
                                     fontWeight: FontWeight.bold,
-                                    color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                                    color: isDark ? Color.lerp(primaryColor, Colors.white, 0.4)! : primaryColor,
                                   ),
                                 ),
                               ),

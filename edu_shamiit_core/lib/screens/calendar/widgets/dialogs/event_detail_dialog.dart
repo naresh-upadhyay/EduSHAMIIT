@@ -185,18 +185,20 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
     showDialog(
       context: context,
       builder: (dlgCtx) {
+        final isDark = Theme.of(dlgCtx).brightness == Brightness.dark;
         return StatefulBuilder(
           builder: (context, setDlgState) {
             return AlertDialog(
+              backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: const Row(
+              title: Row(
                 children: [
-                  Icon(Icons.cancel_outlined, color: Color(0xFFEF4444), size: 24),
-                  SizedBox(width: 10),
+                  const Icon(Icons.cancel_outlined, color: Color(0xFFEF4444), size: 24),
+                  const SizedBox(width: 10),
                   Flexible(
                     child: Text(
                       'Cancel Schedule',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                     ),
                   ),
                 ],
@@ -207,15 +209,15 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Please provide a reason for cancelling this schedule so all participants are informed.',
-                      style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                      style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
                     ),
                     if (isRecurringOrInst) ...[
                       const SizedBox(height: 14),
-                      const Text(
+                      Text(
                         'Cancellation Scope:',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1E293B)),
                       ),
                       const SizedBox(height: 6),
                       Wrap(
@@ -242,10 +244,20 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                     TextField(
                       controller: reasonController,
                       maxLines: 3,
+                      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
                       decoration: InputDecoration(
                         hintText: 'Enter cancellation reason...',
-                        hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        hintStyle: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                        filled: true,
+                        fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                        ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
@@ -258,7 +270,7 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(dlgCtx),
-                  child: const Text('Keep Schedule', style: TextStyle(color: Color(0xFF64748B))),
+                  child: Text('Keep Schedule', style: TextStyle(color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B))),
                 ),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
@@ -385,14 +397,22 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
       vertical: isMobile ? 10 : 24,
     );
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.primaryColor;
+
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+      ),
       insetPadding: dialogPadding,
       child: Container(
         width: dialogWidth,
         constraints: BoxConstraints(maxHeight: dialogMaxHeight),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -411,9 +431,9 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                       margin: const EdgeInsets.only(bottom: 16),
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFEF2F2),
+                        color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFFCA5A5), width: 1.5),
+                        border: Border.all(color: isDark ? const Color(0xFF991B1B) : const Color(0xFFFCA5A5), width: 1.5),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -424,15 +444,15 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'THIS SCHEDULE HAS BEEN CANCELLED',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF991B1B)),
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B)),
                                 ),
                                 if (s.cancellationReason != null && s.cancellationReason!.isNotEmpty) ...[
                                   const SizedBox(height: 4),
                                   Text(
                                     'Reason: ${s.cancellationReason}',
-                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFB91C1C)),
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFB91C1C)),
                                   ),
                                 ],
                               ],
@@ -448,7 +468,7 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                     style: TextStyle(
                       fontSize: (20 * ts).roundToDouble(),
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFF0F172A),
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                       letterSpacing: -0.4,
                     ),
                   ),
@@ -466,12 +486,16 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.access_time_rounded, size: (18 * ts).roundToDouble(), color: const Color(0xFF4F46E5)),
+                      Icon(Icons.access_time_rounded, size: (18 * ts).roundToDouble(), color: primaryColor),
                       SizedBox(width: isMobile ? 8 : 12),
                       Expanded(
                         child: Text(
                           timeSpan,
-                          style: TextStyle(fontSize: (13 * ts).roundToDouble(), fontWeight: FontWeight.w600, color: const Color(0xFF0F172A)),
+                          style: TextStyle(
+                            fontSize: (13 * ts).roundToDouble(),
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF0F172A),
+                          ),
                         ),
                       ),
                     ],
@@ -482,12 +506,12 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                   if (s.locationName != null || s.room != null) ...[
                     Row(
                       children: [
-                        Icon(Icons.location_on_outlined, size: (18 * ts).roundToDouble(), color: const Color(0xFF64748B)),
+                        Icon(Icons.location_on_outlined, size: (18 * ts).roundToDouble(), color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                         SizedBox(width: isMobile ? 8 : 12),
                         Expanded(
                           child: Text(
                             '${s.locationName ?? ""} ${s.room != null ? "\u2022 Room ${s.room!}" : ""}',
-                            style: TextStyle(fontSize: (13 * ts).roundToDouble(), fontWeight: FontWeight.w600, color: const Color(0xFF334155)),
+                            style: TextStyle(fontSize: (13 * ts).roundToDouble(), fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155)),
                             overflow: TextOverflow.ellipsis,
                             maxLines: 2,
                           ),
@@ -502,18 +526,18 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4F46E5).withValues(alpha: 0.08),
+                        color: primaryColor.withValues(alpha: isDark ? 0.2 : 0.08),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.2)),
+                        border: Border.all(color: primaryColor.withValues(alpha: isDark ? 0.5 : 0.2)),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.videocam_rounded, color: const Color(0xFF4F46E5), size: (20 * ts).roundToDouble()),
+                          Icon(Icons.videocam_rounded, color: primaryColor, size: (20 * ts).roundToDouble()),
                           SizedBox(width: isMobile ? 6 : 10),
                           Expanded(
                             child: Text(
                               isMobile ? 'Video Conference' : 'Join Video Conference',
-                              style: TextStyle(fontSize: (13 * ts).roundToDouble(), fontWeight: FontWeight.w800, color: const Color(0xFF4F46E5)),
+                              style: TextStyle(fontSize: (13 * ts).roundToDouble(), fontWeight: FontWeight.w800, color: isDark ? Color.lerp(primaryColor, Colors.white, 0.4)! : primaryColor),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -526,7 +550,7 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                               }
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF4F46E5),
+                              backgroundColor: primaryColor,
                               foregroundColor: Colors.white,
                               padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 14, vertical: 8),
                               minimumSize: Size.zero,
@@ -542,11 +566,11 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
 
                   // Description
                   if (s.description != null && s.description!.isNotEmpty) ...[
-                    Text('Description', style: TextStyle(fontSize: (12 * ts).roundToDouble(), fontWeight: FontWeight.w800, color: const Color(0xFF64748B))),
+                    Text('Description', style: TextStyle(fontSize: (12 * ts).roundToDouble(), fontWeight: FontWeight.w800, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                     const SizedBox(height: 4),
                     Text(
                       s.description!,
-                      style: TextStyle(fontSize: (13 * ts).roundToDouble(), color: const Color(0xFF334155), height: 1.4),
+                      style: TextStyle(fontSize: (13 * ts).roundToDouble(), color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155), height: 1.4),
                     ),
                     SizedBox(height: isMobile ? 12 : 18),
                   ],
@@ -558,7 +582,7 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                       children: [
                         Text(
                           (isOrganizer || isAdminOrOwner) ? 'Attendee Responses (${_participants.length})' : 'Participants & Assignments',
-                          style: TextStyle(fontSize: (13 * ts).roundToDouble(), fontWeight: FontWeight.w800, color: const Color(0xFF0F172A)),
+                          style: TextStyle(fontSize: (13 * ts).roundToDouble(), fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                         ),
                         if (_participants.isNotEmpty) ...[
                           const SizedBox(height: 8),
@@ -755,7 +779,7 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                    Divider(height: 1, color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                     const SizedBox(height: 16),
                   ],
 
@@ -763,9 +787,23 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                   Row(
                     children: [
                       Expanded(
-                        child: Text('Activity & Discussion', style: TextStyle(fontSize: (13 * ts).roundToDouble(), fontWeight: FontWeight.w800, color: const Color(0xFF0F172A))),
+                        child: Text(
+                          'Activity & Discussion',
+                          style: TextStyle(
+                            fontSize: (13 * ts).roundToDouble(),
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
                       ),
-                      Text('${_comments.length} Comments', style: TextStyle(fontSize: (11 * ts).roundToDouble(), fontWeight: FontWeight.w600, color: const Color(0xFF64748B))),
+                      Text(
+                        '${_comments.length} Comments',
+                        style: TextStyle(
+                          fontSize: (11 * ts).roundToDouble(),
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -773,13 +811,14 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
+                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Text(
                           'No messages yet. Post the first update or agenda note below.',
-                          style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                          style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -790,9 +829,9 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
+                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -801,7 +840,7 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                               children: [
                                 CircleAvatar(
                                   radius: 10,
-                                  backgroundColor: const Color(0xFF4F46E5),
+                                  backgroundColor: primaryColor,
                                   child: Text(
                                     c.fullName.isNotEmpty ? c.fullName[0].toUpperCase() : 'U',
                                     style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold),
@@ -811,19 +850,29 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                                 Flexible(
                                   child: Text(
                                     c.fullName,
-                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                    ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
                                   '\u2022 ${DateFormat('d MMM, hh:mm a').format(c.createdAt)}',
-                                  style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
+                                  style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 4),
-                            Text(c.commentText, style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
+                            Text(
+                              c.commentText,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                              ),
+                            ),
                           ],
                         ),
                       );
@@ -836,11 +885,25 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                         child: TextField(
                           controller: _commentController,
                           onSubmitted: (_) => _submitComment(),
+                          style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                          cursorColor: primaryColor,
                           decoration: InputDecoration(
                             hintText: isMobile ? 'Write a comment...' : 'Write a comment or note (Press Enter)...',
+                            hintStyle: TextStyle(color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8), fontSize: 13),
                             filled: true,
-                            fillColor: const Color(0xFFF8FAFC),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: primaryColor, width: 1.5),
+                            ),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           ),
                         ),
@@ -848,7 +911,7 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                       const SizedBox(width: 8),
                       IconButton(
                         onPressed: _submitComment,
-                        icon: const Icon(Icons.send_rounded, color: Color(0xFF4F46E5)),
+                        icon: Icon(Icons.send_rounded, color: primaryColor),
                         tooltip: 'Send comment',
                       ),
                     ],
@@ -864,11 +927,12 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
 
   // Responsive Header
   Widget _buildHeader(BuildContext context, ScheduleModel s, bool canManage, bool isOwner, bool isMobile) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24, vertical: isMobile ? 10 : 16),
       decoration: BoxDecoration(
-        color: s.color.withValues(alpha: 0.1),
-        border: const Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+        color: s.color.withValues(alpha: isDark ? 0.2 : 0.1),
+        border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
       ),
       child: Row(
@@ -929,9 +993,13 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
               if (canManage) ...[
                 if (isMobile)
                   PopupMenuButton<String>(
-                    icon: Icon(Icons.more_vert_rounded, size: 20, color: Colors.grey.shade700),
+                    icon: Icon(Icons.more_vert_rounded, size: 20, color: isDark ? const Color(0xFFCBD5E1) : Colors.grey.shade700),
                     tooltip: 'Actions',
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                    ),
                     onSelected: (action) {
                       switch (action) {
                         case 'edit':
@@ -952,23 +1020,23 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                       }
                     },
                     itemBuilder: (ctx) => [
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'edit',
                         child: Row(
                           children: [
-                            Icon(Icons.edit_outlined, size: 16, color: Color(0xFF475569)),
-                            SizedBox(width: 10),
-                            Text('Edit', style: TextStyle(fontWeight: FontWeight.w600)),
+                            Icon(Icons.edit_outlined, size: 16, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                            const SizedBox(width: 10),
+                            Text('Edit', style: TextStyle(fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A))),
                           ],
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'duplicate',
                         child: Row(
                           children: [
-                            Icon(Icons.copy_rounded, size: 16, color: Color(0xFF475569)),
-                            SizedBox(width: 10),
-                            Text('Duplicate', style: TextStyle(fontWeight: FontWeight.w600)),
+                            Icon(Icons.copy_rounded, size: 16, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                            const SizedBox(width: 10),
+                            Text('Duplicate', style: TextStyle(fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A))),
                           ],
                         ),
                       ),
@@ -997,7 +1065,7 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                   )
                 else ...[
                   IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF475569)),
+                    icon: Icon(Icons.edit_outlined, size: 18, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
                     tooltip: 'Edit schedule',
                     onPressed: () {
                       Navigator.pop(context);
@@ -1005,7 +1073,7 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                     },
                   ),
                   IconButton(
-                    icon: const Icon(Icons.copy_rounded, size: 18, color: Color(0xFF475569)),
+                    icon: Icon(Icons.copy_rounded, size: 18, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
                     tooltip: 'Duplicate',
                     onPressed: () {
                       Navigator.pop(context);
@@ -1031,18 +1099,18 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                    border: Border.all(color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.lock_outline_rounded, size: 12, color: Color(0xFF64748B)),
-                      SizedBox(width: 4),
+                      Icon(Icons.lock_outline_rounded, size: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      const SizedBox(width: 4),
                       Text(
                         'Read Only',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                       ),
                     ],
                   ),
@@ -1050,7 +1118,7 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                 const SizedBox(width: 6),
               ],
               IconButton(
-                icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
+                icon: Icon(Icons.close_rounded, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B), size: 20),
                 onPressed: () => Navigator.pop(context),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -1064,6 +1132,8 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
 
   // Participant Row (Responsive)
   Widget _buildParticipantRow(ScheduleParticipantModel p, bool isMobile) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).primaryColor;
     final pRole = p.participationRole.toLowerCase();
     final isReq = pRole == 'required' || pRole == 'mandatory';
     final isOpt = pRole == 'optional';
@@ -1098,15 +1168,15 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
       margin: const EdgeInsets.only(bottom: 6),
       padding: EdgeInsets.symmetric(horizontal: isMobile ? 6 : 10, vertical: isMobile ? 4 : 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: isMobile ? 10 : 12,
-            backgroundColor: const Color(0xFF4F46E5),
+            backgroundColor: primaryColor,
             child: Text(
               (displayName.trim().isNotEmpty) ? displayName.trim()[0].toUpperCase() : 'U',
               style: TextStyle(fontSize: (10 * ts).roundToDouble(), color: Colors.white, fontWeight: FontWeight.bold),
@@ -1119,7 +1189,7 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
               children: [
                 Text(
                   displayName,
-                  style: TextStyle(fontSize: (12 * ts).roundToDouble(), fontWeight: FontWeight.w700, color: const Color(0xFF0F172A)),
+                  style: TextStyle(fontSize: (12 * ts).roundToDouble(), fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),
@@ -1169,13 +1239,14 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
     required bool isMobile,
     required VoidCallback onPressed,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isActive = _myRSVPStatus == status;
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 16),
       label: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
       style: ElevatedButton.styleFrom(
-        backgroundColor: isActive ? activeColor : const Color(0xFFF1F5F9),
+        backgroundColor: isActive ? activeColor : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
         foregroundColor: isActive ? Colors.white : activeColor,
         elevation: 0,
         side: BorderSide(color: activeColor),
@@ -1333,6 +1404,8 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
   }
 
   Widget _buildTransportRouteCard(BuildContext context, ScheduleModel s, bool isMobile, double ts) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).primaryColor;
     final routeName = s.routeName ?? (s.routeCode != null ? 'Route ${s.routeCode}' : 'Assigned Transport Route');
     final busInfo = s.busNumber != null ? 'Bus: ${s.busNumber}' : '';
     final driverInfo = s.driverName != null ? 'Driver: ${s.driverName}' : '';
@@ -1341,9 +1414,9 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
     final String tripStatus = (_freshTripStatus ?? s.tripStatus ?? s.status).toLowerCase();
     String btnLabel = 'Start Route Run in Driver Dashboard';
     IconData btnIcon = Icons.play_arrow_rounded;
-    Color btnBg = const Color(0xFF4F46E5);
+    Color btnBg = primaryColor;
     String statusBadgeText = 'Ready to Start';
-    Color statusBadgeColor = const Color(0xFF6366F1);
+    Color statusBadgeColor = primaryColor;
 
     if (tripStatus == 'completed') {
       btnLabel = 'View Completed Trip in Driver Dashboard';
@@ -1370,14 +1443,14 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFF4F46E5).withValues(alpha: 0.08),
-            const Color(0xFF06B6D4).withValues(alpha: 0.06),
+            primaryColor.withValues(alpha: isDark ? 0.16 : 0.08),
+            const Color(0xFF06B6D4).withValues(alpha: isDark ? 0.12 : 0.06),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.25)),
+        border: Border.all(color: primaryColor.withValues(alpha: 0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1388,7 +1461,7 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4F46E5),
+                  color: primaryColor,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(Icons.directions_bus_rounded, color: Colors.white, size: 18),
@@ -1403,7 +1476,7 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                       style: TextStyle(
                         fontSize: (13.5 * ts).roundToDouble(),
                         fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1E1B4B),
+                        color: isDark ? Colors.white : const Color(0xFF1E1B4B),
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1413,7 +1486,7 @@ class _EventDetailDialogState extends ConsumerState<EventDetailDialog> {
                         style: TextStyle(
                           fontSize: (11 * ts).roundToDouble(),
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF475569),
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),

@@ -121,19 +121,37 @@ class _GenerateStudentInvoiceDialogState extends ConsumerState<GenerateStudentIn
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                     ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedStudentId,
-                        isExpanded: true,
-                        dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                        items: state.studentFeesRoster.map((s) {
-                          return DropdownMenuItem(
-                            value: s.studentId,
-                            child: Text('${s.studentName} (${s.className} | Roll: ${s.rollNumber})'),
-                          );
-                        }).toList(),
-                        onChanged: (val) => setState(() => _selectedStudentId = val),
-                      ),
+                    child: Builder(
+                      builder: (context) {
+                        final Map<String, String> studentMap = {};
+                        for (final s in state.studentFeesRoster) {
+                          if (s.studentId.isNotEmpty) {
+                            studentMap[s.studentId] = '${s.studentName} (${s.className} | Roll: ${s.rollNumber})';
+                          }
+                        }
+                        if (_selectedStudentId != null && _selectedStudentId!.isNotEmpty && !studentMap.containsKey(_selectedStudentId)) {
+                          studentMap[_selectedStudentId!] = 'Selected Student';
+                        }
+                        final effectiveStudentId = studentMap.containsKey(_selectedStudentId)
+                            ? _selectedStudentId
+                            : (studentMap.isNotEmpty ? studentMap.keys.first : null);
+
+                        return DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            key: ValueKey('invoice_student_${effectiveStudentId ?? "none"}'),
+                            value: effectiveStudentId,
+                            isExpanded: true,
+                            dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                            items: studentMap.entries.map((e) {
+                              return DropdownMenuItem(
+                                value: e.key,
+                                child: Text(e.value),
+                              );
+                            }).toList(),
+                            onChanged: (val) => setState(() => _selectedStudentId = val),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -169,16 +187,45 @@ class _GenerateStudentInvoiceDialogState extends ConsumerState<GenerateStudentIn
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                               ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: _feeTypes.any((t) => t.label == _feeType) ? _feeType : (_feeTypes.isNotEmpty ? _feeTypes.first.label : _feeType),
-                                  isExpanded: true,
-                                  dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                  items: _feeTypes.map((t) => DropdownMenuItem(value: t.label, child: Text(t.label, overflow: TextOverflow.ellipsis))).toList(),
-                                  onChanged: (val) {
-                                    if (val != null) setState(() => _feeType = val);
-                                  },
-                                ),
+                              child: Builder(
+                                builder: (context) {
+                                  final Map<String, String> typeMap = {};
+                                  for (final t in _feeTypes) {
+                                    if (t.label.isNotEmpty) typeMap[t.label] = t.label;
+                                  }
+                                  if (typeMap.isEmpty) {
+                                    typeMap['Tuition Fee'] = 'Tuition Fee';
+                                    typeMap['Exam Fee'] = 'Exam Fee';
+                                    typeMap['Lab Fee'] = 'Lab Fee';
+                                    typeMap['Library Fee'] = 'Library Fee';
+                                    typeMap['Transport Fee'] = 'Transport Fee';
+                                  }
+                                  String effectiveType = _feeType;
+                                  if (!typeMap.containsKey(effectiveType)) {
+                                    final match = typeMap.keys.firstWhere(
+                                      (k) => k.toLowerCase() == effectiveType.toLowerCase(),
+                                      orElse: () => '',
+                                    );
+                                    if (match.isNotEmpty) {
+                                      effectiveType = match;
+                                    } else {
+                                      typeMap[effectiveType] = effectiveType;
+                                    }
+                                  }
+
+                                  return DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      key: ValueKey('fee_type_$effectiveType'),
+                                      value: effectiveType,
+                                      isExpanded: true,
+                                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                      items: typeMap.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))).toList(),
+                                      onChanged: (val) {
+                                        if (val != null) setState(() => _feeType = val);
+                                      },
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ],
@@ -198,16 +245,44 @@ class _GenerateStudentInvoiceDialogState extends ConsumerState<GenerateStudentIn
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                               ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: _billingCycles.any((c) => c.label == _feePlan) ? _feePlan : (_billingCycles.isNotEmpty ? _billingCycles.first.label : _feePlan),
-                                  isExpanded: true,
-                                  dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                  items: _billingCycles.map((c) => DropdownMenuItem(value: c.label, child: Text(c.label))).toList(),
-                                  onChanged: (val) {
-                                    if (val != null) setState(() => _feePlan = val);
-                                  },
-                                ),
+                              child: Builder(
+                                builder: (context) {
+                                  final Map<String, String> cycleMap = {};
+                                  for (final c in _billingCycles) {
+                                    if (c.label.isNotEmpty) cycleMap[c.label] = c.label;
+                                  }
+                                  if (cycleMap.isEmpty) {
+                                    cycleMap['Monthly'] = 'Monthly';
+                                    cycleMap['Quarterly'] = 'Quarterly';
+                                    cycleMap['Annual'] = 'Annual';
+                                    cycleMap['One-Time'] = 'One-Time';
+                                  }
+                                  String effectivePlan = _feePlan;
+                                  if (!cycleMap.containsKey(effectivePlan)) {
+                                    final match = cycleMap.keys.firstWhere(
+                                      (k) => k.toLowerCase() == effectivePlan.toLowerCase(),
+                                      orElse: () => '',
+                                    );
+                                    if (match.isNotEmpty) {
+                                      effectivePlan = match;
+                                    } else {
+                                      cycleMap[effectivePlan] = effectivePlan;
+                                    }
+                                  }
+
+                                  return DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      key: ValueKey('fee_plan_$effectivePlan'),
+                                      value: effectivePlan,
+                                      isExpanded: true,
+                                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                      items: cycleMap.entries.map((c) => DropdownMenuItem(value: c.key, child: Text(c.value))).toList(),
+                                      onChanged: (val) {
+                                        if (val != null) setState(() => _feePlan = val);
+                                      },
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ],

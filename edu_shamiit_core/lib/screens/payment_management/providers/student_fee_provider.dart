@@ -345,6 +345,22 @@ class StudentFeeNotifier extends StateNotifier<StudentFeeState> {
     return ok;
   }
 
+  Future<bool> updatePaymentStatus(String paymentId, String status, {String? remarks}) async {
+    final ok = await _service.updateStudentPaymentStatus(paymentId, status, remarks: remarks);
+    if (ok) {
+      if (state.currentStudentId != null) {
+        final detail = await _service.getStudentFeeDetail(state.currentStudentId!);
+        state = state.copyWith(selectedStudentDetail: detail);
+      }
+      await Future.wait([
+        loadKPIs(),
+        loadRoster(),
+        loadPayments(),
+      ]);
+    }
+    return ok;
+  }
+
   Future<bool> deleteConcession(String concessionId) async {
     final ok = await _service.deleteStudentConcession(concessionId);
     if (ok) await loadAllData();

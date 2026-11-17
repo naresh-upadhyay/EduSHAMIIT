@@ -90,7 +90,6 @@ class StudentFeeTable extends ConsumerWidget {
                                   label: const Text('STUDENT', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
                                   onSort: (_, __) => notifier.toggleSort('name'),
                                 ),
-                                const DataColumn(label: Text('FEE PLAN', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
                                 DataColumn(
                                   label: const Text('TOTAL BILLED', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
                                   onSort: (_, __) => notifier.toggleSort('billed'),
@@ -157,10 +156,19 @@ class StudentFeeTable extends ConsumerWidget {
                                                     color: isDark ? Colors.white : const Color(0xFF0F172A),
                                                   ),
                                                 ),
+                                                if (s.studentEmail.isNotEmpty)
+                                                  Text(
+                                                    s.studentEmail,
+                                                    style: const TextStyle(
+                                                      fontSize: 10.5,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: Color(0xFF2563EB),
+                                                    ),
+                                                  ),
                                                 Text(
                                                   '${s.className} | Roll: ${s.rollNumber}',
                                                   style: TextStyle(
-                                                    fontSize: 11,
+                                                    fontSize: 10.5,
                                                     color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                                                   ),
                                                 ),
@@ -168,16 +176,6 @@ class StudentFeeTable extends ConsumerWidget {
                                             ),
                                           ],
                                         ),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: Text(s.feePlan, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                                       ),
                                     ),
                                     DataCell(
@@ -327,6 +325,11 @@ class StudentFeeTable extends ConsumerWidget {
     Color bg;
     Color fg;
     switch (status) {
+      case 'Overpaid':
+      case 'Over Paid':
+        bg = const Color(0xFFEEF2FF);
+        fg = const Color(0xFF4F46E5);
+        break;
       case 'Paid':
         bg = const Color(0xFFDCFCE7);
         fg = const Color(0xFF16A34A);

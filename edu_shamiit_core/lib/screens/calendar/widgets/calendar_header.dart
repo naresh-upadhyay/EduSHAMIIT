@@ -19,7 +19,9 @@ class CalendarHeaderWidget extends ConsumerWidget {
     final state = ref.watch(calendarProvider);
     final notifier = ref.read(calendarProvider.notifier);
     final isDesktop = Responsive.isDesktop(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.primaryColor;
 
     final isMobile = !isDesktop && MediaQuery.sizeOf(context).width < 600;
     final double ts = (MediaQuery.sizeOf(context).width / 700).clamp(0.78, 1.0);
@@ -57,9 +59,9 @@ class CalendarHeaderWidget extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
+                    color: primaryColor.withValues(alpha: isDark ? 0.2 : 0.12),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.3)),
+                    border: Border.all(color: primaryColor.withValues(alpha: isDark ? 0.5 : 0.3)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -78,7 +80,7 @@ class CalendarHeaderWidget extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: (12 * ts).roundToDouble(),
                           fontWeight: FontWeight.w700,
-                          color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                          color: isDark ? Color.lerp(primaryColor, Colors.white, 0.4)! : primaryColor,
                         ),
                       ),
                     ],
@@ -283,7 +285,7 @@ class CalendarHeaderWidget extends ConsumerWidget {
                                 Icons.filter_list_rounded,
                                 size: 18,
                                 color: state.selectedCategory != 'All' || state.selectedPriority != 'All'
-                                    ? const Color(0xFF818CF8)
+                                    ? (isDark ? Color.lerp(primaryColor, Colors.white, 0.4)! : primaryColor)
                                     : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
                               ),
                               style: IconButton.styleFrom(
@@ -293,7 +295,7 @@ class CalendarHeaderWidget extends ConsumerWidget {
                                   borderRadius: BorderRadius.circular(8),
                                   side: BorderSide(
                                     color: state.selectedCategory != 'All' || state.selectedPriority != 'All'
-                                        ? const Color(0xFF4F46E5)
+                                        ? primaryColor
                                         : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                                   ),
                                 ),
@@ -311,7 +313,7 @@ class CalendarHeaderWidget extends ConsumerWidget {
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: state.selectedCategory != 'All' || state.selectedPriority != 'All'
-                                      ? const Color(0xFF818CF8)
+                                      ? (isDark ? Color.lerp(primaryColor, Colors.white, 0.4)! : primaryColor)
                                       : (isDark ? Colors.white : const Color(0xFF0F172A)),
                                 ),
                               ),
@@ -319,7 +321,7 @@ class CalendarHeaderWidget extends ConsumerWidget {
                                 padding: const EdgeInsets.symmetric(horizontal: 14),
                                 side: BorderSide(
                                   color: state.selectedCategory != 'All' || state.selectedPriority != 'All'
-                                      ? const Color(0xFF4F46E5)
+                                      ? primaryColor
                                       : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                                 ),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -341,7 +343,9 @@ class CalendarHeaderWidget extends ConsumerWidget {
   Widget _buildViewTab(BuildContext context, WidgetRef ref, CalendarViewMode mode, String label, bool isMobile) {
     final state = ref.watch(calendarProvider);
     final isSelected = state.viewMode == mode;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.primaryColor;
 
     return InkWell(
       onTap: () => ref.read(calendarProvider.notifier).setViewMode(mode),
@@ -350,12 +354,12 @@ class CalendarHeaderWidget extends ConsumerWidget {
         duration: const Duration(milliseconds: 180),
         padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 14, vertical: isMobile ? 4 : 6),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF4F46E5) : Colors.transparent,
+          color: isSelected ? primaryColor : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
+                    color: primaryColor.withValues(alpha: 0.35),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
@@ -378,6 +382,9 @@ class CalendarHeaderWidget extends ConsumerWidget {
 
   Widget _buildCreateScheduleButton(BuildContext context, WidgetRef ref) {
     final state = ref.watch(calendarProvider);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.primaryColor;
 
     return PopupMenuButton<String>(
       onSelected: (type) {
@@ -388,7 +395,11 @@ class CalendarHeaderWidget extends ConsumerWidget {
         }
       },
       offset: const Offset(0, 48),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+      ),
       itemBuilder: (context) {
         final List<PopupMenuEntry<String>> items = [];
 
@@ -397,21 +408,21 @@ class CalendarHeaderWidget extends ConsumerWidget {
             final name = cat['name']?.toString() ?? '';
             final label = cat['label']?.toString() ?? name;
             final hex = cat['color']?.toString() ?? '#4F46E5';
-            items.add(_buildPopupItem(name, label, Icons.event_note_rounded, _parseHexColor(hex)));
+            items.add(_buildPopupItem(context, name, label, Icons.event_note_rounded, _parseHexColor(hex, primaryColor)));
           }
         }
 
         items.add(const PopupMenuDivider());
         items.add(
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: 'custom',
             child: Row(
               children: [
-                Icon(Icons.add_rounded, size: 18, color: Color(0xFF4F46E5)),
-                SizedBox(width: 10),
+                Icon(Icons.add_rounded, size: 18, color: primaryColor),
+                const SizedBox(width: 10),
                 Text(
                   'Custom Schedule',
-                  style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF4F46E5)),
+                  style: TextStyle(fontWeight: FontWeight.w700, color: primaryColor),
                 ),
               ],
             ),
@@ -428,11 +439,11 @@ class CalendarHeaderWidget extends ConsumerWidget {
             height: 38,
             padding: EdgeInsets.symmetric(horizontal: isMobileBtn ? 10 : 16),
             decoration: BoxDecoration(
-              color: const Color(0xFF4F46E5),
+              color: primaryColor,
               borderRadius: BorderRadius.circular(8),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
+                  color: primaryColor.withValues(alpha: 0.35),
                   blurRadius: 8,
                   offset: const Offset(0, 3),
                 ),
@@ -462,7 +473,8 @@ class CalendarHeaderWidget extends ConsumerWidget {
     );
   }
 
-  PopupMenuItem<String> _buildPopupItem(String value, String title, IconData icon, Color color) {
+  PopupMenuItem<String> _buildPopupItem(BuildContext context, String value, String title, IconData icon, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return PopupMenuItem<String>(
       value: value,
       child: Row(
@@ -471,7 +483,7 @@ class CalendarHeaderWidget extends ConsumerWidget {
           const SizedBox(width: 10),
           Text(
             title,
-            style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+            style: TextStyle(fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A)),
           ),
         ],
       ),
@@ -481,17 +493,27 @@ class CalendarHeaderWidget extends ConsumerWidget {
   void _showFilterDialog(BuildContext context, WidgetRef ref) {
     final state = ref.read(calendarProvider);
     final notifier = ref.read(calendarProvider.notifier);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.primaryColor;
 
     showDialog(
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          title: const Row(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+          ),
+          title: Row(
             children: [
-              Icon(Icons.filter_list_rounded, color: Color(0xFF4F46E5)),
-              SizedBox(width: 8),
-              Text('Calendar Filters', style: TextStyle(fontWeight: FontWeight.w800)),
+              Icon(Icons.filter_list_rounded, color: primaryColor),
+              const SizedBox(width: 8),
+              Text(
+                'Calendar Filters',
+                style: TextStyle(fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+              ),
             ],
           ),
           content: Consumer(
@@ -502,77 +524,157 @@ class CalendarHeaderWidget extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Schedule Category', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
+                    Text(
+                      'Schedule Category',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                    ),
                     const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      initialValue: state.selectedCategory,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                      ),
-                      items: [
-                        const DropdownMenuItem(value: 'All', child: Text('All Categories')),
-                        ...state.scheduleCategories.map((cat) {
+                    Builder(
+                      builder: (context) {
+                        final Map<String, String> catMap = {'All': 'All Categories'};
+                        for (final cat in state.scheduleCategories) {
                           final name = cat['name']?.toString() ?? '';
                           final label = cat['label']?.toString() ?? name;
-                          return DropdownMenuItem<String>(
-                            value: name,
-                            child: Text(label),
-                          );
-                        }),
-                      ],
-
-                      onChanged: (val) {
-                        if (val != null) {
-                          notifier.setCategoryFilter(val);
+                          if (name.isNotEmpty && !catMap.containsKey(name)) {
+                            catMap[name] = label;
+                          }
                         }
+                        final effectiveCategory = catMap.containsKey(state.selectedCategory)
+                            ? state.selectedCategory
+                            : 'All';
+                        return DropdownButtonFormField<String>(
+                          key: ValueKey('header_cat_$effectiveCategory'),
+                          initialValue: effectiveCategory,
+                          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          iconEnabledColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: primaryColor, width: 1.5),
+                            ),
+                          ),
+                          items: catMap.entries.map((entry) {
+                            return DropdownMenuItem<String>(
+                              value: entry.key,
+                              child: Text(entry.value, style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              notifier.setCategoryFilter(val);
+                            }
+                          },
+                        );
                       },
                     ),
                     const SizedBox(height: 16),
 
-                    const Text('Priority Level', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
+                    Text(
+                      'Priority Level',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                    ),
                     const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      initialValue: state.selectedPriority,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'All', child: Text('All Priorities')),
-                        DropdownMenuItem(value: 'high', child: Text('High Priority Only')),
-                        DropdownMenuItem(value: 'normal', child: Text('Normal Priority')),
-                        DropdownMenuItem(value: 'low', child: Text('Low Priority')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          notifier.setPriorityFilter(val);
-                        }
+                    Builder(
+                      builder: (context) {
+                        const validPriorities = {'All', 'urgent', 'high', 'normal', 'low'};
+                        final effectivePriority = validPriorities.contains(state.selectedPriority)
+                            ? state.selectedPriority
+                            : 'All';
+                        return DropdownButtonFormField<String>(
+                          key: ValueKey('header_priority_$effectivePriority'),
+                          initialValue: effectivePriority,
+                          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          iconEnabledColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: primaryColor, width: 1.5),
+                            ),
+                          ),
+                          items: [
+                            DropdownMenuItem(value: 'All', child: Text('All Priorities', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)))),
+                            DropdownMenuItem(value: 'urgent', child: Text('Urgent Priority Only', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)))),
+                            DropdownMenuItem(value: 'high', child: Text('High Priority Only', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)))),
+                            DropdownMenuItem(value: 'normal', child: Text('Normal Priority', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)))),
+                            DropdownMenuItem(value: 'low', child: Text('Low Priority', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)))),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              notifier.setPriorityFilter(val);
+                            }
+                          },
+                        );
                       },
                     ),
                     const SizedBox(height: 16),
 
-                    const Text('Schedule Status', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
+                    Text(
+                      'Schedule Status',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                    ),
                     const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      initialValue: state.selectedStatus,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'All', child: Text('All Statuses')),
-                        DropdownMenuItem(value: 'confirmed', child: Text('Confirmed & Approved')),
-                        DropdownMenuItem(value: 'pending', child: Text('Pending Approval')),
-                        DropdownMenuItem(value: 'cancelled', child: Text('Cancelled')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          notifier.setStatusFilter(val);
-                        }
+                    Builder(
+                      builder: (context) {
+                        const validStatuses = {'All', 'confirmed', 'pending', 'cancelled'};
+                        final effectiveStatus = validStatuses.contains(state.selectedStatus)
+                            ? state.selectedStatus
+                            : 'All';
+                        return DropdownButtonFormField<String>(
+                          key: ValueKey('header_status_$effectiveStatus'),
+                          initialValue: effectiveStatus,
+                          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          iconEnabledColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: primaryColor, width: 1.5),
+                            ),
+                          ),
+                          items: [
+                            DropdownMenuItem(value: 'All', child: Text('All Statuses', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)))),
+                            DropdownMenuItem(value: 'confirmed', child: Text('Confirmed & Approved', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)))),
+                            DropdownMenuItem(value: 'pending', child: Text('Pending Approval', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)))),
+                            DropdownMenuItem(value: 'cancelled', child: Text('Cancelled', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)))),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              notifier.setStatusFilter(val);
+                            }
+                          },
+                        );
                       },
                     ),
                   ],
@@ -588,12 +690,15 @@ class CalendarHeaderWidget extends ConsumerWidget {
                 notifier.setStatusFilter('All');
                 Navigator.pop(ctx);
               },
-              child: const Text('Reset Filters', style: TextStyle(color: Color(0xFF64748B))),
+              child: Text('Reset Filters', style: TextStyle(color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B))),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5)),
-              child: const Text('Apply', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Apply', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -601,13 +706,13 @@ class CalendarHeaderWidget extends ConsumerWidget {
     );
   }
 
-  Color _parseHexColor(String hex) {
+  Color _parseHexColor(String hex, [Color? fallback]) {
     try {
       final str = hex.replaceAll('#', '');
       if (str.length == 6) {
         return Color(int.parse('FF$str', radix: 16));
       }
     } catch (_) {}
-    return const Color(0xFF4F46E5);
+    return fallback ?? const Color(0xFF4F46E5);
   }
 }

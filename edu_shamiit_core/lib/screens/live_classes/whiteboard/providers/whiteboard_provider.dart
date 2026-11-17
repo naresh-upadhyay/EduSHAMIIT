@@ -117,9 +117,29 @@ class WhiteboardState {
     final doc = document;
     final page = activePage;
     if (doc == null) return false;
-    if (!doc.myPermission.canEdit) return false;
-    if (page != null && page.isLocked && doc.myPermission.permission != 'OWNER') return false;
-    return true;
+
+    // Staff/Teacher/Host/Admin with OWNER or page management permissions can always edit
+    if (doc.myPermission.permission == 'OWNER' ||
+        doc.myPermission.canManagePages ||
+        doc.myPermission.canManagePermissions) {
+      return true;
+    }
+
+    // Explicit edit permission
+    if (doc.myPermission.canEdit ||
+        doc.myPermission.permission == 'EDIT' ||
+        doc.myPermission.permission == 'ANNOTATE') {
+      if (page != null && page.isLocked) return false;
+      return true;
+    }
+
+    // Real-time student collaboration enabled and presentation mode is off
+    if (doc.collaborationEnabled && !doc.presentationMode) {
+      if (page != null && page.isLocked) return false;
+      return true;
+    }
+
+    return false;
   }
 
   WhiteboardState copyWith({

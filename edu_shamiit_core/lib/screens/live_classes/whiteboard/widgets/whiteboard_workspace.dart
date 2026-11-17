@@ -1142,12 +1142,13 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isNarrow = constraints.maxWidth < 880;
-        final isMedium = constraints.maxWidth < 1100;
-        final showTitle = constraints.maxWidth >= 950;
+        final isCompact = constraints.maxWidth < 768;
+        final isNarrow = constraints.maxWidth < 1050;
+        final isMedium = constraints.maxWidth < 1300;
+        final showTitle = constraints.maxWidth >= 1250;
 
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
@@ -1158,6 +1159,7 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
           ),
           child: Row(
             children: [
+              // Left: Live badge + Session timer
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(color: const Color(0xFFDCFCE7), borderRadius: BorderRadius.circular(12)),
@@ -1186,31 +1188,33 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
               ],
               const SizedBox(width: 8),
 
+              // Center: Scrollable Controls Bar (Adaptive & Never clips)
               Expanded(
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         _footerCtrlBtn(
                           roomService.isMicMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
                           roomService.isMicMuted ? 'Unmute' : 'Mute',
-                          isIconOnly: isNarrow,
+                          isIconOnly: isMedium,
                           iconColor: roomService.isMicMuted ? const Color(0xFFDC2626) : const Color(0xFF334155),
                           onTap: roomService.toggleMic,
                         ),
                         _footerCtrlBtn(
                           roomService.isCamOff ? Icons.videocam_off_rounded : Icons.videocam_rounded,
                           roomService.isCamOff ? 'Start Video' : 'Stop Video',
-                          isIconOnly: isNarrow,
+                          isIconOnly: isMedium,
                           onTap: roomService.toggleCamera,
                         ),
                         _footerCtrlBtn(
                           Icons.groups_rounded,
                           'Participants ($totalParticipants)',
-                          isIconOnly: isNarrow,
+                          isIconOnly: isMedium,
                           onTap: () {
                             if (!_showRightPanel) setState(() => _showRightPanel = true);
                             _chatPanelKey.currentState?.selectTab(0);
@@ -1219,7 +1223,7 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                         _footerCtrlBtn(
                           Icons.chat_bubble_outline_rounded,
                           'Chat',
-                          isIconOnly: isNarrow,
+                          isIconOnly: isMedium,
                           onTap: () {
                             if (!_showRightPanel) setState(() => _showRightPanel = true);
                             _chatPanelKey.currentState?.selectTab(1);
@@ -1229,19 +1233,20 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                           Icons.draw_rounded,
                           'Whiteboard',
                           isActive: true,
-                          isIconOnly: isNarrow,
+                          isIconOnly: isMedium,
                           onTap: widget.onBackToClassroom ?? () {},
                         ),
                         _footerCtrlBtn(
                           Icons.screen_share_outlined,
                           'Share Screen',
-                          isIconOnly: isNarrow,
+                          isIconOnly: isMedium,
                           onTap: roomService.toggleScreenShare,
                         ),
-                        if (!isMedium) ...[
+                        if (!isNarrow) ...[
                           _footerCtrlBtn(
                             Icons.poll_outlined,
                             'Polls',
+                            isIconOnly: isMedium,
                             onTap: () {
                               if (!_showRightPanel) setState(() => _showRightPanel = true);
                               _chatPanelKey.currentState?.selectTab(2);
@@ -1251,31 +1256,58 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                           _footerCtrlBtn(
                             Icons.live_help_outlined,
                             'Q&A',
+                            isIconOnly: isMedium,
                             onTap: () {
                               if (!_showRightPanel) setState(() => _showRightPanel = true);
                               _chatPanelKey.currentState?.selectTab(2);
                             },
                           ),
-                        ],
-                        const SizedBox(width: 8),
-                        ElevatedButton.icon(
-                          onPressed: () async {
-                            await ref.read(whiteboardProvider.notifier).saveManual(versionName: 'End Class Final Save');
-                            widget.onEndClass?.call();
-                          },
-                          icon: const Icon(Icons.call_end_rounded, size: 15),
-                          label: Text(isNarrow ? 'End' : 'End Class', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFDC2626),
-                            foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(horizontal: isNarrow ? 8 : 14, vertical: 8),
-                            minimumSize: Size(isNarrow ? 56 : 80, 36),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ] else ...[
+                          PopupMenuButton<String>(
+                            tooltip: 'More Classroom Tools',
+                            icon: const Icon(Icons.more_horiz_rounded, size: 20, color: Color(0xFF475569)),
+                            onSelected: (v) {
+                              if (v == 'polls') {
+                                if (!_showRightPanel) setState(() => _showRightPanel = true);
+                                _chatPanelKey.currentState?.selectTab(2);
+                                widget.onOpenPolls?.call();
+                              } else if (v == 'qa') {
+                                if (!_showRightPanel) setState(() => _showRightPanel = true);
+                                _chatPanelKey.currentState?.selectTab(2);
+                              }
+                            },
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(value: 'polls', child: Text('Live Polls', style: TextStyle(fontSize: 12))),
+                              PopupMenuItem(value: 'qa', child: Text('Q&A Panel', style: TextStyle(fontSize: 12))),
+                            ],
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
+                ),
+              ),
+
+              const SizedBox(width: 8),
+
+              // Right: PINNED End Class Button (Always fully visible, never clipped)
+              ElevatedButton.icon(
+                onPressed: () async {
+                  await ref.read(whiteboardProvider.notifier).saveManual(versionName: 'End Class Final Save');
+                  widget.onEndClass?.call();
+                },
+                icon: const Icon(Icons.call_end_rounded, size: 14),
+                label: Text(
+                  isCompact ? 'End' : 'End Class',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFDC2626),
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 12, vertical: 8),
+                  minimumSize: Size(isCompact ? 54 : 80, 34),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
                 ),
               ),
             ],

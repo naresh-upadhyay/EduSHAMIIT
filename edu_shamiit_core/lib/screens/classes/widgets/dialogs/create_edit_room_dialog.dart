@@ -651,8 +651,9 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                                             return 'Required';
                                           }
                                           final n = int.tryParse(v.trim());
-                                          if (n == null || n <= 0)
+                                          if (n == null || n <= 0) {
                                             return 'Invalid';
+                                          }
                                           return null;
                                         },
                                       ),

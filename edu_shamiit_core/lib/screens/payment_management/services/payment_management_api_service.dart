@@ -306,6 +306,31 @@ class PaymentManagementApiService {
     }
   }
 
+  Future<bool> updateStudentPaymentStatus(String paymentId, String status, {String? remarks}) async {
+    try {
+      final res = await _api.put(
+        '/v1/payment-management/student-fees/payments/$paymentId/status',
+        {'status': status, if (remarks != null && remarks.isNotEmpty) 'remarks': remarks},
+      );
+      return res['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getStudentFeeHistory(String studentId) async {
+    try {
+      final res = await _api.get(
+        '/v1/payment-management/student-fees/students/$studentId/history',
+        useCache: false,
+      );
+      if (res['success'] == true && res['history'] is List) {
+        return List<Map<String, dynamic>>.from(res['history']);
+      }
+    } catch (_) {}
+    return [];
+  }
+
   Future<Map<String, dynamic>> getAllStudentInvoices({
     String search = '',
     String? status,
@@ -625,6 +650,196 @@ class PaymentManagementApiService {
       return res['success'] == true;
     } catch (_) {
       return false;
+    }
+  }
+
+  // =========================================================================
+  // DYNAMIC UNIQUE-PAISE UPI ORCHESTRATION & BRIDGE APIs
+  // =========================================================================
+
+  Future<Map<String, dynamic>?> createPaymentIntent({
+    required String studentId,
+    String? invoiceId,
+    required double amount,
+    String paymentMethod = 'UPI',
+    String? notes,
+  }) async {
+    try {
+      final res = await _api.post(
+        '/v1/payment-management/student-fees/payment-intents',
+        {
+          'student_id': studentId,
+          if (invoiceId != null && invoiceId.isNotEmpty) 'invoice_id': invoiceId,
+          'amount': amount,
+          'payment_method': paymentMethod,
+          'notes': notes,
+        },
+      );
+      if (res['success'] == true) {
+        return Map<String, dynamic>.from(res);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> getPaymentIntentStatus(String intentId) async {
+    try {
+      final res = await _api.get(
+        '/v1/payment-management/student-fees/payment-intents/$intentId/status',
+        useCache: false,
+      );
+      if (res['success'] == true) {
+        return Map<String, dynamic>.from(res);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<bool> submitIntentUtr(String intentId, String utr) async {
+    try {
+      final res = await _api.post(
+        '/v1/payment-management/student-fees/payment-intents/$intentId/submit-utr',
+        {'utr_number': utr},
+      );
+      return res['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> simulateBridgePayment(String intentId, {String? utr}) async {
+    try {
+      final res = await _api.post(
+        '/v1/payment-management/student-fees/simulate-bridge-payment',
+        {'intent_id': intentId, if (utr != null) 'utr': utr},
+      );
+      if (res['success'] == true) {
+        return Map<String, dynamic>.from(res);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // =========================================================================
+  // SYSTEM CONFIGURATION -> PAYMENT CONFIGURATION CENTRE APIs
+  // =========================================================================
+
+  Future<Map<String, dynamic>?> getInstitutionPaymentConfiguration() async {
+    try {
+      final res = await _api.get(
+        '/v1/payment-management/config',
+        useCache: false,
+      );
+      if (res['success'] == true) {
+        return Map<String, dynamic>.from(res);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<bool> updatePaymentGeneralSettings(Map<String, dynamic> payload) async {
+    try {
+      final res = await _api.post(
+        '/v1/payment-management/config/general',
+        payload,
+      );
+      return res['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> updateQrBehaviourSettings(Map<String, dynamic> payload) async {
+    try {
+      final res = await _api.post(
+        '/v1/payment-management/config/qr-behaviour',
+        payload,
+      );
+      return res['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> createUpiAccount(Map<String, dynamic> payload) async {
+    try {
+      final res = await _api.post(
+        '/v1/payment-management/config/upi-accounts',
+        payload,
+      );
+      return res['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> setDefaultUpiAccount(String accountId) async {
+    try {
+      final res = await _api.post(
+        '/v1/payment-management/config/upi-accounts/$accountId/set-default',
+        {},
+      );
+      return res['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> deactivateUpiAccount(String accountId) async {
+    try {
+      final res = await _api.delete(
+        '/v1/payment-management/config/upi-accounts/$accountId',
+      );
+      return res['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> createBankAccount(Map<String, dynamic> payload) async {
+    try {
+      final res = await _api.post(
+        '/v1/payment-management/config/bank-accounts',
+        payload,
+      );
+      return res['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> setDefaultBankAccount(String accountId) async {
+    try {
+      final res = await _api.post(
+        '/v1/payment-management/config/bank-accounts/$accountId/set-default',
+        {},
+      );
+      return res['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> deactivateBankAccount(String accountId) async {
+    try {
+      final res = await _api.delete(
+        '/v1/payment-management/config/bank-accounts/$accountId',
+      );
+      return res['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> testBridgeConnection() async {
+    try {
+      final res = await _api.post(
+        '/v1/payment-management/config/bridge/test-connection',
+        {},
+      );
+      return Map<String, dynamic>.from(res);
+    } catch (e) {
+      return {'success': false, 'connected': false, 'message': 'Network error reaching payment bridge: $e'};
     }
   }
 }

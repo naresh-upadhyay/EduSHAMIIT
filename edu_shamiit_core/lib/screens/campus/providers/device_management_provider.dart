@@ -18,6 +18,10 @@ class DeviceManagementState {
   final int totalDevices;
   final int currentPage;
   final int pageSize;
+  final String sortColumn;
+  final bool sortAscending;
+  final String selectedLocationNodeId;
+  final String selectedLocationBreadcrumb;
   final int selectedSubNavIndex;
   final String activeTableTab;
   final String searchQuery;
@@ -50,6 +54,9 @@ class DeviceManagementState {
   final String typesFilterStatus;
   final bool typesIsGridView;
   final bool isTypesLoading;
+  final String typesSortBy;
+  final String typesSortOrder;
+  final List<String> typesCategories;
   final DeviceGroupsKpis groupsKpis;
   final List<DeviceGroupItem> groupsList;
   final int totalGroupsCount;
@@ -66,6 +73,11 @@ class DeviceManagementState {
   final bool groupsIsGridView;
   final bool isGroupsLoading;
   final List<Map<String, dynamic>> selectedGroupMembers;
+  final String groupsSortBy;
+  final String groupsSortOrder;
+  final List<String> groupsDynamicLocations;
+  final List<String> groupsDynamicTypes;
+  final List<String> groupsDynamicProfiles;
   final LocationsMappingKpis locationsKpis;
   final LocationHierarchyNode? locationsHierarchy;
   final String selectedLocationFloorId;
@@ -82,6 +94,8 @@ class DeviceManagementState {
   final String locationProfileFilter;
   final String locationStatusFilter;
   final String locationSearchQuery;
+  final String locationSortBy;
+  final String locationSortOrder;
   final bool locationIsGridView;
   final FloorPlanAssetModel? floorPlanAsset;
   final List<FloorPlanMarkerModel> floorPlanMarkers;
@@ -106,6 +120,13 @@ class DeviceManagementState {
   final String liveControlSearchQuery;
   final bool isLiveControlGridMode;
   final bool isLiveControlLoading;
+  final Set<String> liveControlSelectedDeviceIds;
+  final String liveControlSortBy;
+  final String liveControlSortOrder;
+  final int liveControlPage;
+  final int liveControlPageSize;
+  final int liveControlTotal;
+  final int liveControlTotalPages;
 
   const DeviceManagementState({
     this.isLoading = false,
@@ -123,6 +144,10 @@ class DeviceManagementState {
     this.totalDevices = 0,
     this.currentPage = 1,
     this.pageSize = 10,
+    this.sortColumn = 'created_at',
+    this.sortAscending = true,
+    this.selectedLocationNodeId = 'entire_campus',
+    this.selectedLocationBreadcrumb = 'Entire Campus',
     this.selectedSubNavIndex = 0,
     this.activeTableTab = 'Live Device Control',
     this.searchQuery = '',
@@ -155,6 +180,9 @@ class DeviceManagementState {
     this.typesFilterStatus = 'All Status',
     this.typesIsGridView = false,
     this.isTypesLoading = false,
+    this.typesSortBy = 'created_at',
+    this.typesSortOrder = 'asc',
+    this.typesCategories = const [],
     this.groupsKpis = const DeviceGroupsKpis(),
     this.groupsList = const [],
     this.totalGroupsCount = 128,
@@ -171,16 +199,23 @@ class DeviceManagementState {
     this.groupsIsGridView = false,
     this.isGroupsLoading = false,
     this.selectedGroupMembers = const [],
+    this.groupsSortBy = 'created_at',
+    this.groupsSortOrder = 'desc',
+    this.groupsDynamicLocations = const [],
+    this.groupsDynamicTypes = const [],
+    this.groupsDynamicProfiles = const [],
     this.locationsKpis = const LocationsMappingKpis(),
     this.locationsHierarchy,
-    this.selectedLocationFloorId = 'b8b4c4de-11e1-4d42-b4ad-27b86c8c823a',
-    this.selectedLocationBuildingId,
+    this.selectedLocationFloorId = '8770a0e6-8aa9-4e65-9a85-539eabd5f9a6',
+    this.selectedLocationBuildingId = 'd4b547da-ca46-4976-af82-c1b89ac6f0a7',
     this.selectedLocationRoomId,
     this.selectedLocationDetails,
     this.locationMappedDevices = const [],
-    this.locationDevicesTotal = 14,
+    this.locationDevicesTotal = 0,
     this.locationDevicesPage = 1,
     this.locationDevicesPageSize = 10,
+    this.locationSortBy = 'device_name',
+    this.locationSortOrder = 'asc',
     this.locationActiveSubTab = 'Location Hierarchy',
     this.locationDeviceTypeFilter = 'All Device Types',
     this.locationGroupFilter = 'All Groups',
@@ -200,8 +235,8 @@ class DeviceManagementState {
     this.liveDeviceDetails,
     this.liveControlSubTab = 'Device Control',
     this.liveControlRightTab = 'Control',
-    this.liveControlFloorId = 'b8b4c4de-11e1-4d42-b4ad-27b86c8c823a',
-    this.liveControlBuildingId = '2af829b6-81a4-469a-a91a-71f2bd390fc4',
+    this.liveControlFloorId = '8770a0e6-8aa9-4e65-9a85-539eabd5f9a6',
+    this.liveControlBuildingId = 'd4b547da-ca46-4976-af82-c1b89ac6f0a7',
     this.liveControlRoomId = '7a9cd5c9-de76-419f-9c80-8c4fe5d973aa',
     this.liveControlTypeFilter = 'All Device Types',
     this.liveControlGroupFilter = 'All Groups',
@@ -209,6 +244,13 @@ class DeviceManagementState {
     this.liveControlSearchQuery = '',
     this.isLiveControlGridMode = true,
     this.isLiveControlLoading = false,
+    this.liveControlSelectedDeviceIds = const {},
+    this.liveControlSortBy = 'device_name',
+    this.liveControlSortOrder = 'asc',
+    this.liveControlPage = 1,
+    this.liveControlPageSize = 10,
+    this.liveControlTotal = 0,
+    this.liveControlTotalPages = 1,
   });
 
   DeviceManagementState copyWith({
@@ -227,6 +269,11 @@ class DeviceManagementState {
     int? totalDevices,
     int? currentPage,
     int? pageSize,
+    String? sortColumn,
+    bool? sortAscending,
+    String? selectedLocationNodeId,
+    String? selectedLocationBreadcrumb,
+    bool clearLocationFilters = false,
     int? selectedSubNavIndex,
     String? activeTableTab,
     String? searchQuery,
@@ -259,6 +306,9 @@ class DeviceManagementState {
     String? typesFilterStatus,
     bool? typesIsGridView,
     bool? isTypesLoading,
+    String? typesSortBy,
+    String? typesSortOrder,
+    List<String>? typesCategories,
     DeviceGroupsKpis? groupsKpis,
     List<DeviceGroupItem>? groupsList,
     int? totalGroupsCount,
@@ -275,6 +325,11 @@ class DeviceManagementState {
     bool? groupsIsGridView,
     bool? isGroupsLoading,
     List<Map<String, dynamic>>? selectedGroupMembers,
+    String? groupsSortBy,
+    String? groupsSortOrder,
+    List<String>? groupsDynamicLocations,
+    List<String>? groupsDynamicTypes,
+    List<String>? groupsDynamicProfiles,
     LocationsMappingKpis? locationsKpis,
     LocationHierarchyNode? locationsHierarchy,
     String? selectedLocationFloorId,
@@ -291,6 +346,8 @@ class DeviceManagementState {
     String? locationProfileFilter,
     String? locationStatusFilter,
     String? locationSearchQuery,
+    String? locationSortBy,
+    String? locationSortOrder,
     bool? locationIsGridView,
     FloorPlanAssetModel? floorPlanAsset,
     List<FloorPlanMarkerModel>? floorPlanMarkers,
@@ -313,6 +370,13 @@ class DeviceManagementState {
     String? liveControlSearchQuery,
     bool? isLiveControlGridMode,
     bool? isLiveControlLoading,
+    Set<String>? liveControlSelectedDeviceIds,
+    String? liveControlSortBy,
+    String? liveControlSortOrder,
+    int? liveControlPage,
+    int? liveControlPageSize,
+    int? liveControlTotal,
+    int? liveControlTotalPages,
     bool clearLiveControlRoom = false,
     bool clearSelectedLocationRoom = false,
   }) {
@@ -332,17 +396,21 @@ class DeviceManagementState {
       totalDevices: totalDevices ?? this.totalDevices,
       currentPage: currentPage ?? this.currentPage,
       pageSize: pageSize ?? this.pageSize,
+      sortColumn: sortColumn ?? this.sortColumn,
+      sortAscending: sortAscending ?? this.sortAscending,
+      selectedLocationNodeId: clearLocationFilters ? 'entire_campus' : (selectedLocationNodeId ?? this.selectedLocationNodeId),
+      selectedLocationBreadcrumb: clearLocationFilters ? 'Entire Campus' : (selectedLocationBreadcrumb ?? this.selectedLocationBreadcrumb),
       selectedSubNavIndex: selectedSubNavIndex ?? this.selectedSubNavIndex,
       activeTableTab: activeTableTab ?? this.activeTableTab,
       searchQuery: searchQuery ?? this.searchQuery,
-      filterBuilding: filterBuilding ?? this.filterBuilding,
-      filterFloor: filterFloor ?? this.filterFloor,
-      filterRoom: filterRoom ?? this.filterRoom,
+      filterBuilding: clearLocationFilters ? null : (filterBuilding ?? this.filterBuilding),
+      filterFloor: clearLocationFilters ? null : (filterFloor ?? this.filterFloor),
+      filterRoom: clearLocationFilters ? null : (filterRoom ?? this.filterRoom),
       filterType: filterType ?? this.filterType,
       filterStatus: filterStatus ?? this.filterStatus,
       selectedDeviceIds: selectedDeviceIds ?? this.selectedDeviceIds,
       locationTree: locationTree ?? this.locationTree,
-      selectedCampusBuildingCode: selectedCampusBuildingCode ?? this.selectedCampusBuildingCode,
+      selectedCampusBuildingCode: clearLocationFilters ? 'Entire Campus' : (selectedCampusBuildingCode ?? this.selectedCampusBuildingCode),
       groups: groups ?? this.groups,
       automationsList: automationsList ?? this.automationsList,
       schedulesList: schedulesList ?? this.schedulesList,
@@ -364,6 +432,9 @@ class DeviceManagementState {
       typesFilterStatus: typesFilterStatus ?? this.typesFilterStatus,
       typesIsGridView: typesIsGridView ?? this.typesIsGridView,
       isTypesLoading: isTypesLoading ?? this.isTypesLoading,
+      typesSortBy: typesSortBy ?? this.typesSortBy,
+      typesSortOrder: typesSortOrder ?? this.typesSortOrder,
+      typesCategories: typesCategories ?? this.typesCategories,
       groupsKpis: groupsKpis ?? this.groupsKpis,
       groupsList: groupsList ?? this.groupsList,
       totalGroupsCount: totalGroupsCount ?? this.totalGroupsCount,
@@ -380,6 +451,11 @@ class DeviceManagementState {
       groupsIsGridView: groupsIsGridView ?? this.groupsIsGridView,
       isGroupsLoading: isGroupsLoading ?? this.isGroupsLoading,
       selectedGroupMembers: selectedGroupMembers ?? this.selectedGroupMembers,
+      groupsSortBy: groupsSortBy ?? this.groupsSortBy,
+      groupsSortOrder: groupsSortOrder ?? this.groupsSortOrder,
+      groupsDynamicLocations: groupsDynamicLocations ?? this.groupsDynamicLocations,
+      groupsDynamicTypes: groupsDynamicTypes ?? this.groupsDynamicTypes,
+      groupsDynamicProfiles: groupsDynamicProfiles ?? this.groupsDynamicProfiles,
       locationsKpis: locationsKpis ?? this.locationsKpis,
       locationsHierarchy: locationsHierarchy ?? this.locationsHierarchy,
       selectedLocationFloorId: selectedLocationFloorId ?? this.selectedLocationFloorId,
@@ -396,6 +472,8 @@ class DeviceManagementState {
       locationProfileFilter: locationProfileFilter ?? this.locationProfileFilter,
       locationStatusFilter: locationStatusFilter ?? this.locationStatusFilter,
       locationSearchQuery: locationSearchQuery ?? this.locationSearchQuery,
+      locationSortBy: locationSortBy ?? this.locationSortBy,
+      locationSortOrder: locationSortOrder ?? this.locationSortOrder,
       locationIsGridView: locationIsGridView ?? this.locationIsGridView,
       floorPlanAsset: floorPlanAsset ?? this.floorPlanAsset,
       floorPlanMarkers: floorPlanMarkers ?? this.floorPlanMarkers,
@@ -418,6 +496,13 @@ class DeviceManagementState {
       liveControlSearchQuery: liveControlSearchQuery ?? this.liveControlSearchQuery,
       isLiveControlGridMode: isLiveControlGridMode ?? this.isLiveControlGridMode,
       isLiveControlLoading: isLiveControlLoading ?? this.isLiveControlLoading,
+      liveControlSelectedDeviceIds: liveControlSelectedDeviceIds ?? this.liveControlSelectedDeviceIds,
+      liveControlSortBy: liveControlSortBy ?? this.liveControlSortBy,
+      liveControlSortOrder: liveControlSortOrder ?? this.liveControlSortOrder,
+      liveControlPage: liveControlPage ?? this.liveControlPage,
+      liveControlPageSize: liveControlPageSize ?? this.liveControlPageSize,
+      liveControlTotal: liveControlTotal ?? this.liveControlTotal,
+      liveControlTotalPages: liveControlTotalPages ?? this.liveControlTotalPages,
     );
   }
 }
@@ -506,6 +591,8 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
         status: state.filterStatus,
         page: state.currentPage,
         pageSize: state.pageSize,
+        sortBy: state.sortColumn,
+        sortOrder: state.sortAscending ? 'asc' : 'desc',
       );
 
       final rawList = res['devices'] as List? ?? [];
@@ -624,15 +711,57 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
     loadDevices();
   }
 
-  void setFilterLocation({String? buildingId, String? floorId, String? roomId}) {
+  void setFilterLocation({
+    String? buildingId,
+    String? floorId,
+    String? roomId,
+    String? nodeId,
+    String? breadcrumb,
+  }) {
     final effectiveBld = (buildingId == 'All' || buildingId == 'Entire Campus') ? null : buildingId;
+    final effectiveNodeId = nodeId ?? (roomId ?? (floorId ?? (effectiveBld ?? 'entire_campus')));
     state = state.copyWith(
       filterBuilding: effectiveBld,
       filterFloor: floorId,
       filterRoom: roomId,
       selectedCampusBuildingCode: effectiveBld ?? 'Entire Campus',
+      selectedLocationNodeId: effectiveNodeId,
+      selectedLocationBreadcrumb: breadcrumb ?? (effectiveBld != null ? 'Building $effectiveBld' : 'Entire Campus'),
       currentPage: 1,
     );
+    loadDevices();
+  }
+
+  void clearLocationFilter() {
+    state = state.copyWith(
+      clearLocationFilters: true,
+      currentPage: 1,
+    );
+    loadDevices();
+  }
+
+  void resetAllFilters() {
+    state = state.copyWith(
+      searchQuery: '',
+      filterType: null,
+      filterStatus: null,
+      clearLocationFilters: true,
+      currentPage: 1,
+    );
+    loadDevices();
+  }
+
+  void setSorting(String column) {
+    if (state.sortColumn == column) {
+      state = state.copyWith(sortAscending: !state.sortAscending, currentPage: 1);
+    } else {
+      state = state.copyWith(sortColumn: column, sortAscending: true, currentPage: 1);
+    }
+    loadDevices();
+  }
+
+  void setPageSize(int size) {
+    state = state.copyWith(pageSize: size, currentPage: 1);
     loadDevices();
   }
 
@@ -664,9 +793,66 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
     state = state.copyWith(
       selectedCampusBuildingCode: code,
       filterBuilding: effective,
+      filterFloor: null,
+      filterRoom: null,
+      selectedLocationNodeId: effective ?? 'entire_campus',
+      selectedLocationBreadcrumb: effective != null ? 'Building $effective' : 'Entire Campus',
       currentPage: 1,
     );
     loadDevices();
+  }
+
+  Future<void> bulkPowerToggle(bool turnOn) async {
+    if (state.selectedDeviceIds.isEmpty) return;
+    await _api.executeBulkCommand(
+      state.selectedDeviceIds.toList(),
+      turnOn ? 'turn_on' : 'turn_off',
+      {'power': turnOn},
+    );
+    await loadDevices();
+    await loadOverview();
+  }
+
+  Future<void> bulkReboot() async {
+    if (state.selectedDeviceIds.isEmpty) return;
+    for (final id in state.selectedDeviceIds) {
+      await _api.rebootDevice(id);
+    }
+    await loadDevices();
+  }
+
+  Future<void> bulkDeleteSelectedDevices() async {
+    if (state.selectedDeviceIds.isEmpty) return;
+    await _api.bulkDeleteDevices(state.selectedDeviceIds.toList());
+    state = state.copyWith(selectedDeviceIds: {});
+    await loadDevices();
+    await loadOverview();
+  }
+
+  void clearSelectedDevices() {
+    state = state.copyWith(selectedDeviceIds: {});
+  }
+
+  Future<bool> createDeviceItem(Map<String, dynamic> payload) async {
+    final res = await _api.createDevice(payload);
+    if (res['success'] == true) {
+      await loadDevices();
+      await loadOverview();
+      await loadLocationTree();
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> deleteDeviceSingle(String deviceId) async {
+    final res = await _api.deleteDevice(deviceId);
+    if (res['success'] == true) {
+      await loadDevices();
+      await loadOverview();
+      await loadLocationTree();
+      return true;
+    }
+    return false;
   }
 
   void toggleSelectDevice(String id) {
@@ -942,25 +1128,17 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
   }
 
   Future<bool> bulkUpdateDeviceGroupsStatus(List<String> groupIds, String status) async {
-    bool allSuccess = true;
-    for (final id in groupIds) {
-      final res = await _api.updateGroup(id, {'status': status});
-      if (res['success'] != true) allSuccess = false;
-    }
-    await loadGroups();
+    final ok = await _api.bulkToggleDeviceGroupsStatus(groupIds, status);
+    await loadDeviceGroupsData();
     await loadOverview();
-    return allSuccess;
+    return ok;
   }
 
   Future<bool> bulkDeleteDeviceGroups(List<String> groupIds) async {
-    bool allSuccess = true;
-    for (final id in groupIds) {
-      final ok = await _api.deleteGroup(id);
-      if (!ok) allSuccess = false;
-    }
-    await loadGroups();
+    final ok = await _api.bulkDeleteDeviceGroups(groupIds);
+    await loadDeviceGroupsData();
     await loadOverview();
-    return allSuccess;
+    return ok;
   }
 
   // --- Automation Rules CRUD ---
@@ -1025,6 +1203,12 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
   Future<void> loadTypesAndProfilesData() async {
     state = state.copyWith(isTypesLoading: true);
     try {
+      if (state.typesCategories.isEmpty) {
+        final cats = await _api.getDeviceCategories();
+        final allCats = ['All Categories', ...cats.where((c) => c.isNotEmpty && c != 'All Categories')];
+        state = state.copyWith(typesCategories: allCats);
+      }
+
       final kpis = await _api.getTypesProfilesKpis();
       final typesRes = await _api.getDeviceTypes(
         category: state.typesFilterCategory,
@@ -1032,6 +1216,8 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
         search: state.typesSearchQuery,
         page: state.deviceTypesPage,
         pageSize: state.deviceTypesPageSize,
+        sortBy: state.typesSortBy,
+        sortOrder: state.typesSortOrder,
       );
       final typesList = (typesRes['types'] as List<DeviceTypeDetailItem>?) ?? [];
       final profiles = await _api.getDeviceProfiles();
@@ -1062,6 +1248,27 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
     } catch (_) {
       state = state.copyWith(isTypesLoading: false);
     }
+  }
+
+  void setTypesPageSize(int size) {
+    state = state.copyWith(deviceTypesPageSize: size, deviceTypesPage: 1);
+    loadTypesAndProfilesData();
+  }
+
+  void sortDeviceTypes(String column) {
+    if (state.typesSortBy == column) {
+      final newOrder = state.typesSortOrder == 'asc' ? 'desc' : 'asc';
+      state = state.copyWith(typesSortOrder: newOrder, deviceTypesPage: 1);
+    } else {
+      state = state.copyWith(typesSortBy: column, typesSortOrder: 'asc', deviceTypesPage: 1);
+    }
+    loadTypesAndProfilesData();
+  }
+
+  Future<void> loadTypesCategories() async {
+    final cats = await _api.getDeviceCategories();
+    final allCats = ['All Categories', ...cats.where((c) => c.isNotEmpty && c != 'All Categories')];
+    state = state.copyWith(typesCategories: allCats);
   }
 
   void setTypesSubTab(String subTab) {
@@ -1156,23 +1363,15 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
   }
 
   Future<bool> bulkUpdateDeviceTypesStatus(List<String> typeIds, bool isActive) async {
-    bool allSuccess = true;
-    for (final id in typeIds) {
-      final res = await _api.updateDeviceType(id, {'is_active': isActive});
-      if (res['success'] != true) allSuccess = false;
-    }
+    final res = await _api.bulkToggleDeviceTypesStatus(typeIds, isActive);
     await loadTypesAndProfilesData();
-    return allSuccess;
+    return res['success'] == true;
   }
 
   Future<bool> bulkDeleteDeviceTypes(List<String> typeIds) async {
-    bool allSuccess = true;
-    for (final id in typeIds) {
-      final res = await _api.deleteDeviceType(id);
-      if (res['success'] != true) allSuccess = false;
-    }
+    final res = await _api.bulkDeleteDeviceTypes(typeIds);
     await loadTypesAndProfilesData();
-    return allSuccess;
+    return res['success'] == true;
   }
 
   Future<bool> createDeviceProfile(Map<String, dynamic> data) async {
@@ -1227,6 +1426,17 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
     state = state.copyWith(isGroupsLoading: true);
     try {
       final kpis = await _api.getDeviceGroupsKpis();
+
+      // Dynamically load filter options from database if not loaded yet
+      if (state.groupsDynamicLocations.isEmpty || state.groupsDynamicTypes.isEmpty || state.groupsDynamicProfiles.isEmpty) {
+        final filterOpts = await _api.getDeviceGroupFilterOptions();
+        state = state.copyWith(
+          groupsDynamicLocations: filterOpts['locations'] ?? [],
+          groupsDynamicTypes: filterOpts['group_types'] ?? [],
+          groupsDynamicProfiles: filterOpts['profiles'] ?? [],
+        );
+      }
+
       final res = await _api.getDeviceGroups(
         status: state.groupsActiveSubTab,
         location: state.groupsFilterLocation != 'All Locations' ? state.groupsFilterLocation : null,
@@ -1235,6 +1445,8 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
         search: state.groupsSearchQuery,
         page: state.groupsPage,
         pageSize: state.groupsPageSize,
+        sortBy: state.groupsSortBy,
+        sortOrder: state.groupsSortOrder,
       );
 
       final list = (res['groups'] as List<DeviceGroupItem>?) ?? [];
@@ -1265,6 +1477,26 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
     } catch (_) {
       state = state.copyWith(isGroupsLoading: false);
     }
+  }
+
+  void sortDeviceGroups(String column) {
+    String newOrder = 'asc';
+    if (state.groupsSortBy == column) {
+      newOrder = state.groupsSortOrder.toLowerCase() == 'asc' ? 'desc' : 'asc';
+    } else {
+      newOrder = (column == 'created_at' || column == 'devices' || column == 'member_count') ? 'desc' : 'asc';
+    }
+    state = state.copyWith(
+      groupsSortBy: column,
+      groupsSortOrder: newOrder,
+      groupsPage: 1,
+    );
+    loadDeviceGroupsData();
+  }
+
+  void setGroupsPageSize(int size) {
+    state = state.copyWith(groupsPageSize: size, groupsPage: 1);
+    loadDeviceGroupsData();
   }
 
   Future<void> selectDeviceGroup(String groupId) async {
@@ -1424,6 +1656,8 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
         profileId: state.locationProfileFilter,
         mappingStatus: state.locationStatusFilter,
         search: state.locationSearchQuery,
+        sortBy: state.locationSortBy,
+        sortOrder: state.locationSortOrder,
         page: state.locationDevicesPage,
         limit: state.locationDevicesPageSize,
       );
@@ -1469,6 +1703,8 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
         profileId: state.locationProfileFilter,
         mappingStatus: state.locationStatusFilter,
         search: state.locationSearchQuery,
+        sortBy: state.locationSortBy,
+        sortOrder: state.locationSortOrder,
         page: 1,
         limit: state.locationDevicesPageSize,
       );
@@ -1521,6 +1757,20 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
     _reloadLocationDevicesOnly();
   }
 
+  void setLocationDevicesPageSize(int size) {
+    state = state.copyWith(locationDevicesPageSize: size, locationDevicesPage: 1);
+    _reloadLocationDevicesOnly();
+  }
+
+  void setLocationSort(String sortBy, String sortOrder) {
+    state = state.copyWith(
+      locationSortBy: sortBy,
+      locationSortOrder: sortOrder,
+      locationDevicesPage: 1,
+    );
+    _reloadLocationDevicesOnly();
+  }
+
   void setLocationViewMode(bool isGrid) {
     state = state.copyWith(locationIsGridView: isGrid);
   }
@@ -1537,6 +1787,8 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
         profileId: state.locationProfileFilter,
         mappingStatus: state.locationStatusFilter,
         search: state.locationSearchQuery,
+        sortBy: state.locationSortBy,
+        sortOrder: state.locationSortOrder,
         page: state.locationDevicesPage,
         limit: state.locationDevicesPageSize,
       );
@@ -1660,6 +1912,7 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
     if (ok) {
       final fpRes = await _api.fetchFloorPlanAndMarkers(floorId);
       state = state.copyWith(
+        floorPlanAsset: (fpRes['floor_plan'] ?? fpRes['asset']) as FloorPlanAssetModel? ?? state.floorPlanAsset,
         floorPlanMarkers: fpRes['markers'] as List<FloorPlanMarkerModel>? ?? state.floorPlanMarkers,
         floorPlanLegend: fpRes['legend'] as FloorPlanLegendModel? ?? state.floorPlanLegend,
       );
@@ -1675,6 +1928,7 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
     if (ok) {
       final fpRes = await _api.fetchFloorPlanAndMarkers(floorId);
       state = state.copyWith(
+        floorPlanAsset: (fpRes['floor_plan'] ?? fpRes['asset']) as FloorPlanAssetModel? ?? state.floorPlanAsset,
         floorPlanMarkers: fpRes['markers'] as List<FloorPlanMarkerModel>? ?? state.floorPlanMarkers,
         floorPlanLegend: fpRes['legend'] as FloorPlanLegendModel? ?? state.floorPlanLegend,
       );
@@ -1689,17 +1943,38 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
   Future<void> loadLiveControlData() async {
     state = state.copyWith(isLiveControlLoading: true);
     try {
+      if (state.typesCategories.isEmpty) {
+        final cats = await _api.getDeviceCategories();
+        final allCats = ['All Device Types', ...cats.where((c) => c.isNotEmpty && c != 'All Categories' && c != 'All Device Types')];
+        state = state.copyWith(typesCategories: allCats);
+      }
+      if (state.groupsList.isEmpty) {
+        final groupsRes = await _api.getDeviceGroups(page: 1, pageSize: 100);
+        final gList = (groupsRes['groups'] as List<DeviceGroupItem>?) ?? [];
+        state = state.copyWith(groupsList: gList);
+      }
+
       final kpis = await _api.fetchLiveControlKpis();
       final hierarchy = await _api.fetchLocationsHierarchy();
       final fpRes = await _api.fetchFloorPlanAndMarkers(state.liveControlFloorId);
-      final devices = await _api.fetchLiveControlDevices(
+      final res = await _api.fetchLiveControlDevicesPaginated(
         floorId: state.liveControlFloorId,
         buildingId: state.liveControlBuildingId,
         roomId: state.liveControlRoomId,
         category: state.liveControlTypeFilter,
         status: state.liveControlStatusFilter,
         search: state.liveControlSearchQuery,
+        sortBy: state.liveControlSortBy,
+        sortOrder: state.liveControlSortOrder,
+        page: state.liveControlPage,
+        pageSize: state.liveControlPageSize,
       );
+
+      final devices = (res['devices'] as List<LiveControlDeviceItem>?) ?? [];
+      final total = (res['total'] as int?) ?? devices.length;
+      final page = (res['page'] as int?) ?? state.liveControlPage;
+      final pageSize = (res['page_size'] as int?) ?? state.liveControlPageSize;
+      final totalPages = (res['total_pages'] as int?) ?? 1;
 
       LiveControlDeviceItem? selectedDev;
       final targetId = state.selectedLiveDeviceId ?? 'c1c00000-0000-0000-0000-000000000009';
@@ -1719,10 +1994,14 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
         isLiveControlLoading: false,
         liveControlKpis: kpis,
         locationsHierarchy: hierarchy ?? state.locationsHierarchy,
-        floorPlanAsset: fpRes['asset'] as FloorPlanAssetModel? ?? state.floorPlanAsset,
+        floorPlanAsset: (fpRes['floor_plan'] ?? fpRes['asset']) as FloorPlanAssetModel? ?? state.floorPlanAsset,
         floorPlanMarkers: fpRes['markers'] as List<FloorPlanMarkerModel>? ?? state.floorPlanMarkers,
         floorPlanLegend: fpRes['legend'] as FloorPlanLegendModel? ?? state.floorPlanLegend,
         liveControlDevices: devices,
+        liveControlTotal: total,
+        liveControlPage: page,
+        liveControlPageSize: pageSize,
+        liveControlTotalPages: totalPages,
         selectedLiveDeviceId: selectedDev?.id ?? state.selectedLiveDeviceId,
         selectedLiveDevice: selectedDev,
         liveDeviceDetails: details,
@@ -1755,6 +2034,7 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
       liveControlGroupFilter: group ?? state.liveControlGroupFilter,
       liveControlStatusFilter: status ?? state.liveControlStatusFilter,
       liveControlSearchQuery: search ?? state.liveControlSearchQuery,
+      liveControlPage: 1,
     );
     await reloadLiveControlDevices();
   }
@@ -1774,13 +2054,14 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
       liveControlFloorId: targetFloorId,
       liveControlRoomId: shouldClearRoom ? null : roomId,
       clearLiveControlRoom: shouldClearRoom,
+      liveControlPage: 1,
     );
 
     // If floor changed or floor plan needs sync, reload floor plan
     if (targetFloorId.isNotEmpty && (floorId != null || state.floorPlanAsset?.floorId != targetFloorId)) {
       final fpRes = await _api.fetchFloorPlanAndMarkers(targetFloorId);
       state = state.copyWith(
-        floorPlanAsset: fpRes['asset'] as FloorPlanAssetModel? ?? state.floorPlanAsset,
+        floorPlanAsset: (fpRes['floor_plan'] ?? fpRes['asset']) as FloorPlanAssetModel? ?? state.floorPlanAsset,
         floorPlanMarkers: fpRes['markers'] as List<FloorPlanMarkerModel>? ?? state.floorPlanMarkers,
         floorPlanLegend: fpRes['legend'] as FloorPlanLegendModel? ?? state.floorPlanLegend,
       );
@@ -1791,14 +2072,24 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
 
   Future<void> reloadLiveControlDevices() async {
     try {
-      final devices = await _api.fetchLiveControlDevices(
+      final res = await _api.fetchLiveControlDevicesPaginated(
         buildingId: state.liveControlBuildingId,
         floorId: state.liveControlFloorId,
         roomId: state.liveControlRoomId,
         category: state.liveControlTypeFilter,
         status: state.liveControlStatusFilter,
         search: state.liveControlSearchQuery,
+        sortBy: state.liveControlSortBy,
+        sortOrder: state.liveControlSortOrder,
+        page: state.liveControlPage,
+        pageSize: state.liveControlPageSize,
       );
+
+      final devices = (res['devices'] as List<LiveControlDeviceItem>?) ?? [];
+      final total = (res['total'] as int?) ?? devices.length;
+      final page = (res['page'] as int?) ?? state.liveControlPage;
+      final pageSize = (res['page_size'] as int?) ?? state.liveControlPageSize;
+      final totalPages = (res['total_pages'] as int?) ?? 1;
 
       LiveControlDeviceItem? currentSelected = state.selectedLiveDevice;
       if (devices.isNotEmpty) {
@@ -1812,6 +2103,10 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
 
       state = state.copyWith(
         liveControlDevices: devices,
+        liveControlTotal: total,
+        liveControlPage: page,
+        liveControlPageSize: pageSize,
+        liveControlTotalPages: totalPages,
         selectedLiveDeviceId: currentSelected?.id,
         selectedLiveDevice: currentSelected,
       );
@@ -1823,6 +2118,95 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
         state = state.copyWith(liveDeviceDetails: null);
       }
     } catch (_) {}
+  }
+
+  void toggleLiveControlSelectDevice(String id) {
+    final current = Set<String>.from(state.liveControlSelectedDeviceIds);
+    if (current.contains(id)) {
+      current.remove(id);
+    } else {
+      current.add(id);
+    }
+    state = state.copyWith(liveControlSelectedDeviceIds: current);
+  }
+
+  void toggleLiveControlSelectAll() {
+    if (state.liveControlSelectedDeviceIds.length == state.liveControlDevices.length && state.liveControlDevices.isNotEmpty) {
+      state = state.copyWith(liveControlSelectedDeviceIds: const {});
+    } else {
+      final allIds = state.liveControlDevices.map((d) => d.id).toSet();
+      state = state.copyWith(liveControlSelectedDeviceIds: allIds);
+    }
+  }
+
+  void clearLiveControlSelection() {
+    state = state.copyWith(liveControlSelectedDeviceIds: const {});
+  }
+
+  void setLiveControlSorting(String sortBy, [String? sortOrder]) {
+    String order = sortOrder ?? (state.liveControlSortBy == sortBy && state.liveControlSortOrder == 'asc' ? 'desc' : 'asc');
+    state = state.copyWith(
+      liveControlSortBy: sortBy,
+      liveControlSortOrder: order,
+      liveControlPage: 1,
+    );
+    reloadLiveControlDevices();
+  }
+
+  void setLiveControlPage(int page) {
+    if (page < 1 || (state.liveControlTotalPages > 0 && page > state.liveControlTotalPages)) return;
+    state = state.copyWith(liveControlPage: page);
+    reloadLiveControlDevices();
+  }
+
+  void setLiveControlPageSize(int pageSize) {
+    state = state.copyWith(liveControlPageSize: pageSize, liveControlPage: 1);
+    reloadLiveControlDevices();
+  }
+
+  Future<bool> bulkExecuteLiveControl({
+    required String commandType,
+    required Map<String, dynamic> payload,
+  }) async {
+    final selectedIds = state.liveControlSelectedDeviceIds.toList();
+    if (selectedIds.isEmpty) return false;
+
+    // Optimistic update
+    final currentDevs = List<LiveControlDeviceItem>.from(state.liveControlDevices);
+    for (int i = 0; i < currentDevs.length; i++) {
+      if (selectedIds.contains(currentDevs[i].id)) {
+        final dev = currentDevs[i];
+        final newState = Map<String, dynamic>.from(dev.currentState);
+        bool newPower = dev.powerState;
+        if (commandType == 'turn_on' || (commandType == 'set_power' && payload['power'] == true)) {
+          newPower = true;
+          newState['power'] = true;
+        } else if (commandType == 'turn_off' || (commandType == 'set_power' && payload['power'] == false)) {
+          newPower = false;
+          newState['power'] = false;
+        } else if (commandType == 'set_brightness') {
+          newState['brightness'] = payload['brightness'];
+          newState['power'] = true;
+          newPower = true;
+        } else if (commandType == 'set_temperature') {
+          newState['temperature'] = payload['temperature'];
+        }
+        currentDevs[i] = dev.copyWith(powerState: newPower, currentState: newState);
+      }
+    }
+    state = state.copyWith(liveControlDevices: currentDevs);
+
+    final res = await _api.bulkExecuteLiveControlCommand(
+      deviceIds: selectedIds,
+      commandType: commandType,
+      payload: payload,
+    );
+
+    // Refresh devices and KPIs
+    await reloadLiveControlDevices();
+    final kpis = await _api.fetchLiveControlKpis();
+    state = state.copyWith(liveControlKpis: kpis);
+    return res['success'] == true;
   }
 
   Future<void> selectLiveControlDevice(LiveControlDeviceItem device) async {

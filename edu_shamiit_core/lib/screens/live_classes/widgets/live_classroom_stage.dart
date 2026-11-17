@@ -136,7 +136,12 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
         currentUserName: currentUserName,
         currentUserRole: currentUserRole,
       );
-      await roomService.initializeRoom();
+      await roomService.initializeRoom().timeout(
+        const Duration(seconds: 4),
+        onTimeout: () {
+          debugPrint('[LiveClassroomStage] auto-connect timeout (smooth fallback active).');
+        },
+      );
     } catch (e) {
       debugPrint('[LiveClassroomStage] auto-connect notice: $e');
     }
@@ -542,6 +547,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
         String? selectedOptionId;
         final currentPoll = ref.read(liveClassManagementProvider).conductSessionData?.activePoll;
         bool isCreatingNew = currentPoll == null;
+        bool isLaunchingPoll = false;
         final newQuestionCtrl = TextEditingController();
         final optionControllers = <TextEditingController>[
           TextEditingController(),
@@ -790,7 +796,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(ctx),
+                  onPressed: isLaunchingPoll ? null : () => Navigator.pop(ctx),
                   child: const Text('Close', style: TextStyle(color: Colors.white60)),
                 ),
                 if (isCreatingNew)
@@ -800,53 +806,89 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    onPressed: () async {
-                      final question = newQuestionCtrl.text.trim();
-                      if (question.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please enter a poll question')),
-                        );
-                        return;
-                      }
-                      final options = optionControllers
-                          .map((c) => c.text.trim())
-                          .where((o) => o.isNotEmpty)
-                          .toList();
-                      if (options.length < 2) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please provide at least 2 options for the poll')),
-                        );
-                        return;
-                      }
+                    onPressed: isLaunchingPoll
+                        ? null
+                        : () async {
+                            if (isLaunchingPoll) return;
+                            final question = newQuestionCtrl.text.trim();
+                            if (question.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Please enter a poll question')),
+                              );
+                              return;
+                            }
+                            final options = optionControllers
+                                .map((c) => c.text.trim())
+                                .where((o) => o.isNotEmpty)
+                                .toList();
+                            if (options.length < 2) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Please provide at least 2 options for the poll')),
+                              );
+                              return;
+                            }
 
-                      await notifier.createPoll({
-                        'title': question,
-                        'question': question,
-                        'options': options.asMap().entries.map((e) => {
-                          'id': 'opt_${e.key + 1}',
-                          'text': e.value,
-                        }).toList(),
-                      });
+                            setDialogState(() => isLaunchingPoll = true);
 
-                      try {
-                        await roomService.broadcastData({
-                          'type': 'poll_launched',
-                          'question': question,
-                        });
-                      } catch (_) {}
+                            try {
+                              final success = await notifier.createPoll({
+                                'title': question,
+                                'question': question,
+                                'options': options.asMap().entries.map((e) => {
+                                  'id': 'opt_${e.key + 1}',
+                                  'text': e.value,
+                                }).toList(),
+                              });
 
-                      setDialogState(() {
-                        isCreatingNew = false;
-                        selectedOptionId = null;
-                      });
+                              if (success) {
+                                try {
+                                  await roomService.broadcastData({
+                                    'type': 'poll_launched',
+                                    'question': question,
+                                  });
+                                } catch (_) {}
 
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Live poll "$question" broadcasted successfully!')),
-                        );
-                      }
-                    },
-                    child: const Text('Launch Poll Now'),
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx);
+                                }
+
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Live poll "$question" broadcasted successfully!'),
+                                      backgroundColor: const Color(0xFF10B981),
+                                    ),
+                                  );
+                                }
+                              } else {
+                                if (ctx.mounted) {
+                                  setDialogState(() => isLaunchingPoll = false);
+                                }
+                              }
+                            } catch (e) {
+                              if (ctx.mounted) {
+                                setDialogState(() => isLaunchingPoll = false);
+                              }
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Failed to launch poll: $e'),
+                                    backgroundColor: Colors.redAccent,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                    child: isLaunchingPoll
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Launch Poll Now'),
                   )
                 else if (activePoll != null)
                   ElevatedButton(
@@ -881,140 +923,6 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
           },
         );
       },
-    );
-  }
-
-  void _showBreakoutDialog(BuildContext context) {
-    final rooms = ref.read(liveClassManagementProvider).conductSessionData?.breakoutRooms ?? [];
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E222D),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.grid_view_rounded, color: Color(0xFF60A5FA), size: 22),
-            SizedBox(width: 8),
-            Text('Breakout Rooms Manager', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-          ],
-        ),
-        content: SizedBox(
-          width: 440,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Organize 42 students into targeted peer-learning discussion pods:',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
-              ),
-              const SizedBox(height: 12),
-              if (rooms.isNotEmpty)
-                ...rooms.map(
-                  (r) => Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2A2E3D),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.meeting_room_rounded, color: Color(0xFF60A5FA), size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(r.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
-                              Text('Capacity: ${r.capacity} participants • Status: ${r.status}', style: const TextStyle(color: Colors.white54, fontSize: 11)),
-                            ],
-                          ),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF2563EB),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            minimumSize: Size.zero,
-                          ),
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Joined ${r.name}')));
-                          },
-                          child: const Text('Join Pod', style: TextStyle(fontSize: 11)),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else ...[
-                _buildDefaultBreakoutPod('Pod A: Algebraic Derivations', '14 Students', 'In Progress'),
-                _buildDefaultBreakoutPod('Pod B: Graphical Parabola Plots', '14 Students', 'In Progress'),
-                _buildDefaultBreakoutPod('Pod C: Real-World Word Problems', '14 Students', 'In Progress'),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          OutlinedButton(
-            style: OutlinedButton.styleFrom(foregroundColor: Colors.white70, side: const BorderSide(color: Colors.white24)),
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Broadcast message delivered to all 3 Breakout Pods.')),
-              );
-            },
-            child: const Text('Broadcast Announcement'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), foregroundColor: Colors.white),
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDefaultBreakoutPod(String title, String count, String status) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2A2E3D),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.meeting_room_rounded, color: Color(0xFF60A5FA), size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
-                Text('$count • $status', style: const TextStyle(color: Colors.white54, fontSize: 11)),
-              ],
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2563EB),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              minimumSize: Size.zero,
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Joined $title')));
-            },
-            child: const Text('Join Pod', style: TextStyle(fontSize: 11)),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1492,179 +1400,183 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
 
                 return Row(
                   children: [
-                    _buildControlButton(
-                      icon: _isMicMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
-                      label: _isMicMuted ? 'Unmute' : 'Mute',
-                      isActive: !_isMicMuted,
-                      isIconOnly: isNarrow,
-                      activeColor: Colors.white24,
-                      inactiveColor: Colors.redAccent.withValues(alpha: 0.3),
-                      textColor: _isMicMuted ? Colors.redAccent : Colors.white,
-                      onTap: () async {
-                        try {
-                          await roomService.toggleMic();
-                          if (mounted) {
-                            setState(() => _isMicMuted = roomService.isMicMuted);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(_isMicMuted ? 'Microphone muted.' : 'Microphone unmuted & streaming.'),
-                                backgroundColor: _isMicMuted ? const Color(0xFF334155) : const Color(0xFF10B981),
-                                duration: const Duration(seconds: 2),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildControlButton(
+                              icon: _isMicMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                              label: _isMicMuted ? 'Unmute' : 'Mute',
+                              isActive: !_isMicMuted,
+                              isIconOnly: isNarrow,
+                              activeColor: Colors.white24,
+                              inactiveColor: Colors.redAccent.withValues(alpha: 0.3),
+                              textColor: _isMicMuted ? Colors.redAccent : Colors.white,
+                              onTap: () async {
+                                try {
+                                  await roomService.toggleMic();
+                                  if (mounted) {
+                                    setState(() => _isMicMuted = roomService.isMicMuted);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(_isMicMuted ? 'Microphone muted.' : 'Microphone unmuted & streaming.'),
+                                        backgroundColor: _isMicMuted ? const Color(0xFF334155) : const Color(0xFF10B981),
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    setState(() => _isMicMuted = true);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Microphone permission blocked. Please allow mic access in your browser.'),
+                                        backgroundColor: Color(0xFFDC2626),
+                                        duration: Duration(seconds: 3),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                            const SizedBox(width: 4),
+                            _buildControlButton(
+                              icon: _isVideoOff ? Icons.videocam_off_rounded : Icons.videocam_rounded,
+                              label: _isVideoOff ? 'Start Video' : 'Stop Video',
+                              isActive: !_isVideoOff,
+                              isIconOnly: isNarrow,
+                              activeColor: Colors.white24,
+                              inactiveColor: Colors.redAccent.withValues(alpha: 0.3),
+                              textColor: _isVideoOff ? Colors.redAccent : Colors.white,
+                              onTap: () async {
+                                try {
+                                  await roomService.toggleCamera();
+                                  if (mounted) {
+                                    setState(() => _isVideoOff = roomService.isCamOff);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(_isVideoOff ? 'Camera turned off.' : 'Camera turned on & streaming.'),
+                                        backgroundColor: _isVideoOff ? const Color(0xFF334155) : const Color(0xFF10B981),
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    setState(() => _isVideoOff = true);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Camera permission blocked. Please allow camera access in your browser.'),
+                                        backgroundColor: Color(0xFFDC2626),
+                                        duration: Duration(seconds: 3),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                            const SizedBox(width: 4),
+                            _buildControlButton(
+                              icon: Icons.screen_share_rounded,
+                              label: 'Share Screen',
+                              isActive: _stageMode == StageMode.screenShare,
+                              isIconOnly: isNarrow,
+                              activeColor: const Color(0xFF2563EB),
+                              onTap: () async {
+                                try {
+                                  await roomService.toggleScreenShare();
+                                  if (mounted) {
+                                    setState(() {
+                                      _isScreenSharing = roomService.isScreenSharing;
+                                      _stageMode = _isScreenSharing ? StageMode.screenShare : StageMode.teacherPresentation;
+                                    });
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(_isScreenSharing ? 'Screen sharing started.' : 'Screen sharing stopped.'),
+                                        backgroundColor: _isScreenSharing ? const Color(0xFF2563EB) : const Color(0xFF334155),
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    setState(() {
+                                      _isScreenSharing = false;
+                                      _stageMode = StageMode.teacherPresentation;
+                                    });
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Screen sharing cancelled or permission denied.'),
+                                        backgroundColor: Color(0xFFDC2626),
+                                        duration: Duration(seconds: 3),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                            const SizedBox(width: 4),
+                            _buildControlButton(
+                              icon: Icons.edit_note_rounded,
+                              label: 'Whiteboard',
+                              isActive: _stageMode == StageMode.interactiveWhiteboard,
+                              isIconOnly: isNarrow,
+                              activeColor: const Color(0xFF2563EB),
+                              onTap: () {
+                                setState(() {
+                                  _isWhiteboardActive = !_isWhiteboardActive;
+                                  _stageMode = _isWhiteboardActive ? StageMode.interactiveWhiteboard : StageMode.teacherPresentation;
+                                });
+                              },
+                            ),
+                            const SizedBox(width: 4),
+                            if (!isMedium) ...[
+                              _buildControlButton(
+                                icon: Icons.people_alt_outlined,
+                                label: 'Participants ($participantCount)',
+                                isActive: false,
+                                onTap: () => widget.onOpenParticipants?.call(),
                               ),
-                            );
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            setState(() => _isMicMuted = true);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Microphone permission blocked. Please allow mic access in your browser.'),
-                                backgroundColor: Color(0xFFDC2626),
-                                duration: Duration(seconds: 3),
+                              const SizedBox(width: 4),
+                            ],
+                            _buildControlButton(
+                              icon: Icons.chat_bubble_outline_rounded,
+                              label: 'Chat',
+                              isActive: false,
+                              isIconOnly: isNarrow,
+                              onTap: () => widget.onOpenChat?.call(),
+                            ),
+                            const SizedBox(width: 4),
+                            _buildControlButton(
+                              icon: Icons.help_outline_rounded,
+                              label: 'Q&A',
+                              isActive: false,
+                              isIconOnly: isNarrow,
+                              onTap: () => widget.onOpenQA?.call(),
+                            ),
+                            const SizedBox(width: 4),
+                            if (!isMedium) ...[
+                              _buildControlButton(
+                                icon: Icons.poll_outlined,
+                                label: 'Polls',
+                                isActive: false,
+                                onTap: () => _showPollDialog(context),
                               ),
-                            );
-                          }
-                        }
-                      },
-                    ),
-                    const SizedBox(width: 4),
-                    _buildControlButton(
-                      icon: _isVideoOff ? Icons.videocam_off_rounded : Icons.videocam_rounded,
-                      label: _isVideoOff ? 'Start Video' : 'Stop Video',
-                      isActive: !_isVideoOff,
-                      isIconOnly: isNarrow,
-                      activeColor: Colors.white24,
-                      inactiveColor: Colors.redAccent.withValues(alpha: 0.3),
-                      textColor: _isVideoOff ? Colors.redAccent : Colors.white,
-                      onTap: () async {
-                        try {
-                          await roomService.toggleCamera();
-                          if (mounted) {
-                            setState(() => _isVideoOff = roomService.isCamOff);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(_isVideoOff ? 'Camera turned off.' : 'Camera turned on & streaming.'),
-                                backgroundColor: _isVideoOff ? const Color(0xFF334155) : const Color(0xFF10B981),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            setState(() => _isVideoOff = true);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Camera permission blocked. Please allow camera access in your browser.'),
-                                backgroundColor: Color(0xFFDC2626),
-                                duration: Duration(seconds: 3),
-                              ),
-                            );
-                          }
-                        }
-                      },
-                    ),
-                    const SizedBox(width: 4),
-                    _buildControlButton(
-                      icon: Icons.screen_share_rounded,
-                      label: 'Share Screen',
-                      isActive: _stageMode == StageMode.screenShare,
-                      isIconOnly: isNarrow,
-                      activeColor: const Color(0xFF2563EB),
-                      onTap: () async {
-                        try {
-                          await roomService.toggleScreenShare();
-                          if (mounted) {
-                            setState(() {
-                              _isScreenSharing = roomService.isScreenSharing;
-                              _stageMode = _isScreenSharing ? StageMode.screenShare : StageMode.teacherPresentation;
-                            });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(_isScreenSharing ? 'Screen sharing started.' : 'Screen sharing stopped.'),
-                                backgroundColor: _isScreenSharing ? const Color(0xFF2563EB) : const Color(0xFF334155),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            setState(() {
-                              _isScreenSharing = false;
-                              _stageMode = StageMode.teacherPresentation;
-                            });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Screen sharing cancelled or permission denied.'),
-                                backgroundColor: Color(0xFFDC2626),
-                                duration: Duration(seconds: 3),
-                              ),
-                            );
-                          }
-                        }
-                      },
-                    ),
-                    const SizedBox(width: 4),
-                    _buildControlButton(
-                      icon: Icons.edit_note_rounded,
-                      label: 'Whiteboard',
-                      isActive: _stageMode == StageMode.interactiveWhiteboard,
-                      isIconOnly: isNarrow,
-                      activeColor: const Color(0xFF2563EB),
-                      onTap: () {
-                        setState(() {
-                          _isWhiteboardActive = !_isWhiteboardActive;
-                          _stageMode = _isWhiteboardActive ? StageMode.interactiveWhiteboard : StageMode.teacherPresentation;
-                        });
-                      },
-                    ),
-                    const SizedBox(width: 4),
-                    if (!isMedium) ...[
-                      _buildControlButton(
-                        icon: Icons.people_alt_outlined,
-                        label: 'Participants ($participantCount)',
-                        isActive: false,
-                        onTap: () => widget.onOpenParticipants?.call(),
+                              const SizedBox(width: 4),
+                            ],
+                            // More (...) Popup Menu Button
+                            _buildMoreControlsMenu(context, participantCount),
+                          ],
+                        ),
                       ),
-                      const SizedBox(width: 4),
-                    ],
-                    _buildControlButton(
-                      icon: Icons.chat_bubble_outline_rounded,
-                      label: 'Chat',
-                      isActive: false,
-                      isIconOnly: isNarrow,
-                      onTap: () => widget.onOpenChat?.call(),
                     ),
-                    const SizedBox(width: 4),
-                    _buildControlButton(
-                      icon: Icons.help_outline_rounded,
-                      label: 'Q&A',
-                      isActive: false,
-                      isIconOnly: isNarrow,
-                      onTap: () => widget.onOpenQA?.call(),
-                    ),
-                    const SizedBox(width: 4),
-                    if (!isMedium) ...[
-                      _buildControlButton(
-                        icon: Icons.poll_outlined,
-                        label: 'Polls',
-                        isActive: false,
-                        onTap: () => _showPollDialog(context),
-                      ),
-                      const SizedBox(width: 4),
-                      _buildControlButton(
-                        icon: Icons.grid_view_rounded,
-                        label: 'Breakout',
-                        isActive: false,
-                        onTap: () => _showBreakoutDialog(context),
-                      ),
-                      const SizedBox(width: 4),
-                    ],
-                    // More (...) Popup Menu Button
-                    _buildMoreControlsMenu(context, participantCount),
 
-                    const Spacer(),
+                    const SizedBox(width: 8),
 
-                    // End Class Button
+                    // End Class Button - PINNED on right edge, never clipped
                     ElevatedButton.icon(
                       onPressed: () => _showEndClassConfirmation(context),
                       icon: const Icon(Icons.call_end_rounded, color: Colors.white, size: 15),
@@ -1747,6 +1659,88 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
 
   // MODE A: Teacher Presentation View (Digital Smartboard + Instructor View)
   Widget _buildTeacherPresentationView(String localUserName, lk.VideoTrack? activeCamTrack) {
+    final conductData = ref.watch(liveClassManagementProvider).conductSessionData;
+    final activeSession = widget.session ?? conductData?.activeSession;
+    final subject = (activeSession?.subject.trim().isNotEmpty == true)
+        ? activeSession!.subject.trim()
+        : 'Biology';
+    final rawTopic = (activeSession?.title.trim().isNotEmpty == true)
+        ? activeSession!.title.trim()
+        : ((activeSession?.description.trim().isNotEmpty == true)
+            ? activeSession!.description.trim()
+            : 'Interactive Digital Lesson');
+    final topic = rawTopic.isNotEmpty ? rawTopic : 'Cell Biology & Living Systems';
+
+    final subLower = subject.toLowerCase();
+    final bool isBio = subLower.contains('bio') || subLower.contains('life');
+    final bool isMath = subLower.contains('math') || subLower.contains('algebra') || subLower.contains('calc');
+    final bool isPhys = subLower.contains('phys');
+    final bool isChem = subLower.contains('chem');
+
+    final String chapterTag = isBio
+        ? '${subject.toUpperCase()} • CHAPTER 4: CELL & GENETICS'
+        : (isMath
+            ? '${subject.toUpperCase()} • CHAPTER 4: QUADRATIC EQUATIONS'
+            : (isPhys
+                ? '${subject.toUpperCase()} • CHAPTER 3: LAWS OF MOTION'
+                : (isChem
+                    ? '${subject.toUpperCase()} • CHAPTER 5: CHEMICAL KINETICS'
+                    : '${subject.toUpperCase()} • ACTIVE CLASSROOM MODULE')));
+
+    final String displayTopic = isBio
+        ? (topic.contains('Quadratic') ? 'Cell Biology & Genetic Heritage' : topic)
+        : (isMath ? (topic.contains('Cell') ? 'Quadratic Equations & Roots' : topic) : topic);
+
+    final String conceptBox1 = isBio
+        ? 'Cell Theory: Structural & functional unit of all living organisms'
+        : (isMath
+            ? 'ax² + bx + c = 0    (where a ≠ 0)'
+            : (isPhys
+                ? 'F = m·a    |    p = m·v    (Conservation of Momentum)'
+                : (isChem
+                    ? 'P·V = n·R·T    |    ΔG° = ΔH° - TΔS°'
+                    : 'Curriculum Standard: Interactive Conceptual Synthesis')));
+
+    final String conceptBox2 = isBio
+        ? '6CO₂ + 6H₂O + Light ➔ C₆H₁₂O₆ + 6O₂ (Photosynthesis)'
+        : (isMath
+            ? 'x = (-b ± √(b² - 4ac)) / 2a'
+            : (isPhys
+                ? 'v = u + at    |    s = ut + ½at²    |    v² = u² + 2as'
+                : (isChem
+                    ? 'pH = -log[H⁺]    |    k = A·e^(-Ea/RT)'
+                    : 'Active real-time notes synchronized with student devices')));
+
+    final List<Map<String, dynamic>> pills = isBio
+        ? [
+            {'title': 'DNA Double Helix', 'label': 'A=T, G≡C Base Pairs', 'color': const Color(0xFF10B981)},
+            {'title': 'Mitosis vs Meiosis', 'label': 'Diploid (2n) to Haploid (n)', 'color': const Color(0xFF3B82F6)},
+            {'title': 'Cellular Respiration', 'label': 'Glucose + O₂ ➔ 36 ATP', 'color': const Color(0xFFF59E0B)},
+          ]
+        : (isMath
+            ? [
+                {'title': 'Δ > 0', 'label': 'Two Distinct Real Roots', 'color': const Color(0xFF10B981)},
+                {'title': 'Δ = 0', 'label': 'One Real Repeated Root', 'color': const Color(0xFFF59E0B)},
+                {'title': 'Δ < 0', 'label': 'Complex Conjugate Roots', 'color': const Color(0xFFEC4899)},
+              ]
+            : (isPhys
+                ? [
+                    {'title': 'Newton 1st Law', 'label': 'Inertia & Equilibrium', 'color': const Color(0xFF10B981)},
+                    {'title': 'Newton 2nd Law', 'label': 'Rate of momentum change', 'color': const Color(0xFF3B82F6)},
+                    {'title': 'Newton 3rd Law', 'label': 'Equal & opposite reaction', 'color': const Color(0xFFF59E0B)},
+                  ]
+                : (isChem
+                    ? [
+                        {'title': 'Le Chatelier', 'label': 'Dynamic System Equilibrium', 'color': const Color(0xFF10B981)},
+                        {'title': 'Exothermic', 'label': 'Heat Release (ΔH < 0)', 'color': const Color(0xFFEC4899)},
+                        {'title': 'Activation Energy', 'label': 'Catalyst Transition State', 'color': const Color(0xFF3B82F6)},
+                      ]
+                    : [
+                        {'title': 'Interactive Board', 'label': 'Smart Canvas Ready', 'color': const Color(0xFF10B981)},
+                        {'title': 'Student Sync', 'label': 'Real-time annotations', 'color': const Color(0xFF3B82F6)},
+                        {'title': 'Active Q&A', 'label': 'Peer Collaboration', 'color': const Color(0xFFF59E0B)},
+                      ])));
+
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -1793,9 +1787,9 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                                   color: const Color(0xFF2563EB).withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: const Text(
-                                  'MATHEMATICS - CHAPTER 4',
-                                  style: TextStyle(color: Color(0xFF60A5FA), fontSize: 11, fontWeight: FontWeight.bold),
+                                child: Text(
+                                  chapterTag,
+                                  style: const TextStyle(color: Color(0xFF60A5FA), fontSize: 11, fontWeight: FontWeight.bold),
                                 ),
                               ),
                               const Spacer(),
@@ -1805,18 +1799,18 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                             ],
                           ),
                           const SizedBox(height: 12),
-                          const Text(
-                            'Quadratic Equations',
-                            style: TextStyle(
+                          Text(
+                            displayTopic,
+                            style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 24,
+                              fontSize: 22,
                               fontWeight: FontWeight.bold,
                               fontFamily: 'serif',
                               letterSpacing: 1.1,
                             ),
                           ),
                           const SizedBox(height: 14),
-                          // Standard form formula
+                          // Primary Formula / Concept Box
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                             decoration: BoxDecoration(
@@ -1824,19 +1818,19 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.4)),
                             ),
-                            child: const Text(
-                              'ax² + bx + c = 0    (where a ≠ 0)',
-                              style: TextStyle(
+                            child: Text(
+                              conceptBox1,
+                              style: const TextStyle(
                                 color: Color(0xFFF8FAFC),
-                                fontSize: 22,
+                                fontSize: 17,
                                 fontWeight: FontWeight.bold,
                                 fontStyle: FontStyle.italic,
-                                letterSpacing: 1.2,
+                                letterSpacing: 1.1,
                               ),
                             ),
                           ),
                           const SizedBox(height: 12),
-                          // Quadratic formula solution
+                          // Secondary Solution / Concept Box
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                             decoration: BoxDecoration(
@@ -1844,29 +1838,61 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
                             ),
-                            child: const Text(
-                              'x = (-b ± √(b² - 4ac)) / 2a',
-                              style: TextStyle(
+                            child: Text(
+                              conceptBox2,
+                              style: const TextStyle(
                                 color: Color(0xFF67E8F9),
-                                fontSize: 18,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                letterSpacing: 1.1,
+                                letterSpacing: 1.05,
                               ),
                             ),
                           ),
                           const SizedBox(height: 14),
-                          // Discriminant summary (Scrollable to prevent any RenderFlex overflow on small viewports)
+                          // Concept pills (Safe horizontal scroll with NON-EXPANDED children)
                           SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: Row(
                               children: [
-                                _buildDiscriminantPill('Δ > 0', 'Two Distinct Real Roots', const Color(0xFF10B981)),
-                                const SizedBox(width: 8),
-                                _buildDiscriminantPill('Δ = 0', 'One Real Repeated Root', const Color(0xFFF59E0B)),
-                                const SizedBox(width: 8),
-                                _buildDiscriminantPill('Δ < 0', 'Complex Conjugate Roots', const Color(0xFFEC4899)),
+                                for (int i = 0; i < pills.length; i++) ...[
+                                  _buildSmartboardPill(
+                                    pills[i]['title'] as String,
+                                    pills[i]['label'] as String,
+                                    pills[i]['color'] as Color,
+                                  ),
+                                  if (i < pills.length - 1) const SizedBox(width: 8),
+                                ],
                               ],
                             ),
+                          ),
+                          const SizedBox(height: 12),
+                          // Quick Board Actions
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: [
+                              ActionChip(
+                                avatar: const Icon(Icons.draw_rounded, size: 14, color: Color(0xFF60A5FA)),
+                                label: const Text('Annotate Board', style: TextStyle(fontSize: 11, color: Colors.white)),
+                                backgroundColor: const Color(0xFF1E293B),
+                                side: const BorderSide(color: Color(0xFF3B82F6), width: 0.6),
+                                onPressed: () => setState(() => _stageMode = StageMode.interactiveWhiteboard),
+                              ),
+                              ActionChip(
+                                avatar: const Icon(Icons.slideshow_rounded, size: 14, color: Color(0xFF34D399)),
+                                label: const Text('Present Slides', style: TextStyle(fontSize: 11, color: Colors.white)),
+                                backgroundColor: const Color(0xFF1E293B),
+                                side: const BorderSide(color: Color(0xFF10B981), width: 0.6),
+                                onPressed: () => setState(() => _stageMode = StageMode.screenShare),
+                              ),
+                              ActionChip(
+                                avatar: const Icon(Icons.open_in_new_rounded, size: 14, color: Color(0xFFFBBF24)),
+                                label: const Text('Full Whiteboard Screen', style: TextStyle(fontSize: 11, color: Colors.white)),
+                                backgroundColor: const Color(0xFF1E293B),
+                                side: const BorderSide(color: Color(0xFFF59E0B), width: 0.6),
+                                onPressed: () => widget.onOpenWhiteboard?.call(),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -1930,7 +1956,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                             ),
                           ),
                         ] else if (!_isVideoOff) ...[
-                          // Teacher Live Video Representation (Ready / connecting)
+                          // Teacher Live Video Representation (Ready / connecting / fallback)
                           Container(
                             decoration: const BoxDecoration(
                               gradient: RadialGradient(
@@ -1941,10 +1967,13 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const CircleAvatar(
+                                CircleAvatar(
                                   radius: 46,
-                                  backgroundColor: Color(0xFF4F46E5),
-                                  child: Icon(Icons.person, size: 54, color: Colors.white),
+                                  backgroundColor: const Color(0xFF4F46E5),
+                                  child: Text(
+                                    localUserName.isNotEmpty ? localUserName[0].toUpperCase() : 'T',
+                                    style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                                  ),
                                 ),
                                 const SizedBox(height: 10),
                                 Text(
@@ -1958,8 +1987,13 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                                     color: const Color(0xFF10B981).withValues(alpha: 0.2),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: const Text('Live Camera • Ready', style: TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold)),
+                                  child: const Text('Live Camera • Ready & Streaming', style: TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold)),
                                 ),
+                                const SizedBox(height: 8),
+                                if (!_isMicMuted)
+                                  _buildAnimatedEqualizer()
+                                else
+                                  const Text('Microphone Muted', style: TextStyle(color: Colors.white38, fontSize: 10)),
                               ],
                             ),
                           ),
@@ -1976,20 +2010,24 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                                   child: Icon(Icons.videocam_off_rounded, color: Colors.white54, size: 36),
                                 ),
                                 const SizedBox(height: 10),
-                                const Text('Camera is Turned Off', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                                const SizedBox(height: 8),
-                                ElevatedButton(
+                                Text(localUserName, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 4),
+                                const Text('Camera is Turned Off', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                                const SizedBox(height: 10),
+                                ElevatedButton.icon(
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF2563EB),
                                     foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                                     minimumSize: Size.zero,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                                   ),
-                                  onPressed: () {
+                                  icon: const Icon(Icons.videocam_rounded, size: 14),
+                                  onPressed: () async {
                                     setState(() => _isVideoOff = false);
-                                    ref.read(liveRoomServiceProvider).toggleCamera();
+                                    await ref.read(liveRoomServiceProvider).toggleCamera();
                                   },
-                                  child: const Text('Turn On Camera', style: TextStyle(fontSize: 11)),
+                                  label: const Text('Turn On Camera', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                 ),
                               ],
                             ),
@@ -2007,23 +2045,22 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
     );
   }
 
-  Widget _buildDiscriminantPill(String title, String label, Color col) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: col.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: col.withValues(alpha: 0.4)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: TextStyle(color: col, fontSize: 11, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 2),
-            Text(label, style: const TextStyle(color: Colors.white70, fontSize: 9), maxLines: 1, overflow: TextOverflow.ellipsis),
-          ],
-        ),
+  Widget _buildSmartboardPill(String title, String label, Color col) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: col.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: col.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(title, style: TextStyle(color: col, fontSize: 11, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 2),
+          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 9), maxLines: 1, overflow: TextOverflow.ellipsis),
+        ],
       ),
     );
   }
@@ -2464,6 +2501,51 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
   }
 
   Widget _buildLessonSmartboardBackground() {
+    final conductData = ref.watch(liveClassManagementProvider).conductSessionData;
+    final activeSession = widget.session ?? conductData?.activeSession;
+    final subject = (activeSession?.subject.trim().isNotEmpty == true)
+        ? activeSession!.subject.trim()
+        : 'Biology';
+    final rawTopic = (activeSession?.title.trim().isNotEmpty == true)
+        ? activeSession!.title.trim()
+        : ((activeSession?.description.trim().isNotEmpty == true)
+            ? activeSession!.description.trim()
+            : 'Interactive Digital Lesson');
+    final topic = rawTopic.isNotEmpty ? rawTopic : 'Cell Biology & Living Systems';
+
+    final subLower = subject.toLowerCase();
+    final bool isBio = subLower.contains('bio') || subLower.contains('life');
+    final bool isPhys = subLower.contains('phys');
+    final bool isChem = subLower.contains('chem');
+
+    final String chapterTag = isBio
+        ? '${subject.toUpperCase()} • CHAPTER 4: CELL & GENETICS'
+        : (isPhys
+            ? '${subject.toUpperCase()} • CHAPTER 3: LAWS OF MOTION'
+            : (isChem
+                ? '${subject.toUpperCase()} • CHAPTER 5: CHEMICAL KINETICS'
+                : '${subject.toUpperCase()} • CHAPTER 4: QUADRATIC EQUATIONS'));
+
+    final String displayTopic = isBio
+        ? (topic.contains('Quadratic') ? 'Cell Biology & Living Systems' : topic)
+        : topic;
+
+    final String box1 = isBio
+        ? 'Cell Theory: Structural & functional unit of all living organisms'
+        : (isPhys
+            ? 'F = m·a    |    p = m·v  (Conservation of Momentum)'
+            : (isChem
+                ? 'P·V = n·R·T    |    ΔG° = ΔH° - TΔS°'
+                : 'ax² + bx + c = 0    (where a ≠ 0)'));
+
+    final String box2 = isBio
+        ? 'Photosynthesis: 6CO₂ + 6H₂O + light ➔ C₆H₁₂O₆ + 6O₂'
+        : (isPhys
+            ? 'v = u + at    |    s = ut + ½at²    |    v² = u² + 2as'
+            : (isChem
+                ? 'pH = -log[H⁺]    |    k = A·e^(-Ea/RT)'
+                : 'x = (-b ± √(b² - 4ac)) / 2a'));
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 620;
@@ -2480,7 +2562,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Left Column: Mathematical Formulas & Conditions
+              // Left Column: Key Formulas & Conditions
               Expanded(
                 flex: isCompact ? 1 : 5,
                 child: SingleChildScrollView(
@@ -2497,9 +2579,9 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(color: const Color(0xFF3B82F6), width: 0.8),
                             ),
-                            child: const Text(
-                              'MATHEMATICS • CHAPTER 4',
-                              style: TextStyle(color: Color(0xFF93C5FD), fontSize: 10, fontWeight: FontWeight.bold),
+                            child: Text(
+                              chapterTag,
+                              style: const TextStyle(color: Color(0xFF93C5FD), fontSize: 10, fontWeight: FontWeight.bold),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -2509,9 +2591,9 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                         ],
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Quadratic Equations',
-                        style: TextStyle(
+                      Text(
+                        displayTopic,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -2519,7 +2601,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                         ),
                       ),
                       const SizedBox(height: 8),
-                      // Standard form box
+                      // Concept box 1
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                         decoration: BoxDecoration(
@@ -2527,18 +2609,18 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.4)),
                         ),
-                        child: const Text(
-                          'ax² + bx + c = 0    (where a ≠ 0)',
-                          style: TextStyle(
+                        child: Text(
+                          box1,
+                          style: const TextStyle(
                             color: Color(0xFFF8FAFC),
-                            fontSize: 16,
+                            fontSize: 15,
                             fontWeight: FontWeight.bold,
                             fontStyle: FontStyle.italic,
                           ),
                         ),
                       ),
                       const SizedBox(height: 8),
-                      // Quadratic formula box
+                      // Concept box 2
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                         decoration: BoxDecoration(
@@ -2546,17 +2628,17 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
                         ),
-                        child: const Text(
-                          'x = (-b ± √(b² - 4ac)) / 2a',
-                          style: TextStyle(
+                        child: Text(
+                          box2,
+                          style: const TextStyle(
                             color: Color(0xFF67E8F9),
-                            fontSize: 15,
+                            fontSize: 14.5,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                       const SizedBox(height: 8),
-                      // Discriminant conditions
+                      // Conditions / Highlights summary
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -2566,16 +2648,27 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'D = b² - 4ac (Discriminant):',
-                              style: TextStyle(color: Color(0xFFFBBF24), fontSize: 11, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 4),
-                            _buildDiscriminantSummary('• D > 0 :', 'Two Distinct Real Roots', const Color(0xFF10B981)),
-                            _buildDiscriminantSummary('• D = 0 :', 'One Real Repeated Root', const Color(0xFFF59E0B)),
-                            _buildDiscriminantSummary('• D < 0 :', 'Complex Conjugate Roots', const Color(0xFFEC4899)),
-                          ],
+                          children: isBio
+                              ? [
+                                  const Text(
+                                    'Core Biological Principles:',
+                                    style: TextStyle(color: Color(0xFFFBBF24), fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  _buildDiscriminantSummary('• DNA Structure :', 'Adenine=Thymine, Guanine≡Cytosine', const Color(0xFF10B981)),
+                                  _buildDiscriminantSummary('• Mitosis (2n) :', 'Identical somatic cellular division', const Color(0xFFF59E0B)),
+                                  _buildDiscriminantSummary('• Meiosis (n) :', 'Genetic diversity & gamete formation', const Color(0xFFEC4899)),
+                                ]
+                              : [
+                                  const Text(
+                                    'D = b² - 4ac (Discriminant):',
+                                    style: TextStyle(color: Color(0xFFFBBF24), fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  _buildDiscriminantSummary('• D > 0 :', 'Two Distinct Real Roots', const Color(0xFF10B981)),
+                                  _buildDiscriminantSummary('• D = 0 :', 'One Real Repeated Root', const Color(0xFFF59E0B)),
+                                  _buildDiscriminantSummary('• D < 0 :', 'Complex Conjugate Roots', const Color(0xFFEC4899)),
+                                ],
                         ),
                       ),
                     ],
@@ -2585,7 +2678,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
 
               if (!isCompact) ...[
                 const SizedBox(width: 12),
-                // Right Column: Parabola Graph with Coordinates & Axes
+                // Right Column: Diagram with dynamic Painter
                 Expanded(
                   flex: 4,
                   child: Container(
@@ -2599,7 +2692,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                       children: [
                         Positioned.fill(
                           child: CustomPaint(
-                            painter: _ParabolaLessonPainter(),
+                            painter: isBio ? _BiologyCellLessonPainter() : _ParabolaLessonPainter(),
                           ),
                         ),
                         Positioned(
@@ -2611,9 +2704,13 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                               color: Colors.black54,
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: const Text(
-                              'Parabola: y = ax² + bx + c',
-                              style: TextStyle(color: Color(0xFFF43F5E), fontSize: 10, fontWeight: FontWeight.bold),
+                            child: Text(
+                              isBio ? 'Cell Anatomy: Membrane, Nucleus & Mitochondria' : 'Parabola: y = ax² + bx + c',
+                              style: TextStyle(
+                                color: isBio ? const Color(0xFF34D399) : const Color(0xFFF43F5E),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -3055,8 +3152,6 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
           widget.onOpenParticipants?.call();
         } else if (value == 'polls') {
           _showPollDialog(context);
-        } else if (value == 'breakout') {
-          _showBreakoutDialog(context);
         } else if (value == 'settings') {
           _showClassroomSettingsDialog(context);
         } else if (value == 'network') {
@@ -3083,16 +3178,6 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
               Icon(Icons.poll_outlined, size: 16, color: Colors.white70),
               SizedBox(width: 8),
               Text('Live Polls & Quizzes', style: TextStyle(color: Colors.white, fontSize: 12)),
-            ],
-          ),
-        ),
-        const PopupMenuItem(
-          value: 'breakout',
-          child: Row(
-            children: [
-              Icon(Icons.grid_view_rounded, size: 16, color: Colors.white70),
-              SizedBox(width: 8),
-              Text('Breakout Discussion Rooms', style: TextStyle(color: Colors.white, fontSize: 12)),
             ],
           ),
         ),
@@ -3295,6 +3380,95 @@ class _ParabolaLessonPainter extends CustomPainter {
       drawText('x₁', Offset(x1 - 6, origin.dy + 5), const Color(0xFF38BDF8), fontSize: 10, bold: true);
       drawText('x₂', Offset(x2 + 2, origin.dy + 5), const Color(0xFF38BDF8), fontSize: 10, bold: true);
       drawText('Vertex', Offset(h - 14, k + 5), const Color(0xFFFBBF24), fontSize: 9.5, bold: true);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _BiologyCellLessonPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width < 50 || size.height < 50) return;
+
+    final membranePaint = Paint()
+      ..color = const Color(0xFF10B981)
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke;
+
+    final cytoplasmPaint = Paint()
+      ..color = const Color(0xFF10B981).withValues(alpha: 0.08)
+      ..style = PaintingStyle.fill;
+
+    final nucleusPaint = Paint()
+      ..color = const Color(0xFF3B82F6)
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+
+    final nucleusFill = Paint()
+      ..color = const Color(0xFF3B82F6).withValues(alpha: 0.25)
+      ..style = PaintingStyle.fill;
+
+    final nucleolusPaint = Paint()
+      ..color = const Color(0xFFF59E0B)
+      ..style = PaintingStyle.fill;
+
+    final mitoPaint = Paint()
+      ..color = const Color(0xFFEC4899)
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    final riboPaint = Paint()
+      ..color = const Color(0xFF67E8F9)
+      ..style = PaintingStyle.fill;
+
+    final center = Offset(size.width * 0.5, size.height * 0.5);
+    final membraneRect = Rect.fromCenter(
+      center: center,
+      width: size.width * 0.82,
+      height: size.height * 0.78,
+    );
+
+    // Cell Membrane
+    final rrect = RRect.fromRectAndRadius(membraneRect, const Radius.circular(28));
+    canvas.drawRRect(rrect, cytoplasmPaint);
+    canvas.drawRRect(rrect, membranePaint);
+
+    // Nucleus
+    final nucleusCenter = Offset(center.dx - 18, center.dy);
+    canvas.drawCircle(nucleusCenter, 28, nucleusFill);
+    canvas.drawCircle(nucleusCenter, 28, nucleusPaint);
+
+    // Nucleolus
+    canvas.drawCircle(Offset(nucleusCenter.dx - 4, nucleusCenter.dy - 3), 9, nucleolusPaint);
+
+    // Mitochondria (2 organelles)
+    final mitoRect1 = Rect.fromCenter(
+      center: Offset(center.dx + 42, center.dy - 24),
+      width: 32,
+      height: 16,
+    );
+    canvas.drawOval(mitoRect1, mitoPaint);
+
+    final mitoRect2 = Rect.fromCenter(
+      center: Offset(center.dx + 36, center.dy + 30),
+      width: 30,
+      height: 15,
+    );
+    canvas.drawOval(mitoRect2, mitoPaint);
+
+    // Ribosomes (dots)
+    final riboOffsets = [
+      Offset(center.dx - 30, center.dy - 38),
+      Offset(center.dx - 10, center.dy - 44),
+      Offset(center.dx + 12, center.dy - 38),
+      Offset(center.dx - 42, center.dy + 26),
+      Offset(center.dx - 22, center.dy + 36),
+      Offset(center.dx + 16, center.dy + 42),
+    ];
+    for (final off in riboOffsets) {
+      canvas.drawCircle(off, 2.5, riboPaint);
     }
   }
 

@@ -87,20 +87,30 @@ class _AddStudentPenaltyDialogState extends ConsumerState<AddStudentPenaltyDialo
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _penaltyType,
-                    isExpanded: true,
-                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    items: const [
-                      DropdownMenuItem(value: 'Late Payment Fine', child: Text('Late Payment Fine')),
-                      DropdownMenuItem(value: 'Cheque Bounce Charge', child: Text('Cheque Bounce Charge')),
-                      DropdownMenuItem(value: 'Administrative Surcharge', child: Text('Administrative Surcharge')),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setState(() => _penaltyType = val);
-                    },
-                  ),
+                child: Builder(
+                  builder: (context) {
+                    final Map<String, String> penaltyMap = {
+                      'Late Payment Fine': 'Late Payment Fine',
+                      'Cheque Bounce Charge': 'Cheque Bounce Charge',
+                      'Administrative Surcharge': 'Administrative Surcharge',
+                    };
+                    String effectivePenalty = _penaltyType;
+                    if (!penaltyMap.containsKey(effectivePenalty)) {
+                      penaltyMap[effectivePenalty] = effectivePenalty;
+                    }
+                    return DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        key: ValueKey('penalty_type_$effectivePenalty'),
+                        value: effectivePenalty,
+                        isExpanded: true,
+                        dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        items: penaltyMap.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _penaltyType = val);
+                        },
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 16),

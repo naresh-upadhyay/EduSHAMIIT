@@ -216,14 +216,22 @@ class _UniversalCalendarScreenState extends ConsumerState<UniversalCalendarScree
       showDialog(
         context: context,
         builder: (ctx) {
+          final isDark = Theme.of(ctx).brightness == Brightness.dark;
           return AlertDialog(
+            backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            title: const Text('Delete Schedule?'),
-            content: Text('Are you sure you want to delete "${schedule.title}"? You can restore recently deleted schedules.'),
+            title: Text(
+              'Delete Schedule?',
+              style: TextStyle(fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+            ),
+            content: Text(
+              'Are you sure you want to delete "${schedule.title}"? You can restore recently deleted schedules.',
+              style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
+                child: Text('Cancel', style: TextStyle(color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B))),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -248,6 +256,8 @@ class _UniversalCalendarScreenState extends ConsumerState<UniversalCalendarScree
   void _onSlotClick(DateTime dateTime, int hour) {
     final notifier = ref.read(calendarProvider.notifier);
     final messenger = ScaffoldMessenger.of(context);
+    final primaryColor = Theme.of(context).primaryColor;
+    final primaryHex = '#${primaryColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
 
     showDialog(
       context: context,
@@ -262,7 +272,7 @@ class _UniversalCalendarScreenState extends ConsumerState<UniversalCalendarScree
               'start_time': start.toIso8601String(),
               'end_time': end.toIso8601String(),
               'category': 'General',
-              'color': '#4F46E5',
+              'color': primaryHex,
             };
             final res = await notifier.createSchedule(payload);
             if (!mounted) return;

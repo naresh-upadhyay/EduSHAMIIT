@@ -590,7 +590,7 @@ class LiveStreamingTabView extends StatelessWidget {
                   );
                 },
                 icon: const Icon(Icons.add, size: 14, color: Color(0xFF2563EB)),
-                label: const Text('+ Add Platform', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                label: const Text('Add Platform', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   side: const BorderSide(color: Color(0xFF93C5FD)),

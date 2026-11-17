@@ -17,15 +17,18 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
   late Future<DashboardData> _dashboardFuture;
-  bool _isListenerActive = true;
+  bool _isListenerActive = false;
+  bool _notificationAccessGranted = false;
   bool _isSyncing = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _refresh();
+    _checkNativeStatus();
     WebSocketService().stream.listen((event) {
       if (mounted) {
         setState(() {
@@ -33,6 +36,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
       }
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkNativeStatus();
+      _refresh();
+    }
+  }
+
+  Future<void> _checkNativeStatus() async {
+    final granted = await PlatformBridge.hasNotificationAccess();
+    final running = await PlatformBridge.isListenerRunning();
+    if (mounted) {
+      setState(() {
+        _notificationAccessGranted = granted;
+        _isListenerActive = running;
+      });
+    }
   }
 
   void _refresh() {
@@ -52,6 +80,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await PlatformBridge.syncNow();
     await Future.delayed(const Duration(milliseconds: 600));
     _refresh();
+    await _checkNativeStatus();
     if (mounted) {
       setState(() => _isSyncing = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -84,59 +113,114 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     );
                   } else if (value == 'refresh') {
                     _refresh();
+                    _checkNativeStatus();
                   }
                 },
                 itemBuilder: (ctx) => [
                   const PopupMenuItem(
                     value: 'diagnostics',
-                    child: Text('Device Diagnostics'),
+                    child: Row(
+                      children: [
+                        Icon(Icons.monitor_heart, color: AppColors.primaryBlue, size: 20),
+                        SizedBox(width: 10),
+                        Text('Device Diagnostics'),
+                      ],
+                    ),
                   ),
                   const PopupMenuItem(
                     value: 'refresh',
-                    child: Text('Refresh Data'),
+                    child: Row(
+                      children: [
+                        Icon(Icons.refresh, color: AppColors.textPrimary, size: 20),
+                        SizedBox(width: 10),
+                        Text('Refresh Data'),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ],
           ),
           Expanded(
-            child: FutureBuilder<DashboardData>(
-              future: _dashboardFuture,
-              builder: (context, snapshot) {
-                final data = snapshot.data ?? DashboardData.mock();
-                return RefreshIndicator(
-                  onRefresh: () async => _refresh(),
-                  child: SingleChildScrollView(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                _refresh();
+                await _checkNativeStatus();
+              },
+              child: FutureBuilder<DashboardData>(
+                future: _dashboardFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final data = snapshot.data ?? DashboardData.mock();
+
+                  return SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // 1. Payment Listener Active Switch Card
+                        // Card 1: Payment Listener Switch
                         _buildListenerActiveCard(data),
                         const SizedBox(height: 12),
 
-                        // 2. 4 Metric Cards in horizontal row
+                        // Card 2: 4 Metric Cards
                         _buildMetricCardsRow(data.metrics),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
 
-                        // 3. System Status Card
+                        // Card 3: System Status Checklist
                         _buildSystemStatusCard(data.systemStatus),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
 
-                        // 4. Today's Activity Card
+                        // Card 4: Today's Activity Feed
                         _buildTodayActivityCard(data.todayActivity),
                         const SizedBox(height: 16),
 
-                        // 5. Sync Now Button & Timestamp Caption
-                        _buildSyncNowSection(data.metrics.lastSyncTime),
+                        // Card 5: Sync Now Button
+                        ElevatedButton.icon(
+                          onPressed: _isSyncing ? null : _handleSyncNow,
+                          icon: _isSyncing
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.sync, size: 20),
+                          label: Text(
+                            _isSyncing ? 'Syncing...' : 'Sync Now',
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryBlue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Center(
+                          child: Text(
+                            'Last successful sync: ${data.metrics.lastSyncTime}',
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
                         const SizedBox(height: 24),
                       ],
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         ],
@@ -153,33 +237,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFFE8F8EE),
+                color: _isListenerActive ? const Color(0xFFE8F8EE) : const Color(0xFFFEE2E2),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFB7E4C7)),
+                border: Border.all(
+                  color: _isListenerActive ? const Color(0xFFB7E4C7) : const Color(0xFFFCA5A5),
+                ),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.phone_android,
-                color: Color(0xFF10A352),
+                color: _isListenerActive ? const Color(0xFF10A352) : const Color(0xFFEF4444),
                 size: 24,
               ),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Payment Listener Active',
-                    style: TextStyle(
+                    _isListenerActive ? 'Payment Listener Active' : 'Payment Listener Inactive',
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
-                    'Monitoring UPI payment notifications',
-                    style: TextStyle(
+                    _isListenerActive
+                        ? 'Monitoring UPI payment notifications'
+                        : 'Grant notification permission to monitor UPI',
+                    style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 11,
                     ),
@@ -190,8 +278,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Switch(
               value: _isListenerActive,
               activeThumbColor: const Color(0xFF10A352),
-              onChanged: (val) {
-                setState(() => _isListenerActive = val);
+              onChanged: (val) async {
+                if (!_notificationAccessGranted) {
+                  await PlatformBridge.openNotificationSettings();
+                } else {
+                  setState(() => _isListenerActive = val);
+                }
               },
             ),
           ],
@@ -227,7 +319,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: DashboardMetricCard(
             label: 'Unmatched\nPayments',
             value: '${m.unmatchedPayments}',
-            icon: Icons.warning_amber_rounded,
+            icon: Icons.priority_high,
             iconColor: const Color(0xFFE67E22),
             iconBgColor: const Color(0xFFFFF4E5),
           ),
@@ -272,7 +364,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _buildStatusRow(
               icon: Icons.notifications_active_outlined,
               title: 'Notification Access',
-              badgeText: s.notificationAccess,
+              badgeText: _notificationAccessGranted ? 'Granted' : 'Permission Required',
+              isWarning: !_notificationAccessGranted,
               onTap: () => PlatformBridge.openNotificationSettings(),
             ),
             const Divider(color: AppColors.divider, height: 16),
@@ -280,7 +373,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               icon: Icons.grid_view_rounded,
               title: 'Monitored UPI Apps',
               badgeText: s.monitoredUpiApps,
-              onTap: () => widget.onNavigateTab(3), // Navigate to settings
+              onTap: () => widget.onNavigateTab(3),
             ),
             const Divider(color: AppColors.divider, height: 16),
             _buildStatusRow(
@@ -313,37 +406,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required IconData icon,
     required String title,
     required String badgeText,
+    bool isWarning = false,
     VoidCallback? onTap,
   }) {
     return InkWell(
       onTap: onTap,
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: AppColors.primaryBlue),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w500,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: isWarning ? AppColors.warningOrange : AppColors.primaryBlue),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
-          ),
-          const Icon(Icons.check, color: AppColors.successGreen, size: 14),
-          const SizedBox(width: 4),
-          Text(
-            badgeText,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.successGreen,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isWarning ? Icons.warning_amber_rounded : Icons.check,
+                  size: 14,
+                  color: isWarning ? AppColors.warningOrange : AppColors.successGreen,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  badgeText,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isWarning ? AppColors.warningOrange : AppColors.successGreen,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 12,
+                  color: AppColors.textMuted,
+                ),
+              ],
             ),
-          ),
-          const SizedBox(width: 4),
-          const Icon(Icons.chevron_right, size: 16, color: AppColors.textMuted),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -353,14 +463,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.bar_chart,
-                        color: AppColors.primaryBlue, size: 20),
+                    Icon(Icons.bar_chart, color: AppColors.primaryBlue, size: 20),
                     SizedBox(width: 8),
                     Text(
                       "Today's Activity",
@@ -372,20 +482,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ],
                 ),
-                InkWell(
-                  onTap: () => widget.onNavigateTab(1), // Go to Notifications
+                GestureDetector(
+                  onTap: () => widget.onNavigateTab(1),
                   child: const Row(
                     children: [
                       Text(
                         'View All',
                         style: TextStyle(
-                          fontSize: 12,
                           color: AppColors.primaryBlue,
+                          fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      Icon(Icons.chevron_right,
-                          color: AppColors.primaryBlue, size: 16),
+                      Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.primaryBlue),
                     ],
                   ),
                 ),
@@ -394,50 +503,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 12),
             if (activities.isEmpty)
               const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Text('No activity recorded yet today.'),
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: Text(
+                    'No activities detected today yet',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                  ),
+                ),
               )
             else
-              ...activities.map((a) => _buildActivityTile(a)),
+              ...activities.map((item) => _buildActivityRow(item)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildActivityTile(ActivityItem item) {
-    IconData icon;
-    Color iconColor;
+  Widget _buildActivityRow(ActivityItem item) {
     Color iconBg;
+    Color iconFg;
+    IconData icon;
 
-    if (item.iconType == 'SUCCESS') {
-      icon = Icons.check;
-      iconColor = AppColors.successGreen;
-      iconBg = AppColors.successGreenBg;
-    } else if (item.iconType == 'WARNING') {
-      icon = Icons.priority_high;
-      iconColor = AppColors.warningOrange;
-      iconBg = AppColors.warningOrangeBg;
-    } else {
-      icon = Icons.schedule;
-      iconColor = AppColors.pendingBlue;
-      iconBg = AppColors.pendingBlueBg;
+    switch (item.iconType) {
+      case 'SUCCESS':
+        icon = Icons.check;
+        iconBg = const Color(0xFFE8F8EE);
+        iconFg = const Color(0xFF10A352);
+        break;
+      case 'WARNING':
+        icon = Icons.priority_high;
+        iconBg = const Color(0xFFFFF4E5);
+        iconFg = const Color(0xFFE67E22);
+        break;
+      case 'IGNORED':
+        icon = Icons.arrow_outward;
+        iconBg = const Color(0xFFF1F5F9);
+        iconFg = const Color(0xFF64748B);
+        break;
+      default:
+        icon = Icons.notifications_none;
+        iconBg = const Color(0xFFE8F1FE);
+        iconFg = const Color(0xFF0B63F6);
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(4),
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: iconBg,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: iconColor, size: 14),
+            child: Icon(icon, size: 16, color: iconFg),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -445,8 +567,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Text(
                   item.title,
                   style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
                     color: AppColors.textPrimary,
                   ),
                 ),
@@ -465,56 +587,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             item.time,
             style: const TextStyle(
               fontSize: 11,
-              color: AppColors.textMuted,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSyncNowSection(String lastSyncTime) {
-    return Column(
-      children: [
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: ElevatedButton.icon(
-            onPressed: _isSyncing ? null : _handleSyncNow,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryBlue,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              elevation: 0,
-            ),
-            icon: _isSyncing
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(Icons.sync, size: 20),
-            label: Text(
-              _isSyncing ? 'Syncing...' : 'Sync Now',
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Last successful sync: $lastSyncTime',
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: AppColors.textMuted,
-            fontSize: 11,
-          ),
-        ),
-      ],
     );
   }
 }

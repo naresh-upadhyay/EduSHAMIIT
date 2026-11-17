@@ -1199,6 +1199,7 @@ class MetaDropdownsData {
   final List<SubjectDropdownItem> subjects;
   final List<TeacherDropdownItem> teachers;
   final List<SessionDropdownItem> sessions;
+  final List<ClassSubjectMapItem> classSubjects;
 
   MetaDropdownsData({
     required this.classes,
@@ -1206,6 +1207,7 @@ class MetaDropdownsData {
     required this.subjects,
     required this.teachers,
     required this.sessions,
+    this.classSubjects = const [],
   });
 
   factory MetaDropdownsData.fromJson(Map<String, dynamic> json) {
@@ -1214,6 +1216,7 @@ class MetaDropdownsData {
     final sub = (json['subjects'] as List?)?.map((sb) => SubjectDropdownItem.fromJson(sb)).toList() ?? [];
     final tch = (json['teachers'] as List?)?.map((t) => TeacherDropdownItem.fromJson(t)).toList() ?? [];
     final ses = (json['sessions'] as List?)?.map((se) => SessionDropdownItem.fromJson(se)).toList() ?? [];
+    final clssub = (json['class_subjects'] as List?)?.map((cs) => ClassSubjectMapItem.fromJson(cs)).toList() ?? [];
 
     return MetaDropdownsData(
       classes: cls,
@@ -1221,6 +1224,33 @@ class MetaDropdownsData {
       subjects: sub,
       teachers: tch,
       sessions: ses,
+      classSubjects: clssub,
+    );
+  }
+}
+
+class ClassSubjectMapItem {
+  final String classId;
+  final String? sectionId;
+  final String subjectId;
+  final String subjectName;
+  final String subjectIcon;
+
+  ClassSubjectMapItem({
+    required this.classId,
+    this.sectionId,
+    required this.subjectId,
+    required this.subjectName,
+    required this.subjectIcon,
+  });
+
+  factory ClassSubjectMapItem.fromJson(Map<String, dynamic> json) {
+    return ClassSubjectMapItem(
+      classId: json['class_id'] ?? '',
+      sectionId: json['section_id'],
+      subjectId: json['subject_id'] ?? '',
+      subjectName: json['subject_name'] ?? '',
+      subjectIcon: SubjectDropdownItem.sanitizeSubjectIcon(json['subject_icon'], json['subject_name'] ?? ''),
     );
   }
 }
@@ -1259,17 +1289,49 @@ class SubjectDropdownItem {
   final String id;
   final String name;
   final String? icon;
+  final String? classId;
   final String? className;
+  final String? sectionId;
 
-  SubjectDropdownItem({required this.id, required this.name, this.icon, this.className});
+  SubjectDropdownItem({
+    required this.id,
+    required this.name,
+    this.icon,
+    this.classId,
+    this.className,
+    this.sectionId,
+  });
 
   factory SubjectDropdownItem.fromJson(Map<String, dynamic> json) {
     return SubjectDropdownItem(
       id: json['id'] ?? '',
       name: json['name'] ?? '',
-      icon: json['icon'],
-      className: json['class'],
+      icon: SubjectDropdownItem.sanitizeSubjectIcon(json['icon'], json['name'] ?? ''),
+      classId: json['class_id'],
+      className: json['class_name'] ?? json['class'],
+      sectionId: json['section_id'],
     );
+  }
+
+  static String sanitizeSubjectIcon(String? icon, String subjectName) {
+    if (icon == null ||
+        icon.isEmpty ||
+        icon.contains('ð') ||
+        icon.contains('') ||
+        icon.codeUnits.any((u) => u > 0x10FFFF) ||
+        icon.length > 6) {
+      final lower = subjectName.toLowerCase();
+      if (lower.contains('math')) return '📐';
+      if (lower.contains('phys')) return '⚛';
+      if (lower.contains('chem')) return '🧪';
+      if (lower.contains('bio')) return '🧬';
+      if (lower.contains('comp') || lower.contains('code') || lower.contains('tech')) return '💻';
+      if (lower.contains('eng') || lower.contains('lit')) return '📖';
+      if (lower.contains('sci')) return '🔬';
+      if (lower.contains('hist') || lower.contains('geo') || lower.contains('soc')) return '🌍';
+      return '📚';
+    }
+    return icon;
   }
 }
 
@@ -1512,7 +1574,7 @@ class MyClassItem {
       sectionId: json['section_id'],
       subjectId: json['subject_id'],
       subjectName: json['subject_name'] ?? 'Mathematics',
-      subjectIcon: json['subject_icon'] ?? '📚',
+      subjectIcon: SubjectDropdownItem.sanitizeSubjectIcon(json['subject_icon'], json['subject_name'] ?? 'Mathematics'),
       topic: json['topic'] ?? 'Quadratic Equations – Part 1',
       description: json['description'] ?? '',
       teacherId: json['teacher_id'],

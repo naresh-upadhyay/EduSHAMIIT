@@ -85,23 +85,33 @@ class _BulkStudentInvoiceDialogState extends ConsumerState<BulkStudentInvoiceDia
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedClass,
-                    isExpanded: true,
-                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    items: const [
-                      DropdownMenuItem(value: 'All Classes', child: Text('All Enrolled Students (Entire School)')),
-                      DropdownMenuItem(value: 'Class 5', child: Text('Class 5')),
-                      DropdownMenuItem(value: 'Class 9', child: Text('Class 9')),
-                      DropdownMenuItem(value: 'Class 10', child: Text('Class 10')),
-                      DropdownMenuItem(value: 'Class 11', child: Text('Class 11')),
-                      DropdownMenuItem(value: 'Class 12', child: Text('Class 12')),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedClass = val);
-                    },
-                  ),
+                child: Builder(
+                  builder: (context) {
+                    final Map<String, String> classMap = {
+                      'All Classes': 'All Enrolled Students (Entire School)',
+                      'Class 5': 'Class 5',
+                      'Class 9': 'Class 9',
+                      'Class 10': 'Class 10',
+                      'Class 11': 'Class 11',
+                      'Class 12': 'Class 12',
+                    };
+                    String effectiveClass = _selectedClass;
+                    if (!classMap.containsKey(effectiveClass)) {
+                      classMap[effectiveClass] = effectiveClass;
+                    }
+                    return DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        key: ValueKey('bulk_invoice_class_$effectiveClass'),
+                        value: effectiveClass,
+                        isExpanded: true,
+                        dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        items: classMap.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _selectedClass = val);
+                        },
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 16),

@@ -181,6 +181,12 @@ export 'screens/inventory/inventory_management_screen.dart';
 // Payment / Finance Module
 export 'screens/payment_management/student_fee_management_screen.dart';
 export 'screens/payment_management/staff_salary_management_screen.dart';
+export 'screens/payment_management/models/student_fee_models.dart';
+export 'screens/payment_management/models/staff_salary_models.dart';
+export 'screens/payment_management/providers/student_fee_provider.dart';
+export 'screens/payment_management/providers/staff_salary_provider.dart';
+export 'screens/payment_management/services/payment_management_api_service.dart';
+export 'screens/payment_management/services/payment_lookup_helper.dart';
 
 // Calls & Overlay
 export 'services/call_service.dart';

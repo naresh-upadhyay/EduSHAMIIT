@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,7 +6,9 @@ import '../models/live_class_models.dart';
 import '../providers/live_class_management_provider.dart';
 import '../services/in_app_live_room_service.dart';
 import '../widgets/create_instant_class_dialog.dart';
-import '../widgets/start_new_class_dialog.dart';
+import '../widgets/edit_live_class_dialog.dart';
+import '../../calendar/widgets/dialogs/create_edit_schedule_dialog.dart';
+import '../../calendar/providers/calendar_provider.dart';
 import '../widgets/live_class_chat_panel.dart';
 import '../widgets/live_class_stat_card.dart';
 import '../widgets/live_classroom_stage.dart';
@@ -46,6 +49,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
   String _selectedSubnav = 'My Classes (Today)';
   bool _isStageFullscreen = false;
   final TextEditingController _searchCtrl = TextEditingController();
+  final GlobalKey<LiveClassChatPanelState> _chatPanelKey = GlobalKey<LiveClassChatPanelState>();
 
   // Join via Code Controllers
   final TextEditingController _joinCodeCtrl = TextEditingController(text: '10A-MATH');
@@ -100,10 +104,98 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
   }
 
   void _showStartNewClassWizard() {
+    final calendarState = ref.read(calendarProvider);
+    final calendarNotifier = ref.read(calendarProvider.notifier);
+    final liveClassNotifier = ref.read(liveClassManagementProvider.notifier);
+    final messenger = ScaffoldMessenger.of(context);
+
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => const StartNewClassDialog(),
+      barrierDismissible: true,
+      builder: (ctx) => CreateEditScheduleDialog(
+        defaultScheduleType: 'Class',
+        defaultDateTime: DateTime.now(),
+        calendars: calendarState.calendars,
+        resources: calendarState.resources,
+        isLiveClass: true,
+        onSave: (payload, {recurrenceScope = 'entire_series', targetInstanceDate}) async {
+          try {
+            // 1. Create calendar schedule
+            await calendarNotifier.createSchedule(payload);
+
+            // 2. Extract curriculum cohort details from payload target_class_sections
+            String? classId;
+            String? sectionId;
+            String? subjectId;
+            String? classSectionStr;
+            String? subjectStr;
+
+            if (payload['target_class_sections'] is List && (payload['target_class_sections'] as List).isNotEmpty) {
+              final firstTarget = (payload['target_class_sections'] as List).first as Map<String, dynamic>;
+              classId = firstTarget['class_id']?.toString();
+              sectionId = firstTarget['section_id']?.toString();
+              subjectId = firstTarget['subject_id']?.toString();
+              classSectionStr = firstTarget['display_name']?.toString() ??
+                  '${firstTarget['class_name']} - ${firstTarget['section_name']}';
+              subjectStr = firstTarget['subject_name']?.toString();
+            }
+
+            int durationMin = 45;
+            if (payload['end_time'] != null && payload['start_time'] != null) {
+              try {
+                final diff = DateTime.parse(payload['end_time']).difference(DateTime.parse(payload['start_time'])).inMinutes;
+                if (diff > 0) durationMin = diff;
+              } catch (_) {}
+            }
+
+            final liveClassPayload = {
+              'title': payload['title'],
+              'description': payload['description'],
+              'class_id': classId,
+              'section_id': sectionId,
+              'subject_id': subjectId,
+              'class_section': classSectionStr,
+              'subject': subjectStr,
+              'scheduled_at': payload['start_time'],
+              'duration_minutes': durationMin,
+              'meeting_duration': durationMin,
+              'virtual_meeting_url': payload['virtual_meeting_url'],
+              'meeting_link': payload['virtual_meeting_url'],
+              'platform': 'In-App',
+              'status': 'scheduled',
+              'recording_enabled': true,
+              'waiting_room_enabled': false,
+              'allow_student_share': false,
+              'allow_student_mic': true,
+              'allow_student_cam': true,
+              'allow_chat': true,
+              'allow_reactions': true,
+              'max_participants': 50,
+            };
+
+            await liveClassNotifier.createInstantClass(liveClassPayload);
+            await liveClassNotifier.refreshJoinConduct();
+
+            if (mounted) {
+              messenger.showSnackBar(
+                const SnackBar(
+                  backgroundColor: Color(0xFF10B981),
+                  content: Text('Live Class scheduled successfully and synchronized with Calendar!'),
+                ),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              messenger.showSnackBar(
+                SnackBar(
+                  backgroundColor: Colors.redAccent,
+                  content: Text('Error scheduling live class: $e'),
+                ),
+              );
+            }
+          }
+        },
+      ),
     );
   }
 
@@ -199,6 +291,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
         String? selectedOptionId;
         final currentPoll = ref.read(liveClassManagementProvider).conductSessionData?.activePoll;
         bool isCreatingNew = currentPoll == null;
+        bool isLaunchingPoll = false;
         final newQuestionCtrl = TextEditingController();
         final optionControllers = <TextEditingController>[
           TextEditingController(),
@@ -447,7 +540,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(ctx),
+                  onPressed: isLaunchingPoll ? null : () => Navigator.pop(ctx),
                   child: const Text('Close', style: TextStyle(color: Colors.white60)),
                 ),
                 if (isCreatingNew)
@@ -457,53 +550,89 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    onPressed: () async {
-                      final question = newQuestionCtrl.text.trim();
-                      if (question.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please enter a poll question')),
-                        );
-                        return;
-                      }
-                      final options = optionControllers
-                          .map((c) => c.text.trim())
-                          .where((o) => o.isNotEmpty)
-                          .toList();
-                      if (options.length < 2) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please provide at least 2 options for the poll')),
-                        );
-                        return;
-                      }
+                    onPressed: isLaunchingPoll
+                        ? null
+                        : () async {
+                            if (isLaunchingPoll) return;
+                            final question = newQuestionCtrl.text.trim();
+                            if (question.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Please enter a poll question')),
+                              );
+                              return;
+                            }
+                            final options = optionControllers
+                                .map((c) => c.text.trim())
+                                .where((o) => o.isNotEmpty)
+                                .toList();
+                            if (options.length < 2) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Please provide at least 2 options for the poll')),
+                              );
+                              return;
+                            }
 
-                      await notifier.createPoll({
-                        'title': question,
-                        'question': question,
-                        'options': options.asMap().entries.map((e) => {
-                          'id': 'opt_${e.key + 1}',
-                          'text': e.value,
-                        }).toList(),
-                      });
+                            setDialogState(() => isLaunchingPoll = true);
 
-                      try {
-                        await roomService.broadcastData({
-                          'type': 'poll_launched',
-                          'question': question,
-                        });
-                      } catch (_) {}
+                            try {
+                              final success = await notifier.createPoll({
+                                'title': question,
+                                'question': question,
+                                'options': options.asMap().entries.map((e) => {
+                                  'id': 'opt_${e.key + 1}',
+                                  'text': e.value,
+                                }).toList(),
+                              });
 
-                      setDialogState(() {
-                        isCreatingNew = false;
-                        selectedOptionId = null;
-                      });
+                              if (success) {
+                                try {
+                                  await roomService.broadcastData({
+                                    'type': 'poll_launched',
+                                    'question': question,
+                                  });
+                                } catch (_) {}
 
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Live poll "$question" broadcasted successfully!')),
-                        );
-                      }
-                    },
-                    child: const Text('Launch Poll Now'),
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx);
+                                }
+
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Live poll "$question" broadcasted successfully!'),
+                                      backgroundColor: const Color(0xFF10B981),
+                                    ),
+                                  );
+                                }
+                              } else {
+                                if (ctx.mounted) {
+                                  setDialogState(() => isLaunchingPoll = false);
+                                }
+                              }
+                            } catch (e) {
+                              if (ctx.mounted) {
+                                setDialogState(() => isLaunchingPoll = false);
+                              }
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Failed to launch poll: $e'),
+                                    backgroundColor: Colors.redAccent,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                    child: isLaunchingPoll
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Launch Poll Now'),
                   )
                 else if (activePoll != null)
                   ElevatedButton(
@@ -533,132 +662,6 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                           },
                     child: const Text('Submit Vote'),
                   ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _showBreakoutRoomsDialog() {
-    final state = ref.read(liveClassManagementProvider);
-    final activeSessionId = state.conductSessionData?.activeSession.id ?? state.joinDashboard?.activeSession?.id ?? 'sess-active';
-    final rooms = state.conductSessionData?.breakoutRooms ?? [];
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        final roomNameCtrl = TextEditingController(text: 'Group Study Room ${rooms.length + 1}');
-
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final currentRooms = ref.watch(liveClassManagementProvider).conductSessionData?.breakoutRooms ?? rooms;
-
-            return AlertDialog(
-              backgroundColor: const Color(0xFF1E222D),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: Row(
-                children: [
-                  Icon(Icons.grid_view_rounded, color: LiveClassTheme.primary(context)),
-                  const SizedBox(width: 8),
-                  const Text('Breakout Rooms', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                ],
-              ),
-              content: SizedBox(
-                width: 480,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Active Breakout Rooms', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 8),
-                    if (currentRooms.isNotEmpty)
-                      ...currentRooms.map((r) => Container(
-                        margin: const EdgeInsets.only(bottom: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2A2E3D),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white10),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.meeting_room_outlined, color: Color(0xFF10B981), size: 16),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(r.name, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.white10,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text('${r.participants.length}/${r.capacity} participants', style: const TextStyle(color: Colors.white70, fontSize: 10)),
-                            ),
-                            const SizedBox(width: 6),
-                            IconButton(
-                              icon: const Icon(Icons.close_rounded, size: 15, color: Color(0xFFF87171)),
-                              tooltip: 'Close Breakout Room',
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: () async {
-                                await ref.read(liveClassManagementProvider.notifier).closeBreakoutRoom(activeSessionId, r.id);
-                                setDialogState(() {});
-                              },
-                            ),
-                          ],
-                        ),
-                      ))
-                    else
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: const Color(0xFF2A2E3D), borderRadius: BorderRadius.circular(8)),
-                        child: const Text('No active breakout rooms configured. Create one below to split the class.', style: TextStyle(color: Colors.white60, fontSize: 11)),
-                      ),
-                    const SizedBox(height: 14),
-                    const Text('Create New Breakout Room', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: roomNameCtrl,
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: const Color(0xFF2A2E3D),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Close', style: TextStyle(color: Colors.white60)),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: LiveClassTheme.primary(context), foregroundColor: Colors.white),
-                  onPressed: () async {
-                    final name = roomNameCtrl.text.trim();
-                    if (name.isNotEmpty) {
-                      await ref.read(liveClassManagementProvider.notifier).createBreakoutRoom(
-                        activeSessionId,
-                        name,
-                        8,
-                      );
-                      if (context.mounted) {
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Breakout room "$name" created successfully')),
-                        );
-                      }
-                    }
-                  },
-                  child: const Text('Create & Start'),
-                ),
               ],
             );
           },
@@ -853,6 +856,124 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
     );
   }
 
+  void _showDeleteSessionDialog(String sessionId, String classTitle) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Delete $classTitle', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
+        content: const Text(
+          'Are you sure you want to permanently delete this live class session? This action cannot be undone.',
+          style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final success = await ref.read(liveClassManagementProvider.notifier).deleteMyClass(sessionId);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(success ? 'Session deleted successfully' : 'Failed to delete session'),
+                    backgroundColor: success ? const Color(0xFF10B981) : const Color(0xFFDC2626),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
+            child: const Text('Confirm Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBulkCancelDialog(List<String> sessionIds) {
+    final reasonCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Bulk Cancel (${sessionIds.length} classes)', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFF59E0B))),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Are you sure you want to cancel all ${sessionIds.length} selected classes? All enrolled students will be notified.',
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF475569))),
+              const SizedBox(height: 14),
+              TextField(
+                controller: reasonCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Cancellation Reason',
+                  hintText: 'e.g. Mass scheduling adjustment',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Back')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final success = await ref.read(liveClassManagementProvider.notifier).bulkCancelSelectedMyClasses(
+                    reasonCtrl.text.isNotEmpty ? reasonCtrl.text : 'Bulk cancellation by teacher',
+                  );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(success ? 'Selected classes cancelled successfully' : 'Failed to bulk cancel classes'),
+                    backgroundColor: success ? const Color(0xFF10B981) : const Color(0xFFDC2626),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF59E0B)),
+            child: const Text('Confirm Bulk Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBulkDeleteDialog(List<String> sessionIds) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Bulk Delete (${sessionIds.length} classes)', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
+        content: Text(
+          'Are you sure you want to permanently delete all ${sessionIds.length} selected classes? This cannot be undone.',
+          style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final success = await ref.read(liveClassManagementProvider.notifier).bulkDeleteSelectedMyClasses();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(success ? 'Selected classes deleted successfully' : 'Failed to bulk delete classes'),
+                    backgroundColor: success ? const Color(0xFF10B981) : const Color(0xFFDC2626),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
+            child: const Text('Confirm Bulk Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _openWhiteboardWorkspace([String? overrideSessionId, String? overrideTitle]) {
     final s = ref.read(liveClassManagementProvider);
     final activeSess = s.conductSessionData?.activeSession ?? s.joinDashboard?.activeSession;
@@ -926,6 +1047,9 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
             setState(() => _isStageFullscreen = false);
             leaveBrowserFullscreen();
           },
+          onOpenChat: () => _chatPanelKey.currentState?.selectTab(1),
+          onOpenParticipants: () => _chatPanelKey.currentState?.selectTab(0),
+          onOpenQA: () => _chatPanelKey.currentState?.selectTab(2),
           onOpenWhiteboard: _openWhiteboardWorkspace,
           onEndClass: () {
             setState(() {
@@ -977,6 +1101,9 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                           session: activeSess,
                           isFullscreen: _isStageFullscreen,
                           onToggleFullscreen: () => setState(() => _isStageFullscreen = !_isStageFullscreen),
+                          onOpenChat: () => _chatPanelKey.currentState?.selectTab(1),
+                          onOpenParticipants: () => _chatPanelKey.currentState?.selectTab(0),
+                          onOpenQA: () => _chatPanelKey.currentState?.selectTab(2),
                           onOpenWhiteboard: _openWhiteboardWorkspace,
                           onEndClass: () {
                             if (activeSess != null) {
@@ -993,6 +1120,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                       SizedBox(
                         height: 460,
                         child: LiveClassChatPanel(
+                          key: _chatPanelKey,
                           participants: state.conductSessionData?.participants ?? state.joinDashboard?.participants,
                         ),
                       ),
@@ -1056,6 +1184,9 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                           session: activeSess,
                           isFullscreen: _isStageFullscreen,
                           onToggleFullscreen: () => setState(() => _isStageFullscreen = !_isStageFullscreen),
+                          onOpenChat: () => _chatPanelKey.currentState?.selectTab(1),
+                          onOpenParticipants: () => _chatPanelKey.currentState?.selectTab(0),
+                          onOpenQA: () => _chatPanelKey.currentState?.selectTab(2),
                           onOpenWhiteboard: _openWhiteboardWorkspace,
                           onEndClass: () {
                             if (activeSess != null) {
@@ -1076,6 +1207,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                       child: SizedBox(
                         height: 530,
                         child: LiveClassChatPanel(
+                          key: _chatPanelKey,
                           participants: state.conductSessionData?.participants ?? state.joinDashboard?.participants,
                         ),
                       ),
@@ -1415,7 +1547,6 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
           _buildSubnavItem(Icons.headphones_outlined, 'Device & Audio Test'),
           _buildSubnavItem(Icons.poll_outlined, 'Live Polls & Q&A'),
           _buildSubnavItem(Icons.draw_outlined, 'Open Whiteboard'),
-          _buildSubnavItem(Icons.grid_view_rounded, 'Breakout Rooms'),
           _buildSubnavItem(Icons.podcasts_rounded, 'Streaming & Broadcast'),
         ],
       ),
@@ -1439,8 +1570,6 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
           _showLivePollsDialog();
         } else if (label == 'Open Whiteboard') {
           _openWhiteboardWorkspace();
-        } else if (label == 'Breakout Rooms') {
-          _showBreakoutRoomsDialog();
         } else if (label == 'Streaming & Broadcast') {
           setState(() => _selectedSubnav = 'Streaming & Broadcast');
         } else {
@@ -1728,6 +1857,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                     );
                     await roomService.initializeRoom();
                   } catch (_) {}
+                  if (!mounted) return;
                   setState(() => _selectedSubnav = 'Conduct Class');
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -1915,6 +2045,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                 );
                 await roomService.initializeRoom();
               } catch (_) {}
+              if (!mounted) return;
               setState(() => _selectedSubnav = 'Conduct Class');
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -2291,7 +2422,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                           'max_participants': _settingMaxCapacity,
                         },
                       );
-                      if (context.mounted) {
+                      if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Class session settings updated & synchronized successfully!')),
                         );
@@ -3714,7 +3845,8 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
             }
             if (sessions.isEmpty) sessions.add('2026 - 2027');
 
-            final classesList = state.dropdownsData?.classes ?? [];
+            final meta = state.dropdownsData;
+            final classesList = meta?.classes ?? [];
             final classNames = <String>['All Classes'];
             for (final c in classesList) {
               final trimmed = c.name.trim();
@@ -3725,7 +3857,8 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
             final selectedClassItem = classesList.where((c) => c.id == state.myClassesClassFilter || c.name == state.myClassesClassFilter).firstOrNull;
             final selectedClassLabel = selectedClassItem?.name ?? (state.myClassesClassFilter == null ? 'All Classes' : state.myClassesClassFilter!);
 
-            final sectionsList = state.dropdownsData?.sections ?? [];
+            // Strict Section Cascading
+            final sectionsList = meta?.sections ?? [];
             final filteredSections = selectedClassItem != null
                 ? sectionsList.where((s) => s.classId == selectedClassItem.id).toList()
                 : sectionsList;
@@ -3737,16 +3870,47 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
               }
             }
             final selectedSectionItem = filteredSections.where((s) => s.id == state.myClassesSectionFilter || s.name == state.myClassesSectionFilter).firstOrNull;
-            final selectedSectionLabel = selectedSectionItem?.name ?? (state.myClassesSectionFilter == null ? 'All Sections' : state.myClassesSectionFilter!);
+            final selectedSectionLabel = selectedSectionItem?.name ??
+                (state.myClassesSectionFilter == null || !sectionNames.contains(state.myClassesSectionFilter)
+                    ? 'All Sections'
+                    : state.myClassesSectionFilter!);
 
-            final subjectsList = state.dropdownsData?.subjects ?? [];
-            final filteredSubjects = selectedClassItem != null
-                ? subjectsList.where((s) {
-                    if (s.className == null || s.className!.isEmpty) return true;
-                    final clsNum = selectedClassItem.name.replaceAll(RegExp(r'[^0-9]'), '');
-                    return s.className!.contains(selectedClassItem.name) || (clsNum.isNotEmpty && s.className!.contains(clsNum));
-                  }).toList()
-                : subjectsList;
+            // Strict Subject Cascading from Class Management
+            final List<SubjectDropdownItem> filteredSubjects = [];
+            if (selectedClassItem != null && meta != null) {
+              if (state.cascadingSubjects.isNotEmpty) {
+                filteredSubjects.addAll(state.cascadingSubjects);
+              } else if (meta.classSubjects.isNotEmpty) {
+                final matches = meta.classSubjects.where((cs) {
+                  if (cs.classId != selectedClassItem.id) return false;
+                  if (selectedSectionItem != null && cs.sectionId != null && cs.sectionId!.isNotEmpty) {
+                    return cs.sectionId == selectedSectionItem.id;
+                  }
+                  return true;
+                }).toList();
+                final seen = <String>{};
+                for (final m in matches) {
+                  if (!seen.contains(m.subjectId)) {
+                    seen.add(m.subjectId);
+                    filteredSubjects.add(SubjectDropdownItem(
+                      id: m.subjectId,
+                      name: m.subjectName,
+                      icon: m.subjectIcon,
+                      classId: m.classId,
+                      sectionId: m.sectionId,
+                    ));
+                  }
+                }
+              }
+              if (filteredSubjects.isEmpty) {
+                final cSubs = meta.subjects.where((s) => s.classId == selectedClassItem.id).toList();
+                if (cSubs.isNotEmpty) filteredSubjects.addAll(cSubs);
+              }
+            }
+            if (filteredSubjects.isEmpty) {
+              filteredSubjects.addAll(meta?.subjects ?? []);
+            }
+
             final subjectNames = <String>['All Subjects'];
             for (final s in filteredSubjects) {
               final trimmed = s.name.trim();
@@ -3755,7 +3919,10 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
               }
             }
             final selectedSubjectItem = filteredSubjects.where((s) => s.id == state.myClassesSubjectFilter || s.name == state.myClassesSubjectFilter).firstOrNull;
-            final selectedSubjectLabel = selectedSubjectItem?.name ?? (state.myClassesSubjectFilter == null ? 'All Subjects' : state.myClassesSubjectFilter!);
+            final selectedSubjectLabel = selectedSubjectItem?.name ??
+                (state.myClassesSubjectFilter == null || !subjectNames.contains(state.myClassesSubjectFilter)
+                    ? 'All Subjects'
+                    : state.myClassesSubjectFilter!);
 
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -3806,7 +3973,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                     },
                   ),
 
-                  // Subject Dropdown (Filtered by class)
+                  // Subject Dropdown (Filtered strictly by class & section)
                   _buildFilterDropdown(
                     label: 'Subject:',
                     value: subjectNames.contains(selectedSubjectLabel) ? selectedSubjectLabel : 'All Subjects',
@@ -3874,26 +4041,155 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
           }(),
           Divider(height: 1, color: cardDivider),
 
-          // 3. Classes Data Table (Protected against overflows with minWidth 960 & explicit SizedBox)
+          // 2.5 Multi-selection Bulk Operations Toolbar
+          if (state.selectedMyClassIds.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2563EB).withValues(alpha: isDark ? 0.2 : 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF2563EB)),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${state.selectedMyClassIds.length} classes selected',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
+                  ),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: () => ref.read(liveClassManagementProvider.notifier).clearSelectedMyClassIds(),
+                    icon: const Icon(Icons.close_rounded, size: 14, color: Color(0xFF64748B)),
+                    label: const Text('Deselect All', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => _showBulkCancelDialog(state.selectedMyClassIds.toList()),
+                    icon: const Icon(Icons.block_rounded, size: 13),
+                    label: const Text('Bulk Cancel', style: TextStyle(fontSize: 11)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF59E0B),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => _showBulkDeleteDialog(state.selectedMyClassIds.toList()),
+                    icon: const Icon(Icons.delete_forever_rounded, size: 13),
+                    label: const Text('Bulk Delete', style: TextStyle(fontSize: 11)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEF4444),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // 3. Classes Data Table with Database Sorting & Single Custom Checkbox (NO DUPLICATE CHECKBOXES)
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: ConstrainedBox(
               constraints: const BoxConstraints(minWidth: 1040),
               child: DataTable(
+                showCheckboxColumn: false,
                 headingRowColor: WidgetStateProperty.all(headerRowBg),
-                headingRowHeight: 40,
+                headingRowHeight: 42,
                 dataRowMinHeight: 56,
                 dataRowMaxHeight: 64,
                 horizontalMargin: 16,
                 columnSpacing: 14,
                 columns: [
-                  DataColumn(label: SizedBox(width: 24, child: Icon(Icons.check_box_outline_blank, size: 16, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)))),
-                  DataColumn(label: Text('Class / Section', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textSecondary))),
-                  DataColumn(label: Text('Subject', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textSecondary))),
-                  DataColumn(label: Text('Topic', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textSecondary))),
-                  DataColumn(label: Text('Schedule (Date & Time)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textSecondary))),
-                  DataColumn(label: Text('Status', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textSecondary))),
-                  DataColumn(label: Text('Students', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textSecondary))),
+                  // Select All Header Checkbox
+                  DataColumn(
+                    label: SizedBox(
+                      width: 24,
+                      child: InkWell(
+                        onTap: () {
+                          final isAll = classesList.isNotEmpty && classesList.every((c) => state.selectedMyClassIds.contains(c.id));
+                          ref.read(liveClassManagementProvider.notifier).selectAllMyClasses(!isAll);
+                        },
+                        child: Icon(
+                          classesList.isNotEmpty && classesList.every((c) => state.selectedMyClassIds.contains(c.id))
+                              ? Icons.check_box_rounded
+                              : (classesList.any((c) => state.selectedMyClassIds.contains(c.id))
+                                  ? Icons.indeterminate_check_box_rounded
+                                  : Icons.check_box_outline_blank),
+                          size: 16,
+                          color: state.selectedMyClassIds.isNotEmpty
+                              ? const Color(0xFF2563EB)
+                              : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                        ),
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: _buildSortHeader(
+                      'Class / Section',
+                      'class_name',
+                      state.myClassesSortBy,
+                      state.myClassesSortOrder,
+                      textSecondary,
+                      () => ref.read(liveClassManagementProvider.notifier).setMyClassesSort('class_name'),
+                    ),
+                  ),
+                  DataColumn(
+                    label: _buildSortHeader(
+                      'Subject',
+                      'subject_name',
+                      state.myClassesSortBy,
+                      state.myClassesSortOrder,
+                      textSecondary,
+                      () => ref.read(liveClassManagementProvider.notifier).setMyClassesSort('subject_name'),
+                    ),
+                  ),
+                  DataColumn(
+                    label: _buildSortHeader(
+                      'Topic',
+                      'title',
+                      state.myClassesSortBy,
+                      state.myClassesSortOrder,
+                      textSecondary,
+                      () => ref.read(liveClassManagementProvider.notifier).setMyClassesSort('title'),
+                    ),
+                  ),
+                  DataColumn(
+                    label: _buildSortHeader(
+                      'Schedule (Date & Time)',
+                      'scheduled_at',
+                      state.myClassesSortBy,
+                      state.myClassesSortOrder,
+                      textSecondary,
+                      () => ref.read(liveClassManagementProvider.notifier).setMyClassesSort('scheduled_at'),
+                    ),
+                  ),
+                  DataColumn(
+                    label: _buildSortHeader(
+                      'Status',
+                      'status',
+                      state.myClassesSortBy,
+                      state.myClassesSortOrder,
+                      textSecondary,
+                      () => ref.read(liveClassManagementProvider.notifier).setMyClassesSort('status'),
+                    ),
+                  ),
+                  DataColumn(
+                    label: _buildSortHeader(
+                      'Students',
+                      'viewer_count',
+                      state.myClassesSortBy,
+                      state.myClassesSortOrder,
+                      textSecondary,
+                      () => ref.read(liveClassManagementProvider.notifier).setMyClassesSort('viewer_count'),
+                    ),
+                  ),
                   DataColumn(label: SizedBox(width: 140, child: Text('Actions', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textSecondary)))),
                 ],
                 rows: classesList.isEmpty
@@ -3913,6 +4209,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                       ]
                     : classesList.map((item) {
                         final isRowSelected = item.id == selectedClassId;
+                        final isCheckedInSet = state.selectedMyClassIds.contains(item.id);
                         return DataRow(
                           selected: isRowSelected,
                           onSelectChanged: (_) => ref.read(liveClassManagementProvider.notifier).selectMyClass(item),
@@ -3923,16 +4220,16 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                             return null;
                           }),
                           cells: [
-                            // Checkbox
+                            // Single Custom Checkbox Cell
                             DataCell(
                               InkWell(
-                                onTap: () => ref.read(liveClassManagementProvider.notifier).selectMyClass(item),
+                                onTap: () => ref.read(liveClassManagementProvider.notifier).toggleSelectMyClassId(item.id),
                                 child: SizedBox(
                                   width: 24,
                                   child: Icon(
-                                    isRowSelected ? Icons.check_box_rounded : Icons.check_box_outline_blank,
+                                    isCheckedInSet ? Icons.check_box_rounded : Icons.check_box_outline_blank,
                                     size: 16,
-                                    color: isRowSelected ? const Color(0xFF2563EB) : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                                    color: isCheckedInSet ? const Color(0xFF2563EB) : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
                                   ),
                                 ),
                               ),
@@ -3951,7 +4248,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                                 ),
                               ),
                             ),
-                            // Subject with icon
+                            // Subject with clean sanitized icon (NO MOJIBAKE)
                             DataCell(
                               InkWell(
                                 onTap: () => ref.read(liveClassManagementProvider.notifier).selectMyClass(item),
@@ -3960,7 +4257,10 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Text(item.subjectIcon, style: const TextStyle(fontSize: 14)),
+                                      Text(
+                                        SubjectDropdownItem.sanitizeSubjectIcon(item.subjectIcon, item.subjectName),
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
                                       const SizedBox(width: 6),
                                       Expanded(
                                         child: Text(
@@ -4098,82 +4398,194 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
           ),
           Divider(height: 1, color: cardDivider),
 
-          // 4. Pagination Footer
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Showing 1 - ${classesList.length} of $totalCount classes',
-                  style: TextStyle(fontSize: 12, color: textSecondary),
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Page numbers
-                    IconButton(
-                      icon: Icon(Icons.chevron_left, size: 18, color: textSecondary),
-                      onPressed: state.myClassesPage > 1
-                          ? () => ref.read(liveClassManagementProvider.notifier).setMyClassesPage(state.myClassesPage - 1)
-                          : null,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                    ),
-                    for (int p = 1; p <= 4; p++) ...[
-                      InkWell(
-                        onTap: () => ref.read(liveClassManagementProvider.notifier).setMyClassesPage(p),
-                        borderRadius: BorderRadius.circular(4),
-                        child: Container(
-                          width: 26,
-                          height: 26,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: state.myClassesPage == p ? const Color(0xFF2563EB) : Colors.transparent,
-                            borderRadius: BorderRadius.circular(4),
+          // 4. Powerful Dynamic Pagination Control
+          () {
+            final totalPages = state.myClassesTotalPages > 0 ? state.myClassesTotalPages : 1;
+            final currentPage = state.myClassesPage.clamp(1, totalPages);
+            final startCount = totalCount == 0 ? 0 : ((currentPage - 1) * state.myClassesPageSize + 1);
+            final endCount = totalCount == 0 ? 0 : math.min(totalCount, startCount + classesList.length - 1);
+
+            // Compute dynamic pagination window
+            final pageNumbers = <int>[];
+            final startP = math.max(1, currentPage - 2);
+            final endP = math.min(totalPages, currentPage + 2);
+            for (int p = startP; p <= endP; p++) {
+              pageNumbers.add(p);
+            }
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    totalCount == 0
+                        ? 'Showing 0 of 0 classes'
+                        : 'Showing $startCount - $endCount of $totalCount classes',
+                    style: TextStyle(fontSize: 12, color: textSecondary),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // First page
+                      IconButton(
+                        icon: const Icon(Icons.first_page_rounded, size: 18),
+                        color: currentPage > 1 ? textSecondary : textSecondary.withValues(alpha: 0.3),
+                        onPressed: currentPage > 1
+                            ? () => ref.read(liveClassManagementProvider.notifier).setMyClassesPage(1)
+                            : null,
+                        tooltip: 'First Page',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                      ),
+                      // Prev page
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left_rounded, size: 18),
+                        color: currentPage > 1 ? textSecondary : textSecondary.withValues(alpha: 0.3),
+                        onPressed: currentPage > 1
+                            ? () => ref.read(liveClassManagementProvider.notifier).setMyClassesPage(currentPage - 1)
+                            : null,
+                        tooltip: 'Previous Page',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                      ),
+                      if (startP > 1) ...[
+                        InkWell(
+                          onTap: () => ref.read(liveClassManagementProvider.notifier).setMyClassesPage(1),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Container(
+                            width: 26,
+                            height: 26,
+                            alignment: Alignment.center,
+                            child: Text('1', style: TextStyle(fontSize: 11, color: textSecondary)),
                           ),
-                          child: Text(
-                            '$p',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: state.myClassesPage == p ? Colors.white : textSecondary,
+                        ),
+                        if (startP > 2)
+                          Text('...', style: TextStyle(fontSize: 11, color: textSecondary)),
+                      ],
+                      for (final p in pageNumbers) ...[
+                        InkWell(
+                          onTap: () => ref.read(liveClassManagementProvider.notifier).setMyClassesPage(p),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Container(
+                            width: 26,
+                            height: 26,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: currentPage == p ? const Color(0xFF2563EB) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '$p',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: currentPage == p ? Colors.white : textSecondary,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 2),
-                    ],
-                    IconButton(
-                      icon: Icon(Icons.chevron_right, size: 18, color: textSecondary),
-                      onPressed: () => ref.read(liveClassManagementProvider.notifier).setMyClassesPage(state.myClassesPage + 1),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                    ),
-                    const SizedBox(width: 14),
-
-                    // Rows per page
-                    Text('Rows per page: ', style: TextStyle(fontSize: 11, color: textSecondary)),
-                    DropdownButton<int>(
-                      value: state.myClassesPageSize,
-                      underline: const SizedBox(),
-                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textPrimary),
-                      items: const [
-                        DropdownMenuItem(value: 5, child: Text('5')),
-                        DropdownMenuItem(value: 10, child: Text('10')),
-                        DropdownMenuItem(value: 20, child: Text('20')),
+                        const SizedBox(width: 2),
                       ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          ref.read(liveClassManagementProvider.notifier).setMyClassesPageSize(val);
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ],
+                      if (endP < totalPages) ...[
+                        if (endP < totalPages - 1)
+                          Text('...', style: TextStyle(fontSize: 11, color: textSecondary)),
+                        InkWell(
+                          onTap: () => ref.read(liveClassManagementProvider.notifier).setMyClassesPage(totalPages),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Container(
+                            width: 26,
+                            height: 26,
+                            alignment: Alignment.center,
+                            child: Text('$totalPages', style: TextStyle(fontSize: 11, color: textSecondary)),
+                          ),
+                        ),
+                      ],
+                      // Next page
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right_rounded, size: 18),
+                        color: currentPage < totalPages ? textSecondary : textSecondary.withValues(alpha: 0.3),
+                        onPressed: currentPage < totalPages
+                            ? () => ref.read(liveClassManagementProvider.notifier).setMyClassesPage(currentPage + 1)
+                            : null,
+                        tooltip: 'Next Page',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                      ),
+                      // Last page
+                      IconButton(
+                        icon: const Icon(Icons.last_page_rounded, size: 18),
+                        color: currentPage < totalPages ? textSecondary : textSecondary.withValues(alpha: 0.3),
+                        onPressed: currentPage < totalPages
+                            ? () => ref.read(liveClassManagementProvider.notifier).setMyClassesPage(totalPages)
+                            : null,
+                        tooltip: 'Last Page',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                      ),
+                      const SizedBox(width: 14),
+
+                      // Rows per page
+                      Text('Rows per page: ', style: TextStyle(fontSize: 11, color: textSecondary)),
+                      DropdownButton<int>(
+                        value: state.myClassesPageSize,
+                        underline: const SizedBox(),
+                        dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textPrimary),
+                        items: const [
+                          DropdownMenuItem(value: 5, child: Text('5')),
+                          DropdownMenuItem(value: 10, child: Text('10')),
+                          DropdownMenuItem(value: 20, child: Text('20')),
+                          DropdownMenuItem(value: 50, child: Text('50')),
+                          DropdownMenuItem(value: 100, child: Text('100')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            ref.read(liveClassManagementProvider.notifier).setMyClassesPageSize(val);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSortHeader(
+    String label,
+    String sortField,
+    String currentSortBy,
+    String currentSortOrder,
+    Color textSecondary,
+    VoidCallback onSort,
+  ) {
+    final isActive = currentSortBy == sortField;
+    return InkWell(
+      onTap: onSort,
+      borderRadius: BorderRadius.circular(4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: isActive ? const Color(0xFF2563EB) : textSecondary,
             ),
+          ),
+          const SizedBox(width: 4),
+          Icon(
+            isActive
+                ? (currentSortOrder == 'ASC' ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                : Icons.unfold_more_rounded,
+            size: 14,
+            color: isActive ? const Color(0xFF2563EB) : textSecondary.withValues(alpha: 0.5),
           ),
         ],
       ),
@@ -4413,11 +4825,28 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
           );
         } else if (action == 'attendance') {
           ref.read(liveClassManagementProvider.notifier).setTab(2);
+        } else if (action == 'edit') {
+          showDialog(
+            context: context,
+            builder: (ctx) => EditLiveClassDialog(item: item),
+          );
         } else if (action == 'cancel') {
           _showCancelSessionDialog(item.id, '${item.classSection} : ${item.subjectName}');
+        } else if (action == 'delete') {
+          _showDeleteSessionDialog(item.id, '${item.classSection} : ${item.subjectName}');
         }
       },
       itemBuilder: (ctx) => [
+        const PopupMenuItem(
+          value: 'edit',
+          child: Row(
+            children: [
+              Icon(Icons.edit_calendar_rounded, size: 16, color: Color(0xFF2563EB)),
+              SizedBox(width: 8),
+              Text('Edit / Reschedule', style: TextStyle(fontSize: 12)),
+            ],
+          ),
+        ),
         const PopupMenuItem(
           value: 'duplicate',
           child: Row(
@@ -4463,9 +4892,19 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
           value: 'cancel',
           child: Row(
             children: [
-              Icon(Icons.cancel_outlined, size: 16, color: Color(0xFFDC2626)),
+              Icon(Icons.cancel_outlined, size: 16, color: Color(0xFFF59E0B)),
               SizedBox(width: 8),
-              Text('Cancel Session', style: TextStyle(fontSize: 12, color: Color(0xFFDC2626))),
+              Text('Cancel Session', style: TextStyle(fontSize: 12, color: Color(0xFFF59E0B))),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(Icons.delete_forever_rounded, size: 16, color: Color(0xFFDC2626)),
+              SizedBox(width: 8),
+              Text('Delete Session', style: TextStyle(fontSize: 12, color: Color(0xFFDC2626))),
             ],
           ),
         ),
@@ -4727,10 +5166,11 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
 
           // Solid Blue Join Class Button
           ElevatedButton.icon(
-            onPressed: () async {
+            onPressed: () {
               final sel = state.selectedMyClass;
+              setState(() => _selectedSubnav = 'Conduct Class');
               if (sel != null) {
-                await ref.read(liveClassManagementProvider.notifier).loadConductSession(sel.id);
+                ref.read(liveClassManagementProvider.notifier).loadConductSession(sel.id);
                 try {
                   final roomService = ref.read(liveRoomServiceProvider);
                   final auth = _getActiveAuthUserInfo();
@@ -4740,10 +5180,11 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                     currentUserName: auth['name']!,
                     currentUserRole: auth['role']!,
                   );
-                  await roomService.initializeRoom();
+                  roomService.initializeRoom().timeout(const Duration(seconds: 4)).catchError((e) {
+                    debugPrint('Async room connect notice: $e');
+                  });
                 } catch (_) {}
               }
-              setState(() => _selectedSubnav = 'Conduct Class');
             },
             icon: const Icon(Icons.videocam_rounded, size: 16),
             label: const Text('Join Class', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
@@ -5349,13 +5790,6 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                 'Q&A',
                 onTap: () {
                   _showQADialog();
-                },
-              ),
-              _buildControlTile(
-                Icons.grid_view_rounded,
-                'Breakout Rooms',
-                onTap: () {
-                  _showBreakoutRoomsDialog();
                 },
               ),
               _buildControlTile(

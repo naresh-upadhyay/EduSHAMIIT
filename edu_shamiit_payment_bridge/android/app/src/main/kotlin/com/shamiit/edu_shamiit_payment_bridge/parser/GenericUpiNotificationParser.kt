@@ -1,5 +1,6 @@
 package com.shamiit.edu_shamiit_payment_bridge.parser
 
+import android.content.Context
 import com.shamiit.edu_shamiit_payment_bridge.model.PaymentNotificationEvent
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -8,7 +9,7 @@ import java.util.TimeZone
 import java.util.UUID
 import java.util.regex.Pattern
 
-class GenericUpiNotificationParser : NotificationParser {
+class GenericUpiNotificationParser(private val context: Context? = null) : NotificationParser {
     override val supportedPackage: String = "*"
     override val appDisplayName: String = "UPI App"
     override val version: String = "1.0.0"
@@ -17,10 +18,16 @@ class GenericUpiNotificationParser : NotificationParser {
         timeZone = TimeZone.getTimeZone("UTC")
     }
 
-    private val amountPattern = Pattern.compile("(?:Rs\\.?|INR|₹)\\s*([0-9,]+(?:\\.[0-9]{1,2})?)", Pattern.CASE_INSENSITIVE)
-    private val senderPattern = Pattern.compile("(?:from|by)\\s+([*\\d\\w\\s]+?)(?:\\s+Ref|\\s*\\(|$)", Pattern.CASE_INSENSITIVE)
-    private val refPattern = Pattern.compile("(?:Ref(?:erence)?|UTR|Txn(?:Id)?)\\s*[:/]?\\s*([A-Za-z0-9/_-]+)", Pattern.CASE_INSENSITIVE)
-    private val maskedPattern = Pattern.compile("(\\*+\\s*\\d{3,4})")
+    private fun getPattern(packageName: String, type: String, defaultRegex: String): Pattern {
+        val prefs = context?.getSharedPreferences("custom_formats", Context.MODE_PRIVATE)
+        val customRegex = prefs?.getString("${packageName}_$type", null) ?: prefs?.getString("*_$type", null)
+        return if (!customRegex.isNullOrEmpty()) {
+            try { Pattern.compile(customRegex, Pattern.CASE_INSENSITIVE) } 
+            catch (_: Exception) { Pattern.compile(defaultRegex, Pattern.CASE_INSENSITIVE) }
+        } else {
+            Pattern.compile(defaultRegex, Pattern.CASE_INSENSITIVE)
+        }
+    }
 
     override fun canHandle(packageName: String): Boolean = true
 
@@ -41,7 +48,8 @@ class GenericUpiNotificationParser : NotificationParser {
         val eventType = if (isOutgoing) "PAYMENT_SENT" else "PAYMENT_RECEIVED"
 
         var amountPaise = 0L
-        val amountMatcher = amountPattern.matcher(fullContent)
+        val amountPatternStr = "(?:Rs\\.?|INR|₹|amount of|credited with|received|received an amount of)\\s*[:]?\\s*(?:Rs\\.?|INR|₹)?\\s*([0-9,]+(?:\\.[0-9]{1,2})?)"
+        val amountMatcher = getPattern(packageName, "amount", amountPatternStr).matcher(fullContent)
         if (amountMatcher.find()) {
             val rawAmt = amountMatcher.group(1)?.replace(",", "") ?: "0"
             try {
@@ -51,28 +59,30 @@ class GenericUpiNotificationParser : NotificationParser {
         }
 
         var ref: String? = null
-        val refMatcher = refPattern.matcher(fullContent)
+        val refPatternStr = "(?:Ref(?:erence)?|UTR|Txn(?:Id)?|UPI Ref(?: no)?|Transaction ID|UPI/)\\s*[:/]?\\s*([A-Za-z0-9/_-]+)"
+        val refMatcher = getPattern(packageName, "reference", refPatternStr).matcher(fullContent)
         if (refMatcher.find()) {
             ref = refMatcher.group(1)?.trim()
         }
 
         var maskedSender: String? = null
-        val maskedMatcher = maskedPattern.matcher(fullContent)
+        val maskedMatcher = getPattern(packageName, "masked", "(\\*+\\s*\\d{3,4})").matcher(fullContent)
         if (maskedMatcher.find()) {
             maskedSender = maskedMatcher.group(1)?.trim()
         }
 
         var senderName: String? = null
-        val senderMatcher = senderPattern.matcher(fullContent)
+        val senderPatternStr = "(?:from|by|received from)\\s+([*\\d\\w\\s]+?)(?:\\s+Ref|\\s+UPI|\\s*\\(|$)"
+        val senderMatcher = getPattern(packageName, "sender", senderPatternStr).matcher(fullContent)
         if (senderMatcher.find()) {
             senderName = senderMatcher.group(1)?.trim()
         }
 
         val appName = when {
-            packageName.contains("phonepe", ignoreCase = true) -> "PhonePe"
-            packageName.contains("paisa", ignoreCase = true) || packageName.contains("google", ignoreCase = true) -> "Google Pay"
-            packageName.contains("paytm", ignoreCase = true) -> "Paytm"
-            packageName.contains("bhim", ignoreCase = true) -> "BHIM UPI"
+            packageName.contains("phonepe", ignoreCase = true) || fullContent.contains("PhonePe", ignoreCase = true) -> "PhonePe"
+            packageName.contains("paisa", ignoreCase = true) || packageName.contains("google", ignoreCase = true) || fullContent.contains("Google Pay", ignoreCase = true) || fullContent.contains("GPay", ignoreCase = true) -> "Google Pay"
+            packageName.contains("paytm", ignoreCase = true) || fullContent.contains("Paytm", ignoreCase = true) -> "Paytm"
+            packageName.contains("bhim", ignoreCase = true) || fullContent.contains("BHIM", ignoreCase = true) -> "BHIM UPI"
             else -> "UPI App"
         }
 

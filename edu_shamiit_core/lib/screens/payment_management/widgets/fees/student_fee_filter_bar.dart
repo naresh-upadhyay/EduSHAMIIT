@@ -319,7 +319,8 @@ class StudentFeeFilterBar extends ConsumerWidget {
   }
 
   Widget _buildClassDropdown(StudentFeeState state, StudentFeeNotifier notifier, bool isDark) {
-    final classes = state.classesList.isNotEmpty ? state.classesList : ['All Classes'];
+    final classes = {'All Classes', ...state.classesList}.toList();
+    final effectiveClass = classes.contains(state.selectedClass) ? state.selectedClass : 'All Classes';
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -330,7 +331,8 @@ class StudentFeeFilterBar extends ConsumerWidget {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: classes.contains(state.selectedClass) ? state.selectedClass : 'All Classes',
+          key: ValueKey('fee_filter_class_$effectiveClass'),
+          value: effectiveClass,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
           items: classes.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
@@ -344,6 +346,7 @@ class StudentFeeFilterBar extends ConsumerWidget {
 
   Widget _buildStatusDropdown(StudentFeeState state, StudentFeeNotifier notifier, bool isDark) {
     const statuses = ['All Status', 'Paid', 'Partial', 'Pending', 'Overdue'];
+    final effectiveStatus = statuses.contains(state.selectedStatus) ? state.selectedStatus : 'All Status';
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -354,7 +357,8 @@ class StudentFeeFilterBar extends ConsumerWidget {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: statuses.contains(state.selectedStatus) ? state.selectedStatus : 'All Status',
+          key: ValueKey('fee_filter_status_$effectiveStatus'),
+          value: effectiveStatus,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
           items: statuses.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),

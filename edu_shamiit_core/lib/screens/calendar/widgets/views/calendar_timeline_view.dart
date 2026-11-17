@@ -18,7 +18,9 @@ class CalendarTimelineView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.primaryColor;
 
     // Use available resources or fallback to core facilities
     final rows = resources.isNotEmpty
@@ -142,7 +144,7 @@ class CalendarTimelineView extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF4F46E5).withValues(alpha: isDark ? 0.22 : 0.1),
+                                  color: primaryColor.withValues(alpha: isDark ? 0.22 : 0.1),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
@@ -150,7 +152,7 @@ class CalendarTimelineView extends StatelessWidget {
                                   style: TextStyle(
                                     fontSize: (10 * ts).roundToDouble(),
                                     fontWeight: FontWeight.bold,
-                                    color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                                    color: isDark ? Color.lerp(primaryColor, Colors.white, 0.4)! : primaryColor,
                                   ),
                                 ),
                               ),

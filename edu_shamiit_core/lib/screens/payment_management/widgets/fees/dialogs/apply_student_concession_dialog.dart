@@ -106,16 +106,44 @@ class _ApplyStudentConcessionDialogState extends ConsumerState<ApplyStudentConce
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _concessionTypes.any((c) => c.label == _concessionType) ? _concessionType : (_concessionTypes.isNotEmpty ? _concessionTypes.first.label : _concessionType),
-                    isExpanded: true,
-                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    items: _concessionTypes.map((c) => DropdownMenuItem(value: c.label, child: Text(c.label))).toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => _concessionType = val);
-                    },
-                  ),
+                child: Builder(
+                  builder: (context) {
+                    final Map<String, String> concMap = {};
+                    for (final c in _concessionTypes) {
+                      if (c.label.isNotEmpty) concMap[c.label] = c.label;
+                    }
+                    if (concMap.isEmpty) {
+                      concMap['Academic Merit Scholarship'] = 'Academic Merit Scholarship';
+                      concMap['Sibling Concession'] = 'Sibling Concession';
+                      concMap['Staff Ward Concession'] = 'Staff Ward Concession';
+                      concMap['Sports Excellence Quota'] = 'Sports Excellence Quota';
+                    }
+                    String effectiveType = _concessionType;
+                    if (!concMap.containsKey(effectiveType)) {
+                      final match = concMap.keys.firstWhere(
+                        (k) => k.toLowerCase() == effectiveType.toLowerCase(),
+                        orElse: () => '',
+                      );
+                      if (match.isNotEmpty) {
+                        effectiveType = match;
+                      } else {
+                        concMap[effectiveType] = effectiveType;
+                      }
+                    }
+
+                    return DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        key: ValueKey('concession_type_$effectiveType'),
+                        value: effectiveType,
+                        isExpanded: true,
+                        dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        items: concMap.entries.map((c) => DropdownMenuItem(value: c.key, child: Text(c.value))).toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _concessionType = val);
+                        },
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 16),

@@ -31,6 +31,9 @@ class AppColors {
   static const Color ignoredGrey = Color(0xFF7F8C8D);
   static const Color ignoredGreyBg = Color(0xFFF2F4F4);
 
+  static const Color errorRed = Color(0xFFE74C3C);
+  static const Color errorRedBg = Color(0xFFFDEDEC);
+
   // Text
   static const Color textPrimary = Color(0xFF1E293B);
   static const Color textSecondary = Color(0xFF64748B);

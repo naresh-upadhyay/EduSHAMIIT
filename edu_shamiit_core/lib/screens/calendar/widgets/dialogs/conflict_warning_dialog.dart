@@ -14,11 +14,23 @@ class ConflictWarningDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.primaryColor;
+
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+      ),
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
-        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width < 600 ? MediaQuery.sizeOf(context).width - 32 : 480),
+        constraints: BoxConstraints(
+            maxWidth: MediaQuery.sizeOf(context).width < 600
+                ? MediaQuery.sizeOf(context).width - 32
+                : 480),
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -32,21 +44,31 @@ class ConflictWarningDialog extends StatelessWidget {
                     color: const Color(0xFFEF4444).withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 24),
+                  child: const Icon(Icons.warning_amber_rounded,
+                      color: Color(0xFFEF4444), size: 24),
                 ),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Schedule Conflict Detected',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'One or more participants or resources already have conflicting bookings during this requested time period.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
+              style: TextStyle(
+                fontSize: 13,
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                height: 1.4,
+              ),
             ),
             const SizedBox(height: 14),
 
@@ -54,27 +76,44 @@ class ConflictWarningDialog extends StatelessWidget {
             Container(
               constraints: const BoxConstraints(maxHeight: 180),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color:
+                    isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0)),
               ),
               child: ListView.separated(
                 shrinkWrap: true,
                 padding: const EdgeInsets.all(12),
                 itemCount: conflicts.length,
-                separatorBuilder: (_, __) => const Divider(height: 12, color: Color(0xFFE2E8F0)),
+                separatorBuilder: (_, __) => Divider(
+                    height: 12,
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0)),
                 itemBuilder: (context, index) {
                   final c = conflicts[index];
-                  final msg = c is Map ? (c['message'] ?? 'Conflict detected') : c.toString();
+                  final msg = c is Map
+                      ? (c['message'] ?? 'Conflict detected')
+                      : c.toString();
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.error_outline_rounded, size: 16, color: Color(0xFFEF4444)),
+                      const Icon(Icons.error_outline_rounded,
+                          size: 16, color: Color(0xFFEF4444)),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           msg,
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? const Color(0xFFCBD5E1)
+                                : const Color(0xFF0F172A),
+                          ),
                         ),
                       ),
                     ],
@@ -93,10 +132,23 @@ class ConflictWarningDialog extends StatelessWidget {
                 OutlinedButton(
                   onPressed: () => Navigator.pop(context),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    side: BorderSide(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFCBD5E1)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
-                  child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w700)),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(
+                        color: isDark
+                            ? const Color(0xFFCBD5E1)
+                            : const Color(0xFF64748B),
+                        fontWeight: FontWeight.w700),
+                  ),
                 ),
                 OutlinedButton(
                   onPressed: () {
@@ -104,11 +156,17 @@ class ConflictWarningDialog extends StatelessWidget {
                     onFindAvailableTime();
                   },
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFF4F46E5)),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    side: BorderSide(color: primaryColor),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
-                  child: const Text('Find Available Time', style: TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.w700)),
+                  child: Text(
+                    'Find Available Time',
+                    style: TextStyle(
+                        color: primaryColor, fontWeight: FontWeight.w700),
+                  ),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -118,10 +176,13 @@ class ConflictWarningDialog extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFEF4444),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
-                  child: const Text('Continue Anyway', style: TextStyle(fontWeight: FontWeight.w800)),
+                  child: const Text('Continue Anyway',
+                      style: TextStyle(fontWeight: FontWeight.w800)),
                 ),
               ],
             ),

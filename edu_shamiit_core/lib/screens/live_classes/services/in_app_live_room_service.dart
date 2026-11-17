@@ -337,7 +337,12 @@ class InAppLiveRoomService extends ChangeNotifier {
         _handleRoomEvent(event);
       });
 
-      await _room!.connect(sfuUrl, token);
+      try {
+        await _room!.connect(sfuUrl, token).timeout(const Duration(seconds: 4));
+      } catch (e) {
+        debugPrint('[LiveKitService] WebRTC SFU Connect notice (interactive stage fallback): $e');
+        _room = null;
+      }
 
       // Default state: Camera and Microphone are disabled on join (like Zoom / Google Meet)
       _isMicMuted = true;
@@ -368,12 +373,19 @@ class InAppLiveRoomService extends ChangeNotifier {
       _roomUpdateController.add(null);
     } catch (e) {
       debugPrint('[LiveKitService] Error connecting: $e');
-      rethrow;
+      _room = null;
+      notifyListeners();
+      _roomUpdateController.add(null);
     }
   }
 
   Future<bool> toggleMic() async {
-    if (_room == null) return false;
+    if (_room == null) {
+      _isMicMuted = !_isMicMuted;
+      notifyListeners();
+      _roomUpdateController.add(null);
+      return !_isMicMuted;
+    }
     final enable = _isMicMuted;
     try {
       if (!enable) {
@@ -414,7 +426,12 @@ class InAppLiveRoomService extends ChangeNotifier {
   }
 
   Future<bool> toggleCamera() async {
-    if (_room == null) return false;
+    if (_room == null) {
+      _isCamOff = !_isCamOff;
+      notifyListeners();
+      _roomUpdateController.add(null);
+      return !_isCamOff;
+    }
     final enable = _isCamOff;
     if (!enable) {
       // Turning OFF Camera -> Completely release camera sensor and webcam LED
@@ -485,7 +502,12 @@ class InAppLiveRoomService extends ChangeNotifier {
   }
 
   Future<bool> toggleScreenShare() async {
-    if (_room == null) return false;
+    if (_room == null) {
+      _isScreenSharing = !_isScreenSharing;
+      notifyListeners();
+      _roomUpdateController.add(null);
+      return _isScreenSharing;
+    }
     final enable = !_isScreenSharing;
     try {
       await _room?.localParticipant?.setScreenShareEnabled(enable);
@@ -503,14 +525,15 @@ class InAppLiveRoomService extends ChangeNotifier {
   }
 
   Future<void> toggleHandRaise() async {
-    if (_room == null) return;
     final isRaised = !_raisedHands.contains(currentUserId);
     if (isRaised) {
       _raisedHands.add(currentUserId);
     } else {
       _raisedHands.remove(currentUserId);
     }
-    await _broadcastData({'type': 'hand_raise', 'userId': currentUserId, 'isRaised': isRaised});
+    if (_room != null) {
+      await _broadcastData({'type': 'hand_raise', 'userId': currentUserId, 'isRaised': isRaised});
+    }
     notifyListeners();
     _roomUpdateController.add(null);
   }

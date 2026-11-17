@@ -87,25 +87,35 @@ class _BulkStaffPayrollDialogState extends ConsumerState<BulkStaffPayrollDialog>
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _department,
-                    isExpanded: true,
-                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    items: const [
-                      DropdownMenuItem(value: 'All Departments', child: Text('All Departments (Entire Staff)')),
-                      DropdownMenuItem(value: 'Academic & Teaching', child: Text('Academic & Teaching')),
-                      DropdownMenuItem(value: 'Administration', child: Text('Administration')),
-                      DropdownMenuItem(value: 'Hostel', child: Text('Hostel')),
-                      DropdownMenuItem(value: 'Human Resources', child: Text('Human Resources')),
-                      DropdownMenuItem(value: 'IT & Systems', child: Text('IT & Systems')),
-                      DropdownMenuItem(value: 'Library', child: Text('Library')),
-                      DropdownMenuItem(value: 'Security', child: Text('Security')),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setState(() => _department = val);
-                    },
-                  ),
+                child: Builder(
+                  builder: (context) {
+                    final Map<String, String> deptMap = {
+                      'All Departments': 'All Departments (Entire Staff)',
+                      'Academic & Teaching': 'Academic & Teaching',
+                      'Administration': 'Administration',
+                      'Hostel': 'Hostel',
+                      'Human Resources': 'Human Resources',
+                      'IT & Systems': 'IT & Systems',
+                      'Library': 'Library',
+                      'Security': 'Security',
+                    };
+                    String effectiveDept = _department;
+                    if (!deptMap.containsKey(effectiveDept)) {
+                      deptMap[effectiveDept] = effectiveDept;
+                    }
+                    return DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        key: ValueKey('bulk_dept_$effectiveDept'),
+                        value: effectiveDept,
+                        isExpanded: true,
+                        dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        items: deptMap.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _department = val);
+                        },
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 24),

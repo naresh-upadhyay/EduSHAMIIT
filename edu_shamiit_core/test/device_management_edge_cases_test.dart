@@ -45,7 +45,7 @@ void main() {
       await tester.pumpWidget(_buildTestApp(
         DeviceLocationExplorerCard(
           tree: null,
-          onLocationSelected: (b, f, r) {},
+          onLocationSelected: (b, f, r, n, bc) {},
         ),
       ));
       await tester.pump();
@@ -92,7 +92,7 @@ void main() {
       await tester.pumpWidget(_buildTestApp(
         DeviceLocationExplorerCard(
           tree: customTree,
-          onLocationSelected: (b, f, r) => selectedBuilding = b,
+          onLocationSelected: (b, f, r, n, bc) => selectedBuilding = b,
         ),
       ));
       await tester.pump();

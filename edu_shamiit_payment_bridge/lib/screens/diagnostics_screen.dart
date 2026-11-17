@@ -12,32 +12,71 @@ class DiagnosticsScreen extends StatefulWidget {
 }
 
 class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
-  bool _notificationAccessGranted = true;
-  bool _listenerRunning = true;
-  bool _batteryOptimizationIgnored = true;
+  bool _notificationAccessGranted = false;
+  bool _listenerRunning = false;
+  bool _batteryOptimizationIgnored = false;
   int _pendingQueueCount = 0;
+  int _totalEventsCount = 0;
+  String _hardwareModel = 'Detecting...';
+  String _androidVersion = 'Detecting...';
+  String _deviceId = 'Detecting...';
+  String _schoolId = 'Not Assigned';
+  String _institutionName = 'Not Configured';
+  bool _isEmulator = false;
+
   bool _isRunningPing = false;
-  String _pingResult = '42ms (HTTP 200 OK)';
+  String _pingResult = 'Checking...';
+  bool _isPingSuccessful = false;
 
   @override
   void initState() {
     super.initState();
     _checkStatus();
+    _runPing();
   }
 
   Future<void> _checkStatus() async {
+    final diag = await PlatformBridge.getDiagnostics();
     final hasAccess = await PlatformBridge.hasNotificationAccess();
     final isRunning = await PlatformBridge.isServiceRunning();
-    final isOptIgnored =
-        await PlatformBridge.isIgnoringBatteryOptimizations();
-    final pending = await PlatformBridge.getPendingEventsCount();
+    final isOptIgnored = await PlatformBridge.isIgnoringBatteryOptimizations();
 
     if (mounted) {
       setState(() {
         _notificationAccessGranted = hasAccess;
         _listenerRunning = isRunning;
         _batteryOptimizationIgnored = isOptIgnored;
-        _pendingQueueCount = pending;
+        _pendingQueueCount = (diag['pending_queue_count'] as int?) ?? 0;
+        _totalEventsCount = (diag['total_events_count'] as int?) ?? 0;
+        _hardwareModel = diag['device_model'] ?? 'Unknown Android Terminal';
+        _androidVersion = diag['android_version'] ?? 'Android OS';
+        _deviceId = ApiService().deviceId.isNotEmpty
+            ? ApiService().deviceId
+            : (diag['device_id'] ?? 'PB-UNKNOWN');
+        _schoolId = ApiService().schoolId.isNotEmpty
+            ? ApiService().schoolId
+            : 'Unassigned (Login to bind school)';
+        _institutionName = ApiService().institutionName.isNotEmpty
+            ? ApiService().institutionName
+            : 'EduSHAMIIT Partner School';
+        _isEmulator = diag['is_emulator'] ?? false;
+      });
+    }
+  }
+
+  void _runPing() async {
+    setState(() => _isRunningPing = true);
+    final stopwatch = Stopwatch()..start();
+    final ok = await ApiService().testConnection();
+    stopwatch.stop();
+
+    if (mounted) {
+      setState(() {
+        _isRunningPing = false;
+        _isPingSuccessful = ok;
+        _pingResult = ok
+            ? '${stopwatch.elapsedMilliseconds}ms (HTTP 200 OK • Live Server)'
+            : 'Unreachable (Check Network / Host)';
       });
     }
   }
@@ -55,25 +94,27 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
           ),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: _checkStatus,
+              onRefresh: () async {
+                await _checkStatus();
+                _runPing();
+              },
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSectionTitle('Service Health & Permissions'),
+                    _buildSectionTitle('Service Health & Permissions (OS Native)'),
                     const SizedBox(height: 8),
                     _buildHealthCard(),
                     const SizedBox(height: 16),
 
-                    _buildSectionTitle('Local SQLite Storage & Sync Queue'),
+                    _buildSectionTitle('Local SQLite Storage & Sync Queue (Real Engine)'),
                     const SizedBox(height: 8),
                     _buildQueueCard(),
                     const SizedBox(height: 16),
 
-                    _buildSectionTitle('Device & System Information'),
+                    _buildSectionTitle('Device & System Hardware Information'),
                     const SizedBox(height: 8),
                     _buildDeviceInfoCard(),
                     const SizedBox(height: 16),
@@ -117,9 +158,9 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
             title: 'Notification Access',
             subtitle: _notificationAccessGranted
                 ? 'Granted (BIND_NOTIFICATION_LISTENER_SERVICE)'
-                : 'Permission required',
+                : 'Permission Required: Tap Grant to allow notification listening in Android OS',
             isGood: _notificationAccessGranted,
-            actionLabel: _notificationAccessGranted ? null : 'Grant',
+            actionLabel: _notificationAccessGranted ? null : 'Grant Access',
             onAction: () async {
               await PlatformBridge.openNotificationSettings();
               await Future.delayed(const Duration(seconds: 1));
@@ -130,12 +171,12 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
           _buildStatusRow(
             title: 'Listener Background Service',
             subtitle: _listenerRunning
-                ? 'Active (Running continuously)'
-                : 'Service stopped or restarting',
+                ? 'Active (Connected to Android notification stream)'
+                : 'Service inactive: Android will activate when next notification arrives or grant is toggled',
             isGood: _listenerRunning,
-            actionLabel: _listenerRunning ? null : 'Start',
+            actionLabel: _listenerRunning ? null : 'Restart',
             onAction: () async {
-              await PlatformBridge.startListenerService();
+              await PlatformBridge.openNotificationSettings();
               _checkStatus();
             },
           ),
@@ -143,11 +184,10 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
           _buildStatusRow(
             title: 'Battery Optimization',
             subtitle: _batteryOptimizationIgnored
-                ? 'Exempted (Unrestricted background run)'
-                : 'Restricted by Android Doze mode',
+                ? 'Exempted (Unrestricted 24/7 background run)'
+                : 'Restricted: May be suspended by Android Doze mode',
             isGood: _batteryOptimizationIgnored,
-            actionLabel:
-                _batteryOptimizationIgnored ? null : 'Exempt',
+            actionLabel: _batteryOptimizationIgnored ? null : 'Exempt',
             onAction: () async {
               await PlatformBridge.requestIgnoreBatteryOptimizations();
               _checkStatus();
@@ -157,8 +197,8 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
           _buildStatusRow(
             title: 'Backend Connectivity Ping',
             subtitle: _pingResult,
-            isGood: true,
-            actionLabel: _isRunningPing ? null : 'Ping',
+            isGood: _isPingSuccessful,
+            actionLabel: _isRunningPing ? null : 'Ping Now',
             onAction: _runPing,
           ),
         ],
@@ -176,13 +216,13 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
       ),
       child: Column(
         children: [
-          _buildMetricRow('Pending Queue Count', '$_pendingQueueCount events'),
+          _buildMetricRow('Pending Queue Count', '$_pendingQueueCount unsynced events'),
           const Divider(color: AppColors.border, height: 16),
-          _buildMetricRow('Today Synced Notifications', '42 notifications'),
+          _buildMetricRow('Total Local Events Logged', '$_totalEventsCount events recorded'),
           const Divider(color: AppColors.border, height: 16),
-          _buildMetricRow('Duplicate Suppressions', '4 events prevented'),
+          _buildMetricRow('Active Backend Target', ApiService().baseUrl),
           const Divider(color: AppColors.border, height: 16),
-          _buildMetricRow('Local Database Path', 'payment_bridge.db (SQLite)'),
+          _buildMetricRow('Local Database Path', 'payment_bridge.db (SQLite native)'),
         ],
       ),
     );
@@ -198,13 +238,15 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
       ),
       child: Column(
         children: [
-          _buildMetricRow('Hardware Model', 'Dedicated UPI Terminal (PB-AND-001)'),
+          _buildMetricRow('Device ID (Hardware Bound)', _deviceId),
           const Divider(color: AppColors.border, height: 16),
-          _buildMetricRow('Android OS Version', 'Android 14 (API Level 34)'),
+          _buildMetricRow('Device Model & Type', '$_hardwareModel (${_isEmulator ? "Emulator" : "Physical Device"})'),
           const Divider(color: AppColors.border, height: 16),
-          _buildMetricRow('Application Version', 'EduSHAMIIT Payment Bridge 1.0.0'),
+          _buildMetricRow('Android OS Version', _androidVersion),
           const Divider(color: AppColors.border, height: 16),
-          _buildMetricRow('Assigned School ID', '33333333-3333-3333-3333-333333333333'),
+          _buildMetricRow('Bound Institution', _institutionName),
+          const Divider(color: AppColors.border, height: 16),
+          _buildMetricRow('Assigned School UUID', _schoolId),
         ],
       ),
     );
@@ -235,13 +277,14 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
           child: OutlinedButton.icon(
             onPressed: () async {
               final ok = await ApiService().triggerSync();
+              await _checkStatus();
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(ok
-                        ? 'Sync initiated successfully'
-                        : 'Sync queued locally'),
-                    backgroundColor: AppColors.successGreen,
+                        ? 'Sync initiated successfully with backend!'
+                        : 'Sync queued locally or server unavailable'),
+                    backgroundColor: ok ? AppColors.successGreen : AppColors.warningOrange,
                   ),
                 );
               }
@@ -276,11 +319,15 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
     VoidCallback? onAction,
   }) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          isGood ? Icons.check_circle : Icons.warning_amber_rounded,
-          size: 20,
-          color: isGood ? AppColors.successGreen : AppColors.warningOrange,
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(
+            isGood ? Icons.check_circle : Icons.warning_amber_rounded,
+            size: 20,
+            color: isGood ? AppColors.successGreen : AppColors.warningOrange,
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -337,67 +384,40 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
             color: AppColors.textSecondary,
           ),
         ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
       ],
     );
   }
 
-  void _runPing() async {
-    setState(() => _isRunningPing = true);
-    final stopwatch = Stopwatch()..start();
-    final ok = await ApiService().testConnection();
-    stopwatch.stop();
-
-    if (mounted) {
-      setState(() {
-        _isRunningPing = false;
-        _pingResult = ok
-            ? '${stopwatch.elapsedMilliseconds}ms (HTTP 200 OK)'
-            : 'Mock Connected (Local mode)';
-      });
-    }
-  }
-
-  void _simulateNotification() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Simulate UPI Notification'),
-        content: const Text(
-          'This will post a test payment event (PhonePe: ₹2,000.34 for Seema INV-1042) to the local SQLite queue and dispatch to the listener parser.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Simulated UPI payment notification ingested! Candidate matched.',
-                  ),
-                  backgroundColor: AppColors.successGreen,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryBlue,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Simulate'),
-          ),
-        ],
-      ),
+  void _simulateNotification() async {
+    final ok = await PlatformBridge.simulateNotification(
+      package: 'com.phonepe.app',
+      title: 'Payment Received',
+      text: 'Received Rs 2000.34 from **** 9821 Ref: UPI/${DateTime.now().millisecondsSinceEpoch}',
     );
+    await _checkStatus();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            ok
+                ? 'Simulated UPI notification dispatched to native listener and synced!'
+                : 'Failed to simulate notification',
+          ),
+          backgroundColor: ok ? AppColors.successGreen : AppColors.errorRed,
+        ),
+      );
+    }
   }
 }

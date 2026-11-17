@@ -945,10 +945,29 @@ async def list_notifications(
         "SELECT count(*) FROM public.payment_notification_events WHERE school_id = %s",
         (school_id,),
     )
+    summary_rows = await exec_sql(
+        """
+        SELECT
+            count(*) as all_count,
+            count(*) FILTER (WHERE candidate_match_status = 'MATCHED_CANDIDATE') as matched_count,
+            count(*) FILTER (WHERE candidate_match_status = 'UNMATCHED') as unmatched_count,
+            count(*) FILTER (WHERE candidate_match_status = 'IGNORED') as ignored_count
+        FROM public.payment_notification_events
+        WHERE school_id = %s
+        """,
+        (school_id,),
+    )
+    sm = summary_rows[0] if summary_rows else {}
 
     return {
         "school_id": school_id,
         "total": total_count[0]["count"] if total_count else 0,
+        "summary": {
+            "all": int(sm.get("all_count") or 0),
+            "matched": int(sm.get("matched_count") or 0),
+            "unmatched": int(sm.get("unmatched_count") or 0),
+            "ignored": int(sm.get("ignored_count") or 0),
+        },
         "items": serialize_rows(rows),
     }
 
@@ -1124,9 +1143,9 @@ async def get_dashboard_data(request: Request):
         "running_status": "Running",
         "payment_listener_active": device.get("listener_service_running", True),
         "metrics": {
-            "notifications_today": counts.get("total_today", 42) or 42,
-            "matched_payments": counts.get("matched_count", 38) or 38,
-            "unmatched_payments": counts.get("unmatched_count", 2) or 2,
+            "notifications_today": int(counts.get("total_today") or 0),
+            "matched_payments": int(counts.get("matched_count") or 0),
+            "unmatched_payments": int(counts.get("unmatched_count") or 0),
             "last_sync": f"{last_sync_str}\n(Just now)",
             "last_sync_time": last_sync_str,
         },
@@ -1150,19 +1169,28 @@ async def get_transactions_summary(request: Request):
         SELECT 
             count(*) FILTER (WHERE payment_status = 'VERIFIED_SUCCESS') as successful_count,
             count(*) FILTER (WHERE payment_status = 'PENDING') as pending_count,
-            count(*) FILTER (WHERE payment_status = 'UNMATCHED') as unmatched_count,
+            count(*) FILTER (WHERE payment_status = 'UNMATCHED') as unmatched_pt_count,
             count(*) FILTER (WHERE payment_status IN ('REFUNDED', 'REFUND_PENDING')) as refunds_count
         FROM public.payment_transactions
         WHERE school_id = %s
         """,
         (school_id,),
     )
+    unmatched_rows = await exec_sql(
+        """
+        SELECT count(*) as unmatched_count
+        FROM public.payment_unmatched_transactions
+        WHERE school_id = %s AND status = 'OPEN'
+        """,
+        (school_id,),
+    )
+    unmatched_total = (unmatched_rows[0].get("unmatched_count") if unmatched_rows else 0) or (rows[0].get("unmatched_pt_count") if rows else 0) or 0
     s = rows[0] if rows else {}
     return {
-        "successful": s.get("successful_count", 38) or 38,
-        "pending": s.get("pending_count", 3) or 3,
-        "unmatched": s.get("unmatched_count", 2) or 2,
-        "refunds": s.get("refunds_count", 1) or 1,
+        "successful": int(s.get("successful_count") or 0),
+        "pending": int(s.get("pending_count") or 0),
+        "unmatched": int(unmatched_total or 0),
+        "refunds": int(s.get("refunds_count") or 0),
     }
 
 

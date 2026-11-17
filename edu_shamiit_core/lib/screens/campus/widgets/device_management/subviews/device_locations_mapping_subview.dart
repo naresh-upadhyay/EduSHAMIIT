@@ -27,6 +27,8 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
 
   // Zoom / Pan state for inline floor plan view
   double _floorPlanZoom = 1.0;
+  String _floorPlanCategoryFilter = 'All';
+  FloorPlanMarkerModel? _selectedMarkerPin;
 
   final List<String> _subTabs = [
     'Location Hierarchy',
@@ -34,34 +36,6 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
     'Location Map',
     'Floor Plan',
     'Coverage & Utilization',
-  ];
-
-  final List<String> _deviceTypeFilters = [
-    'All Device Types',
-    'CCTV',
-    'Lighting',
-    'HVAC (AC)',
-    'Projector',
-    'Access Point',
-    'Audio / Speaker',
-    'Fan',
-  ];
-
-  final List<String> _groupFilters = [
-    'All Groups',
-    'Classroom Lighting - Block A',
-    'Classroom Fleet (B1)',
-    'Campus HVAC Fleet',
-    'AV & Auditorium Systems',
-    'Security Perimeter Fleet',
-  ];
-
-  final List<String> _profileFilters = [
-    'All Profiles',
-    'Default Profile',
-    'PTZ Control Profile',
-    'High Security (24x7)',
-    'Energy Saver',
   ];
 
   final List<String> _statusFilters = [
@@ -291,7 +265,7 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
                   return InkWell(
                     borderRadius: BorderRadius.circular(12),
                     onTap: () {
-                      notifier.selectLocationFloor(buildingId: b['id'] as String, floorId: 'b8b4c4de-11e1-4d42-b4ad-27b86c8c823a');
+                      notifier.selectLocationFloor(buildingId: b['id'] as String, floorId: '8770a0e6-8aa9-4e65-9a85-539eabd5f9a6');
                       notifier.setLocationSubTab('Location Hierarchy');
                     },
                     child: Container(
@@ -406,7 +380,7 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
                                 elevation: 0,
                               ),
                               onPressed: () {
-                                notifier.selectLocationFloor(buildingId: b['id'] as String, floorId: 'b8b4c4de-11e1-4d42-b4ad-27b86c8c823a');
+                                notifier.selectLocationFloor(buildingId: b['id'] as String, floorId: '8770a0e6-8aa9-4e65-9a85-539eabd5f9a6');
                                 notifier.setLocationSubTab('Location Hierarchy');
                               },
                               child: Text(
@@ -768,137 +742,237 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
   // 2. SECTION TITLE, SUB-NAV TABS & GLOBAL ACTIONS
   // ============================================================================
   Widget _buildSectionHeaderAndTabs(DeviceManagementState state, DeviceManagementNotifier notifier, bool isDark) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Title & Action Buttons Row
-        Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 720;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2563EB).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.location_on_outlined, color: Color(0xFF2563EB), size: 22),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // Title & Action Buttons Row
+            if (isCompact) ...[
+              Row(
                 children: [
-                  Text(
-                    'Locations & Mapping',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.location_on_outlined, color: Color(0xFF2563EB), size: 22),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Locations & Mapping',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Define campus locations & map devices',
+                          style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Define campus locations (buildings, floors, rooms, zones) and map devices to the right spaces.',
-                    style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
-                    overflow: TextOverflow.ellipsis,
+                ],
+              ),
+              const SizedBox(height: 10),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2563EB),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.add, size: 15),
+                      label: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Add Location', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          SizedBox(width: 3),
+                          Icon(Icons.keyboard_arrow_down, size: 15),
+                        ],
+                      ),
+                      onPressed: () => _openMapDeviceDialog(context),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
+                        side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.file_upload_outlined, size: 15),
+                      label: const Text('Import', style: TextStyle(fontSize: 12)),
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Spatial mapping imported successfully!'), backgroundColor: Colors.green),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
+                        side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.file_download_outlined, size: 15),
+                      label: const Text('Export', style: TextStyle(fontSize: 12)),
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Spatial mapping exported successfully!'), backgroundColor: Colors.blue),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.location_on_outlined, color: Color(0xFF2563EB), size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Locations & Mapping',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Define campus locations (buildings, floors, rooms, zones) and map devices to the right spaces.',
+                          style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // + Add Location
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Add Location', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        SizedBox(width: 4),
+                        Icon(Icons.keyboard_arrow_down, size: 16),
+                      ],
+                    ),
+                    onPressed: () => _openMapDeviceDialog(context),
+                  ),
+                  const SizedBox(width: 8),
+
+                  // Import
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
+                      side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.file_upload_outlined, size: 16),
+                    label: const Text('Import', style: TextStyle(fontSize: 13)),
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Spatial mapping imported successfully!'), backgroundColor: Colors.green),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 8),
+
+                  // Export
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
+                      side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.file_download_outlined, size: 16),
+                    label: const Text('Export', style: TextStyle(fontSize: 13)),
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Exporting campus location mapping CSV...'), backgroundColor: Colors.blue),
+                      );
+                    },
                   ),
                 ],
               ),
-            ),
+            ],
+            const SizedBox(height: 14),
 
-            // + Add Location
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2563EB),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            // SubTabs Bar
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: _subTabs.map((tab) {
+                  final isSelected = state.locationActiveSubTab == tab;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: InkWell(
+                      onTap: () => notifier.setLocationSubTab(tab),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? const Color(0xFF2563EB) : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isSelected ? const Color(0xFF2563EB) : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                          ),
+                        ),
+                        child: Text(
+                          tab,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
-              icon: const Icon(Icons.add, size: 16),
-              label: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Add Location', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  SizedBox(width: 4),
-                  Icon(Icons.keyboard_arrow_down, size: 16),
-                ],
-              ),
-              onPressed: () => _openMapDeviceDialog(context),
-            ),
-            const SizedBox(width: 8),
-
-            // Import
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
-                side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              icon: const Icon(Icons.file_upload_outlined, size: 16),
-              label: const Text('Import', style: TextStyle(fontSize: 13)),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Spatial mapping imported successfully!'), backgroundColor: Colors.green),
-                );
-              },
-            ),
-            const SizedBox(width: 8),
-
-            // Export
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
-                side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              icon: const Icon(Icons.file_download_outlined, size: 16),
-              label: const Text('Export', style: TextStyle(fontSize: 13)),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Exporting campus location mapping CSV...'), backgroundColor: Colors.blue),
-                );
-              },
             ),
           ],
-        ),
-        const SizedBox(height: 14),
-
-        // SubTabs Bar
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: _subTabs.map((tab) {
-              final isSelected = state.locationActiveSubTab == tab;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: InkWell(
-                  onTap: () => notifier.setLocationSubTab(tab),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF2563EB) : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isSelected ? const Color(0xFF2563EB) : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                      ),
-                    ),
-                    child: Text(
-                      tab,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -1036,6 +1110,7 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
                   final isSelected = floor.id == state.selectedLocationFloorId;
                   return InkWell(
                     onTap: () {
+                      setState(() => _selectedDeviceIds.clear());
                       notifier.selectLocationFloor(
                         floorId: floor.id,
                         buildingId: bldg.id,
@@ -1102,6 +1177,7 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
     final details = state.selectedLocationDetails;
     final title = details?.title ?? 'Academic Block (A) > First Floor';
     final devices = state.locationMappedDevices;
+    _selectedDeviceIds.retainWhere((id) => devices.any((d) => d.id == id));
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1117,61 +1193,105 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Header: Title & Actions
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2563EB).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.layers_outlined, color: Color(0xFF2563EB), size: 18),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Device Mapping – $title',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+          LayoutBuilder(
+            builder: (context, headerConstraints) {
+              final isNarrow = headerConstraints.maxWidth < 500;
+              final actionButtons = Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF2563EB),
+                      side: const BorderSide(color: Color(0xFF2563EB)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.link_rounded, size: 15),
+                    label: const Text('Map Devices', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    onPressed: () => _openMapDeviceDialog(context),
                   ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
+                      side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Bulk Map', style: TextStyle(fontSize: 12)),
+                        SizedBox(width: 4),
+                        Icon(Icons.keyboard_arrow_down, size: 15),
+                      ],
+                    ),
+                    onPressed: () => _openBulkMapDialog(context),
+                  ),
+                ],
+              );
 
-              // Action Buttons
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF2563EB),
-                  side: const BorderSide(color: Color(0xFF2563EB)),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                icon: const Icon(Icons.link_rounded, size: 15),
-                label: const Text('Map Devices', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                onPressed: () => _openMapDeviceDialog(context),
-              ),
-              const SizedBox(width: 8),
-
-              OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: isDark ? Colors.white : const Color(0xFF334155),
-                  side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
+              if (isNarrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Bulk Map', style: TextStyle(fontSize: 12)),
-                    SizedBox(width: 4),
-                    Icon(Icons.keyboard_arrow_down, size: 15),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.layers_outlined, color: Color(0xFF2563EB), size: 18),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Device Mapping – $title',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    actionButtons,
                   ],
-                ),
-                onPressed: () => _openBulkMapDialog(context),
-              ),
-            ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.layers_outlined, color: Color(0xFF2563EB), size: 18),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Device Mapping – $title',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  actionButtons,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 14),
 
@@ -1188,81 +1308,83 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)),
               ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    Icon(Icons.check_circle_outline, color: Theme.of(context).colorScheme.primary, size: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${_selectedDeviceIds.length} of ${devices.length} devices selected',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12.5,
-                        color: isDark ? Colors.white : const Color(0xFF1E3A8A),
+              child: Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle_outline, color: Theme.of(context).colorScheme.primary, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${_selectedDeviceIds.length} of ${devices.length} devices selected',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12.5,
+                          color: isDark ? Colors.white : const Color(0xFF1E3A8A),
+                        ),
                       ),
+                    ],
+                  ),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.link_off_rounded, size: 14, color: Color(0xFFDC2626)),
+                    label: const Text('Unmap Selected', style: TextStyle(fontSize: 12, color: Color(0xFFDC2626), fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      side: const BorderSide(color: Color(0xFFFCA5A5)),
                     ),
-                    const SizedBox(width: 16),
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.link_off_rounded, size: 14, color: Color(0xFFDC2626)),
-                      label: const Text('Unmap Selected', style: TextStyle(fontSize: 12, color: Color(0xFFDC2626), fontWeight: FontWeight.w600)),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        side: const BorderSide(color: Color(0xFFFCA5A5)),
-                      ),
-                      onPressed: () async {
-                        final count = _selectedDeviceIds.length;
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('Unmap Selected Devices?'),
-                            content: Text('Are you sure you want to unmap $count selected device(s) from this location?'),
-                            actions: [
-                              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
-                                onPressed: () => Navigator.pop(ctx, true),
-                                child: const Text('Unmap', style: TextStyle(color: Colors.white)),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (confirm == true) {
-                          await notifier.unmapDevices(deviceIds: _selectedDeviceIds.toList());
-                          setState(() => _selectedDeviceIds.clear());
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Unmapped $count device(s) successfully!'), backgroundColor: Colors.orange.shade800),
-                            );
-                          }
-                        }
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.drive_file_move_outlined, size: 14, color: Color(0xFF0D9488)),
-                      label: const Text('Relocate Selected', style: TextStyle(fontSize: 12, color: Color(0xFF0D9488), fontWeight: FontWeight.w600)),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        side: const BorderSide(color: Color(0xFF99F6E4)),
-                      ),
-                      onPressed: () {
-                        if (devices.isNotEmpty) {
-                          final firstSel = devices.firstWhere(
-                            (d) => _selectedDeviceIds.contains(d.id),
-                            orElse: () => devices.first,
+                    onPressed: () async {
+                      final count = _selectedDeviceIds.length;
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Unmap Selected Devices?'),
+                          content: Text('Are you sure you want to unmap $count selected device(s) from this location?'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Unmap', style: TextStyle(color: Colors.white)),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        await notifier.unmapDevices(deviceIds: _selectedDeviceIds.toList());
+                        setState(() => _selectedDeviceIds.clear());
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Unmapped $count device(s) successfully!'), backgroundColor: Colors.orange.shade800),
                           );
-                          _openMoveDeviceDialog(firstSel);
                         }
-                      },
+                      }
+                    },
+                  ),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.drive_file_move_outlined, size: 14, color: Color(0xFF0D9488)),
+                    label: const Text('Relocate Selected', style: TextStyle(fontSize: 12, color: Color(0xFF0D9488), fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      side: const BorderSide(color: Color(0xFF99F6E4)),
                     ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: () => setState(() => _selectedDeviceIds.clear()),
-                      child: Text('Deselect All', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
-                    ),
-                  ],
-                ),
+                    onPressed: () {
+                      if (devices.isNotEmpty) {
+                        final firstSel = devices.firstWhere(
+                          (d) => _selectedDeviceIds.contains(d.id),
+                          orElse: () => devices.first,
+                        );
+                        _openMoveDeviceDialog(firstSel);
+                      }
+                    },
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() => _selectedDeviceIds.clear()),
+                    child: Text('Deselect All', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 10),
@@ -1314,12 +1436,12 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
                           },
                         ),
                       ),
-                      _tableHeaderCell('Device Name ↕', isDark),
-                      _tableHeaderCell('Device Type', isDark),
-                      _tableHeaderCell('Room / Space', isDark),
-                      _tableHeaderCell('Location Path', isDark),
-                      _tableHeaderCell('Mapping Status', isDark),
-                      _tableHeaderCell('Actions', isDark, align: TextAlign.center),
+                        _sortableHeaderCell('Device Name', 'device_name', state, notifier, isDark),
+                        _sortableHeaderCell('Device Type', 'device_type', state, notifier, isDark),
+                        _sortableHeaderCell('Room / Space', 'room_space', state, notifier, isDark),
+                        _tableHeaderCell('Location Path', isDark),
+                        _sortableHeaderCell('Mapping Status', 'mapping_status', state, notifier, isDark),
+                        _tableHeaderCell('Actions', isDark, align: TextAlign.center),
                     ],
                   ),
 
@@ -1382,6 +1504,59 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
           fontSize: 11,
           fontWeight: FontWeight.bold,
           color: isDark ? Colors.white70 : const Color(0xFF475569),
+        ),
+      ),
+    );
+  }
+
+  Widget _sortableHeaderCell(
+    String title,
+    String columnKey,
+    DeviceManagementState state,
+    DeviceManagementNotifier notifier,
+    bool isDark, {
+    TextAlign align = TextAlign.left,
+  }) {
+    final isCurrentSort = state.locationSortBy.toLowerCase() == columnKey.toLowerCase();
+    final isAsc = state.locationSortOrder.toLowerCase() == 'asc';
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return InkWell(
+      onTap: () {
+        if (isCurrentSort) {
+          notifier.setLocationSort(columnKey, isAsc ? 'desc' : 'asc');
+        } else {
+          notifier.setLocationSort(columnKey, 'asc');
+        }
+      },
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        child: Row(
+          mainAxisAlignment: align == TextAlign.center ? MainAxisAlignment.center : MainAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                title,
+                textAlign: align,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: isCurrentSort ? primaryColor : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              isCurrentSort
+                  ? (isAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                  : Icons.unfold_more_rounded,
+              size: 13,
+              color: isCurrentSort ? primaryColor : (isDark ? Colors.white38 : Colors.black26),
+            ),
+          ],
         ),
       ),
     );
@@ -1535,6 +1710,27 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
   }
 
   Widget _buildMappingFiltersRow(DeviceManagementState state, DeviceManagementNotifier notifier, bool isDark) {
+    final dynamicDeviceTypes = <String>{
+      'All Device Types',
+      ...state.deviceTypesList.map((t) => t.name).where((n) => n.isNotEmpty),
+      if (state.deviceTypesList.isEmpty) ...['CCTV', 'Lighting', 'HVAC (AC)', 'Projector', 'Access Point', 'Audio / Speaker', 'Fan'],
+    }.toList();
+
+    final dynamicGroups = <String>{
+      'All Groups',
+      ...state.groupsList.map((g) => g.name).where((n) => n.isNotEmpty),
+      if (state.selectedLocationDetails != null)
+        ...state.selectedLocationDetails!.assignedGroups.map((g) => g.name).where((n) => n.isNotEmpty),
+      if (state.groupsList.isEmpty) ...['Classroom Lighting - Block A', 'Classroom Fleet (B1)', 'Campus HVAC Fleet', 'AV & Auditorium Systems'],
+    }.toList();
+
+    final dynamicProfiles = <String>{
+      'All Profiles',
+      ...state.deviceProfilesList.map((p) => p.name).where((n) => n.isNotEmpty),
+      ...state.groupsDynamicProfiles,
+      if (state.deviceProfilesList.isEmpty) ...['Default Profile', 'PTZ Control Profile', 'High Security (24x7)', 'Energy Saver'],
+    }.toList();
+
     return LayoutBuilder(
       builder: (context, constraints) {
         return Wrap(
@@ -1545,7 +1741,7 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
             // Dropdown 1: Device Type
             _buildDropdownFilter(
               value: state.locationDeviceTypeFilter,
-              items: _deviceTypeFilters,
+              items: dynamicDeviceTypes,
               onChanged: (val) {
                 if (val != null) notifier.setLocationDeviceTypeFilter(val);
               },
@@ -1555,7 +1751,7 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
             // Dropdown 2: Group
             _buildDropdownFilter(
               value: state.locationGroupFilter,
-              items: _groupFilters,
+              items: dynamicGroups,
               onChanged: (val) {
                 if (val != null) notifier.setLocationGroupFilter(val);
               },
@@ -1565,7 +1761,7 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
             // Dropdown 3: Profile
             _buildDropdownFilter(
               value: state.locationProfileFilter,
-              items: _profileFilters,
+              items: dynamicProfiles,
               onChanged: (val) {
                 if (val != null) notifier.setLocationProfileFilter(val);
               },
@@ -1641,22 +1837,27 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
     required List<String> items,
     required ValueChanged<String?> onChanged,
     required bool isDark,
+    double maxWidth = 180,
   }) {
-    return Container(
-      height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: items.contains(value) ? value : items.first,
-          style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.w500),
-          icon: const Icon(Icons.keyboard_arrow_down, size: 16),
-          items: items.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
-          onChanged: onChanged,
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth, minWidth: 100),
+      child: Container(
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            isExpanded: true,
+            value: items.contains(value) ? value : items.first,
+            style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.w500),
+            icon: const Icon(Icons.keyboard_arrow_down, size: 16),
+            items: items.map((item) => DropdownMenuItem(value: item, child: Text(item, overflow: TextOverflow.ellipsis))).toList(),
+            onChanged: onChanged,
+          ),
         ),
       ),
     );
@@ -1666,9 +1867,12 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
     final total = state.locationDevicesTotal;
     final page = state.locationDevicesPage;
     final limit = state.locationDevicesPageSize;
+    final totalPages = (total / limit).ceil().clamp(1, 99999);
     final startIdx = total == 0 ? 0 : ((page - 1) * limit + 1);
     final devsOnPage = state.locationMappedDevices.length;
     final endIdx = total == 0 ? 0 : (startIdx + devsOnPage - 1);
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     String floorName = 'First Floor';
     if (state.selectedLocationDetails?.title != null) {
       final t = state.selectedLocationDetails!.title;
@@ -1683,9 +1887,123 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
       }
     }
 
+    final pageSizeWidget = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Rows per page:',
+          style: TextStyle(
+            fontSize: 12,
+            color: isDark ? Colors.white60 : const Color(0xFF64748B),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Container(
+          height: 30,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: limit,
+              icon: const Icon(Icons.arrow_drop_down, size: 16),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+              items: const [10, 25, 50, 100].map((int val) {
+                return DropdownMenuItem<int>(
+                  value: val,
+                  child: Text('$val'),
+                );
+              }).toList(),
+              onChanged: (newSize) {
+                if (newSize != null) {
+                  notifier.setLocationDevicesPageSize(newSize);
+                }
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+
+    final navButtons = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.first_page_rounded, size: 18),
+          style: IconButton.styleFrom(
+            minimumSize: const Size(28, 28),
+            padding: const EdgeInsets.all(4),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          constraints: const BoxConstraints(),
+          tooltip: 'First Page',
+          onPressed: page > 1 ? () => notifier.setLocationDevicesPage(1) : null,
+        ),
+        const SizedBox(width: 4),
+        IconButton(
+          icon: const Icon(Icons.chevron_left_rounded, size: 18),
+          style: IconButton.styleFrom(
+            minimumSize: const Size(28, 28),
+            padding: const EdgeInsets.all(4),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          constraints: const BoxConstraints(),
+          tooltip: 'Previous Page',
+          onPressed: page > 1 ? () => notifier.setLocationDevicesPage(page - 1) : null,
+        ),
+        const SizedBox(width: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: primaryColor,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            'Page $page of $totalPages',
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        IconButton(
+          icon: const Icon(Icons.chevron_right_rounded, size: 18),
+          style: IconButton.styleFrom(
+            minimumSize: const Size(28, 28),
+            padding: const EdgeInsets.all(4),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          constraints: const BoxConstraints(),
+          tooltip: 'Next Page',
+          onPressed: page < totalPages ? () => notifier.setLocationDevicesPage(page + 1) : null,
+        ),
+        const SizedBox(width: 4),
+        IconButton(
+          icon: const Icon(Icons.last_page_rounded, size: 18),
+          style: IconButton.styleFrom(
+            minimumSize: const Size(28, 28),
+            padding: const EdgeInsets.all(4),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          constraints: const BoxConstraints(),
+          tooltip: 'Last Page',
+          onPressed: page < totalPages ? () => notifier.setLocationDevicesPage(totalPages) : null,
+        ),
+      ],
+    );
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < 620) {
+        if (constraints.maxWidth < 650) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1693,29 +2011,17 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
                 'Showing $startIdx – $endIdx of $total devices ($floorName)',
                 style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
               ),
-              const SizedBox(height: 8),
-              Row(
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                alignment: WrapAlignment.spaceBetween,
                 children: [
-                  Text('Rows per page: 10', style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : const Color(0xFF64748B))),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left, size: 18),
-                    padding: const EdgeInsets.all(4),
-                    constraints: const BoxConstraints(),
-                    onPressed: page > 1 ? () => notifier.setLocationDevicesPage(page - 1) : null,
-                  ),
-                  const SizedBox(width: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary, borderRadius: BorderRadius.circular(6)),
-                    child: Text('$page', style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),
-                  ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right, size: 18),
-                    padding: const EdgeInsets.all(4),
-                    constraints: const BoxConstraints(),
-                    onPressed: endIdx < total ? () => notifier.setLocationDevicesPage(page + 1) : null,
+                  pageSizeWidget,
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: navButtons,
                   ),
                 ],
               ),
@@ -1732,33 +2038,9 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Text(
-              'Rows per page: 10',
-              style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              icon: const Icon(Icons.chevron_left, size: 18),
-              padding: const EdgeInsets.all(4),
-              constraints: const BoxConstraints(),
-              onPressed: page > 1 ? () => notifier.setLocationDevicesPage(page - 1) : null,
-            ),
-            const SizedBox(width: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2563EB),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text('$page', style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),
-            ),
-            const SizedBox(width: 4),
-            IconButton(
-              icon: const Icon(Icons.chevron_right, size: 18),
-              padding: const EdgeInsets.all(4),
-              constraints: const BoxConstraints(),
-              onPressed: endIdx < total ? () => notifier.setLocationDevicesPage(page + 1) : null,
-            ),
+            pageSizeWidget,
+            const SizedBox(width: 16),
+            navButtons,
           ],
         );
       },
@@ -1773,9 +2055,33 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
   // ============================================================================
   Widget _buildFloorPlanViewCard(DeviceManagementState state, DeviceManagementNotifier notifier, bool isDark) {
     final details = state.selectedLocationDetails;
-    final title = details?.title ?? 'Academic Block (A) > First Floor';
+    final title = state.floorPlanAsset?.title ?? details?.title ?? 'Academic Block (A) > First Floor';
     final markers = state.floorPlanMarkers;
-    final legend = state.floorPlanLegend;
+    final availableFloors = state.floorPlanAsset?.availableFloors ?? [];
+
+    // 100% dynamic legend count computed directly from markers on this floor
+    final cctvCount = markers.where((m) => m.deviceType.toLowerCase().contains('cctv') || m.deviceType.toLowerCase().contains('cam')).length;
+    final lightingCount = markers.where((m) => m.deviceType.toLowerCase().contains('light')).length;
+    final hvacCount = markers.where((m) => m.deviceType.toLowerCase().contains('hvac') || m.deviceType.toLowerCase().contains('ac')).length;
+    final projCount = markers.where((m) => m.deviceType.toLowerCase().contains('proj') || m.deviceType.toLowerCase().contains('disp')).length;
+    final apCount = markers.where((m) => m.deviceType.toLowerCase().contains('access') || m.deviceType.toLowerCase().contains('wifi') || m.deviceType.toLowerCase().contains('point')).length;
+    final audioCount = markers.where((m) => m.deviceType.toLowerCase().contains('audio') || m.deviceType.toLowerCase().contains('speaker')).length;
+    final fanCount = markers.where((m) => m.deviceType.toLowerCase().contains('fan')).length;
+
+    // Filter markers based on active category
+    final visibleMarkers = markers.where((m) {
+      if (_floorPlanCategoryFilter == 'All') return true;
+      final typeLower = m.deviceType.toLowerCase();
+      final filterLower = _floorPlanCategoryFilter.toLowerCase();
+      if (filterLower == 'cctv') return typeLower.contains('cctv') || typeLower.contains('cam');
+      if (filterLower == 'lighting') return typeLower.contains('light');
+      if (filterLower == 'hvac') return typeLower.contains('hvac') || typeLower.contains('ac');
+      if (filterLower == 'projector') return typeLower.contains('proj') || typeLower.contains('disp');
+      if (filterLower == 'access point') return typeLower.contains('access') || typeLower.contains('wifi') || typeLower.contains('point');
+      if (filterLower == 'audio') return typeLower.contains('audio') || typeLower.contains('speaker');
+      if (filterLower == 'fan') return typeLower.contains('fan');
+      return typeLower.contains(filterLower);
+    }).toList();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1790,42 +2096,194 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2563EB).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.map_outlined, color: Color(0xFF2563EB), size: 18),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Floor Plan View – $title',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
+          // Header Bar with Floor Switcher & Category Chips
+          LayoutBuilder(
+            builder: (context, headerConstraints) {
+              final isNarrow = headerConstraints.maxWidth < 620;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (isNarrow) ...[
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.map_outlined, color: Color(0xFF2563EB), size: 18),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Floor Plan View – $title',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        IconButton(
+                          icon: const Icon(Icons.open_in_new, size: 16, color: Color(0xFF2563EB)),
+                          tooltip: 'Open Full Plan',
+                          onPressed: () => _openFullScreenFloorPlan(context),
+                        ),
+                      ],
+                    ),
+                    if (availableFloors.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: availableFloors.any((f) => f.id == state.selectedLocationFloorId)
+                                ? state.selectedLocationFloorId
+                                : availableFloors.first.id,
+                            isDense: true,
+                            isExpanded: true,
+                            dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                            icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
+                            items: availableFloors.map((f) {
+                              return DropdownMenuItem<String>(
+                                value: f.id,
+                                child: Text(f.name),
+                              );
+                            }).toList(),
+                            onChanged: (newFloorId) {
+                              if (newFloorId != null && newFloorId != state.selectedLocationFloorId) {
+                                notifier.selectLocationFloor(
+                                  floorId: newFloorId,
+                                  buildingId: state.selectedLocationBuildingId ?? state.floorPlanAsset?.buildingId,
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ] else ...[
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.map_outlined, color: Color(0xFF2563EB), size: 18),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Floor Plan View – $title',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
 
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF2563EB),
-                  side: const BorderSide(color: Color(0xFF2563EB)),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                icon: const Icon(Icons.open_in_new, size: 14),
-                label: const Text('Open Full Plan', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                onPressed: () => _openFullScreenFloorPlan(context),
-              ),
-            ],
+                        // Floor Switcher Dropdown
+                        if (availableFloors.isNotEmpty) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: availableFloors.any((f) => f.id == state.selectedLocationFloorId)
+                                    ? state.selectedLocationFloorId
+                                    : availableFloors.first.id,
+                                isDense: true,
+                                dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                                icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
+                                items: availableFloors.map((f) {
+                                  return DropdownMenuItem<String>(
+                                    value: f.id,
+                                    child: Text(f.name),
+                                  );
+                                }).toList(),
+                                onChanged: (newFloorId) {
+                                  if (newFloorId != null && newFloorId != state.selectedLocationFloorId) {
+                                    notifier.selectLocationFloor(
+                                      floorId: newFloorId,
+                                      buildingId: state.selectedLocationBuildingId ?? state.floorPlanAsset?.buildingId,
+                                    );
+                                  }
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF2563EB),
+                            side: const BorderSide(color: Color(0xFF2563EB)),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          icon: const Icon(Icons.open_in_new, size: 14),
+                          label: const Text('Open Full Plan', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          onPressed: () => _openFullScreenFloorPlan(context),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+
+                  // Category Filter Chips Row
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildCategoryFilterChip('All', markers.length, isDark),
+                        const SizedBox(width: 6),
+                        _buildCategoryFilterChip('CCTV', cctvCount, isDark, icon: Icons.videocam_outlined, color: const Color(0xFFDC2626)),
+                        const SizedBox(width: 6),
+                        _buildCategoryFilterChip('Lighting', lightingCount, isDark, icon: Icons.lightbulb_outline_rounded, color: const Color(0xFFEAB308)),
+                        const SizedBox(width: 6),
+                        _buildCategoryFilterChip('HVAC', hvacCount, isDark, icon: Icons.ac_unit_rounded, color: const Color(0xFF0EA5E9)),
+                        const SizedBox(width: 6),
+                        _buildCategoryFilterChip('Projector', projCount, isDark, icon: Icons.tv_rounded, color: const Color(0xFF8B5CF6)),
+                        const SizedBox(width: 6),
+                        _buildCategoryFilterChip('Access Point', apCount, isDark, icon: Icons.wifi_rounded, color: const Color(0xFF2563EB)),
+                        const SizedBox(width: 6),
+                        _buildCategoryFilterChip('Audio', audioCount, isDark, icon: Icons.volume_up_rounded, color: const Color(0xFF10B981)),
+                        const SizedBox(width: 6),
+                        _buildCategoryFilterChip('Fan', fanCount, isDark, icon: Icons.mode_fan_off_rounded, color: const Color(0xFF14B8A6)),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 14),
 
@@ -1833,14 +2291,14 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: Container(
-              height: 380,
+              height: 400,
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                 border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
               ),
               child: Stack(
                 children: [
-                  // 1. Rooms Graphic & Markers
+                  // 1. Dynamic Rooms Graphic & Plotted Markers
                   Positioned.fill(
                     child: Transform.scale(
                       scale: _floorPlanZoom,
@@ -1850,8 +2308,8 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
                           final planH = constraints.maxHeight;
                           return Stack(
                             children: [
-                              ..._buildRoomsArchitecture(isDark, planW, planH),
-                              ...markers.map((m) => _buildMarkerPin(m, isDark, planW, planH)),
+                              ..._buildRoomsArchitecture(state, isDark, planW, planH),
+                              ...visibleMarkers.map((m) => _buildMarkerPin(m, isDark, planW, planH)),
                             ],
                           );
                         },
@@ -1865,7 +2323,7 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
                     top: 12,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.9) : Colors.white.withValues(alpha: 0.9),
+                        color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.92) : Colors.white.withValues(alpha: 0.92),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                         boxShadow: [
@@ -1895,15 +2353,15 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
                             icon: const Icon(Icons.fit_screen_outlined, size: 18),
                             padding: const EdgeInsets.all(6),
                             constraints: const BoxConstraints(),
-                            tooltip: 'Reset',
+                            tooltip: 'Reset Zoom',
                             onPressed: () => setState(() => _floorPlanZoom = 1.0),
                           ),
                           const Divider(height: 1),
                           IconButton(
-                            icon: const Icon(Icons.layers_outlined, size: 18),
+                            icon: const Icon(Icons.fullscreen_rounded, size: 18),
                             padding: const EdgeInsets.all(6),
                             constraints: const BoxConstraints(),
-                            tooltip: 'Layers',
+                            tooltip: 'Fullscreen Blueprint',
                             onPressed: () => _openFullScreenFloorPlan(context),
                           ),
                         ],
@@ -1911,54 +2369,77 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
                     ),
                   ),
 
-                  // 3. Right Legend Overlay
+                  // 3. Right Legend Overlay (100% Synchronized & Interactive)
                   Positioned(
                     right: 12,
                     top: 12,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      width: 156,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.92) : Colors.white.withValues(alpha: 0.92),
+                        color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.94) : Colors.white.withValues(alpha: 0.94),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 6),
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8),
                         ],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text('Legend', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 5),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Legend', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '${markers.length}',
+                                  style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Container(width: 7, height: 7, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
                               const SizedBox(width: 5),
-                              const Text('Mapped Device', style: TextStyle(fontSize: 10)),
+                              const Flexible(
+                                child: Text(
+                                  'Mapped Device',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 9.5),
+                                ),
+                              ),
                             ],
                           ),
-                          const SizedBox(height: 3),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(width: 7, height: 7, decoration: const BoxDecoration(color: Colors.grey, shape: BoxShape.circle)),
-                              const SizedBox(width: 5),
-                              const Text('Unmapped Device', style: TextStyle(fontSize: 10)),
-                            ],
-                          ),
-                          const Divider(height: 10),
-                          _buildLegendItem(Icons.videocam_outlined, 'CCTV (${legend.cctv})', const Color(0xFFDC2626)),
-                          _buildLegendItem(Icons.lightbulb_outline_rounded, 'Lighting (${legend.lighting})', const Color(0xFFEAB308)),
-                          _buildLegendItem(Icons.ac_unit_rounded, 'HVAC (${legend.hvac})', const Color(0xFF0EA5E9)),
-                          _buildLegendItem(Icons.tv_rounded, 'Projector (${legend.projector})', const Color(0xFF8B5CF6)),
-                          _buildLegendItem(Icons.wifi_rounded, 'Access Point (${legend.accessPoint})', const Color(0xFF2563EB)),
-                          _buildLegendItem(Icons.volume_up_rounded, 'Audio (${legend.audio})', const Color(0xFF10B981)),
+                          const Divider(height: 8),
+                          _buildLegendItem(Icons.videocam_outlined, 'CCTV', 'CCTV', cctvCount, const Color(0xFFDC2626)),
+                          _buildLegendItem(Icons.lightbulb_outline_rounded, 'Lighting', 'Lighting', lightingCount, const Color(0xFFEAB308)),
+                          _buildLegendItem(Icons.ac_unit_rounded, 'HVAC', 'HVAC', hvacCount, const Color(0xFF0EA5E9)),
+                          _buildLegendItem(Icons.tv_rounded, 'Projector', 'Projector', projCount, const Color(0xFF8B5CF6)),
+                          _buildLegendItem(Icons.wifi_rounded, 'Access Point', 'Access Point', apCount, const Color(0xFF2563EB)),
+                          _buildLegendItem(Icons.volume_up_rounded, 'Audio', 'Audio', audioCount, const Color(0xFF10B981)),
+                          _buildLegendItem(Icons.mode_fan_off_rounded, 'Fan', 'Fan', fanCount, const Color(0xFF14B8A6)),
                         ],
                       ),
                     ),
                   ),
+
+                  // 4. Quick Device Inspector Overlay Card (When a marker is tapped)
+                  if (_selectedMarkerPin != null)
+                    Positioned(
+                      left: 12,
+                      bottom: 12,
+                      child: _buildQuickMarkerInspectorCard(_selectedMarkerPin!, isDark, notifier),
+                    ),
                 ],
               ),
             ),
@@ -1968,26 +2449,112 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
     );
   }
 
-  Widget _buildLegendItem(IconData icon, String label, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 5),
-          Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500)),
-        ],
+  Widget _buildCategoryFilterChip(String label, int count, bool isDark, {IconData? icon, Color? color}) {
+    final isSelected = _floorPlanCategoryFilter.toLowerCase() == label.toLowerCase();
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _floorPlanCategoryFilter = isSelected && label != 'All' ? 'All' : label;
+        });
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (color ?? const Color(0xFF2563EB))
+              : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? (color ?? const Color(0xFF2563EB))
+                : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 12, color: isSelected ? Colors.white : (color ?? const Color(0xFF64748B))),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white.withValues(alpha: 0.25) : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  List<Widget> _buildRoomsArchitecture(bool isDark, double w, double h) {
+  Widget _buildLegendItem(IconData icon, String label, String categoryKey, int count, Color color) {
+    final isSelected = _floorPlanCategoryFilter.toLowerCase() == categoryKey.toLowerCase();
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _floorPlanCategoryFilter = isSelected ? 'All' : categoryKey;
+        });
+      },
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        margin: const EdgeInsets.symmetric(vertical: 1.5),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(4),
+          border: isSelected ? Border.all(color: color, width: 1) : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: color),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                '$label ($count)',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: isSelected ? color : null,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildRoomsArchitecture(DeviceManagementState state, bool isDark, double w, double h) {
     final borderColor = isDark ? const Color(0xFF475569) : const Color(0xFF94A3B8);
     final roomBg = isDark ? const Color(0xFF0F172A).withValues(alpha: 0.6) : Colors.white;
     final corrBg = isDark ? const Color(0xFF1E293B).withValues(alpha: 0.4) : const Color(0xFFF1F5F9);
+    final rooms = state.floorPlanAsset?.roomsLayout ?? [];
+    final markers = state.floorPlanMarkers;
 
-    Widget makeRoom(String code, String name, double left, double top, double width, double height, {bool isCorridor = false}) {
+    Widget makeRoom(String code, String name, String roomType, double left, double top, double width, double height, int devCount, {bool isCorridor = false}) {
       return Positioned(
         left: left * w,
         top: top * h,
@@ -1998,37 +2565,81 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
           decoration: BoxDecoration(
             color: isCorridor ? corrBg : roomBg,
             border: Border.all(color: borderColor, width: 1.2),
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(6),
           ),
-          child: Align(
-            alignment: isCorridor ? Alignment.center : Alignment.topLeft,
-            child: Text(
-              isCorridor ? code : '$code\n$name',
-              style: TextStyle(
-                fontSize: isCorridor ? 11 : 10,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white70 : const Color(0xFF334155),
+          child: Column(
+            crossAxisAlignment: isCorridor ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+            mainAxisAlignment: isCorridor ? MainAxisAlignment.center : MainAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: isCorridor ? MainAxisAlignment.center : MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: Text(
+                      code,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                  ),
+                  if (!isCorridor && devCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '$devCount',
+                        style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
+                      ),
+                    ),
+                ],
               ),
-            ),
+              if (!isCorridor && name.isNotEmpty) ...[
+                const SizedBox(height: 1),
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 8.5,
+                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       );
     }
 
+    if (rooms.isNotEmpty) {
+      return rooms.map((rm) {
+        final isCorridor = rm.roomId.toLowerCase() == 'corridor' || rm.code.toLowerCase() == 'corridor';
+        final count = markers.where((m) => m.roomId == rm.roomId || (rm.code.isNotEmpty && m.roomNumber == rm.code)).length;
+        return makeRoom(rm.code, rm.name, rm.roomType, rm.x, rm.y, rm.w, rm.h, count, isCorridor: isCorridor);
+      }).toList();
+    }
+
     return [
-      // Top Row
-      makeRoom('A1-101', 'Classroom', 0.04, 0.06, 0.21, 0.38),
-      makeRoom('A1-102', 'Classroom', 0.27, 0.06, 0.21, 0.38),
-      makeRoom('A1-103', 'Classroom', 0.50, 0.06, 0.21, 0.38),
-      makeRoom('A1-104', 'Classroom', 0.73, 0.06, 0.23, 0.38),
+      // Top Row fallback
+      makeRoom('101', 'Classroom', 'Classroom', 0.04, 0.06, 0.21, 0.38, 4),
+      makeRoom('102', 'Classroom', 'Classroom', 0.27, 0.06, 0.21, 0.38, 2),
+      makeRoom('103', 'Classroom', 'Classroom', 0.50, 0.06, 0.21, 0.38, 2),
+      makeRoom('104', 'Classroom', 'Classroom', 0.73, 0.06, 0.23, 0.38, 0),
 
       // Corridor
-      makeRoom('Corridor', '', 0.04, 0.46, 0.92, 0.10, isCorridor: true),
+      makeRoom('Corridor', '', 'Corridor', 0.04, 0.46, 0.92, 0.10, 1, isCorridor: true),
 
-      // Bottom Row
-      makeRoom('A1-105', 'Lab', 0.04, 0.58, 0.29, 0.38),
-      makeRoom('A1-106', 'Lab', 0.35, 0.58, 0.29, 0.38),
-      makeRoom('A1-107', 'Smart Class', 0.66, 0.58, 0.30, 0.38),
+      // Bottom Row fallback
+      makeRoom('105', 'Lab', 'Laboratory', 0.04, 0.58, 0.29, 0.38, 0),
+      makeRoom('106', 'Lab', 'Laboratory', 0.35, 0.58, 0.29, 0.38, 0),
+      makeRoom('107', 'Smart Class', 'Classroom', 0.66, 0.58, 0.30, 0.38, 0),
     ];
   }
 
@@ -2037,36 +2648,192 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
     final typeLower = marker.deviceType.toLowerCase();
     if (typeLower.contains('cctv')) {
       markerColor = const Color(0xFFDC2626);
-    } else if (typeLower.contains('light')) markerColor = const Color(0xFFEAB308);
-    else if (typeLower.contains('hvac') || typeLower.contains('ac')) markerColor = const Color(0xFF0EA5E9);
-    else if (typeLower.contains('proj')) markerColor = const Color(0xFF8B5CF6);
-    else if (typeLower.contains('audio') || typeLower.contains('speaker')) markerColor = const Color(0xFF10B981);
-    else if (typeLower.contains('fan')) markerColor = const Color(0xFF14B8A6);
+    } else if (typeLower.contains('light')) {
+      markerColor = const Color(0xFFEAB308);
+    } else if (typeLower.contains('hvac') || typeLower.contains('ac')) {
+      markerColor = const Color(0xFF0EA5E9);
+    } else if (typeLower.contains('proj')) {
+      markerColor = const Color(0xFF8B5CF6);
+    } else if (typeLower.contains('audio') || typeLower.contains('speaker')) {
+      markerColor = const Color(0xFF10B981);
+    } else if (typeLower.contains('fan')) {
+      markerColor = const Color(0xFF14B8A6);
+    } else if (typeLower.contains('access') || typeLower.contains('wifi') || typeLower.contains('point')) {
+      markerColor = const Color(0xFF2563EB);
+    }
 
-    final left = marker.posX * w - 12;
-    final top = marker.posY * h - 12;
+    final isCategoryMatch = _floorPlanCategoryFilter == 'All' ||
+        marker.deviceType.toLowerCase().contains(_floorPlanCategoryFilter.toLowerCase());
+    final isSelected = _selectedMarkerPin?.id == marker.id;
+
+    // Guaranteed safe bounds: marker stays inside plan and never behind right legend overlay
+    final left = (marker.posX * w - 12).clamp(8.0, w - 150.0);
+    final top = (marker.posY * h - 12).clamp(8.0, h - 32.0);
 
     return Positioned(
       left: left,
       top: top,
-      child: Tooltip(
-        message: '${marker.deviceCode} (${marker.deviceType})',
-        child: Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(color: markerColor, width: 1.5),
-            boxShadow: [
-              BoxShadow(color: markerColor.withValues(alpha: 0.3), blurRadius: 4),
-            ],
-          ),
-          child: Icon(
-            _getIconForType(marker.deviceType),
-            size: 13,
-            color: markerColor,
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedMarkerPin = (_selectedMarkerPin?.id == marker.id) ? null : marker;
+          });
+        },
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 250),
+          opacity: isCategoryMatch ? 1.0 : 0.25,
+          child: Tooltip(
+            message: '${marker.deviceCode} (${marker.deviceType})\nRoom: ${marker.roomNumber ?? 'Corridor'}\nStatus: ${marker.isOnline ? 'Online' : 'Offline'}',
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: isSelected ? markerColor : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                shape: BoxShape.circle,
+                border: Border.all(color: markerColor, width: isSelected ? 2.5 : 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: markerColor.withValues(alpha: isSelected ? 0.6 : 0.3),
+                    blurRadius: isSelected ? 8 : 4,
+                  ),
+                ],
+              ),
+              child: Icon(
+                _getIconForType(marker.deviceType),
+                size: 13,
+                color: isSelected ? Colors.white : markerColor,
+              ),
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildQuickMarkerInspectorCard(FloorPlanMarkerModel marker, bool isDark, DeviceManagementNotifier notifier) {
+    Color markerColor = const Color(0xFF2563EB);
+    final typeLower = marker.deviceType.toLowerCase();
+    if (typeLower.contains('cctv')) {
+      markerColor = const Color(0xFFDC2626);
+    } else if (typeLower.contains('light')) {
+      markerColor = const Color(0xFFEAB308);
+    } else if (typeLower.contains('hvac') || typeLower.contains('ac')) {
+      markerColor = const Color(0xFF0EA5E9);
+    } else if (typeLower.contains('proj')) {
+      markerColor = const Color(0xFF8B5CF6);
+    } else if (typeLower.contains('audio') || typeLower.contains('speaker')) {
+      markerColor = const Color(0xFF10B981);
+    } else if (typeLower.contains('fan')) {
+      markerColor = const Color(0xFF14B8A6);
+    }
+
+    return Container(
+      width: 270,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: markerColor.withValues(alpha: 0.5), width: 1.5),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: markerColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(_getIconForType(marker.deviceType), size: 16, color: markerColor),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      marker.deviceName.isNotEmpty ? marker.deviceName : marker.deviceCode,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      '${marker.deviceCode} • ${marker.deviceType}',
+                      style: TextStyle(fontSize: 10, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close_rounded, size: 16),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () => setState(() => _selectedMarkerPin = null),
+              ),
+            ],
+          ),
+          const Divider(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Room: ${marker.roomNumber ?? 'Corridor'}',
+                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF334155)),
+              ),
+              Row(
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: marker.isOnline ? Colors.green : Colors.grey,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    marker.isOnline ? 'Online' : 'Offline',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: marker.isOnline ? Colors.green : Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: markerColor,
+                    side: BorderSide(color: markerColor.withValues(alpha: 0.5)),
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Device ${marker.deviceCode} command sent'), duration: const Duration(seconds: 1)),
+                    );
+                  },
+                  child: Text(marker.powerState ? 'Turn OFF' : 'Turn ON', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -2195,14 +2962,14 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
             child: Column(
               children: [
                 _buildSpecRow('Location Type', details?.locationType ?? 'Floor', isDark),
-                _buildSpecRow('Parent Location', details?.parentLocation ?? 'Academic Block (A)', isDark),
+                _buildSpecRow('Parent Location', details?.parentLocation ?? 'Campus', isDark),
                 _buildSpecRow('Floor No.', '${details?.floorNo ?? 1}', isDark),
-                _buildSpecRow('Total Rooms / Spaces', '${details?.totalRooms ?? 14}', isDark),
-                _buildSpecRow('Mapped Devices', '${details?.mappedDevices ?? 132}', isDark),
-                _buildSpecRow('Unmapped Devices', '${details?.unmappedDevices ?? 4}', isDark),
-                _buildSpecRow('Groups Assigned', '${details?.groupsAssigned ?? 8}', isDark),
-                _buildSpecRow('Profiles in Use', '${details?.profilesInUse ?? 5}', isDark),
-                _buildSpecRow('Coverage', '${details?.coveragePct ?? 97.1}%', isDark),
+                _buildSpecRow('Total Rooms / Spaces', '${details?.totalRooms ?? 0}', isDark),
+                _buildSpecRow('Mapped Devices', '${details?.mappedDevices ?? 0}', isDark),
+                _buildSpecRow('Unmapped Devices', '${details?.unmappedDevices ?? 0}', isDark),
+                _buildSpecRow('Groups Assigned', '${details?.groupsAssigned ?? 0}', isDark),
+                _buildSpecRow('Profiles in Use', '${details?.profilesInUse ?? 0}', isDark),
+                _buildSpecRow('Coverage', '${details?.coveragePct ?? 0.0}%', isDark),
               ],
             ),
           ),
@@ -2266,7 +3033,7 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
                     Expanded(
                       child: _buildQuickActionButton(
                         icon: Icons.add_rounded,
-                        label: '+ Add Room / Space',
+                        label: 'Add Room / Space',
                         onTap: () => _openAddRoomDialog(context),
                         isDark: isDark,
                       ),
@@ -2280,7 +3047,7 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
 
           // Collapsible Accordions
           _buildAccordionItem(
-            title: 'Rooms / Spaces (${details?.totalRooms ?? 14})',
+            title: 'Rooms / Spaces (${details?.totalRooms ?? 0})',
             icon: Icons.meeting_room_outlined,
             isExpanded: _isRoomsExpanded,
             onToggle: () => setState(() => _isRoomsExpanded = !_isRoomsExpanded),
@@ -2309,7 +3076,7 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
           ),
 
           _buildAccordionItem(
-            title: 'Assigned Device Groups (${details?.assignedGroups.length ?? 8})',
+            title: 'Assigned Device Groups (${details?.assignedGroups.length ?? 0})',
             icon: Icons.grid_view_rounded,
             isExpanded: _isGroupsExpanded,
             onToggle: () => setState(() => _isGroupsExpanded = !_isGroupsExpanded),
@@ -2334,7 +3101,7 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
           ),
 
           _buildAccordionItem(
-            title: 'Automation & Schedules (${details?.automationsCount ?? 3})',
+            title: 'Automation & Schedules (${details?.automationsCount ?? 0})',
             icon: Icons.schedule_rounded,
             isExpanded: _isAutomationsExpanded,
             onToggle: () => setState(() => _isAutomationsExpanded = !_isAutomationsExpanded),
@@ -2358,7 +3125,7 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
           ),
 
           _buildAccordionItem(
-            title: 'Scenes & Presets (${details?.scenesCount ?? 2})',
+            title: 'Scenes & Presets (${details?.scenesCount ?? 0})',
             icon: Icons.movie_filter_outlined,
             isExpanded: _isScenesExpanded,
             onToggle: () => setState(() => _isScenesExpanded = !_isScenesExpanded),

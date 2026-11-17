@@ -322,7 +322,8 @@ class StaffSalaryFilterBar extends ConsumerWidget {
   }
 
   Widget _buildDepartmentDropdown(StaffSalaryState state, StaffSalaryNotifier notifier, bool isDark) {
-    final departments = state.departmentsList.isNotEmpty ? state.departmentsList : ['All Departments'];
+    final departments = {'All Departments', ...state.departmentsList}.toList();
+    final effectiveDept = departments.contains(state.selectedDepartment) ? state.selectedDepartment : 'All Departments';
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -333,7 +334,8 @@ class StaffSalaryFilterBar extends ConsumerWidget {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: departments.contains(state.selectedDepartment) ? state.selectedDepartment : 'All Departments',
+          key: ValueKey('salary_filter_dept_$effectiveDept'),
+          value: effectiveDept,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
           items: departments.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
@@ -346,7 +348,8 @@ class StaffSalaryFilterBar extends ConsumerWidget {
   }
 
   Widget _buildRoleDropdown(StaffSalaryState state, StaffSalaryNotifier notifier, bool isDark) {
-    final roles = state.rolesList.isNotEmpty ? state.rolesList : ['All Roles'];
+    final roles = {'All Roles', ...state.rolesList}.toList();
+    final effectiveRole = roles.contains(state.selectedRole) ? state.selectedRole : 'All Roles';
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -357,7 +360,8 @@ class StaffSalaryFilterBar extends ConsumerWidget {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: roles.contains(state.selectedRole) ? state.selectedRole : 'All Roles',
+          key: ValueKey('salary_filter_role_$effectiveRole'),
+          value: effectiveRole,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
           items: roles.map((r) => DropdownMenuItem(value: r, child: Text(r == 'All Roles' ? r : r[0].toUpperCase() + r.substring(1)))).toList(),
@@ -371,6 +375,7 @@ class StaffSalaryFilterBar extends ConsumerWidget {
 
   Widget _buildStatusDropdown(StaffSalaryState state, StaffSalaryNotifier notifier, bool isDark) {
     const statuses = ['All Status', 'Paid', 'Pending', 'On Hold'];
+    final effectiveStatus = statuses.contains(state.selectedStatus) ? state.selectedStatus : 'All Status';
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -381,7 +386,8 @@ class StaffSalaryFilterBar extends ConsumerWidget {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: statuses.contains(state.selectedStatus) ? state.selectedStatus : 'All Status',
+          key: ValueKey('salary_filter_status_$effectiveStatus'),
+          value: effectiveStatus,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
           items: statuses.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),

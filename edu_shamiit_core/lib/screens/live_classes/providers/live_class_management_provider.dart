@@ -53,9 +53,14 @@ class LiveClassState {
   final String? myClassesSubjectFilter;
   final String myClassesStatusFilter; // 'All', 'Live', 'Upcoming', 'Completed', 'Scheduled'
   final String myClassesSearchQuery;
+  final String myClassesSortBy; // 'scheduled_at', 'class_name', 'subject_name', 'title', 'status', 'viewer_count'
+  final String myClassesSortOrder; // 'ASC', 'DESC'
   final int myClassesPage;
   final int myClassesPageSize;
   final int myClassesTotalCount;
+  final int myClassesTotalPages;
+  final Set<String> selectedMyClassIds;
+  final List<SubjectDropdownItem> cascadingSubjects;
 
   // Join via Code & Guest Join state
   final List<RecentMeetingCodeItem> recentCodes;
@@ -121,9 +126,14 @@ class LiveClassState {
     this.myClassesSubjectFilter,
     this.myClassesStatusFilter = 'All',
     this.myClassesSearchQuery = '',
+    this.myClassesSortBy = 'scheduled_at',
+    this.myClassesSortOrder = 'DESC',
     this.myClassesPage = 1,
     this.myClassesPageSize = 5,
     this.myClassesTotalCount = 0,
+    this.myClassesTotalPages = 1,
+    this.selectedMyClassIds = const {},
+    this.cascadingSubjects = const [],
     this.recentCodes = const [],
     this.upcomingGuestSessions = const [],
     this.validatedMeetingInfo,
@@ -193,9 +203,15 @@ class LiveClassState {
     String? myClassesSubjectFilter,
     String? myClassesStatusFilter,
     String? myClassesSearchQuery,
+    String? myClassesSortBy,
+    String? myClassesSortOrder,
     int? myClassesPage,
     int? myClassesPageSize,
     int? myClassesTotalCount,
+    int? myClassesTotalPages,
+    Set<String>? selectedMyClassIds,
+    List<SubjectDropdownItem>? cascadingSubjects,
+    bool clearMyClassesSelection = false,
     List<RecentMeetingCodeItem>? recentCodes,
     List<GuestSessionItem>? upcomingGuestSessions,
     ValidatedMeetingInfo? validatedMeetingInfo,
@@ -256,9 +272,14 @@ class LiveClassState {
       myClassesSubjectFilter: myClassesSubjectFilter ?? this.myClassesSubjectFilter,
       myClassesStatusFilter: myClassesStatusFilter ?? this.myClassesStatusFilter,
       myClassesSearchQuery: myClassesSearchQuery ?? this.myClassesSearchQuery,
+      myClassesSortBy: myClassesSortBy ?? this.myClassesSortBy,
+      myClassesSortOrder: myClassesSortOrder ?? this.myClassesSortOrder,
       myClassesPage: myClassesPage ?? this.myClassesPage,
       myClassesPageSize: myClassesPageSize ?? this.myClassesPageSize,
       myClassesTotalCount: myClassesTotalCount ?? this.myClassesTotalCount,
+      myClassesTotalPages: myClassesTotalPages ?? this.myClassesTotalPages,
+      selectedMyClassIds: clearMyClassesSelection ? const {} : (selectedMyClassIds ?? this.selectedMyClassIds),
+      cascadingSubjects: cascadingSubjects ?? this.cascadingSubjects,
       recentCodes: recentCodes ?? this.recentCodes,
       upcomingGuestSessions: upcomingGuestSessions ?? this.upcomingGuestSessions,
       validatedMeetingInfo: validatedMeetingInfo ?? this.validatedMeetingInfo,
@@ -284,6 +305,9 @@ class LiveClassState {
 
 class LiveClassNotifier extends StateNotifier<LiveClassState> {
   final LiveClassApiService _api;
+  bool _isCreatingPoll = false;
+  DateTime? _lastPollLaunchTime;
+  String? _lastPollQuestion;
 
   LiveClassNotifier(this._api) : super(LiveClassState(isLoading: true)) {
     loadInitialData();
@@ -516,6 +540,8 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
         subjectId: state.myClassesSubjectFilter,
         status: state.myClassesStatusFilter,
         search: state.myClassesSearchQuery,
+        sortBy: state.myClassesSortBy,
+        sortOrder: state.myClassesSortOrder,
         page: state.myClassesPage,
         pageSize: state.myClassesPageSize,
       );
@@ -537,6 +563,7 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
         selectedMyClassDetails: details,
         clearSelectedMyClass: firstItem == null,
         myClassesTotalCount: listRes['total_count'] ?? items.length,
+        myClassesTotalPages: listRes['total_pages'] ?? 1,
       );
     } catch (e) {
       debugPrint('[LiveClassNotifier] Error refreshing my classes: $e');
@@ -553,19 +580,42 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
     refreshMyClasses();
   }
 
-  void setMyClassesClassFilter(String? classId) {
-    // When class changes, clear section filter so stale sections are not retained
+  Future<void> setMyClassesClassFilter(String? classId) async {
+    // When class changes, clear section & subject filters to prevent stale mismatch
     state = state.copyWith(
       myClassesClassFilter: classId,
       myClassesSectionFilter: null,
+      myClassesSubjectFilter: null,
       myClassesPage: 1,
     );
+    if (classId != null && classId.isNotEmpty && classId != 'All Classes') {
+      await loadCascadingSubjects(classId);
+    } else {
+      state = state.copyWith(cascadingSubjects: const []);
+    }
     refreshMyClasses();
   }
 
-  void setMyClassesSectionFilter(String? sectionId) {
-    state = state.copyWith(myClassesSectionFilter: sectionId, myClassesPage: 1);
+  Future<void> setMyClassesSectionFilter(String? sectionId) async {
+    // When section changes, clear subject filter
+    state = state.copyWith(
+      myClassesSectionFilter: sectionId,
+      myClassesSubjectFilter: null,
+      myClassesPage: 1,
+    );
+    if (state.myClassesClassFilter != null && state.myClassesClassFilter!.isNotEmpty) {
+      await loadCascadingSubjects(state.myClassesClassFilter!, sectionId: sectionId);
+    }
     refreshMyClasses();
+  }
+
+  Future<void> loadCascadingSubjects(String classId, {String? sectionId}) async {
+    try {
+      final subs = await _api.fetchCascadingSubjects(classId, sectionId: sectionId);
+      state = state.copyWith(cascadingSubjects: subs);
+    } catch (e) {
+      debugPrint('[LiveClassNotifier] Error loading cascading subjects: $e');
+    }
   }
 
   void setMyClassesSubjectFilter(String? subjectId) {
@@ -583,7 +633,26 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
     refreshMyClasses();
   }
 
+  void setMyClassesSort(String sortBy, {String? sortOrder}) {
+    String order = sortOrder ?? 'ASC';
+    if (sortOrder == null && state.myClassesSortBy == sortBy) {
+      order = state.myClassesSortOrder == 'ASC' ? 'DESC' : 'ASC';
+    } else if (sortOrder == null) {
+      order = (sortBy == 'scheduled_at' ? 'DESC' : 'ASC');
+    }
+    state = state.copyWith(
+      myClassesSortBy: sortBy,
+      myClassesSortOrder: order,
+      myClassesPage: 1,
+    );
+    refreshMyClasses();
+  }
+
   void setMyClassesPage(int page) {
+    if (page < 1) page = 1;
+    if (page > state.myClassesTotalPages && state.myClassesTotalPages > 0) {
+      page = state.myClassesTotalPages;
+    }
     state = state.copyWith(myClassesPage: page);
     refreshMyClasses();
   }
@@ -591,6 +660,29 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
   void setMyClassesPageSize(int pageSize) {
     state = state.copyWith(myClassesPageSize: pageSize, myClassesPage: 1);
     refreshMyClasses();
+  }
+
+  void toggleSelectMyClassId(String id) {
+    final updated = Set<String>.from(state.selectedMyClassIds);
+    if (updated.contains(id)) {
+      updated.remove(id);
+    } else {
+      updated.add(id);
+    }
+    state = state.copyWith(selectedMyClassIds: updated);
+  }
+
+  void selectAllMyClasses(bool selectAll) {
+    if (selectAll) {
+      final allIds = state.myClassesList.map((e) => e.id).toSet();
+      state = state.copyWith(selectedMyClassIds: allIds);
+    } else {
+      state = state.copyWith(clearMyClassesSelection: true);
+    }
+  }
+
+  void clearSelectedMyClassIds() {
+    state = state.copyWith(clearMyClassesSelection: true);
   }
 
   Future<void> selectMyClass(MyClassItem item) async {
@@ -612,6 +704,45 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
   Future<bool> cancelMyClass(String sessionId, String reason) async {
     final success = await _api.cancelSession(sessionId, reason);
     if (success) {
+      await refreshMyClasses();
+    }
+    return success;
+  }
+
+  Future<bool> updateMyClass(String sessionId, Map<String, dynamic> payload) async {
+    final success = await _api.updateSession(sessionId, payload);
+    if (success) {
+      await refreshMyClasses();
+    }
+    return success;
+  }
+
+  Future<bool> deleteMyClass(String sessionId) async {
+    final success = await _api.deleteSession(sessionId);
+    if (success) {
+      if (state.selectedMyClass?.id == sessionId) {
+        state = state.copyWith(clearSelectedMyClass: true);
+      }
+      await refreshMyClasses();
+    }
+    return success;
+  }
+
+  Future<bool> bulkCancelSelectedMyClasses(String reason) async {
+    if (state.selectedMyClassIds.isEmpty) return false;
+    final success = await _api.bulkCancelSessions(state.selectedMyClassIds.toList(), reason: reason);
+    if (success) {
+      clearSelectedMyClassIds();
+      await refreshMyClasses();
+    }
+    return success;
+  }
+
+  Future<bool> bulkDeleteSelectedMyClasses() async {
+    if (state.selectedMyClassIds.isEmpty) return false;
+    final success = await _api.bulkDeleteSessions(state.selectedMyClassIds.toList());
+    if (success) {
+      clearSelectedMyClassIds();
       await refreshMyClasses();
     }
     return success;
@@ -910,40 +1041,64 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
   Future<bool> createPoll(Map<String, dynamic> pollData) async {
     final sessId = state.currentConductSessionId ?? state.conductSessionData?.activeSession.id;
     final questionText = (pollData['question'] as String? ?? 'Live Poll').trim();
-    final rawOptions = (pollData['options'] as List? ?? []);
 
-    final localOptions = rawOptions.asMap().entries.map((entry) {
-      final opt = entry.value;
-      final id = (opt is Map) ? (opt['id'] ?? 'opt_${entry.key + 1}') : 'opt_${entry.key + 1}';
-      final text = (opt is Map) ? (opt['text'] ?? '') : opt.toString();
-      return LiveClassPollOption(
-        id: id.toString(),
-        text: text.toString(),
-        votes: 0,
-        percentage: 0.0,
-      );
-    }).toList();
-
-    final newPoll = LiveClassPollItem(
-      id: 'poll_${DateTime.now().millisecondsSinceEpoch}',
-      title: (pollData['title'] as String? ?? questionText).trim(),
-      question: questionText,
-      pollType: 'single_choice',
-      status: 'ACTIVE',
-      options: localOptions,
-      totalVotes: 0,
-    );
-
-    setLocalActivePoll(newPoll);
-
-    if (sessId != null) {
-      final created = await _api.createPoll(sessId, pollData);
-      if (created != null) {
-        setLocalActivePoll(created);
-        await loadConductSession(sessId);
-      }
+    // Multi-click & Concurrency Lock
+    if (_isCreatingPoll) {
+      debugPrint('[Poll] Concurrency lock: createPoll is already executing. Suppressing extra clicks.');
+      return false;
     }
-    return true;
+
+    // Rapid duplicate suppression within 4 seconds for identical question
+    final now = DateTime.now();
+    if (_lastPollQuestion == questionText &&
+        _lastPollLaunchTime != null &&
+        now.difference(_lastPollLaunchTime!) < const Duration(seconds: 4)) {
+      debugPrint('[Poll] Duplicate poll suppressed: "$questionText" was launched within 4 seconds.');
+      return false;
+    }
+
+    _isCreatingPoll = true;
+    _lastPollLaunchTime = now;
+    _lastPollQuestion = questionText;
+
+    try {
+      final rawOptions = (pollData['options'] as List? ?? []);
+
+      final localOptions = rawOptions.asMap().entries.map((entry) {
+        final opt = entry.value;
+        final id = (opt is Map) ? (opt['id'] ?? 'opt_${entry.key + 1}') : 'opt_${entry.key + 1}';
+        final text = (opt is Map) ? (opt['text'] ?? '') : opt.toString();
+        return LiveClassPollOption(
+          id: id.toString(),
+          text: text.toString(),
+          votes: 0,
+          percentage: 0.0,
+        );
+      }).toList();
+
+      final newPoll = LiveClassPollItem(
+        id: 'poll_${DateTime.now().millisecondsSinceEpoch}',
+        title: (pollData['title'] as String? ?? questionText).trim(),
+        question: questionText,
+        pollType: 'single_choice',
+        status: 'ACTIVE',
+        options: localOptions,
+        totalVotes: 0,
+      );
+
+      setLocalActivePoll(newPoll);
+
+      if (sessId != null) {
+        final created = await _api.createPoll(sessId, pollData);
+        if (created != null) {
+          setLocalActivePoll(created);
+          await loadConductSession(sessId);
+        }
+      }
+      return true;
+    } finally {
+      _isCreatingPoll = false;
+    }
   }
 
   Future<bool> saveWhiteboard(Map<String, dynamic> canvasData, {bool teacherOnlyMode = true}) async {

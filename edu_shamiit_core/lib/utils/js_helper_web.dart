@@ -382,6 +382,254 @@ void printStaffPayslipHtml({required Map<String, dynamic> payslip}) {
   }
 }
 
+String _buildStudentFeeReceiptHtmlTemplate({
+  required String receiptNumber,
+  required String studentName,
+  String? className,
+  String? rollNumber,
+  String? roomNumber,
+  String? hostelName,
+  required double amount,
+  required String paymentMethod,
+  required String transactionRef,
+  required String paymentDate,
+  String? institutionName,
+  String? campusName,
+}) {
+  final inst = institutionName ?? 'EduSHAMIIT';
+  final cName = className ?? 'Enrolled Student';
+  final rNumber = rollNumber ?? '101';
+  final formattedAmount = amount.toStringAsFixed(2);
+
+  return '''<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Receipt - $receiptNumber</title>
+  <style>
+    @page {
+      size: 80mm auto;
+      margin: 4mm;
+    }
+    @media print {
+      body {
+        margin: 0;
+        padding: 0;
+        background: #ffffff;
+      }
+      .receipt-container {
+        box-shadow: none !important;
+        border: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+      }
+    }
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: 'Courier New', Courier, monospace, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      display: flex;
+      justify-content: center;
+    }
+    .receipt-container {
+      width: 80mm;
+      max-width: 380px;
+      background: #ffffff;
+      padding: 24px 20px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+      box-sizing: border-box;
+    }
+    .center {
+      text-align: center;
+    }
+    .logo-badge {
+      display: inline-block;
+      width: 44px;
+      height: 44px;
+      line-height: 44px;
+      background: rgba(37, 99, 235, 0.1);
+      border-radius: 50%;
+      color: #2563eb;
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+    .brand-title {
+      font-size: 16px;
+      font-weight: 900;
+      letter-spacing: 1.2px;
+      margin: 0 0 2px 0;
+      color: #0f172a;
+    }
+    .brand-subtitle {
+      font-size: 9.5px;
+      font-weight: 600;
+      color: #64748b;
+      letter-spacing: 0.8px;
+      margin: 0 0 4px 0;
+    }
+    .copy-type {
+      font-size: 9px;
+      font-weight: 700;
+      color: #2563eb;
+      letter-spacing: 0.5px;
+      margin: 0 0 12px 0;
+    }
+    .dashed-line {
+      border: none;
+      border-top: 1.5px dashed #cbd5e1;
+      margin: 12px 0;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 11px;
+      line-height: 1.5;
+      margin-bottom: 5px;
+    }
+    .lbl {
+      color: #64748b;
+    }
+    .val {
+      font-weight: 600;
+      color: #0f172a;
+      text-align: right;
+    }
+    .bold {
+      font-weight: 800;
+    }
+    .table-head {
+      font-size: 10px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: 0.5px;
+      margin: 8px 0 6px 0;
+    }
+    .total-box {
+      border-top: 1.5px solid #0f172a;
+      border-bottom: 1.5px solid #0f172a;
+      padding: 8px 0;
+      margin: 12px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .total-lbl {
+      font-size: 12.5px;
+      font-weight: 900;
+      color: #0f172a;
+    }
+    .total-val {
+      font-size: 14.5px;
+      font-weight: 900;
+      color: #16a34a;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 800;
+      background: #dcfce7;
+      color: #16a34a;
+    }
+    .barcode-block {
+      text-align: center;
+      margin-top: 14px;
+    }
+    .barcode-text {
+      font-size: 14px;
+      letter-spacing: 4px;
+      font-weight: 900;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+    .foot-text {
+      font-size: 8.5px;
+      color: #64748b;
+      margin: 2px 0;
+    }
+    .foot-sub {
+      font-size: 8px;
+      color: #94a3b8;
+      margin: 2px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="receipt-container">
+    <div class="center">
+      <div class="logo-badge">&#127891;</div>
+      <div class="brand-title">$inst CAMPUS</div>
+      <div class="brand-subtitle">STUDENT ACCOUNTS & FEE ADMINISTRATION</div>
+      <div class="copy-type">OFFICIAL RECEIPT (STUDENT COPY)</div>
+    </div>
+
+    <hr class="dashed-line">
+
+    <div class="row">
+      <span class="lbl">Receipt No:</span>
+      <span class="val bold">$receiptNumber</span>
+    </div>
+    <div class="row">
+      <span class="lbl">Date & Time:</span>
+      <span class="val">$paymentDate</span>
+    </div>
+    <div class="row">
+      <span class="lbl">Student:</span>
+      <span class="val bold">$studentName</span>
+    </div>
+    <div class="row">
+      <span class="lbl">Class / Roll:</span>
+      <span class="val">$cName | Roll: $rNumber</span>
+    </div>
+
+    <hr class="dashed-line">
+
+    <div class="row table-head">
+      <span>DESCRIPTION</span>
+      <span>AMOUNT (INR)</span>
+    </div>
+    <div class="row">
+      <span class="lbl">Tuition & Campus Fees</span>
+      <span class="val">₹ $formattedAmount</span>
+    </div>
+
+    <div class="total-box">
+      <span class="total-lbl">TOTAL PAID:</span>
+      <span class="total-val">₹ $formattedAmount</span>
+    </div>
+
+    <div class="row">
+      <span class="lbl">Payment Mode:</span>
+      <span class="val bold">$paymentMethod</span>
+    </div>
+    <div class="row">
+      <span class="lbl">Txn Reference:</span>
+      <span class="val">$transactionRef</span>
+    </div>
+    <div class="row">
+      <span class="lbl">Payment Status:</span>
+      <span class="val"><span class="status-badge">SUCCESS / CLEARED</span></span>
+    </div>
+
+    <hr class="dashed-line">
+
+    <div class="barcode-block">
+      <div class="barcode-text">*$receiptNumber*</div>
+      <div class="foot-text">Computer generated digital receipt.</div>
+      <div class="foot-sub">Verified by EduSHAMIIT Financial Subsystem</div>
+    </div>
+  </div>
+</body>
+</html>''';
+}
+
 void printStudentFeeReceiptHtml({
   required String receiptNumber,
   required String studentName,
@@ -397,9 +645,20 @@ void printStudentFeeReceiptHtml({
   String? campusName,
 }) {
   try {
-    final inst = institutionName ?? 'EduSHAMIIT';
-    final camp = campusName != null ? '<p>$campusName</p>' : '';
-    final html = '<html><body><h1>$inst</h1>$camp<h2>Fee Receipt $receiptNumber</h2><p>Student: $studentName</p><p>Amount: $amount</p><p>Date: $paymentDate</p><p>Method: $paymentMethod</p><p>Ref: $transactionRef</p></body></html>';
+    final html = _buildStudentFeeReceiptHtmlTemplate(
+      receiptNumber: receiptNumber,
+      studentName: studentName,
+      className: className,
+      rollNumber: rollNumber,
+      roomNumber: roomNumber,
+      hostelName: hostelName,
+      amount: amount,
+      paymentMethod: paymentMethod,
+      transactionRef: transactionRef,
+      paymentDate: paymentDate,
+      institutionName: institutionName,
+      campusName: campusName,
+    );
     final encodedHtml = Uri.encodeComponent(html);
     js.context.callMethod('eval', [
       '''
@@ -434,9 +693,20 @@ void downloadStudentFeeReceiptHtml({
   String? campusName,
 }) {
   try {
-    final inst = institutionName ?? 'EduSHAMIIT';
-    final camp = campusName != null ? '<p>$campusName</p>' : '';
-    final html = '<html><body><h1>$inst</h1>$camp<h2>Fee Receipt $receiptNumber</h2><p>Student: $studentName</p><p>Amount: $amount</p><p>Date: $paymentDate</p></body></html>';
+    final html = _buildStudentFeeReceiptHtmlTemplate(
+      receiptNumber: receiptNumber,
+      studentName: studentName,
+      className: className,
+      rollNumber: rollNumber,
+      roomNumber: roomNumber,
+      hostelName: hostelName,
+      amount: amount,
+      paymentMethod: paymentMethod,
+      transactionRef: transactionRef,
+      paymentDate: paymentDate,
+      institutionName: institutionName,
+      campusName: campusName,
+    );
     final encodedHtml = Uri.encodeComponent(html);
     js.context.callMethod('eval', [
       '''

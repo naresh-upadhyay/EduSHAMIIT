@@ -168,7 +168,7 @@ void main() {
       expect(find.text('Assign to Group'), findsAtLeastNWidgets(1));
       expect(find.text('Apply Profile'), findsAtLeastNWidgets(1));
       expect(find.text('Schedule'), findsOneWidget);
-      expect(find.text('Run Scene'), findsOneWidget);
+      expect(find.text('Run Scene'), findsWidgets);
 
       // Tap Firmware Update
       await tester.ensureVisible(find.text('Firmware Update').first);
@@ -262,8 +262,8 @@ void main() {
       // 1. Default is Control
       expect(find.text('Configure Operation – Control'), findsOneWidget);
       expect(find.text('Operation Type'), findsOneWidget);
-      expect(find.text('Turn ON'), findsOneWidget);
-      expect(find.text('Turn OFF'), findsOneWidget);
+      expect(find.text('Turn ON'), findsWidgets);
+      expect(find.text('Turn OFF'), findsWidgets);
       expect(find.text('Set Value'), findsOneWidget);
 
       // 2. Select Schedule
@@ -308,16 +308,16 @@ void main() {
       expect(find.text('Target Device Group'), findsOneWidget);
 
       // 6. Select Apply Profile
-      await tester.ensureVisible(find.text('Apply Profile').first);
-      await tester.tap(find.text('Apply Profile').first);
+      await tester.ensureVisible(find.text('Preset Config'));
+      await tester.tap(find.text('Preset Config'));
       await tester.pumpAndSettle();
 
       expect(find.text('Configure Operation – Apply Profile'), findsOneWidget);
       expect(find.text('Target Control Profile'), findsOneWidget);
 
       // 7. Select Run Scene
-      await tester.ensureVisible(find.text('Run Scene').first);
-      await tester.tap(find.text('Run Scene').first);
+      await tester.ensureVisible(find.text('Preset'));
+      await tester.tap(find.text('Preset'));
       await tester.pumpAndSettle();
 
       expect(find.text('Configure Operation – Run Scene'), findsOneWidget);

@@ -1,5 +1,6 @@
 package com.shamiit.edu_shamiit_payment_bridge.parser
 
+import android.content.Context
 import com.shamiit.edu_shamiit_payment_bridge.model.PaymentNotificationEvent
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -8,7 +9,7 @@ import java.util.TimeZone
 import java.util.UUID
 import java.util.regex.Pattern
 
-class BhimNotificationParser : NotificationParser {
+class BhimNotificationParser(private val context: Context? = null) : NotificationParser {
     override val supportedPackage: String = "in.org.npci.upiapp"
     override val appDisplayName: String = "BHIM UPI"
     override val version: String = "1.0.0"
@@ -17,10 +18,16 @@ class BhimNotificationParser : NotificationParser {
         timeZone = TimeZone.getTimeZone("UTC")
     }
 
-    private val amountPattern = Pattern.compile("(?:Rs\\.?|₹)\\s*([0-9,]+(?:\\.[0-9]{1,2})?)", Pattern.CASE_INSENSITIVE)
-    private val senderPattern = Pattern.compile("(?:from|by)\\s+([*\\d\\w\\s]+?)(?:\\s+Ref|\\s*\\(|$)", Pattern.CASE_INSENSITIVE)
-    private val refPattern = Pattern.compile("(?:Ref(?: no)?|UTR|Txn)\\s*[:/]?\\s*([A-Za-z0-9/_-]+)", Pattern.CASE_INSENSITIVE)
-    private val maskedPattern = Pattern.compile("(\\*+\\s*\\d{3,4})")
+    private fun getPattern(type: String, defaultRegex: String): Pattern {
+        val prefs = context?.getSharedPreferences("custom_formats", Context.MODE_PRIVATE)
+        val customRegex = prefs?.getString("${supportedPackage}_$type", null)
+        return if (!customRegex.isNullOrEmpty()) {
+            try { Pattern.compile(customRegex, Pattern.CASE_INSENSITIVE) } 
+            catch (_: Exception) { Pattern.compile(defaultRegex, Pattern.CASE_INSENSITIVE) }
+        } else {
+            Pattern.compile(defaultRegex, Pattern.CASE_INSENSITIVE)
+        }
+    }
 
     override fun parse(
         packageName: String,
@@ -38,7 +45,7 @@ class BhimNotificationParser : NotificationParser {
         val eventType = if (isOutgoing) "PAYMENT_SENT" else "PAYMENT_RECEIVED"
 
         var amountPaise = 0L
-        val amountMatcher = amountPattern.matcher(fullContent)
+        val amountMatcher = getPattern("amount", "(?:Rs\\.?|₹)\\s*([0-9,]+(?:\\.[0-9]{1,2})?)").matcher(fullContent)
         if (amountMatcher.find()) {
             val rawAmt = amountMatcher.group(1)?.replace(",", "") ?: "0"
             try {
@@ -48,19 +55,19 @@ class BhimNotificationParser : NotificationParser {
         }
 
         var ref: String? = null
-        val refMatcher = refPattern.matcher(fullContent)
+        val refMatcher = getPattern("reference", "(?:Ref(?: no)?|UTR|Txn)\\s*[:/]?\\s*([A-Za-z0-9/_-]+)").matcher(fullContent)
         if (refMatcher.find()) {
             ref = refMatcher.group(1)?.trim()
         }
 
         var maskedSender: String? = null
-        val maskedMatcher = maskedPattern.matcher(fullContent)
+        val maskedMatcher = getPattern("masked", "(\\*+\\s*\\d{3,4})").matcher(fullContent)
         if (maskedMatcher.find()) {
             maskedSender = maskedMatcher.group(1)?.trim()
         }
 
         var senderName: String? = null
-        val senderMatcher = senderPattern.matcher(fullContent)
+        val senderMatcher = getPattern("sender", "(?:from|by)\\s+([*\\d\\w\\s]+?)(?:\\s+Ref|\\s*\\(|$)").matcher(fullContent)
         if (senderMatcher.find()) {
             senderName = senderMatcher.group(1)?.trim()
         }

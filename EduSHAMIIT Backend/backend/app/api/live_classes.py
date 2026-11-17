@@ -198,13 +198,14 @@ async def generate_livekit_token(
 
 @router.get("/live-classes/dashboard/join-conduct")
 async def get_join_conduct_dashboard(
+    date_filter: str = Query("today"),
     user=Depends(get_current_user),
     school_id=Depends(require_school_id),
 ):
     """Fetch Join & Conduct Tab KPIs, active session, participants, and upcoming classes via SP."""
     rows = await exec_sql(
-        "SELECT public.sp_get_live_class_join_conduct_dashboard(%s::UUID, %s::UUID) AS data;",
-        (school_id, user.get("id"))
+        "SELECT public.sp_get_live_classes_join_conduct_kpis(%s::UUID, %s::UUID, %s::TEXT) AS data;",
+        (school_id, user.get("id"), date_filter)
     )
     if not rows or not rows[0].get("data"):
         raise HTTPException(status_code=500, detail="Failed to load Join & Conduct dashboard")
@@ -296,6 +297,24 @@ async def get_my_classes_dashboard(
     return {"success": True, "data": rows[0]["data"]}
 
 
+@router.get("/live-classes/cascading-subjects")
+async def get_cascading_academic_subjects(
+    class_id: uuid.UUID = Query(...),
+    section_id: Optional[uuid.UUID] = Query(None),
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Fetch subjects cascaded by class and optional section using stored procedure."""
+    section_id_str = str(section_id) if section_id else None
+    rows = await exec_sql(
+        "SELECT public.sp_get_cascading_academic_subjects(%s::UUID, %s::UUID, %s::UUID) AS data;",
+        (school_id, str(class_id), section_id_str)
+    )
+    if not rows or not rows[0].get("data"):
+        return {"success": True, "data": {"subjects": []}}
+    return {"success": True, "data": rows[0]["data"]}
+
+
 @router.get("/live-classes/my-classes")
 @router.get("/live-classes/sessions")
 async def get_live_classes_sessions(
@@ -309,18 +328,20 @@ async def get_live_classes_sessions(
     search: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(5, ge=1, le=100),
+    sort_by: Optional[str] = Query("scheduled_at"),
+    sort_order: Optional[str] = Query("ASC"),
     user=Depends(get_current_user),
     school_id=Depends(require_school_id),
 ):
-    """List live class sessions with filtering and pagination via stored procedure."""
+    """List live class sessions with filtering, database sorting, and pagination via stored procedure."""
     effective_status = status or status_filter
     user_id_param = user["id"] if user.get("role", "").lower() == "teacher" else None
     rows = await exec_sql(
-        "SELECT public.sp_get_live_class_my_classes_list(%s::UUID, %s::UUID, %s::TEXT, %s::TEXT, %s::UUID, %s::UUID, %s::TEXT, %s::TEXT, %s::INT, %s::INT, %s::UUID) AS data;",
-        (school_id, user_id_param, date_filter, session_name, class_id, subject_id, effective_status, search, page, page_size, section_id)
+        "SELECT public.sp_get_live_class_my_classes_list(%s::UUID, %s::UUID, %s::TEXT, %s::TEXT, %s::UUID, %s::UUID, %s::TEXT, %s::TEXT, %s::INT, %s::INT, %s::UUID, %s::TEXT, %s::TEXT) AS data;",
+        (school_id, user_id_param, date_filter, session_name, class_id, subject_id, effective_status, search, page, page_size, section_id, sort_by, sort_order)
     )
     if not rows or not rows[0].get("data"):
-        return {"success": True, "data": {"items": [], "total_count": 0, "page": page, "page_size": page_size}}
+        return {"success": True, "data": {"items": [], "classes": [], "total_count": 0, "page": page, "page_size": page_size, "total_pages": 1}}
     return {"success": True, "data": rows[0]["data"]}
 
 
@@ -337,6 +358,71 @@ async def get_live_class_session_details(
     )
     if not rows or not rows[0].get("data"):
         raise HTTPException(status_code=404, detail="Session details not found")
+    return {"success": True, "data": rows[0]["data"]}
+
+
+@router.put("/live-classes/sessions/{session_id}")
+async def update_live_class_session(
+    session_id: str,
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Update/Reschedule an existing live class session via stored procedure."""
+    rows = await exec_sql(
+        "SELECT public.sp_manage_live_class_crud(%s::UUID, %s::UUID, 'UPDATE', %s::UUID, %s::JSONB) AS data;",
+        (school_id, user["id"], session_id, json.dumps(payload))
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=400, detail="Failed to update live class")
+    return {"success": True, "data": rows[0]["data"]}
+
+
+@router.delete("/live-classes/sessions/{session_id}")
+async def delete_live_class_session(
+    session_id: str,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Delete a live class session and associated records via stored procedure."""
+    rows = await exec_sql(
+        "SELECT public.sp_manage_live_class_crud(%s::UUID, %s::UUID, 'DELETE', %s::UUID, '{}'::JSONB) AS data;",
+        (school_id, user["id"], session_id)
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=400, detail="Failed to delete live class")
+    return {"success": True, "data": rows[0]["data"]}
+
+
+@router.post("/live-classes/sessions/bulk-cancel")
+async def bulk_cancel_live_classes(
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Bulk cancel multiple live classes via stored procedure."""
+    rows = await exec_sql(
+        "SELECT public.sp_manage_live_class_crud(%s::UUID, %s::UUID, 'BULK_CANCEL', NULL, %s::JSONB) AS data;",
+        (school_id, user["id"], json.dumps(payload))
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=400, detail="Failed to bulk cancel live classes")
+    return {"success": True, "data": rows[0]["data"]}
+
+
+@router.post("/live-classes/sessions/bulk-delete")
+async def bulk_delete_live_classes(
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Bulk delete multiple live classes via stored procedure."""
+    rows = await exec_sql(
+        "SELECT public.sp_manage_live_class_crud(%s::UUID, %s::UUID, 'BULK_DELETE', NULL, %s::JSONB) AS data;",
+        (school_id, user["id"], json.dumps(payload))
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=400, detail="Failed to bulk delete live classes")
     return {"success": True, "data": rows[0]["data"]}
 
 
@@ -1006,8 +1092,8 @@ async def create_and_launch_poll(
     )
     res = rows[0]["data"] if rows else {"poll_id": str(uuid.uuid4())}
 
-    # Broadcast to room WebSocket peers
-    if session_id in _active_connections:
+    # Broadcast to room WebSocket peers only for genuinely new polls
+    if session_id in _active_connections and not res.get("is_duplicate_suppressed"):
         event = {"type": "poll.launched", "poll": payload}
         for peer in _active_connections[session_id]:
             try:

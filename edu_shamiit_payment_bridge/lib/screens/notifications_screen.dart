@@ -17,7 +17,11 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   String _selectedFilter = 'All';
-  late Future<List<PaymentNotificationItem>> _notificationsFuture;
+  int _allCount = 0;
+  int _matchedCount = 0;
+  int _unmatchedCount = 0;
+  int _ignoredCount = 0;
+  late Future<NotificationsResult> _notificationsFuture;
 
   @override
   void initState() {
@@ -28,8 +32,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void _fetch() {
     setState(() {
       _notificationsFuture =
-          ApiService().getNotifications(status: _selectedFilter);
+          ApiService().getNotificationsWithSummary(status: _selectedFilter);
     });
+  }
+
+  int _getCountFor(String filter) {
+    switch (filter) {
+      case 'Matched':
+        return _matchedCount;
+      case 'Unmatched':
+        return _unmatchedCount;
+      case 'Ignored':
+        return _ignoredCount;
+      case 'All':
+      default:
+        return _allCount;
+    }
   }
 
   @override
@@ -61,28 +79,49 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ),
             ],
           ),
-          // Horizontal Pill Filter Bar
+          // Horizontal Pill Filter Bar with Live Counts
           FilterChipsBar(
-            options: const [
-              'All (42)',
-              'Matched (38)',
-              'Unmatched (2)',
-              'Ignored (2)',
+            options: [
+              'All ($_allCount)',
+              'Matched ($_matchedCount)',
+              'Unmatched ($_unmatchedCount)',
+              'Ignored ($_ignoredCount)',
             ],
-            selected: _selectedFilter,
+            selected: '$_selectedFilter (${_getCountFor(_selectedFilter)})',
             onSelected: (val) {
-              setState(() => _selectedFilter = val);
+              final clean = val.split(' ').first;
+              setState(() => _selectedFilter = clean);
               _fetch();
             },
           ),
           Expanded(
-            child: FutureBuilder<List<PaymentNotificationItem>>(
+            child: FutureBuilder<NotificationsResult>(
               future: _notificationsFuture,
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (snapshot.connectionState == ConnectionState.waiting && _allCount == 0) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final items = snapshot.data ?? [];
+                if (snapshot.hasError && snapshot.data == null) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.cloud_off, size: 48, color: AppColors.errorRed),
+                        const SizedBox(height: 12),
+                        const Text('Offline: Could not connect to server', style: TextStyle(color: AppColors.errorRed)),
+                      ],
+                    ),
+                  );
+                }
+                
+                if (snapshot.hasData) {
+                  final data = snapshot.data!;
+                  _allCount = data.allCount;
+                  _matchedCount = data.matchedCount;
+                  _unmatchedCount = data.unmatchedCount;
+                  _ignoredCount = data.ignoredCount;
+                }
+                final items = snapshot.data?.items ?? [];
                 if (items.isEmpty) {
                   return Center(
                     child: Column(

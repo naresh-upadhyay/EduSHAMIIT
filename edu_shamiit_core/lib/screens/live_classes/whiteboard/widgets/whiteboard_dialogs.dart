@@ -711,13 +711,39 @@ class WhiteboardPermissionsDialog extends ConsumerWidget {
               title: const Text('Enable Real-Time Student Collaboration', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               subtitle: const Text('Allow students to participate live when permitted', style: TextStyle(fontSize: 11)),
               value: doc.collaborationEnabled,
-              onChanged: (v) => notifier.updateBoardMeta(collaborationEnabled: v, teacherOnlyMode: !v),
+              onChanged: (v) {
+                final perms = Map<String, dynamic>.from(doc.defaultPermissions);
+                if (v) {
+                  perms['students_can_draw'] = true;
+                  perms['students_can_annotate'] = true;
+                }
+                notifier.updateBoardMeta(
+                  collaborationEnabled: v,
+                  teacherOnlyMode: !v,
+                  presentationMode: v ? false : doc.presentationMode,
+                  defaultPermissions: perms,
+                );
+                notifier.updateParticipantPermission(targetRole: 'student', permissionType: v ? 'EDIT' : 'VIEW');
+              },
             ),
             SwitchListTile(
               title: const Text('Presentation Mode (Hide Student Controls)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               subtitle: const Text('Keep students focused on teacher board without edit tools', style: TextStyle(fontSize: 11)),
               value: doc.presentationMode,
-              onChanged: (v) => notifier.updateBoardMeta(presentationMode: v),
+              onChanged: (v) {
+                final perms = Map<String, dynamic>.from(doc.defaultPermissions);
+                if (v) {
+                  perms['students_can_draw'] = false;
+                }
+                notifier.updateBoardMeta(
+                  presentationMode: v,
+                  teacherOnlyMode: v,
+                  defaultPermissions: perms,
+                );
+                if (v) {
+                  notifier.updateParticipantPermission(targetRole: 'student', permissionType: 'VIEW');
+                }
+              },
             ),
             SwitchListTile(
               title: const Text('Allow Students to Draw & Solve Equations', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
@@ -725,7 +751,13 @@ class WhiteboardPermissionsDialog extends ConsumerWidget {
               onChanged: (v) {
                 final perms = Map<String, dynamic>.from(doc.defaultPermissions);
                 perms['students_can_draw'] = v;
-                notifier.updateBoardMeta(defaultPermissions: perms, teacherOnlyMode: !v);
+                if (v) perms['students_can_annotate'] = true;
+                notifier.updateBoardMeta(
+                  collaborationEnabled: v ? true : doc.collaborationEnabled,
+                  presentationMode: v ? false : doc.presentationMode,
+                  defaultPermissions: perms,
+                  teacherOnlyMode: !v,
+                );
                 notifier.updateParticipantPermission(targetRole: 'student', permissionType: v ? 'EDIT' : 'VIEW');
               },
             ),

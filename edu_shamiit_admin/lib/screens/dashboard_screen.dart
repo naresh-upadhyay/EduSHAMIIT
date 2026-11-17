@@ -1381,6 +1381,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     required VoidCallback onTap,
     Widget? trailing,
   }) {
+    final primaryColor = Theme.of(context).primaryColor;
     if (!showLabels) {
       return Tooltip(
         message: item.label,
@@ -1397,15 +1398,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               decoration: BoxDecoration(
                 color: isSelected
                     ? (isDark
-                        ? const Color(0xFF4F46E5).withValues(alpha: 0.15)
-                        : const Color(0xFFEEF2FF))
+                        ? primaryColor.withValues(alpha: 0.15)
+                        : primaryColor.withValues(alpha: 0.1))
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 item.icon,
                 color: isSelected
-                    ? const Color(0xFF4F46E5)
+                    ? primaryColor
                     : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                 size: 20,
               ),
@@ -1419,14 +1420,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         decoration: BoxDecoration(
           color: isSelected
               ? (isDark
-                  ? const Color(0xFF4F46E5).withValues(alpha: 0.15)
-                  : const Color(0xFFEEF2FF))
+                  ? primaryColor.withValues(alpha: 0.15)
+                  : primaryColor.withValues(alpha: 0.1))
               : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: isSelected
-              ? const Border(
+              ? Border(
                   left: BorderSide(
-                    color: Color(0xFF4F46E5),
+                    color: primaryColor,
                     width: 3,
                   ),
                 )
@@ -1450,7 +1451,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         Icon(
                           item.icon,
                           color: isSelected
-                              ? const Color(0xFF4F46E5)
+                              ? primaryColor
                               : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                           size: 19,
                         ),
@@ -1460,7 +1461,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             item.label,
                             style: TextStyle(
                               color: isSelected
-                                  ? const Color(0xFF4F46E5)
+                                  ? primaryColor
                                   : (isDark ? const Color(0xFFE2E8F0) : const Color(0xFF475569)),
                               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                               fontSize: 12.5,
@@ -2362,6 +2363,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   Widget _buildSubTileDirect(String label, String directRoute, bool isSelected, bool isDark, bool isDrawer, [String? sectionKey]) {
+    final primaryColor = Theme.of(context).primaryColor;
     return Container(
       margin: const EdgeInsets.only(left: 20, bottom: 2),
       child: Material(
@@ -2381,8 +2383,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             decoration: BoxDecoration(
               color: isSelected
                   ? (isDark
-                      ? const Color(0xFF4F46E5).withValues(alpha: 0.15)
-                      : const Color(0xFFEEF2FF))
+                      ? primaryColor.withValues(alpha: 0.15)
+                      : primaryColor.withValues(alpha: 0.1))
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(6),
             ),
@@ -2393,7 +2395,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   height: 4,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isSelected ? const Color(0xFF4F46E5) : (isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
+                    color: isSelected ? primaryColor : (isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -2402,7 +2404,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     label,
                     style: TextStyle(
                       color: isSelected
-                          ? const Color(0xFF4F46E5)
+                          ? primaryColor
                           : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                       fontSize: 11.5,
@@ -2666,6 +2668,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   Widget _buildHrRouteSubTile(String label, String route, bool isSelected, bool isDark, bool isDrawer) {
+    final primaryColor = Theme.of(context).primaryColor;
     return Container(
       margin: const EdgeInsets.only(left: 20, bottom: 2),
       child: Material(
@@ -2690,8 +2693,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             decoration: BoxDecoration(
               color: isSelected
                   ? (isDark
-                      ? const Color(0xFF4F46E5).withValues(alpha: 0.15)
-                      : const Color(0xFFEEF2FF))
+                      ? primaryColor.withValues(alpha: 0.15)
+                      : primaryColor.withValues(alpha: 0.1))
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(6),
             ),
@@ -2702,7 +2705,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   height: 4,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isSelected ? const Color(0xFF4F46E5) : (isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
+                    color: isSelected ? primaryColor : (isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -2711,7 +2714,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     label,
                     style: TextStyle(
                       color: isSelected
-                          ? const Color(0xFF4F46E5)
+                          ? primaryColor
                           : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                       fontSize: 11.5,
@@ -2729,6 +2732,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   Widget _buildSubTile(String label, String baseRoute, int tabIndex, bool isSelected, bool isDark, bool isDrawer, [String? sectionKey]) {
+    final primaryColor = Theme.of(context).primaryColor;
     return Container(
       margin: const EdgeInsets.only(left: 20, bottom: 2),
       child: Material(
@@ -2756,8 +2760,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             decoration: BoxDecoration(
               color: isSelected
                   ? (isDark
-                      ? const Color(0xFF4F46E5).withValues(alpha: 0.15)
-                      : const Color(0xFFEEF2FF))
+                      ? primaryColor.withValues(alpha: 0.15)
+                      : primaryColor.withValues(alpha: 0.1))
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(6),
             ),
@@ -2768,7 +2772,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   height: 4,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isSelected ? const Color(0xFF4F46E5) : (isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
+                    color: isSelected ? primaryColor : (isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -2777,7 +2781,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     label,
                     style: TextStyle(
                       color: isSelected
-                          ? const Color(0xFF4F46E5)
+                          ? primaryColor
                           : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                       fontSize: 11.5,

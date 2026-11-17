@@ -126,33 +126,40 @@ class _ChangeStaffPayoutStatusDialogState extends ConsumerState<ChangeStaffPayou
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedStatus,
-                    isExpanded: true,
-                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    items: _statuses.map((s) {
-                      Color color = const Color(0xFF16A34A);
-                      if (s == 'Pending') color = const Color(0xFFD97706);
-                      if (s == 'On Hold') color = const Color(0xFFDC2626);
-                      if (s == 'Approved') color = const Color(0xFF2563EB);
-                      if (s == 'Processing') color = const Color(0xFF8B5CF6);
+                child: Builder(
+                  builder: (context) {
+                    final statusList = ['Paid', 'Approved', 'Pending', 'On Hold', 'Processing'];
+                    final effectiveStatus = statusList.contains(_selectedStatus) ? _selectedStatus : 'Pending';
+                    return DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        key: ValueKey('payout_status_$effectiveStatus'),
+                        value: effectiveStatus,
+                        isExpanded: true,
+                        dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        items: statusList.map((s) {
+                          Color color = const Color(0xFF16A34A);
+                          if (s == 'Pending') color = const Color(0xFFD97706);
+                          if (s == 'On Hold') color = const Color(0xFFDC2626);
+                          if (s == 'Approved') color = const Color(0xFF2563EB);
+                          if (s == 'Processing') color = const Color(0xFF8B5CF6);
 
-                      return DropdownMenuItem(
-                        value: s,
-                        child: Row(
-                          children: [
-                            Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-                            const SizedBox(width: 8),
-                            Text(s, style: TextStyle(fontWeight: FontWeight.w700, color: color)),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedStatus = val);
-                    },
-                  ),
+                          return DropdownMenuItem(
+                            value: s,
+                            child: Row(
+                              children: [
+                                Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                                const SizedBox(width: 8),
+                                Text(s, style: TextStyle(fontWeight: FontWeight.w700, color: color)),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _selectedStatus = val);
+                        },
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 16),
@@ -168,21 +175,44 @@ class _ChangeStaffPayoutStatusDialogState extends ConsumerState<ChangeStaffPayou
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                   ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _paymentMode,
-                      isExpanded: true,
-                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                      items: const [
-                        DropdownMenuItem(value: 'Direct Bank Transfer (NEFT/RTGS)', child: Text('Direct Bank Transfer (NEFT/RTGS)')),
-                        DropdownMenuItem(value: 'UPI / Corporate IMPS', child: Text('UPI / Corporate IMPS')),
-                        DropdownMenuItem(value: 'Corporate Cheque', child: Text('Corporate Cheque')),
-                        DropdownMenuItem(value: 'Cash Voucher', child: Text('Cash Voucher')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) setState(() => _paymentMode = val);
-                      },
-                    ),
+                  child: Builder(
+                    builder: (context) {
+                      final Map<String, String> modeMap = {
+                        'Direct Bank Transfer (NEFT/RTGS)': 'Direct Bank Transfer (NEFT/RTGS)',
+                        'UPI / Corporate IMPS': 'UPI / Corporate IMPS',
+                        'Corporate Cheque': 'Corporate Cheque',
+                        'Cash Voucher': 'Cash Voucher',
+                      };
+                      String effectiveMode = _paymentMode;
+                      if (!modeMap.containsKey(effectiveMode)) {
+                        final match = modeMap.keys.firstWhere(
+                          (k) => k.toLowerCase() == effectiveMode.toLowerCase() ||
+                                 k.toLowerCase().contains(effectiveMode.toLowerCase()) ||
+                                 effectiveMode.toLowerCase().contains(k.toLowerCase()),
+                          orElse: () => '',
+                        );
+                        if (match.isNotEmpty) {
+                          effectiveMode = match;
+                        } else {
+                          modeMap[effectiveMode] = effectiveMode;
+                        }
+                      }
+
+                      return DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          key: ValueKey('change_status_pay_mode_$effectiveMode'),
+                          value: effectiveMode,
+                          isExpanded: true,
+                          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          items: modeMap.entries.map((entry) {
+                            return DropdownMenuItem(value: entry.key, child: Text(entry.value));
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) setState(() => _paymentMode = val);
+                          },
+                        ),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 14),

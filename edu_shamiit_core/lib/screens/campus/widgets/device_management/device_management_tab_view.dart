@@ -31,6 +31,7 @@ import 'subviews/device_health_diagnostics_subview.dart';
 import 'subviews/device_integrations_gateways_subview.dart';
 import 'subviews/device_access_permissions_subview.dart';
 import 'subviews/device_import_export_subview.dart';
+import 'subviews/device_registry_subview.dart';
 
 class DeviceManagementTabView extends ConsumerStatefulWidget {
   const DeviceManagementTabView({super.key});
@@ -74,6 +75,8 @@ class _DeviceManagementTabViewState extends ConsumerState<DeviceManagementTabVie
         initialBuilding: state.filterBuilding,
         initialType: state.filterType,
         initialStatus: state.filterStatus,
+        buildings: state.buildingsBreakdown,
+        types: state.devicesByType,
         onApply: (bld, type, status) {
           notifier.setFilterBuilding(bld);
           notifier.setFilterType(type);
@@ -132,6 +135,111 @@ class _DeviceManagementTabViewState extends ConsumerState<DeviceManagementTabVie
       await ref.read(deviceManagementProvider.notifier).deleteDevice(device.id);
       ref.read(deviceManagementProvider.notifier).loadDevices();
     }
+  }
+
+  void _confirmBulkDelete(
+    DeviceManagementState state,
+    DeviceManagementNotifier notifier,
+  ) async {
+    final count = state.selectedDeviceIds.length;
+    if (count == 0) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete $count Selected Devices?'),
+        content: Text(
+          'Are you sure you want to remove these $count devices from campus database? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete Devices'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await notifier.bulkDeleteSelectedDevices();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$count devices removed successfully!'),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildTable(DeviceManagementState state, DeviceManagementNotifier notifier) {
+    return DeviceLiveControlTable(
+      devices: state.devices,
+      isLoading: state.isDevicesLoading,
+      activeTab: state.activeTableTab,
+      onTabChanged: notifier.setTableTab,
+      searchQuery: state.searchQuery,
+      onSearchChanged: notifier.setSearchQuery,
+      selectedDeviceIds: state.selectedDeviceIds,
+      onToggleSelect: notifier.toggleSelectDevice,
+      onToggleSelectAll: notifier.toggleSelectAll,
+      onTogglePower: notifier.toggleDevicePower,
+      onSetTemperature: notifier.setDeviceTemperature,
+      onSetHvacMode: notifier.setDeviceHvacMode,
+      onSetFanSpeed: notifier.setDeviceFanSpeed,
+      onSetBrightness: notifier.setDeviceBrightness,
+      onSetProjectorInput: notifier.setDeviceProjectorInput,
+      onSetProjectorVolume: notifier.setDeviceProjectorVolume,
+      onGateControl: notifier.toggleGateLock,
+      onInspectDevice: (d) => setState(() => _inspectedDevice = d),
+      onDeleteDevice: _confirmDeleteDevice,
+      onRebootDevice: _rebootDevice,
+      onOpenFilters: _openFilterDialog,
+      currentPage: state.currentPage,
+      pageSize: state.pageSize,
+      totalCount: state.totalDevices,
+      onPageChanged: notifier.setPage,
+      onPageSizeChanged: notifier.setPageSize,
+      sortColumn: state.sortColumn,
+      sortAscending: state.sortAscending,
+      onSortChanged: notifier.setSorting,
+      activeLocationBreadcrumb: state.selectedLocationBreadcrumb,
+      onClearLocation: notifier.clearLocationFilter,
+      activeTypeFilter: state.filterType,
+      onClearType: () => notifier.setFilterType(null),
+      activeStatusFilter: state.filterStatus,
+      onClearStatus: () => notifier.setFilterStatus(null),
+      onResetAllFilters: notifier.resetAllFilters,
+      onBulkPowerToggle: notifier.bulkPowerToggle,
+      onBulkReboot: notifier.bulkReboot,
+      onBulkDelete: () => _confirmBulkDelete(state, notifier),
+      onClearSelection: notifier.clearSelectedDevices,
+    );
+  }
+
+  Widget _buildLocationExplorer(DeviceManagementState state, DeviceManagementNotifier notifier) {
+    return DeviceLocationExplorerCard(
+      tree: state.locationTree,
+      selectedNodeId: state.selectedLocationNodeId,
+      selectedBreadcrumb: state.selectedLocationBreadcrumb,
+      onLocationSelected: (bld, fl, rm, nodeId, breadcrumb) => notifier.setFilterLocation(
+        buildingId: bld,
+        floorId: fl,
+        roomId: rm,
+        nodeId: nodeId,
+        breadcrumb: breadcrumb,
+      ),
+      onClearLocation: notifier.clearLocationFilter,
+    );
   }
 
   void _handleQuickControlAction(
@@ -776,7 +884,9 @@ class _DeviceManagementTabViewState extends ConsumerState<DeviceManagementTabVie
       case 0:
         return _buildOverviewDashboard(state, notifier, isDark);
       case 1:
-        return _buildDeviceRegistryView(state, notifier, isDark);
+        return DeviceRegistrySubview(
+          onBackToDashboard: () => notifier.setSubNavIndex(0),
+        );
       case 2:
         return const DeviceTypesProfilesSubview();
       case 3:
@@ -898,46 +1008,14 @@ class _DeviceManagementTabViewState extends ConsumerState<DeviceManagementTabVie
                 // Device Live Control Table
                 Expanded(
                   flex: 32,
-                  child: DeviceLiveControlTable(
-                    devices: state.devices,
-                    isLoading: state.isDevicesLoading,
-                    activeTab: state.activeTableTab,
-                    onTabChanged: notifier.setTableTab,
-                    searchQuery: state.searchQuery,
-                    onSearchChanged: notifier.setSearchQuery,
-                    selectedDeviceIds: state.selectedDeviceIds,
-                    onToggleSelect: notifier.toggleSelectDevice,
-                    onToggleSelectAll: notifier.toggleSelectAll,
-                    onTogglePower: notifier.toggleDevicePower,
-                    onSetTemperature: notifier.setDeviceTemperature,
-                    onSetHvacMode: notifier.setDeviceHvacMode,
-                    onSetFanSpeed: notifier.setDeviceFanSpeed,
-                    onSetBrightness: notifier.setDeviceBrightness,
-                    onSetProjectorInput: notifier.setDeviceProjectorInput,
-                    onSetProjectorVolume: notifier.setDeviceProjectorVolume,
-                    onGateControl: notifier.toggleGateLock,
-                    onInspectDevice: (d) => setState(() => _inspectedDevice = d),
-                    onDeleteDevice: _confirmDeleteDevice,
-                    onRebootDevice: _rebootDevice,
-                    onOpenFilters: _openFilterDialog,
-                    currentPage: state.currentPage,
-                    totalCount: state.totalDevices,
-                    onPageChanged: notifier.setPage,
-                  ),
+                  child: _buildTable(state, notifier),
                 ),
                 const SizedBox(width: 10),
 
                 // Location Explorer Tree
                 Expanded(
                   flex: 13,
-                  child: DeviceLocationExplorerCard(
-                    tree: state.locationTree,
-                    onLocationSelected: (bld, fl, rm) => notifier.setFilterLocation(
-                      buildingId: bld,
-                      floorId: fl,
-                      roomId: rm,
-                    ),
-                  ),
+                  child: _buildLocationExplorer(state, notifier),
                 ),
               ],
             ),
@@ -999,85 +1077,7 @@ class _DeviceManagementTabViewState extends ConsumerState<DeviceManagementTabVie
     );
   }
 
-  // --- Sub-View 1 & 5: Device Registry / Live Control Full View ---
-  Widget _buildDeviceRegistryView(
-    DeviceManagementState state,
-    DeviceManagementNotifier notifier,
-    bool isDark,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_back_rounded),
-              onPressed: () => notifier.setSubNavIndex(0),
-              tooltip: 'Back to Dashboard',
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Campus Device Registry & Fleet Control',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    ),
-                  ),
-                  Text(
-                    'Full registry of all ${state.totalDevices} connected campus devices across all blocks and floors',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ElevatedButton.icon(
-              onPressed: _openAddDeviceWizard,
-              icon: const Icon(Icons.add, size: 16, color: Colors.white),
-              label: const Text('Add Device', style: TextStyle(color: Colors.white)),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Expanded(
-          child: DeviceLiveControlTable(
-            devices: state.devices,
-            isLoading: state.isDevicesLoading,
-            activeTab: state.activeTableTab,
-            onTabChanged: notifier.setTableTab,
-            searchQuery: state.searchQuery,
-            onSearchChanged: notifier.setSearchQuery,
-            selectedDeviceIds: state.selectedDeviceIds,
-            onToggleSelect: notifier.toggleSelectDevice,
-            onToggleSelectAll: notifier.toggleSelectAll,
-            onTogglePower: notifier.toggleDevicePower,
-            onSetTemperature: notifier.setDeviceTemperature,
-            onSetHvacMode: notifier.setDeviceHvacMode,
-            onSetFanSpeed: notifier.setDeviceFanSpeed,
-            onSetBrightness: notifier.setDeviceBrightness,
-            onSetProjectorInput: notifier.setDeviceProjectorInput,
-            onSetProjectorVolume: notifier.setDeviceProjectorVolume,
-            onGateControl: notifier.toggleGateLock,
-            onInspectDevice: (d) => setState(() => _inspectedDevice = d),
-            onDeleteDevice: _confirmDeleteDevice,
-            onRebootDevice: _rebootDevice,
-            onOpenFilters: _openFilterDialog,
-            currentPage: state.currentPage,
-            totalCount: state.totalDevices,
-            onPageChanged: notifier.setPage,
-          ),
-        ),
-      ],
-    );
-  }
+
 
 
 
@@ -1152,46 +1152,14 @@ class _DeviceManagementTabViewState extends ConsumerState<DeviceManagementTabVie
           // Device Table
           SizedBox(
             height: 380,
-            child: DeviceLiveControlTable(
-              devices: state.devices,
-              isLoading: state.isDevicesLoading,
-              activeTab: state.activeTableTab,
-              onTabChanged: notifier.setTableTab,
-              searchQuery: state.searchQuery,
-              onSearchChanged: notifier.setSearchQuery,
-              selectedDeviceIds: state.selectedDeviceIds,
-              onToggleSelect: notifier.toggleSelectDevice,
-              onToggleSelectAll: notifier.toggleSelectAll,
-              onTogglePower: notifier.toggleDevicePower,
-              onSetTemperature: notifier.setDeviceTemperature,
-              onSetHvacMode: notifier.setDeviceHvacMode,
-              onSetFanSpeed: notifier.setDeviceFanSpeed,
-              onSetBrightness: notifier.setDeviceBrightness,
-              onSetProjectorInput: notifier.setDeviceProjectorInput,
-              onSetProjectorVolume: notifier.setDeviceProjectorVolume,
-              onGateControl: notifier.toggleGateLock,
-              onInspectDevice: (d) => setState(() => _inspectedDevice = d),
-              onDeleteDevice: _confirmDeleteDevice,
-              onRebootDevice: _rebootDevice,
-              onOpenFilters: _openFilterDialog,
-              currentPage: state.currentPage,
-              totalCount: state.totalDevices,
-              onPageChanged: notifier.setPage,
-            ),
+            child: _buildTable(state, notifier),
           ),
           const SizedBox(height: 14),
 
           // Location Explorer
           SizedBox(
             height: 260,
-            child: DeviceLocationExplorerCard(
-              tree: state.locationTree,
-              onLocationSelected: (bld, fl, rm) => notifier.setFilterLocation(
-                buildingId: bld,
-                floorId: fl,
-                roomId: rm,
-              ),
-            ),
+            child: _buildLocationExplorer(state, notifier),
           ),
           const SizedBox(height: 14),
 
@@ -1319,46 +1287,14 @@ class _DeviceManagementTabViewState extends ConsumerState<DeviceManagementTabVie
           // Table
           SizedBox(
             height: 380,
-            child: DeviceLiveControlTable(
-              devices: state.devices,
-              isLoading: state.isDevicesLoading,
-              activeTab: state.activeTableTab,
-              onTabChanged: notifier.setTableTab,
-              searchQuery: state.searchQuery,
-              onSearchChanged: notifier.setSearchQuery,
-              selectedDeviceIds: state.selectedDeviceIds,
-              onToggleSelect: notifier.toggleSelectDevice,
-              onToggleSelectAll: notifier.toggleSelectAll,
-              onTogglePower: notifier.toggleDevicePower,
-              onSetTemperature: notifier.setDeviceTemperature,
-              onSetHvacMode: notifier.setDeviceHvacMode,
-              onSetFanSpeed: notifier.setDeviceFanSpeed,
-              onSetBrightness: notifier.setDeviceBrightness,
-              onSetProjectorInput: notifier.setDeviceProjectorInput,
-              onSetProjectorVolume: notifier.setDeviceProjectorVolume,
-              onGateControl: notifier.toggleGateLock,
-              onInspectDevice: (d) => setState(() => _inspectedDevice = d),
-              onDeleteDevice: _confirmDeleteDevice,
-              onRebootDevice: _rebootDevice,
-              onOpenFilters: _openFilterDialog,
-              currentPage: state.currentPage,
-              totalCount: state.totalDevices,
-              onPageChanged: notifier.setPage,
-            ),
+            child: _buildTable(state, notifier),
           ),
           const SizedBox(height: 12),
 
           // Location Explorer
           SizedBox(
             height: 240,
-            child: DeviceLocationExplorerCard(
-              tree: state.locationTree,
-              onLocationSelected: (bld, fl, rm) => notifier.setFilterLocation(
-                buildingId: bld,
-                floorId: fl,
-                roomId: rm,
-              ),
-            ),
+            child: _buildLocationExplorer(state, notifier),
           ),
           const SizedBox(height: 12),
 

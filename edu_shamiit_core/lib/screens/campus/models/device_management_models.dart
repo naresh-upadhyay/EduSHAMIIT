@@ -9,6 +9,7 @@ class DeviceManagementKpis {
   final String locationsSummary;
   final int buildingsCount;
   final int floorsCount;
+  final int roomsCount;
   final int automationsActive;
   final int schedulesCount;
   final int alertsCount;
@@ -22,6 +23,7 @@ class DeviceManagementKpis {
     this.locationsSummary = '6 Buildings • 42 Floors',
     this.buildingsCount = 6,
     this.floorsCount = 42,
+    this.roomsCount = 120,
     this.automationsActive = 128,
     this.schedulesCount = 276,
     this.alertsCount = 18,
@@ -37,6 +39,7 @@ class DeviceManagementKpis {
       locationsSummary: (json['locations_summary'] as String?) ?? '6 Buildings • 42 Floors',
       buildingsCount: (json['buildings_count'] as num?)?.toInt() ?? 6,
       floorsCount: (json['floors_count'] as num?)?.toInt() ?? 42,
+      roomsCount: (json['rooms_count'] as num?)?.toInt() ?? 120,
       automationsActive: (json['automations_active'] as num?)?.toInt() ?? 128,
       schedulesCount: (json['schedules_count'] as num?)?.toInt() ?? 276,
       alertsCount: (json['alerts_count'] as num?)?.toInt() ?? 18,
@@ -1068,30 +1071,30 @@ class LocationsMappingKpis {
   final double coveragePct;
 
   const LocationsMappingKpis({
-    this.buildings = 6,
-    this.floors = 42,
-    this.rooms = 276,
-    this.totalDevices = 8742,
-    this.mappedDevices = 8296,
-    this.mappedPct = 95.0,
-    this.unmappedDevices = 446,
-    this.unmappedPct = 5.0,
-    this.locationsWithDevices = 268,
-    this.coveragePct = 97.1,
+    this.buildings = 0,
+    this.floors = 0,
+    this.rooms = 0,
+    this.totalDevices = 0,
+    this.mappedDevices = 0,
+    this.mappedPct = 0.0,
+    this.unmappedDevices = 0,
+    this.unmappedPct = 0.0,
+    this.locationsWithDevices = 0,
+    this.coveragePct = 0.0,
   });
 
   factory LocationsMappingKpis.fromJson(Map<String, dynamic> json) {
     return LocationsMappingKpis(
-      buildings: (json['buildings'] as num?)?.toInt() ?? 6,
-      floors: (json['floors'] as num?)?.toInt() ?? 42,
-      rooms: (json['rooms'] as num?)?.toInt() ?? 276,
-      totalDevices: (json['total_devices'] as num?)?.toInt() ?? 8742,
-      mappedDevices: (json['mapped_devices'] as num?)?.toInt() ?? 8296,
-      mappedPct: (json['mapped_pct'] as num?)?.toDouble() ?? 95.0,
-      unmappedDevices: (json['unmapped_devices'] as num?)?.toInt() ?? 446,
-      unmappedPct: (json['unmapped_pct'] as num?)?.toDouble() ?? 5.0,
-      locationsWithDevices: (json['locations_with_devices'] as num?)?.toInt() ?? 268,
-      coveragePct: (json['coverage_pct'] as num?)?.toDouble() ?? 97.1,
+      buildings: (json['buildings'] as num?)?.toInt() ?? 0,
+      floors: (json['floors'] as num?)?.toInt() ?? 0,
+      rooms: (json['rooms'] as num?)?.toInt() ?? 0,
+      totalDevices: (json['total_devices'] as num?)?.toInt() ?? 0,
+      mappedDevices: (json['mapped_devices'] as num?)?.toInt() ?? 0,
+      mappedPct: (json['mapped_pct'] as num?)?.toDouble() ?? 0.0,
+      unmappedDevices: (json['unmapped_devices'] as num?)?.toInt() ?? 0,
+      unmappedPct: (json['unmapped_pct'] as num?)?.toDouble() ?? 0.0,
+      locationsWithDevices: (json['locations_with_devices'] as num?)?.toInt() ?? 0,
+      coveragePct: (json['coverage_pct'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -1174,24 +1177,24 @@ class LocationDetailsModel {
 
   const LocationDetailsModel({
     required this.id,
-    this.title = 'Academic Block (A) – First Floor',
+    this.title = '',
     this.buildingId,
-    this.buildingName = 'Academic Block (A)',
+    this.buildingName = '',
     this.locationType = 'Floor',
-    this.parentLocation = 'Academic Block (A)',
+    this.parentLocation = '',
     this.floorNo = 1,
     this.status = 'Active',
-    this.totalRooms = 14,
-    this.mappedDevices = 132,
-    this.unmappedDevices = 4,
-    this.groupsAssigned = 8,
-    this.profilesInUse = 5,
-    this.coveragePct = 97.1,
+    this.totalRooms = 0,
+    this.mappedDevices = 0,
+    this.unmappedDevices = 0,
+    this.groupsAssigned = 0,
+    this.profilesInUse = 0,
+    this.coveragePct = 0.0,
     this.imageUrl = 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=600&q=80',
     this.rooms = const [],
     this.assignedGroups = const [],
-    this.automationsCount = 3,
-    this.scenesCount = 2,
+    this.automationsCount = 0,
+    this.scenesCount = 0,
   });
 
   factory LocationDetailsModel.fromJson(Map<String, dynamic> json) {
@@ -1199,19 +1202,19 @@ class LocationDetailsModel {
     final rawGroups = json['assigned_groups'] as List? ?? [];
     return LocationDetailsModel(
       id: json['id']?.toString() ?? '',
-      title: json['title']?.toString() ?? 'Academic Block (A) – First Floor',
+      title: json['title']?.toString() ?? '',
       buildingId: json['building_id']?.toString(),
-      buildingName: json['building_name']?.toString() ?? 'Academic Block (A)',
+      buildingName: json['building_name']?.toString() ?? '',
       locationType: json['location_type']?.toString() ?? 'Floor',
-      parentLocation: json['parent_location']?.toString() ?? 'Academic Block (A)',
+      parentLocation: json['parent_location']?.toString() ?? '',
       floorNo: (json['floor_no'] as num?)?.toInt() ?? 1,
       status: json['status']?.toString() ?? 'Active',
-      totalRooms: (json['total_rooms'] as num?)?.toInt() ?? 14,
-      mappedDevices: (json['mapped_devices'] as num?)?.toInt() ?? 132,
-      unmappedDevices: (json['unmapped_devices'] as num?)?.toInt() ?? 4,
-      groupsAssigned: (json['groups_assigned'] as num?)?.toInt() ?? 8,
-      profilesInUse: (json['profiles_in_use'] as num?)?.toInt() ?? 5,
-      coveragePct: (json['coverage_pct'] as num?)?.toDouble() ?? 97.1,
+      totalRooms: (json['total_rooms'] as num?)?.toInt() ?? 0,
+      mappedDevices: (json['mapped_devices'] as num?)?.toInt() ?? 0,
+      unmappedDevices: (json['unmapped_devices'] as num?)?.toInt() ?? 0,
+      groupsAssigned: (json['groups_assigned'] as num?)?.toInt() ?? 0,
+      profilesInUse: (json['profiles_in_use'] as num?)?.toInt() ?? 0,
+      coveragePct: (json['coverage_pct'] as num?)?.toDouble() ?? 0.0,
       imageUrl: json['image_url']?.toString() ??
           'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=600&q=80',
       rooms: rawRooms
@@ -1222,8 +1225,8 @@ class LocationDetailsModel {
           .whereType<Map<String, dynamic>>()
           .map((g) => LocationAssignedGroupItem.fromJson(g))
           .toList(),
-      automationsCount: (json['automations_count'] as num?)?.toInt() ?? 3,
-      scenesCount: (json['scenes_count'] as num?)?.toInt() ?? 2,
+      automationsCount: (json['automations_count'] as num?)?.toInt() ?? 0,
+      scenesCount: (json['scenes_count'] as num?)?.toInt() ?? 0,
     );
   }
 }
@@ -1330,30 +1333,45 @@ class DeviceLocationMappingItem {
 class FloorPlanAssetModel {
   final String id;
   final String floorId;
+  final String? buildingId;
+  final String buildingName;
+  final String floorName;
+  final int floorNumber;
   final String title;
   final String version;
   final double dimensionsWidth;
   final double dimensionsHeight;
   final double scalePixelsPerMeter;
   final List<FloorPlanRoomLayout> roomsLayout;
+  final List<FloorPlanAvailableFloor> availableFloors;
 
   const FloorPlanAssetModel({
     required this.id,
-    this.floorId = 'b8b4c4de-11e1-4d42-b4ad-27b86c8c823a',
-    this.title = 'Academic Block (A) – First Floor Architectural Plan',
+    this.floorId = '8770a0e6-8aa9-4e65-9a85-539eabd5f9a6',
+    this.buildingId,
+    this.buildingName = 'Academic Block',
+    this.floorName = 'First Floor',
+    this.floorNumber = 1,
+    this.title = 'Academic Block – First Floor Architectural Plan',
     this.version = 'v1.0',
     this.dimensionsWidth = 1200.0,
     this.dimensionsHeight = 750.0,
     this.scalePixelsPerMeter = 25.0,
     this.roomsLayout = const [],
+    this.availableFloors = const [],
   });
 
   factory FloorPlanAssetModel.fromJson(Map<String, dynamic> json) {
     final rawRooms = json['rooms_layout'] as List? ?? [];
+    final rawFloors = json['available_floors'] as List? ?? [];
     return FloorPlanAssetModel(
       id: json['id']?.toString() ?? '',
-      floorId: json['floor_id']?.toString() ?? 'b8b4c4de-11e1-4d42-b4ad-27b86c8c823a',
-      title: json['title']?.toString() ?? 'Academic Block (A) – First Floor Architectural Plan',
+      floorId: json['floor_id']?.toString() ?? '8770a0e6-8aa9-4e65-9a85-539eabd5f9a6',
+      buildingId: json['building_id']?.toString(),
+      buildingName: json['building_name']?.toString() ?? 'Academic Block',
+      floorName: json['floor_name']?.toString() ?? 'First Floor',
+      floorNumber: (json['floor_number'] as num?)?.toInt() ?? 1,
+      title: json['title']?.toString() ?? 'Academic Block – First Floor Architectural Plan',
       version: json['version']?.toString() ?? 'v1.0',
       dimensionsWidth: (json['dimensions_width'] as num?)?.toDouble() ?? 1200.0,
       dimensionsHeight: (json['dimensions_height'] as num?)?.toDouble() ?? 750.0,
@@ -1362,6 +1380,33 @@ class FloorPlanAssetModel {
           .whereType<Map<String, dynamic>>()
           .map((r) => FloorPlanRoomLayout.fromJson(r))
           .toList(),
+      availableFloors: rawFloors
+          .whereType<Map<String, dynamic>>()
+          .map((f) => FloorPlanAvailableFloor.fromJson(f))
+          .toList(),
+    );
+  }
+}
+
+class FloorPlanAvailableFloor {
+  final String id;
+  final String name;
+  final int floorLevel;
+  final bool isCurrent;
+
+  const FloorPlanAvailableFloor({
+    required this.id,
+    required this.name,
+    this.floorLevel = 0,
+    this.isCurrent = false,
+  });
+
+  factory FloorPlanAvailableFloor.fromJson(Map<String, dynamic> json) {
+    return FloorPlanAvailableFloor(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Floor',
+      floorLevel: (json['floor_level'] as num?)?.toInt() ?? 0,
+      isCurrent: json['is_current'] == true,
     );
   }
 }
@@ -1370,6 +1415,7 @@ class FloorPlanRoomLayout {
   final String roomId;
   final String code;
   final String name;
+  final String roomType;
   final double x;
   final double y;
   final double w;
@@ -1379,6 +1425,7 @@ class FloorPlanRoomLayout {
     required this.roomId,
     required this.code,
     required this.name,
+    this.roomType = 'Classroom',
     required this.x,
     required this.y,
     required this.w,
@@ -1390,6 +1437,7 @@ class FloorPlanRoomLayout {
       roomId: json['room_id']?.toString() ?? '',
       code: json['code']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
+      roomType: json['room_type']?.toString() ?? 'Classroom',
       x: (json['x'] as num?)?.toDouble() ?? 0.0,
       y: (json['y'] as num?)?.toDouble() ?? 0.0,
       w: (json['w'] as num?)?.toDouble() ?? 0.2,
@@ -1413,6 +1461,9 @@ class FloorPlanMarkerModel {
   final bool powerState;
   final bool isMapped;
   final String? roomId;
+  final String? roomNumber;
+  final String? roomName;
+  final Map<String, dynamic> currentState;
 
   const FloorPlanMarkerModel({
     required this.id,
@@ -1429,6 +1480,9 @@ class FloorPlanMarkerModel {
     this.powerState = true,
     this.isMapped = true,
     this.roomId,
+    this.roomNumber,
+    this.roomName,
+    this.currentState = const {},
   });
 
   factory FloorPlanMarkerModel.fromJson(Map<String, dynamic> json) {
@@ -1447,6 +1501,11 @@ class FloorPlanMarkerModel {
       powerState: json['power_state'] == true,
       isMapped: json['is_mapped'] == true,
       roomId: json['room_id']?.toString(),
+      roomNumber: json['room_number']?.toString(),
+      roomName: json['room_name']?.toString(),
+      currentState: json['current_state'] is Map<String, dynamic>
+          ? Map<String, dynamic>.from(json['current_state'] as Map)
+          : {},
     );
   }
 }
@@ -1458,24 +1517,30 @@ class FloorPlanLegendModel {
   final int projector;
   final int accessPoint;
   final int audio;
+  final int fan;
+  final int total;
 
   const FloorPlanLegendModel({
-    this.cctv = 2,
-    this.lighting = 6,
-    this.hvac = 3,
-    this.projector = 1,
-    this.accessPoint = 1,
-    this.audio = 1,
+    this.cctv = 0,
+    this.lighting = 0,
+    this.hvac = 0,
+    this.projector = 0,
+    this.accessPoint = 0,
+    this.audio = 0,
+    this.fan = 0,
+    this.total = 0,
   });
 
   factory FloorPlanLegendModel.fromJson(Map<String, dynamic> json) {
     return FloorPlanLegendModel(
-      cctv: (json['cctv'] as num?)?.toInt() ?? 2,
-      lighting: (json['lighting'] as num?)?.toInt() ?? 6,
-      hvac: (json['hvac'] as num?)?.toInt() ?? 3,
-      projector: (json['projector'] as num?)?.toInt() ?? 1,
-      accessPoint: (json['access_point'] as num?)?.toInt() ?? 1,
-      audio: (json['audio'] as num?)?.toInt() ?? 1,
+      cctv: (json['cctv'] as num?)?.toInt() ?? 0,
+      lighting: (json['lighting'] as num?)?.toInt() ?? 0,
+      hvac: (json['hvac'] as num?)?.toInt() ?? 0,
+      projector: (json['projector'] as num?)?.toInt() ?? 0,
+      accessPoint: (json['access_point'] as num?)?.toInt() ?? 0,
+      audio: (json['audio'] as num?)?.toInt() ?? 0,
+      fan: (json['fan'] as num?)?.toInt() ?? 0,
+      total: (json['total'] as num?)?.toInt() ?? 0,
     );
   }
 }
@@ -1495,26 +1560,26 @@ class LiveControlKpis {
   final int activeSchedules;
 
   const LiveControlKpis({
-    this.onlineDevices = 8342,
-    this.onlinePercentage = 95.4,
-    this.offlineDevices = 400,
-    this.offlinePercentage = 4.6,
-    this.controllableNow = 8106,
-    this.activeGroups = 118,
-    this.runningAutomations = 27,
-    this.activeSchedules = 63,
+    this.onlineDevices = 0,
+    this.onlinePercentage = 0.0,
+    this.offlineDevices = 0,
+    this.offlinePercentage = 0.0,
+    this.controllableNow = 0,
+    this.activeGroups = 0,
+    this.runningAutomations = 0,
+    this.activeSchedules = 0,
   });
 
   factory LiveControlKpis.fromJson(Map<String, dynamic> json) {
     return LiveControlKpis(
-      onlineDevices: (json['online_devices'] as num?)?.toInt() ?? 8342,
-      onlinePercentage: (json['online_percentage'] as num?)?.toDouble() ?? 95.4,
-      offlineDevices: (json['offline_devices'] as num?)?.toInt() ?? 400,
-      offlinePercentage: (json['offline_percentage'] as num?)?.toDouble() ?? 4.6,
-      controllableNow: (json['controllable_now'] as num?)?.toInt() ?? 8106,
-      activeGroups: (json['active_groups'] as num?)?.toInt() ?? 118,
-      runningAutomations: (json['running_automations'] as num?)?.toInt() ?? 27,
-      activeSchedules: (json['active_schedules'] as num?)?.toInt() ?? 63,
+      onlineDevices: (json['online_devices'] as num?)?.toInt() ?? 0,
+      onlinePercentage: (json['online_percentage'] as num?)?.toDouble() ?? 0.0,
+      offlineDevices: (json['offline_devices'] as num?)?.toInt() ?? 0,
+      offlinePercentage: (json['offline_percentage'] as num?)?.toDouble() ?? 0.0,
+      controllableNow: (json['controllable_now'] as num?)?.toInt() ?? 0,
+      activeGroups: (json['active_groups'] as num?)?.toInt() ?? 0,
+      runningAutomations: (json['running_automations'] as num?)?.toInt() ?? 0,
+      activeSchedules: (json['active_schedules'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -1585,24 +1650,65 @@ class LiveControlDeviceItem {
     this.profileName = 'Standard Profile',
   });
 
-  // State helpers
-  int get brightness => (currentState['brightness'] as num?)?.toInt() ?? 80;
-  int get temperature => (currentState['temperature'] as num?)?.toInt() ?? 24;
+  // State helpers - Robustly typed to safely handle bool, num, or string values
+  int get brightness {
+    final v = currentState['brightness'];
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? 80;
+    if (v is bool) return v ? 100 : 0;
+    return 80;
+  }
+
+  int get temperature {
+    final v = currentState['temperature'];
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? 24;
+    return 24;
+  }
+
   String get mode => currentState['mode']?.toString() ?? 'Cool';
   String get fanSpeed => currentState['fan_speed']?.toString() ?? 'Medium';
   bool get swing => currentState['swing'] != false;
   String get quickPreset => currentState['quick_preset']?.toString() ?? 'Classroom';
+
   List<int> get channels {
-    if (currentState['channels'] is List) {
-      return (currentState['channels'] as List).map((e) => (e as num).toInt()).toList();
+    final raw = currentState['channels'];
+    if (raw is List) {
+      final result = <int>[];
+      for (int i = 0; i < raw.length; i++) {
+        final item = raw[i];
+        if (item is bool) {
+          if (item) result.add(i + 1);
+        } else if (item is num) {
+          result.add(item.toInt());
+        } else if (item != null) {
+          final parsed = int.tryParse(item.toString());
+          if (parsed != null) result.add(parsed);
+        }
+      }
+      return result.isNotEmpty ? result : [1, 2, 4];
     }
     return [1, 2, 4];
   }
+
   String get input => currentState['input']?.toString() ?? 'HDMI 1';
-  int get volume => (currentState['volume'] as num?)?.toInt() ?? 65;
+
+  int get volume {
+    final v = currentState['volume'];
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? 65;
+    return 65;
+  }
+
   bool get isLocked => currentState['status'] == 'locked' || currentState['lock_state'] == true;
 
   factory LiveControlDeviceItem.fromJson(Map<String, dynamic> json) {
+    num? parseNum(dynamic val) {
+      if (val is num) return val;
+      if (val is String) return num.tryParse(val);
+      return null;
+    }
+
     return LiveControlDeviceItem(
       id: json['id']?.toString() ?? '',
       deviceName: json['device_name']?.toString() ?? 'Unnamed Device',
@@ -1616,7 +1722,7 @@ class LiveControlDeviceItem {
           ? Map<String, dynamic>.from(json['current_state'])
           : {},
       operationalStatus: json['operational_status']?.toString() ?? 'operational',
-      ratedPowerWatts: (json['rated_power_watts'] as num?)?.toDouble() ?? 0.0,
+      ratedPowerWatts: parseNum(json['rated_power_watts'])?.toDouble() ?? 0.0,
       buildingId: json['building_id']?.toString(),
       buildingName: json['building_name']?.toString() ?? 'Academic Block (A)',
       floorId: json['floor_id']?.toString(),

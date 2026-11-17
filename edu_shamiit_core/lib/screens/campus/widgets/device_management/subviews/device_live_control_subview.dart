@@ -859,15 +859,28 @@ class _DeviceLiveControlSubviewState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 4.1 Filter Row + Search + View toggle
+        // 4.1 Filter Row + Search + Sort + View toggle
         _buildCenterFilterBar(state, notifier, isDark),
         const SizedBox(height: 12),
 
-        // 4.2 Dynamic Capability-Driven Device Cards Grid
-        _buildDeviceCardsGrid(state, notifier, isDark, isCompact: isCompact),
+        // 4.2 Multi-selection Action Bar (Operations after selection)
+        if (state.liveControlSelectedDeviceIds.isNotEmpty) ...[
+          _buildMultiSelectActionBar(state, notifier, isDark),
+          const SizedBox(height: 12),
+        ],
+
+        // 4.3 Devices Grid or Table View based on view mode toggle
+        if (state.isLiveControlGridMode)
+          _buildDeviceCardsGrid(state, notifier, isDark, isCompact: isCompact)
+        else
+          _buildDeviceTableView(state, notifier, isDark),
+        const SizedBox(height: 12),
+
+        // 4.4 Database Pagination Controls Footer
+        _buildLiveControlPagination(state, notifier, isDark),
         const SizedBox(height: 16),
 
-        // 4.3 2D Interactive Floor Plan View
+        // 4.5 2D Interactive Floor Plan View
         _buildFloorPlanSection(state, notifier, isDark),
       ],
     );
@@ -878,6 +891,40 @@ class _DeviceLiveControlSubviewState
     DeviceManagementNotifier notifier,
     bool isDark,
   ) {
+    final themePrimary = Theme.of(context).colorScheme.primary;
+
+    // Dynamic Device Types from loaded categories
+    final dynamicTypes = state.typesCategories.isNotEmpty
+        ? state.typesCategories
+        : const [
+            'All Device Types',
+            'Lighting',
+            'HVAC (AC)',
+            'Projector',
+            'Fan',
+            'Power & Switches',
+            'CCTV',
+            'Smart Door',
+            'Audio / Speaker',
+          ];
+
+    // Dynamic Groups from loaded groups
+    final dynamicGroups = ['All Groups', ...state.groupsList.map((g) => g.name)];
+
+    const statusItems = ['All Status', 'Online', 'Offline'];
+
+    const sortOptions = [
+      {'label': 'Device Name', 'value': 'device_name'},
+      {'label': 'Device Code', 'value': 'device_code'},
+      {'label': 'Device Type', 'value': 'device_type'},
+      {'label': 'Room Number', 'value': 'room_number'},
+      {'label': 'Status', 'value': 'status'},
+      {'label': 'Power State', 'value': 'power_state'},
+    ];
+
+    final isAllSelected = state.liveControlDevices.isNotEmpty &&
+        state.liveControlSelectedDeviceIds.length == state.liveControlDevices.length;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
@@ -892,58 +939,165 @@ class _DeviceLiveControlSubviewState
         runSpacing: 10,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          // Filter 1: Device Type
+          // Select All Checkbox Tool
+          InkWell(
+            onTap: () => notifier.toggleLiveControlSelectAll(),
+            borderRadius: BorderRadius.circular(6),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: isAllSelected ? themePrimary : Colors.transparent,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: isAllSelected
+                            ? themePrimary
+                            : (isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: isAllSelected
+                        ? const Icon(Icons.check, size: 12, color: Colors.white)
+                        : null,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Select All',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? Colors.white70 : const Color(0xFF334155),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Filter 1: Device Type (Dynamic)
           _buildFilterDropdown(
             value: state.liveControlTypeFilter,
-            items: const [
-              'All Device Types',
-              'Lighting',
-              'HVAC (AC)',
-              'Projector',
-              'Fan',
-              'Power & Switches',
-              'CCTV',
-              'Smart Door',
-              'Audio / Speaker',
-            ],
+            items: dynamicTypes,
             onChanged: (val) => notifier.setLiveControlFilters(type: val),
             isDark: isDark,
           ),
-          // Filter 2: Groups
+
+          // Filter 2: Groups (Dynamic)
           _buildFilterDropdown(
             value: state.liveControlGroupFilter,
-            items: const [
-              'All Groups',
-              'Classroom Fleet (B1)',
-              'Campus HVAC Fleet',
-              'Sports Complex Lgt',
-              'AV & Auditorium',
-            ],
+            items: dynamicGroups,
             onChanged: (val) => notifier.setLiveControlFilters(group: val),
             isDark: isDark,
           ),
+
           // Filter 3: Status
           _buildFilterDropdown(
             value: state.liveControlStatusFilter,
-            items: const ['All Status', 'Online', 'Offline'],
+            items: statusItems,
             onChanged: (val) => notifier.setLiveControlFilters(status: val),
             isDark: isDark,
           ),
+
+          // Database Sort Dropdown
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.sort,
+                  size: 14,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                ),
+                const SizedBox(width: 4),
+                DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: sortOptions.any((o) => o['value'] == state.liveControlSortBy)
+                        ? state.liveControlSortBy
+                        : 'device_name',
+                    isDense: true,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    items: sortOptions.map((item) {
+                      return DropdownMenuItem<String>(
+                        value: item['value'],
+                        child: Text(item['label']!),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        notifier.setLiveControlSorting(val, state.liveControlSortOrder);
+                      }
+                    },
+                  ),
+                ),
+                InkWell(
+                  onTap: () => notifier.setLiveControlSorting(
+                    state.liveControlSortBy,
+                    state.liveControlSortOrder == 'asc' ? 'desc' : 'asc',
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      state.liveControlSortOrder == 'asc'
+                          ? Icons.arrow_upward
+                          : Icons.arrow_downward,
+                      size: 14,
+                      color: themePrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           // Search box
           SizedBox(
-            width: 220,
+            width: 200,
             child: TextField(
               controller: _deviceSearchCtrl,
               onSubmitted: (val) => notifier.setLiveControlFilters(search: val),
               style: const TextStyle(fontSize: 12),
               decoration: InputDecoration(
-                hintText: 'Search devices by name or ID...',
+                hintText: 'Search devices...',
                 hintStyle: TextStyle(
                   fontSize: 11,
                   color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
                 ),
                 prefixIcon: const Icon(Icons.search, size: 16),
                 prefixIconConstraints: const BoxConstraints(minWidth: 32),
+                suffixIcon: _deviceSearchCtrl.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 14),
+                        onPressed: () {
+                          _deviceSearchCtrl.clear();
+                          notifier.setLiveControlFilters(search: '');
+                        },
+                      )
+                    : null,
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 border: OutlineInputBorder(
@@ -961,6 +1115,7 @@ class _DeviceLiveControlSubviewState
               ),
             ),
           ),
+
           // View Mode Toggles
           Container(
             decoration: BoxDecoration(
@@ -979,7 +1134,7 @@ class _DeviceLiveControlSubviewState
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: state.isLiveControlGridMode
-                          ? const Color(0xFF2563EB)
+                          ? themePrimary
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(6),
                     ),
@@ -998,7 +1153,7 @@ class _DeviceLiveControlSubviewState
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: !state.isLiveControlGridMode
-                          ? const Color(0xFF2563EB)
+                          ? themePrimary
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(6),
                     ),
@@ -1015,6 +1170,600 @@ class _DeviceLiveControlSubviewState
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMultiSelectActionBar(
+    DeviceManagementState state,
+    DeviceManagementNotifier notifier,
+    bool isDark,
+  ) {
+    final themePrimary = Theme.of(context).colorScheme.primary;
+    final count = state.liveControlSelectedDeviceIds.length;
+    final total = state.liveControlTotal;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: themePrimary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: themePrimary.withValues(alpha: 0.3)),
+      ),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 8,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.check_circle_outline, color: themePrimary, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                '$count of $total devices selected',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+            ],
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              ElevatedButton.icon(
+                onPressed: () => notifier.bulkExecuteLiveControl(
+                  commandType: 'turn_on',
+                  payload: {'power': true},
+                ),
+                icon: const Icon(Icons.power_settings_new, size: 14),
+                label: const Text('Turn ON All', style: TextStyle(fontSize: 11)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => notifier.bulkExecuteLiveControl(
+                  commandType: 'turn_off',
+                  payload: {'power': false},
+                ),
+                icon: const Icon(Icons.power_off, size: 14),
+                label: const Text('Turn OFF All', style: TextStyle(fontSize: 11)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFEF4444),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => notifier.bulkExecuteLiveControl(
+                  commandType: 'set_brightness',
+                  payload: {'brightness': 80},
+                ),
+                icon: const Icon(Icons.light_mode, size: 14),
+                label: const Text('Set 80% Brightness', style: TextStyle(fontSize: 11)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+              OutlinedButton(
+                onPressed: () => notifier.clearLiveControlSelection(),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('Deselect All', style: TextStyle(fontSize: 11)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLiveControlPagination(
+    DeviceManagementState state,
+    DeviceManagementNotifier notifier,
+    bool isDark,
+  ) {
+    final total = state.liveControlTotal;
+    final page = state.liveControlPage;
+    final pageSize = state.liveControlPageSize;
+    final totalPages = state.liveControlTotalPages;
+
+    final startIdx = total == 0 ? 0 : (page - 1) * pageSize + 1;
+    final endIdx = (page * pageSize > total) ? total : page * pageSize;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 10,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          // Left: Showing X-Y of Z devices + Rows per page
+          Wrap(
+            spacing: 12,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'Showing $startIdx - $endIdx of $total devices',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Rows per page:',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: pageSize,
+                        isDense: true,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                        dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        items: const [10, 20, 50, 100].map((size) {
+                          return DropdownMenuItem<int>(
+                            value: size,
+                            child: Text('$size'),
+                          );
+                        }).toList(),
+                        onChanged: (newSize) {
+                          if (newSize != null) {
+                            notifier.setLiveControlPageSize(newSize);
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          // Right: Page navigation controls
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.first_page, size: 18),
+                tooltip: 'First Page',
+                onPressed: page > 1 ? () => notifier.setLiveControlPage(1) : null,
+                color: isDark ? Colors.white70 : const Color(0xFF334155),
+                disabledColor: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_left, size: 18),
+                tooltip: 'Previous Page',
+                onPressed: page > 1 ? () => notifier.setLiveControlPage(page - 1) : null,
+                color: isDark ? Colors.white70 : const Color(0xFF334155),
+                disabledColor: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Page $page of ${totalPages < 1 ? 1 : totalPages}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right, size: 18),
+                tooltip: 'Next Page',
+                onPressed: page < totalPages ? () => notifier.setLiveControlPage(page + 1) : null,
+                color: isDark ? Colors.white70 : const Color(0xFF334155),
+                disabledColor: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+              ),
+              IconButton(
+                icon: const Icon(Icons.last_page, size: 18),
+                tooltip: 'Last Page',
+                onPressed: page < totalPages ? () => notifier.setLiveControlPage(totalPages) : null,
+                color: isDark ? Colors.white70 : const Color(0xFF334155),
+                disabledColor: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeviceTableView(
+    DeviceManagementState state,
+    DeviceManagementNotifier notifier,
+    bool isDark,
+  ) {
+    final devices = state.liveControlDevices;
+    final themePrimary = Theme.of(context).colorScheme.primary;
+
+    if (devices.isEmpty) {
+      return Container(
+        height: 180,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: Text(
+          'No controllable devices found.',
+          style: TextStyle(
+            fontSize: 13,
+            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+          ),
+        ),
+      );
+    }
+
+    final isAllSelected = devices.isNotEmpty &&
+        devices.every((d) => state.liveControlSelectedDeviceIds.contains(d.id));
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 780),
+          child: DataTable(
+            showCheckboxColumn: false, // Ensures exactly ONE custom checkbox - NO double checkbox!
+            headingRowHeight: 42,
+            dataRowMinHeight: 52,
+            dataRowMaxHeight: 56,
+            horizontalMargin: 12,
+            columnSpacing: 16,
+            headingRowColor: WidgetStateProperty.all(
+              isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            ),
+            columns: [
+              // Checkbox column
+              DataColumn(
+                label: InkWell(
+                  onTap: () => notifier.toggleLiveControlSelectAll(),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: isAllSelected ? themePrimary : Colors.transparent,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: isAllSelected
+                            ? themePrimary
+                            : (isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: isAllSelected
+                        ? const Icon(Icons.check, size: 12, color: Colors.white)
+                        : null,
+                  ),
+                ),
+              ),
+              DataColumn(
+                label: _buildSortableHeader('Device Name', 'device_name', state, notifier, isDark),
+              ),
+              DataColumn(
+                label: _buildSortableHeader('Code', 'device_code', state, notifier, isDark),
+              ),
+              DataColumn(
+                label: _buildSortableHeader('Type', 'device_type', state, notifier, isDark),
+              ),
+              DataColumn(
+                label: _buildSortableHeader('Room / Location', 'room_number', state, notifier, isDark),
+              ),
+              DataColumn(
+                label: _buildSortableHeader('Status', 'status', state, notifier, isDark),
+              ),
+              DataColumn(
+                label: _buildSortableHeader('Power', 'power_state', state, notifier, isDark),
+              ),
+              const DataColumn(
+                label: Text('Quick Live Control', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              ),
+              const DataColumn(
+                label: Text('Actions', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              ),
+            ],
+            rows: devices.map((device) {
+              final isChecked = state.liveControlSelectedDeviceIds.contains(device.id);
+              final isSelected = state.selectedLiveDeviceId == device.id;
+              return DataRow(
+                selected: isSelected,
+                color: WidgetStateProperty.resolveWith<Color?>((states) {
+                  if (isSelected) {
+                    return themePrimary.withValues(alpha: 0.12);
+                  }
+                  if (isChecked) {
+                    return themePrimary.withValues(alpha: 0.06);
+                  }
+                  return null;
+                }),
+                onSelectChanged: (_) => notifier.selectLiveControlDevice(device),
+                cells: [
+                  DataCell(
+                    InkWell(
+                      onTap: () => notifier.toggleLiveControlSelectDevice(device.id),
+                      borderRadius: BorderRadius.circular(4),
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          color: isChecked ? themePrimary : Colors.transparent,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: isChecked
+                                ? themePrimary
+                                : (isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: isChecked
+                            ? const Icon(Icons.check, size: 12, color: Colors.white)
+                            : null,
+                      ),
+                    ),
+                  ),
+                  DataCell(
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildDeviceTypeIcon(device.deviceTypeName, device.deviceTypeCode),
+                        const SizedBox(width: 8),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 150),
+                          child: Text(
+                            device.deviceName,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  DataCell(
+                    Text(
+                      device.deviceCode,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                  DataCell(
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: themePrimary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        device.deviceTypeName,
+                        style: TextStyle(fontSize: 11, color: themePrimary, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ),
+                  DataCell(
+                    Text(
+                      device.buildingName.isNotEmpty
+                          ? '${device.roomNumber} (${device.buildingName} > ${device.floorName})'
+                          : device.roomNumber,
+                      style: const TextStyle(fontSize: 11),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  DataCell(
+                    _buildOnlineStatusBadge(device.isOnline ? 'Online' : 'Offline', isDark),
+                  ),
+                  DataCell(
+                    _buildPowerSwitchOrStatus(device, notifier, isDark),
+                  ),
+                  DataCell(
+                    SizedBox(
+                      width: 160,
+                      child: _buildInlineQuickControl(device, notifier, isDark),
+                    ),
+                  ),
+                  DataCell(
+                    IconButton(
+                      icon: const Icon(Icons.visibility_outlined, size: 18),
+                      tooltip: 'Inspect Device',
+                      onPressed: () => notifier.selectLiveControlDevice(device),
+                      color: isSelected ? themePrimary : (isDark ? Colors.white70 : Colors.black87),
+                    ),
+                  ),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSortableHeader(
+    String title,
+    String columnKey,
+    DeviceManagementState state,
+    DeviceManagementNotifier notifier,
+    bool isDark,
+  ) {
+    final isSorted = state.liveControlSortBy == columnKey;
+    final isAsc = state.liveControlSortOrder == 'asc';
+
+    return InkWell(
+      onTap: () => notifier.setLiveControlSorting(columnKey),
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSorted ? FontWeight.bold : FontWeight.w600,
+                color: isSorted
+                    ? Theme.of(context).colorScheme.primary
+                    : (isDark ? Colors.white : const Color(0xFF0F172A)),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              isSorted
+                  ? (isAsc ? Icons.arrow_upward : Icons.arrow_downward)
+                  : Icons.unfold_more,
+              size: 13,
+              color: isSorted
+                  ? Theme.of(context).colorScheme.primary
+                  : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOnlineStatusBadge(String status, bool isDark) {
+    final isOnline = status.toLowerCase() == 'online';
+    final color = isOnline ? const Color(0xFF10B981) : const Color(0xFFEF4444);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            isOnline ? 'Online' : 'Offline',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInlineQuickControl(
+    LiveControlDeviceItem device,
+    DeviceManagementNotifier notifier,
+    bool isDark,
+  ) {
+    final type = device.deviceTypeName;
+
+    if (type.contains('Light')) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.light_mode, size: 14, color: isDark ? Colors.amber[300] : Colors.amber[700]),
+          const SizedBox(width: 4),
+          Text('${device.brightness}%', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+        ],
+      );
+    } else if (type.contains('AC') || type.contains('HVAC')) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.ac_unit, size: 14, color: Color(0xFF0284C7)),
+          const SizedBox(width: 4),
+          Text('${device.temperature.toStringAsFixed(0)}°C', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+        ],
+      );
+    } else if (type.contains('Switch')) {
+      return Text(
+        '${device.channels.length} ch active',
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+      );
+    } else if (type.contains('Projector')) {
+      return Text(
+        '${device.currentState['input'] ?? 'HDMI 1'}',
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+      );
+    }
+    return Text(
+      device.powerState ? 'Active' : 'Standby',
+      style: TextStyle(
+        fontSize: 11,
+        color: device.powerState ? const Color(0xFF10B981) : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+        fontWeight: FontWeight.w500,
       ),
     );
   }
@@ -1145,6 +1894,7 @@ class _DeviceLiveControlSubviewState
                 isDark: isDark,
                 onTap: () => notifier.selectLiveControlDevice(device),
                 notifier: notifier,
+                state: state,
               ),
             );
           }).toList(),
@@ -1159,7 +1909,11 @@ class _DeviceLiveControlSubviewState
     required bool isDark,
     required VoidCallback onTap,
     required DeviceManagementNotifier notifier,
+    required DeviceManagementState state,
   }) {
+    final isChecked = state.liveControlSelectedDeviceIds.contains(device.id);
+    final themePrimary = Theme.of(context).colorScheme.primary;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
@@ -1170,14 +1924,14 @@ class _DeviceLiveControlSubviewState
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isSelected
-                ? const Color(0xFF2563EB)
-                : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-            width: isSelected ? 2 : 1,
+                ? themePrimary
+                : (isChecked ? themePrimary.withValues(alpha: 0.7) : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+            width: isSelected ? 2 : (isChecked ? 1.5 : 1),
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                    color: themePrimary.withValues(alpha: 0.15),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -1188,9 +1942,31 @@ class _DeviceLiveControlSubviewState
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Top Row: Device Icon + Title + Status Pill + Toggle Switch
+            // Top Row: Checkbox + Device Icon + Title + Status Pill + Toggle Switch
             Row(
               children: [
+                InkWell(
+                  onTap: () => notifier.toggleLiveControlSelectDevice(device.id),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: isChecked ? themePrimary : Colors.transparent,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: isChecked
+                            ? themePrimary
+                            : (isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: isChecked
+                        ? const Icon(Icons.check, size: 12, color: Colors.white)
+                        : null,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 _buildDeviceTypeIcon(device.deviceTypeName, device.deviceTypeCode),
                 const SizedBox(width: 8),
                 Expanded(

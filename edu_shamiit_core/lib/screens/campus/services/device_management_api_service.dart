@@ -19,7 +19,20 @@ class DeviceManagementApiService {
     return {};
   }
 
-  /// 2. List Devices with Filtering and Pagination
+  /// 1b. Fetch Device Registry Fleet KPIs
+  Future<DeviceManagementKpis> getRegistryKpis({String? schoolId}) async {
+    try {
+      final query = <String, dynamic>{};
+      if (schoolId != null) query['school_id'] = schoolId;
+      final res = await _api.get('/v1/devices/registry/kpis', query: query, useCache: false);
+      if (res.isNotEmpty) {
+        return DeviceManagementKpis.fromJson(res);
+      }
+    } catch (_) {}
+    return const DeviceManagementKpis();
+  }
+
+  /// 2. List Devices with Filtering, Sorting and Pagination
   Future<Map<String, dynamic>> listDevices({
     String? search,
     String? buildingId,
@@ -29,6 +42,8 @@ class DeviceManagementApiService {
     String? status,
     int page = 1,
     int pageSize = 10,
+    String? sortBy,
+    String? sortOrder,
   }) async {
     try {
       final query = <String, dynamic>{
@@ -36,11 +51,13 @@ class DeviceManagementApiService {
         'page_size': pageSize,
       };
       if (search != null && search.trim().isNotEmpty) query['search'] = search.trim();
-      if (buildingId != null && buildingId.isNotEmpty && buildingId != 'All') query['building_id'] = buildingId;
+      if (buildingId != null && buildingId.isNotEmpty && buildingId != 'All' && buildingId != 'Entire Campus') query['building_id'] = buildingId;
       if (floorId != null && floorId.isNotEmpty && floorId != 'All') query['floor_id'] = floorId;
       if (roomId != null && roomId.isNotEmpty && roomId != 'All') query['room_id'] = roomId;
       if (typeCode != null && typeCode.isNotEmpty && typeCode != 'All') query['type_code'] = typeCode;
       if (status != null && status.isNotEmpty && status != 'All') query['status'] = status.toLowerCase();
+      if (sortBy != null && sortBy.isNotEmpty) query['sort_by'] = sortBy;
+      if (sortOrder != null && sortOrder.isNotEmpty) query['sort_order'] = sortOrder.toLowerCase();
 
       final res = await _api.get('/v1/devices', query: query, useCache: false);
       return res;
@@ -122,6 +139,16 @@ class DeviceManagementApiService {
   Future<Map<String, dynamic>> deleteDevice(String deviceId) async {
     try {
       final res = await _api.delete('/v1/devices/$deviceId');
+      return res;
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// 8b. Bulk Delete Devices
+  Future<Map<String, dynamic>> bulkDeleteDevices(List<String> deviceIds) async {
+    try {
+      final res = await _api.post('/v1/devices/bulk-delete', {'device_ids': deviceIds});
       return res;
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -357,6 +384,91 @@ class DeviceManagementApiService {
     }
   }
 
+  /// 32a. Get Automation Rules Dynamic KPIs
+  Future<Map<String, dynamic>> getAutomationKpis() async {
+    try {
+      final res = await _api.get('/v1/devices/automations/kpis', useCache: false);
+      if (res['success'] == true && res['kpis'] is Map) {
+        return Map<String, dynamic>.from(res['kpis']);
+      }
+    } catch (_) {}
+    return {};
+  }
+
+  /// 32b. Get Automation Cascading Options (Building -> Floor -> Room, Types, Groups, Devices, Scenes)
+  Future<Map<String, dynamic>> getAutomationCascadingOptions({String? buildingId, String? floorId}) async {
+    try {
+      final qParams = <String, String>{};
+      if (buildingId != null && buildingId.isNotEmpty && buildingId != 'All Buildings') {
+        qParams['building_id'] = buildingId;
+      }
+      if (floorId != null && floorId.isNotEmpty && floorId != 'All Floors') {
+        qParams['floor_id'] = floorId;
+      }
+      final uri = Uri(path: '/v1/devices/automations/cascading-options', queryParameters: qParams.isEmpty ? null : qParams);
+      final res = await _api.get(uri.toString(), useCache: false);
+      if (res['success'] == true && res['options'] is Map) {
+        return Map<String, dynamic>.from(res['options']);
+      }
+    } catch (_) {}
+    return {};
+  }
+
+  /// 32c. List Automation Rules with Database Pagination, Search & Sorting
+  Future<Map<String, dynamic>> listAutomations({
+    String? search,
+    String? buildingId,
+    String? deviceType,
+    String? status,
+    String? category,
+    String sortBy = 'created_at',
+    String sortDir = 'DESC',
+    int page = 1,
+    int pageSize = 10,
+  }) async {
+    try {
+      final qParams = <String, String>{
+        'sort_by': sortBy,
+        'sort_dir': sortDir,
+        'page': page.toString(),
+        'page_size': pageSize.toString(),
+      };
+      if (search != null && search.trim().isNotEmpty) qParams['search'] = search.trim();
+      if (buildingId != null && buildingId.isNotEmpty && buildingId != 'All Buildings') qParams['building_id'] = buildingId;
+      if (deviceType != null && deviceType.isNotEmpty && deviceType != 'All Device Types') qParams['device_type'] = deviceType;
+      if (status != null && status.isNotEmpty && status != 'All Status') qParams['status'] = status;
+      if (category != null && category.isNotEmpty && category != 'All') qParams['category'] = category;
+
+      final uri = Uri(path: '/v1/devices/automations', queryParameters: qParams);
+      final res = await _api.get(uri.toString(), useCache: false);
+      return res;
+    } catch (e) {
+      return {'success': false, 'automations': [], 'total': 0, 'error': e.toString()};
+    }
+  }
+
+  /// 32d. Bulk Automation Action (enable, disable, delete, run)
+  Future<bool> bulkAutomationAction(List<String> ruleIds, String action) async {
+    try {
+      final res = await _api.post('/v1/devices/automations/bulk', {
+        'rule_ids': ruleIds,
+        'action': action,
+      });
+      return res['success'] == true;
+    } catch (_) {}
+    return false;
+  }
+
+  /// 32e. Execute Automation Rule on Live Devices
+  Future<Map<String, dynamic>> executeAutomationRule(String ruleId) async {
+    try {
+      final res = await _api.post('/v1/devices/automations/$ruleId/execute', {});
+      return res;
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   // ============================================================================
   // DEVICE TYPES & PROFILES API METHODS
   // ============================================================================
@@ -379,6 +491,8 @@ class DeviceManagementApiService {
     String? search,
     int page = 1,
     int pageSize = 10,
+    String? sortBy,
+    String? sortOrder,
   }) async {
     try {
       final query = <String, dynamic>{
@@ -393,6 +507,12 @@ class DeviceManagementApiService {
       }
       if (search != null && search.trim().isNotEmpty) {
         query['search'] = search.trim();
+      }
+      if (sortBy != null && sortBy.isNotEmpty) {
+        query['sort_by'] = sortBy;
+      }
+      if (sortOrder != null && sortOrder.isNotEmpty) {
+        query['sort_order'] = sortOrder;
       }
 
       final res = await _api.get('/v1/devices/types', query: query, useCache: false);
@@ -410,6 +530,47 @@ class DeviceManagementApiService {
       }
     } catch (_) {}
     return {'types': <DeviceTypeDetailItem>[], 'total': 0, 'page': page, 'page_size': pageSize, 'total_pages': 1};
+  }
+
+  /// 34b. Fetch Dynamic Device Categories
+  Future<List<String>> getDeviceCategories() async {
+    try {
+      final res = await _api.get('/v1/devices/categories', useCache: false);
+      if (res['categories'] is List) {
+        final list = (res['categories'] as List).map((e) => e.toString()).toList();
+        if (list.isNotEmpty) return list;
+      }
+    } catch (_) {}
+    return [
+      'Security',
+      'AV & Display',
+      'Network',
+      'Power & Energy',
+      'Building Automation',
+      'Environment',
+      'Safety & Fire',
+      'Access Control',
+    ];
+  }
+
+  /// 34c. Bulk Delete Device Types
+  Future<Map<String, dynamic>> bulkDeleteDeviceTypes(List<String> typeIds) async {
+    try {
+      final res = await _api.post('/v1/devices/types/bulk-delete', {'type_ids': typeIds});
+      return res;
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// 34d. Bulk Toggle Device Types Status
+  Future<Map<String, dynamic>> bulkToggleDeviceTypesStatus(List<String> typeIds, bool isActive) async {
+    try {
+      final res = await _api.post('/v1/devices/types/bulk-status', {'type_ids': typeIds, 'is_active': isActive});
+      return res;
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
   }
 
   /// 35. Get Device Type Detail
@@ -591,7 +752,7 @@ class DeviceManagementApiService {
     return const DeviceGroupsKpis();
   }
 
-  /// 51. Get Device Groups List (with server pagination & filtering)
+  /// 51. Get Device Groups List (with server pagination, database sorting & filtering)
   Future<Map<String, dynamic>> getDeviceGroups({
     String? status,
     String? location,
@@ -600,6 +761,8 @@ class DeviceManagementApiService {
     String? search,
     int page = 1,
     int pageSize = 10,
+    String? sortBy,
+    String? sortOrder,
   }) async {
     try {
       final query = <String, String>{
@@ -610,6 +773,8 @@ class DeviceManagementApiService {
         if (groupType != null && groupType.isNotEmpty) 'group_type': groupType,
         if (profile != null && profile.isNotEmpty) 'profile': profile,
         if (search != null && search.isNotEmpty) 'search': search,
+        if (sortBy != null && sortBy.isNotEmpty) 'sort_by': sortBy,
+        if (sortOrder != null && sortOrder.isNotEmpty) 'sort_order': sortOrder,
       };
 
       final queryString = query.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&');
@@ -631,6 +796,38 @@ class DeviceManagementApiService {
       };
     } catch (_) {}
     return {'groups': <DeviceGroupItem>[], 'total': 0, 'page': 1, 'page_size': 10, 'total_pages': 1};
+  }
+
+  /// 51b. Get Device Group Filter Options (dynamic distinct locations, group types, profiles from DB)
+  Future<Map<String, List<String>>> getDeviceGroupFilterOptions() async {
+    try {
+      final res = await _api.get('/v1/devices/groups/filter-options', useCache: false);
+      List<String> toStrList(dynamic list) => (list as List? ?? []).map((e) => e.toString()).toList();
+      return {
+        'locations': toStrList(res['locations']),
+        'group_types': toStrList(res['group_types']),
+        'profiles': toStrList(res['profiles']),
+      };
+    } catch (_) {}
+    return {'locations': [], 'group_types': [], 'profiles': []};
+  }
+
+  /// 51c. Bulk Delete Device Groups
+  Future<bool> bulkDeleteDeviceGroups(List<String> groupIds) async {
+    try {
+      final res = await _api.post('/v1/devices/groups/bulk-delete', {'group_ids': groupIds});
+      return res['success'] == true;
+    } catch (_) {}
+    return false;
+  }
+
+  /// 51d. Bulk Toggle Device Groups Status
+  Future<bool> bulkToggleDeviceGroupsStatus(List<String> groupIds, String status) async {
+    try {
+      final res = await _api.post('/v1/devices/groups/bulk-status', {'group_ids': groupIds, 'status': status});
+      return res['success'] == true;
+    } catch (_) {}
+    return false;
   }
 
   /// 52. Get Device Group Detail
@@ -776,6 +973,8 @@ class DeviceManagementApiService {
     String? profileId,
     String? mappingStatus,
     String? search,
+    String? sortBy,
+    String? sortOrder,
     int page = 1,
     int limit = 10,
   }) async {
@@ -792,17 +991,21 @@ class DeviceManagementApiService {
       if (profileId != null && profileId != 'All' && !profileId.startsWith('All')) query.add('profile_id=${Uri.encodeComponent(profileId)}');
       if (mappingStatus != null && mappingStatus != 'All' && !mappingStatus.startsWith('All')) query.add('mapping_status=${Uri.encodeComponent(mappingStatus)}');
       if (search != null && search.isNotEmpty) query.add('search=${Uri.encodeComponent(search)}');
+      if (sortBy != null && sortBy.isNotEmpty) query.add('sort_by=${Uri.encodeComponent(sortBy)}');
+      if (sortOrder != null && sortOrder.isNotEmpty) query.add('sort_order=${Uri.encodeComponent(sortOrder)}');
 
       final res = await _api.get('/v1/devices/locations/devices?${query.join('&')}', useCache: false);
       List<DeviceLocationMappingItem> items = [];
-      if (res['devices'] is List) {
-        items = (res['devices'] as List)
+      final rawDevs = res['devices'] ?? (res['data'] is Map ? (res['data'] as Map)['devices'] : null);
+      if (rawDevs is List) {
+        items = rawDevs
             .map((e) => DeviceLocationMappingItem.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList();
       }
+      final total = res['total'] ?? (res['data'] is Map ? (res['data'] as Map)['total'] : null) ?? items.length;
       return {
         'devices': items,
-        'total': res['total'] ?? items.length,
+        'total': total,
         'page': res['page'] ?? page,
         'limit': res['limit'] ?? limit,
       };
@@ -920,12 +1123,14 @@ class DeviceManagementApiService {
       }
       return {
         'floor_plan': plan,
+        'asset': plan,
         'markers': markers,
         'legend': legend,
       };
     } catch (_) {}
     return {
       'floor_plan': null,
+      'asset': null,
       'markers': <FloorPlanMarkerModel>[],
       'legend': const FloorPlanLegendModel(),
     };
@@ -984,8 +1189,8 @@ class DeviceManagementApiService {
     return const LiveControlKpis();
   }
 
-  /// 73. Fetch Live Control Devices
-  Future<List<LiveControlDeviceItem>> fetchLiveControlDevices({
+  /// 73. Fetch Live Control Devices (Paginated & Sorted)
+  Future<Map<String, dynamic>> fetchLiveControlDevicesPaginated({
     String? schoolId,
     String? buildingId,
     String? floorId,
@@ -994,6 +1199,10 @@ class DeviceManagementApiService {
     String? category,
     String? status,
     String? search,
+    String? sortBy,
+    String? sortOrder,
+    int? page,
+    int? pageSize,
   }) async {
     try {
       final qParams = <String>[];
@@ -1011,16 +1220,64 @@ class DeviceManagementApiService {
       if (search != null && search.isNotEmpty) {
         qParams.add('search=${Uri.encodeComponent(search)}');
       }
+      if (sortBy != null && sortBy.isNotEmpty) {
+        qParams.add('sort_by=${Uri.encodeComponent(sortBy)}');
+      }
+      if (sortOrder != null && sortOrder.isNotEmpty) {
+        qParams.add('sort_order=${Uri.encodeComponent(sortOrder)}');
+      }
+      if (page != null) qParams.add('page=$page');
+      if (pageSize != null) qParams.add('page_size=$pageSize');
 
       final qs = qParams.isNotEmpty ? '?${qParams.join('&')}' : '';
       final res = await _api.get('/v1/devices/live-control/devices$qs');
+      List<LiveControlDeviceItem> devices = [];
       if (res['devices'] is List) {
-        return (res['devices'] as List)
+        devices = (res['devices'] as List)
             .map((e) => LiveControlDeviceItem.fromJson(e as Map<String, dynamic>))
             .toList();
       }
+      return {
+        'devices': devices,
+        'total': (res['total'] as num?)?.toInt() ?? devices.length,
+        'page': (res['page'] as num?)?.toInt() ?? (page ?? 1),
+        'page_size': (res['page_size'] as num?)?.toInt() ?? (pageSize ?? 10),
+        'total_pages': (res['total_pages'] as num?)?.toInt() ?? 1,
+      };
     } catch (_) {}
-    return [];
+    return {
+      'devices': <LiveControlDeviceItem>[],
+      'total': 0,
+      'page': page ?? 1,
+      'page_size': pageSize ?? 10,
+      'total_pages': 1,
+    };
+  }
+
+  /// 73. Fetch Live Control Devices (legacy helper)
+  Future<List<LiveControlDeviceItem>> fetchLiveControlDevices({
+    String? schoolId,
+    String? buildingId,
+    String? floorId,
+    String? roomId,
+    String? deviceTypeId,
+    String? category,
+    String? status,
+    String? search,
+  }) async {
+    final res = await fetchLiveControlDevicesPaginated(
+      schoolId: schoolId,
+      buildingId: buildingId,
+      floorId: floorId,
+      roomId: roomId,
+      deviceTypeId: deviceTypeId,
+      category: category,
+      status: status,
+      search: search,
+      page: 1,
+      pageSize: 50,
+    );
+    return res['devices'] as List<LiveControlDeviceItem>? ?? [];
   }
 
   /// 74. Execute Live Control Command
@@ -1040,6 +1297,26 @@ class DeviceManagementApiService {
       return res;
     } catch (e) {
       return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// 74b. Bulk Execute Live Control Command
+  Future<Map<String, dynamic>> bulkExecuteLiveControlCommand({
+    required List<String> deviceIds,
+    required String commandType,
+    required Map<String, dynamic> payload,
+    String? schoolId,
+  }) async {
+    try {
+      final q = schoolId != null ? '?school_id=$schoolId' : '';
+      final res = await _api.post('/v1/devices/live-control/bulk-command$q', {
+        'device_ids': deviceIds,
+        'command_type': commandType,
+        'payload': payload,
+      });
+      return res;
+    } catch (e) {
+      return {'success': false, 'message': e.toString(), 'count': 0};
     }
   }
 
@@ -1069,16 +1346,38 @@ class DeviceManagementApiService {
     return {};
   }
 
-  /// 77. Fetch Bulk Target Devices
+  /// 76b. Fetch Cascading Locations (Strict hierarchical locations & lookups)
+  Future<Map<String, dynamic>> fetchBulkCascadingLocations({
+    String? schoolId,
+    String? buildingId,
+    String? floorId,
+  }) async {
+    try {
+      final q = <String, dynamic>{
+        if (schoolId != null) 'school_id': schoolId,
+        if (buildingId != null && buildingId.isNotEmpty) 'building_id': buildingId,
+        if (floorId != null && floorId.isNotEmpty) 'floor_id': floorId,
+      };
+      return await _api.get('/v1/devices/bulk-operations/cascading-locations', query: q);
+    } catch (_) {}
+    return {};
+  }
+
+  /// 77. Fetch Bulk Target Devices with Sorting & Server Pagination
   Future<Map<String, dynamic>> fetchBulkTargetDevices({
     String? schoolId,
     String? search,
+    String? buildingId,
+    String? floorId,
+    String? roomId,
     String? building,
     String? floor,
     String? room,
     String? deviceType,
     String? status,
     String? profile,
+    String sortBy = 'device_name',
+    String sortOrder = 'asc',
     int page = 1,
     int pageSize = 10,
   }) async {
@@ -1086,12 +1385,17 @@ class DeviceManagementApiService {
       final q = <String, dynamic>{
         if (schoolId != null) 'school_id': schoolId,
         if (search != null && search.isNotEmpty) 'search': search,
+        if (buildingId != null && buildingId.isNotEmpty) 'building_id': buildingId,
+        if (floorId != null && floorId.isNotEmpty) 'floor_id': floorId,
+        if (roomId != null && roomId.isNotEmpty) 'room_id': roomId,
         if (building != null && building != 'All Buildings') 'building': building,
         if (floor != null && floor != 'All Floors') 'floor': floor,
         if (room != null && room != 'All Rooms') 'room': room,
         if (deviceType != null && deviceType != 'All Types') 'device_type': deviceType,
         if (status != null && status != 'All Status') 'status': status,
         if (profile != null && profile != 'All Profiles') 'profile': profile,
+        'sort_by': sortBy,
+        'sort_order': sortOrder,
         'page': page,
         'page_size': pageSize,
       };
@@ -1104,6 +1408,104 @@ class DeviceManagementApiService {
   Future<Map<String, dynamic>> executeBulkOperationAction(Map<String, dynamic> payload) async {
     try {
       return await _api.post('/v1/devices/bulk-operations/execute', payload);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// 78b. List Bulk Operations
+  Future<Map<String, dynamic>> listBulkOperations({
+    String? schoolId,
+    int page = 1,
+    int pageSize = 10,
+    String? status,
+    String? operationType,
+    String? search,
+    String sortBy = 'created_at',
+    String sortOrder = 'desc',
+  }) async {
+    try {
+      final q = <String, dynamic>{
+        if (schoolId != null) 'school_id': schoolId,
+        'page': page,
+        'page_size': pageSize,
+        if (status != null && status.isNotEmpty) 'status': status,
+        if (operationType != null && operationType.isNotEmpty) 'operation_type': operationType,
+        if (search != null && search.isNotEmpty) 'search': search,
+        'sort_by': sortBy,
+        'sort_order': sortOrder,
+      };
+      return await _api.get('/v1/devices/bulk-operations', query: q);
+    } catch (_) {}
+    return {};
+  }
+
+  /// 78c. Get Bulk Operation Details
+  Future<Map<String, dynamic>> getBulkOperationDetails(String operationId, {String? schoolId}) async {
+    try {
+      final q = schoolId != null ? '?school_id=$schoolId' : '';
+      return await _api.get('/v1/devices/bulk-operations/$operationId$q');
+    } catch (_) {}
+    return {};
+  }
+
+  /// 78d. Cancel Running Bulk Operation
+  Future<Map<String, dynamic>> cancelBulkOperation(String operationId, {String? schoolId}) async {
+    try {
+      final q = schoolId != null ? '?school_id=$schoolId' : '';
+      return await _api.post('/v1/devices/bulk-operations/$operationId/cancel$q', {});
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// 78e. Retry Failed Devices in Bulk Operation
+  Future<Map<String, dynamic>> retryFailedBulkOperation(String operationId, {String? schoolId}) async {
+    try {
+      final q = schoolId != null ? '?school_id=$schoolId' : '';
+      return await _api.post('/v1/devices/bulk-operations/$operationId/retry-failed$q', {});
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// 78f. List Bulk Templates
+  Future<List<dynamic>> listBulkTemplates({String? schoolId}) async {
+    try {
+      final q = schoolId != null ? '?school_id=$schoolId' : '';
+      final res = await _api.get('/v1/devices/bulk-operations/templates$q');
+      if (res['templates'] is List) return res['templates'] as List<dynamic>;
+      if (res['data'] is List) return res['data'] as List<dynamic>;
+      if (res['items'] is List) return res['items'] as List<dynamic>;
+    } catch (_) {}
+    return [];
+  }
+
+  /// 78g. Create Bulk Template
+  Future<Map<String, dynamic>> createBulkTemplate(Map<String, dynamic> payload, {String? schoolId}) async {
+    try {
+      final q = schoolId != null ? '?school_id=$schoolId' : '';
+      return await _api.post('/v1/devices/bulk-operations/templates$q', payload);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// 78h. Delete Bulk Template
+  Future<Map<String, dynamic>> deleteBulkTemplate(String templateId, {String? schoolId}) async {
+    try {
+      final q = schoolId != null ? '?school_id=$schoolId' : '';
+      return await _api.delete('/v1/devices/bulk-operations/templates/$templateId$q');
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// 78i. Execute Bulk Template
+  Future<Map<String, dynamic>> executeBulkTemplate(String templateId, {String? schoolId}) async {
+    try {
+      final q = schoolId != null ? '?school_id=$schoolId' : '';
+      return await _api.post('/v1/devices/bulk-operations/templates/$templateId/execute$q', {});
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
