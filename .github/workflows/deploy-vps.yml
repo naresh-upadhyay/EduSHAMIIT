@@ -26,9 +26,8 @@ jobs:
           ssh -o StrictHostKeyChecking=no root@${{ secrets.VPS_HOST }} "mkdir -p /root/app"
           cat project.zip | ssh -o StrictHostKeyChecking=no root@${{ secrets.VPS_HOST }} "cat > /root/app/project.zip"
 
-          ssh -o StrictHostKeyChecking=no root@${{ secrets.VPS_HOST }} bash -s << 'EOF'
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.VPS_HOST }} '
             set -e
-            trap 'echo "::error::Deployment failed during: $BASH_COMMAND"' ERR
 
             echo "=== [1/6] Extracting project files ==="
             cd /root/app
@@ -47,7 +46,7 @@ jobs:
 
             echo "=== [4/6] Waiting for edushamiit-api container to be running ==="
             for i in $(seq 1 30); do
-              if docker ps --format '{{.Names}}' | grep -q '^edushamiit-api$'; then
+              if docker ps --format "{{.Names}}" | grep -q "^edushamiit-api$"; then
                 echo "edushamiit-api container is running."
                 break
               fi
@@ -65,4 +64,4 @@ jobs:
             docker exec edushamiit-api python3 /app/run_migrations.py "postgresql://postgres:eduSHAMIIT2026_pg@db:5432/postgres"
 
             echo "=== [SUCCESS] Deployment and migrations completed successfully! ==="
-EOF
+          '
