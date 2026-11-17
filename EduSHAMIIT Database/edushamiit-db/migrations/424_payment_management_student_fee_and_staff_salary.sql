@@ -321,6 +321,16 @@ END $$;
 -- 2. SCHEMA TABLES CREATION FOR STUDENT FEES & STAFF SALARY
 -- ----------------------------------------------------------------------------
 
+-- Clean up any broken/legacy table remnants if they exist before creating
+DROP TABLE IF EXISTS public.staff_salary_advances CASCADE;
+DROP TABLE IF EXISTS public.staff_salary_payouts CASCADE;
+DROP TABLE IF EXISTS public.staff_salary_structures CASCADE;
+DROP TABLE IF EXISTS public.student_fee_penalties CASCADE;
+DROP TABLE IF EXISTS public.student_fee_concessions CASCADE;
+DROP TABLE IF EXISTS public.student_fee_payments CASCADE;
+DROP TABLE IF EXISTS public.student_fee_invoices CASCADE;
+DROP TABLE IF EXISTS public.student_fee_structures CASCADE;
+
 -- A. Student Fee Structures (Fee Templates by Class / Cycle)
 CREATE TABLE IF NOT EXISTS public.student_fee_structures (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -449,6 +459,8 @@ CREATE TABLE IF NOT EXISTS public.staff_salary_structures (
 );
 
 CREATE INDEX IF NOT EXISTS idx_staff_salary_struct_school ON public.staff_salary_structures(school_id, status);
+ALTER TABLE IF EXISTS public.staff_salary_structures ADD COLUMN IF NOT EXISTS basic_pay NUMERIC(12,2) DEFAULT 35000.0;
+ALTER TABLE IF EXISTS public.staff_salary_structures ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'ACTIVE';
 
 -- G. Staff Salary Payouts (Monthly Disbursals & Payslips)
 CREATE TABLE IF NOT EXISTS public.staff_salary_payouts (
@@ -485,6 +497,8 @@ CREATE TABLE IF NOT EXISTS public.staff_salary_payouts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_staff_payouts_school_month ON public.staff_salary_payouts(school_id, month_str, payment_status);
+ALTER TABLE IF EXISTS public.staff_salary_payouts ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'Paid';
+ALTER TABLE IF EXISTS public.staff_salary_payouts ADD COLUMN IF NOT EXISTS basic_pay NUMERIC(12,2) DEFAULT 0.0;
 
 -- H. Staff Salary Advances
 CREATE TABLE IF NOT EXISTS public.staff_salary_advances (
@@ -501,6 +515,8 @@ CREATE TABLE IF NOT EXISTS public.staff_salary_advances (
     disbursed_at TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE IF EXISTS public.staff_salary_advances ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Approved';
 
 
 -- ----------------------------------------------------------------------------
