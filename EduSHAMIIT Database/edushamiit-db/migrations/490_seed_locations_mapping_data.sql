@@ -47,17 +47,40 @@ BEGIN
         RETURNING id INTO v_bldg_acad_a;
     END IF;
 
-    -- Ensure Floor 1 of Academic Block (A) is named First Floor
-    UPDATE building_floors 
-    SET name = 'First Floor', floor_code = '1F', floor_level = 1, building_id = v_bldg_acad_a
-    WHERE id = v_floor_1;
+    -- Ensure Floor 1 of Academic Block (A) exists with id = v_floor_1
+    IF NOT EXISTS (SELECT 1 FROM building_floors WHERE id = v_floor_1) THEN
+        DELETE FROM building_floors WHERE building_id = v_bldg_acad_a AND floor_level = 1;
+        INSERT INTO building_floors (id, school_id, building_id, name, floor_code, floor_level, status)
+        VALUES (v_floor_1, v_school_id, v_bldg_acad_a, 'First Floor', '1F', 1, 'Active')
+        ON CONFLICT (id) DO UPDATE SET name = 'First Floor', floor_code = '1F', floor_level = 1, building_id = v_bldg_acad_a;
+    ELSE
+        UPDATE building_floors 
+        SET name = 'First Floor', floor_code = '1F', floor_level = 1, building_id = v_bldg_acad_a
+        WHERE id = v_floor_1;
+    END IF;
 
     -- Ensure Ground Floor and Second Floor exist for Academic Block (A)
-    INSERT INTO building_floors (id, school_id, building_id, name, floor_code, floor_level, status)
-    VALUES 
-        ('3d6c8096-d7b4-4f98-bc3d-c41d924d4d3d', v_school_id, v_bldg_acad_a, 'Ground Floor', 'GF', 0, 'Active'),
-        ('5122b423-c027-42b0-8e96-5b131b0ed94e', v_school_id, v_bldg_acad_a, 'Second Floor', '2F', 2, 'Active')
-    ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, floor_code = EXCLUDED.floor_code;
+    IF NOT EXISTS (SELECT 1 FROM building_floors WHERE building_id = v_bldg_acad_a AND floor_level = 0) THEN
+        IF NOT EXISTS (SELECT 1 FROM building_floors WHERE id = '3d6c8096-d7b4-4f98-bc3d-c41d924d4d3d') THEN
+            INSERT INTO building_floors (id, school_id, building_id, name, floor_code, floor_level, status)
+            VALUES ('3d6c8096-d7b4-4f98-bc3d-c41d924d4d3d', v_school_id, v_bldg_acad_a, 'Ground Floor', 'GF', 0, 'Active');
+        END IF;
+    ELSE
+        UPDATE building_floors 
+        SET name = 'Ground Floor', floor_code = 'GF'
+        WHERE building_id = v_bldg_acad_a AND floor_level = 0;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM building_floors WHERE building_id = v_bldg_acad_a AND floor_level = 2) THEN
+        IF NOT EXISTS (SELECT 1 FROM building_floors WHERE id = '5122b423-c027-42b0-8e96-5b131b0ed94e') THEN
+            INSERT INTO building_floors (id, school_id, building_id, name, floor_code, floor_level, status)
+            VALUES ('5122b423-c027-42b0-8e96-5b131b0ed94e', v_school_id, v_bldg_acad_a, 'Second Floor', '2F', 2, 'Active');
+        END IF;
+    ELSE
+        UPDATE building_floors 
+        SET name = 'Second Floor', floor_code = '2F'
+        WHERE building_id = v_bldg_acad_a AND floor_level = 2;
+    END IF;
 
     -- 2. Populate Rooms on First Floor (14 Total Rooms / Spaces)
     -- Room A1-101

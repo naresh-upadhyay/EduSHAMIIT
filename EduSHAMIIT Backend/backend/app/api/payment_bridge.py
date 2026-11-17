@@ -636,7 +636,7 @@ async def process_notification_matching(
         if intent_matches:
             matched_intent = intent_matches[0]
             intent_id = matched_intent["id"]
-            await associate_candidate(
+            receipt_num = await associate_candidate(
                 event_id=event_id,
                 intent_id=intent_id,
                 school_id=school_id,
@@ -647,7 +647,26 @@ async def process_notification_matching(
                 masked_sender=masked_sender,
                 notif_timestamp_iso=notif_timestamp_iso,
             )
-            return {"status": "MATCHED_CANDIDATE", "rule": "EXACT_UTR", "intent_id": str(intent_id)}
+            st_rows = await exec_sql(
+                """
+                SELECT p.full_name, inv.invoice_number
+                FROM public.payment_intents pi
+                JOIN public.profiles p ON p.id = pi.student_id
+                LEFT JOIN public.student_fee_invoices inv ON inv.id = pi.invoice_id
+                WHERE pi.id = %s
+                """,
+                (intent_id,),
+            )
+            st_name = st_rows[0]["full_name"] if st_rows else None
+            inv_num = st_rows[0]["invoice_number"] if st_rows else None
+            return {
+                "status": "MATCHED_CANDIDATE",
+                "rule": "EXACT_UTR",
+                "intent_id": str(intent_id),
+                "student": st_name,
+                "invoice": inv_num,
+                "receipt_number": receipt_num,
+            }
 
     # Rule 2: Exact total_amount_paise match (unique-paise mechanism)
     amount_intents = await exec_sql(
@@ -670,7 +689,7 @@ async def process_notification_matching(
         # High confidence single candidate match!
         matched_intent = amount_intents[0]
         intent_id = matched_intent["id"]
-        await associate_candidate(
+        receipt_num = await associate_candidate(
             event_id=event_id,
             intent_id=intent_id,
             school_id=school_id,
@@ -687,6 +706,7 @@ async def process_notification_matching(
             "intent_id": str(intent_id),
             "student": matched_intent["student_name"],
             "invoice": matched_intent["invoice_number"],
+            "receipt_number": receipt_num,
         }
 
     elif len(amount_intents) > 1:
@@ -775,8 +795,8 @@ async def associate_candidate(
     source_app: str,
     masked_sender: Optional[str],
     notif_timestamp_iso: str,
-):
-    """Associates an event with an intent as a Candidate (AWAITING_VERIFICATION)."""
+) -> str:
+    """Associates an event with an intent, verifies it, settles student invoice, and issues official receipt."""
     # 1. Update notification event
     await exec_sql(
         """
@@ -795,8 +815,8 @@ async def associate_candidate(
         """
         INSERT INTO public.payment_candidate_matches (
             school_id, notification_event_id, payment_intent_id, match_rule, match_score, status
-        ) VALUES (%s, %s, %s, %s, 100.0, 'CANDIDATE')
-        ON CONFLICT (notification_event_id, payment_intent_id) DO UPDATE SET status = 'CANDIDATE'
+        ) VALUES (%s, %s, %s, %s, 100.0, 'VERIFIED')
+        ON CONFLICT (notification_event_id, payment_intent_id) DO UPDATE SET status = 'VERIFIED'
         """,
         (school_id, event_id, intent_id, rule),
         fetch=False,
@@ -805,7 +825,7 @@ async def associate_candidate(
     # 3. Retrieve student and invoice details from intent
     intent_details = await exec_sql(
         """
-        SELECT student_id, invoice_id, base_amount_paise, unique_paise
+        SELECT student_id, invoice_id, base_amount_paise, unique_paise, intent_reference
         FROM public.payment_intents WHERE id = %s
         """,
         (intent_id,),
@@ -814,17 +834,24 @@ async def associate_candidate(
     invoice_id = intent_details[0]["invoice_id"] if intent_details else None
     base_fee_paise = intent_details[0]["base_amount_paise"] if intent_details else amount_paise
     excess_paise = amount_paise - base_fee_paise if amount_paise > base_fee_paise else 0
+    intent_ref = intent_details[0]["intent_reference"] if intent_details else reference
+    utr_val = reference or intent_ref
 
-    # 4. Create or update transaction record in AWAITING_VERIFICATION (Never confirmed yet!)
-    await exec_sql(
+    receipt_num = f"RCP-{datetime.now().year}-{secrets.token_hex(3).upper()}"
+
+    # 4. Create transaction record with VERIFIED_SUCCESS
+    tx_rows = await exec_sql(
         """
         INSERT INTO public.payment_transactions (
             school_id, student_id, invoice_id, payment_intent_id, notification_event_id,
             transaction_reference, amount_paise, base_fee_paise, excess_paise,
-            payment_mode, upi_app, masked_sender, payment_status, received_at, matched_at
+            payment_mode, upi_app, masked_sender, payment_status, received_at, matched_at,
+            verified_at, receipt_number
         ) VALUES (
-            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'AWAITING_VERIFICATION', %s, NOW()
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'VERIFIED_SUCCESS', %s, NOW(),
+            NOW(), %s
         )
+        RETURNING id
         """,
         (
             school_id,
@@ -832,7 +859,7 @@ async def associate_candidate(
             invoice_id,
             intent_id,
             event_id,
-            reference,
+            utr_val,
             amount_paise,
             base_fee_paise,
             excess_paise,
@@ -840,22 +867,93 @@ async def associate_candidate(
             source_app,
             masked_sender,
             notif_timestamp_iso,
+            receipt_num,
         ),
+    )
+    tx_id = tx_rows[0]["id"] if tx_rows else None
+
+    # 5. Settle Invoice in ERP if linked
+    paid_decimal = Decimal(amount_paise) / Decimal(100)
+    if invoice_id:
+        await exec_sql(
+            """
+            UPDATE public.student_fee_invoices
+            SET paid_amount = paid_amount + %s,
+                balance_amount = GREATEST(0.0, total_billed - (paid_amount + %s)),
+                status = CASE WHEN (total_billed - (paid_amount + %s)) <= 0 THEN 'Paid' ELSE 'Partial' END,
+                updated_at = NOW()
+            WHERE id = %s
+            """,
+            (paid_decimal, paid_decimal, paid_decimal, invoice_id),
+            fetch=False,
+        )
+
+    # 6. Issue Student Fee Payment Receipt
+    if student_id:
+        await exec_sql(
+            """
+            INSERT INTO public.student_fee_payments (
+                school_id, student_id, invoice_id, receipt_number, amount_paid,
+                payment_method, transaction_reference, payment_date, status, remarks
+            ) VALUES (
+                %s, %s, %s, %s, %s, 'UPI', %s, NOW(), 'SUCCESS',
+                'Auto-verified via EduSHAMIIT Payment Bridge UPI notification'
+            )
+            ON CONFLICT DO NOTHING
+            """,
+            (school_id, student_id, invoice_id, receipt_num, paid_decimal, utr_val),
+            fetch=False,
+        )
+
+    # 7. Update Payment Intent to VERIFIED_SUCCESS so QR screen transitions instantly!
+    await exec_sql(
+        """
+        UPDATE public.payment_intents
+        SET status = 'VERIFIED_SUCCESS',
+            receipt_number = %s,
+            utr_number = %s,
+            paid_at = NOW(),
+            updated_at = NOW()
+        WHERE id = %s
+        """,
+        (receipt_num, utr_val, intent_id),
         fetch=False,
     )
 
-    # 5. Log audit trail
+    # 8. Log audit trail
     await exec_sql(
         """
         INSERT INTO public.payment_audit_logs (
             school_id, entity_type, entity_id, action, performed_by, previous_state, new_state
         ) VALUES (%s, 'NOTIFICATION', %s, 'MATCHED', 'SYSTEM_MATCHER',
                   '{"status": "PARSED"}'::jsonb,
-                  json_build_object('status', 'MATCHED_CANDIDATE', 'intent_id', %s, 'rule', %s))
+                  json_build_object('status', 'VERIFIED_SUCCESS', 'intent_id', %s, 'receipt_number', %s, 'rule', %s))
         """,
-        (school_id, event_id, intent_id, rule),
+        (school_id, event_id, intent_id, receipt_num, rule),
         fetch=False,
     )
+
+    # 9. Real-time push notification via WebSocket (Broadcast to QR modal & Admin portal)
+    try:
+        await ws_manager.broadcast_to_school(
+            str(school_id),
+            {
+                "event": "PAYMENT_CONFIRMED",
+                "intent_id": str(intent_id),
+                "transaction_id": str(tx_id) if tx_id else None,
+                "student_id": str(student_id) if student_id else None,
+                "amount": float(paid_decimal),
+                "amount_paise": amount_paise,
+                "receipt_number": receipt_num,
+                "utr": utr_val,
+                "status": "VERIFIED_SUCCESS",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+    except Exception as e:
+        logger.warning(f"WebSocket broadcast error: {e}")
+
+    return receipt_num
 
 
 @router.post("/notifications/batch", tags=["Notification Ingestion"])

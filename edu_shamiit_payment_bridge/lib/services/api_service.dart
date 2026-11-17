@@ -42,12 +42,16 @@ class ApiService {
     _authToken = prefs.getString(AppConstants.prefsUserTokenKey) ?? '';
 
     // Smart Server URL resolution
-    // If on local emulator or web, connect to 127.0.0.1:8082
+    // If on web or local emulator, connect to local Docker backend (port 8082)
     // If on real mobile device, default to live cloud API: https://eduapi.shamiit.com
     var savedUrl = prefs.getString(AppConstants.prefsServerUrlKey);
-    if (_isEmulator || kIsWeb) {
+    if (kIsWeb) {
+      final host = Uri.base.host.isNotEmpty ? Uri.base.host : 'localhost';
+      savedUrl = 'http://$host:8082/api/v1/payment-bridge';
+      await prefs.setString(AppConstants.prefsServerUrlKey, savedUrl);
+    } else if (_isEmulator) {
       if (savedUrl == null || savedUrl.isEmpty || savedUrl.contains('eduapi.shamiit.com')) {
-        savedUrl = 'http://127.0.0.1:8082/api/v1/payment-bridge';
+        savedUrl = 'http://10.0.2.2:8082/api/v1/payment-bridge';
         await prefs.setString(AppConstants.prefsServerUrlKey, savedUrl);
       }
     } else {
@@ -58,6 +62,16 @@ class ApiService {
     }
 
     _baseUrl = savedUrl.isNotEmpty ? savedUrl : AppConstants.getDefaultPaymentBridgeUrl();
+
+    // Sanitize any stale Greenwood High School or unassigned school ID in storage
+    if (_institutionName.isEmpty || _institutionName == 'Greenwood High School' || _institutionName.contains('Greenwood')) {
+      _institutionName = 'Shami Innovation Academy';
+      await prefs.setString(AppConstants.prefsInstitutionKey, _institutionName);
+    }
+    if (_schoolId.isEmpty || _schoolId == '22222222-2222-2222-2222-222222222222') {
+      _schoolId = '11111111-1111-1111-1111-111111111111';
+      await prefs.setString(AppConstants.prefsSchoolIdKey, _schoolId);
+    }
 
     // If already logged in, automatically ensure device is registered with backend
     if (_authToken.isNotEmpty && _schoolId.isNotEmpty) {
@@ -101,19 +115,23 @@ class ApiService {
     final cleanPath = pathAndQuery.startsWith('/') ? pathAndQuery : '/$pathAndQuery';
     final list = <String>[];
 
-    if (_isEmulator) {
-      list.add('http://127.0.0.1:8082/api/v1/payment-bridge$cleanPath');
+    if (kIsWeb) {
+      final host = Uri.base.host.isNotEmpty ? Uri.base.host : 'localhost';
+      list.add('http://$host:8082/api/v1/payment-bridge$cleanPath');
+      if (host != 'localhost') list.add('http://localhost:8082/api/v1/payment-bridge$cleanPath');
+      if (host != '127.0.0.1') list.add('http://127.0.0.1:8082/api/v1/payment-bridge$cleanPath');
+    } else if (_isEmulator) {
       list.add('http://10.0.2.2:8082/api/v1/payment-bridge$cleanPath');
-    } else if (kIsWeb) {
       list.add('http://127.0.0.1:8082/api/v1/payment-bridge$cleanPath');
-      list.add('http://localhost:8082/api/v1/payment-bridge$cleanPath');
     } else {
       list.add('${AppConstants.livePaymentBridgeUrl}$cleanPath');
       list.add('http://127.0.0.1:8082/api/v1/payment-bridge$cleanPath');
     }
     final primary = '$_baseUrl$cleanPath';
-    if (!list.contains(primary)) {
-      list.insert(0, primary);
+    if (!kIsWeb || !primary.contains('eduapi.shamiit.com')) {
+      if (!list.contains(primary)) {
+        list.insert(0, primary);
+      }
     }
     return list;
   }
@@ -199,24 +217,17 @@ class ApiService {
   List<String> _getAuthCandidateUrls(String path) {
     final cleanPath = path.startsWith('/') ? path : '/$path';
     final list = <String>[];
-    if (_isEmulator || AppConstants.isEmulator) {
-      list.add('http://127.0.0.1:8082/api$cleanPath');
+    if (kIsWeb) {
+      final host = Uri.base.host.isNotEmpty ? Uri.base.host : 'localhost';
+      list.add('http://$host:8082/api$cleanPath');
+      if (host != 'localhost') list.add('http://localhost:8082/api$cleanPath');
+      if (host != '127.0.0.1') list.add('http://127.0.0.1:8082/api$cleanPath');
+    } else if (_isEmulator || AppConstants.isEmulator) {
       list.add('http://10.0.2.2:8082/api$cleanPath');
-    } else if (kIsWeb) {
       list.add('http://127.0.0.1:8082/api$cleanPath');
-      list.add('http://localhost:8082/api$cleanPath');
     } else {
       list.add('${AppConstants.liveServerBaseUrl}/api$cleanPath');
       list.add('http://127.0.0.1:8082/api$cleanPath');
-    }
-    final authBase = AppConstants.getAuthBaseUrl();
-    final primary = '$authBase$cleanPath';
-    if (!list.contains(primary)) {
-      list.insert(0, primary);
-    }
-    final live = '${AppConstants.liveServerBaseUrl}/api$cleanPath';
-    if (!list.contains(live)) {
-      list.add(live);
     }
     return list;
   }
@@ -415,13 +426,19 @@ class ApiService {
       if (sRes.statusCode == 200) {
         final d = json.decode(sRes.body);
         if (d['school_name'] != null && d['school_name'].toString().isNotEmpty) {
-          return d['school_name'] as String;
+          final name = d['school_name'] as String;
+          if (!name.contains('Greenwood')) {
+            return name;
+          }
         }
       }
       final res = await _getWithFallback('/devices/me?device_id=$_deviceId');
       if (res.statusCode == 200) {
         final d = json.decode(res.body);
-        return d['school_name'] as String?;
+        final name = d['school_name'] as String?;
+        if (name != null && name.isNotEmpty && !name.contains('Greenwood')) {
+          return name;
+        }
       }
     } catch (_) {}
     return 'Shami Innovation Academy';

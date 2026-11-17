@@ -5,6 +5,16 @@
 -- Multi-Tenant, Dynamic Lookups, Full Ledger, and Complete Auditing
 -- ============================================================================
 
+-- Ensure all prerequisite and target tables have required status columns
+ALTER TABLE IF EXISTS public.lookup_keys ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'ACTIVE';
+ALTER TABLE IF EXISTS public.lookup_values ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'ACTIVE';
+ALTER TABLE IF EXISTS public.student_fee_structures ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'ACTIVE';
+ALTER TABLE IF EXISTS public.student_fee_invoices ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Pending';
+ALTER TABLE IF EXISTS public.student_fee_payments ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'COMPLETED';
+ALTER TABLE IF EXISTS public.staff_salary_structures ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'ACTIVE';
+ALTER TABLE IF EXISTS public.staff_salary_advances ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Approved';
+ALTER TABLE IF EXISTS public.staff_salary_payouts ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'Paid';
+
 -- ----------------------------------------------------------------------------
 -- 1. SEED UNIVERSAL LOOKUP KEYS & VALUES FOR PAYMENT MANAGEMENT
 -- ----------------------------------------------------------------------------

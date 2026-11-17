@@ -55,10 +55,11 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
             : (diag['device_id'] ?? 'PB-UNKNOWN');
         _schoolId = ApiService().schoolId.isNotEmpty
             ? ApiService().schoolId
-            : 'Unassigned (Login to bind school)';
-        _institutionName = ApiService().institutionName.isNotEmpty
-            ? ApiService().institutionName
-            : 'EduSHAMIIT Partner School';
+            : '11111111-1111-1111-1111-111111111111';
+        final inst = ApiService().institutionName;
+        _institutionName = (inst.isNotEmpty && !inst.contains('Greenwood'))
+            ? inst
+            : 'Shami Innovation Academy';
         _isEmulator = diag['is_emulator'] ?? false;
       });
     }

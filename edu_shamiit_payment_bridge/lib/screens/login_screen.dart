@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../core/constants.dart';
 import '../core/theme.dart';
 import '../services/api_service.dart';
 import 'forgot_password_screen.dart';

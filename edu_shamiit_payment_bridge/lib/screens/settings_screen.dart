@@ -57,9 +57,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _fetch() {
     setState(() {
       _deviceId = ApiService().deviceId;
-      _institutionName = ApiService().institutionName.isNotEmpty
-          ? ApiService().institutionName
-          : 'EduSHAMIIT Partner School';
+      final inst = ApiService().institutionName;
+      _institutionName = (inst.isNotEmpty && !inst.contains('Greenwood'))
+          ? inst
+          : 'Shami Innovation Academy';
       _serverUrl = ApiService().baseUrl;
 
       _settingsFuture = ApiService().getSettings().then((s) {

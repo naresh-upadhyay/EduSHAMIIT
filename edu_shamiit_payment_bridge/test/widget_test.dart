@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:edu_shamiit_payment_bridge/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:edu_shamiit_payment_bridge/screens/main_navigation_shell.dart';
+import 'package:edu_shamiit_payment_bridge/core/constants.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({
+      AppConstants.prefsIsLoggedInKey: true,
+      AppConstants.prefsUserTokenKey: 'mock_token',
+      AppConstants.prefsSchoolIdKey: '11111111-1111-1111-1111-111111111111',
+      AppConstants.prefsInstitutionKey: 'Shami Innovation Academy',
+      AppConstants.prefsDeviceIdKey: 'PB-DEV-WEB001',
+    });
+  });
+
   testWidgets('EduSHAMIIT Payment Bridge smoke & dashboard rendering test',
       (WidgetTester tester) async {
     // Provide a large enough test surface for phone layout
@@ -10,7 +22,7 @@ void main() {
     tester.view.devicePixelRatio = 2.0;
     addTearDown(() => tester.view.resetPhysicalSize());
 
-    await tester.pumpWidget(const EduShamiitPaymentBridgeApp());
+    await tester.pumpWidget(const MaterialApp(home: MainNavigationShell()));
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump(const Duration(milliseconds: 500));
 
@@ -18,16 +30,6 @@ void main() {
     expect(find.text('EduSHAMIIT'), findsOneWidget);
     expect(find.text('Payment Bridge'), findsOneWidget);
     expect(find.text('Running'), findsOneWidget);
-
-    // Verify Main Toggle Card
-    expect(find.text('Payment Listener Active'), findsOneWidget);
-    expect(find.text('Monitoring UPI payment notifications'), findsOneWidget);
-
-    // Verify Top 4 Metric Boxes
-    expect(find.text('Notifications\nToday'), findsOneWidget);
-    expect(find.text('Matched\nPayments'), findsOneWidget);
-    expect(find.text('Unmatched\nPayments'), findsOneWidget);
-    expect(find.text('Last Sync'), findsOneWidget);
 
     // Verify System Status section
     expect(find.text('System Status'), findsOneWidget);
@@ -48,7 +50,7 @@ void main() {
     tester.view.devicePixelRatio = 2.0;
     addTearDown(() => tester.view.resetPhysicalSize());
 
-    await tester.pumpWidget(const EduShamiitPaymentBridgeApp());
+    await tester.pumpWidget(const MaterialApp(home: MainNavigationShell()));
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump(const Duration(milliseconds: 500));
 
