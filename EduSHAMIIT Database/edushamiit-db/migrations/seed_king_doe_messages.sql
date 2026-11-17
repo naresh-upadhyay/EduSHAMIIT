@@ -1,6 +1,6 @@
 DO $$
 DECLARE
-    v_king_id UUID := '5198c4b0-f1cb-45db-9649-41688d0438ba';
+    v_king_id UUID;
     v_school_id UUID := '11111111-1111-1111-1111-111111111111';
     v_anita_id UUID;
     v_aarav_id UUID;
@@ -14,6 +14,13 @@ DECLARE
     v_science_group_id UUID;
     v_ac_group_id UUID;
 BEGIN
+    SELECT id INTO v_king_id FROM public.profiles WHERE id = '5198c4b0-f1cb-45db-9649-41688d0438ba' LIMIT 1;
+    IF v_king_id IS NULL THEN
+        SELECT id INTO v_king_id FROM public.profiles WHERE school_id = v_school_id LIMIT 1;
+    END IF;
+    IF v_king_id IS NULL THEN
+        RETURN;
+    END IF;
     SELECT id INTO v_aarav_id FROM public.profiles WHERE full_name = 'Aarav Sharma' LIMIT 1;
     SELECT id INTO v_anita_id FROM public.profiles WHERE full_name = 'Anita Sharma' LIMIT 1;
     SELECT id INTO v_rohit_id FROM public.profiles WHERE full_name = 'Rohit Malhotra' LIMIT 1;

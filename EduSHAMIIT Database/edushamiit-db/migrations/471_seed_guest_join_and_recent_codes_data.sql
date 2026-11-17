@@ -15,11 +15,21 @@ BEGIN
     VALUES (v_school_id, 'Greenwood High School', NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    -- Lookup teacher or fallback to admin tester
+    -- Lookup teacher or fallback
     SELECT id INTO v_teacher_rk FROM public.profiles WHERE full_name ILIKE '%Kumar%' LIMIT 1;
+    IF v_teacher_rk IS NULL THEN
+        SELECT id INTO v_teacher_rk FROM public.profiles LIMIT 1;
+    END IF;
     IF v_teacher_rk IS NULL THEN
         v_teacher_rk := v_admin_test_id;
     END IF;
+
+    -- Lookup existing users or fallback
+    SELECT id INTO v_user_id FROM public.profiles WHERE id = '5198c4b0-f1cb-45db-9649-41688d0438ba' LIMIT 1;
+    IF v_user_id IS NULL THEN
+        SELECT id INTO v_user_id FROM public.profiles LIMIT 1;
+    END IF;
+    SELECT id INTO v_admin_test_id FROM public.profiles WHERE id = '11111111-1111-1111-1111-111111111111' LIMIT 1;
 
     -- 1. SEED / UPDATE SESSIONS WITH GUEST CAPABILITIES
     -- Session 1: Class 10 - A : Mathematics (Guest Lecture)
@@ -86,31 +96,35 @@ BEGIN
 
     -- 2. SEED RECENT / SAVED MEETING CODES FOR KING DOE & ADMIN TESTER
     -- User 1: King Doe
-    INSERT INTO public.live_class_recent_codes (user_id, meeting_code, class_subject, teacher_name, is_starred, last_joined_at)
-    VALUES
-        (v_user_id, '10A-MATH', 'Class 10 - A' || E'\n' || 'Mathematics', 'R. Kumar', TRUE, NOW()),
-        (v_user_id, '11A-PHY', 'Class 11 - A' || E'\n' || 'Physics', 'S. Verma', FALSE, NOW() - INTERVAL '1 day'),
-        (v_user_id, '8A-ENG', 'Class 8 - A' || E'\n' || 'English', 'P. Desai', FALSE, NOW() - INTERVAL '2 days'),
-        (v_user_id, '12B-CHEM', 'Class 12 - B' || E'\n' || 'Chemistry', 'A. Sharma', FALSE, NOW() - INTERVAL '4 days')
-    ON CONFLICT (user_id, meeting_code)
-    DO UPDATE SET
-        class_subject = EXCLUDED.class_subject,
-        teacher_name = EXCLUDED.teacher_name,
-        is_starred = EXCLUDED.is_starred,
-        last_joined_at = EXCLUDED.last_joined_at;
+    IF v_user_id IS NOT NULL THEN
+        INSERT INTO public.live_class_recent_codes (user_id, meeting_code, class_subject, teacher_name, is_starred, last_joined_at)
+        VALUES
+            (v_user_id, '10A-MATH', 'Class 10 - A' || E'\n' || 'Mathematics', 'R. Kumar', TRUE, NOW()),
+            (v_user_id, '11A-PHY', 'Class 11 - A' || E'\n' || 'Physics', 'S. Verma', FALSE, NOW() - INTERVAL '1 day'),
+            (v_user_id, '8A-ENG', 'Class 8 - A' || E'\n' || 'English', 'P. Desai', FALSE, NOW() - INTERVAL '2 days'),
+            (v_user_id, '12B-CHEM', 'Class 12 - B' || E'\n' || 'Chemistry', 'A. Sharma', FALSE, NOW() - INTERVAL '4 days')
+        ON CONFLICT (user_id, meeting_code)
+        DO UPDATE SET
+            class_subject = EXCLUDED.class_subject,
+            teacher_name = EXCLUDED.teacher_name,
+            is_starred = EXCLUDED.is_starred,
+            last_joined_at = EXCLUDED.last_joined_at;
+    END IF;
 
     -- User 2: Admin Tester
-    INSERT INTO public.live_class_recent_codes (user_id, meeting_code, class_subject, teacher_name, is_starred, last_joined_at)
-    VALUES
-        (v_admin_test_id, '10A-MATH', 'Class 10 - A' || E'\n' || 'Mathematics', 'R. Kumar', TRUE, NOW()),
-        (v_admin_test_id, '11A-PHY', 'Class 11 - A' || E'\n' || 'Physics', 'S. Verma', FALSE, NOW() - INTERVAL '1 day'),
-        (v_admin_test_id, '8A-ENG', 'Class 8 - A' || E'\n' || 'English', 'P. Desai', FALSE, NOW() - INTERVAL '2 days'),
-        (v_admin_test_id, '12B-CHEM', 'Class 12 - B' || E'\n' || 'Chemistry', 'A. Sharma', FALSE, NOW() - INTERVAL '4 days')
-    ON CONFLICT (user_id, meeting_code)
-    DO UPDATE SET
-        class_subject = EXCLUDED.class_subject,
-        teacher_name = EXCLUDED.teacher_name,
-        is_starred = EXCLUDED.is_starred,
-        last_joined_at = EXCLUDED.last_joined_at;
+    IF v_admin_test_id IS NOT NULL THEN
+        INSERT INTO public.live_class_recent_codes (user_id, meeting_code, class_subject, teacher_name, is_starred, last_joined_at)
+        VALUES
+            (v_admin_test_id, '10A-MATH', 'Class 10 - A' || E'\n' || 'Mathematics', 'R. Kumar', TRUE, NOW()),
+            (v_admin_test_id, '11A-PHY', 'Class 11 - A' || E'\n' || 'Physics', 'S. Verma', FALSE, NOW() - INTERVAL '1 day'),
+            (v_admin_test_id, '8A-ENG', 'Class 8 - A' || E'\n' || 'English', 'P. Desai', FALSE, NOW() - INTERVAL '2 days'),
+            (v_admin_test_id, '12B-CHEM', 'Class 12 - B' || E'\n' || 'Chemistry', 'A. Sharma', FALSE, NOW() - INTERVAL '4 days')
+        ON CONFLICT (user_id, meeting_code)
+        DO UPDATE SET
+            class_subject = EXCLUDED.class_subject,
+            teacher_name = EXCLUDED.teacher_name,
+            is_starred = EXCLUDED.is_starred,
+            last_joined_at = EXCLUDED.last_joined_at;
+    END IF;
 
 END $$;

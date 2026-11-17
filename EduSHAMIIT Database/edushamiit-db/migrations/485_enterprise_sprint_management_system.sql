@@ -943,19 +943,30 @@ DO $$
 DECLARE
     v_sprint_id UUID := '35ad7623-f5d2-4935-a203-98a26e2b5444';
     v_school_id UUID := '11111111-1111-1111-1111-111111111111';
-    v_super_admin UUID := '5198c4b0-f1cb-45db-9649-41688d0438ba';
-    v_vihaan UUID := '10000000-0000-0000-0000-000000000002';
+    v_super_admin UUID;
+    v_vihaan UUID;
     v_aarav UUID;
     v_retro_id UUID := uuid_generate_v4();
 BEGIN
+    SELECT id INTO v_super_admin FROM public.profiles WHERE id = '5198c4b0-f1cb-45db-9649-41688d0438ba' LIMIT 1;
+    IF v_super_admin IS NULL THEN
+        SELECT id INTO v_super_admin FROM public.profiles WHERE school_id = v_school_id LIMIT 1;
+    END IF;
+    SELECT id INTO v_vihaan FROM public.profiles WHERE id = '10000000-0000-0000-0000-000000000002' LIMIT 1;
     SELECT id INTO v_aarav FROM public.profiles WHERE full_name ILIKE '%Aarav%' LIMIT 1;
 
     -- Insert members
-    INSERT INTO public.sprint_members (school_id, sprint_id, user_id, role, available_hours)
-    VALUES 
-        (v_school_id, v_sprint_id, v_super_admin, 'Sprint Lead', 80.0),
-        (v_school_id, v_sprint_id, v_vihaan, 'Developer', 80.0)
-    ON CONFLICT (sprint_id, user_id) DO NOTHING;
+    IF v_super_admin IS NOT NULL THEN
+        INSERT INTO public.sprint_members (school_id, sprint_id, user_id, role, available_hours)
+        VALUES (v_school_id, v_sprint_id, v_super_admin, 'Sprint Lead', 80.0)
+        ON CONFLICT (sprint_id, user_id) DO NOTHING;
+    END IF;
+
+    IF v_vihaan IS NOT NULL THEN
+        INSERT INTO public.sprint_members (school_id, sprint_id, user_id, role, available_hours)
+        VALUES (v_school_id, v_sprint_id, v_vihaan, 'Developer', 80.0)
+        ON CONFLICT (sprint_id, user_id) DO NOTHING;
+    END IF;
 
     IF v_aarav IS NOT NULL THEN
         INSERT INTO public.sprint_members (school_id, sprint_id, user_id, role, available_hours)
@@ -964,9 +975,11 @@ BEGIN
     END IF;
 
     -- Insert retrospective
-    INSERT INTO public.sprint_retrospectives (id, school_id, sprint_id, facilitator_id, summary)
-    VALUES (v_retro_id, v_school_id, v_sprint_id, v_super_admin, 'Strong velocity on core modules; exam timetable and library portal fixed on schedule.')
-    ON CONFLICT (sprint_id) DO NOTHING;
+    IF v_super_admin IS NOT NULL THEN
+        INSERT INTO public.sprint_retrospectives (id, school_id, sprint_id, facilitator_id, summary)
+        VALUES (v_retro_id, v_school_id, v_sprint_id, v_super_admin, 'Strong velocity on core modules; exam timetable and library portal fixed on schedule.')
+        ON CONFLICT (sprint_id) DO NOTHING;
+    END IF;
 
     -- Insert retro entries
     SELECT id INTO v_retro_id FROM public.sprint_retrospectives WHERE sprint_id = v_sprint_id;

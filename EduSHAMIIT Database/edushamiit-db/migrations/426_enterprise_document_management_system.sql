@@ -210,6 +210,11 @@ DECLARE
     v_sub_certs UUID      := 'f0000032-0000-0000-0000-000000000032';
     v_sub_other_std UUID  := 'f0000033-0000-0000-0000-000000000033';
 BEGIN
+    SELECT id INTO v_admin_id FROM profiles WHERE school_id::text = v_school_id LIMIT 1;
+    IF v_admin_id IS NULL THEN
+        SELECT id INTO v_admin_id FROM profiles LIMIT 1;
+    END IF;
+
     -- Insert root folders
     INSERT INTO document_folders (id, school_id, parent_id, name, description, category, color, icon, owner_id, is_system)
     VALUES

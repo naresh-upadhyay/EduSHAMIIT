@@ -779,7 +779,7 @@ BEGIN
     );
 END;
 $function$;
-"CREATE OR REPLACE FUNCTION public.fn_inventory_get_sales_orders(
+CREATE OR REPLACE FUNCTION public.fn_inventory_get_sales_orders(
     p_school_id UUID,
     p_search TEXT DEFAULT NULL,
     p_status TEXT DEFAULT NULL,

@@ -14,11 +14,7 @@ INSERT INTO public.profiles (
     'Active',
     NOW(),
     NOW()
-) ON CONFLICT (id) DO UPDATE SET 
-    full_name = EXCLUDED.full_name,
-    role = EXCLUDED.role,
-    email = EXCLUDED.email,
-    status = EXCLUDED.status;
+) ON CONFLICT DO NOTHING;
 
 -- 2. Ensure deleted_at column exists on hostel_student_activities
 ALTER TABLE public.hostel_student_activities ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;

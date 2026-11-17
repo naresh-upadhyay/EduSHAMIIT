@@ -327,6 +327,7 @@ CREATE TABLE IF NOT EXISTS public.student_fee_structures (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.student_fee_structures ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'ACTIVE';
 CREATE INDEX IF NOT EXISTS idx_student_fee_struct_school ON public.student_fee_structures(school_id, status);
 
 -- B. Student Fee Invoices (Master Invoice Records)
@@ -353,6 +354,7 @@ CREATE TABLE IF NOT EXISTS public.student_fee_invoices (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.student_fee_invoices ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Pending';
 CREATE UNIQUE INDEX IF NOT EXISTS uq_student_invoice_num ON public.student_fee_invoices(school_id, invoice_number);
 CREATE INDEX IF NOT EXISTS idx_student_fee_invoices_student ON public.student_fee_invoices(school_id, student_id, status);
 CREATE INDEX IF NOT EXISTS idx_student_fee_invoices_due ON public.student_fee_invoices(school_id, due_date, status);
@@ -373,6 +375,8 @@ CREATE TABLE IF NOT EXISTS public.student_fee_payments (
     recorded_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.student_fee_payments ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'COMPLETED';
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_student_payment_receipt ON public.student_fee_payments(school_id, receipt_number);
 CREATE INDEX IF NOT EXISTS idx_student_fee_payments_student ON public.student_fee_payments(school_id, student_id);
