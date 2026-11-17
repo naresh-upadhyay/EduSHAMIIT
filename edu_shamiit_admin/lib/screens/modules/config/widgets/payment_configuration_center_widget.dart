@@ -511,6 +511,63 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                 ),
                 const SizedBox(height: 2),
                 Text('Beneficiary: $beneficiary • Bank: $bank', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                if ((acc['device_id'] ?? '').toString().isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.phone_android_rounded, size: 12, color: Color(0xFF2563EB)),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Terminal: ${acc['device_id']}',
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () async {
+                          final did = acc['device_id'].toString();
+                          final res = await PaymentManagementApiService.instance.testDeviceActive(did);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(res['message'] ?? 'Device checked'),
+                                backgroundColor: res['is_active'] == true ? const Color(0xFF16A34A) : Colors.orange,
+                                duration: const Duration(seconds: 4),
+                              ),
+                            );
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.sensors, size: 12, color: Color(0xFF2563EB)),
+                              SizedBox(width: 4),
+                              Text('Test Active', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF2563EB))),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -549,60 +606,238 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
   void _showAddUpiAccountDialog(bool isDark) {
     final vpaCtrl = TextEditingController();
     final nameCtrl = TextEditingController(text: 'Campus Fee Collection UPI');
-    final benCtrl = TextEditingController(text: _instNameCtrl.text);
+    final benCtrl = TextEditingController(text: _instNameCtrl.text.isNotEmpty ? _instNameCtrl.text : 'Shami Innovation Academy');
     final bankCtrl = TextEditingController(text: 'State Bank of India');
+
+    // Extract registered devices for this institution
+    final registeredDevices = (_bridgeStatus['devices'] as List?)
+            ?.map((e) => Map<String, dynamic>.from(e))
+            .toList() ??
+        (_bridgeStatus['device'] != null ? [Map<String, dynamic>.from(_bridgeStatus['device'])] : []);
+
+    String initialDeviceId = registeredDevices.isNotEmpty
+        ? (registeredDevices.first['device_id']?.toString() ?? 'PB-DEV-WEB001')
+        : 'PB-DEV-WEB001';
+
+    final deviceCtrl = TextEditingController(text: initialDeviceId);
     bool setAsDefault = false;
+    bool isTestingDevice = false;
+    Map<String, dynamic>? deviceTestResult;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Add Institutional UPI VPA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-        content: SizedBox(
-          width: 440,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildTextField('UPI VPA / ID', vpaCtrl, isDark, 'e.g. schoolname@sbi'),
-              const SizedBox(height: 12),
-              _buildTextField('Account Nickname', nameCtrl, isDark, 'e.g. Counter 1 UPI'),
-              const SizedBox(height: 12),
-              _buildTextField('Beneficiary Name', benCtrl, isDark, 'Official Account Holder Name'),
-              const SizedBox(height: 12),
-              _buildTextField('Bank Name', bankCtrl, isDark, 'e.g. HDFC Bank, SBI'),
-              const SizedBox(height: 12),
-              StatefulBuilder(
-                builder: (context, setDialogState) => CheckboxListTile(
-                  title: const Text('Set as Default Receiving UPI Account', style: TextStyle(fontSize: 12)),
-                  value: setAsDefault,
-                  onChanged: (val) => setDialogState(() => setAsDefault = val ?? false),
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Add Institutional UPI VPA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildTextField('UPI VPA / ID', vpaCtrl, isDark, 'e.g. schoolname@sbi'),
+                  const SizedBox(height: 12),
+                  _buildTextField('Account Nickname', nameCtrl, isDark, 'e.g. Counter 1 UPI'),
+                  const SizedBox(height: 12),
+                  _buildTextField('Beneficiary Name', benCtrl, isDark, 'Official Account Holder Name'),
+                  const SizedBox(height: 12),
+                  _buildTextField('Bank Name', bankCtrl, isDark, 'e.g. HDFC Bank, SBI'),
+                  const SizedBox(height: 12),
+
+                  // Device ID & Background Active Test
+                  Text(
+                    'Linked Payment Bridge Terminal (Device ID)',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  if (registeredDevices.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      margin: const EdgeInsets.only(bottom: 6),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: registeredDevices.any((d) => d['device_id'] == deviceCtrl.text)
+                              ? deviceCtrl.text
+                              : null,
+                          hint: const Text('Select Registered Device Terminal', style: TextStyle(fontSize: 12)),
+                          isExpanded: true,
+                          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          items: registeredDevices.map((d) {
+                            final did = d['device_id'].toString();
+                            final dname = d['device_name']?.toString() ?? 'Terminal';
+                            final isOnline = d['is_online'] == true;
+                            return DropdownMenuItem<String>(
+                              value: did,
+                              child: Text(
+                                '$dname ($did)${isOnline ? " • Active" : ""}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setDialogState(() {
+                                deviceCtrl.text = val;
+                                deviceTestResult = null;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: deviceCtrl,
+                          decoration: InputDecoration(
+                            hintText: 'e.g. PB-DEV-WEB001',
+                            filled: true,
+                            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          ),
+                          style: const TextStyle(fontSize: 13),
+                          onChanged: (_) {
+                            if (deviceTestResult != null) {
+                              setDialogState(() => deviceTestResult = null);
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          side: const BorderSide(color: Color(0xFF2563EB)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        icon: isTestingDevice
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2563EB)),
+                              )
+                            : const Icon(Icons.sensors, size: 16, color: Color(0xFF2563EB)),
+                        label: Text(
+                          isTestingDevice ? 'Testing...' : 'Test Device',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF2563EB), fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: isTestingDevice
+                            ? null
+                            : () async {
+                                final targetDevId = deviceCtrl.text.trim();
+                                if (targetDevId.isEmpty) return;
+                                setDialogState(() => isTestingDevice = true);
+                                final res = await PaymentManagementApiService.instance.testDeviceActive(targetDevId);
+                                setDialogState(() {
+                                  isTestingDevice = false;
+                                  deviceTestResult = res;
+                                });
+                              },
+                      ),
+                    ],
+                  ),
+                  if (deviceTestResult != null) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: deviceTestResult!['is_active'] == true
+                            ? const Color(0xFF16A34A).withValues(alpha: 0.12)
+                            : Colors.orange.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: deviceTestResult!['is_active'] == true
+                              ? const Color(0xFF16A34A)
+                              : Colors.orange,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            deviceTestResult!['is_active'] == true
+                                ? Icons.check_circle_rounded
+                                : Icons.warning_amber_rounded,
+                            size: 18,
+                            color: deviceTestResult!['is_active'] == true
+                                ? const Color(0xFF16A34A)
+                                : Colors.orange,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              deviceTestResult!['message'] ?? 'Device status received',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: deviceTestResult!['is_active'] == true
+                                    ? const Color(0xFF16A34A)
+                                    : (isDark ? Colors.orange[200] : Colors.orange[900]),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  Text(
+                    'Note: Multiple UPI IDs can link to the same terminal device for background notification capture.',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  CheckboxListTile(
+                    title: const Text('Set as Default Receiving UPI Account', style: TextStyle(fontSize: 12)),
+                    value: setAsDefault,
+                    onChanged: (val) => setDialogState(() => setAsDefault = val ?? false),
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF16A34A), foregroundColor: Colors.white),
+              onPressed: () async {
+                if (vpaCtrl.text.trim().isEmpty) return;
+                await PaymentManagementApiService.instance.createUpiAccount({
+                  'vpa': vpaCtrl.text.trim(),
+                  'display_name': nameCtrl.text.trim(),
+                  'beneficiary_name': benCtrl.text.trim(),
+                  'bank_name': bankCtrl.text.trim(),
+                  'device_id': deviceCtrl.text.trim().isNotEmpty ? deviceCtrl.text.trim() : null,
+                  'is_default': setAsDefault,
+                });
+                if (ctx.mounted) Navigator.of(ctx).pop();
+                _loadConfig();
+              },
+              child: const Text('Save Account'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF16A34A), foregroundColor: Colors.white),
-            onPressed: () async {
-              if (vpaCtrl.text.trim().isEmpty) return;
-              await PaymentManagementApiService.instance.createUpiAccount({
-                'vpa': vpaCtrl.text.trim(),
-                'display_name': nameCtrl.text.trim(),
-                'beneficiary_name': benCtrl.text.trim(),
-                'bank_name': bankCtrl.text.trim(),
-                'is_default': setAsDefault,
-              });
-              if (ctx.mounted) Navigator.of(ctx).pop();
-              _loadConfig();
-            },
-            child: const Text('Save Account'),
-          ),
-        ],
       ),
     );
   }
@@ -915,122 +1150,179 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
   // =========================================================================
 
   Widget _buildPaymentBridgeTab(bool isDark) {
-    final dev = _bridgeStatus['device'] as Map<String, dynamic>?;
-    final isOnline = dev != null && (dev['is_online'] == true || dev['status'] == 'ACTIVE');
-    final devId = dev?['device_id'] ?? 'PB-AND-001';
-    final devName = dev?['device_name'] ?? 'Greenwood Accounts Mobile Terminal';
+    final devList = (_bridgeStatus['devices'] as List?)?.map((e) => Map<String, dynamic>.from(e)).toList() ?? [];
+    if (devList.isEmpty && _bridgeStatus['device'] != null) {
+      devList.add(Map<String, dynamic>.from(_bridgeStatus['device']));
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Live Device Status Card
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isOnline ? const Color(0xFF16A34A) : Colors.red),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        if (devList.isEmpty)
+          _buildEmptyState(
+            'No Payment Bridge Devices Registered',
+            'Log into EduSHAMIIT Payment Bridge from your Android device or Web terminal. The device ID will automatically register here.',
+            isDark,
+          )
+        else
+          ...devList.map((dev) {
+            final isOnline = dev['is_online'] == true || dev['status'] == 'ACTIVE';
+            final devId = dev['device_id']?.toString() ?? 'PB-DEV-WEB001';
+            final devName = dev['device_name']?.toString() ?? 'Shami Academy Payment Terminal';
+            final model = dev['model']?.toString() ?? 'Mobile / Web Terminal';
+            final listenerRunning = dev['listener_service_running'] == true;
+            final notifGranted = dev['notification_access_granted'] == true;
+            final battery = dev['battery_level'] != null ? '${dev['battery_level']}%' : '100%';
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: isOnline ? const Color(0xFF16A34A) : Colors.red),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(shape: BoxShape.circle, color: isOnline ? const Color(0xFF16A34A) : Colors.red),
+                      Row(
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(shape: BoxShape.circle, color: isOnline ? const Color(0xFF16A34A) : Colors.red),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            isOnline ? 'PAYMENT BRIDGE TERMINAL: ONLINE' : 'PAYMENT BRIDGE TERMINAL: OFFLINE',
+                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: isOnline ? const Color(0xFF16A34A) : Colors.red),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        isOnline ? 'PAYMENT BRIDGE TERMINAL: ONLINE' : 'PAYMENT BRIDGE TERMINAL: OFFLINE',
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: isOnline ? const Color(0xFF16A34A) : Colors.red),
+                      Row(
+                        children: [
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              side: const BorderSide(color: Color(0xFF16A34A)),
+                            ),
+                            icon: const Icon(Icons.sensors, size: 16, color: Color(0xFF16A34A)),
+                            label: const Text('Test Background Active', style: TextStyle(fontSize: 12, color: Color(0xFF16A34A), fontWeight: FontWeight.bold)),
+                            onPressed: () async {
+                              final res = await PaymentManagementApiService.instance.testDeviceActive(devId);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(res['message'] ?? 'Device status checked'),
+                                    backgroundColor: res['is_active'] == true ? const Color(0xFF16A34A) : Colors.orange,
+                                    duration: const Duration(seconds: 4),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              side: const BorderSide(color: Color(0xFF2563EB)),
+                            ),
+                            icon: const Icon(Icons.network_ping_rounded, size: 16, color: Color(0xFF2563EB)),
+                            label: const Text('Test Connection Ping', style: TextStyle(fontSize: 12, color: Color(0xFF2563EB))),
+                            onPressed: () async {
+                              final ping = await PaymentManagementApiService.instance.testBridgeConnection();
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(ping['message'] ?? 'Ping response received'),
+                                    backgroundColor: ping['connected'] == true ? const Color(0xFF16A34A) : Colors.orange,
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      side: const BorderSide(color: Color(0xFF2563EB)),
-                    ),
-                    icon: const Icon(Icons.network_ping_rounded, size: 16, color: Color(0xFF2563EB)),
-                    label: const Text('Test Connection Ping', style: TextStyle(fontSize: 12, color: Color(0xFF2563EB))),
-                    onPressed: () async {
-                      final ping = await PaymentManagementApiService.instance.testBridgeConnection();
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(ping['message'] ?? 'Ping response received'),
-                            backgroundColor: ping['connected'] == true ? const Color(0xFF16A34A) : Colors.orange,
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                ],
-              ),
-              const Divider(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Terminal Device', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
-                        const SizedBox(height: 2),
-                        Text('$devName ($devId)', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Notification Listener Access', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
-                        const SizedBox(height: 2),
-                        const Row(
+                  const Divider(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 15),
-                            SizedBox(width: 4),
-                            Text('Granted & Active 24/7', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF16A34A))),
+                            Text('Terminal Device', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                            const SizedBox(height: 2),
+                            Text('$devName ($devId)', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                            const SizedBox(height: 2),
+                            Text('Hardware: $model', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                           ],
                         ),
-                      ],
-                    ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Notification Listener Access', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Icon(
+                                  notifGranted ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
+                                  color: notifGranted ? const Color(0xFF16A34A) : Colors.orange,
+                                  size: 15,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  notifGranted
+                                      ? (listenerRunning ? 'Granted & Active 24/7' : 'Permission Granted (Service Paused)')
+                                      : 'Permission Missing',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                    color: notifGranted ? const Color(0xFF16A34A) : Colors.orange,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Battery & Power State', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                            const SizedBox(height: 2),
+                            Text('Battery: $battery • Unrestricted (No Sleep)', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('FastAPI WebSocket Sync', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                            const SizedBox(height: 2),
+                            const Text('Connected: /api/v1/payment-bridge/ws', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF2563EB))),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Battery & Power Exemption', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
-                        const SizedBox(height: 2),
-                        const Text('Unrestricted (No Sleep)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('FastAPI WebSocket Sync', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
-                        const SizedBox(height: 2),
-                        const Text('Connected: /api/v1/payment-bridge/ws', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF2563EB))),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+            );
+          }),
         const SizedBox(height: 16),
 
         _buildCard(

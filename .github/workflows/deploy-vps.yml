@@ -33,6 +33,7 @@ jobs:
 
             echo "=== [1/6] Extracting project files ==="
             cd /root/app
+            rm -rf "EduSHAMIIT Database" "EduSHAMIIT Backend" "nginx"
             unzip -q -o project.zip
             rm -f project.zip
 

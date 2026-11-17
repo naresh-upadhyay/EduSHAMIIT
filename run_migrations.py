@@ -299,6 +299,10 @@ def apply_migration(conn, filepath: str, record: bool = True) -> tuple:
         return True, ""
     except Exception as e:
         err_msg = str(e).strip().split("\n")[0]
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         return False, err_msg
 
 

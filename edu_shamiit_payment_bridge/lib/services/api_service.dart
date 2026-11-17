@@ -57,7 +57,7 @@ class ApiService {
       }
     }
 
-    _baseUrl = savedUrl ?? AppConstants.getDefaultPaymentBridgeUrl();
+    _baseUrl = savedUrl.isNotEmpty ? savedUrl : AppConstants.getDefaultPaymentBridgeUrl();
 
     // If already logged in, automatically ensure device is registered with backend
     if (_authToken.isNotEmpty && _schoolId.isNotEmpty) {
