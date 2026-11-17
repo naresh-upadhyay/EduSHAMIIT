@@ -27,7 +27,9 @@ jobs:
           cat project.zip | ssh -o StrictHostKeyChecking=no root@${{ secrets.VPS_HOST }} "cat > /root/app/project.zip"
 
           ssh -o StrictHostKeyChecking=no root@${{ secrets.VPS_HOST }} '
+            exec > /root/app/deploy.log 2>&1
             set -e
+            set -x
 
             echo "=== [1/6] Extracting project files ==="
             cd /root/app
@@ -64,4 +66,9 @@ jobs:
             docker exec edushamiit-api python3 /app/run_migrations.py "postgresql://postgres:eduSHAMIIT2026_pg@db:5432/postgres"
 
             echo "=== [SUCCESS] Deployment and migrations completed successfully! ==="
-          '
+          ' || {
+            ERR_MSG=$(ssh -o StrictHostKeyChecking=no root@${{ secrets.VPS_HOST }} "tail -n 30 /root/app/deploy.log | tr '\n' ' '")
+            echo "::error::VPS deployment failed: $ERR_MSG"
+            ssh -o StrictHostKeyChecking=no root@${{ secrets.VPS_HOST }} "tail -n 100 /root/app/deploy.log"
+            exit 1
+          }
