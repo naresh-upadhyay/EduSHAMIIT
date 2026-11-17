@@ -163,7 +163,8 @@ WHERE inv.academic_year = '2026 - 2027'
   AND NOT EXISTS (
       SELECT 1 FROM public.hostel_payments p
       WHERE p.invoice_id = inv.id
-  );
+  )
+ON CONFLICT (school_id, receipt_number) DO NOTHING;
 
 -- Ledger entries for 2026 - 2027
 INSERT INTO public.hostel_fee_ledger (

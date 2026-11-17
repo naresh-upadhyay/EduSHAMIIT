@@ -410,19 +410,32 @@ async def login(request: LoginRequest, raw_req: Request):
             "expires_at": expires_at.isoformat()
         }).aexecute()
 
+        school_name = "Shami Innovation Academy"
+        if p.get("school_id"):
+            try:
+                sc_res = await sb.table("schools").select("name").eq("id", p["school_id"]).maybe_single().aexecute()
+                if sc_res.data and sc_res.data.get("name"):
+                    school_name = sc_res.data["name"]
+            except Exception:
+                pass
+
         return LoginResponse(
             success=True,
             school_id=p["school_id"],
+            school_name=school_name,
             data={
                 "token": token,
                 "refresh_token": auth_response.session.refresh_token,
                 "supabase_access_token": auth_response.session.access_token,
+                "school_name": school_name,
                 "user": {
                     "id": user_id,
+                    "email": p.get("email"),
                     "full_name": p["full_name"],
                     "role": p["role"],
                     "class": p.get("class"),
                     "school_id": p["school_id"],
+                    "school_name": school_name,
                     "avatar_url": p.get("avatar_url"),
                 },
             }
@@ -1470,17 +1483,30 @@ async def verify_login_otp(request: VerifyLoginOtpRequest):
             algorithm=JWT_ALGORITHM,
         )
         
+        school_name = "Shami Innovation Academy"
+        if user.get("school_id"):
+            try:
+                sc_res = await sb.table("schools").select("name").eq("id", user["school_id"]).maybe_single().aexecute()
+                if sc_res.data and sc_res.data.get("name"):
+                    school_name = sc_res.data["name"]
+            except Exception:
+                pass
+
         return LoginResponse(
             success=True,
             school_id=user["school_id"],
+            school_name=school_name,
             data={
                 "token": token,
+                "school_name": school_name,
                 "user": {
                     "id": user_id,
+                    "email": user.get("email"),
                     "full_name": user["full_name"],
                     "role": user["role"],
                     "class": user.get("class"),
                     "school_id": user["school_id"],
+                    "school_name": school_name,
                     "avatar_url": user.get("avatar_url"),
                 },
             }

@@ -842,4 +842,21 @@ class PaymentManagementApiService {
       return {'success': false, 'connected': false, 'message': 'Network error reaching payment bridge: $e'};
     }
   }
+
+  Future<Map<String, dynamic>> testDeviceActive(String deviceId) async {
+    try {
+      final res = await _api.get(
+        '/v1/payment-management/config/devices/${Uri.encodeComponent(deviceId)}/test-active',
+        useCache: false,
+      );
+      return Map<String, dynamic>.from(res);
+    } catch (e) {
+      return {
+        'success': false,
+        'is_active': false,
+        'status': 'NETWORK_ERROR',
+        'message': 'Failed to query device active status: $e',
+      };
+    }
+  }
 }

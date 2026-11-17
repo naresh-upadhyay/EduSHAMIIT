@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-DEFAULT_SCHOOL_ID = "33333333-3333-3333-3333-333333333333"  # Greenwood High School
+DEFAULT_SCHOOL_ID = "11111111-1111-1111-1111-111111111111"  # Shami Innovation Academy
 
 
 # ============================================================================
@@ -165,7 +165,7 @@ async def resolve_school_id(
         if rows:
             return str(rows[0]["school_id"])
 
-    # Fallback to seeded Greenwood High School
+    # Fallback to primary Shami Innovation Academy
     return DEFAULT_SCHOOL_ID
 
 
@@ -387,24 +387,138 @@ async def device_heartbeat(req: DeviceHeartbeatRequest, request: Request):
     return {"success": True, "status": "HEARTBEAT_ACK"}
 
 
+@router.get("/school-info", tags=["School Info"])
+async def get_payment_bridge_school_info(
+    request: Request,
+    school_id: Optional[str] = Query(None),
+):
+    """Retrieve school identity details."""
+    target_school_id = school_id or await resolve_school_id(request)
+    rows = await exec_sql(
+        "SELECT id, name FROM public.schools WHERE id = %s::UUID LIMIT 1",
+        (target_school_id,),
+    )
+    if rows:
+        return {"success": True, "school_id": str(rows[0]["id"]), "school_name": rows[0]["name"]}
+    return {"success": True, "school_id": target_school_id, "school_name": "Shami Innovation Academy"}
+
+
 @router.get("/devices/me", tags=["Device Management"])
 async def get_device_me(
+    request: Request,
     x_device_id: Optional[str] = Header(None, alias="X-Device-ID"),
     device_id: Optional[str] = Query(None),
 ):
-    target_id = x_device_id or device_id or "PB-AND-001"
-    rows = await exec_sql(
+    target_id = x_device_id or device_id
+    if target_id:
+        rows = await exec_sql(
+            """
+            SELECT d.*, s.name as school_name
+            FROM public.payment_bridge_devices d
+            JOIN public.schools s ON s.id = d.school_id
+            WHERE d.device_id = %s
+            LIMIT 1
+            """,
+            (target_id,),
+        )
+        if rows:
+            return serialize_rows(rows)[0]
+
+    # Resolve school from user/context and find registered device
+    school_id = await resolve_school_id(request)
+    dev_rows = await exec_sql(
         """
         SELECT d.*, s.name as school_name
         FROM public.payment_bridge_devices d
         JOIN public.schools s ON s.id = d.school_id
-        WHERE d.device_id = %s
+        WHERE d.school_id = %s::UUID
+        ORDER BY d.last_heartbeat_at DESC NULLS LAST
+        LIMIT 1
         """,
-        (target_id,),
+        (school_id,),
+    )
+    if dev_rows:
+        return serialize_rows(dev_rows)[0]
+
+    # Fallback with school name from DB
+    s_rows = await exec_sql("SELECT name FROM public.schools WHERE id = %s::UUID LIMIT 1", (school_id,))
+    s_name = s_rows[0]["name"] if s_rows else "Shami Innovation Academy"
+    return {
+        "device_id": target_id or "PB-DEV-WEB001",
+        "school_id": school_id,
+        "school_name": s_name,
+        "is_online": True,
+        "status": "ACTIVE",
+    }
+
+
+@router.get("/devices/{device_id}/test-active", tags=["Device Management"])
+async def test_device_active(device_id: str, request: Request):
+    """Test if a device is actively running and receiving notifications in the background."""
+    school_id = await resolve_school_id(request)
+    rows = await exec_sql(
+        """
+        SELECT device_id, device_name, model, android_version, app_version,
+               status, is_online, battery_level, listener_service_running,
+               notification_access_granted, last_heartbeat_at, last_sync_at
+        FROM public.payment_bridge_devices
+        WHERE device_id = %s
+        LIMIT 1
+        """,
+        (device_id.strip(),),
     )
     if not rows:
-        raise HTTPException(status_code=404, detail="Device not found")
-    return serialize_rows(rows)[0]
+        return {
+            "success": False,
+            "is_active": False,
+            "status": "NOT_REGISTERED",
+            "message": f"Device '{device_id}' is not registered with this institution.",
+            "device_id": device_id,
+        }
+
+    d = rows[0]
+    listener_ok = bool(d.get("listener_service_running"))
+    notif_perm_ok = bool(d.get("notification_access_granted"))
+    hb_dt = d.get("last_heartbeat_at")
+
+    now = datetime.now(timezone.utc)
+    seconds_ago = None
+    minutes_ago = None
+    if hb_dt and isinstance(hb_dt, datetime):
+        diff = now - hb_dt
+        seconds_ago = max(0, int(diff.total_seconds()))
+        minutes_ago = seconds_ago // 60
+
+    # Device is active in background if listener service is running, notification permission granted,
+    # and heartbeat was received within last 10 minutes (or online flag is true)
+    hb_fresh = (seconds_ago is not None and seconds_ago <= 600) or d.get("is_online", False)
+    is_active = listener_ok and notif_perm_ok and hb_fresh
+
+    time_desc = f"{minutes_ago}m ago" if (minutes_ago is not None and minutes_ago > 0) else f"{seconds_ago or 0}s ago"
+    batt = d.get("battery_level", 100)
+
+    if is_active:
+        msg = f"Device '{d.get('device_name')}' is ACTIVE and listening in background! (Last ping: {time_desc}, Battery: {batt}%)"
+        status_code = "ACTIVE"
+    elif not notif_perm_ok:
+        msg = f"Device '{d.get('device_name')}' is missing Android Notification Access permission."
+        status_code = "PERMISSION_MISSING"
+    elif not listener_ok:
+        msg = f"Device '{d.get('device_name')}' background listener service is stopped."
+        status_code = "LISTENER_STOPPED"
+    else:
+        msg = f"Device '{d.get('device_name')}' is idle or sleeping. Last heartbeat: {time_desc}."
+        status_code = "IDLE_OR_OFFLINE"
+
+    return {
+        "success": True,
+        "is_active": is_active,
+        "status": status_code,
+        "message": msg,
+        "device": serialize_rows([d])[0],
+        "device_id": device_id,
+        "last_heartbeat_seconds_ago": seconds_ago,
+    }
 
 
 @router.get("/devices/status", tags=["Device Management"])

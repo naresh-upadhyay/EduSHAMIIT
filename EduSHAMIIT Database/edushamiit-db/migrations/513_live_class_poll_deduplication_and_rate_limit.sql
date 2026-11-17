@@ -4,8 +4,6 @@
 -- Date: 2026-11-16
 -- ============================================================================
 
-BEGIN;
-
 -- 1. Upgrade sp_create_and_launch_poll with Atomic Deduplication Lock
 CREATE OR REPLACE FUNCTION public.sp_create_and_launch_poll(
     p_session_id UUID,
@@ -138,5 +136,3 @@ WHERE p_old.status = 'CLOSED'
         AND p_new.created_at >= p_old.created_at
         AND p_new.created_at <= (p_old.created_at + INTERVAL '15 seconds')
   );
-
-COMMIT;

@@ -697,58 +697,85 @@ $$;
 DO $$
 DECLARE
     v_school_id UUID := '11111111-1111-1111-1111-111111111111'::UUID;
-    v_bldg_id UUID := 'd4b547da-ca46-4976-af82-c1b89ac6f0a7'::UUID; -- Academic Block (A)
-    v_f4_id UUID := 'd1b49946-edcc-46e0-9d26-57c09dbb6306'::UUID;   -- Fourth Floor (F4)
-    v_f3_id UUID := '2cb715e8-f221-45aa-b277-1cc7609e99ab'::UUID;   -- Third Floor (F3)
-    v_fg_id UUID := '93293399-cfe5-42c7-8c25-9e19dbf39b9d'::UUID;   -- Ground Floor (G)
+    v_bldg_id UUID;
+    v_f4_id UUID;
+    v_f3_id UUID;
+    v_fg_id UUID;
     
-    -- Device Type IDs
-    v_dt_cctv UUID := 'aefc4364-6c53-4754-b135-22d3941b9a91'::UUID;
-    v_dt_proj UUID := '08b4c919-25df-4c05-b17a-476c9c199ca0'::UUID;
-    v_dt_ap   UUID := 'bc351c93-f767-4900-ad9d-a6054fd78085'::UUID;
-    v_dt_light UUID := '7df1efc1-e7c6-407b-b157-991d98d549cc'::UUID;
-    v_dt_audio UUID := '151bb56a-f8b3-414b-b109-2f4dd2c88010'::UUID;
-    v_dt_ac   UUID := '179e1352-b2ce-45e5-9c08-54c5fc6a8dfb'::UUID;
-    v_dt_fan  UUID := 'cef1e745-3dfa-442a-a36d-b8b218cdb6e3'::UUID;
+    v_dt_cctv UUID;
+    v_dt_proj UUID;
+    v_dt_ap   UUID;
+    v_dt_light UUID;
+    v_dt_audio UUID;
+    v_dt_ac   UUID;
+    v_dt_fan  UUID;
 
-    -- Fourth Floor Rooms
-    v_r401 UUID := '73a52cdc-5a31-4eeb-bf95-5497268a1ec4'::UUID;
-    v_r402 UUID := '3acdd105-6b62-4aae-aa99-15456c4ec27b'::UUID;
-    v_r403 UUID := 'b0f061a6-09a6-4ed1-a5d1-667310c918e8'::UUID;
-    v_r404 UUID := '75e8fd30-297f-4727-9b95-a75f93aa7ade'::UUID;
-    v_r405 UUID := '3f6bcbb0-3a58-46df-a87d-c07a95225001'::UUID;
-    v_r406 UUID := 'e7047ea8-3469-4679-83ec-80ed90d4870a'::UUID;
-    v_r407 UUID := 'f3da098a-c58b-47ba-9120-9f7a8e94034d'::UUID;
-    v_r408 UUID := 'bc8546c0-5bfe-40d6-b2b7-def2e40aa156'::UUID;
-    v_r409 UUID := 'ec710373-0b30-4fcf-bdeb-ccbe91770930'::UUID;
-    v_r410 UUID := '44f41d60-5cfe-4bc4-9b9b-1f487d992c61'::UUID;
+    v_r401 UUID; v_r402 UUID; v_r403 UUID; v_r404 UUID; v_r405 UUID;
+    v_r406 UUID; v_r407 UUID; v_r408 UUID; v_r409 UUID; v_r410 UUID;
 
-    -- Third Floor Rooms
-    v_r301 UUID := 'b55b0b67-d53d-42f8-9f78-5e5b91611254'::UUID;
-    v_r302 UUID := '2aff76d2-bc52-4e5c-9c0a-ddf1b4800097'::UUID;
-    v_r303 UUID := '072573ac-82c5-4ee1-bbdd-0a71a4021d27'::UUID;
-    v_r304 UUID := '9abd4155-a76e-4862-827a-69d4bfc8a29c'::UUID;
-    v_r305 UUID := '25ce5ccf-6988-4d3e-b84b-30edfbf91568'::UUID;
-    v_r306 UUID := '6969d39a-d0ec-4873-bbe3-31da3230489c'::UUID;
-    v_r307 UUID := '0bdda3ad-7ded-4eae-b42d-3bb7b3944cd6'::UUID;
-    v_r308 UUID := '5ef50ff4-23b5-4d81-a635-b342a04c725f'::UUID;
+    v_r301 UUID; v_r302 UUID; v_r303 UUID; v_r304 UUID;
+    v_r305 UUID; v_r306 UUID; v_r307 UUID; v_r308 UUID;
 
-    -- Ground Floor Rooms
-    v_rg1 UUID := 'a8efcaf1-f07c-4ef8-9ec6-7beb3686aa09'::UUID;
-    v_rg2 UUID := '03f3f504-d598-40d9-97d7-1f0e894d4a74'::UUID;
-    v_rg3 UUID := '5e0616b1-fd89-483b-a465-03225563d110'::UUID;
-    v_rg4 UUID := '27f4cd9a-b38c-4e56-82f5-3db2980d0edb'::UUID;
-    v_rg5 UUID := '6e4eef8f-c6d9-48a3-8f6e-d57aa97ffa6c'::UUID;
-    v_rg6 UUID := '1e583343-2f86-4233-8dbd-e596f7021ddc'::UUID;
-    v_rg7 UUID := '05e4c8b4-e8c3-4d66-be81-4da87983c6f3'::UUID;
-    v_rg8 UUID := 'a5cc98f2-9028-4d07-85cd-f67336103060'::UUID;
-    v_rg9 UUID := '15920570-2c95-4a3e-a924-c48e0077c3ac'::UUID;
-    v_rg10 UUID := '8f7c7b76-9a37-4e64-bed9-4af18fe43200'::UUID;
-    v_rg11 UUID := 'e6c54450-7145-46a6-b7e3-13ee17adea4e'::UUID;
-    v_rg12 UUID := '861517df-ce1f-448b-bd2b-7de8392974bf'::UUID;
+    v_rg1 UUID; v_rg2 UUID; v_rg3 UUID; v_rg4 UUID; v_rg5 UUID; v_rg6 UUID;
+    v_rg7 UUID; v_rg8 UUID; v_rg9 UUID; v_rg10 UUID; v_rg11 UUID; v_rg12 UUID;
 
     v_d_id UUID;
 BEGIN
+    SELECT id INTO v_bldg_id FROM buildings WHERE school_id = v_school_id AND (code = 'B1' OR name ILIKE '%Academic Block%A%' OR name ILIKE '%Academic Block%') LIMIT 1;
+    IF v_bldg_id IS NULL THEN
+        SELECT id INTO v_bldg_id FROM buildings WHERE id = 'd4b547da-ca46-4976-af82-c1b89ac6f0a7'::UUID;
+    END IF;
+
+    IF v_bldg_id IS NOT NULL THEN
+        SELECT id INTO v_f4_id FROM building_floors WHERE building_id = v_bldg_id AND (floor_level = 4 OR id = 'd1b49946-edcc-46e0-9d26-57c09dbb6306'::UUID) LIMIT 1;
+        SELECT id INTO v_f3_id FROM building_floors WHERE building_id = v_bldg_id AND (floor_level = 3 OR id = '2cb715e8-f221-45aa-b277-1cc7609e99ab'::UUID) LIMIT 1;
+        SELECT id INTO v_fg_id FROM building_floors WHERE building_id = v_bldg_id AND (floor_level = 0 OR id = '93293399-cfe5-42c7-8c25-9e19dbf39b9d'::UUID) LIMIT 1;
+
+        SELECT id INTO v_dt_cctv FROM device_types WHERE id = 'aefc4364-6c53-4754-b135-22d3941b9a91'::UUID OR code IN ('cctv_camera', 'cctv') LIMIT 1;
+        SELECT id INTO v_dt_proj FROM device_types WHERE id = '08b4c919-25df-4c05-b17a-476c9c199ca0'::UUID OR code = 'projector' LIMIT 1;
+        SELECT id INTO v_dt_ap   FROM device_types WHERE id = 'bc351c93-f767-4900-ad9d-a6054fd78085'::UUID OR code = 'wifi_access_point' LIMIT 1;
+        SELECT id INTO v_dt_light FROM device_types WHERE id = '7df1efc1-e7c6-407b-b157-991d98d549cc'::UUID OR code = 'lighting' LIMIT 1;
+        SELECT id INTO v_dt_audio FROM device_types WHERE id = '151bb56a-f8b3-414b-b109-2f4dd2c88010'::UUID OR code IN ('audio_speakers', 'audio') LIMIT 1;
+        SELECT id INTO v_dt_ac   FROM device_types WHERE id = '179e1352-b2ce-45e5-9c08-54c5fc6a8dfb'::UUID OR code IN ('ac', 'hvac') LIMIT 1;
+        SELECT id INTO v_dt_fan  FROM device_types WHERE id = 'cef1e745-3dfa-442a-a36d-b8b218cdb6e3'::UUID OR code = 'fan' LIMIT 1;
+
+        SELECT id INTO v_r401 FROM rooms WHERE floor_id = v_f4_id AND (room_number = '401' OR id = '73a52cdc-5a31-4eeb-bf95-5497268a1ec4'::UUID) LIMIT 1;
+        SELECT id INTO v_r402 FROM rooms WHERE floor_id = v_f4_id AND (room_number = '402' OR id = '3acdd105-6b62-4aae-aa99-15456c4ec27b'::UUID) LIMIT 1;
+        SELECT id INTO v_r403 FROM rooms WHERE floor_id = v_f4_id AND (room_number = '403' OR id = 'b0f061a6-09a6-4ed1-a5d1-667310c918e8'::UUID) LIMIT 1;
+        SELECT id INTO v_r404 FROM rooms WHERE floor_id = v_f4_id AND (room_number = '404' OR id = '75e8fd30-297f-4727-9b95-a75f93aa7ade'::UUID) LIMIT 1;
+        SELECT id INTO v_r405 FROM rooms WHERE floor_id = v_f4_id AND (room_number = '405' OR id = '3f6bcbb0-3a58-46df-a87d-c07a95225001'::UUID) LIMIT 1;
+        SELECT id INTO v_r406 FROM rooms WHERE floor_id = v_f4_id AND (room_number = '406' OR id = 'e7047ea8-3469-4679-83ec-80ed90d4870a'::UUID) LIMIT 1;
+        SELECT id INTO v_r407 FROM rooms WHERE floor_id = v_f4_id AND (room_number = '407' OR id = 'f3da098a-c58b-47ba-9120-9f7a8e94034d'::UUID) LIMIT 1;
+        SELECT id INTO v_r408 FROM rooms WHERE floor_id = v_f4_id AND (room_number = '408' OR id = 'bc8546c0-5bfe-40d6-b2b7-def2e40aa156'::UUID) LIMIT 1;
+        SELECT id INTO v_r409 FROM rooms WHERE floor_id = v_f4_id AND (room_number = '409' OR id = 'ec710373-0b30-4fcf-bdeb-ccbe91770930'::UUID) LIMIT 1;
+        SELECT id INTO v_r410 FROM rooms WHERE floor_id = v_f4_id AND (room_number = '410' OR id = '44f41d60-5cfe-4bc4-9b9b-1f487d992c61'::UUID) LIMIT 1;
+
+        SELECT id INTO v_r301 FROM rooms WHERE floor_id = v_f3_id AND (room_number = '301' OR id = 'b55b0b67-d53d-42f8-9f78-5e5b91611254'::UUID) LIMIT 1;
+        SELECT id INTO v_r302 FROM rooms WHERE floor_id = v_f3_id AND (room_number = '302' OR id = '2aff76d2-bc52-4e5c-9c0a-ddf1b4800097'::UUID) LIMIT 1;
+        SELECT id INTO v_r303 FROM rooms WHERE floor_id = v_f3_id AND (room_number = '303' OR id = '072573ac-82c5-4ee1-bbdd-0a71a4021d27'::UUID) LIMIT 1;
+        SELECT id INTO v_r304 FROM rooms WHERE floor_id = v_f3_id AND (room_number = '304' OR id = '9abd4155-a76e-4862-827a-69d4bfc8a29c'::UUID) LIMIT 1;
+        SELECT id INTO v_r305 FROM rooms WHERE floor_id = v_f3_id AND (room_number = '305' OR id = '25ce5ccf-6988-4d3e-b84b-30edfbf91568'::UUID) LIMIT 1;
+        SELECT id INTO v_r306 FROM rooms WHERE floor_id = v_f3_id AND (room_number = '306' OR id = '6969d39a-d0ec-4873-bbe3-31da3230489c'::UUID) LIMIT 1;
+        SELECT id INTO v_r307 FROM rooms WHERE floor_id = v_f3_id AND (room_number = '307' OR id = '0bdda3ad-7ded-4eae-b42d-3bb7b3944cd6'::UUID) LIMIT 1;
+        SELECT id INTO v_r308 FROM rooms WHERE floor_id = v_f3_id AND (room_number = '308' OR id = '5ef50ff4-23b5-4d81-a635-b342a04c725f'::UUID) LIMIT 1;
+
+        SELECT id INTO v_rg1 FROM rooms WHERE floor_id = v_fg_id AND (room_number = 'G001' OR id = 'a8efcaf1-f07c-4ef8-9ec6-7beb3686aa09'::UUID) LIMIT 1;
+        SELECT id INTO v_rg2 FROM rooms WHERE floor_id = v_fg_id AND (room_number = 'G002' OR id = '03f3f504-d598-40d9-97d7-1f0e894d4a74'::UUID) LIMIT 1;
+        SELECT id INTO v_rg3 FROM rooms WHERE floor_id = v_fg_id AND (room_number = 'G003' OR id = '5e0616b1-fd89-483b-a465-03225563d110'::UUID) LIMIT 1;
+        SELECT id INTO v_rg4 FROM rooms WHERE floor_id = v_fg_id AND (room_number = 'G004' OR id = '27f4cd9a-b38c-4e56-82f5-3db2980d0edb'::UUID) LIMIT 1;
+        SELECT id INTO v_rg5 FROM rooms WHERE floor_id = v_fg_id AND (room_number = 'G005' OR id = '6e4eef8f-c6d9-48a3-8f6e-d57aa97ffa6c'::UUID) LIMIT 1;
+        SELECT id INTO v_rg6 FROM rooms WHERE floor_id = v_fg_id AND (room_number = 'G006' OR id = '1e583343-2f86-4233-8dbd-e596f7021ddc'::UUID) LIMIT 1;
+        SELECT id INTO v_rg7 FROM rooms WHERE floor_id = v_fg_id AND (room_number = 'G007' OR id = '05e4c8b4-e8c3-4d66-be81-4da87983c6f3'::UUID) LIMIT 1;
+        SELECT id INTO v_rg8 FROM rooms WHERE floor_id = v_fg_id AND (room_number = 'G008' OR id = 'a5cc98f2-9028-4d07-85cd-f67336103060'::UUID) LIMIT 1;
+        SELECT id INTO v_rg9 FROM rooms WHERE floor_id = v_fg_id AND (room_number = 'G-101' OR id = '15920570-2c95-4a3e-a924-c48e0077c3ac'::UUID) LIMIT 1;
+        SELECT id INTO v_rg10 FROM rooms WHERE floor_id = v_fg_id AND (room_number = 'G-102' OR id = '8f7c7b76-9a37-4e64-bed9-4af18fe43200'::UUID) LIMIT 1;
+        SELECT id INTO v_rg11 FROM rooms WHERE floor_id = v_fg_id AND (room_number = 'CR-1' OR id = 'e6c54450-7145-46a6-b7e3-13ee17adea4e'::UUID) LIMIT 1;
+        SELECT id INTO v_rg12 FROM rooms WHERE floor_id = v_fg_id AND (room_number = 'CL-1' OR id = '861517df-ce1f-448b-bd2b-7de8392974bf'::UUID) LIMIT 1;
+    END IF;
+
+    IF v_bldg_id IS NULL OR v_f4_id IS NULL OR v_dt_ac IS NULL THEN
+        RETURN;
+    END IF;
     -- 1. SEED 10 DEVICES ON FOURTH FLOOR (F4)
     v_d_id := 'f4000000-0001-4000-8000-000000000001'::UUID;
     INSERT INTO devices (id, school_id, building_id, floor_id, room_id, device_type_id, device_name, device_code, is_online, power_state)

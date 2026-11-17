@@ -567,12 +567,12 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
               ),
               const SizedBox(height: 16),
               const Divider(),
-              const ListTile(
+              ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading:
-                    Icon(Icons.school_outlined, color: AppColors.primaryNavy),
-                title: Text('Institution'),
-                subtitle: Text('Greenwood High School'),
+                    const Icon(Icons.school_outlined, color: AppColors.primaryNavy),
+                title: const Text('Institution'),
+                subtitle: Text(ApiService().institutionName.isNotEmpty ? ApiService().institutionName : 'Shami Innovation Academy'),
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,

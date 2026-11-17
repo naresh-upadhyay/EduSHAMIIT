@@ -31,8 +31,8 @@ DECLARE
     v_type_fan UUID;
 BEGIN
     -- 1. Standardize building names to match screenshot hierarchy exactly
-    UPDATE buildings SET name = 'Academic Block (A)', code = 'B1' WHERE code = 'B1' OR name ILIKE '%Academic Block%';
-    UPDATE buildings SET name = 'Academic Block (B)', code = 'B2' WHERE code = 'B2' OR name ILIKE '%Senior Block%';
+    UPDATE buildings SET name = 'Academic Block (A)', code = 'B1' WHERE code = 'B1' OR (name ILIKE '%Academic Block%A%' OR name = 'Academic Block');
+    UPDATE buildings SET name = 'Academic Block (B)', code = 'B2' WHERE code = 'B2' OR (name ILIKE '%Academic Block%B%' OR name ILIKE '%Senior Block%');
     UPDATE buildings SET name = 'Admin Block', code = 'B5' WHERE code = 'B5' OR name ILIKE '%Admin Block%';
     UPDATE buildings SET name = 'Laboratories Block', code = 'B7' WHERE code = 'B7' OR name ILIKE '%Science & Research Block%' OR name ILIKE '%Lab%';
     UPDATE buildings SET name = 'Library Block', code = 'B3' WHERE code = 'B3' OR name ILIKE '%Library%';

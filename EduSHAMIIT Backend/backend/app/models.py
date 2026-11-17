@@ -109,6 +109,7 @@ class LoginResponse(BaseModel):
     """Response model for login"""
     success: bool
     school_id: Optional[str]
+    school_name: Optional[str] = None
     data: Optional[Dict[str, Any]]
     message: Optional[str] = None
 

@@ -166,7 +166,7 @@ BEGIN
         'onboarding',
         'onboarding_document',
         o.id::text,
-        (SELECT id FROM profiles WHERE school_id = o.school_id::text LIMIT 1),
+        (SELECT id FROM profiles WHERE school_id = o.school_id::uuid LIMIT 1),
         CASE WHEN o.status = 'Verified' THEN 'Approved' ELSE 'Pending' END,
         COALESCE(o.created_at, NOW()),
         COALESCE(o.updated_at, NOW())
@@ -202,7 +202,7 @@ BEGIN
         'hr',
         'hr_document',
         hr.id::text,
-        COALESCE(hr.owner_id, (SELECT id FROM profiles WHERE school_id = hr.school_id::text LIMIT 1)),
+        COALESCE(hr.owner_id, (SELECT id FROM profiles WHERE school_id = hr.school_id::uuid LIMIT 1)),
         'Approved',
         COALESCE(hr.created_at, NOW()),
         COALESCE(hr.updated_at, NOW())
@@ -237,7 +237,7 @@ BEGIN
         'visitor',
         'visitor_document',
         v.id::text,
-        (SELECT id FROM profiles WHERE school_id = v.school_id::text LIMIT 1),
+        (SELECT id FROM profiles WHERE school_id = v.school_id::uuid LIMIT 1),
         CASE WHEN v.verification_status = 'VERIFIED' THEN 'Approved' ELSE 'Pending' END,
         COALESCE(v.created_at, NOW()),
         COALESCE(v.created_at, NOW())
@@ -308,7 +308,7 @@ BEGIN
         'recruitment',
         'recruitment_candidate_document',
         rc.id::text,
-        (SELECT id FROM profiles WHERE school_id = rc.school_id::text LIMIT 1),
+        (SELECT id FROM profiles WHERE school_id = rc.school_id::uuid LIMIT 1),
         'Approved',
         COALESCE(rc.uploaded_at, NOW()),
         COALESCE(rc.uploaded_at, NOW())
@@ -343,7 +343,7 @@ BEGIN
         'transport',
         'vehicle_document',
         vd.id::text,
-        (SELECT id FROM profiles WHERE school_id = vd.school_id::text LIMIT 1),
+        (SELECT id FROM profiles WHERE school_id = vd.school_id::uuid LIMIT 1),
         'Approved',
         COALESCE(vd.created_at, NOW()),
         COALESCE(vd.updated_at, NOW())
@@ -378,7 +378,7 @@ BEGIN
         'transport',
         'driver_document',
         dd.id::text,
-        COALESCE(dd.driver_id, (SELECT id FROM profiles WHERE school_id = dd.school_id::text LIMIT 1)),
+        COALESCE(dd.driver_id, (SELECT id FROM profiles WHERE school_id = dd.school_id::uuid LIMIT 1)),
         'Approved',
         COALESCE(dd.created_at, NOW()),
         COALESCE(dd.updated_at, NOW())
@@ -413,7 +413,7 @@ BEGIN
         'notices',
         'notice_attachment',
         n.id::text,
-        (SELECT id FROM profiles WHERE school_id = n.school_id::text LIMIT 1),
+        (SELECT id FROM profiles WHERE school_id = n.school_id::uuid LIMIT 1),
         'Approved',
         COALESCE(n.created_at, NOW()),
         COALESCE(n.created_at, NOW())

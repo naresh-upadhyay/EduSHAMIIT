@@ -154,7 +154,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                     return const Center(child: CircularProgressIndicator());
                   }
 
-                  final data = snapshot.data ?? DashboardData.mock();
+                  final hasError = snapshot.hasError;
+                  final data = snapshot.data ?? DashboardData.empty(isConnected: false);
 
                   return SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
@@ -162,6 +163,36 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        if (hasError)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF2F2),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFFCA5A5)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.cloud_off, color: Color(0xFFDC2626), size: 20),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Server Disconnected: ${snapshot.error}',
+                                    style: const TextStyle(color: Color(0xFF991B1B), fontSize: 12, fontWeight: FontWeight.w500),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: _refresh,
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    minimumSize: Size.zero,
+                                  ),
+                                  child: const Text('Retry', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFDC2626), fontSize: 12)),
+                                ),
+                              ],
+                            ),
+                          ),
                         // Card 1: Payment Listener Switch
                         _buildListenerActiveCard(data),
                         const SizedBox(height: 12),

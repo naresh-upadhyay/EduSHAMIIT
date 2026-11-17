@@ -12,9 +12,9 @@ class BridgeSettings {
     this.retryIntervalSeconds = 60,
     this.duplicateDetectionWindowMinutes = 5,
     this.autoStartOnBoot = true,
-    this.serverUrl = 'https://erp.edushamiit.in/api/v1/payments',
-    this.deviceId = 'PB-AND-001',
-    this.institution = 'Greenwood High School',
+    this.serverUrl = 'http://127.0.0.1:8082/api/v1/payment-bridge',
+    this.deviceId = 'PB-DEV-WEB001',
+    this.institution = 'Shami Innovation Academy',
   });
 
   factory BridgeSettings.fromJson(Map<String, dynamic> json) {
@@ -23,9 +23,9 @@ class BridgeSettings {
       retryIntervalSeconds: json['retry_interval_seconds'] ?? 60,
       duplicateDetectionWindowMinutes: json['duplicate_detection_window_minutes'] ?? 5,
       autoStartOnBoot: json['auto_start_on_boot'] ?? true,
-      serverUrl: json['server_url'] ?? 'https://erp.edushamiit.in/api/v1/payments',
-      deviceId: json['device_id'] ?? 'PB-AND-001',
-      institution: json['institution'] ?? 'Greenwood High School',
+      serverUrl: json['server_url'] ?? 'http://127.0.0.1:8082/api/v1/payment-bridge',
+      deviceId: json['device_id'] ?? 'PB-DEV-WEB001',
+      institution: json['institution'] ?? 'Shami Innovation Academy',
     );
   }
 

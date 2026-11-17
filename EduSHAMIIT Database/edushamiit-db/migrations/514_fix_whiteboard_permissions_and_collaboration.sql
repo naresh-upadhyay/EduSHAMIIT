@@ -4,8 +4,6 @@
 -- Date: 2026-11-16
 -- ============================================================================
 
-BEGIN;
-
 -- 1. Upgrade sp_get_whiteboard_user_permission
 CREATE OR REPLACE FUNCTION public.sp_get_whiteboard_user_permission(
     p_whiteboard_id UUID,
@@ -154,5 +152,3 @@ BEGIN
     RETURN public.sp_get_whiteboard_full(p_whiteboard_id, p_school_id, p_user_id);
 END;
 $$;
-
-COMMIT;

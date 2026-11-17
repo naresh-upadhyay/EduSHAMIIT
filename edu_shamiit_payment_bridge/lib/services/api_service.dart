@@ -42,13 +42,10 @@ class ApiService {
     _authToken = prefs.getString(AppConstants.prefsUserTokenKey) ?? '';
 
     // Smart Server URL resolution
-    // If on real mobile device, default to live cloud API: https://eduapi.shamiit.com
-    // If on local emulator, connect to 127.0.0.1 / 10.0.2.2 via reverse proxy
-    // Smart Server URL resolution
-    // If on local emulator, connect to 127.0.0.1:8082
+    // If on local emulator or web, connect to 127.0.0.1:8082
     // If on real mobile device, default to live cloud API: https://eduapi.shamiit.com
     var savedUrl = prefs.getString(AppConstants.prefsServerUrlKey);
-    if (_isEmulator) {
+    if (_isEmulator || kIsWeb) {
       if (savedUrl == null || savedUrl.isEmpty || savedUrl.contains('eduapi.shamiit.com')) {
         savedUrl = 'http://127.0.0.1:8082/api/v1/payment-bridge';
         await prefs.setString(AppConstants.prefsServerUrlKey, savedUrl);
@@ -60,7 +57,15 @@ class ApiService {
       }
     }
 
-    _baseUrl = savedUrl;
+    _baseUrl = savedUrl ?? AppConstants.getDefaultPaymentBridgeUrl();
+
+    // If already logged in, automatically ensure device is registered with backend
+    if (_authToken.isNotEmpty && _schoolId.isNotEmpty) {
+      registerDeviceWithBackend().catchError((e) {
+        debugPrint('[ApiService] Auto device registration failed on startup: $e');
+        return false;
+      });
+    }
   }
 
   void updateConfig({
@@ -96,20 +101,19 @@ class ApiService {
     final cleanPath = pathAndQuery.startsWith('/') ? pathAndQuery : '/$pathAndQuery';
     final list = <String>[];
 
-    // On emulator, 127.0.0.1 with adb reverse tcp:8082 tcp:8082 has instantaneous response
     if (_isEmulator) {
       list.add('http://127.0.0.1:8082/api/v1/payment-bridge$cleanPath');
       list.add('http://10.0.2.2:8082/api/v1/payment-bridge$cleanPath');
-      final primary = '$_baseUrl$cleanPath';
-      if (!list.contains(primary)) {
-        list.add(primary);
-      }
+    } else if (kIsWeb) {
+      list.add('http://127.0.0.1:8082/api/v1/payment-bridge$cleanPath');
+      list.add('http://localhost:8082/api/v1/payment-bridge$cleanPath');
     } else {
       list.add('${AppConstants.livePaymentBridgeUrl}$cleanPath');
-      final primary = '$_baseUrl$cleanPath';
-      if (!list.contains(primary)) {
-        list.add(primary);
-      }
+      list.add('http://127.0.0.1:8082/api/v1/payment-bridge$cleanPath');
+    }
+    final primary = '$_baseUrl$cleanPath';
+    if (!list.contains(primary)) {
+      list.insert(0, primary);
     }
     return list;
   }
@@ -198,13 +202,17 @@ class ApiService {
     if (_isEmulator || AppConstants.isEmulator) {
       list.add('http://127.0.0.1:8082/api$cleanPath');
       list.add('http://10.0.2.2:8082/api$cleanPath');
+    } else if (kIsWeb) {
+      list.add('http://127.0.0.1:8082/api$cleanPath');
+      list.add('http://localhost:8082/api$cleanPath');
     } else {
       list.add('${AppConstants.liveServerBaseUrl}/api$cleanPath');
+      list.add('http://127.0.0.1:8082/api$cleanPath');
     }
     final authBase = AppConstants.getAuthBaseUrl();
     final primary = '$authBase$cleanPath';
     if (!list.contains(primary)) {
-      list.add(primary);
+      list.insert(0, primary);
     }
     final live = '${AppConstants.liveServerBaseUrl}/api$cleanPath';
     if (!list.contains(live)) {
@@ -371,18 +379,22 @@ class ApiService {
     final user = data['user'] as Map<String, dynamic>;
 
     final schoolId = (user['school_id'] ?? responseData['school_id'] ?? '').toString();
-    final userEmail = user['email'] ?? '';
-    final userName = user['full_name'] ?? 'Authorized User';
-    final userRole = user['role'] ?? 'admin';
+    final userEmail = (user['email'] ?? '').toString();
+    final userName = (user['full_name'] ?? 'Authorized User').toString();
+    final userRole = (user['role'] ?? 'admin').toString();
 
-    // Auto-fetch institution details if missing
-    var institutionName = 'EduSHAMIIT Partner School';
-    if (schoolId.isNotEmpty) {
-      institutionName = await _fetchSchoolName(schoolId) ?? 'Greenwood High School';
-    }
-
+    // Cache token and school ID first so subsequent requests are authenticated
     _authToken = token;
     _schoolId = schoolId;
+
+    // Direct extraction of verified institution name from login response
+    var institutionName = (user['school_name'] ?? responseData['school_name'] ?? data['school_name'] ?? '').toString();
+    if (institutionName.isEmpty && schoolId.isNotEmpty) {
+      institutionName = await _fetchSchoolName(schoolId) ?? 'Shami Innovation Academy';
+    } else if (institutionName.isEmpty) {
+      institutionName = 'Shami Innovation Academy';
+    }
+
     _institutionName = institutionName;
 
     await prefs.setString(AppConstants.prefsUserTokenKey, token);
@@ -399,13 +411,20 @@ class ApiService {
 
   Future<String?> _fetchSchoolName(String schoolId) async {
     try {
-      final res = await _getWithFallback('/devices/me');
+      final sRes = await _getWithFallback('/school-info?school_id=$schoolId');
+      if (sRes.statusCode == 200) {
+        final d = json.decode(sRes.body);
+        if (d['school_name'] != null && d['school_name'].toString().isNotEmpty) {
+          return d['school_name'] as String;
+        }
+      }
+      final res = await _getWithFallback('/devices/me?device_id=$_deviceId');
       if (res.statusCode == 200) {
         final d = json.decode(res.body);
         return d['school_name'] as String?;
       }
     } catch (_) {}
-    return null;
+    return 'Shami Innovation Academy';
   }
 
   Future<bool> registerDeviceWithBackend() async {

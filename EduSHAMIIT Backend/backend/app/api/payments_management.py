@@ -323,6 +323,7 @@ class CreateUpiAccountPayload(BaseModel):
     intent_enabled: bool = True
     max_amount_paise: int = 10000000
     notes: Optional[str] = None
+    device_id: Optional[str] = None
 
 
 class CreateBankAccountPayload(BaseModel):
@@ -2927,7 +2928,7 @@ async def get_institution_payment_configuration(
         """
         SELECT id, vpa, display_name, beneficiary_name, bank_name, is_default,
                is_active, qr_enabled, intent_enabled, max_amount_paise,
-               verification_status, notes, created_at
+               verification_status, notes, device_id, created_at
         FROM public.school_upi_accounts
         WHERE school_id = %s::UUID
         ORDER BY is_default DESC, created_at ASC;
@@ -2957,19 +2958,19 @@ async def get_institution_payment_configuration(
         b_dict["masked_account_number"] = masked
         masked_bank_accounts.append(b_dict)
 
-    # 4. Payment Bridge Device Status
-    dev_rows = await exec_sql(
+    # 4. Payment Bridge Device Status (All registered devices for this institution)
+    all_dev_rows = await exec_sql(
         """
-        SELECT device_id, device_name, status, is_online, battery_level,
-               notification_access_granted, listener_service_running,
-               last_heartbeat_at, last_sync_at
+        SELECT device_id, device_name, model, android_version, app_version,
+               status, is_online, battery_level, notification_access_granted,
+               listener_service_running, last_heartbeat_at, last_sync_at, created_at
         FROM public.payment_bridge_devices
         WHERE school_id = %s::UUID
-        ORDER BY last_heartbeat_at DESC NULLS LAST LIMIT 1;
+        ORDER BY last_heartbeat_at DESC NULLS LAST;
         """,
         (school_id,)
     )
-    bridge_device = dev_rows[0] if dev_rows else None
+    bridge_device = all_dev_rows[0] if all_dev_rows else None
 
     # 5. Monitored UPI Apps
     app_rows = await exec_sql(
@@ -2985,6 +2986,7 @@ async def get_institution_payment_configuration(
         "bridge_status": {
             "has_registered_device": bridge_device is not None,
             "device": _serialize_val(bridge_device) if bridge_device else None,
+            "devices": _serialize_val(all_dev_rows),
             "monitored_apps": _serialize_val(app_rows),
             "bridge_connected": bridge_device.get("is_online", False) if bridge_device else False,
         }
@@ -3093,17 +3095,18 @@ async def create_school_upi_account(
     INSERT INTO public.school_upi_accounts (
         school_id, vpa, display_name, beneficiary_name, bank_name,
         is_default, is_active, qr_enabled, intent_enabled, max_amount_paise,
-        verification_status, notes
+        verification_status, notes, device_id
     ) VALUES (
         %s::UUID, %s, %s, %s, %s,
         %s, true, %s, %s, %s,
-        'VERIFIED', %s
+        'VERIFIED', %s, %s
     ) RETURNING id;
     """
     rows = await exec_sql(ins_sql, (
         school_id, payload.vpa.strip().lower(), payload.display_name.strip(),
         payload.beneficiary_name.strip(), payload.bank_name, payload.is_default,
-        payload.qr_enabled, payload.intent_enabled, payload.max_amount_paise, payload.notes
+        payload.qr_enabled, payload.intent_enabled, payload.max_amount_paise, payload.notes,
+        payload.device_id.strip() if payload.device_id else None
     ))
     return {"success": True, "message": "UPI account added successfully", "account_id": str(rows[0]['id'])}
 
@@ -3215,5 +3218,82 @@ async def test_payment_bridge_connection(
         "latency_ms": 14,
         "last_heartbeat": dev["last_heartbeat_at"].isoformat() if dev.get("last_heartbeat_at") else None,
         "message": "Payment Bridge connection active and responsive"
+    }
+
+
+@router.get("/config/devices/{device_id}/test-active")
+async def test_device_active_status(
+    device_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Test whether a Payment Bridge device is actively working in background to receive notifications.
+    Even without opening the UI of the app.
+    """
+    school_id = _get_school_id(current_user)
+    rows = await exec_sql(
+        """
+        SELECT device_id, device_name, model, android_version, app_version,
+               status, is_online, battery_level, listener_service_running,
+               notification_access_granted, last_heartbeat_at, last_sync_at
+        FROM public.payment_bridge_devices
+        WHERE school_id = %s::UUID AND device_id = %s
+        LIMIT 1;
+        """,
+        (school_id, device_id.strip())
+    )
+    if not rows:
+        return {
+            "success": False,
+            "is_active": False,
+            "status": "NOT_REGISTERED",
+            "message": f"Device '{device_id}' is not registered with this institution.",
+            "device_id": device_id,
+        }
+
+    d = rows[0]
+    listener_ok = bool(d.get("listener_service_running"))
+    notif_perm_ok = bool(d.get("notification_access_granted"))
+    hb_dt = d.get("last_heartbeat_at")
+
+    now = datetime.now(timezone.utc)
+    seconds_ago = None
+    minutes_ago = None
+    if hb_dt and isinstance(hb_dt, datetime):
+        diff = now - hb_dt
+        seconds_ago = max(0, int(diff.total_seconds()))
+        minutes_ago = seconds_ago // 60
+
+    # Consider background listener actively working if:
+    # 1. Listener service running
+    # 2. Notification access granted
+    # 3. Heartbeat within 10 minutes (or online flag is true)
+    hb_fresh = (seconds_ago is not None and seconds_ago <= 600) or d.get("is_online", False)
+    is_active = listener_ok and notif_perm_ok and hb_fresh
+
+    time_desc = f"{minutes_ago}m ago" if (minutes_ago is not None and minutes_ago > 0) else f"{seconds_ago or 0}s ago"
+    batt = d.get("battery_level", 100)
+
+    if is_active:
+        msg = f"Device '{d.get('device_name')}' is ACTIVE and listening for UPI notifications in background! (Last ping: {time_desc}, Battery: {batt}%)"
+        status_code = "ACTIVE"
+    elif not notif_perm_ok:
+        msg = f"Device '{d.get('device_name')}' is missing Android Notification Access permission."
+        status_code = "PERMISSION_MISSING"
+    elif not listener_ok:
+        msg = f"Device '{d.get('device_name')}' background listener service is stopped."
+        status_code = "LISTENER_STOPPED"
+    else:
+        msg = f"Device '{d.get('device_name')}' is idle or sleeping. Last heartbeat: {time_desc}. Ensure battery optimization is disabled."
+        status_code = "IDLE_OR_OFFLINE"
+
+    return {
+        "success": True,
+        "is_active": is_active,
+        "status": status_code,
+        "message": msg,
+        "device": _serialize_val(d),
+        "device_id": device_id,
+        "last_heartbeat_seconds_ago": seconds_ago,
     }
 

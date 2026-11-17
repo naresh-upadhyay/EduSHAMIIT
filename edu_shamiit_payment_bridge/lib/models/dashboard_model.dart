@@ -28,6 +28,29 @@ class DashboardData {
     );
   }
 
+  factory DashboardData.empty({String status = 'Offline', bool isConnected = false}) {
+    return DashboardData(
+      appName: 'EduSHAMIIT Payment Bridge',
+      runningStatus: status,
+      isListenerActive: false,
+      metrics: DashboardMetrics(
+        notificationsToday: 0,
+        matchedPayments: 0,
+        unmatchedPayments: 0,
+        lastSync: isConnected ? 'Just now' : 'Offline',
+        lastSyncTime: isConnected ? 'Live' : 'Never',
+      ),
+      systemStatus: SystemStatus(
+        notificationAccess: 'Permission Required',
+        monitoredUpiApps: '0 Apps',
+        backendConnection: isConnected ? 'Connected' : 'Disconnected',
+        deviceRegistration: 'Registered',
+        dataSync: isConnected ? 'Up to Date' : 'Offline',
+      ),
+      todayActivity: [],
+    );
+  }
+
   factory DashboardData.mock() {
     return DashboardData(
       appName: 'EduSHAMIIT Payment Bridge',

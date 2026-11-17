@@ -19,7 +19,7 @@ jobs:
 
       - name: Zip Repository
         run: |
-          zip -r project.zip . -x "*.git*" "*.github*" "*.idea*" "*.vscode*" "node_modules/*" "build/*" "project.zip"
+          zip -q -r project.zip . -x "*.git*" "*.github*" "*.idea*" "*.vscode*" "*node_modules*" "*build*" "*.dart_tool*" "app.zip" "project.zip" "*.apk" "*.aab" "*.ipa" "*.tar.gz" "scratch/*"
 
       - name: Upload and Deploy
         run: |
@@ -28,7 +28,7 @@ jobs:
 
           ssh -o StrictHostKeyChecking=no root@${{ secrets.VPS_HOST }} '
             cd /root/app && \
-            unzip -o project.zip && \
+            unzip -q -o project.zip && \
             rm project.zip && \
             find /root/app -type f -name "*.sh" -exec chmod +x {} + && \
             find /root/app -type f \( -name "*.sh" -o -name "*.exs" -o -name "*.sql" -o -name "*.conf" -o -name "*.yml" -o -name "*.yaml" \) -exec sed -i "s/\r$//" {} + && \

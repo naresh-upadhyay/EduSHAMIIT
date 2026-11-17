@@ -15,6 +15,7 @@ import os
 import sys
 import glob
 import re
+import time
 
 # Ensure standard output doesn't crash on Windows cp1252 encoding
 if hasattr(sys.stdout, "reconfigure"):
@@ -96,18 +97,23 @@ def resolve_database_url() -> str:
     return f"postgresql://postgres:{pg_password}@127.0.0.1:54322/{pg_db}"
 
 
-def get_connection(dsn: str):
-    """Connect to PostgreSQL with autocommit enabled."""
-    try:
-        conn = psycopg2.connect(dsn)
-        conn.autocommit = True
-        # Mask password in log output
-        masked_dsn = re.sub(r":([^@]+)@", r":****@", dsn)
-        print(f"[OK] Connected to database: {masked_dsn}")
-        return conn
-    except Exception as e:
-        print(f"[ERROR] Connection failed: {e}")
-        sys.exit(1)
+def get_connection(dsn: str, retries: int = 10, delay: float = 3.0):
+    """Connect to PostgreSQL with autocommit enabled, retrying if DB is starting up."""
+    last_err = None
+    for attempt in range(1, retries + 1):
+        try:
+            conn = psycopg2.connect(dsn, connect_timeout=5)
+            conn.autocommit = True
+            masked_dsn = re.sub(r":([^@]+)@", r":****@", dsn)
+            print(f"[OK] Connected to database: {masked_dsn}")
+            return conn
+        except Exception as e:
+            last_err = e
+            if attempt < retries:
+                print(f"[WAIT] Waiting for database to be ready (attempt {attempt}/{retries})...")
+                time.sleep(delay)
+    print(f"[ERROR] Connection failed after {retries} attempts: {last_err}")
+    sys.exit(1)
 
 
 def clean_public_schema(conn):
