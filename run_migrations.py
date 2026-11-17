@@ -244,13 +244,29 @@ def clean_public_schema(conn):
 
 
 def ensure_tracking_table(conn):
-    """Create schema_migrations table if it doesn't exist."""
+    """Ensure public schema permissions and create schema_migrations table if it doesn't exist."""
     with conn.cursor() as cur:
+        try:
+            cur.execute("""
+                CREATE SCHEMA IF NOT EXISTS public;
+                GRANT ALL ON SCHEMA public TO postgres;
+                GRANT ALL ON SCHEMA public TO anon;
+                GRANT ALL ON SCHEMA public TO authenticated;
+                GRANT ALL ON SCHEMA public TO service_role;
+                GRANT ALL ON SCHEMA public TO supabase_admin;
+            """)
+        except Exception:
+            pass
         cur.execute("""
             CREATE TABLE IF NOT EXISTS public.schema_migrations (
                 version VARCHAR(255) PRIMARY KEY,
                 applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             );
+            GRANT ALL ON TABLE public.schema_migrations TO postgres;
+            GRANT ALL ON TABLE public.schema_migrations TO anon;
+            GRANT ALL ON TABLE public.schema_migrations TO authenticated;
+            GRANT ALL ON TABLE public.schema_migrations TO service_role;
+            GRANT ALL ON TABLE public.schema_migrations TO supabase_admin;
         """)
     print("[OK] schema_migrations tracking table ready")
 

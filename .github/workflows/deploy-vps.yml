@@ -63,7 +63,7 @@ jobs:
 
             echo "=== [6/6] Executing database migrations ==="
             docker exec edushamiit-api pip install psycopg2-binary || true
-            docker exec edushamiit-api python3 /app/run_migrations.py "postgresql://postgres:eduSHAMIIT2026_pg@db:5432/postgres"
+            docker exec edushamiit-api python3 /app/run_migrations.py "postgresql://supabase_admin:eduSHAMIIT2026_pg@db:5432/postgres"
 
             echo "=== [SUCCESS] Deployment and migrations completed successfully! ==="
           ' || {
