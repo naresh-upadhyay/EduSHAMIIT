@@ -8,6 +8,27 @@
 -- 5. Maker-Checker Manual Review, Unmatched Queue, and Immutable Audit Trail
 -- ============================================================================
 
+-- Clean up any legacy or incomplete payment bridge tables
+DROP TABLE IF EXISTS public.payment_sync_logs CASCADE;
+DROP TABLE IF EXISTS public.payment_audit_logs CASCADE;
+DROP TABLE IF EXISTS public.payment_refunds CASCADE;
+DROP TABLE IF EXISTS public.payment_manual_reviews CASCADE;
+DROP TABLE IF EXISTS public.payment_unmatched_transactions CASCADE;
+DROP TABLE IF EXISTS public.payment_reconciliation_matches CASCADE;
+DROP TABLE IF EXISTS public.payment_reconciliation_runs CASCADE;
+DROP TABLE IF EXISTS public.payment_bank_transactions CASCADE;
+DROP TABLE IF EXISTS public.payment_transactions CASCADE;
+DROP TABLE IF EXISTS public.payment_candidate_matches CASCADE;
+DROP TABLE IF EXISTS public.payment_notification_duplicates CASCADE;
+DROP TABLE IF EXISTS public.payment_notification_processing_logs CASCADE;
+DROP TABLE IF EXISTS public.payment_notification_events CASCADE;
+DROP TABLE IF EXISTS public.payment_intents CASCADE;
+DROP TABLE IF EXISTS public.payment_bridge_monitored_apps CASCADE;
+DROP TABLE IF EXISTS public.payment_bridge_settings CASCADE;
+DROP TABLE IF EXISTS public.payment_bridge_device_heartbeats CASCADE;
+DROP TABLE IF EXISTS public.payment_bridge_device_credentials CASCADE;
+DROP TABLE IF EXISTS public.payment_bridge_devices CASCADE;
+
 -- ----------------------------------------------------------------------------
 -- 1. DEVICE REGISTRATION & CREDENTIAL MANAGEMENT
 -- ----------------------------------------------------------------------------
@@ -346,6 +367,8 @@ CREATE TABLE IF NOT EXISTS public.payment_audit_logs (
     user_agent VARCHAR(200),
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE IF EXISTS public.payment_audit_logs ADD COLUMN IF NOT EXISTS timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 CREATE INDEX IF NOT EXISTS idx_pb_audit_school_ts ON public.payment_audit_logs(school_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_pb_audit_entity ON public.payment_audit_logs(entity_type, entity_id);
