@@ -58,7 +58,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     if (mounted) {
       setState(() {
         _notificationAccessGranted = granted;
-        _isListenerActive = running;
+        _isListenerActive = granted && running;
       });
     }
   }
@@ -313,6 +313,11 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 if (!_notificationAccessGranted) {
                   await PlatformBridge.openNotificationSettings();
                 } else {
+                  if (val) {
+                    await PlatformBridge.startListenerService();
+                  } else {
+                    await PlatformBridge.stopListenerService();
+                  }
                   setState(() => _isListenerActive = val);
                 }
               },

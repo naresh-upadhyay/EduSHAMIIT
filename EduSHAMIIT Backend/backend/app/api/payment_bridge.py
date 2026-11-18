@@ -114,6 +114,8 @@ async def exec_sql(sql: str, params: tuple = (), fetch: bool = True) -> List[Dic
 def serialize_val(val: Any) -> Any:
     """Format dates, datetimes, decimals, and UUIDs for JSON serialization."""
     if isinstance(val, (datetime, date)):
+        if isinstance(val, datetime) and val.tzinfo is None:
+            val = val.replace(tzinfo=timezone.utc)
         return val.isoformat()
     if isinstance(val, Decimal):
         return float(val)
@@ -1284,7 +1286,12 @@ async def get_dashboard_data(request: Request):
     """
     school_id = await resolve_school_id(request)
 
-    # Metric counts
+    # Calculate start of today in IST (Indian Standard Time, UTC+5:30)
+    ist_tz = timezone(timedelta(hours=5, minutes=30))
+    now_ist = datetime.now(ist_tz)
+    start_of_today_ist = datetime(now_ist.year, now_ist.month, now_ist.day, tzinfo=ist_tz)
+
+    # Metric counts for today in IST
     notif_counts = await exec_sql(
         """
         SELECT 
@@ -1293,9 +1300,9 @@ async def get_dashboard_data(request: Request):
             count(*) FILTER (WHERE candidate_match_status = 'UNMATCHED') as unmatched_count,
             count(*) FILTER (WHERE candidate_match_status = 'REVIEW_REQUIRED') as review_count
         FROM public.payment_notification_events
-        WHERE school_id = %s AND notification_timestamp >= CURRENT_DATE
+        WHERE school_id = %s AND notification_timestamp >= %s
         """,
-        (school_id,),
+        (school_id, start_of_today_ist),
     )
     counts = notif_counts[0] if notif_counts else {}
 
@@ -1364,7 +1371,12 @@ async def get_dashboard_data(request: Request):
             icon_type = "REVIEW"
 
         dt: datetime = r["notification_timestamp"]
-        time_str = dt.strftime("%I:%M %p") if isinstance(dt, datetime) else "Just now"
+        if isinstance(dt, datetime):
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            time_str = dt.astimezone(ist_tz).strftime("%I:%M %p")
+        else:
+            time_str = "Just now"
 
         activities.append({
             "id": str(r["id"]),
@@ -1377,9 +1389,11 @@ async def get_dashboard_data(request: Request):
 
     last_sync_dt = device.get("last_sync_at")
     if isinstance(last_sync_dt, datetime):
-        last_sync_str = last_sync_dt.strftime("%I:%M %p")
+        if last_sync_dt.tzinfo is None:
+            last_sync_dt = last_sync_dt.replace(tzinfo=timezone.utc)
+        last_sync_str = last_sync_dt.astimezone(ist_tz).strftime("%I:%M %p")
     else:
-        last_sync_str = datetime.now(timezone.utc).strftime("%I:%M %p")
+        last_sync_str = datetime.now(timezone.utc).astimezone(ist_tz).strftime("%I:%M %p")
 
     return {
         "app_name": "EduSHAMIIT Payment Bridge",

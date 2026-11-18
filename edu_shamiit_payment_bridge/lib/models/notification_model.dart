@@ -75,7 +75,16 @@ class PaymentNotificationItem {
   factory PaymentNotificationItem.fromJson(Map<String, dynamic> json) {
     DateTime ts;
     try {
-      ts = DateTime.parse(json['notification_timestamp'] ?? '');
+      final raw = json['notification_timestamp']?.toString() ?? '';
+      if (raw.isNotEmpty) {
+        if (!raw.endsWith('Z') && !RegExp(r'[+-]\d\d:?\d\d$').hasMatch(raw)) {
+          ts = DateTime.parse('${raw}Z').toLocal();
+        } else {
+          ts = DateTime.parse(raw).toLocal();
+        }
+      } else {
+        ts = DateTime.now();
+      }
     } catch (_) {
       ts = DateTime.now();
     }

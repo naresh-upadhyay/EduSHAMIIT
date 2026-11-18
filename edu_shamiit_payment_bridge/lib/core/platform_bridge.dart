@@ -67,6 +67,20 @@ class PlatformBridge {
     }
   }
 
+  static Future<bool> stopListenerService() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
+    try {
+      final bool? res =
+          await _channel.invokeMethod<bool>('stopListenerService');
+      return res ?? false;
+    } catch (e) {
+      debugPrint('stopListenerService error: $e');
+      return false;
+    }
+  }
+
   static Future<String> getUniqueDeviceId() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
       return 'PB-DEV-WEB001';
@@ -258,5 +272,21 @@ class PlatformBridge {
       debugPrint('setCustomFormat error: $e');
       return false;
     }
+  }
+
+  static Future<List<Map<String, dynamic>>> getLocalNotifications() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return [];
+    }
+    try {
+      final List<dynamic>? list =
+          await _channel.invokeMethod<List<dynamic>>('getLocalNotifications');
+      if (list != null) {
+        return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+    } catch (e) {
+      debugPrint('getLocalNotifications error: $e');
+    }
+    return [];
   }
 }

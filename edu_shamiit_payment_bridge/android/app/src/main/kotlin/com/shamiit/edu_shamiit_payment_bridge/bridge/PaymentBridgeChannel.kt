@@ -1,5 +1,6 @@
 package com.shamiit.edu_shamiit_payment_bridge.bridge
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -110,7 +111,72 @@ class PaymentBridgeChannel(private val context: Context) : MethodChannel.MethodC
             }
 
             "isListenerRunning" -> {
-                result.success(PaymentNotificationListenerService.isServiceConnected)
+                val pkgName = context.packageName
+                val isAccessGranted = NotificationManagerCompat.getEnabledListenerPackages(context).contains(pkgName)
+                if (isAccessGranted && !PaymentNotificationListenerService.isServiceConnected) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        try {
+                            PaymentNotificationListenerService.requestRebind(
+                                ComponentName(context, PaymentNotificationListenerService::class.java)
+                            )
+                        } catch (_: Exception) {}
+                    }
+                }
+                result.success(isAccessGranted)
+            }
+
+            "startListenerService" -> {
+                val pkgName = context.packageName
+                val isAccessGranted = NotificationManagerCompat.getEnabledListenerPackages(context).contains(pkgName)
+                if (!isAccessGranted) {
+                    try {
+                        val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(intent)
+                    } catch (_: Exception) {}
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    try {
+                        PaymentNotificationListenerService.requestRebind(
+                            ComponentName(context, PaymentNotificationListenerService::class.java)
+                        )
+                    } catch (_: Exception) {}
+                }
+                result.success(isAccessGranted)
+            }
+
+            "stopListenerService" -> {
+                result.success(true)
+            }
+
+            "getLocalNotifications" -> {
+                CoroutineScope(Dispatchers.IO).launch {
+                    val events = dbHelper.getAllEvents(limit = 100)
+                    val list = events.map { ev ->
+                        mapOf(
+                            "id" to ev.eventUuid,
+                            "event_uuid" to ev.eventUuid,
+                            "source_package" to ev.sourcePackage,
+                            "source_app" to ev.sourceApp,
+                            "event_type" to ev.eventType,
+                            "amount_paise" to ev.amountPaise,
+                            "sender_name" to ev.senderName,
+                            "masked_sender_identifier" to ev.maskedSenderIdentifier,
+                            "transaction_reference" to ev.transactionReference,
+                            "notification_timestamp" to ev.notificationTimestamp,
+                            "raw_title" to ev.rawTitle,
+                            "raw_text" to ev.rawText,
+                            "parser_version" to ev.parserVersion,
+                            "confidence_score" to ev.confidenceScore,
+                            "parsing_status" to ev.parsingStatus,
+                            "candidate_match_status" to if (ev.isSynced) "MATCHED_CANDIDATE" else "UNMATCHED",
+                            "sync_status" to if (ev.isSynced) "SYNCED" else "PENDING"
+                        )
+                    }
+                    Handler(Looper.getMainLooper()).post {
+                        result.success(list)
+                    }
+                }
             }
 
             "getUniqueDeviceId" -> {

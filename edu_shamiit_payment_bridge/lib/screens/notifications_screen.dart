@@ -30,9 +30,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   void _fetch() {
+    final future = ApiService().getNotificationsWithSummary(status: _selectedFilter);
     setState(() {
-      _notificationsFuture =
-          ApiService().getNotificationsWithSummary(status: _selectedFilter);
+      _notificationsFuture = future;
+    });
+    future.then((data) {
+      if (mounted) {
+        setState(() {
+          _allCount = data.allCount;
+          _matchedCount = data.matchedCount;
+          _unmatchedCount = data.unmatchedCount;
+          _ignoredCount = data.ignoredCount;
+        });
+      }
+    }).catchError((e) {
+      debugPrint('[NotificationsScreen] fetch error: $e');
     });
   }
 
@@ -101,7 +113,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 if (snapshot.connectionState == ConnectionState.waiting && _allCount == 0) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (snapshot.hasError && snapshot.data == null) {
+                if (snapshot.hasError && (snapshot.data == null || snapshot.data!.items.isEmpty)) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -109,6 +121,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         const Icon(Icons.cloud_off, size: 48, color: AppColors.errorRed),
                         const SizedBox(height: 12),
                         const Text('Offline: Could not connect to server', style: TextStyle(color: AppColors.errorRed)),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: _fetch,
+                          icon: const Icon(Icons.refresh, size: 16),
+                          label: const Text('Retry Connection'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryBlue,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -116,10 +138,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 
                 if (snapshot.hasData) {
                   final data = snapshot.data!;
-                  _allCount = data.allCount;
-                  _matchedCount = data.matchedCount;
-                  _unmatchedCount = data.unmatchedCount;
-                  _ignoredCount = data.ignoredCount;
+                  if (_allCount != data.allCount || _matchedCount != data.matchedCount) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        setState(() {
+                          _allCount = data.allCount;
+                          _matchedCount = data.matchedCount;
+                          _unmatchedCount = data.unmatchedCount;
+                          _ignoredCount = data.ignoredCount;
+                        });
+                      }
+                    });
+                  }
                 }
                 final items = snapshot.data?.items ?? [];
                 if (items.isEmpty) {

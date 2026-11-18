@@ -130,7 +130,7 @@ class ApiService {
       list.add('http://127.0.0.1:8082/api/v1/payment-bridge$cleanPath');
     }
     final primary = '$_baseUrl$cleanPath';
-    if (!kIsWeb || !primary.contains('eduapi.shamiit.com')) {
+    if (!primary.contains('eduapi.shamiit.com')) {
       if (!list.contains(primary)) {
         list.insert(0, primary);
       }
@@ -549,6 +549,26 @@ class ApiService {
       }
     } catch (e) {
       debugPrint('[ApiService] getNotifications network error: $e');
+      // Offline fallback: load from device SQLite DB if available
+      try {
+        final localList = await PlatformBridge.getLocalNotifications();
+        if (localList.isNotEmpty) {
+          final parsedItems = localList.map((e) => PaymentNotificationItem.fromJson(e)).toList();
+          final cleanStatus = status.split(' ').first;
+          final filtered = (cleanStatus == 'All' || cleanStatus.isEmpty)
+              ? parsedItems
+              : parsedItems.where((i) => i.candidateMatchStatus.toUpperCase().contains(cleanStatus.toUpperCase())).toList();
+          return NotificationsResult(
+            items: filtered,
+            allCount: parsedItems.length,
+            matchedCount: parsedItems.where((i) => i.isMatched).length,
+            unmatchedCount: parsedItems.where((i) => i.isUnmatched).length,
+            ignoredCount: parsedItems.where((i) => i.isIgnored).length,
+          );
+        }
+      } catch (localErr) {
+        debugPrint('[ApiService] Local SQLite notification fallback failed: $localErr');
+      }
       throw Exception('Network error: Could not reach the server.');
     }
   }

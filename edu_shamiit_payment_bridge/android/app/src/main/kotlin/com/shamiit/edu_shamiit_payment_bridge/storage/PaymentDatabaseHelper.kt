@@ -152,6 +152,39 @@ class PaymentDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABA
         return list
     }
 
+    fun getAllEvents(limit: Int = 100): List<PaymentNotificationEvent> {
+        val db = readableDatabase
+        val list = mutableListOf<PaymentNotificationEvent>()
+        val cursor = db.rawQuery(
+            "SELECT * FROM $TABLE_EVENTS ORDER BY $COL_CREATED_AT DESC LIMIT ?",
+            arrayOf(limit.toString())
+        )
+        while (cursor.moveToNext()) {
+            list.add(
+                PaymentNotificationEvent(
+                    eventUuid = cursor.getString(cursor.getColumnIndexOrThrow(COL_UUID)),
+                    sourcePackage = cursor.getString(cursor.getColumnIndexOrThrow(COL_PACKAGE)),
+                    sourceApp = cursor.getString(cursor.getColumnIndexOrThrow(COL_APP)),
+                    eventType = cursor.getString(cursor.getColumnIndexOrThrow(COL_EVENT_TYPE)),
+                    amountPaise = cursor.getLong(cursor.getColumnIndexOrThrow(COL_AMOUNT_PAISE)),
+                    senderName = cursor.getString(cursor.getColumnIndexOrThrow(COL_SENDER_NAME)),
+                    maskedSenderIdentifier = cursor.getString(cursor.getColumnIndexOrThrow(COL_MASKED_SENDER)),
+                    transactionReference = cursor.getString(cursor.getColumnIndexOrThrow(COL_REF)),
+                    notificationTimestamp = cursor.getString(cursor.getColumnIndexOrThrow(COL_TIMESTAMP)),
+                    rawTitle = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_TITLE)),
+                    rawText = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_TEXT)),
+                    parserVersion = cursor.getString(cursor.getColumnIndexOrThrow(COL_PARSER_VERSION)),
+                    confidenceScore = cursor.getString(cursor.getColumnIndexOrThrow(COL_CONFIDENCE)),
+                    parsingStatus = cursor.getString(cursor.getColumnIndexOrThrow(COL_STATUS)),
+                    isSynced = cursor.getInt(cursor.getColumnIndexOrThrow(COL_IS_SYNCED)) == 1,
+                    retryCount = cursor.getInt(cursor.getColumnIndexOrThrow(COL_RETRY_COUNT))
+                )
+            )
+        }
+        cursor.close()
+        return list
+    }
+
     fun markEventsAsSynced(uuids: List<String>) {
         if (uuids.isEmpty()) return
         val db = writableDatabase
