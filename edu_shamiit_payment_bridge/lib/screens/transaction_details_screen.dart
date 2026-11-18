@@ -36,106 +36,115 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomSafePadding = MediaQuery.of(context).padding.bottom;
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          AppHeader(
-            title: 'Transaction Details',
-            showBackButton: true,
-            onBackPressed: () => Navigator.of(context).pop(),
-          ),
-          Expanded(
-            child: FutureBuilder<TransactionItem?>(
-              future: _transactionFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final tx = snapshot.data ??
-                    TransactionItem.getMockItems().firstWhere(
-                      (e) => e.id == widget.transactionId,
-                      orElse: () => TransactionItem.getMockItems().first,
-                    );
-
-                return SingleChildScrollView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  child: Column(
-                    children: [
-                      // 1. Hero Status Card (matching Image 4)
-                      _buildHeroCard(tx),
-                      const SizedBox(height: 14),
-
-                      // 2. Details Card
-                      _buildDetailsCard(context, tx),
-                      const SizedBox(height: 14),
-
-                      // 3. Amount Breakdown Card
-                      _buildBreakdownCard(tx),
-                      const SizedBox(height: 20),
-
-                      // 4. Action Buttons
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () => _showStudentReceipt(context, tx),
-                          icon: const Icon(Icons.receipt_long_outlined,
-                              size: 18, color: AppColors.primaryBlue),
-                          label: const Text(
-                            'View Student Receipt',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primaryBlue,
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side:
-                                const BorderSide(color: AppColors.primaryBlue),
-                            backgroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () =>
-                              _showReconciliationHistory(context, tx),
-                          icon: const Icon(Icons.history,
-                              size: 18, color: AppColors.primaryNavy),
-                          label: const Text(
-                            'Reconciliation History',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primaryNavy,
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: AppColors.border),
-                            backgroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                );
-              },
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        child: Column(
+          children: [
+            AppHeader(
+              title: 'Transaction Details',
+              showBackButton: true,
+              onBackPressed: () => Navigator.of(context).pop(),
             ),
-          ),
-        ],
+            Expanded(
+              child: FutureBuilder<TransactionItem?>(
+                future: _transactionFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final tx = snapshot.data ??
+                      TransactionItem.getMockItems().firstWhere(
+                        (e) => e.id == widget.transactionId,
+                        orElse: () => TransactionItem.getMockItems().first,
+                      );
+
+                  return SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      14,
+                      16,
+                      bottomSafePadding > 0 ? bottomSafePadding + 36 : 40,
+                    ),
+                    child: Column(
+                      children: [
+                        // 1. Hero Status Card (matching Image 4)
+                        _buildHeroCard(tx),
+                        const SizedBox(height: 14),
+
+                        // 2. Details Card
+                        _buildDetailsCard(context, tx),
+                        const SizedBox(height: 14),
+
+                        // 3. Amount Breakdown Card
+                        _buildBreakdownCard(tx),
+                        const SizedBox(height: 20),
+
+                        // 4. Action Buttons
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => _showStudentReceipt(context, tx),
+                            icon: const Icon(Icons.receipt_long_outlined,
+                                size: 18, color: AppColors.primaryBlue),
+                            label: const Text(
+                              'View Student Receipt',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primaryBlue,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side:
+                                  const BorderSide(color: AppColors.primaryBlue),
+                              backgroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () =>
+                                _showReconciliationHistory(context, tx),
+                            icon: const Icon(Icons.history,
+                                size: 18, color: AppColors.primaryNavy),
+                            label: const Text(
+                              'Reconciliation History',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primaryNavy,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppColors.border),
+                              backgroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -527,80 +536,102 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
   void _showStudentDetails(BuildContext context, TransactionItem tx) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom +
+                (MediaQuery.of(ctx).padding.bottom > 0
+                    ? MediaQuery.of(ctx).padding.bottom + 16
+                    : 24),
+          ),
+          child: SafeArea(
+            top: false,
+            bottom: true,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const CircleAvatar(
-                    backgroundColor: AppColors.primaryBlueLight,
-                    child: Icon(Icons.person, color: AppColors.primaryNavy),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Row(
                     children: [
-                      Text(
-                        tx.studentName ?? 'Student Profile',
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      const CircleAvatar(
+                        backgroundColor: AppColors.primaryBlueLight,
+                        child: Icon(Icons.person, color: AppColors.primaryNavy),
                       ),
-                      Text(
-                        'Invoice: ${tx.invoiceNumber ?? "N/A"}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tx.studentName ?? 'Student Profile',
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Invoice: ${tx.invoiceNumber ?? "N/A"}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading:
+                        const Icon(Icons.school_outlined, color: AppColors.primaryNavy),
+                    title: const Text('Institution'),
+                    subtitle: Text(ApiService().institutionName.isNotEmpty ? ApiService().institutionName : 'Shami Innovation Academy'),
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.receipt_long,
+                        color: AppColors.primaryNavy),
+                    title: const Text('Fee Head'),
+                    subtitle: Text(tx.invoiceTitle ?? 'Annual Tuition Fee'),
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading:
+                        const Icon(Icons.verified, color: AppColors.successGreen),
+                    title: const Text('Status'),
+                    subtitle: Text(tx.paymentStatus),
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryBlue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('Close'),
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 16),
-              const Divider(),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading:
-                    const Icon(Icons.school_outlined, color: AppColors.primaryNavy),
-                title: const Text('Institution'),
-                subtitle: Text(ApiService().institutionName.isNotEmpty ? ApiService().institutionName : 'Shami Innovation Academy'),
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.receipt_long,
-                    color: AppColors.primaryNavy),
-                title: const Text('Fee Head'),
-                subtitle: Text(tx.invoiceTitle ?? 'Annual Tuition Fee'),
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading:
-                    const Icon(Icons.verified, color: AppColors.successGreen),
-                title: const Text('Status'),
-                subtitle: Text(tx.paymentStatus),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryBlue,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('Close'),
-                ),
-              ),
-            ],
+            ),
           ),
         );
       },
@@ -611,121 +642,141 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return Padding(
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
           padding: EdgeInsets.only(
             left: 20,
             right: 20,
             top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom +
+                (MediaQuery.of(ctx).padding.bottom > 0
+                    ? MediaQuery.of(ctx).padding.bottom + 16
+                    : 24),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: SafeArea(
+            top: false,
+            bottom: true,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Fee Payment Receipt',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primaryNavy,
-                    ),
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.successGreenBg,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Text(
-                      'VERIFIED',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.successGreen,
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.border,
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  children: [
-                    _receiptRow('Receipt No.',
-                        tx.receiptNumber ?? 'RCP-${DateTime.now().year}-1042'),
-                    _receiptRow('Student Name', tx.studentName ?? 'Seema'),
-                    _receiptRow('Invoice Ref', tx.invoiceNumber ?? 'INV-1042'),
-                    _receiptRow(
-                        'Fee Head', tx.invoiceTitle ?? 'Annual Tuition Fee'),
-                    _receiptRow('Payment Mode', tx.paymentMode),
-                    _receiptRow('Bank UTR',
-                        tx.transactionReference ?? 'UPI/438729106731'),
-                    _receiptRow('Date & Time', tx.formattedReceivedAt),
-                    const Divider(height: 16),
-                    _receiptRow('Base Fee Paid', tx.formattedBaseFee),
-                    _receiptRow('Excess Paid', tx.formattedExcess),
-                    _receiptRow('Total Amount', tx.formattedAmount,
-                        isBold: true),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Receipt PDF generated successfully'),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Fee Payment Receipt',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryNavy,
+                        ),
+                      ),
+                      Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.successGreenBg,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'VERIFIED',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.successGreen,
                           ),
-                        );
-                      },
-                      icon: const Icon(Icons.share, size: 16),
-                      label: const Text('Share PDF'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      children: [
+                        _receiptRow('Receipt No.',
+                            tx.receiptNumber ?? 'RCP-${DateTime.now().year}-1042'),
+                        _receiptRow('Student Name', tx.studentName ?? 'Seema'),
+                        _receiptRow('Invoice Ref', tx.invoiceNumber ?? 'INV-1042'),
+                        _receiptRow(
+                            'Fee Head', tx.invoiceTitle ?? 'Annual Tuition Fee'),
+                        _receiptRow('Payment Mode', tx.paymentMode),
+                        _receiptRow('Bank UTR',
+                            tx.transactionReference ?? 'UPI/438729106731'),
+                        _receiptRow('Date & Time', tx.formattedReceivedAt),
+                        const Divider(height: 16),
+                        _receiptRow('Base Fee Paid', tx.formattedBaseFee),
+                        _receiptRow('Excess Paid', tx.formattedExcess),
+                        _receiptRow('Total Amount', tx.formattedAmount,
+                            isBold: true),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => Navigator.pop(ctx),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryBlue,
-                        foregroundColor: Colors.white,
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Receipt PDF generated successfully'),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.share, size: 16),
+                          label: const Text('Share PDF'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
                       ),
-                      icon: const Icon(Icons.check, size: 16),
-                      label: const Text('Done'),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryBlue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          icon: const Icon(Icons.check, size: 16),
+                          label: const Text('Done'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         );
       },
@@ -762,93 +813,109 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return Padding(
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
           padding: EdgeInsets.only(
             left: 20,
             right: 20,
             top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom +
+                (MediaQuery.of(ctx).padding.bottom > 0
+                    ? MediaQuery.of(ctx).padding.bottom + 16
+                    : 24),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2),
+          child: SafeArea(
+            top: false,
+            bottom: true,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.border,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Reconciliation Audit Trail',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primaryNavy,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Immutable timeline of notification capture and verification',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildAuditStep(
-                title: 'Notification Ingested',
-                desc:
-                    'Captured from ${tx.upiApp ?? "PhonePe"} on Android device PB-AND-001',
-                time: tx.formattedReceivedAt,
-                isCompleted: true,
-              ),
-              _buildAuditStep(
-                title: 'Candidate Matched',
-                desc:
-                    'Matched with Payment Intent ${tx.intentReference ?? "EDU202611140042"}',
-                time: tx.formattedMatchedAt,
-                isCompleted: true,
-              ),
-              _buildAuditStep(
-                title: 'Authoritative Bank Verification',
-                desc:
-                    'Verified via Bank Statement UTR match (${tx.transactionReference ?? "UPI/438729106731"})',
-                time: tx.verifiedAt != null
-                    ? tx.formattedReceivedAt
-                    : 'Verified by ERP',
-                isCompleted: tx.paymentStatus == 'VERIFIED_SUCCESS',
-              ),
-              _buildAuditStep(
-                title: 'ERP Ledger & Fee Receipt',
-                desc:
-                    'Invoice ${tx.invoiceNumber ?? "INV-1042"} balance settled. Receipt generated.',
-                time: tx.formattedReceivedAt,
-                isCompleted: tx.paymentStatus == 'VERIFIED_SUCCESS',
-                isLast: true,
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryNavy,
-                    foregroundColor: Colors.white,
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Reconciliation Audit Trail',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryNavy,
+                    ),
                   ),
-                  child: const Text('Close Audit Trail'),
-                ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Immutable timeline of notification capture and verification',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildAuditStep(
+                    title: 'Notification Ingested',
+                    desc:
+                        'Captured from ${tx.upiApp ?? "PhonePe"} on Android device PB-AND-001',
+                    time: tx.formattedReceivedAt,
+                    isCompleted: true,
+                  ),
+                  _buildAuditStep(
+                    title: 'Candidate Matched',
+                    desc:
+                        'Matched with Payment Intent ${tx.intentReference ?? "EDU202611140042"}',
+                    time: tx.formattedMatchedAt,
+                    isCompleted: true,
+                  ),
+                  _buildAuditStep(
+                    title: 'Authoritative Bank Verification',
+                    desc:
+                        'Verified via Bank Statement UTR match (${tx.transactionReference ?? "UPI/438729106731"})',
+                    time: tx.verifiedAt != null
+                        ? tx.formattedReceivedAt
+                        : 'Verified by ERP',
+                    isCompleted: tx.paymentStatus == 'VERIFIED_SUCCESS',
+                  ),
+                  _buildAuditStep(
+                    title: 'ERP Ledger & Fee Receipt',
+                    desc:
+                        'Invoice ${tx.invoiceNumber ?? "INV-1042"} balance settled. Receipt generated.',
+                    time: tx.formattedReceivedAt,
+                    isCompleted: tx.paymentStatus == 'VERIFIED_SUCCESS',
+                    isLast: true,
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryNavy,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('Close Audit Trail'),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },

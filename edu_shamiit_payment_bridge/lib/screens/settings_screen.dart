@@ -127,8 +127,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: FutureBuilder<BridgeSettings>(
               future: _settingsFuture,
               builder: (context, snapshot) {
+                final bottomSafePadding = MediaQuery.of(context).padding.bottom;
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    12,
+                    16,
+                    bottomSafePadding > 0 ? bottomSafePadding + 36 : 40,
+                  ),
                   child: Column(
                     children: [
                       // 1. Notification Listener Section

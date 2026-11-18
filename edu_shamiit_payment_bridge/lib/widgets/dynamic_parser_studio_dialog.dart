@@ -464,12 +464,22 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final bottomSafe = MediaQuery.of(context).padding.bottom;
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 580, maxHeight: 780),
-        child: Column(
+      insetPadding: EdgeInsets.fromLTRB(
+        16,
+        20,
+        16,
+        bottomInset + (bottomSafe > 0 ? bottomSafe + 16 : 24),
+      ),
+      child: SafeArea(
+        top: false,
+        bottom: true,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 580, maxHeight: 780),
+          child: Column(
           children: [
             // Modal Header
             Container(
@@ -837,8 +847,9 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildPresetChip(String title) {
     return ActionChip(

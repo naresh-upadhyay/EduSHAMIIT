@@ -84,52 +84,62 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomSafePadding = MediaQuery.of(context).padding.bottom;
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          AppHeader(
-            title: 'Device Diagnostics',
-            showBackButton: true,
-            onBackPressed: () => Navigator.pop(context),
-          ),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () async {
-                await _checkStatus();
-                _runPing();
-              },
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSectionTitle('Service Health & Permissions (OS Native)'),
-                    const SizedBox(height: 8),
-                    _buildHealthCard(),
-                    const SizedBox(height: 16),
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        child: Column(
+          children: [
+            AppHeader(
+              title: 'Device Diagnostics',
+              showBackButton: true,
+              onBackPressed: () => Navigator.pop(context),
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  await _checkStatus();
+                  _runPing();
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    12,
+                    16,
+                    bottomSafePadding > 0 ? bottomSafePadding + 36 : 40,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionTitle('Service Health & Permissions (OS Native)'),
+                      const SizedBox(height: 8),
+                      _buildHealthCard(),
+                      const SizedBox(height: 16),
 
-                    _buildSectionTitle('Local SQLite Storage & Sync Queue (Real Engine)'),
-                    const SizedBox(height: 8),
-                    _buildQueueCard(),
-                    const SizedBox(height: 16),
+                      _buildSectionTitle('Local SQLite Storage & Sync Queue (Real Engine)'),
+                      const SizedBox(height: 8),
+                      _buildQueueCard(),
+                      const SizedBox(height: 16),
 
-                    _buildSectionTitle('Device & System Hardware Information'),
-                    const SizedBox(height: 8),
-                    _buildDeviceInfoCard(),
-                    const SizedBox(height: 16),
+                      _buildSectionTitle('Device & System Hardware Information'),
+                      const SizedBox(height: 8),
+                      _buildDeviceInfoCard(),
+                      const SizedBox(height: 16),
 
-                    _buildSectionTitle('Diagnostic Actions'),
-                    const SizedBox(height: 8),
-                    _buildActionsCard(),
-                    const SizedBox(height: 24),
-                  ],
+                      _buildSectionTitle('Diagnostic Actions'),
+                      const SizedBox(height: 8),
+                      _buildActionsCard(),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

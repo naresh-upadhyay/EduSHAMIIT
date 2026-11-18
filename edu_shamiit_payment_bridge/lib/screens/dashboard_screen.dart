@@ -215,10 +215,16 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
                   final hasError = snapshot.hasError && _cachedData == null;
                   final data = snapshot.data ?? _cachedData ?? DashboardData.empty(isConnected: false);
+                  final bottomSafePadding = MediaQuery.of(context).padding.bottom;
 
                   return SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      10,
+                      16,
+                      bottomSafePadding > 0 ? bottomSafePadding + 32 : 36,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [

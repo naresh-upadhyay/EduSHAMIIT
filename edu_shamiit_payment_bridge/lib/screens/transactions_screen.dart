@@ -125,10 +125,18 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           Expanded(
             child: RefreshIndicator(
               onRefresh: () async => _fetch(),
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                child: Column(
+              child: Builder(
+                builder: (ctx) {
+                  final bottomSafePadding = MediaQuery.of(ctx).padding.bottom;
+                  return SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      6,
+                      16,
+                      bottomSafePadding > 0 ? bottomSafePadding + 32 : 36,
+                    ),
+                    child: Column(
                   children: [
                     // Top 4 Metric Summary Boxes (matching screenshot)
                     FutureBuilder<Map<String, int>>(
@@ -220,9 +228,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     ),
                   ],
                 ),
-              ),
-            ),
+              );
+            },
           ),
+        ),
+      ),
         ],
       ),
     );
@@ -383,35 +393,55 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   void _showFilterDialog() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Filter Transactions',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom +
+                (MediaQuery.of(ctx).padding.bottom > 0
+                    ? MediaQuery.of(ctx).padding.bottom + 16
+                    : 24),
+          ),
+          child: SafeArea(
+            top: false,
+            bottom: true,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Filter Transactions',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  ...['All', 'Successful', 'Pending', 'Unmatched', 'Refunds'].map((f) {
+                    return ListTile(
+                      title: Text(f),
+                      trailing: _selectedFilter == f
+                          ? const Icon(Icons.check, color: AppColors.primaryBlue)
+                          : null,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        setState(() => _selectedFilter = f);
+                        _fetch();
+                      },
+                    );
+                  }),
+                ],
               ),
-              const SizedBox(height: 12),
-              ...['All', 'Successful', 'Pending', 'Unmatched', 'Refunds'].map((f) {
-                return ListTile(
-                  title: Text(f),
-                  trailing: _selectedFilter == f
-                      ? const Icon(Icons.check, color: AppColors.primaryBlue)
-                      : null,
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    setState(() => _selectedFilter = f);
-                    _fetch();
-                  },
-                );
-              }),
-            ],
+            ),
           ),
         );
       },

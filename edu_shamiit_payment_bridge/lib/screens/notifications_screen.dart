@@ -332,10 +332,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 grouped.putIfAbsent(item.dateGroupKey, () => []).add(item);
               }
 
+              final bottomSafePadding = MediaQuery.of(context).padding.bottom;
               return RefreshIndicator(
                 onRefresh: () async => _fetch(),
                 child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    8,
+                    16,
+                    bottomSafePadding > 0 ? bottomSafePadding + 32 : 36,
+                  ),
                   itemCount: grouped.keys.length,
                   itemBuilder: (context, index) {
                     final dateKey = grouped.keys.elementAt(index);
@@ -447,16 +453,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         ),
                       ),
                     )
-                  : RefreshIndicator(
-                      onRefresh: _fetchRawNotifications,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        itemCount: rawList.length,
-                        itemBuilder: (context, index) {
-                          final item = rawList[index];
-                          return _buildRawNotificationCard(item);
-                        },
-                      ),
+                  : Builder(
+                      builder: (ctx) {
+                        final bottomSafePadding = MediaQuery.of(ctx).padding.bottom;
+                        return RefreshIndicator(
+                          onRefresh: _fetchRawNotifications,
+                          child: ListView.builder(
+                            padding: EdgeInsets.fromLTRB(
+                              16,
+                              8,
+                              16,
+                              bottomSafePadding > 0 ? bottomSafePadding + 32 : 36,
+                            ),
+                            itemCount: rawList.length,
+                            itemBuilder: (context, index) {
+                              final item = rawList[index];
+                              return _buildRawNotificationCard(item);
+                            },
+                          ),
+                        );
+                      },
                     ),
         ),
       ],
@@ -809,6 +825,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return Container(
@@ -816,73 +833,89 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom +
+                (MediaQuery.of(ctx).padding.bottom > 0
+                    ? MediaQuery.of(ctx).padding.bottom + 16
+                    : 24),
+          ),
+          child: SafeArea(
+            top: false,
+            bottom: true,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Notification Details',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Notification Details',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(ctx).pop(),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(ctx).pop(),
+                  const Divider(),
+                  _buildModalRow('Event ID', notif.eventUuid),
+                  _buildModalRow('Application', '${notif.sourceApp} (${notif.sourcePackage})'),
+                  _buildModalRow('Event Type', notif.eventType),
+                  _buildModalRow('Amount', notif.formattedAmount),
+                  _buildModalRow('Sender Name', notif.senderName ?? 'Not Available'),
+                  _buildModalRow('Masked Identifier', notif.maskedSenderIdentifier ?? 'Not Available'),
+                  _buildModalRow('Reference / UTR', notif.transactionReference ?? 'Not Available'),
+                  _buildModalRow('Post Time', notif.formattedTime),
+                  _buildModalRow('Parser Version', notif.parserVersion),
+                  _buildModalRow('Match Status', notif.candidateMatchStatus),
+                  const SizedBox(height: 12),
+                  const Text('Raw Notification Content:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      notif.rawText ?? 'Title: ${notif.rawTitle ?? "None"}',
+                      style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        DynamicParserStudioDialog.show(
+                          context,
+                          initialPackage: notif.sourcePackage,
+                          initialTitle: notif.rawTitle,
+                          initialDescription: notif.rawText,
+                          onSaved: _fetch,
+                        );
+                      },
+                      icon: const Icon(Icons.psychology_alt_rounded, size: 18),
+                      label: const Text('Open in Message Parser Studio'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryNavy,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
                   ),
                 ],
               ),
-              const Divider(),
-              _buildModalRow('Event ID', notif.eventUuid),
-              _buildModalRow('Application', '${notif.sourceApp} (${notif.sourcePackage})'),
-              _buildModalRow('Event Type', notif.eventType),
-              _buildModalRow('Amount', notif.formattedAmount),
-              _buildModalRow('Sender Name', notif.senderName ?? 'Not Available'),
-              _buildModalRow('Masked Identifier', notif.maskedSenderIdentifier ?? 'Not Available'),
-              _buildModalRow('Reference / UTR', notif.transactionReference ?? 'Not Available'),
-              _buildModalRow('Post Time', notif.formattedTime),
-              _buildModalRow('Parser Version', notif.parserVersion),
-              _buildModalRow('Match Status', notif.candidateMatchStatus),
-              const SizedBox(height: 12),
-              const Text('Raw Notification Content:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  notif.rawText ?? 'Title: ${notif.rawTitle ?? "None"}',
-                  style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(ctx).pop();
-                    DynamicParserStudioDialog.show(
-                      context,
-                      initialPackage: notif.sourcePackage,
-                      initialTitle: notif.rawTitle,
-                      initialDescription: notif.rawText,
-                      onSaved: _fetch,
-                    );
-                  },
-                  icon: const Icon(Icons.psychology_alt_rounded, size: 18),
-                  label: const Text('Open in Message Parser Studio'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryNavy,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         );
       },
