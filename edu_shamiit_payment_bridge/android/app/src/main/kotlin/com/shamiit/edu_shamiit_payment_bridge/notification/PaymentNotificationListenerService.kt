@@ -294,6 +294,7 @@ class PaymentNotificationListenerService : NotificationListenerService() {
                 }
 
                 val parsedStatus = when {
+                    event.eventType == "PAYMENT_IGNORED" -> event.parsingStatus
                     event.eventType == "PAYMENT_SENT" -> "PAYMENT_SENT"
                     event.amountPaise > 0 -> "PARSED_CREDIT"
                     else -> "UNPARSED"

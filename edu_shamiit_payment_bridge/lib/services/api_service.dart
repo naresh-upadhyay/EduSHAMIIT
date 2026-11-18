@@ -783,16 +783,28 @@ class ApiService {
   Future<bool> saveCustomParser({
     required String packageName,
     String? appName,
+    String? rulesJson,
     String? amountRegex,
     String? senderRegex,
     String? referenceRegex,
     String? bankRegex,
+    String? titleMatchMode,
+    String? titleMatchValue,
+    String? requiredKeywords,
+    String? ignoreKeywords,
+    bool? caseSensitive,
     bool isActive = true,
   }) async {
     try {
       final body = json.encode({
         'package_name': packageName.trim(),
         'app_name': appName?.trim() ?? 'Custom App',
+        'rules_json': rulesJson,
+        'title_match_mode': titleMatchMode ?? 'ANY',
+        'title_match_value': titleMatchValue?.trim(),
+        'required_keywords': requiredKeywords?.trim(),
+        'ignore_keywords': ignoreKeywords?.trim(),
+        'case_sensitive': caseSensitive ?? false,
         'amount_regex': amountRegex?.trim(),
         'sender_regex': senderRegex?.trim(),
         'reference_regex': referenceRegex?.trim(),

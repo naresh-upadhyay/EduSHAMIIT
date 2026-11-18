@@ -274,6 +274,96 @@ class PlatformBridge {
     }
   }
 
+  static Future<bool> saveCustomFormatFull({
+    required String package,
+    String? rulesJson,
+    String? amountRegex,
+    String? senderRegex,
+    String? referenceRegex,
+    String? bankRegex,
+    String? titleMatchMode,
+    String? titleMatchValue,
+    String? requiredKeywords,
+    String? ignoreKeywords,
+    bool? caseSensitive,
+  }) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
+    try {
+      final bool? res = await _channel.invokeMethod<bool>('setCustomFormat', {
+        'package': package,
+        'rules_json': rulesJson,
+        'amount_regex': amountRegex,
+        'sender_regex': senderRegex,
+        'reference_regex': referenceRegex,
+        'bank_regex': bankRegex,
+        'title_match_mode': titleMatchMode,
+        'title_match_value': titleMatchValue,
+        'required_keywords': requiredKeywords,
+        'ignore_keywords': ignoreKeywords,
+        'case_sensitive': caseSensitive,
+      });
+      return res ?? false;
+    } catch (e) {
+      debugPrint('saveCustomFormatFull error: $e');
+      return false;
+    }
+  }
+
+  static Future<Map<String, dynamic>> getCustomRule(String package) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return {};
+    }
+    try {
+      final Map<dynamic, dynamic>? res =
+          await _channel.invokeMethod<Map<dynamic, dynamic>>('getCustomFormat', {'package': package});
+      if (res != null) {
+        return Map<String, dynamic>.from(res);
+      }
+    } catch (e) {
+      debugPrint('getCustomRule error: $e');
+    }
+    return {};
+  }
+
+  static Future<bool> shareReceiptPdf({
+    required String receiptNo,
+    required String studentName,
+    required String invoiceRef,
+    required String feeHead,
+    required String paymentMode,
+    required String bankUtr,
+    required String dateTime,
+    required String amount,
+    String? baseAmount,
+    String? excessAmount,
+    String? status,
+  }) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
+    try {
+      final bool? res = await _channel.invokeMethod<bool>('shareReceiptPdf', {
+        'receipt_no': receiptNo,
+        'student_name': studentName,
+        'invoice_ref': invoiceRef,
+        'fee_head': feeHead,
+        'payment_mode': paymentMode,
+        'bank_utr': bankUtr,
+        'date_time': dateTime,
+        'amount': amount,
+        'base_amount': baseAmount,
+        'excess_amount': excessAmount,
+        'status': status,
+      });
+      return res ?? false;
+    } catch (e) {
+      debugPrint('shareReceiptPdf error: $e');
+      return false;
+    }
+  }
+
   static Future<bool> deleteCustomFormat({
     required String package,
     String? type,

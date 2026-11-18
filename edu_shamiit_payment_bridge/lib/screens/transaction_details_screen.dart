@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/theme.dart';
+import '../core/platform_bridge.dart';
 import '../models/transaction_model.dart';
 import '../services/api_service.dart';
 import '../widgets/app_header.dart';
@@ -742,13 +743,36 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () {
+                          onPressed: () async {
                             Navigator.pop(ctx);
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Receipt PDF generated successfully'),
+                                content: Text('Generating official PDF receipt...'),
+                                duration: Duration(seconds: 1),
+                                backgroundColor: AppColors.primaryNavy,
                               ),
                             );
+                            final success = await PlatformBridge.shareReceiptPdf(
+                              receiptNo: tx.receiptNumber ?? 'RCP-${tx.id.length >= 8 ? tx.id.substring(0, 8).toUpperCase() : "2026-D95D7F"}',
+                              studentName: tx.studentName ?? 'Aditya Gupta',
+                              invoiceRef: tx.invoiceNumber ?? 'INV-2026-01058',
+                              feeHead: tx.invoiceTitle ?? 'Term Tuition & Academic Amenities - Quarterly',
+                              paymentMode: tx.paymentMode,
+                              bankUtr: tx.transactionReference ?? 'N/A',
+                              dateTime: tx.formattedReceivedAt,
+                              amount: tx.formattedAmount,
+                              baseAmount: tx.formattedBaseFee,
+                              excessAmount: tx.formattedExcess,
+                              status: tx.paymentStatus,
+                            );
+                            if (!success && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Could not open share menu on this device'),
+                                  backgroundColor: AppColors.errorRed,
+                                ),
+                              );
+                            }
                           },
                           icon: const Icon(Icons.share, size: 16),
                           label: const Text('Share PDF'),

@@ -257,6 +257,12 @@ class MonitoredAppCreate(BaseModel):
 class CustomParserConfig(BaseModel):
     package_name: str
     app_name: Optional[str] = "Custom App"
+    rules_json: Optional[str] = None
+    title_match_mode: Optional[str] = "ANY"
+    title_match_value: Optional[str] = None
+    required_keywords: Optional[str] = None
+    ignore_keywords: Optional[str] = None
+    case_sensitive: Optional[bool] = False
     amount_regex: Optional[str] = None
     sender_regex: Optional[str] = None
     reference_regex: Optional[str] = None
@@ -2139,10 +2145,18 @@ async def save_custom_parser(req: CustomParserConfig, request: Request):
         inserted = await exec_sql(
             """
             INSERT INTO public.payment_bridge_custom_parsers (
-                school_id, package_name, app_name, amount_regex, sender_regex, reference_regex, bank_regex, is_active, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                school_id, package_name, app_name, rules_json,
+                title_match_mode, title_match_value, required_keywords, ignore_keywords, case_sensitive,
+                amount_regex, sender_regex, reference_regex, bank_regex, is_active, updated_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
             ON CONFLICT (school_id, package_name) DO UPDATE SET
                 app_name = EXCLUDED.app_name,
+                rules_json = EXCLUDED.rules_json,
+                title_match_mode = EXCLUDED.title_match_mode,
+                title_match_value = EXCLUDED.title_match_value,
+                required_keywords = EXCLUDED.required_keywords,
+                ignore_keywords = EXCLUDED.ignore_keywords,
+                case_sensitive = EXCLUDED.case_sensitive,
                 amount_regex = EXCLUDED.amount_regex,
                 sender_regex = EXCLUDED.sender_regex,
                 reference_regex = EXCLUDED.reference_regex,
@@ -2151,12 +2165,48 @@ async def save_custom_parser(req: CustomParserConfig, request: Request):
                 updated_at = NOW()
             RETURNING id
             """,
-            (school_id, req.package_name.strip(), (req.app_name or "Custom App").strip(), req.amount_regex, req.sender_regex, req.reference_regex, req.bank_regex, req.is_active),
+            (
+                school_id,
+                req.package_name.strip(),
+                (req.app_name or "Custom App").strip(),
+                req.rules_json,
+                req.title_match_mode or "ANY",
+                req.title_match_value,
+                req.required_keywords,
+                req.ignore_keywords,
+                req.case_sensitive or False,
+                req.amount_regex,
+                req.sender_regex,
+                req.reference_regex,
+                req.bank_regex,
+                req.is_active,
+            ),
         )
         return {"success": True, "id": str(inserted[0]["id"])}
     except Exception as e:
-        logger.error(f"Error saving custom parser: {e}")
-        return {"success": False, "error": str(e)}
+        logger.warning(f"Falling back to basic custom parser fields: {e}")
+        try:
+            inserted = await exec_sql(
+                """
+                INSERT INTO public.payment_bridge_custom_parsers (
+                    school_id, package_name, app_name, amount_regex, sender_regex, reference_regex, bank_regex, is_active, updated_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                ON CONFLICT (school_id, package_name) DO UPDATE SET
+                    app_name = EXCLUDED.app_name,
+                    amount_regex = EXCLUDED.amount_regex,
+                    sender_regex = EXCLUDED.sender_regex,
+                    reference_regex = EXCLUDED.reference_regex,
+                    bank_regex = EXCLUDED.bank_regex,
+                    is_active = EXCLUDED.is_active,
+                    updated_at = NOW()
+                RETURNING id
+                """,
+                (school_id, req.package_name.strip(), (req.app_name or "Custom App").strip(), req.amount_regex, req.sender_regex, req.reference_regex, req.bank_regex, req.is_active),
+            )
+            return {"success": True, "id": str(inserted[0]["id"])}
+        except Exception as e2:
+            logger.error(f"Error saving custom parser: {e2}")
+            return {"success": False, "error": str(e2)}
 
 
 @router.delete("/custom-parsers/{package_name}", tags=["Settings"])

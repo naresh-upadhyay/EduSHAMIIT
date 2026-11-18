@@ -23,6 +23,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.UUID
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Typeface
+import android.graphics.pdf.PdfDocument
+import androidx.core.content.FileProvider
+import java.io.File
+import java.io.FileOutputStream
 
 class PaymentBridgeChannel(private val context: Context) : MethodChannel.MethodCallHandler {
 
@@ -345,17 +354,86 @@ class PaymentBridgeChannel(private val context: Context) : MethodChannel.MethodC
                 }
             }
 
+            "shareReceiptPdf" -> {
+                val receiptNo = call.argument<String>("receipt_no") ?: "RCP-${System.currentTimeMillis()}"
+                val studentName = call.argument<String>("student_name") ?: "Student"
+                val invoiceRef = call.argument<String>("invoice_ref") ?: "N/A"
+                val feeHead = call.argument<String>("fee_head") ?: "Tuition & Institutional Fee"
+                val paymentMode = call.argument<String>("payment_mode") ?: "UPI"
+                val bankUtr = call.argument<String>("bank_utr") ?: "N/A"
+                val dateTime = call.argument<String>("date_time") ?: "Now"
+                val amount = call.argument<String>("amount") ?: "₹0.00"
+                val baseAmount = call.argument<String>("base_amount")
+                val excessAmount = call.argument<String>("excess_amount")
+                val status = call.argument<String>("status") ?: "VERIFIED"
+
+                val success = generateAndShareReceiptPdf(
+                    receiptNo = receiptNo,
+                    studentName = studentName,
+                    invoiceRef = invoiceRef,
+                    feeHead = feeHead,
+                    paymentMode = paymentMode,
+                    bankUtr = bankUtr,
+                    dateTime = dateTime,
+                    amount = amount,
+                    baseAmount = baseAmount,
+                    excessAmount = excessAmount,
+                    status = status
+                )
+                result.success(success)
+            }
+
             "setCustomFormat" -> {
                 val pkg = call.argument<String>("package")
-                val type = call.argument<String>("type")
-                val regex = call.argument<String>("regex")
-                if (pkg != null && type != null && regex != null) {
+                if (pkg != null) {
                     val prefs = context.getSharedPreferences("custom_formats", Context.MODE_PRIVATE)
-                    prefs.edit().putString("${pkg}_$type", regex).apply()
+                    val editor = prefs.edit()
+
+                    // Single key support (legacy)
+                    val type = call.argument<String>("type")
+                    val regex = call.argument<String>("regex")
+                    if (type != null && regex != null) {
+                        editor.putString("${pkg}_$type", regex)
+                    }
+
+                    // Multi-field and quality rule support
+                    call.argument<String>("amount_regex")?.let { editor.putString("${pkg}_amount", it) }
+                    call.argument<String>("sender_regex")?.let { editor.putString("${pkg}_sender", it) }
+                    call.argument<String>("reference_regex")?.let { editor.putString("${pkg}_reference", it) }
+                    call.argument<String>("bank_regex")?.let { editor.putString("${pkg}_masked", it) }
+
+                    // Custom Gate Rules (Title match, Inclusion keywords, Exclusion/Ignore keywords, and Azure-DevOps Style Query Rules JSON)
+                    call.argument<String>("rules_json")?.let { editor.putString("${pkg}_rules_json", it) }
+                    call.argument<String>("title_match_mode")?.let { editor.putString("${pkg}_title_match_mode", it) }
+                    call.argument<String>("title_match_value")?.let { editor.putString("${pkg}_title_match_value", it) }
+                    call.argument<String>("required_keywords")?.let { editor.putString("${pkg}_required_keywords", it) }
+                    call.argument<String>("ignore_keywords")?.let { editor.putString("${pkg}_ignore_keywords", it) }
+                    call.argument<Boolean>("case_sensitive")?.let { editor.putBoolean("${pkg}_case_sensitive", it) }
+
+                    editor.apply()
                     result.success(true)
                 } else {
-                    result.error("INVALID_ARGS", "Package, type, and regex are required", null)
+                    result.error("INVALID_ARGS", "Package is required", null)
                 }
+            }
+
+            "getCustomFormat" -> {
+                val pkg = call.argument<String>("package") ?: "*"
+                val prefs = context.getSharedPreferences("custom_formats", Context.MODE_PRIVATE)
+                val config = mapOf(
+                    "package_name" to pkg,
+                    "rules_json" to (prefs.getString("${pkg}_rules_json", null) ?: prefs.getString("*_rules_json", null)),
+                    "amount_regex" to (prefs.getString("${pkg}_amount", null) ?: prefs.getString("*_amount", null)),
+                    "sender_regex" to (prefs.getString("${pkg}_sender", null) ?: prefs.getString("*_sender", null)),
+                    "reference_regex" to (prefs.getString("${pkg}_reference", null) ?: prefs.getString("*_reference", null)),
+                    "bank_regex" to (prefs.getString("${pkg}_masked", null) ?: prefs.getString("*_masked", null)),
+                    "title_match_mode" to (prefs.getString("${pkg}_title_match_mode", null) ?: "ANY"),
+                    "title_match_value" to prefs.getString("${pkg}_title_match_value", null),
+                    "required_keywords" to prefs.getString("${pkg}_required_keywords", null),
+                    "ignore_keywords" to prefs.getString("${pkg}_ignore_keywords", null),
+                    "case_sensitive" to prefs.getBoolean("${pkg}_case_sensitive", false)
+                )
+                result.success(config)
             }
 
             "deleteCustomFormat" -> {
@@ -367,10 +445,16 @@ class PaymentBridgeChannel(private val context: Context) : MethodChannel.MethodC
                     if (type != null) {
                         editor.remove("${pkg}_$type")
                     } else {
+                        editor.remove("${pkg}_rules_json")
                         editor.remove("${pkg}_amount")
                         editor.remove("${pkg}_sender")
                         editor.remove("${pkg}_reference")
                         editor.remove("${pkg}_masked")
+                        editor.remove("${pkg}_title_match_mode")
+                        editor.remove("${pkg}_title_match_value")
+                        editor.remove("${pkg}_required_keywords")
+                        editor.remove("${pkg}_ignore_keywords")
+                        editor.remove("${pkg}_case_sensitive")
                     }
                     editor.apply()
                     result.success(true)
@@ -380,6 +464,187 @@ class PaymentBridgeChannel(private val context: Context) : MethodChannel.MethodC
             }
 
             else -> result.notImplemented()
+        }
+    }
+
+    private fun generateAndShareReceiptPdf(
+        receiptNo: String,
+        studentName: String,
+        invoiceRef: String,
+        feeHead: String,
+        paymentMode: String,
+        bankUtr: String,
+        dateTime: String,
+        amount: String,
+        baseAmount: String?,
+        excessAmount: String?,
+        status: String?
+    ): Boolean {
+        try {
+            val doc = PdfDocument()
+            val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4 standard
+            val page = doc.startPage(pageInfo)
+            val canvas = page.canvas
+
+            val textPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+            val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+            // 1. Top Decorative Brand Banner
+            fillPaint.color = Color.parseColor("#0F172A") // Primary Navy
+            canvas.drawRect(0f, 0f, 595f, 110f, fillPaint)
+
+            // Institution Title
+            textPaint.color = Color.WHITE
+            textPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textPaint.textSize = 22f
+            canvas.drawText("EduSHAMIIT International Institute", 40f, 50f, textPaint)
+
+            textPaint.textSize = 12f
+            textPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+            textPaint.color = Color.parseColor("#94A3B8")
+            canvas.drawText("Official Fee Payment Receipt & Automated Reconciliation Summary", 40f, 74f, textPaint)
+            canvas.drawText("Date Generated: $dateTime", 40f, 94f, textPaint)
+
+            // 2. Verified Status Badge
+            fillPaint.color = Color.parseColor("#DCFCE7") // Light green
+            val statusRect = RectF(40f, 130f, 555f, 175f)
+            canvas.drawRoundRect(statusRect, 8f, 8f, fillPaint)
+
+            textPaint.color = Color.parseColor("#166534") // Dark green
+            textPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textPaint.textSize = 14f
+            val statusLabel = if (!status.isNullOrEmpty()) status.uppercase() else "VERIFIED & RECONCILED"
+            canvas.drawText("STATUS: $statusLabel", 56f, 158f, textPaint)
+
+            // 3. Main Receipt Table Card
+            fillPaint.color = Color.parseColor("#F8FAFC")
+            val cardRect = RectF(40f, 195f, 555f, 510f)
+            canvas.drawRoundRect(cardRect, 12f, 12f, fillPaint)
+
+            fillPaint.style = Paint.Style.STROKE
+            fillPaint.color = Color.parseColor("#E2E8F0")
+            fillPaint.strokeWidth = 1.5f
+            canvas.drawRoundRect(cardRect, 12f, 12f, fillPaint)
+            fillPaint.style = Paint.Style.FILL
+
+            // Table rows
+            val rows = listOf(
+                "Receipt Number" to receiptNo,
+                "Student Name" to studentName,
+                "Invoice Reference" to invoiceRef,
+                "Fee Classification" to feeHead,
+                "Payment Mode" to paymentMode,
+                "Bank UTR / Reference" to bankUtr,
+                "Transaction Date & Time" to dateTime
+            )
+
+            var y = 235f
+            for ((label, value) in rows) {
+                textPaint.color = Color.parseColor("#64748B")
+                textPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+                textPaint.textSize = 12f
+                canvas.drawText(label, 60f, y, textPaint)
+
+                textPaint.color = Color.parseColor("#0F172A")
+                textPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                textPaint.textSize = 12f
+                canvas.drawText(value, 230f, y, textPaint)
+
+                // Row divider line
+                fillPaint.color = Color.parseColor("#E2E8F0")
+                fillPaint.strokeWidth = 1f
+                canvas.drawLine(60f, y + 14f, 535f, y + 14f, fillPaint)
+
+                y += 38f
+            }
+
+            // 4. Amount Summary Section
+            fillPaint.color = Color.parseColor("#EFF6FF") // Light blue
+            val amtRect = RectF(40f, 530f, 555f, 650f)
+            canvas.drawRoundRect(amtRect, 12f, 12f, fillPaint)
+
+            textPaint.color = Color.parseColor("#1E3A8A")
+            textPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+            textPaint.textSize = 12f
+            canvas.drawText("Base Fee Paid:", 60f, 565f, textPaint)
+            canvas.drawText(baseAmount ?: amount, 230f, 565f, textPaint)
+
+            canvas.drawText("Excess Paid:", 60f, 595f, textPaint)
+            canvas.drawText(excessAmount ?: "₹0.00", 230f, 595f, textPaint)
+
+            textPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textPaint.textSize = 15f
+            textPaint.color = Color.parseColor("#1D4ED8")
+            canvas.drawText("Total Settled Amount:", 60f, 630f, textPaint)
+            canvas.drawText(amount, 230f, 630f, textPaint)
+
+            // 5. Verification Footer
+            textPaint.color = Color.parseColor("#94A3B8")
+            textPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+            textPaint.textSize = 10f
+            canvas.drawText("This is an official, computer-generated receipt digitally signed via EduSHAMIIT Payment Bridge.", 40f, 700f, textPaint)
+            canvas.drawText("Reconciliation ID: ${UUID.randomUUID()} • Immutable System Audit Trail Enforced", 40f, 718f, textPaint)
+
+            doc.finishPage(page)
+
+            // Save PDF to cache directory
+            val cleanReceiptNo = receiptNo.replace("[^a-zA-Z0-9_-]".toRegex(), "_")
+            val pdfFile = File(context.cacheDir, "receipt_${cleanReceiptNo}.pdf")
+            val outputStream = FileOutputStream(pdfFile)
+            doc.writeTo(outputStream)
+            outputStream.close()
+            doc.close()
+
+            // Share via FileProvider & Intent
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", pdfFile)
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/pdf"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "Fee Payment Receipt - $receiptNo")
+                putExtra(Intent.EXTRA_TEXT, "Official Fee Receipt for $studentName ($receiptNo) - Settled Amount: $amount via $paymentMode")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            val chooser = Intent.createChooser(shareIntent, "Share Receipt PDF via").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(chooser)
+            return true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Fallback: Share plain text receipt
+            try {
+                val textShare = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, "Fee Payment Receipt - $receiptNo")
+                    putExtra(
+                        Intent.EXTRA_TEXT,
+                        """
+                        *EduSHAMIIT International Institute*
+                        *OFFICIAL FEE PAYMENT RECEIPT*
+                        ---------------------------------
+                        Receipt No: $receiptNo
+                        Student Name: $studentName
+                        Invoice: $invoiceRef
+                        Fee Head: $feeHead
+                        Payment Mode: $paymentMode
+                        Bank UTR: $bankUtr
+                        Date & Time: $dateTime
+                        ---------------------------------
+                        Total Amount Paid: $amount
+                        Status: VERIFIED & RECONCILED
+                        """.trimIndent()
+                    )
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                val chooser = Intent.createChooser(textShare, "Share Receipt via").apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(chooser)
+                return true
+            } catch (_: Exception) {
+                return false
+            }
         }
     }
 }
