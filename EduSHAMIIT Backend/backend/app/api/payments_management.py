@@ -3124,6 +3124,42 @@ async def set_default_upi_account(
     return {"success": True, "message": "Default UPI account set successfully"}
 
 
+@router.put("/config/upi-accounts/{account_id}")
+async def update_school_upi_account(
+    account_id: str,
+    payload: CreateUpiAccountPayload,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update details of an institutional UPI receiving account."""
+    school_id = _get_school_id(current_user)
+    aid = _clean_uuid(account_id)
+    if payload.is_default:
+        await exec_sql("UPDATE public.school_upi_accounts SET is_default = false WHERE school_id = %s::UUID;", (school_id,), fetch=False)
+
+    upd_sql = """
+    UPDATE public.school_upi_accounts
+    SET vpa = %s,
+        display_name = %s,
+        beneficiary_name = %s,
+        bank_name = %s,
+        is_default = %s,
+        device_id = %s,
+        updated_at = NOW()
+    WHERE id = %s::UUID AND school_id = %s::UUID;
+    """
+    await exec_sql(upd_sql, (
+        payload.vpa.strip().lower(),
+        payload.display_name.strip(),
+        payload.beneficiary_name.strip(),
+        payload.bank_name.strip() if payload.bank_name else None,
+        payload.is_default,
+        payload.device_id.strip() if payload.device_id else None,
+        aid,
+        school_id
+    ), fetch=False)
+    return {"success": True, "message": "UPI account updated successfully"}
+
+
 @router.delete("/config/upi-accounts/{account_id}")
 async def deactivate_upi_account(
     account_id: str,
@@ -3177,6 +3213,54 @@ async def set_default_bank_account(
     await exec_sql("UPDATE public.school_bank_accounts SET is_default = false WHERE school_id = %s::UUID;", (school_id,), fetch=False)
     await exec_sql("UPDATE public.school_bank_accounts SET is_default = true, is_active = true WHERE id = %s::UUID AND school_id = %s::UUID;", (aid, school_id), fetch=False)
     return {"success": True, "message": "Default bank account set successfully"}
+
+
+@router.put("/config/bank-accounts/{account_id}")
+async def update_school_bank_account(
+    account_id: str,
+    payload: CreateBankAccountPayload,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update details of an institutional receiving bank account."""
+    school_id = _get_school_id(current_user)
+    aid = _clean_uuid(account_id)
+    if payload.is_default:
+        await exec_sql("UPDATE public.school_bank_accounts SET is_default = false WHERE school_id = %s::UUID;", (school_id,), fetch=False)
+
+    upd_sql = """
+    UPDATE public.school_bank_accounts
+    SET account_nickname = %s,
+        bank_name = %s,
+        branch_name = %s,
+        account_holder_name = %s,
+        account_number = %s,
+        ifsc_code = %s,
+        account_type = %s,
+        currency = %s,
+        campus_name = %s,
+        category_name = %s,
+        is_default = %s,
+        internal_remarks = %s,
+        updated_at = NOW()
+    WHERE id = %s::UUID AND school_id = %s::UUID;
+    """
+    await exec_sql(upd_sql, (
+        payload.account_nickname.strip(),
+        payload.bank_name.strip(),
+        payload.branch_name,
+        payload.account_holder_name.strip(),
+        payload.account_number.strip(),
+        payload.ifsc_code.strip().upper(),
+        payload.account_type,
+        payload.currency,
+        payload.campus_name,
+        payload.category_name,
+        payload.is_default,
+        payload.internal_remarks,
+        aid,
+        school_id
+    ), fetch=False)
+    return {"success": True, "message": "Bank account updated successfully"}
 
 
 @router.delete("/config/bank-accounts/{account_id}")
