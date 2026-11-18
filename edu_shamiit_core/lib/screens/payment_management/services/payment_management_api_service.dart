@@ -796,10 +796,34 @@ class PaymentManagementApiService {
     }
   }
 
+  Future<bool> updateUpiAccount(String accountId, Map<String, dynamic> payload) async {
+    try {
+      final res = await _api.put(
+        '/v1/payment-management/config/upi-accounts/$accountId',
+        payload,
+      );
+      return res['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<bool> createBankAccount(Map<String, dynamic> payload) async {
     try {
       final res = await _api.post(
         '/v1/payment-management/config/bank-accounts',
+        payload,
+      );
+      return res['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> updateBankAccount(String accountId, Map<String, dynamic> payload) async {
+    try {
+      final res = await _api.put(
+        '/v1/payment-management/config/bank-accounts/$accountId',
         payload,
       );
       return res['success'] == true;
