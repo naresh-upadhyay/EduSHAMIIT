@@ -492,13 +492,25 @@ async def test_device_active(device_id: str, request: Request):
         seconds_ago = max(0, int(diff.total_seconds()))
         minutes_ago = seconds_ago // 60
 
-    # Device is active in background if listener service is running, notification permission granted,
-    # and heartbeat was received within last 10 minutes (or online flag is true)
-    hb_fresh = (seconds_ago is not None and seconds_ago <= 600) or d.get("is_online", False)
+    # Device is ONLY active in background if:
+    # 1. Listener service is running
+    # 2. Notification access permission is granted
+    # 3. Heartbeat was received within the last 90 seconds (1.5 minutes)
+    hb_fresh = (seconds_ago is not None and seconds_ago <= 90)
     is_active = listener_ok and notif_perm_ok and hb_fresh
 
     time_desc = f"{minutes_ago}m ago" if (minutes_ago is not None and minutes_ago > 0) else f"{seconds_ago or 0}s ago"
-    batt = d.get("battery_level", 100)
+    batt = d.get("battery_level") if d.get("battery_level") is not None else 0
+
+    if not hb_fresh:
+        try:
+            await exec_sql(
+                "UPDATE public.payment_bridge_devices SET is_online = FALSE WHERE device_id = %s",
+                (device_id.strip(),),
+                fetch=False,
+            )
+        except Exception:
+            pass
 
     if is_active:
         msg = f"Device '{d.get('device_name')}' is ACTIVE and listening in background! (Last ping: {time_desc}, Battery: {batt}%)"
@@ -510,8 +522,8 @@ async def test_device_active(device_id: str, request: Request):
         msg = f"Device '{d.get('device_name')}' background listener service is stopped."
         status_code = "LISTENER_STOPPED"
     else:
-        msg = f"Device '{d.get('device_name')}' is idle or sleeping. Last heartbeat: {time_desc}."
-        status_code = "IDLE_OR_OFFLINE"
+        msg = f"Device '{d.get('device_name')}' is OFFLINE / Switched Off. (Last ping was {time_desc}, Battery: {batt}%)"
+        status_code = "OFFLINE"
 
     return {
         "success": True,
@@ -602,12 +614,13 @@ async def process_notification_matching(
     source_app: str,
     masked_sender: Optional[str],
     notif_timestamp_iso: str,
+    raw_text: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Robust Payment Candidate Matching Engine.
     Rules:
     1. Outgoing payments -> IGNORED.
-    2. Exact UTR/Reference match with payment_intents.
+    2. Exact UTR/Reference match with payment_intents (intent_reference or utr_number).
     3. Exact Total Amount (with unique paise) within 48-hour window.
     4. Exact Base Amount if unique candidate.
     5. Multiple plausible candidates -> REVIEW_REQUIRED.
@@ -625,16 +638,20 @@ async def process_notification_matching(
         )
         return {"status": "IGNORED", "reason": "Outgoing payment"}
 
-    # Rule 1: Exact UTR / Reference match with intent reference
+    # Rule 1: Exact UTR / Reference match with intent reference or submitted UTR
     if reference:
         intent_matches = await exec_sql(
             """
             SELECT id, student_id, invoice_id, total_amount_paise, status
             FROM public.payment_intents
-            WHERE school_id = %s AND (intent_reference = %s OR %s ILIKE '%%' || intent_reference || '%%')
+            WHERE school_id = %s AND (
+                intent_reference = %s 
+                OR utr_number = %s 
+                OR %s ILIKE '%%' || intent_reference || '%%'
+            )
             LIMIT 1
             """,
-            (school_id, reference, reference),
+            (school_id, reference, reference, reference),
         )
         if intent_matches:
             matched_intent = intent_matches[0]
@@ -713,9 +730,7 @@ async def process_notification_matching(
                 matched_by_context.append(cand)
         if len(matched_by_context) == 1:
             amount_intents = matched_by_context
-        elif len(amount_intents) > 1:
-            # If multiple active intents exist, select the most recently created active intent
-            amount_intents = [amount_intents[0]]
+        # If still ambiguous, do not blindly guess — route to REVIEW_REQUIRED below for financial safety!
 
     if len(amount_intents) == 1:
         # High confidence single candidate match!
@@ -829,6 +844,23 @@ async def associate_candidate(
     notif_timestamp_iso: str,
 ) -> str:
     """Associates an event with an intent, verifies it, settles student invoice, and issues official receipt."""
+    # 0. Atomic claim & idempotency guard: prevent race conditions and duplicate settlement
+    claimed = await exec_sql(
+        """
+        UPDATE public.payment_intents
+        SET status = 'VERIFYING', updated_at = NOW()
+        WHERE id = %s AND status != 'VERIFIED_SUCCESS'
+        RETURNING id, student_id, invoice_id, base_amount_paise, unique_paise, intent_reference, receipt_number
+        """,
+        (intent_id,),
+    )
+    if not claimed:
+        chk = await exec_sql("SELECT receipt_number FROM public.payment_intents WHERE id = %s", (intent_id,))
+        logger.warning(f"[Matcher] Intent {intent_id} is already settled or being processed. Skipping.")
+        return chk[0].get("receipt_number") or "" if chk else ""
+
+    intent_details = claimed
+
     # 1. Update notification event
     await exec_sql(
         """
@@ -855,13 +887,6 @@ async def associate_candidate(
     )
 
     # 3. Retrieve student and invoice details from intent
-    intent_details = await exec_sql(
-        """
-        SELECT student_id, invoice_id, base_amount_paise, unique_paise, intent_reference
-        FROM public.payment_intents WHERE id = %s
-        """,
-        (intent_id,),
-    )
     student_id = intent_details[0]["student_id"] if intent_details else None
     invoice_id = intent_details[0]["invoice_id"] if intent_details else None
     base_fee_paise = intent_details[0]["base_amount_paise"] if intent_details else amount_paise
@@ -1078,6 +1103,7 @@ async def ingest_notification_batch(req: NotificationBatchRequest, request: Requ
             source_app=ev.source_app,
             masked_sender=ev.masked_sender_identifier,
             notif_timestamp_iso=ev.notification_timestamp,
+            raw_text=ev.raw_text,
         )
 
         results.append({

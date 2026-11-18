@@ -62,6 +62,11 @@ class PaymentNotificationListenerService : NotificationListenerService() {
         dbHelper = PaymentDatabaseHelper.getInstance(this)
         syncManager = SyncManager.getInstance(this)
         parserFactory = NotificationParserFactory(this)
+        backgroundExecutor.execute {
+            try {
+                dbHelper.pruneOldSyncedEvents(olderThanDays = 60)
+            } catch (_: Exception) {}
+        }
         Log.i(TAG, "PaymentNotificationListenerService initialized")
     }
 

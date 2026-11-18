@@ -1088,7 +1088,9 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
   }
 
   void _showQrPreviewDialog(String vpa, String beneficiary, bool isDark) {
-    final sampleUri = 'upi://pay?pa=$vpa&pn=${Uri.encodeComponent(beneficiary)}&cu=INR&tn=Sample%20Fee%20QR';
+    final cleanVpa = vpa.trim().isNotEmpty ? vpa.trim() : 'school@upi';
+    final cleanBeneficiary = beneficiary.trim().isNotEmpty ? beneficiary.trim() : 'EduSHAMIIT Institution';
+    final sampleUri = 'upi://pay?pa=$cleanVpa&pn=${Uri.encodeComponent(cleanBeneficiary)}&cu=INR&tn=Institutional%20Fee%20QR';
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -1105,7 +1107,7 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                 children: [
                   Expanded(
                     child: Text(
-                      'VPA QR Preview: $vpa',
+                      'VPA QR Preview: $cleanVpa',
                       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1118,26 +1120,37 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
               ),
               const SizedBox(height: 16),
               Container(
-                width: 220,
-                height: 220,
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                 ),
-                child: Center(
-                  child: QrImageView(
-                    data: sampleUri,
-                    version: QrVersions.auto,
-                    size: 200,
-                    backgroundColor: Colors.white,
+                child: SizedBox(
+                  width: 190,
+                  height: 190,
+                  child: Center(
+                    child: QrImageView(
+                      data: sampleUri,
+                      version: QrVersions.auto,
+                      size: 190,
+                      backgroundColor: Colors.white,
+                      eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Color(0xFF0F172A)),
+                      dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Color(0xFF0F172A)),
+                      errorStateBuilder: (cxt, err) => Center(
+                        child: Text(
+                          'Unable to render QR: $err',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.red, fontSize: 11),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 14),
               Text(
-                'Beneficiary: $beneficiary',
+                'Beneficiary: $cleanBeneficiary',
                 style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                 textAlign: TextAlign.center,
               ),

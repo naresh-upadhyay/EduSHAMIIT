@@ -2725,10 +2725,61 @@ async def submit_intent_utr(
     await exec_sql(
         """
         UPDATE public.payment_intents
-        SET utr_number = %s, status = 'PENDING_MANUAL_VERIFICATION', updated_at = NOW()
+        SET utr_number = %s, updated_at = NOW()
         WHERE id = %s::UUID AND school_id = %s::UUID;
         """,
         (utr, iid, school_id),
+        fetch=False
+    )
+
+    # Check if a matching notification event with this exact UTR is already in the database
+    matching_events = await exec_sql(
+        """
+        SELECT id, event_uuid, amount_paise, source_app, sender_name, masked_sender_identifier, notification_timestamp
+        FROM public.payment_notification_events
+        WHERE school_id = %s::UUID AND (
+            transaction_reference = %s 
+            OR transaction_reference ILIKE '%%' || %s || '%%'
+            OR %s ILIKE '%%' || transaction_reference || '%%'
+        ) AND candidate_match_status != 'MATCHED_CANDIDATE'
+        ORDER BY notification_timestamp DESC LIMIT 1;
+        """,
+        (school_id, utr, utr, utr)
+    )
+
+    if matching_events:
+        ev = matching_events[0]
+        try:
+            from app.api.payment_bridge import associate_candidate
+            ts_str = ev["notification_timestamp"].isoformat() if hasattr(ev["notification_timestamp"], "isoformat") else str(ev["notification_timestamp"])
+            receipt_num = await associate_candidate(
+                event_id=str(ev["id"]),
+                intent_id=iid,
+                school_id=str(school_id),
+                rule="EXACT_UTR_MANUAL_SUBMISSION",
+                amount_paise=int(ev["amount_paise"]),
+                reference=utr,
+                source_app=ev.get("source_app") or "UPI",
+                masked_sender=ev.get("masked_sender_identifier"),
+                notif_timestamp_iso=ts_str,
+            )
+            return {
+                "success": True,
+                "auto_verified": True,
+                "receipt_number": receipt_num,
+                "message": f"Payment successfully verified against UTR {utr}! Official receipt #{receipt_num} issued.",
+            }
+        except Exception as err:
+            logger.error(f"[SubmitUTR] Auto-settlement failed: {err}")
+
+    # Fallback to manual verification queue
+    await exec_sql(
+        """
+        UPDATE public.payment_intents
+        SET status = 'PENDING_MANUAL_VERIFICATION', updated_at = NOW()
+        WHERE id = %s::UUID AND school_id = %s::UUID;
+        """,
+        (iid, school_id),
         fetch=False
     )
 
@@ -2747,6 +2798,7 @@ async def submit_intent_utr(
 
     return {
         "success": True,
+        "auto_verified": False,
         "message": "UTR reference submitted successfully. Our finance department will verify and update your balance. If amount was debited, your funds are safe; duplicate deductions are refunded to source within 7 business days."
     }
 

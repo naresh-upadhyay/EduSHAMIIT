@@ -102,21 +102,35 @@ class PaymentDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABA
         val db = readableDatabase
         val timeThreshold = (System.currentTimeMillis() / 1000) - (windowMinutes * 60)
 
-        val cursor = if (reference != null && reference.isNotEmpty()) {
+        val cursor = if (!reference.isNullOrBlank()) {
             db.rawQuery(
                 "SELECT 1 FROM $TABLE_EVENTS WHERE $COL_REF = ? AND $COL_AMOUNT_PAISE = ? AND $COL_CREATED_AT >= ?",
                 arrayOf(reference, amountPaise.toString(), timeThreshold.toString())
             )
         } else {
+            // When reference is not yet parsed, use a strict 30-second window to prevent
+            // blocking distinct students paying the same tuition fee simultaneously at the counter!
+            val shortThreshold = (System.currentTimeMillis() / 1000) - 30
             db.rawQuery(
                 "SELECT 1 FROM $TABLE_EVENTS WHERE $COL_AMOUNT_PAISE = ? AND $COL_CREATED_AT >= ?",
-                arrayOf(amountPaise.toString(), timeThreshold.toString())
+                arrayOf(amountPaise.toString(), shortThreshold.toString())
             )
         }
 
         val hasDup = cursor.count > 0
         cursor.close()
         return hasDup
+    }
+
+    /**
+     * Periodically prunes synced events older than [olderThanDays] days to keep local SQLite storage lean.
+     */
+    fun pruneOldSyncedEvents(olderThanDays: Int = 60) {
+        try {
+            val db = writableDatabase
+            val threshold = (System.currentTimeMillis() / 1000) - (olderThanDays * 86400L)
+            db.delete(TABLE_EVENTS, "$COL_IS_SYNCED = 1 AND $COL_CREATED_AT < ?", arrayOf(threshold.toString()))
+        } catch (_: Exception) {}
     }
 
     fun getPendingEvents(limit: Int = 50): List<PaymentNotificationEvent> {
