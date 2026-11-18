@@ -12,6 +12,7 @@ class PaymentDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABA
         const val DATABASE_NAME = "edushamiit_payment_bridge.db"
         const val DATABASE_VERSION = 1
         const val TABLE_EVENTS = "payment_events"
+        const val TABLE_RAW_NOTIFICATIONS = "raw_notifications"
 
         const val COL_UUID = "event_uuid"
         const val COL_PACKAGE = "source_package"
@@ -30,6 +31,20 @@ class PaymentDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABA
         const val COL_IS_SYNCED = "is_synced"
         const val COL_RETRY_COUNT = "retry_count"
         const val COL_CREATED_AT = "created_at"
+
+        // Raw notification table columns
+        const val COL_RAW_ID = "id"
+        const val COL_RAW_PKG = "package_name"
+        const val COL_RAW_APP_NAME = "app_name"
+        const val COL_NOTIF_TITLE = "title"
+        const val COL_NOTIF_CONTENT = "content"
+        const val COL_RAW_POST_TIME = "post_time"
+        const val COL_RAW_PARSED_STATUS = "parsed_status"
+        const val COL_RAW_AMOUNT_PAISE = "amount_paise"
+        const val COL_RAW_SENDER = "sender_name"
+        const val COL_RAW_REF = "reference"
+        const val COL_RAW_BANK = "bank_name"
+        const val COL_RAW_CREATED_AT = "created_at"
 
         @Volatile
         private var instance: PaymentDatabaseHelper? = null
@@ -67,10 +82,39 @@ class PaymentDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABA
         )
         db.execSQL("CREATE INDEX idx_events_synced ON $TABLE_EVENTS ($COL_IS_SYNCED)")
         db.execSQL("CREATE INDEX idx_events_ref ON $TABLE_EVENTS ($COL_REF)")
+
+        createRawTable(db)
+    }
+
+    private fun createRawTable(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS $TABLE_RAW_NOTIFICATIONS (
+                $COL_RAW_ID TEXT PRIMARY KEY,
+                $COL_RAW_PKG TEXT NOT NULL,
+                $COL_RAW_APP_NAME TEXT NOT NULL,
+                $COL_NOTIF_TITLE TEXT,
+                $COL_NOTIF_CONTENT TEXT,
+                $COL_RAW_POST_TIME INTEGER NOT NULL,
+                $COL_RAW_PARSED_STATUS TEXT NOT NULL,
+                $COL_RAW_AMOUNT_PAISE INTEGER DEFAULT 0,
+                $COL_RAW_SENDER TEXT,
+                $COL_RAW_REF TEXT,
+                $COL_RAW_BANK TEXT,
+                $COL_RAW_CREATED_AT INTEGER DEFAULT (strftime('%s', 'now'))
+            )
+            """
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_raw_notif_time ON $TABLE_RAW_NOTIFICATIONS ($COL_RAW_CREATED_AT DESC)")
+    }
+
+    override fun onOpen(db: SQLiteDatabase) {
+        super.onOpen(db)
+        createRawTable(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Migration logic for future database versions
+        createRawTable(db)
     }
 
     fun insertEvent(event: PaymentNotificationEvent): Boolean {
@@ -234,5 +278,106 @@ class PaymentDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABA
         }
         cursor.close()
         return count
+    }
+
+    // ==========================================
+    // RAW NOTIFICATIONS LOGGING & QUERYING
+    // ==========================================
+
+    fun insertRawNotification(
+        id: String,
+        packageName: String,
+        appName: String,
+        title: String?,
+        content: String?,
+        postTime: Long,
+        parsedStatus: String,
+        amountPaise: Long = 0,
+        senderName: String? = null,
+        reference: String? = null,
+        bankName: String? = null
+    ): Boolean {
+        return try {
+            val db = writableDatabase
+            createRawTable(db)
+            val cv = ContentValues().apply {
+                put(COL_RAW_ID, id)
+                put(COL_RAW_PKG, packageName)
+                put(COL_RAW_APP_NAME, appName)
+                put(COL_NOTIF_TITLE, title)
+                put(COL_NOTIF_CONTENT, content)
+                put(COL_RAW_POST_TIME, postTime)
+                put(COL_RAW_PARSED_STATUS, parsedStatus)
+                put(COL_RAW_AMOUNT_PAISE, amountPaise)
+                put(COL_RAW_SENDER, senderName)
+                put(COL_RAW_REF, reference)
+                put(COL_RAW_BANK, bankName)
+            }
+            db.insertWithOnConflict(TABLE_RAW_NOTIFICATIONS, null, cv, SQLiteDatabase.CONFLICT_REPLACE) != -1L
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun updateRawNotificationStatus(
+        id: String,
+        parsedStatus: String,
+        amountPaise: Long,
+        senderName: String?,
+        reference: String?,
+        bankName: String?
+    ): Boolean {
+        return try {
+            val db = writableDatabase
+            val cv = ContentValues().apply {
+                put(COL_RAW_PARSED_STATUS, parsedStatus)
+                put(COL_RAW_AMOUNT_PAISE, amountPaise)
+                put(COL_RAW_SENDER, senderName)
+                put(COL_RAW_REF, reference)
+                put(COL_RAW_BANK, bankName)
+            }
+            db.update(TABLE_RAW_NOTIFICATIONS, cv, "$COL_RAW_ID = ?", arrayOf(id)) > 0
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun getRawNotifications(limit: Int = 100): List<Map<String, Any?>> {
+        val list = mutableListOf<Map<String, Any?>>()
+        try {
+            val db = readableDatabase
+            createRawTable(db)
+            val cursor = db.rawQuery(
+                "SELECT * FROM $TABLE_RAW_NOTIFICATIONS ORDER BY $COL_RAW_CREATED_AT DESC, $COL_RAW_POST_TIME DESC LIMIT ?",
+                arrayOf(limit.toString())
+            )
+            while (cursor.moveToNext()) {
+                val map = mutableMapOf<String, Any?>()
+                map["id"] = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_ID))
+                map["package_name"] = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_PKG))
+                map["app_name"] = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_APP_NAME))
+                map["title"] = cursor.getString(cursor.getColumnIndexOrThrow(COL_NOTIF_TITLE))
+                map["content"] = cursor.getString(cursor.getColumnIndexOrThrow(COL_NOTIF_CONTENT))
+                map["post_time"] = cursor.getLong(cursor.getColumnIndexOrThrow(COL_RAW_POST_TIME))
+                map["parsed_status"] = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_PARSED_STATUS))
+                map["amount_paise"] = cursor.getLong(cursor.getColumnIndexOrThrow(COL_RAW_AMOUNT_PAISE))
+                map["sender_name"] = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_SENDER))
+                map["reference"] = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_REF))
+                map["bank_name"] = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_BANK))
+                map["created_at"] = cursor.getLong(cursor.getColumnIndexOrThrow(COL_RAW_CREATED_AT))
+                list.add(map)
+            }
+            cursor.close()
+        } catch (e: Exception) {}
+        return list
+    }
+
+    fun clearRawNotifications(): Boolean {
+        return try {
+            val db = writableDatabase
+            db.delete(TABLE_RAW_NOTIFICATIONS, null, null) >= 0
+        } catch (e: Exception) {
+            false
+        }
     }
 }

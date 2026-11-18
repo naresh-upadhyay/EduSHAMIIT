@@ -355,5 +355,43 @@ void main() {
         expect(find.byType(DeviceBulkOperationsSubview), findsOneWidget);
       }
     });
+
+    testWidgets('Strict cascading and deduplication: Floor dropdown shows All Floors when All Buildings is selected', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 900));
+      await tester.pumpWidget(buildTestHarness());
+      await tester.pumpAndSettle();
+
+      // Check initial state
+      expect(find.text('All Buildings'), findsOneWidget);
+      expect(find.text('All Floors'), findsOneWidget);
+      expect(find.text('All Rooms'), findsOneWidget);
+
+      // Verify no DropdownButton assertion errors occurred
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Multi-selection toolbar operations (Turn ON, Turn OFF, Clear All)', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1200));
+      await tester.pumpWidget(buildTestHarness(height: 1200));
+      await tester.pumpAndSettle();
+
+      // Check toolbar buttons are visible when 4 devices are selected
+      expect(find.text('4 target devices selected'), findsOneWidget);
+      expect(find.text('Turn ON'), findsWidgets);
+      expect(find.text('Turn OFF'), findsWidgets);
+      expect(find.text('Toggle'), findsOneWidget);
+      expect(find.text('Apply Profile'), findsWidgets);
+      expect(find.text('Run Scene'), findsWidgets);
+      expect(find.text('Clear All'), findsOneWidget);
+
+      // Tap Clear All
+      await tester.ensureVisible(find.text('Clear All'));
+      await tester.tap(find.text('Clear All'));
+      await tester.pumpAndSettle();
+
+      // Multi-selection toolbar is hidden when 0 devices are selected
+      expect(find.text('4 target devices selected'), findsNothing);
+      expect(find.text('Clear All'), findsNothing);
+    });
   });
 }

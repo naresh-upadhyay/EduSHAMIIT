@@ -373,50 +373,67 @@ class _DeviceBulkOperationsSubviewState
     _fetchTargetDevices();
   }
 
-  List<String> get _buildingDropdownItems => [
-        'All Buildings',
-        ..._buildingsList
-            .map((b) => b['name']?.toString() ?? '')
-            .where((s) => s.isNotEmpty)
-      ];
+  List<String> get _buildingDropdownItems {
+    final set = <String>{'All Buildings'};
+    for (final b in _buildingsList) {
+      final name = b['name']?.toString().trim() ?? '';
+      if (name.isNotEmpty) set.add(name);
+    }
+    return set.toList();
+  }
 
-  List<String> get _floorDropdownItems => [
-        'All Floors',
-        ..._floorsList
-            .map((f) => f['name']?.toString() ?? '')
-            .where((s) => s.isNotEmpty)
-      ];
+  List<String> get _floorDropdownItems {
+    final set = <String>{'All Floors'};
+    // Cascading rule: show floors only if a specific building is selected
+    if (_selectedBuilding != 'All Buildings' && _selectedBuildingId != null) {
+      for (final f in _floorsList) {
+        final name = f['name']?.toString().trim() ?? '';
+        if (name.isNotEmpty) set.add(name);
+      }
+    }
+    return set.toList();
+  }
 
-  List<String> get _roomDropdownItems => [
-        'All Rooms',
-        ..._roomsList
-            .map((r) => r['name']?.toString() ?? '')
-            .where((s) => s.isNotEmpty)
-      ];
+  List<String> get _roomDropdownItems {
+    final set = <String>{'All Rooms'};
+    // Cascading rule: show rooms only if a specific building is selected
+    if (_selectedBuilding != 'All Buildings' && _selectedBuildingId != null) {
+      for (final r in _roomsList) {
+        final name = r['name']?.toString().trim() ?? '';
+        if (name.isNotEmpty) set.add(name);
+      }
+    }
+    return set.toList();
+  }
 
-  List<String> get _deviceTypeDropdownItems => [
-        'All Types',
-        ..._deviceTypesList
-            .map((d) => d['name']?.toString() ?? '')
-            .where((s) => s.isNotEmpty)
-      ];
+  List<String> get _deviceTypeDropdownItems {
+    final set = <String>{'All Types'};
+    for (final d in _deviceTypesList) {
+      final name = d['name']?.toString().trim() ?? '';
+      if (name.isNotEmpty) set.add(name);
+    }
+    return set.toList();
+  }
 
   List<String> get _statusDropdownItems =>
       const ['All Status', 'Online', 'Offline'];
 
-  List<String> get _profileDropdownItems => [
-        'All Profiles',
-        ..._profilesList
-            .map((p) => p['name']?.toString() ?? '')
-            .where((s) => s.isNotEmpty)
-      ];
+  List<String> get _profileDropdownItems {
+    final set = <String>{'All Profiles'};
+    for (final p in _profilesList) {
+      final name = p['name']?.toString().trim() ?? '';
+      if (name.isNotEmpty) set.add(name);
+    }
+    return set.toList();
+  }
 
   List<String> get _groupDropdownItems {
-    final list = _groupsList
-        .map((g) => g['name']?.toString() ?? '')
-        .where((s) => s.isNotEmpty)
-        .toList();
-    if (list.isEmpty) {
+    final set = <String>{};
+    for (final g in _groupsList) {
+      final name = g['name']?.toString().trim() ?? '';
+      if (name.isNotEmpty) set.add(name);
+    }
+    if (set.isEmpty) {
       return const [
         'Classroom A1 AV Group',
         'Academic Block Lighting Core',
@@ -426,15 +443,16 @@ class _DeviceBulkOperationsSubviewState
         'Auditorium Multimedia Rack',
       ];
     }
-    return list;
+    return set.toList();
   }
 
   List<String> get _targetProfileDropdownItems {
-    final list = _profilesList
-        .map((p) => p['name']?.toString() ?? '')
-        .where((s) => s.isNotEmpty)
-        .toList();
-    if (list.isEmpty) {
+    final set = <String>{};
+    for (final p in _profilesList) {
+      final name = p['name']?.toString().trim() ?? '';
+      if (name.isNotEmpty) set.add(name);
+    }
+    if (set.isEmpty) {
       return const [
         'Default Classroom Standard',
         'Energy Saver Profile',
@@ -443,15 +461,16 @@ class _DeviceBulkOperationsSubviewState
         'Night / Lockdown Profile',
       ];
     }
-    return list;
+    return set.toList();
   }
 
   List<String> get _sceneDropdownItems {
-    final list = _scenesList
-        .map((s) => s['name']?.toString() ?? '')
-        .where((s) => s.isNotEmpty)
-        .toList();
-    if (list.isEmpty) {
+    final set = <String>{};
+    for (final s in _scenesList) {
+      final name = s['name']?.toString().trim() ?? '';
+      if (name.isNotEmpty) set.add(name);
+    }
+    if (set.isEmpty) {
       return const [
         'Morning Campus Startup',
         'Class In Session Mode',
@@ -461,7 +480,7 @@ class _DeviceBulkOperationsSubviewState
         'Campus Night Lockdown',
       ];
     }
-    return list;
+    return set.toList();
   }
 
   void _seedFallbackData() {
@@ -657,6 +676,53 @@ class _DeviceBulkOperationsSubviewState
         icon: 'lightbulb_outline',
         color: '#EAB308',
       ),
+    ];
+
+    _buildingsList = [
+      {'id': 'b-1', 'name': 'Academic Block (A)', 'code': 'B1'},
+      {'id': 'b-2', 'name': 'Science Block (B)', 'code': 'B2'},
+      {'id': 'b-3', 'name': 'Admin Block', 'code': 'B3'},
+      {'id': 'b-4', 'name': 'Auditorium Block', 'code': 'B4'},
+      {'id': 'b-5', 'name': 'Library Block', 'code': 'B5'},
+      {'id': 'b-6', 'name': 'Sports Complex', 'code': 'B6'},
+    ];
+    _floorsList = [
+      {'id': 'f-1', 'name': 'Ground Floor', 'building_id': 'b-1'},
+      {'id': 'f-2', 'name': 'First Floor', 'building_id': 'b-1'},
+      {'id': 'f-3', 'name': 'Second Floor', 'building_id': 'b-1'},
+      {'id': 'f-4', 'name': 'Third Floor', 'building_id': 'b-1'},
+    ];
+    _roomsList = [
+      {'id': 'r-1', 'name': 'Room A1-101', 'floor_id': 'f-1', 'building_id': 'b-1'},
+      {'id': 'r-2', 'name': 'Room A1-102', 'floor_id': 'f-1', 'building_id': 'b-1'},
+      {'id': 'r-3', 'name': 'Room A1-103', 'floor_id': 'f-1', 'building_id': 'b-1'},
+      {'id': 'r-4', 'name': 'Room A1-104', 'floor_id': 'f-1', 'building_id': 'b-1'},
+    ];
+    _deviceTypesList = [
+      {'id': 'dt-1', 'name': 'Lighting', 'code': 'lighting'},
+      {'id': 'dt-2', 'name': 'HVAC (AC)', 'code': 'hvac'},
+      {'id': 'dt-3', 'name': 'Projector', 'code': 'projector'},
+      {'id': 'dt-4', 'name': 'CCTV', 'code': 'cctv_camera'},
+      {'id': 'dt-5', 'name': 'Fan', 'code': 'fan'},
+      {'id': 'dt-6', 'name': 'Smart Plug', 'code': 'smart_plug'},
+    ];
+    _profilesList = [
+      {'id': 'p-1', 'name': 'Classroom Lighting (Block A)'},
+      {'id': 'p-2', 'name': 'Eco Air Conditioning (24°C)'},
+      {'id': 'p-3', 'name': 'Night Energy Shutdown'},
+      {'id': 'p-4', 'name': 'Examination Silence Profile'},
+    ];
+    _groupsList = [
+      {'id': 'g-1', 'name': 'Classroom Lights'},
+      {'id': 'g-2', 'name': 'Academic AC Units'},
+      {'id': 'g-3', 'name': 'Corridor Security CCTVs'},
+      {'id': 'g-4', 'name': 'Auditorium AV Group'},
+    ];
+    _scenesList = [
+      {'id': 's-1', 'name': 'Morning Campus Startup'},
+      {'id': 's-2', 'name': 'Night Shutdown'},
+      {'id': 's-3', 'name': 'Classroom Mode'},
+      {'id': 's-4', 'name': 'Examination Mode'},
     ];
   }
 
@@ -1926,6 +1992,22 @@ class _DeviceBulkOperationsSubviewState
     required ValueChanged<String?> onChanged,
     required bool isDark,
   }) {
+    // 1. Strict deduplication preserving insertion order
+    final uniqueItems = <String>[];
+    for (final it in items) {
+      final trimmed = it.trim();
+      if (trimmed.isNotEmpty && !uniqueItems.contains(trimmed)) {
+        uniqueItems.add(trimmed);
+      }
+    }
+    if (uniqueItems.isEmpty) {
+      uniqueItems.add(value.trim().isNotEmpty ? value.trim() : label);
+    }
+    // 2. Safe effective value resolution
+    final effectiveValue = uniqueItems.contains(value.trim())
+        ? value.trim()
+        : uniqueItems.first;
+
     return Container(
       height: 34,
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1937,9 +2019,7 @@ class _DeviceBulkOperationsSubviewState
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: items.contains(value)
-              ? value
-              : (items.isNotEmpty ? items.first : null),
+          value: effectiveValue,
           isDense: true,
           isExpanded: true,
           icon: const Icon(Icons.arrow_drop_down, size: 18),
@@ -1948,11 +2028,15 @@ class _DeviceBulkOperationsSubviewState
             fontSize: 11,
             color: isDark ? Colors.white : const Color(0xFF0F172A),
           ),
-          items: items
-              .map((e) => DropdownMenuItem(
+          items: uniqueItems
+              .map((e) => DropdownMenuItem<String>(
                   value: e, child: Text(e, overflow: TextOverflow.ellipsis)))
               .toList(),
-          onChanged: onChanged,
+          onChanged: (val) {
+            if (val != null) {
+              onChanged(val);
+            }
+          },
         ),
       ),
     );
@@ -2204,7 +2288,17 @@ class _DeviceBulkOperationsSubviewState
   }
 
   void _showApplyProfileDialog() {
-    String selectedProf = _targetProfileDropdownItems.first;
+    final profileItems = _targetProfileDropdownItems;
+    final uniqueProfiles = <String>[];
+    for (final p in profileItems) {
+      final trimmed = p.trim();
+      if (trimmed.isNotEmpty && !uniqueProfiles.contains(trimmed)) {
+        uniqueProfiles.add(trimmed);
+      }
+    }
+    if (uniqueProfiles.isEmpty) uniqueProfiles.add('Default Profile');
+    String selectedProf = uniqueProfiles.first;
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -2217,15 +2311,19 @@ class _DeviceBulkOperationsSubviewState
               Text('Target devices: ${_selectedDeviceIds.length}'),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                initialValue: selectedProf,
+                value: selectedProf,
                 decoration: const InputDecoration(
                   labelText: 'Select Profile',
                   border: OutlineInputBorder(),
                 ),
-                items: _targetProfileDropdownItems
+                items: uniqueProfiles
                     .map((p) => DropdownMenuItem(value: p, child: Text(p)))
                     .toList(),
-                onChanged: (v) => setDlgState(() => selectedProf = v!),
+                onChanged: (v) {
+                  if (v != null) {
+                    setDlgState(() => selectedProf = v);
+                  }
+                },
               ),
             ],
           ),
@@ -2249,7 +2347,17 @@ class _DeviceBulkOperationsSubviewState
   }
 
   void _showSetSceneDialog() {
-    String selectedScn = _sceneDropdownItems.first;
+    final sceneItems = _sceneDropdownItems;
+    final uniqueScenes = <String>[];
+    for (final s in sceneItems) {
+      final trimmed = s.trim();
+      if (trimmed.isNotEmpty && !uniqueScenes.contains(trimmed)) {
+        uniqueScenes.add(trimmed);
+      }
+    }
+    if (uniqueScenes.isEmpty) uniqueScenes.add('Morning Campus Startup');
+    String selectedScn = uniqueScenes.first;
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -2262,15 +2370,19 @@ class _DeviceBulkOperationsSubviewState
               Text('Target devices: ${_selectedDeviceIds.length}'),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                initialValue: selectedScn,
+                value: selectedScn,
                 decoration: const InputDecoration(
                   labelText: 'Select Scene',
                   border: OutlineInputBorder(),
                 ),
-                items: _sceneDropdownItems
+                items: uniqueScenes
                     .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                     .toList(),
-                onChanged: (v) => setDlgState(() => selectedScn = v!),
+                onChanged: (v) {
+                  if (v != null) {
+                    setDlgState(() => selectedScn = v);
+                  }
+                },
               ),
             ],
           ),
@@ -5210,12 +5322,13 @@ class _CreateBulkOperationWizardDialogState
                         Uri.parse('${widget.apiBaseUrl}/bulk-operations'),
                         headers: {'Content-Type': 'application/json'},
                         body: jsonEncode({
-                          'operation_name': _nameController.text.trim(),
+                          'name': _nameController.text.trim(),
                           'operation_type': _opType,
                           'target_type': 'devices',
-                          'target_filter': {},
+                          'target_configuration': {},
                           'action_configuration': {'action': _opType},
-                          'execution_mode': 'immediate',
+                          'execution_configuration': {'mode': 'immediate'},
+                          'execute_now': true,
                         }),
                       );
                       widget.onOperationCreated();

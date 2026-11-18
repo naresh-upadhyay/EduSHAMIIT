@@ -516,5 +516,56 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Scenes & Presets'), findsWidgets);
     });
+
+    testWidgets('Multi-Selection: Checking row checkbox shows multi-selection toolbar with all operations', (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(createWidgetUnderTest());
+      await tester.pumpAndSettle();
+
+      // Before checking: multi-selection action bar is not visible
+      expect(find.text('Activate Selected'), findsNothing);
+      expect(find.text('Deactivate Selected'), findsNothing);
+      expect(find.text('Trigger All'), findsNothing);
+      expect(find.text('Delete Selected'), findsNothing);
+
+      // Find row checkboxes (index 0 is header checkbox, index 1 is first row checkbox)
+      final checkboxes = find.byType(Checkbox);
+      expect(checkboxes, findsAtLeastNWidgets(2));
+
+      // Tap first row checkbox
+      await tester.tap(checkboxes.at(1));
+      await tester.pumpAndSettle();
+
+      // Action bar now visible
+      expect(find.text('1 scene/preset selected'), findsOneWidget);
+      expect(find.text('Activate Selected'), findsOneWidget);
+      expect(find.text('Deactivate Selected'), findsOneWidget);
+      expect(find.text('Trigger All'), findsOneWidget);
+      expect(find.text('Delete Selected'), findsOneWidget);
+      expect(find.text('Clear All'), findsOneWidget);
+
+      // Tap Clear All
+      await tester.tap(find.text('Clear All'));
+      await tester.pumpAndSettle();
+
+      // Action bar hides
+      expect(find.text('1 scene/preset selected'), findsNothing);
+      expect(find.text('Activate Selected'), findsNothing);
+    });
+
+    testWidgets('Zero double checkboxes and zero double ++ on Scenes & Presets screen', (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(createWidgetUnderTest());
+      await tester.pumpAndSettle();
+
+      expect(find.text('+ +'), findsNothing);
+      expect(find.text('++'), findsNothing);
+    });
   });
 }

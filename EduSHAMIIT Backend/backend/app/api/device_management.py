@@ -376,6 +376,16 @@ class ScheduleRunNowRequest(BaseModel):
     action_override: Optional[str] = None
 
 
+class BulkDeviceScheduleActionRequest(BaseModel):
+    schedule_ids: List[str]
+    action: str  # activate, pause, delete, run_now
+
+
+class BulkDeviceSceneActionRequest(BaseModel):
+    scene_ids: List[str]
+    action: str  # activate, deactivate, delete, run_now
+
+
 class CreateScenePresetRequest(BaseModel):
     name: str
     scene_code: Optional[str] = None
@@ -2096,65 +2106,20 @@ async def get_schedules_overview(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     """
-    Get top KPI cards for Schedules:
-    - Total Schedules: 276
-    - Active: 192 (69.6%)
-    - Paused: 8 (2.9%)
-    - Upcoming Next 24h: 34
-    - Executed Today: 428
-    - Failed / Skipped: 6
+    Get dynamic KPI cards for Schedules via Stored Function fn_device_schedules_kpis:
+    - Total Schedules, Active, Paused, Upcoming Next 24h, Executed Today, Failed/Skipped, Completed
     """
     sid = resolve_school_id(school_id, current_user)
     try:
-        rows = await exec_sql("""
-            SELECT
-                COUNT(*) AS total_schedules,
-                COUNT(*) FILTER (WHERE status = 'active' OR is_active = true) AS active_schedules,
-                COUNT(*) FILTER (WHERE status = 'paused' OR is_active = false) AS paused_schedules
-            FROM public.device_schedules
-            WHERE school_id = %s;
-        """, (sid,))
-
-        actual_total = int(rows[0]["total_schedules"]) if rows else 0
-        actual_active = int(rows[0]["active_schedules"]) if rows else 0
-        actual_paused = int(rows[0]["paused_schedules"]) if rows else 0
-
-        total_count = max(actual_total, 276)
-        active_count = max(actual_active, 192)
-        paused_count = max(actual_paused, 8)
-        active_pct = round((active_count / total_count * 100), 1) if total_count > 0 else 69.6
-        paused_pct = round((paused_count / total_count * 100), 1) if total_count > 0 else 2.9
-
+        rows = await exec_sql("SELECT public.fn_device_schedules_kpis(%s::UUID) AS kpis;", (sid,))
+        kpis = rows[0]["kpis"] if rows and rows[0].get("kpis") else {}
         return {
             "success": True,
-            "kpis": {
-                "total_schedules": total_count,
-                "active_schedules": active_count,
-                "active_percentage": active_pct,
-                "paused_schedules": paused_count,
-                "paused_percentage": paused_pct,
-                "upcoming_24h": 34,
-                "executed_today": 428,
-                "failed_skipped": 6,
-                "completed_count": 2318
-            }
+            "kpis": kpis
         }
     except Exception as e:
         logger.error(f"[Schedules Overview Error]: {e}")
-        return {
-            "success": True,
-            "kpis": {
-                "total_schedules": 276,
-                "active_schedules": 192,
-                "active_percentage": 69.6,
-                "paused_schedules": 8,
-                "paused_percentage": 2.9,
-                "upcoming_24h": 34,
-                "executed_today": 428,
-                "failed_skipped": 6,
-                "completed_count": 2318
-            }
-        }
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/schedules/executions")
@@ -2226,63 +2191,58 @@ async def list_schedules(
     target_type: Optional[str] = Query(None),
     operation_type: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
-    limit: int = Query(100),
-    offset: int = Query(0),
+    sort_by: Optional[str] = Query("created_at"),
+    sort_dir: Optional[str] = Query("desc"),
+    page: int = Query(1),
+    page_size: int = Query(10),
+    limit: Optional[int] = Query(None),
+    offset: Optional[int] = Query(None),
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """List schedules with full search, category, and status filters."""
+    """List schedules with full search, category, status filters, sorting, and pagination via Stored Function fn_list_device_schedules."""
     sid = resolve_school_id(school_id, current_user)
+    p_size = limit if limit is not None else page_size
+    p_page = ((offset or 0) // p_size) + 1 if offset is not None and p_size > 0 else page
     try:
-        where_clauses = ["school_id = %s"]
-        params = [sid]
-
-        if status and status.lower() not in ("all", ""):
-            st = status.lower()
-            if st == "active":
-                where_clauses.append("(status = 'active' OR is_active = true)")
-            elif st == "paused":
-                where_clauses.append("(status = 'paused' OR is_active = false)")
-            elif st == "upcoming":
-                where_clauses.append("next_run_at >= now()")
-            elif st == "completed":
-                where_clauses.append("status = 'completed'")
-            else:
-                where_clauses.append("status = %s")
-                params.append(status)
-
-        if target_type and target_type.lower() not in ("all", "all targets", ""):
-            where_clauses.append("LOWER(target_type) = %s")
-            params.append(target_type.lower())
-
-        if operation_type and operation_type.lower() not in ("all", "all operations", ""):
-            where_clauses.append("LOWER(operation_type) = %s")
-            params.append(operation_type.lower())
-
-        if search and search.strip():
-            where_clauses.append("(name ILIKE %s OR description ILIKE %s OR schedule_code ILIKE %s OR target_name ILIKE %s)")
-            kw = f"%{search.strip()}%"
-            params.extend([kw, kw, kw, kw])
-
-        where_sql = " AND ".join(where_clauses)
-        count_rows = await exec_sql(f"SELECT COUNT(*) AS total FROM public.device_schedules WHERE {where_sql};", tuple(params))
-        total = int(count_rows[0]["total"]) if count_rows else 0
-
-        params.extend([limit, offset])
-        rows = await exec_sql(f"""
-            SELECT *
-            FROM public.device_schedules
-            WHERE {where_sql}
-            ORDER BY 
-                CASE WHEN schedule_code = 'SCH-000' THEN 1 ELSE 0 END,
-                schedule_code ASC,
-                created_at DESC
-            LIMIT %s OFFSET %s;
-        """, tuple(params))
-
-        return {"success": True, "total": total, "schedules": rows}
+        rows = await exec_sql(
+            "SELECT public.fn_list_device_schedules(%s::UUID, %s, %s, %s, %s, %s, %s, %s, %s) AS result;",
+            (sid, search or None, status or None, target_type or None, operation_type or None, sort_by or 'created_at', sort_dir or 'desc', p_page, p_size)
+        )
+        res = rows[0]["result"] if rows and rows[0].get("result") else {"total": 0, "items": []}
+        items = res.get("items", [])
+        total = res.get("total", 0)
+        return {
+            "success": True,
+            "total": total,
+            "page": res.get("page", p_page),
+            "page_size": res.get("page_size", p_size),
+            "schedules": items,
+            "items": items
+        }
     except Exception as e:
         logger.error(f"[List Schedules Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/schedules/bulk")
+async def bulk_device_schedules_action(
+    req: BulkDeviceScheduleActionRequest,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Perform bulk operations on multiple selected schedules: activate, pause, delete, run_now."""
+    sid = resolve_school_id(school_id, current_user)
+    uname = current_user.get("full_name") or current_user.get("email") if current_user else "Admin"
+    try:
+        rows = await exec_sql(
+            "SELECT public.sp_bulk_device_schedules_action(%s::UUID, %s::UUID[], %s, %s) AS result;",
+            (sid, req.schedule_ids, req.action, uname)
+        )
+        res = rows[0]["result"] if rows and rows[0].get("result") else {"success": True}
+        return {"success": True, "scene": res, **res}
+    except Exception as e:
+        logger.error(f"[Bulk Schedules Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2335,61 +2295,34 @@ async def create_schedule(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Create a new device schedule."""
+    """Create a new device schedule using Stored Procedure sp_create_device_schedule."""
     sid = resolve_school_id(school_id, current_user)
     uname = current_user.get("full_name") or current_user.get("email") if current_user else "Admin"
     try:
-        # Generate next code
-        cnt_rows = await exec_sql("SELECT count(*) + 1 AS next_num FROM public.device_schedules WHERE school_id = %s;", (sid,))
-        next_num = int(cnt_rows[0]["next_num"]) if cnt_rows else 1
-        code = f"SCH-{next_num:03d}"
-
-        target_json = json.dumps(req.target_ids or [])
-        action_json = json.dumps(req.action_payload or {})
-
-        sql = """
-            INSERT INTO public.device_schedules (
-                school_id, schedule_code, name, description,
-                target_type, target_name, target_ids, target_count,
-                operation_type, operation_value,
-                recurrence_type, recurrence_label, time_window_label, validity_label,
-                start_time, end_time, days_of_week, action_payload,
-                status, is_active, created_by_name, next_run_at
-            ) VALUES (
-                %s, %s, %s, %s,
-                %s, %s, %s::JSONB, %s,
-                %s, %s,
-                %s, %s, %s, %s,
-                %s::TIME, %s::TIME, %s, %s::JSONB,
-                'active', true, %s, now() + INTERVAL '12 hours'
-            ) RETURNING *;
-        """
-        rows = await exec_sql(sql, (
-            sid, code, req.name, req.description,
-            req.target_type, req.target_name or req.name, target_json, req.target_count or 1,
-            req.operation_type, req.operation_value or "ON/OFF",
-            req.recurrence_type, req.recurrence_label or "Daily (Every day)",
-            req.time_window_label or "07:00 AM - 06:00 PM", req.validity_label or "01 Jan 2025 - No End Date",
-            req.start_time or "07:00", req.end_time or "18:00", req.days_of_week or [1, 2, 3, 4, 5], action_json,
-            uname
-        ))
-
-        new_sched = rows[0]
-        new_id = new_sched["id"]
-
-        # Insert 2 initial timeline projection events
-        await exec_sql("""
-            INSERT INTO public.device_schedule_timeline_events (
-                school_id, schedule_id, event_title, action_type, scheduled_time, target_summary
-            ) VALUES
-            (%s, %s, %s, %s, now() + INTERVAL '1 day', %s),
-            (%s, %s, %s, %s, now() + INTERVAL '2 days', %s);
-        """, (
-            sid, new_id, f"{req.name} - Turn ON", "turn_on", new_sched.get("target_name"),
-            sid, new_id, f"{req.name} - Turn OFF", "turn_off", new_sched.get("target_name")
-        ), fetch=False)
-
-        return {"success": True, "schedule": new_sched}
+        rows = await exec_sql(
+            "SELECT public.sp_create_device_schedule(%s::UUID, %s, %s, %s, %s::JSONB, %s, %s, %s, %s::UUID[], %s, %s, %s, %s, %s::TIME, %s::TIME, %s::INT[], %s) AS result;",
+            (
+                sid,
+                req.name,
+                req.description or None,
+                req.operation_type or "turn_on_off",
+                json.dumps(req.action_payload or {}),
+                req.target_type or "devices",
+                req.target_name or req.name,
+                req.target_count or 1,
+                req.target_ids or [],
+                req.recurrence_type or "daily",
+                req.recurrence_label or "Daily",
+                req.time_window_label or "07:00 AM - 06:00 PM",
+                req.validity_label or "01 Jan 2025 - No End Date",
+                req.start_time or "07:00:00",
+                req.end_time or "18:00:00",
+                req.days_of_week or [1, 2, 3, 4, 5],
+                uname
+            )
+        )
+        res = rows[0]["result"] if rows and rows[0].get("result") else {"success": True}
+        return {"success": True, "scene": res, **res}
     except Exception as e:
         logger.error(f"[Create Schedule Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -2402,86 +2335,22 @@ async def update_schedule(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Update an existing schedule."""
+    """Update an existing schedule using Stored Procedure sp_update_device_schedule."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        set_clauses = ["updated_at = now()"]
-        params = []
-
-        if req.name is not None:
-            set_clauses.append("name = %s")
-            params.append(req.name)
-        if req.description is not None:
-            set_clauses.append("description = %s")
-            params.append(req.description)
-        if req.target_type is not None:
-            set_clauses.append("target_type = %s")
-            params.append(req.target_type)
-        if req.target_name is not None:
-            set_clauses.append("target_name = %s")
-            params.append(req.target_name)
-        if req.target_ids is not None:
-            set_clauses.append("target_ids = %s::JSONB")
-            params.append(json.dumps(req.target_ids))
-        if req.target_count is not None:
-            set_clauses.append("target_count = %s")
-            params.append(req.target_count)
-        if req.operation_type is not None:
-            set_clauses.append("operation_type = %s")
-            params.append(req.operation_type)
-        if req.operation_value is not None:
-            set_clauses.append("operation_value = %s")
-            params.append(req.operation_value)
-        if req.recurrence_type is not None:
-            set_clauses.append("recurrence_type = %s")
-            params.append(req.recurrence_type)
-        if req.recurrence_label is not None:
-            set_clauses.append("recurrence_label = %s")
-            params.append(req.recurrence_label)
-        if req.time_window_label is not None:
-            set_clauses.append("time_window_label = %s")
-            params.append(req.time_window_label)
-        if req.validity_label is not None:
-            set_clauses.append("validity_label = %s")
-            params.append(req.validity_label)
-        if req.start_time is not None:
-            set_clauses.append("start_time = %s::TIME")
-            params.append(req.start_time)
-        if req.end_time is not None:
-            set_clauses.append("end_time = %s::TIME")
-            params.append(req.end_time)
-        if req.days_of_week is not None:
-            set_clauses.append("days_of_week = %s")
-            params.append(req.days_of_week)
-        if req.status is not None:
-            set_clauses.append("status = %s")
-            params.append(req.status)
-            if req.status == "active":
-                set_clauses.append("is_active = true")
-            elif req.status == "paused":
-                set_clauses.append("is_active = false")
-        if req.is_active is not None:
-            set_clauses.append("is_active = %s")
-            params.append(req.is_active)
-            set_clauses.append("status = %s")
-            params.append("active" if req.is_active else "paused")
-        if req.action_payload is not None:
-            set_clauses.append("action_payload = %s::JSONB")
-            params.append(json.dumps(req.action_payload))
-
-        params.extend([schedule_id, sid])
-        sql = f"""
-            UPDATE public.device_schedules
-            SET {", ".join(set_clauses)}
-            WHERE id = %s::UUID AND school_id = %s
-            RETURNING *;
-        """
-        rows = await exec_sql(sql, tuple(params))
-        if not rows:
-            raise HTTPException(status_code=404, detail="Schedule not found")
-        return {"success": True, "schedule": rows[0]}
-    except HTTPException:
-        raise
+        op_val = json.dumps(req.action_payload) if req.action_payload is not None else None
+        rows = await exec_sql(
+            "SELECT public.sp_update_device_schedule(%s::UUID, %s::UUID, %s, %s, %s, %s::JSONB, %s, %s, %s, %s, %s, %s, %s, %s) AS result;",
+            (
+                sid, schedule_id,
+                req.name, req.description, req.operation_type, op_val,
+                req.target_type, req.target_name, req.target_count,
+                req.recurrence_type, req.recurrence_label, req.time_window_label,
+                req.validity_label, req.status
+            )
+        )
+        res = rows[0]["result"] if rows and rows[0].get("result") else {"success": True}
+        return {"success": True, "scene": res, **res}
     except Exception as e:
         logger.error(f"[Update Schedule Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -2493,18 +2362,15 @@ async def delete_schedule(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Delete a schedule and associated records."""
+    """Delete a schedule using Stored Procedure sp_delete_device_schedule."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        # Delete related timeline and executions
-        await exec_sql("DELETE FROM public.device_schedule_timeline_events WHERE schedule_id = %s::UUID;", (schedule_id,), fetch=False)
-        await exec_sql("DELETE FROM public.device_schedule_executions WHERE schedule_id = %s::UUID;", (schedule_id,), fetch=False)
-        rows = await exec_sql("DELETE FROM public.device_schedules WHERE id = %s::UUID AND school_id = %s RETURNING id;", (schedule_id, sid))
-        if not rows:
-            raise HTTPException(status_code=404, detail="Schedule not found")
-        return {"success": True, "deleted_id": schedule_id}
-    except HTTPException:
-        raise
+        rows = await exec_sql(
+            "SELECT public.sp_delete_device_schedule(%s::UUID, %s::UUID) AS result;",
+            (sid, schedule_id)
+        )
+        res = rows[0]["result"] if rows and rows[0].get("result") else {"success": True}
+        return {"success": True, "scene": res, **res}
     except Exception as e:
         logger.error(f"[Delete Schedule Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -2517,7 +2383,7 @@ async def run_schedule_now(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Trigger immediate run of schedule with optional action override (e.g. turn_on, turn_off)."""
+    """Trigger immediate run of schedule with optional action override."""
     uname = current_user.get("full_name") or current_user.get("email") if current_user else "Admin"
     override = req.action_override if req else None
     try:
@@ -2537,11 +2403,12 @@ async def toggle_schedule_pause(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Toggle schedule between active and paused."""
+    """Toggle schedule between active and paused via Stored Procedure sp_toggle_device_schedule."""
+    sid = resolve_school_id(school_id, current_user)
     try:
         rows = await exec_sql(
-            "SELECT public.sp_toggle_device_schedule_pause(%s::UUID) AS result;",
-            (schedule_id,)
+            "SELECT public.sp_toggle_device_schedule(%s::UUID, %s::UUID) AS result;",
+            (sid, schedule_id)
         )
         return rows[0]["result"] if rows else {"success": True}
     except Exception as e:
@@ -2555,11 +2422,12 @@ async def toggle_schedule_legacy(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Legacy toggle schedule active status."""
+    """Legacy toggle schedule active status via Stored Procedure."""
+    sid = resolve_school_id(school_id, current_user)
     try:
         rows = await exec_sql(
-            "SELECT public.sp_toggle_device_schedule_pause(%s::UUID) AS result;",
-            (schedule_id,)
+            "SELECT public.sp_toggle_device_schedule(%s::UUID, %s::UUID) AS result;",
+            (sid, schedule_id)
         )
         res = rows[0]["result"] if rows else {"success": True}
         return {"success": True, "schedule": res}
@@ -5040,130 +4908,20 @@ async def get_scenes_presets_overview(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     """
-    Get top KPI cards and summary statistics for Scenes & Presets:
-    - Total Scenes: 42
-    - Active: 36 (85.7%)
-    - Disabled: 6 (14.3%)
-    - Presets: 118
-    - Used in Automations: 24
-    - Used in Schedules: 37
-    - Popular Scenes List
-    - Usage & Execution Breakdown (Last 30 Days)
+    Get dynamic KPI cards and summary statistics for Scenes & Presets via Stored Function fn_device_scenes_kpis:
+    - Total Scenes, Active, Disabled, Presets, Used in Automations, Used in Schedules, Popular Scenes, Usage Stats
     """
     sid = resolve_school_id(school_id, current_user)
     try:
-        rows = await exec_sql("""
-            SELECT
-                COUNT(*) FILTER (WHERE scene_type = 'scene') AS total_scenes,
-                COUNT(*) FILTER (WHERE scene_type = 'scene' AND (status = 'active' OR is_active = true)) AS active_scenes,
-                COUNT(*) FILTER (WHERE scene_type = 'scene' AND (status = 'disabled' OR is_active = false)) AS disabled_scenes,
-                COUNT(*) FILTER (WHERE scene_type = 'preset') AS total_presets,
-                COALESCE(SUM(used_in_automations_count), 0) AS total_automations_count,
-                COALESCE(SUM(used_in_schedules_count), 0) AS total_schedules_count
-            FROM public.device_scenes
-            WHERE school_id = %s;
-        """, (sid,))
-
-        actual_scenes = int(rows[0]["total_scenes"]) if rows and rows[0]["total_scenes"] is not None else 0
-        actual_active = int(rows[0]["active_scenes"]) if rows and rows[0]["active_scenes"] is not None else 0
-        actual_disabled = int(rows[0]["disabled_scenes"]) if rows and rows[0]["disabled_scenes"] is not None else 0
-        actual_presets = int(rows[0]["total_presets"]) if rows and rows[0]["total_presets"] is not None else 0
-
-        total_scenes = max(actual_scenes, 42)
-        active_scenes = max(actual_active, 36)
-        disabled_scenes = max(actual_disabled, 6)
-        active_pct = round((active_scenes / total_scenes * 100), 1) if total_scenes > 0 else 85.7
-        disabled_pct = round((disabled_scenes / total_scenes * 100), 1) if total_scenes > 0 else 14.3
-        total_presets = max(actual_presets, 118)
-
-        # Popular scenes
-        popular_rows = await exec_sql("""
-            SELECT id, scene_code, name, category, scene_type, target_name, target_count,
-                   location_scope, description, icon, color, status, execution_count
-            FROM public.device_scenes
-            WHERE school_id = %s AND (is_popular = true OR scene_type = 'scene')
-            ORDER BY execution_count DESC, created_at ASC
-            LIMIT 6;
-        """, (sid,))
-
-        popular_scenes = []
-        for r in (popular_rows or []):
-            popular_scenes.append({
-                "id": str(r["id"]),
-                "scene_code": r.get("scene_code", "SCN-001"),
-                "name": r.get("name", ""),
-                "target_name": r.get("target_name", "8 devices"),
-                "target_count": r.get("target_count", 8),
-                "icon": r.get("icon", "wb_sunny_rounded"),
-                "color": r.get("color", "#2563EB")
-            })
-
-        # Canonical popular fallback if needed
-        if not popular_scenes:
-            popular_scenes = [
-                {"id": "1", "scene_code": "SCN-001", "name": "Class Start", "target_name": "8 devices", "target_count": 8, "icon": "wb_sunny_rounded", "color": "#F59E0B"},
-                {"id": "2", "scene_code": "SCN-002", "name": "Class End", "target_name": "8 devices", "target_count": 8, "icon": "nightlight_round", "color": "#8B5CF6"},
-                {"id": "3", "scene_code": "SCN-003", "name": "Presentation", "target_name": "12 devices", "target_count": 12, "icon": "desktop_windows_rounded", "color": "#3B82F6"},
-                {"id": "4", "scene_code": "SCN-004", "name": "Exam Mode", "target_name": "10 devices", "target_count": 10, "icon": "assignment_turned_in_rounded", "color": "#10B981"},
-                {"id": "5", "scene_code": "SCN-005", "name": "Energy Saving", "target_name": "All devices", "target_count": 48, "icon": "eco_rounded", "color": "#059669"},
-                {"id": "6", "scene_code": "SCN-008", "name": "Night Mode", "target_name": "All devices", "target_count": 96, "icon": "dark_mode_rounded", "color": "#1E3A8A"}
-            ]
-
+        rows = await exec_sql("SELECT public.fn_device_scenes_kpis(%s::UUID) AS kpis;", (sid,))
+        kpis = rows[0]["kpis"] if rows and rows[0].get("kpis") else {}
         return {
             "success": True,
-            "kpis": {
-                "total_scenes": total_scenes,
-                "active_scenes": active_scenes,
-                "active_percentage": active_pct,
-                "disabled_scenes": disabled_scenes,
-                "disabled_percentage": disabled_pct,
-                "total_presets": total_presets,
-                "used_in_automations": 24,
-                "used_in_schedules": 37,
-                "popular_scenes": popular_scenes,
-                "usage_stats": {
-                    "total_executions_30d": 428,
-                    "breakdown": [
-                        {"name": "Class Start", "count": 128, "percentage": 29.9, "color": "#10B981"},
-                        {"name": "Class End", "count": 96, "percentage": 22.4, "color": "#3B82F6"},
-                        {"name": "Presentation", "count": 72, "percentage": 16.8, "color": "#8B5CF6"},
-                        {"name": "Others (6)", "count": 132, "percentage": 30.9, "color": "#F59E0B"}
-                    ]
-                }
-            }
+            "kpis": kpis
         }
     except Exception as e:
         logger.error(f"[Scenes Overview Error]: {e}")
-        return {
-            "success": True,
-            "kpis": {
-                "total_scenes": 42,
-                "active_scenes": 36,
-                "active_percentage": 85.7,
-                "disabled_scenes": 6,
-                "disabled_percentage": 14.3,
-                "total_presets": 118,
-                "used_in_automations": 24,
-                "used_in_schedules": 37,
-                "popular_scenes": [
-                    {"id": "1", "scene_code": "SCN-001", "name": "Class Start", "target_name": "8 devices", "target_count": 8, "icon": "wb_sunny_rounded", "color": "#F59E0B"},
-                    {"id": "2", "scene_code": "SCN-002", "name": "Class End", "target_name": "8 devices", "target_count": 8, "icon": "nightlight_round", "color": "#8B5CF6"},
-                    {"id": "3", "scene_code": "SCN-003", "name": "Presentation", "target_name": "12 devices", "target_count": 12, "icon": "desktop_windows_rounded", "color": "#3B82F6"},
-                    {"id": "4", "scene_code": "SCN-004", "name": "Exam Mode", "target_name": "10 devices", "target_count": 10, "icon": "assignment_turned_in_rounded", "color": "#10B981"},
-                    {"id": "5", "scene_code": "SCN-005", "name": "Energy Saving", "target_name": "All devices", "target_count": 48, "icon": "eco_rounded", "color": "#059669"},
-                    {"id": "6", "scene_code": "SCN-008", "name": "Night Mode", "target_name": "All devices", "target_count": 96, "icon": "dark_mode_rounded", "color": "#1E3A8A"}
-                ],
-                "usage_stats": {
-                    "total_executions_30d": 428,
-                    "breakdown": [
-                        {"name": "Class Start", "count": 128, "percentage": 29.9, "color": "#10B981"},
-                        {"name": "Class End", "count": 96, "percentage": 22.4, "color": "#3B82F6"},
-                        {"name": "Presentation", "count": 72, "percentage": 16.8, "color": "#8B5CF6"},
-                        {"name": "Others (6)", "count": 132, "percentage": 30.9, "color": "#F59E0B"}
-                    ]
-                }
-            }
-        }
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/scenes-presets")
@@ -5175,101 +4933,39 @@ async def list_scenes_presets(
     device_type: Optional[str] = Query(None),
     tag: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query("created_at"),
+    sort_dir: Optional[str] = Query("desc"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     """
-    List scenes and presets with full filtering, search, and pagination.
+    List scenes and presets with full filtering, search, sorting, and pagination via Stored Function fn_list_device_scenes.
     """
     sid = resolve_school_id(school_id, current_user)
-    try:
-        where = ["school_id = %s"]
-        params = [sid]
-
-        # Tab filter
+    effective_type = scene_type
+    if not effective_type or effective_type == "all":
         if tab == "scenes":
-            where.append("scene_type = 'scene'")
+            effective_type = "scene"
         elif tab == "presets":
-            where.append("scene_type = 'preset'")
+            effective_type = "preset"
+        else:
+            effective_type = "all"
 
-        if scene_type and scene_type != "all":
-            where.append("scene_type = %s")
-            params.append(scene_type.lower())
-
-        if status and status != "all":
-            where.append("status = %s")
-            params.append(status.lower())
-
-        if location and location != "all":
-            where.append("location_scope ILIKE %s")
-            params.append(f"%{location}%")
-
-        if tag and tag != "all":
-            where.append("%s = ANY(tags)")
-            params.append(tag)
-
-        if search:
-            where.append("(name ILIKE %s OR scene_code ILIKE %s OR description ILIKE %s)")
-            params.extend([f"%{search}%", f"%{search}%", f"%{search}%"])
-
-        count_sql = f"SELECT COUNT(*) AS total FROM public.device_scenes WHERE {' AND '.join(where)};"
-        count_rows = await exec_sql(count_sql, tuple(params))
-        total = count_rows[0]["total"] if count_rows else 0
-
-        offset = (page - 1) * page_size
-        params.extend([page_size, offset])
-
-        data_sql = f"""
-            SELECT id, scene_code, name, code, category, scene_type, target_type,
-                   target_name, target_count, target_ids, location_scope, tags,
-                   description, icon, color, is_preset, is_active, status,
-                   created_by_name, execution_count, used_in_automations_count,
-                   used_in_schedules_count, is_popular, thumbnail_url,
-                   steps, last_applied_at, created_at, updated_at
-            FROM public.device_scenes
-            WHERE {' AND '.join(where)}
-            ORDER BY scene_code ASC, created_at DESC
-            LIMIT %s OFFSET %s;
-        """
-        rows = await exec_sql(data_sql, tuple(params))
-
-        items = []
-        for r in rows:
-            items.append({
-                "id": str(r["id"]),
-                "scene_code": r.get("scene_code") or "SCN-000",
-                "name": r.get("name", ""),
-                "code": r.get("code", ""),
-                "category": r.get("category", "academic"),
-                "scene_type": r.get("scene_type", "scene"),
-                "target_type": r.get("target_type", "devices"),
-                "target_name": r.get("target_name", "8 devices"),
-                "target_count": r.get("target_count", 8),
-                "location_scope": r.get("location_scope", "Classroom / Academic Block"),
-                "tags": r.get("tags") or ["Scene", "Academic"],
-                "description": r.get("description", ""),
-                "icon": r.get("icon", "wb_sunny_rounded"),
-                "color": r.get("color", "#2563EB"),
-                "is_preset": bool(r.get("is_preset", False)),
-                "is_active": bool(r.get("is_active", True)),
-                "status": r.get("status", "active"),
-                "created_by_name": r.get("created_by_name", "Admin"),
-                "execution_count": r.get("execution_count", 0),
-                "used_in_automations_count": r.get("used_in_automations_count", 0),
-                "used_in_schedules_count": r.get("used_in_schedules_count", 0),
-                "is_popular": bool(r.get("is_popular", False)),
-                "thumbnail_url": r.get("thumbnail_url"),
-                "steps": r.get("steps") or [],
-                "last_applied_at": r["last_applied_at"].isoformat() if r.get("last_applied_at") else None,
-                "created_at": r["created_at"].isoformat() if r.get("created_at") else None,
-                "updated_at": r["updated_at"].isoformat() if r.get("updated_at") else None,
-            })
-
+    try:
+        rows = await exec_sql(
+            "SELECT public.fn_list_device_scenes(%s::UUID, %s, %s, %s, %s, %s, %s, %s, %s) AS result;",
+            (sid, effective_type, search or None, category or None, status or None, sort_by or 'created_at', sort_dir or 'desc', page, page_size)
+        )
+        res = rows[0]["result"] if rows and rows[0].get("result") else {"total": 0, "items": []}
+        items = res.get("items", [])
+        total = res.get("total", 0)
         return {
             "success": True,
             "items": items,
+            "scenes": items,
             "total": total,
             "page": page,
             "page_size": page_size
@@ -5279,13 +4975,34 @@ async def list_scenes_presets(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/scenes-presets/bulk")
+async def bulk_device_scenes_action(
+    req: BulkDeviceSceneActionRequest,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Perform bulk operations on multiple selected scenes/presets: activate, deactivate, delete, run_now."""
+    sid = resolve_school_id(school_id, current_user)
+    uname = current_user.get("full_name") or current_user.get("email") if current_user else "Admin"
+    try:
+        rows = await exec_sql(
+            "SELECT public.sp_bulk_device_scenes_action(%s::UUID, %s::UUID[], %s, %s) AS result;",
+            (sid, req.scene_ids, req.action, uname)
+        )
+        res = rows[0]["result"] if rows and rows[0].get("result") else {"success": True}
+        return {"success": True, "scene": res, **res}
+    except Exception as e:
+        logger.error(f"[Bulk Scenes Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/scenes-presets/{scene_id}")
 async def get_scene_preset_detail(
     scene_id: str,
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Retrieve detailed scene/preset record with recent executions and dependencies."""
+    """Retrieve detailed scene/preset record with recent executions."""
     sid = resolve_school_id(school_id, current_user)
     try:
         rows = await exec_sql("""
@@ -5303,7 +5020,6 @@ async def get_scene_preset_detail(
             raise HTTPException(status_code=404, detail="Scene or Preset not found")
         r = rows[0]
 
-        # Recent executions
         exec_rows = await exec_sql("""
             SELECT id, execution_code, executed_at, executed_by_name, status,
                    duration_ms, affected_devices_count, success_count, failed_count, log_details
@@ -5350,8 +5066,8 @@ async def get_scene_preset_detail(
                 "status": r.get("status", "active"),
                 "created_by_name": r.get("created_by_name", "Admin"),
                 "execution_count": r.get("execution_count", 0),
-                "used_in_automations_count": r.get("used_in_automations_count", 2),
-                "used_in_schedules_count": r.get("used_in_schedules_count", 3),
+                "used_in_automations_count": r.get("used_in_automations_count", 0),
+                "used_in_schedules_count": r.get("used_in_schedules_count", 0),
                 "is_popular": bool(r.get("is_popular", False)),
                 "thumbnail_url": r.get("thumbnail_url"),
                 "steps": r.get("steps") or [],
@@ -5374,41 +5090,32 @@ async def create_scene_preset(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Create a new Scene or Preset."""
+    """Create a new Scene or Preset via Stored Procedure sp_create_device_scene."""
     sid = resolve_school_id(school_id, current_user)
     uname = current_user.get("full_name") or current_user.get("email") if current_user else "Admin"
     try:
-        # Generate code if missing
-        base_code = req.scene_code
-        if not base_code:
-            prefix = "PST" if req.scene_type == "preset" else "SCN"
-            seq_rows = await exec_sql(f"SELECT COUNT(*) AS c FROM public.device_scenes WHERE school_id = %s AND scene_type = %s;", (sid, req.scene_type))
-            cnt = (seq_rows[0]["c"] if seq_rows else 0) + 1
-            base_code = f"{prefix}-{str(cnt).zfill(3)}"
-
-        unique_code = f"scn_{base_code.lower().replace('-', '_')}_{int(time.time())}"
-
-        insert_sql = """
-            INSERT INTO public.device_scenes (
-                school_id, name, code, scene_code, category, scene_type, target_type,
-                target_name, target_count, target_ids, location_scope, tags,
-                description, icon, color, is_preset, is_active, status, created_by_name,
-                steps, is_popular, created_at, updated_at
-            ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s, %s, %s,
-                %s::jsonb, %s, now(), now()
-            ) RETURNING id, scene_code, name, scene_type, status;
-        """
-        rows = await exec_sql(insert_sql, (
-            sid, req.name, unique_code, base_code, req.category, req.scene_type, req.target_type,
-            req.target_name, req.target_count, req.target_ids, req.location_scope, req.tags,
-            req.description, req.icon, req.color, (req.scene_type == "preset"), (req.status == "active"),
-            req.status, uname, json.dumps(req.steps or []), req.is_popular
-        ))
-
-        return {"success": True, "scene": rows[0]}
+        rows = await exec_sql(
+            "SELECT public.sp_create_device_scene(%s::UUID, %s, %s, %s, %s, %s, %s, %s, %s::UUID[], %s, %s::TEXT[], %s, %s, %s::JSONB, %s) AS result;",
+            (
+                sid,
+                req.name,
+                req.description or None,
+                req.category or "academic",
+                req.scene_type or "scene",
+                req.target_type or "devices",
+                req.target_name or "8 devices",
+                req.target_count or 8,
+                req.target_ids or [],
+                req.location_scope or "Classroom / Academic Block",
+                req.tags or ["Academic", "Classroom"],
+                req.icon or "wb_sunny_rounded",
+                req.color or "#2563EB",
+                json.dumps(req.steps or []),
+                uname
+            )
+        )
+        res = rows[0]["result"] if rows and rows[0].get("result") else {"success": True}
+        return {"success": True, "scene": res, **res}
     except Exception as e:
         logger.error(f"[Create Scene Preset Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -5421,74 +5128,21 @@ async def update_scene_preset(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Update existing Scene or Preset."""
+    """Update existing Scene or Preset via Stored Procedure sp_update_device_scene."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        set_clauses = ["updated_at = now()"]
-        params = []
-
-        if req.name is not None:
-            set_clauses.append("name = %s")
-            params.append(req.name)
-        if req.scene_code is not None:
-            set_clauses.append("scene_code = %s")
-            params.append(req.scene_code)
-        if req.category is not None:
-            set_clauses.append("category = %s")
-            params.append(req.category)
-        if req.scene_type is not None:
-            set_clauses.append("scene_type = %s")
-            params.append(req.scene_type)
-        if req.target_type is not None:
-            set_clauses.append("target_type = %s")
-            params.append(req.target_type)
-        if req.target_name is not None:
-            set_clauses.append("target_name = %s")
-            params.append(req.target_name)
-        if req.target_count is not None:
-            set_clauses.append("target_count = %s")
-            params.append(req.target_count)
-        if req.location_scope is not None:
-            set_clauses.append("location_scope = %s")
-            params.append(req.location_scope)
-        if req.tags is not None:
-            set_clauses.append("tags = %s")
-            params.append(req.tags)
-        if req.description is not None:
-            set_clauses.append("description = %s")
-            params.append(req.description)
-        if req.icon is not None:
-            set_clauses.append("icon = %s")
-            params.append(req.icon)
-        if req.color is not None:
-            set_clauses.append("color = %s")
-            params.append(req.color)
-        if req.steps is not None:
-            set_clauses.append("steps = %s::jsonb")
-            params.append(json.dumps(req.steps))
-        if req.status is not None:
-            set_clauses.append("status = %s")
-            params.append(req.status)
-            set_clauses.append("is_active = %s")
-            params.append(req.status == "active")
-        if req.is_popular is not None:
-            set_clauses.append("is_popular = %s")
-            params.append(req.is_popular)
-
-        params.extend([scene_id, sid])
-        update_sql = f"""
-            UPDATE public.device_scenes
-            SET {', '.join(set_clauses)}
-            WHERE id = %s::UUID AND school_id = %s
-            RETURNING id, scene_code, name, status;
-        """
-        rows = await exec_sql(update_sql, tuple(params))
-        if not rows:
-            raise HTTPException(status_code=404, detail="Scene not found")
-
-        return {"success": True, "scene": rows[0]}
-    except HTTPException:
-        raise
+        steps_json = json.dumps(req.steps) if req.steps is not None else None
+        rows = await exec_sql(
+            "SELECT public.sp_update_device_scene(%s::UUID, %s::UUID, %s, %s, %s, %s, %s, %s, %s, %s::TEXT[], %s, %s, %s::JSONB, %s) AS result;",
+            (
+                sid, scene_id,
+                req.name, req.description, req.category, req.target_type,
+                req.target_name, req.target_count, req.location_scope,
+                req.tags, req.icon, req.color, steps_json, req.status
+            )
+        )
+        res = rows[0]["result"] if rows and rows[0].get("result") else {"success": True}
+        return {"success": True, "scene": res, **res}
     except Exception as e:
         logger.error(f"[Update Scene Preset Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -5500,19 +5154,15 @@ async def delete_scene_preset(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Delete Scene or Preset."""
+    """Delete Scene or Preset via Stored Procedure sp_delete_device_scene."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        rows = await exec_sql("""
-            DELETE FROM public.device_scenes
-            WHERE id = %s::UUID AND school_id = %s
-            RETURNING id, name;
-        """, (scene_id, sid))
-        if not rows:
-            raise HTTPException(status_code=404, detail="Scene not found")
-        return {"success": True, "message": f"Scene '{rows[0]['name']}' deleted"}
-    except HTTPException:
-        raise
+        rows = await exec_sql(
+            "SELECT public.sp_delete_device_scene(%s::UUID, %s::UUID) AS result;",
+            (sid, scene_id)
+        )
+        res = rows[0]["result"] if rows and rows[0].get("result") else {"success": True}
+        return {"success": True, "scene": res, **res}
     except Exception as e:
         logger.error(f"[Delete Scene Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -5525,7 +5175,7 @@ async def run_scene_preset_now(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     """
-    Execute scene or preset immediately:
+    Execute scene or preset immediately via Stored Procedure sp_trigger_device_scene_run:
     - Runs Stored Procedure sp_trigger_device_scene_run
     - Dispatches MQTT command sequence
     - Returns execution ID, execution code, affected count
@@ -5561,7 +5211,7 @@ async def toggle_scene_status(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Toggle scene status between active and disabled."""
+    """Toggle scene status between active and disabled via Stored Procedure sp_toggle_device_scene_status."""
     sid = resolve_school_id(school_id, current_user)
     try:
         rows = await exec_sql("""
@@ -5579,7 +5229,7 @@ async def duplicate_scene(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Duplicate an existing scene or preset."""
+    """Duplicate an existing scene or preset via Stored Procedure sp_duplicate_device_scene."""
     sid = resolve_school_id(school_id, current_user)
     uname = current_user.get("full_name") or current_user.get("email") if current_user else "Admin"
     try:
@@ -6374,142 +6024,36 @@ async def get_device_health_dashboard(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Retrieve comprehensive device health dashboard metrics, 30-day trends, alerts, and system status."""
+    """Retrieve comprehensive device health dashboard metrics, 30-day trends, alerts, and system status via stored function."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        # 1. Device Counts & Health Status
-        health_counts = await exec_sql("""
-            SELECT 
-                COUNT(*) AS total_devices,
-                COUNT(*) FILTER (WHERE health_status = 'healthy') AS healthy_count,
-                COUNT(*) FILTER (WHERE health_status = 'warning') AS warning_count,
-                COUNT(*) FILTER (WHERE health_status = 'critical') AS critical_count,
-                COUNT(*) FILTER (WHERE health_status = 'offline' OR is_online = false) AS offline_count,
-                COALESCE(ROUND(AVG(uptime_pct), 1), 98.6) AS avg_uptime_pct
-            FROM public.devices
-            WHERE school_id = %s::UUID AND deleted_at IS NULL;
-        """, (sid,))
-        
-        row = health_counts[0] if health_counts else {}
-        total = int(row.get("total_devices") or 136)
-        healthy = int(row.get("healthy_count") or 122)
-        warning = int(row.get("warning_count") or 8)
-        critical = int(row.get("critical_count") or 4)
-        offline = int(row.get("offline_count") or 2)
-        avg_uptime = float(row.get("avg_uptime_pct") or 98.6)
-
-        # 2. 30-Day Health Historical Trends
-        snapshots = await exec_sql("""
-            SELECT snapshot_date, total_devices, healthy_count, warning_count, 
-                   critical_count, offline_count, avg_uptime_pct
-            FROM public.device_health_snapshots
-            WHERE school_id = %s::UUID
-            ORDER BY snapshot_date ASC
-            LIMIT 30;
-        """, (sid,))
-        
-        trend_points = []
-        if snapshots:
-            for s in snapshots:
-                dt_str = s["snapshot_date"].strftime("%d %b") if hasattr(s["snapshot_date"], "strftime") else str(s["snapshot_date"])
-                trend_points.append({
-                    "date": dt_str,
-                    "healthy": s["healthy_count"],
-                    "warnings": s["warning_count"],
-                    "critical_offline": s["critical_count"] + s["offline_count"],
-                    "total": s["total_devices"],
-                    "uptime_pct": float(s["avg_uptime_pct"])
-                })
-        else:
-            # Fallback 30-day points
-            sample_dates = ["12 Dec", "15 Dec", "18 Dec", "21 Dec", "24 Dec", "27 Dec", "30 Dec", "2 Jan", "5 Jan", "8 Jan", "10 Jan"]
-            for d in sample_dates:
-                trend_points.append({
-                    "date": d,
-                    "healthy": 122,
-                    "warnings": 8,
-                    "critical_offline": 6,
-                    "total": 136,
-                    "uptime_pct": 98.6
-                })
-
-        # 3. Key Alerts (Current)
-        alerts_db = await exec_sql("""
-            SELECT title, severity, COUNT(*) AS alert_count
-            FROM public.device_alerts
-            WHERE school_id = %s::UUID AND is_resolved = false
-            GROUP BY title, severity
-            ORDER BY alert_count DESC;
-        """, (sid,))
-        
-        key_alerts = []
-        if alerts_db:
-            for a in alerts_db:
-                key_alerts.append({
-                    "title": a["title"],
-                    "count": int(a["alert_count"]),
-                    "severity": a["severity"]
-                })
-        else:
-            key_alerts = [
-                {"title": "Device not responding (Offline)", "count": 2, "severity": "critical"},
-                {"title": "High temperature", "count": 1, "severity": "warning"},
-                {"title": "Low signal / connectivity", "count": 3, "severity": "warning"},
-                {"title": "Firmware update available", "count": 6, "severity": "warning"},
-                {"title": "Diagnostics recommended", "count": 4, "severity": "info"}
-            ]
-
-        # 4. Device Health by Type (Canonical categories)
-        health_by_type = [
-            {"type": "AC / HVAC", "healthy": 24, "total": 26, "pct": 92.3, "color": "#1677F2"},
-            {"type": "Lighting", "healthy": 36, "total": 40, "pct": 90.0, "color": "#10B981"},
-            {"type": "Fans", "healthy": 14, "total": 15, "pct": 93.3, "color": "#06B6D4"},
-            {"type": "Projectors", "healthy": 12, "total": 13, "pct": 92.3, "color": "#8B5CF6"},
-            {"type": "Displays", "healthy": 8, "total": 10, "pct": 80.0, "color": "#F59E0B"},
-            {"type": "Access Doors", "healthy": 6, "total": 7, "pct": 85.7, "color": "#EF4444"},
-            {"type": "CCTV", "healthy": 22, "total": 22, "pct": 100.0, "color": "#14B8A6"}
-        ]
-
-        # 5. System & Connectivity Status
-        gateways = await exec_sql("""
-            SELECT COUNT(*) AS total_gateways,
-                   COUNT(*) FILTER (WHERE is_online = true) AS online_gateways
-            FROM public.campus_iot_gateways
-            WHERE school_id = %s::UUID;
-        """, (sid,))
-        gw_online = int(gateways[0]["online_gateways"]) if gateways else 5
-        gw_total = int(gateways[0]["total_gateways"]) if gateways else 5
-
-        system_status = {
-            "mqtt_broker": "Connected (QoS 1)",
-            "gateways": f"{gw_online} Online / {gw_total} Total",
-            "command_service": "Healthy",
-            "diagnostics_worker": "Running",
-            "database_telemetry": "Healthy",
-            "last_data_received": "10 Jan 2025, 02:18 PM"
-        }
-
-        return {
-            "success": True,
-            "kpis": {
-                "total_devices": total,
-                "healthy_count": healthy,
-                "healthy_pct": round((healthy / total * 100), 1) if total else 0,
-                "warning_count": warning,
-                "warning_pct": round((warning / total * 100), 1) if total else 0,
-                "critical_count": critical,
-                "critical_pct": round((critical / total * 100), 1) if total else 0,
-                "offline_count": offline,
-                "offline_pct": round((offline / total * 100), 1) if total else 0,
-                "avg_uptime_pct": avg_uptime
-            },
-            "health_trend_30_days": trend_points,
-            "key_alerts": key_alerts,
-            "health_by_type": health_by_type,
-            "system_status": system_status
-        }
+        rows = await exec_sql("SELECT public.fn_device_health_dashboard(%s::UUID) AS result;", (sid,))
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": False, "message": "Failed to load device health dashboard"}
     except Exception as e:
         logger.error(f"[Health Dashboard Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/health-diagnostics/filter-options")
+async def get_device_health_filter_options(
+    building_id: Optional[str] = Query(None),
+    floor_id: Optional[str] = Query(None),
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Cascading filter options provider for Device Health & Diagnostics."""
+    sid = resolve_school_id(school_id, current_user)
+    b_id = building_id if building_id and building_id.lower() not in ("all", "null") else None
+    f_id = floor_id if floor_id and floor_id.lower() not in ("all", "null") else None
+    try:
+        rows = await exec_sql("SELECT public.fn_device_health_filter_options(%s::UUID, %s::UUID, %s::UUID) AS result;", (sid, b_id, f_id))
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": False, "buildings": [], "floors": [], "rooms": [], "device_types": [], "device_groups": []}
+    except Exception as e:
+        logger.error(f"[Health Filter Options Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -6519,113 +6063,35 @@ async def list_health_devices(
     health_status: Optional[str] = Query(None),
     device_type: Optional[str] = Query(None),
     location: Optional[str] = Query(None),
+    building_id: Optional[str] = Query(None),
+    floor_id: Optional[str] = Query(None),
+    room_id: Optional[str] = Query(None),
     group_id: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query("health_status"),
+    sort_dir: Optional[str] = Query("ASC"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Retrieve paginated device health registry table with filtering and live status."""
+    """Retrieve paginated device health registry table with database filtering and sorting."""
     sid = resolve_school_id(school_id, current_user)
+    b_id = building_id if building_id and building_id.lower() not in ("all", "null") else None
+    f_id = floor_id if floor_id and floor_id.lower() not in ("all", "null") else None
+    r_id = room_id if room_id and room_id.lower() not in ("all", "null") else None
+    g_id = group_id if group_id and group_id.lower() not in ("all", "null") else None
     try:
-        where_clauses = ["d.school_id = %s::UUID", "d.deleted_at IS NULL"]
-        params: List[Any] = [sid]
-
-        if search:
-            where_clauses.append("(d.device_name ILIKE %s OR d.device_code ILIKE %s OR d.notes ILIKE %s)")
-            params.extend([f"%{search}%", f"%{search}%", f"%{search}%"])
-
-        if health_status and health_status.lower() not in ("all", "all health status"):
-            where_clauses.append("d.health_status = %s")
-            params.append(health_status.lower())
-
-        if device_type and device_type.lower() not in ("all", "all device types"):
-            where_clauses.append("d.device_name ILIKE %s")
-            params.append(f"%{device_type}%")
-
-        if location and location.lower() not in ("all", "all locations"):
-            where_clauses.append("d.notes ILIKE %s")
-            params.append(f"%{location}%")
-
-        where_sql = " AND ".join(where_clauses)
-
-        count_res = await exec_sql(f"SELECT COUNT(*) AS total FROM public.devices d WHERE {where_sql};", tuple(params))
-        total_count = int(count_res[0]["total"]) if count_res else 0
-
-        offset = (page - 1) * page_size
-        params.extend([page_size, offset])
-
-        query = f"""
-            SELECT d.id, d.device_name, d.device_code, d.health_status, d.uptime_pct,
-                   d.response_latency_ms, d.current_issue, d.notes AS location_path,
-                   d.is_online, d.firmware_version, d.last_heartbeat_at,
-                   gw.gateway_name
-            FROM public.devices d
-            LEFT JOIN public.campus_iot_gateways gw ON d.gateway_id = gw.id
-            WHERE {where_sql}
-            ORDER BY 
-                CASE d.health_status
-                    WHEN 'critical' THEN 1
-                    WHEN 'warning' THEN 2
-                    WHEN 'offline' THEN 3
-                    ELSE 4
-                END,
-                d.device_name ASC
-            LIMIT %s OFFSET %s;
-        """
-        rows = await exec_sql(query, tuple(params))
-
-        devices_list = []
-        for r in rows:
-            name = r["device_name"]
-            # Derive category
-            dtype = "Others"
-            if "ac" in name.lower(): dtype = "AC / HVAC"
-            elif "light" in name.lower(): dtype = "Lighting"
-            elif "proj" in name.lower(): dtype = "Projector"
-            elif "fan" in name.lower(): dtype = "Fan"
-            elif "disp" in name.lower(): dtype = "Display"
-            elif "door" in name.lower(): dtype = "Access Door"
-            elif "cctv" in name.lower() or "cam" in name.lower(): dtype = "CCTV"
-
-            uptime_val = f"{float(r['uptime_pct']):.1f}%" if r["health_status"] != "offline" else "-"
-            last_seen = "10 Jan 2025, 02:17 PM"
-            if r["health_status"] == "offline":
-                last_seen = "10 Jan 2025, 11:42 AM"
-            elif r["health_status"] == "critical":
-                last_seen = "10 Jan 2025, 01:56 PM"
-            elif r["health_status"] == "warning":
-                last_seen = "10 Jan 2025, 02:15 PM"
-
-            fw = r.get("firmware_version") or "v2.4.1"
-            has_update = (dtype in ("Projector", "Display") and fw < "v2.5.0")
-
-            devices_list.append({
-                "id": str(r["id"]),
-                "device_name": r["device_name"],
-                "device_code": r["device_code"],
-                "device_type": dtype,
-                "location_path": r.get("location_path") or "Academic Block (A)",
-                "health_status": r["health_status"],
-                "uptime": uptime_val,
-                "uptime_pct": float(r["uptime_pct"] or 98.6),
-                "last_seen": last_seen,
-                "issues_alerts": r.get("current_issue") or "-",
-                "response_latency_ms": r.get("response_latency_ms") or 35,
-                "firmware_version": fw,
-                "has_firmware_update": has_update,
-                "latest_firmware_version": "v2.5.0" if has_update else fw,
-                "gateway_name": r.get("gateway_name") or "Main Campus Core Gateway",
-                "is_online": bool(r.get("is_online", True))
-            })
-
-        return {
-            "success": True,
-            "total": total_count,
-            "page": page,
-            "page_size": page_size,
-            "devices": devices_list
-        }
+        rows = await exec_sql("""
+            SELECT public.fn_list_device_health(
+                %s::UUID, %s, %s, %s, %s, %s::UUID, %s::UUID, %s::UUID, %s::UUID, %s, %s, %s, %s
+            ) AS result;
+        """, (
+            sid, search, health_status, device_type, location,
+            b_id, f_id, r_id, g_id, sort_by, sort_dir, page, page_size
+        ))
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": True, "total": 0, "page": page, "page_size": page_size, "devices": []}
     except Exception as e:
         logger.error(f"[List Health Devices Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -6637,104 +6103,16 @@ async def get_device_health_profile(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Retrieve full health, diagnostic test results, logs, and telemetry for a specific device."""
+    """Retrieve full health, diagnostic test results, logs, and telemetry for a specific device via stored function."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        rows = await exec_sql("""
-            SELECT d.id, d.device_name, d.device_code, d.health_status, d.uptime_pct,
-                   d.response_latency_ms, d.current_issue, d.notes AS location_path,
-                   d.is_online, d.firmware_version, d.last_heartbeat_at, d.ip_address,
-                   gw.gateway_name, gw.ip_address AS gateway_ip
-            FROM public.devices d
-            LEFT JOIN public.campus_iot_gateways gw ON d.gateway_id = gw.id
-            WHERE d.id = %s::UUID AND d.school_id = %s::UUID;
-        """, (device_id, sid))
-
-        if not rows:
-            raise HTTPException(status_code=404, detail="Device not found.")
-
-        dev = rows[0]
-        name = dev["device_name"]
-        dtype = "Others"
-        if "ac" in name.lower(): dtype = "AC / HVAC"
-        elif "light" in name.lower(): dtype = "Lighting"
-        elif "proj" in name.lower(): dtype = "Projector"
-        elif "fan" in name.lower(): dtype = "Fan"
-        elif "disp" in name.lower(): dtype = "Display"
-        elif "door" in name.lower(): dtype = "Access Door"
-        elif "cctv" in name.lower() or "cam" in name.lower(): dtype = "CCTV"
-
-        fw = dev.get("firmware_version") or "v2.4.1"
-        has_update = (dtype in ("Projector", "Display") and fw < "v2.5.0")
-
-        # Diagnostics Results
-        diag_results = await exec_sql("""
-            SELECT test_code, test_name, test_category, status, actual_value, 
-                   expected_value, unit, duration_ms, recommended_action, executed_at
-            FROM public.device_diagnostic_results
-            WHERE device_id = %s::UUID
-            ORDER BY executed_at DESC
-            LIMIT 10;
-        """, (device_id,))
-
-        if not diag_results:
-            diag_results = [
-                {"test_code": "connectivity_ping", "test_name": "ICMP / Network Connectivity", "test_category": "connectivity", "status": "passed", "actual_value": "14", "expected_value": "< 50", "unit": "ms", "duration_ms": 78, "recommended_action": "None"},
-                {"test_code": "mqtt_roundtrip", "test_name": "MQTT Command & Telemetry Echo", "test_category": "connectivity", "status": "passed", "actual_value": "42", "expected_value": "< 150", "unit": "ms", "duration_ms": 110, "recommended_action": "None"},
-                {"test_code": "temp_check", "test_name": "Operating Temperature Sensor", "test_category": "environmental", "status": "passed" if dev["health_status"] == "healthy" else "warning", "actual_value": "72" if dev["health_status"] != "healthy" else "48", "expected_value": "< 70", "unit": "°C", "duration_ms": 180, "recommended_action": "Clean dust filter and check intake ventilation." if dev["health_status"] != "healthy" else "Normal"},
-                {"test_code": "firmware_check", "test_name": "Firmware Version & Integrity", "test_category": "firmware", "status": "warning" if has_update else "passed", "actual_value": fw, "expected_value": "v2.5.0" if has_update else fw, "unit": "version", "duration_ms": 195, "recommended_action": "Apply OTA firmware update to v2.5.0." if has_update else "Firmware up to date"},
-                {"test_code": "power_supply", "test_name": "DC Rail Voltage & Stability", "test_category": "hardware", "status": "passed", "actual_value": "12.02", "expected_value": "12.0 ± 0.5", "unit": "V", "duration_ms": 210, "recommended_action": "Power rail stable"}
-            ]
-
-        # Logs & Events
-        logs = [
-            {"timestamp": "10 Jan 2025, 02:15 PM", "event": "Heartbeat Received", "category": "heartbeat", "severity": "info", "details": "Normal telemetry packet acknowledged"},
-            {"timestamp": "10 Jan 2025, 02:10 PM", "event": "Diagnostic Check", "category": "diagnostics", "severity": "warning" if dev["health_status"] != "healthy" else "info", "details": dev.get("current_issue") or "Routine health scan complete"},
-            {"timestamp": "10 Jan 2025, 01:45 PM", "event": "MQTT Connection Verified", "category": "connection", "severity": "info", "details": f"Broker QoS 1 handshake ok with {dev.get('gateway_name')}"}
-        ]
-
-        # Performance Metrics
-        perf = {
-            "cpu_usage_pct": 24.5,
-            "memory_usage_pct": 52.0,
-            "temperature_celsius": 72.0 if dev["health_status"] != "healthy" else 46.5,
-            "voltage_v": 230.2,
-            "signal_rssi_dbm": -68,
-            "response_latency_ms": dev.get("response_latency_ms") or 45
-        }
-
-        # Maintenance History
-        maint = await exec_sql("""
-            SELECT id, request_code, title, priority, status, created_at, resolution_notes
-            FROM public.maintenance_requests
-            WHERE device_id = %s::UUID
-            ORDER BY created_at DESC;
-        """, (device_id,))
-
-        return {
-            "success": True,
-            "device": {
-                "id": str(dev["id"]),
-                "device_name": dev["device_name"],
-                "device_code": dev["device_code"],
-                "device_type": dtype,
-                "location_path": dev.get("location_path") or "Academic Block (A) > A1-102",
-                "health_status": dev["health_status"],
-                "uptime": f"{float(dev['uptime_pct']):.1f}%",
-                "uptime_pct": float(dev["uptime_pct"] or 96.1),
-                "last_seen": "10 Jan 2025, 02:15 PM",
-                "firmware_version": fw,
-                "has_firmware_update": has_update,
-                "latest_firmware_version": "v2.5.0" if has_update else fw,
-                "health_summary": f"{dev['health_status'].capitalize()} ({dev.get('current_issue') or 'Nominal'})",
-                "ip_address": dev.get("ip_address") or "192.168.1.145",
-                "gateway_name": dev.get("gateway_name") or "Academic Block (A) Modbus Substation Bridge"
-            },
-            "diagnostics_results": diag_results,
-            "logs_events": logs,
-            "performance_metrics": perf,
-            "maintenance_history": maint
-        }
+        rows = await exec_sql("SELECT public.fn_get_device_health_profile(%s::UUID, %s::UUID) AS result;", (sid, device_id))
+        if rows and rows[0].get("result"):
+            res = rows[0]["result"]
+            if not res.get("success", False):
+                raise HTTPException(status_code=404, detail=res.get("message", "Device not found."))
+            return res
+        raise HTTPException(status_code=404, detail="Device not found.")
     except HTTPException:
         raise
     except Exception as e:
@@ -6749,73 +6127,17 @@ async def run_device_diagnostics(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Execute live diagnostic tests on a target device and record session and results."""
+    """Execute live diagnostic tests on a target device and record session and results via stored procedure."""
     sid = resolve_school_id(school_id, current_user)
     uname = current_user.get("full_name") or current_user.get("email") if current_user else "Admin"
     try:
-        # Check device exists
-        dev_rows = await exec_sql("SELECT id, device_code, device_name, health_status FROM public.devices WHERE id = %s::UUID AND school_id = %s::UUID;", (device_id, sid))
-        if not dev_rows:
-            raise HTTPException(status_code=404, detail="Device not found.")
-
-        dev = dev_rows[0]
-        code = dev["device_code"]
-        sess_code = f"DIAG-{code}-{int(datetime.now().timestamp())}"
-
-        # Create session
-        sess_rows = await exec_sql("""
-            INSERT INTO public.device_diagnostic_sessions (
-                school_id, session_code, device_id, session_type, status, overall_result,
-                initiated_by_name, total_tests, passed_tests, warning_tests, failed_tests,
-                duration_ms, summary_notes
-            ) VALUES (
-                %s::UUID, %s, %s::UUID, 'single_device', 'completed', 'passed',
-                %s, 6, 6, 0, 0, 1140, 'All routine diagnostic tests executed and verified successfully.'
-            ) RETURNING id;
-        """, (sid, sess_code, device_id, uname))
-
-        sess_id = sess_rows[0]["id"]
-
-        # Insert test results
-        tests = [
-            ("connectivity_ping", "ICMP / Network Connectivity", "connectivity", "passed", "15", "< 50", "ms", 65, "Network path verified."),
-            ("mqtt_roundtrip", "MQTT Command & Telemetry Echo", "connectivity", "passed", "38", "< 150", "ms", 95, "Message correlation successful."),
-            ("sensor_health", "Hardware Sensor Telemetry", "hardware", "passed", "Nominal", "Healthy", "status", 140, "Sensors reporting without errors."),
-            ("power_supply", "Power Supply & Voltage Rail", "hardware", "passed", "230.1", "220-240", "V", 180, "Grid voltage stable."),
-            ("firmware_check", "Firmware Code Sign & Integrity", "firmware", "passed", "Valid", "Valid", "status", 210, "Hash signature matches institutional profile."),
-            ("reboot_readiness", "Warm Reboot & State Readiness", "hardware", "passed", "Ready", "Ready", "state", 150, "Device volatile memory clean.")
-        ]
-
-        for t_code, t_name, t_cat, t_stat, t_act, t_exp, t_unit, t_dur, t_rec in tests:
-            await exec_sql("""
-                INSERT INTO public.device_diagnostic_results (
-                    session_id, device_id, test_code, test_name, test_category, status,
-                    actual_value, expected_value, unit, duration_ms, recommended_action
-                ) VALUES (
-                    %s::UUID, %s::UUID, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                );
-            """, (sess_id, device_id, t_code, t_name, t_cat, t_stat, t_act, t_exp, t_unit, t_dur, t_rec))
-
-        # Publish MQTT diagnostic request
-        mqtt_service.publish_diagnostic_request(
-            school_id=str(sid),
-            device_code=code,
-            session_code=sess_code,
-            tests=[t[0] for t in tests]
-        )
-
-        # Update device last diagnostic timestamp
-        await exec_sql("UPDATE public.devices SET last_diagnostic_at = now() WHERE id = %s::UUID;", (device_id,))
-
-        return {
-            "success": True,
-            "session_id": str(sess_id),
-            "session_code": sess_code,
-            "overall_result": "passed",
-            "passed_tests": 6,
-            "total_tests": 6,
-            "message": f"Diagnostics completed successfully for {dev['device_name']}."
-        }
+        rows = await exec_sql("SELECT public.sp_run_device_diagnostics(%s::UUID, %s::UUID, %s) AS result;", (sid, device_id, uname))
+        if rows and rows[0].get("result"):
+            res = rows[0]["result"]
+            if not res.get("success", False):
+                raise HTTPException(status_code=404, detail=res.get("message", "Device not found."))
+            return res
+        raise HTTPException(status_code=500, detail="Failed to run diagnostics")
     except HTTPException:
         raise
     except Exception as e:
@@ -6829,34 +6151,15 @@ async def run_bulk_diagnostics(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Initiate campus-wide or targeted bulk health diagnostics across multiple devices."""
+    """Initiate campus-wide or targeted bulk health diagnostics across multiple devices via stored procedure."""
     sid = resolve_school_id(school_id, current_user)
     uname = current_user.get("full_name") or current_user.get("email") if current_user else "Admin"
     try:
-        sess_code = f"DIAG-BULK-{int(datetime.now().timestamp())}"
-        sess_rows = await exec_sql("""
-            INSERT INTO public.device_diagnostic_sessions (
-                school_id, session_code, session_type, status, overall_result,
-                initiated_by_name, total_tests, passed_tests, warning_tests, failed_tests,
-                duration_ms, summary_notes
-            ) VALUES (
-                %s::UUID, %s, 'bulk_devices', 'completed', 'passed',
-                %s, 136, 128, 6, 2, 4250, 'Bulk health check initiated across institutional IoT devices.'
-            ) RETURNING id;
-        """, (sid, sess_code, uname))
-
-        # Update last diagnostic timestamp on target devices
-        await exec_sql("UPDATE public.devices SET last_diagnostic_at = now() WHERE school_id = %s::UUID;", (sid,))
-
-        return {
-            "success": True,
-            "session_code": sess_code,
-            "devices_scanned": 136,
-            "healthy": 128,
-            "warnings": 6,
-            "critical_offline": 2,
-            "message": "Campus-wide bulk diagnostic cycle executed successfully."
-        }
+        dev_ids = req.device_ids if hasattr(req, "device_ids") and req.device_ids else []
+        rows = await exec_sql("SELECT public.sp_bulk_device_health_action(%s::UUID, %s::UUID[], 'diagnostics', %s) AS result;", (sid, dev_ids, uname))
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": True, "message": "Bulk diagnostics initiated."}
     except Exception as e:
         logger.error(f"[Bulk Diagnostics Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -6869,45 +6172,15 @@ async def restart_device(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Execute graceful remote reboot or recovery restart on edge device via MQTT."""
+    """Execute graceful remote reboot or recovery restart on edge device via stored procedure."""
     sid = resolve_school_id(school_id, current_user)
     uname = current_user.get("full_name") or current_user.get("email") if current_user else "Admin"
     try:
-        dev_rows = await exec_sql("SELECT id, device_code, device_name FROM public.devices WHERE id = %s::UUID AND school_id = %s::UUID;", (device_id, sid))
-        if not dev_rows:
-            raise HTTPException(status_code=404, detail="Device not found.")
-
-        dev = dev_rows[0]
-        code = dev["device_code"]
-        op_code = f"REC-RST-{int(datetime.now().timestamp())}"
-
-        # Record recovery operation
-        await exec_sql("""
-            INSERT INTO public.device_recovery_operations (
-                school_id, operation_code, device_id, action_type, status,
-                initiated_by_name, command_payload
-            ) VALUES (
-                %s::UUID, %s, %s::UUID, 'restart', 'executed', %s, %s::JSONB
-            );
-        """, (sid, op_code, device_id, uname, json.dumps({"action": "restart", "soft": True})))
-
-        # Publish MQTT restart command
-        mqtt_res = mqtt_service.publish_recovery_command(
-            school_id=str(sid),
-            device_code=code,
-            action_type="restart",
-            payload={"operation_code": op_code}
-        )
-
-        return {
-            "success": True,
-            "operation_code": op_code,
-            "device_name": dev["device_name"],
-            "mqtt_published": mqtt_res.get("published", False),
-            "message": f"Restart signal transmitted to {dev['device_name']}."
-        }
-    except HTTPException:
-        raise
+        rows = await exec_sql("SELECT public.sp_bulk_device_health_action(%s::UUID, ARRAY[%s::UUID]::UUID[], 'restart', %s) AS result;", (sid, device_id, uname))
+        if rows and rows[0].get("result"):
+            res = rows[0]["result"]
+            return {"success": True, "device_id": device_id, **res}
+        return {"success": True, "message": f"Restart signal transmitted to device."}
     except Exception as e:
         logger.error(f"[Device Restart Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -6920,34 +6193,40 @@ async def update_device_firmware(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Apply verified OTA firmware update package to device."""
+    """Apply verified OTA firmware update package to device via stored procedure."""
     sid = resolve_school_id(school_id, current_user)
     uname = current_user.get("full_name") or current_user.get("email") if current_user else "Admin"
     try:
-        dev_rows = await exec_sql("SELECT id, device_code, device_name FROM public.devices WHERE id = %s::UUID AND school_id = %s::UUID;", (device_id, sid))
-        if not dev_rows:
-            raise HTTPException(status_code=404, detail="Device not found.")
-
-        dev = dev_rows[0]
-        new_version = req.target_version
-
-        # Update firmware version in DB
-        await exec_sql("UPDATE public.devices SET firmware_version = %s, health_status = 'healthy', current_issue = '-' WHERE id = %s::UUID;", (new_version, device_id))
-
-        # Resolve firmware alert for device if any
-        await exec_sql("UPDATE public.device_alerts SET is_resolved = true, resolved_at = now() WHERE device_id = %s::UUID AND alert_type = 'firmware_update';", (device_id,))
-
-        return {
-            "success": True,
-            "device_id": device_id,
-            "device_name": dev["device_name"],
-            "new_firmware_version": new_version,
-            "message": f"Firmware for {dev['device_name']} successfully updated to {new_version}."
-        }
-    except HTTPException:
-        raise
+        payload = json.dumps({"target_version": req.target_version})
+        rows = await exec_sql("SELECT public.sp_bulk_device_health_action(%s::UUID, ARRAY[%s::UUID]::UUID[], 'update_firmware', %s, %s::JSONB) AS result;", (sid, device_id, uname, payload))
+        if rows and rows[0].get("result"):
+            res = rows[0]["result"]
+            return {"success": True, "device_id": device_id, "new_firmware_version": req.target_version, **res}
+        return {"success": True, "message": f"Firmware updated to {req.target_version}."}
     except Exception as e:
         logger.error(f"[Firmware Update Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/health-diagnostics/bulk-action")
+async def bulk_device_health_action(
+    req: Dict[str, Any],
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Execute bulk multi-selection actions on devices (diagnostics, restart, update_firmware) via stored procedure."""
+    sid = resolve_school_id(school_id, current_user)
+    uname = current_user.get("full_name") or current_user.get("email") if current_user else "Admin"
+    action = req.get("action", "diagnostics")
+    device_ids = req.get("device_ids", [])
+    payload = json.dumps(req.get("payload", {}))
+    try:
+        rows = await exec_sql("SELECT public.sp_bulk_device_health_action(%s::UUID, %s::UUID[], %s, %s, %s::JSONB) AS result;", (sid, device_ids, action, uname, payload))
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": True, "message": f"Bulk {action} completed."}
+    except Exception as e:
+        logger.error(f"[Bulk Action Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -7096,14 +6375,13 @@ async def resolve_health_alert(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Mark an alert resolved."""
+    """Mark an alert resolved via stored procedure."""
     sid = resolve_school_id(school_id, current_user)
+    uname = current_user.get("full_name") or current_user.get("email") if current_user else "Admin"
     try:
-        await exec_sql("""
-            UPDATE public.device_alerts 
-            SET is_resolved = true, resolved_at = now(), status = 'resolved'
-            WHERE id = %s::UUID AND school_id = %s::UUID;
-        """, (alert_id, sid))
+        rows = await exec_sql("SELECT public.sp_resolve_device_alert(%s::UUID, %s::UUID, %s) AS result;", (sid, alert_id, uname))
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
         return {"success": True, "message": "Alert marked as resolved."}
     except Exception as e:
         logger.error(f"[Resolve Alert Error]: {e}")
@@ -7116,33 +6394,20 @@ async def create_maintenance_from_device_health(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Create a maintenance service ticket directly from a device health alert or diagnostic issue."""
+    """Create a maintenance service ticket directly from a device health alert or diagnostic issue via stored procedure."""
     sid = resolve_school_id(school_id, current_user)
     uname = current_user.get("full_name") or current_user.get("email") if current_user else "Admin"
     try:
-        dev_rows = await exec_sql("SELECT device_name, notes FROM public.devices WHERE id = %s::UUID AND school_id = %s::UUID;", (req.device_id, sid))
-        loc_display = dev_rows[0].get("notes") or "Campus Location" if dev_rows else "Campus Location"
-        req_code = f"MR-DEV-{int(datetime.now().timestamp())}"
-
         rows = await exec_sql("""
-            INSERT INTO public.maintenance_requests (
-                school_id, request_code, title, description, request_type,
-                priority, status, location_display, reported_by_name, reported_by_role,
-                device_id, is_preventive
-            ) VALUES (
-                %s::UUID, %s, %s, %s, %s, %s, 'Pending', %s, %s, 'Admin', %s::UUID, true
-            ) RETURNING id, request_code;
+            SELECT public.sp_create_device_maintenance_request(
+                %s::UUID, %s::UUID, %s, %s, %s, %s, %s
+            ) AS result;
         """, (
-            sid, req_code, req.title, req.description or f"Automated maintenance request for {dev_rows[0]['device_name'] if dev_rows else 'IoT device'}",
-            req.request_type, req.priority, loc_display, uname, req.device_id
+            sid, req.device_id, req.title, req.description, req.priority, req.request_type, uname
         ))
-
-        return {
-            "success": True,
-            "maintenance_request_id": str(rows[0]["id"]),
-            "request_code": rows[0]["request_code"],
-            "message": f"Maintenance request '{rows[0]['request_code']}' created successfully."
-        }
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": True, "message": "Maintenance request created."}
     except Exception as e:
         logger.error(f"[Create Maintenance Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))

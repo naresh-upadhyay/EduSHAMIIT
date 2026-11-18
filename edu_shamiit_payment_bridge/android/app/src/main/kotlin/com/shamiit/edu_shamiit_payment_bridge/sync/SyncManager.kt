@@ -20,7 +20,7 @@ class SyncManager(private val context: Context) {
         const val KEY_SERVER_URL = "server_url"
         const val KEY_DEVICE_ID = "device_id"
         const val KEY_API_KEY = "api_key"
-        const val DEFAULT_SERVER_URL = "http://10.0.2.2:8082/api/v1/payment-bridge"
+        const val DEFAULT_SERVER_URL = "https://eduapi.shamiit.com/api/v1/payment-bridge"
         const val DEFAULT_DEVICE_ID = "PB-AND-001"
 
         @Volatile
@@ -76,13 +76,32 @@ class SyncManager(private val context: Context) {
     private fun getCandidateUrls(): List<String> {
         val primaryBase = getServerUrl().trimEnd('/')
         val list = mutableListOf<String>()
-        if (primaryBase.isNotEmpty()) list.add(primaryBase)
-        if (!primaryBase.contains("192.168.1.8")) {
-            list.add("http://192.168.1.8:8082/api/v1/payment-bridge")
-        }
-        if (primaryBase.contains("10.0.2.2") || primaryBase.contains("127.0.0.1")) {
-            list.add(primaryBase.replace("10.0.2.2", "127.0.0.1"))
-            list.add(primaryBase.replace("127.0.0.1", "10.0.2.2"))
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+        val isCellular = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            val network = connectivityManager?.activeNetwork
+            val caps = connectivityManager?.getNetworkCapabilities(network)
+            caps?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR) == true
+        } else false
+
+        val liveUrl = "https://eduapi.shamiit.com/api/v1/payment-bridge"
+
+        if (isCellular) {
+            // Cellular/Mobile Data: Local LAN IPs like 192.168.x.x will fail; prioritize live cloud API
+            list.add(liveUrl)
+            if (primaryBase.isNotEmpty() && !primaryBase.contains("192.168.") && !primaryBase.contains("10.0.2.2") && !primaryBase.contains("127.0.0.1")) {
+                list.add(primaryBase)
+            }
+        } else {
+            // Wi-Fi or LAN: Try configured primary base first, then local IP, then fallback to live cloud
+            if (primaryBase.isNotEmpty()) list.add(primaryBase)
+            if (!primaryBase.contains("192.168.1.8")) {
+                list.add("http://192.168.1.8:8082/api/v1/payment-bridge")
+            }
+            list.add(liveUrl)
+            if (primaryBase.contains("10.0.2.2") || primaryBase.contains("127.0.0.1")) {
+                list.add(primaryBase.replace("10.0.2.2", "127.0.0.1"))
+                list.add(primaryBase.replace("127.0.0.1", "10.0.2.2"))
+            }
         }
         return list.distinct()
     }

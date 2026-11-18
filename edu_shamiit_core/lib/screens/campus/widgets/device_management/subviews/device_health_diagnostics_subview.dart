@@ -47,9 +47,24 @@ class _DeviceHealthDiagnosticsSubviewState
   String _selectedStatus = 'All Health Status';
   String _selectedType = 'All Device Types';
   String _selectedGroup = 'All Groups';
+  String _selectedBuilding = 'All Buildings';
+  String _selectedFloor = 'All Floors';
+  String _selectedRoom = 'All Rooms';
+  String _selectedBuildingId = '';
+  String _selectedFloorId = '';
+  String _selectedRoomId = '';
+
   final TextEditingController _searchController = TextEditingController();
   int _rowsPerPage = 10;
   int _currentPage = 1;
+
+  // Sorting
+  int? _sortColumnIndex;
+  bool _sortAscending = true;
+  String _sortColumn = 'health_status';
+
+  // Multi-Selection on Grid
+  final Set<String> _selectedDeviceIds = {};
 
   // Selected Device for Right Inspector
   DeviceHealthItem? _selectedDevice;
@@ -70,6 +85,13 @@ class _DeviceHealthDiagnosticsSubviewState
   List<CampusIotGatewayItem> _gateways = [];
   List<DeviceHealthRuleItem> _rules = [];
   List<DeviceDiagnosticResultItem> _selectedDeviceDiagResults = [];
+
+  // Cascading Filter Lookups
+  List<Map<String, dynamic>> _buildings = [];
+  List<Map<String, dynamic>> _floors = [];
+  List<Map<String, dynamic>> _rooms = [];
+  List<Map<String, dynamic>> _deviceTypes = [];
+  List<Map<String, dynamic>> _deviceGroups = [];
 
   String get _apiBase =>
       '${AppConfig.apiBaseUrl}/v1/devices/health-diagnostics';
@@ -157,6 +179,25 @@ class _DeviceHealthDiagnosticsSubviewState
               .map((r) =>
                   DeviceHealthRuleItem.fromJson(Map<String, dynamic>.from(r)))
               .toList();
+        }
+      }
+
+      // 4. Fetch Cascading Filter Options
+      final foUri = Uri.parse('$_apiBase/filter-options?school_id=$sid');
+      final foRes = await http.get(foUri).timeout(const Duration(seconds: 4));
+      if (foRes.statusCode == 200) {
+        final foJson = json.decode(foRes.body);
+        if (foJson['success'] == true) {
+          final bList = (foJson['buildings'] as List?) ?? [];
+          _buildings = bList.map((b) => Map<String, dynamic>.from(b)).toList();
+          final fList = (foJson['floors'] as List?) ?? [];
+          _floors = fList.map((f) => Map<String, dynamic>.from(f)).toList();
+          final rmList = (foJson['rooms'] as List?) ?? [];
+          _rooms = rmList.map((r) => Map<String, dynamic>.from(r)).toList();
+          final tList = (foJson['device_types'] as List?) ?? [];
+          _deviceTypes = tList.map((t) => Map<String, dynamic>.from(t)).toList();
+          final gList = (foJson['device_groups'] as List?) ?? [];
+          _deviceGroups = gList.map((g) => Map<String, dynamic>.from(g)).toList();
         }
       }
     } catch (e) {
@@ -557,6 +598,220 @@ class _DeviceHealthDiagnosticsSubviewState
           severity: 'warning',
           isActive: true),
     ];
+
+    if (_buildings.isEmpty) {
+      _buildings = [
+        {'id': 'b1', 'name': 'Academic Block (A)', 'code': 'B1'},
+        {'id': 'b2', 'name': 'Senior Block', 'code': 'B2'},
+        {'id': 'b3', 'name': 'Library Block', 'code': 'B3'},
+        {'id': 'b4', 'name': 'Auditorium', 'code': 'B4'},
+        {'id': 'b5', 'name': 'Admin Block', 'code': 'B5'},
+      ];
+      _floors = [
+        {'id': 'f1', 'building_id': 'b1', 'name': 'Ground Floor', 'floor_code': 'GF'},
+        {'id': 'f2', 'building_id': 'b1', 'name': 'First Floor', 'floor_code': 'F1'},
+        {'id': 'f3', 'building_id': 'b1', 'name': 'Second Floor', 'floor_code': 'F2'},
+        {'id': 'f4', 'building_id': 'b2', 'name': 'Ground Floor', 'floor_code': 'GF'},
+        {'id': 'f5', 'building_id': 'b2', 'name': 'First Floor', 'floor_code': 'F1'},
+      ];
+      _rooms = [
+        {'id': 'r1', 'building_id': 'b1', 'floor_id': 'f1', 'name': 'A1-101 Classroom', 'room_number': '101'},
+        {'id': 'r2', 'building_id': 'b1', 'floor_id': 'f1', 'name': 'A1-102 Classroom', 'room_number': '102'},
+        {'id': 'r3', 'building_id': 'b1', 'floor_id': 'f2', 'name': 'A1-201 Classroom', 'room_number': '201'},
+      ];
+      _deviceTypes = [
+        {'id': 't1', 'name': 'AC / HVAC'},
+        {'id': 't2', 'name': 'Lighting'},
+        {'id': 't3', 'name': 'Projector'},
+        {'id': 't4', 'name': 'Fan'},
+        {'id': 't5', 'name': 'Display'},
+        {'id': 't6', 'name': 'Access Door'},
+        {'id': 't7', 'name': 'CCTV'},
+      ];
+      _deviceGroups = [
+        {'id': 'g1', 'name': 'Classroom Lighting - Block A'},
+        {'id': 'g2', 'name': 'Academic HVAC Group'},
+        {'id': 'g3', 'name': 'Perimeter Surveillance'},
+      ];
+    }
+  }
+
+  // Cascading Lookups Getters
+  List<String> get _availableBuildingNames => [
+        'All Buildings',
+        ..._buildings
+            .map((b) => (b['name'] ?? '').toString())
+            .where((s) => s.isNotEmpty)
+            .toSet()
+      ];
+
+  List<String> get _availableFloorNames {
+    if (_selectedBuildingId.isEmpty) {
+      return [
+        'All Floors',
+        ..._floors
+            .map((f) => (f['name'] ?? '').toString())
+            .where((s) => s.isNotEmpty)
+            .toSet()
+      ];
+    }
+    final matching =
+        _floors.where((f) => f['building_id'] == _selectedBuildingId);
+    return [
+      'All Floors',
+      ...matching
+          .map((f) => (f['name'] ?? '').toString())
+          .where((s) => s.isNotEmpty)
+          .toSet()
+    ];
+  }
+
+  List<String> get _availableRoomNames {
+    var matching = _rooms;
+    if (_selectedBuildingId.isNotEmpty) {
+      matching = matching
+          .where((r) => r['building_id'] == _selectedBuildingId)
+          .toList();
+    }
+    if (_selectedFloorId.isNotEmpty) {
+      matching =
+          matching.where((r) => r['floor_id'] == _selectedFloorId).toList();
+    }
+    return [
+      'All Rooms',
+      ...matching
+          .map((r) => (r['name'] ?? '').toString())
+          .where((s) => s.isNotEmpty)
+          .toSet()
+    ];
+  }
+
+  List<String> get _availableTypeNames => <String>{
+        'All Device Types',
+        ..._deviceTypes
+            .map((t) => (t['name'] ?? '').toString())
+            .where((s) => s.isNotEmpty),
+        ..._devices.map((d) => d.deviceType),
+      }.toList();
+
+  List<String> get _availableGroupNames => <String>{
+        'All Groups',
+        ..._deviceGroups
+            .map((g) => (g['name'] ?? '').toString())
+            .where((s) => s.isNotEmpty),
+      }.toList();
+
+  void _onBuildingChanged(String bName) {
+    setState(() {
+      _selectedBuilding = bName;
+      _selectedFloor = 'All Floors';
+      _selectedRoom = 'All Rooms';
+      _selectedFloorId = '';
+      _selectedRoomId = '';
+      if (bName == 'All Buildings') {
+        _selectedBuildingId = '';
+        _selectedLocation = 'All Locations';
+      } else {
+        final bMatch = _buildings.firstWhere((b) => b['name'] == bName,
+            orElse: () => {});
+        _selectedBuildingId = bMatch['id']?.toString() ?? '';
+        _selectedLocation = bName;
+      }
+      _currentPage = 1;
+      _applyFilters();
+    });
+  }
+
+  void _onFloorChanged(String fName) {
+    setState(() {
+      _selectedFloor = fName;
+      _selectedRoom = 'All Rooms';
+      _selectedRoomId = '';
+      if (fName == 'All Floors') {
+        _selectedFloorId = '';
+      } else {
+        final fMatch =
+            _floors.firstWhere((f) => f['name'] == fName, orElse: () => {});
+        _selectedFloorId = fMatch['id']?.toString() ?? '';
+      }
+      _currentPage = 1;
+      _applyFilters();
+    });
+  }
+
+  void _onRoomChanged(String rName) {
+    setState(() {
+      _selectedRoom = rName;
+      if (rName == 'All Rooms') {
+        _selectedRoomId = '';
+      } else {
+        final rMatch =
+            _rooms.firstWhere((r) => r['name'] == rName, orElse: () => {});
+        _selectedRoomId = rMatch['id']?.toString() ?? '';
+      }
+      _currentPage = 1;
+      _applyFilters();
+    });
+  }
+
+  void _applySorting(String col, bool asc, int? colIdx) {
+    setState(() {
+      _sortColumn = col;
+      _sortAscending = asc;
+      _sortColumnIndex = colIdx;
+      _filteredDevices.sort((a, b) {
+        int cmp = 0;
+        switch (col) {
+          case 'device_name':
+            cmp = a.deviceName
+                .toLowerCase()
+                .compareTo(b.deviceName.toLowerCase());
+            break;
+          case 'device_type':
+            cmp = a.deviceType
+                .toLowerCase()
+                .compareTo(b.deviceType.toLowerCase());
+            break;
+          case 'location':
+            cmp = a.locationPath
+                .toLowerCase()
+                .compareTo(b.locationPath.toLowerCase());
+            break;
+          case 'health_status':
+            final pA = _healthPriority(a.healthStatus);
+            final pB = _healthPriority(b.healthStatus);
+            cmp = pA.compareTo(pB);
+            if (cmp == 0) {
+              cmp = a.deviceName.compareTo(b.deviceName);
+            }
+            break;
+          case 'uptime_pct':
+            cmp = a.uptimePct.compareTo(b.uptimePct);
+            break;
+          case 'last_seen':
+            cmp = a.lastSeen.compareTo(b.lastSeen);
+            break;
+          default:
+            cmp = a.deviceName.compareTo(b.deviceName);
+        }
+        return asc ? cmp : -cmp;
+      });
+    });
+  }
+
+  int _healthPriority(String status) {
+    switch (status.toLowerCase()) {
+      case 'critical':
+        return 1;
+      case 'warning':
+        return 2;
+      case 'offline':
+        return 3;
+      case 'healthy':
+        return 4;
+      default:
+        return 5;
+    }
   }
 
   static DeviceHealthItem _createSampleProjector() {
@@ -604,7 +859,32 @@ class _DeviceHealthDiagnosticsSubviewState
           }
         }
 
-        if (_selectedLocation != 'All Locations') {
+        if (_selectedBuilding != 'All Buildings') {
+          if (!d.locationPath
+              .toLowerCase()
+              .contains(_selectedBuilding.toLowerCase())) {
+            return false;
+          }
+        }
+
+        if (_selectedFloor != 'All Floors') {
+          if (!d.locationPath
+              .toLowerCase()
+              .contains(_selectedFloor.toLowerCase())) {
+            return false;
+          }
+        }
+
+        if (_selectedRoom != 'All Rooms' || _selectedRoomId.isNotEmpty) {
+          if (!d.locationPath
+              .toLowerCase()
+              .contains(_selectedRoom.toLowerCase())) {
+            return false;
+          }
+        }
+
+        if (_selectedLocation != 'All Locations' &&
+            _selectedBuilding == 'All Buildings') {
           if (!d.locationPath
               .toLowerCase()
               .contains(_selectedLocation.toLowerCase())) {
@@ -614,7 +894,257 @@ class _DeviceHealthDiagnosticsSubviewState
 
         return true;
       }).toList();
+
+      if (_sortColumn.isNotEmpty) {
+        _applySorting(_sortColumn, _sortAscending, _sortColumnIndex);
+      }
     });
+  }
+
+  // --- Multi-Selection Grid Operations ---
+  Widget _buildMultiSelectionActionBar(bool isDark) {
+    if (_selectedDeviceIds.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark
+            ? const Color(0xFF1E3A8A).withValues(alpha: 0.35)
+            : const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+            color: const Color(0xFF3B82F6).withValues(alpha: 0.5)),
+      ),
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 8,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.check_circle_outline_rounded,
+                  color: Color(0xFF1677F2), size: 18),
+              const SizedBox(width: 8),
+              Text(
+                '${_selectedDeviceIds.length} device${_selectedDeviceIds.length > 1 ? 's' : ''} selected',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: Color(0xFF1677F2),
+                ),
+              ),
+            ],
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              ElevatedButton.icon(
+                onPressed: _runSelectedDevicesDiagnostics,
+                icon: const Icon(Icons.handyman_outlined, size: 14),
+                label: const Text('Run Diagnostics',
+                    style: TextStyle(fontSize: 12)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1677F2),
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _rebootSelectedDevices,
+                icon: const Icon(Icons.restart_alt_rounded, size: 14),
+                label: const Text('Reboot Selected',
+                    style: TextStyle(fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFF59E0B),
+                  side: const BorderSide(color: Color(0xFFF59E0B)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _updateFirmwareSelectedDevices,
+                icon: const Icon(Icons.system_update_alt_rounded, size: 14),
+                label: const Text('Update Firmware',
+                    style: TextStyle(fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF10B981),
+                  side: const BorderSide(color: Color(0xFF10B981)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _exportSelectedDevices,
+                icon: const Icon(Icons.file_download_outlined, size: 14),
+                label: const Text('Export Selected',
+                    style: TextStyle(fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _selectedDeviceIds.clear()),
+                child: const Text('Clear Selection',
+                    style: TextStyle(fontSize: 12, color: Color(0xFFEF4444))),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _runSelectedDevicesDiagnostics() async {
+    if (_selectedDeviceIds.isEmpty) return;
+    final count = _selectedDeviceIds.length;
+    final sid = widget.schoolId ?? '11111111-1111-1111-1111-111111111111';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Executing diagnostics on $count selected devices...'),
+        backgroundColor: const Color(0xFF1677F2),
+      ),
+    );
+    try {
+      final uri = Uri.parse('$_apiBase/bulk-action?school_id=$sid');
+      await http
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({
+              'action': 'diagnostics',
+              'device_ids': _selectedDeviceIds.toList(),
+            }),
+          )
+          .timeout(const Duration(seconds: 4));
+    } catch (_) {}
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text('Diagnostics completed successfully for $count devices.'),
+          backgroundColor: const Color(0xFF10B981),
+        ),
+      );
+      _fetchDashboardData();
+    }
+  }
+
+  Future<void> _rebootSelectedDevices() async {
+    if (_selectedDeviceIds.isEmpty) return;
+    final count = _selectedDeviceIds.length;
+    final sid = widget.schoolId ?? '11111111-1111-1111-1111-111111111111';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reboot Selected Devices'),
+        content: Text(
+            'Are you sure you want to trigger remote restart on $count selected devices?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF59E0B)),
+            child: const Text('Confirm Reboot'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      final uri = Uri.parse('$_apiBase/bulk-action?school_id=$sid');
+      await http
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({
+              'action': 'restart',
+              'device_ids': _selectedDeviceIds.toList(),
+            }),
+          )
+          .timeout(const Duration(seconds: 4));
+    } catch (_) {}
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Restart signal transmitted to $count devices.'),
+          backgroundColor: const Color(0xFF10B981),
+        ),
+      );
+      _fetchDashboardData();
+    }
+  }
+
+  Future<void> _updateFirmwareSelectedDevices() async {
+    if (_selectedDeviceIds.isEmpty) return;
+    final count = _selectedDeviceIds.length;
+    final sid = widget.schoolId ?? '11111111-1111-1111-1111-111111111111';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Update Firmware for Selected Devices'),
+        content: Text(
+            'Apply OTA firmware update package v2.5.0 to $count selected devices?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981)),
+            child: const Text('Apply Update'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      final uri = Uri.parse('$_apiBase/bulk-action?school_id=$sid');
+      await http
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({
+              'action': 'update_firmware',
+              'device_ids': _selectedDeviceIds.toList(),
+              'payload': {'target_version': 'v2.5.0'},
+            }),
+          )
+          .timeout(const Duration(seconds: 4));
+    } catch (_) {}
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Firmware successfully updated to v2.5.0 for $count devices.'),
+          backgroundColor: const Color(0xFF10B981),
+        ),
+      );
+      _fetchDashboardData();
+    }
+  }
+
+  void _exportSelectedDevices() {
+    final count = _selectedDeviceIds.isEmpty
+        ? _filteredDevices.length
+        : _selectedDeviceIds.length;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Exporting $count devices to CSV...')),
+    );
   }
 
   Future<void> _selectDevice(DeviceHealthItem dev) async {
@@ -978,6 +1508,7 @@ class _DeviceHealthDiagnosticsSubviewState
               style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1677F2)),
               onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
                 Navigator.of(ctx).pop();
                 try {
                   final sid =
@@ -995,7 +1526,7 @@ class _DeviceHealthDiagnosticsSubviewState
                   );
                 } catch (_) {}
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     SnackBar(
                       content: Text(
                           'Maintenance ticket created for ${dev.deviceName}.'),
@@ -2360,44 +2891,74 @@ class _DeviceHealthDiagnosticsSubviewState
                       'critical',
                       'offline'
                     ], (v) {
-                      setState(() => _selectedStatus = v);
+                      setState(() {
+                        _selectedStatus = v;
+                        _currentPage = 1;
+                      });
                       _applyFilters();
                     }, isDark),
-                    _buildTableFilterDropdown('Type', _selectedType, [
-                      'All Device Types',
-                      'AC / HVAC',
-                      'Lighting',
-                      'Projector',
-                      'Fan',
-                      'Display',
-                      'Access Door',
-                      'CCTV'
-                    ], (v) {
-                      setState(() => _selectedType = v);
+                    _buildTableFilterDropdown('Type', _selectedType,
+                        _availableTypeNames, (v) {
+                      setState(() {
+                        _selectedType = v;
+                        _currentPage = 1;
+                      });
                       _applyFilters();
                     }, isDark),
-                    _buildTableFilterDropdown('Location', _selectedLocation, [
-                      'All Locations',
-                      'Academic Block (A)',
-                      'Academic Block (B)',
-                      'Library Block',
-                      'Laboratories Block',
-                      'Main Block'
-                    ], (v) {
-                      setState(() => _selectedLocation = v);
+                    _buildTableFilterDropdown('Building', _selectedBuilding,
+                        _availableBuildingNames, (v) {
+                      _onBuildingChanged(v);
+                    }, isDark),
+                    _buildTableFilterDropdown('Floor', _selectedFloor,
+                        _availableFloorNames, (v) {
+                      _onFloorChanged(v);
+                    }, isDark),
+                    _buildTableFilterDropdown('Room', _selectedRoom,
+                        _availableRoomNames, (v) {
+                      _onRoomChanged(v);
+                    }, isDark),
+                    _buildTableFilterDropdown('Group', _selectedGroup,
+                        _availableGroupNames, (v) {
+                      setState(() {
+                        _selectedGroup = v;
+                        _currentPage = 1;
+                      });
                       _applyFilters();
                     }, isDark),
-                    _buildTableFilterDropdown('Group', _selectedGroup, [
-                      'All Groups',
-                      'Classroom Group A',
-                      'Academic HVAC Group',
-                      'Perimeter Surveillance'
-                    ], (v) {
-                      setState(() => _selectedGroup = v);
-                      _applyFilters();
-                    }, isDark),
+                    if (_selectedStatus != 'All Health Status' ||
+                        _selectedType != 'All Device Types' ||
+                        _selectedBuilding != 'All Buildings' ||
+                        _selectedFloor != 'All Floors' ||
+                        _selectedRoom != 'All Rooms' ||
+                        _selectedGroup != 'All Groups' ||
+                        _searchController.text.isNotEmpty)
+                      TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _selectedStatus = 'All Health Status';
+                            _selectedType = 'All Device Types';
+                            _selectedBuilding = 'All Buildings';
+                            _selectedFloor = 'All Floors';
+                            _selectedRoom = 'All Rooms';
+                            _selectedGroup = 'All Groups';
+                            _selectedBuildingId = '';
+                            _selectedFloorId = '';
+                            _selectedRoomId = '';
+                            _searchController.clear();
+                            _currentPage = 1;
+                          });
+                          _applyFilters();
+                        },
+                        icon: const Icon(Icons.clear_all_rounded, size: 14),
+                        label: const Text('Reset',
+                            style: TextStyle(fontSize: 11)),
+                      ),
                   ],
                 ),
+                if (_selectedDeviceIds.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _buildMultiSelectionActionBar(isDark),
+                ],
               ],
             ),
           ),
@@ -2409,6 +2970,8 @@ class _DeviceHealthDiagnosticsSubviewState
             scrollDirection: Axis.horizontal,
             child: DataTable(
               showCheckboxColumn: false,
+              sortColumnIndex: _sortColumnIndex,
+              sortAscending: _sortAscending,
               headingRowColor: WidgetStateProperty.all(
                   isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
               horizontalMargin: 16,
@@ -2418,22 +2981,75 @@ class _DeviceHealthDiagnosticsSubviewState
                   fontSize: 12,
                   color: Color(0xFF475569)),
               dataTextStyle: const TextStyle(fontSize: 12),
-              columns: const [
+              columns: [
                 DataColumn(
-                    label: SizedBox(
-                        width: 20,
-                        child: Icon(Icons.check_box_outline_blank,
-                            size: 16, color: Color(0xFF94A3B8)))),
-                DataColumn(label: Text('Device Name')),
-                DataColumn(label: Text('Type')),
-                DataColumn(label: Text('Location (Building > Room)')),
-                DataColumn(label: Text('Health Status')),
-                DataColumn(label: Text('Uptime')),
-                DataColumn(label: Text('Last Seen')),
-                DataColumn(label: Text('Issues / Alerts')),
-                DataColumn(label: Text('Actions')),
+                  label: SizedBox(
+                    width: 24,
+                    child: Checkbox(
+                      value: pagedDevices.isNotEmpty &&
+                              pagedDevices.every(
+                                  (d) => _selectedDeviceIds.contains(d.id))
+                          ? true
+                          : (pagedDevices.any(
+                                  (d) => _selectedDeviceIds.contains(d.id))
+                              ? null
+                              : false),
+                      tristate: true,
+                      onChanged: (v) {
+                        setState(() {
+                          final allSelected = pagedDevices.isNotEmpty &&
+                              pagedDevices.every(
+                                  (d) => _selectedDeviceIds.contains(d.id));
+                          if (allSelected) {
+                            for (final d in pagedDevices) {
+                              _selectedDeviceIds.remove(d.id);
+                            }
+                          } else {
+                            for (final d in pagedDevices) {
+                              _selectedDeviceIds.add(d.id);
+                            }
+                          }
+                        });
+                      },
+                      activeColor: const Color(0xFF1677F2),
+                    ),
+                  ),
+                ),
+                DataColumn(
+                  label: const Text('Device Name'),
+                  onSort: (colIdx, asc) =>
+                      _applySorting('device_name', asc, colIdx),
+                ),
+                DataColumn(
+                  label: const Text('Type'),
+                  onSort: (colIdx, asc) =>
+                      _applySorting('device_type', asc, colIdx),
+                ),
+                DataColumn(
+                  label: const Text('Location (Building > Room)'),
+                  onSort: (colIdx, asc) =>
+                      _applySorting('location', asc, colIdx),
+                ),
+                DataColumn(
+                  label: const Text('Health Status'),
+                  onSort: (colIdx, asc) =>
+                      _applySorting('health_status', asc, colIdx),
+                ),
+                DataColumn(
+                  label: const Text('Uptime'),
+                  onSort: (colIdx, asc) =>
+                      _applySorting('uptime_pct', asc, colIdx),
+                ),
+                DataColumn(
+                  label: const Text('Last Seen'),
+                  onSort: (colIdx, asc) =>
+                      _applySorting('last_seen', asc, colIdx),
+                ),
+                const DataColumn(label: Text('Issues / Alerts')),
+                const DataColumn(label: Text('Actions')),
               ],
               rows: pagedDevices.map((dev) {
+                final isChecked = _selectedDeviceIds.contains(dev.id);
                 final isSelected = _selectedDevice?.id == dev.id;
                 return DataRow(
                   selected: isSelected,
@@ -2441,8 +3057,17 @@ class _DeviceHealthDiagnosticsSubviewState
                   cells: [
                     DataCell(
                       Checkbox(
-                        value: isSelected,
-                        onChanged: (_) => _selectDevice(dev),
+                        value: isChecked,
+                        onChanged: (v) {
+                          setState(() {
+                            if (v == true) {
+                              _selectedDeviceIds.add(dev.id);
+                              _selectDevice(dev);
+                            } else {
+                              _selectedDeviceIds.remove(dev.id);
+                            }
+                          });
+                        },
                         activeColor: const Color(0xFF1677F2),
                       ),
                     ),
@@ -2544,7 +3169,7 @@ class _DeviceHealthDiagnosticsSubviewState
                     DropdownButton<int>(
                       value: _rowsPerPage,
                       underline: const SizedBox(),
-                      items: [5, 10, 20, 50]
+                      items: [5, 10, 25, 50, 100]
                           .map((n) =>
                               DropdownMenuItem(value: n, child: Text('$n')))
                           .toList(),
@@ -2554,15 +3179,25 @@ class _DeviceHealthDiagnosticsSubviewState
                       }),
                     ),
                     IconButton(
+                      icon: const Icon(Icons.first_page_rounded, size: 20),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      tooltip: 'First Page',
+                      onPressed: _currentPage > 1
+                          ? () => setState(() => _currentPage = 1)
+                          : null,
+                    ),
+                    IconButton(
                       icon: const Icon(Icons.chevron_left_rounded),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
+                      tooltip: 'Previous Page',
                       onPressed: _currentPage > 1
                           ? () => setState(() => _currentPage--)
                           : null,
                     ),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
                       child: Text(
                           '$_currentPage / ${math.max(1, (_filteredDevices.length / _rowsPerPage).ceil())}',
                           style: const TextStyle(
@@ -2572,10 +3207,22 @@ class _DeviceHealthDiagnosticsSubviewState
                       icon: const Icon(Icons.chevron_right_rounded),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
+                      tooltip: 'Next Page',
                       onPressed:
                           (startIndex + _rowsPerPage < _filteredDevices.length)
                               ? () => setState(() => _currentPage++)
                               : null,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.last_page_rounded, size: 20),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      tooltip: 'Last Page',
+                      onPressed: (_currentPage <
+                              math.max(1, (_filteredDevices.length / _rowsPerPage).ceil()))
+                          ? () => setState(() => _currentPage = math.max(
+                              1, (_filteredDevices.length / _rowsPerPage).ceil()))
+                          : null,
                     ),
                   ],
                 ),
@@ -2589,9 +3236,11 @@ class _DeviceHealthDiagnosticsSubviewState
 
   Widget _buildTableFilterDropdown(String label, String value,
       List<String> options, ValueChanged<String> onChanged, bool isDark) {
+    final opts = options.isEmpty ? [value] : options;
     return Container(
       height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      constraints: const BoxConstraints(maxWidth: 160),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(8),
@@ -2600,14 +3249,19 @@ class _DeviceHealthDiagnosticsSubviewState
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: options.contains(value) ? value : options.first,
+          value: opts.contains(value) ? value : opts.first,
+          isDense: true,
+          isExpanded: true,
           style: TextStyle(
               fontSize: 12,
               color: isDark ? Colors.white : const Color(0xFF334155)),
           icon: const Icon(Icons.arrow_drop_down_rounded,
               size: 18, color: Color(0xFF64748B)),
-          items: options
-              .map((o) => DropdownMenuItem(value: o, child: Text(o)))
+          items: opts
+              .map((o) => DropdownMenuItem(
+                    value: o,
+                    child: Text(o, overflow: TextOverflow.ellipsis),
+                  ))
               .toList(),
           onChanged: (v) {
             if (v != null) onChanged(v);

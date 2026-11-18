@@ -124,18 +124,24 @@ class ApiService {
       list.add('http://10.0.2.2:8082/api/v1/payment-bridge$cleanPath');
       list.add('http://127.0.0.1:8082/api/v1/payment-bridge$cleanPath');
     } else {
-      list.add('http://192.168.1.8:8082/api/v1/payment-bridge$cleanPath');
-      list.add('${AppConstants.livePaymentBridgeUrl}$cleanPath');
+      // Physical mobile device: prioritize live cloud API so mobile data / 5G works seamlessly
+      final savedIsLive = _baseUrl.contains('eduapi.shamiit.com');
+      if (savedIsLive) {
+        list.add('${AppConstants.livePaymentBridgeUrl}$cleanPath');
+        list.add('http://192.168.1.8:8082/api/v1/payment-bridge$cleanPath');
+      } else {
+        list.add('$_baseUrl$cleanPath');
+        list.add('${AppConstants.livePaymentBridgeUrl}$cleanPath');
+        list.add('http://192.168.1.8:8082/api/v1/payment-bridge$cleanPath');
+      }
       list.add('http://10.0.2.2:8082/api/v1/payment-bridge$cleanPath');
       list.add('http://127.0.0.1:8082/api/v1/payment-bridge$cleanPath');
     }
     final primary = '$_baseUrl$cleanPath';
-    if (!primary.contains('eduapi.shamiit.com')) {
-      if (!list.contains(primary)) {
-        list.insert(0, primary);
-      }
+    if (!list.contains(primary)) {
+      list.insert(0, primary);
     }
-    return list;
+    return list.toSet().toList();
   }
 
   void _onSuccessUrl(String usedUrl) {
@@ -147,6 +153,7 @@ class ApiService {
         if (newBase.contains('/api/v1/payment-bridge') && newBase != _baseUrl) {
           debugPrint('[ApiService] Switching active baseUrl to: $newBase');
           _baseUrl = newBase;
+          SharedPreferences.getInstance().then((p) => p.setString(AppConstants.prefsServerUrlKey, newBase)).catchError((_) => false);
         }
       }
     } catch (_) {}

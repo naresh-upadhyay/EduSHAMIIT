@@ -115,15 +115,61 @@ class PaymentBridgeChannel(private val context: Context) : MethodChannel.MethodC
                 val pkgName = context.packageName
                 val isAccessGranted = NotificationManagerCompat.getEnabledListenerPackages(context).contains(pkgName)
                 if (isAccessGranted && !PaymentNotificationListenerService.isServiceConnected) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        try {
-                            NotificationListenerService.requestRebind(
-                                ComponentName(context, PaymentNotificationListenerService::class.java)
-                            )
-                        } catch (_: Exception) {}
-                    }
+                    PaymentNotificationListenerService.forceRebind(context)
                 }
                 result.success(isAccessGranted)
+            }
+
+            "forceRebindListener" -> {
+                PaymentNotificationListenerService.forceRebind(context)
+                result.success(true)
+            }
+
+            "getRawNotifications" -> {
+                CoroutineScope(Dispatchers.IO).launch {
+                    val list = dbHelper.getRawNotifications(limit = 100)
+                    Handler(Looper.getMainLooper()).post {
+                        result.success(list)
+                    }
+                }
+            }
+
+            "clearRawNotifications" -> {
+                CoroutineScope(Dispatchers.IO).launch {
+                    val cleared = dbHelper.clearRawNotifications()
+                    Handler(Looper.getMainLooper()).post {
+                        result.success(cleared)
+                    }
+                }
+            }
+
+            "openAutostartSettings" -> {
+                var opened = false
+                try {
+                    val intent = Intent().apply {
+                        component = ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                    opened = true
+                } catch (_: Exception) {}
+                if (!opened) {
+                    try {
+                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.parse("package:${context.packageName}")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(intent)
+                        opened = true
+                    } catch (_: Exception) {}
+                }
+                result.success(opened)
+            }
+
+            "getCustomFormats" -> {
+                val prefs = context.getSharedPreferences("custom_formats", Context.MODE_PRIVATE)
+                val all = prefs.all.mapValues { it.value?.toString() ?: "" }
+                result.success(all)
             }
 
             "startListenerService" -> {

@@ -2055,28 +2055,28 @@ class DeviceSchedulesKpis {
   final int completedCount;
 
   const DeviceSchedulesKpis({
-    this.totalSchedules = 276,
-    this.activeSchedules = 192,
-    this.activePercentage = 69.6,
-    this.pausedSchedules = 8,
-    this.pausedPercentage = 2.9,
-    this.upcoming24h = 34,
-    this.executedToday = 428,
-    this.failedSkipped = 6,
-    this.completedCount = 2318,
+    this.totalSchedules = 0,
+    this.activeSchedules = 0,
+    this.activePercentage = 0.0,
+    this.pausedSchedules = 0,
+    this.pausedPercentage = 0.0,
+    this.upcoming24h = 0,
+    this.executedToday = 0,
+    this.failedSkipped = 0,
+    this.completedCount = 0,
   });
 
   factory DeviceSchedulesKpis.fromJson(Map<String, dynamic> json) {
     return DeviceSchedulesKpis(
-      totalSchedules: (json['total_schedules'] as num?)?.toInt() ?? 276,
-      activeSchedules: (json['active_schedules'] as num?)?.toInt() ?? 192,
-      activePercentage: (json['active_percentage'] as num?)?.toDouble() ?? 69.6,
-      pausedSchedules: (json['paused_schedules'] as num?)?.toInt() ?? 8,
-      pausedPercentage: (json['paused_percentage'] as num?)?.toDouble() ?? 2.9,
-      upcoming24h: (json['upcoming_24h'] as num?)?.toInt() ?? 34,
-      executedToday: (json['executed_today'] as num?)?.toInt() ?? 428,
-      failedSkipped: (json['failed_skipped'] as num?)?.toInt() ?? 6,
-      completedCount: (json['completed_count'] as num?)?.toInt() ?? 2318,
+      totalSchedules: (json['total_schedules'] as num?)?.toInt() ?? 0,
+      activeSchedules: (json['active_schedules'] as num?)?.toInt() ?? 0,
+      activePercentage: (json['active_percentage'] as num?)?.toDouble() ?? 0.0,
+      pausedSchedules: (json['paused_schedules'] as num?)?.toInt() ?? 0,
+      pausedPercentage: (json['paused_percentage'] as num?)?.toDouble() ?? 0.0,
+      upcoming24h: (json['upcoming_24h'] as num?)?.toInt() ?? 0,
+      executedToday: (json['executed_today'] as num?)?.toInt() ?? 0,
+      failedSkipped: (json['failed_skipped'] as num?)?.toInt() ?? 0,
+      completedCount: (json['completed_count'] as num?)?.toInt() ?? 0,
     );
   }
 }
@@ -2331,14 +2331,14 @@ class DeviceScenesPresetsKpis {
   final SceneUsageStats usageStats;
 
   const DeviceScenesPresetsKpis({
-    this.totalScenes = 42,
-    this.activeScenes = 36,
-    this.activePercentage = 85.7,
-    this.disabledScenes = 6,
-    this.disabledPercentage = 14.3,
-    this.totalPresets = 118,
-    this.usedInAutomations = 24,
-    this.usedInSchedules = 37,
+    this.totalScenes = 0,
+    this.activeScenes = 0,
+    this.activePercentage = 0.0,
+    this.disabledScenes = 0,
+    this.disabledPercentage = 0.0,
+    this.totalPresets = 0,
+    this.usedInAutomations = 0,
+    this.usedInSchedules = 0,
     this.popularScenes = const [],
     this.usageStats = const SceneUsageStats(),
   });
@@ -2351,14 +2351,14 @@ class DeviceScenesPresetsKpis {
         : const SceneUsageStats();
 
     return DeviceScenesPresetsKpis(
-      totalScenes: (json['total_scenes'] as num?)?.toInt() ?? 42,
-      activeScenes: (json['active_scenes'] as num?)?.toInt() ?? 36,
-      activePercentage: (json['active_percentage'] as num?)?.toDouble() ?? 85.7,
-      disabledScenes: (json['disabled_scenes'] as num?)?.toInt() ?? 6,
-      disabledPercentage: (json['disabled_percentage'] as num?)?.toDouble() ?? 14.3,
-      totalPresets: (json['total_presets'] as num?)?.toInt() ?? 118,
-      usedInAutomations: (json['used_in_automations'] as num?)?.toInt() ?? 24,
-      usedInSchedules: (json['used_in_schedules'] as num?)?.toInt() ?? 37,
+      totalScenes: (json['total_scenes'] as num?)?.toInt() ?? 0,
+      activeScenes: (json['active_scenes'] as num?)?.toInt() ?? 0,
+      activePercentage: (json['active_percentage'] as num?)?.toDouble() ?? 0.0,
+      disabledScenes: (json['disabled_scenes'] as num?)?.toInt() ?? 0,
+      disabledPercentage: (json['disabled_percentage'] as num?)?.toDouble() ?? 0.0,
+      totalPresets: (json['total_presets'] as num?)?.toInt() ?? 0,
+      usedInAutomations: (json['used_in_automations'] as num?)?.toInt() ?? 0,
+      usedInSchedules: (json['used_in_schedules'] as num?)?.toInt() ?? 0,
       popularScenes: popular,
       usageStats: usage,
     );

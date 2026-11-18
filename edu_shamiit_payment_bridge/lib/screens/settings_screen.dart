@@ -7,6 +7,7 @@ import '../core/theme.dart';
 import '../models/settings_model.dart';
 import '../services/api_service.dart';
 import '../widgets/app_header.dart';
+import '../widgets/dynamic_parser_studio_dialog.dart';
 import 'diagnostics_screen.dart';
 import 'login_screen.dart';
 
@@ -708,6 +709,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showCustomFormatDialog({String initialPkg = 'com.phonepe.app'}) {
+    DynamicParserStudioDialog.show(context, initialPackage: initialPkg, onSaved: _fetch);
+    return;
     final pkgCtrl = TextEditingController(text: initialPkg);
     final regexCtrl = TextEditingController(text: r'(?:Rs\.?|₹|INR)\s*([0-9,]+(?:\.[0-9]{1,2})?)');
     final sampleTextCtrl = TextEditingController(

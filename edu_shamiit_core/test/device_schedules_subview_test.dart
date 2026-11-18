@@ -128,24 +128,24 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Total Schedules'), findsOneWidget);
-      expect(find.text('276'), findsOneWidget);
+      expect(find.text('10'), findsAtLeastNWidgets(1));
 
       expect(find.text('Active'), findsAtLeastNWidgets(1));
-      expect(find.text('192'), findsOneWidget);
-      expect(find.text('69.6%'), findsOneWidget);
+      expect(find.text('9'), findsOneWidget);
+      expect(find.text('90.0%'), findsOneWidget);
 
       expect(find.text('Paused'), findsAtLeastNWidgets(1));
-      expect(find.text('8'), findsOneWidget);
-      expect(find.text('2.9%'), findsOneWidget);
+      expect(find.text('1'), findsAtLeastNWidgets(1));
+      expect(find.text('10.0%'), findsOneWidget);
 
       expect(find.text('Upcoming (Next 24h)'), findsOneWidget);
-      expect(find.text('34'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
 
       expect(find.text('Executed Today'), findsOneWidget);
-      expect(find.text('428'), findsOneWidget);
+      expect(find.text('5'), findsOneWidget);
 
       expect(find.text('Failed / Skipped'), findsOneWidget);
-      expect(find.text('6'), findsOneWidget);
+      expect(find.text('0'), findsOneWidget);
     });
 
     testWidgets('Renders Sub-Tabs Bar and toggles tabs', (tester) async {
@@ -153,14 +153,14 @@ void main() {
       await tester.pumpWidget(buildTestHarness());
       await tester.pumpAndSettle();
 
-      expect(find.text('All Schedules (276)'), findsOneWidget);
-      expect(find.text('Active (192)'), findsOneWidget);
-      expect(find.text('Paused (8)'), findsOneWidget);
-      expect(find.text('Upcoming (34)'), findsOneWidget);
-      expect(find.text('Completed (2318)'), findsOneWidget);
+      expect(find.text('All Schedules (10)'), findsOneWidget);
+      expect(find.text('Active (9)'), findsOneWidget);
+      expect(find.text('Paused (1)'), findsOneWidget);
+      expect(find.text('Upcoming (2)'), findsOneWidget);
+      expect(find.text('Completed (0)'), findsOneWidget);
 
       // Tap on Active tab
-      await tester.tap(find.text('Active (192)'));
+      await tester.tap(find.text('Active (9)'));
       await tester.pumpAndSettle();
     });
 
@@ -409,8 +409,54 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Schedules'), findsOneWidget);
-      expect(find.text('276'), findsOneWidget);
+      expect(find.text('Total Schedules'), findsOneWidget);
+      expect(find.text('10'), findsAtLeastNWidgets(1));
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Multi-Selection: Checking row checkbox shows multi-selection toolbar with all operations', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 900));
+      await tester.pumpWidget(buildTestHarness());
+      await tester.pumpAndSettle();
+
+      // Before checking: multi-selection action bar is not visible
+      expect(find.text('Activate Selected'), findsNothing);
+      expect(find.text('Pause Selected'), findsNothing);
+      expect(find.text('Run Selected'), findsNothing);
+      expect(find.text('Delete Selected'), findsNothing);
+
+      // Find row checkboxes (index 0 is header checkbox, index 1 is first row checkbox)
+      final checkboxes = find.byType(Checkbox);
+      expect(checkboxes, findsAtLeastNWidgets(2));
+
+      // Tap first row checkbox
+      await tester.tap(checkboxes.at(1));
+      await tester.pumpAndSettle();
+
+      // Action bar now visible
+      expect(find.text('1 schedule selected'), findsOneWidget);
+      expect(find.text('Activate Selected'), findsOneWidget);
+      expect(find.text('Pause Selected'), findsOneWidget);
+      expect(find.text('Run Selected'), findsOneWidget);
+      expect(find.text('Delete Selected'), findsOneWidget);
+      expect(find.text('Clear All'), findsOneWidget);
+
+      // Tap Clear All
+      await tester.tap(find.text('Clear All'));
+      await tester.pumpAndSettle();
+
+      // Action bar hides
+      expect(find.text('1 schedule selected'), findsNothing);
+      expect(find.text('Activate Selected'), findsNothing);
+    });
+
+    testWidgets('Zero double checkboxes and zero double ++ on Schedules screen', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 900));
+      await tester.pumpWidget(buildTestHarness());
+      await tester.pumpAndSettle();
+
+      expect(find.text('+ +'), findsNothing);
+      expect(find.text('++'), findsNothing);
     });
   });
 }

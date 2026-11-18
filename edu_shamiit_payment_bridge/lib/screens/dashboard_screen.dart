@@ -106,6 +106,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   void _refresh() {
     _isFetching = true;
     _lastRefreshTime = DateTime.now();
+    // Proactively sync local device SQLite queue to backend
+    PlatformBridge.syncNow().catchError((_) => <String, dynamic>{});
     final future = ApiService().getDashboardData();
     setState(() {
       _dashboardFuture = future;

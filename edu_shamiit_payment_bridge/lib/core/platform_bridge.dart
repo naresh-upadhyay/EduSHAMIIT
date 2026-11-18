@@ -289,4 +289,75 @@ class PlatformBridge {
     }
     return [];
   }
+
+  static Future<bool> forceRebindListener() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
+    try {
+      final bool? res = await _channel.invokeMethod<bool>('forceRebindListener');
+      return res ?? false;
+    } catch (e) {
+      debugPrint('forceRebindListener error: $e');
+      return false;
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getRawNotifications({int limit = 100}) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return [];
+    }
+    try {
+      final List<dynamic>? list =
+          await _channel.invokeMethod<List<dynamic>>('getRawNotifications', {'limit': limit});
+      if (list != null) {
+        return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+    } catch (e) {
+      debugPrint('getRawNotifications error: $e');
+    }
+    return [];
+  }
+
+  static Future<bool> clearRawNotifications() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
+    try {
+      final bool? res = await _channel.invokeMethod<bool>('clearRawNotifications');
+      return res ?? false;
+    } catch (e) {
+      debugPrint('clearRawNotifications error: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> openAutostartSettings() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
+    try {
+      final bool? res = await _channel.invokeMethod<bool>('openAutostartSettings');
+      return res ?? false;
+    } catch (e) {
+      debugPrint('openAutostartSettings error: $e');
+      return false;
+    }
+  }
+
+  static Future<Map<String, String>> getCustomFormats() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return {};
+    }
+    try {
+      final Map<dynamic, dynamic>? res =
+          await _channel.invokeMethod<Map<dynamic, dynamic>>('getCustomFormats');
+      if (res != null) {
+        return res.map((k, v) => MapEntry(k.toString(), v.toString()));
+      }
+    } catch (e) {
+      debugPrint('getCustomFormats error: $e');
+    }
+    return {};
+  }
 }

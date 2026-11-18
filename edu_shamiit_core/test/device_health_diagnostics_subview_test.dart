@@ -469,5 +469,106 @@ void main() {
       expect(find.text('Device Health & Diagnostics'), findsOneWidget);
       expect(find.text('Total Devices'), findsWidgets);
     });
+
+    testWidgets('Multi-selection action bar toggles on row checkbox selection and clears', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 3200));
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      final checkboxes = find.byType(Checkbox);
+      expect(checkboxes, findsWidgets);
+
+      // Initially no multi-selection action bar
+      expect(find.text('Reboot Selected'), findsNothing);
+
+      // Scroll to row checkbox and tap (index 1, index 0 is header)
+      await tester.ensureVisible(checkboxes.at(1));
+      await tester.pumpAndSettle();
+      await tester.tap(checkboxes.at(1));
+      await tester.pumpAndSettle();
+
+      // Bar is now visible
+      expect(find.text('1 device selected'), findsOneWidget);
+      expect(find.text('Reboot Selected'), findsOneWidget);
+      expect(find.text('Update Firmware'), findsWidgets);
+      expect(find.text('Export Selected'), findsOneWidget);
+      expect(find.text('Clear Selection'), findsOneWidget);
+
+      // Tap Clear Selection
+      await tester.ensureVisible(find.text('Clear Selection'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Clear Selection'));
+      await tester.pumpAndSettle();
+
+      // Bar is hidden
+      expect(find.text('1 device selected'), findsNothing);
+      expect(find.text('Reboot Selected'), findsNothing);
+    });
+
+    testWidgets('Header checkbox toggles all devices selection on current page', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 3200));
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      final checkboxes = find.byType(Checkbox);
+      // Ensure header checkbox is visible and tap (index 0)
+      await tester.ensureVisible(checkboxes.at(0));
+      await tester.pumpAndSettle();
+      await tester.tap(checkboxes.at(0));
+      await tester.pumpAndSettle();
+
+      // Multi-selection bar shows selected count
+      expect(find.textContaining('selected'), findsWidgets);
+      expect(find.text('Reboot Selected'), findsOneWidget);
+
+      // Tap header checkbox again to deselect
+      await tester.tap(checkboxes.at(0));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Reboot Selected'), findsNothing);
+    });
+
+    testWidgets('Sorting: Tapping column headers triggers sorting without error', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 3200));
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      final deviceNameCol = find.text('Device Name');
+      expect(deviceNameCol, findsOneWidget);
+      await tester.ensureVisible(deviceNameCol);
+      await tester.pumpAndSettle();
+      await tester.tap(deviceNameCol);
+      await tester.pumpAndSettle();
+
+      final healthStatusCol = find.text('Health Status');
+      expect(healthStatusCol, findsOneWidget);
+      await tester.ensureVisible(healthStatusCol);
+      await tester.pumpAndSettle();
+      await tester.tap(healthStatusCol);
+      await tester.pumpAndSettle();
+
+      final uptimeCol = find.text('Uptime');
+      expect(uptimeCol, findsOneWidget);
+      await tester.ensureVisible(uptimeCol);
+      await tester.pumpAndSettle();
+      await tester.tap(uptimeCol);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('Pagination controls: change page size and navigation buttons render', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 3200));
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      final rowsText = find.text('Rows:');
+      expect(rowsText, findsOneWidget);
+      await tester.ensureVisible(rowsText);
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('First Page'), findsOneWidget);
+      expect(find.byTooltip('Previous Page'), findsOneWidget);
+      expect(find.byTooltip('Next Page'), findsOneWidget);
+      expect(find.byTooltip('Last Page'), findsOneWidget);
+    });
   });
 }

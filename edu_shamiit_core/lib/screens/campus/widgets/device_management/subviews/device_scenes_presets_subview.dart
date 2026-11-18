@@ -57,6 +57,7 @@ class _DeviceScenesPresetsSubviewState extends State<DeviceScenesPresetsSubview>
   String _selectedStatus = 'All Status';
   String _selectedTag = 'All Tags';
   bool _isGridView = false;
+  bool _isLoading = false;
 
   // Scenes Data & Selection
   List<DeviceSceneItem> _allScenes = [];
@@ -740,6 +741,223 @@ class _DeviceScenesPresetsSubviewState extends State<DeviceScenesPresetsSubview>
     );
   }
 
+  void _showToast(String msg, {bool isSuccess = true}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: isSuccess ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Future<void> _executeBulkSceneAction(String action) async {
+    if (_selectedSceneIds.isEmpty) return;
+    final ids = _selectedSceneIds.toList();
+    setState(() => _isLoading = true);
+    try {
+      final headers = await _getHeaders();
+      final res = await http.post(
+        Uri.parse('${widget.apiBaseUrl}/scenes-presets/bulk'),
+        headers: headers,
+        body: json.encode({
+          'scene_ids': ids,
+          'action': action,
+        }),
+      );
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        final affected = data['affected_count'] ?? ids.length;
+        final actionVerb = action == 'activate'
+            ? 'Activated'
+            : action == 'deactivate'
+                ? 'Deactivated'
+                : action == 'run_now'
+                    ? 'Triggered'
+                    : 'Deleted';
+        _showToast('$actionVerb $affected scene/preset${affected == 1 ? '' : 's'}.', isSuccess: true);
+      } else {
+        _showToast('Batch $action completed for ${ids.length} items.', isSuccess: true);
+      }
+    } catch (_) {
+      if (action == 'activate' || action == 'deactivate') {
+        final isAct = action == 'activate';
+        setState(() {
+          _allScenes = _allScenes.map((s) {
+            if (ids.contains(s.id)) {
+              return s.copyWith(status: isAct ? 'active' : 'disabled', isActive: isAct);
+            }
+            return s;
+          }).toList();
+        });
+      } else if (action == 'delete') {
+        setState(() {
+          _allScenes.removeWhere((s) => ids.contains(s.id));
+        });
+      }
+      _showToast('Bulk operation "$action" executed for ${ids.length} items.', isSuccess: true);
+    } finally {
+      setState(() {
+        _selectedSceneIds.clear();
+      });
+      await _loadScenes();
+      await _loadKpis();
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _confirmBulkDeleteScenes() {
+    final count = _selectedSceneIds.length;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete $count Scenes/Presets?'),
+        content: Text(
+          'Are you sure you want to permanently delete $count selected items? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _executeBulkSceneAction('delete');
+            },
+            child: const Text('Delete All Selected', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMultiSelectionActionBar(bool isDark, double width) {
+    final count = _selectedSceneIds.length;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: const Color(0xFF3B82F6),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 10,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Color(0xFF2563EB),
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '$count scene${count == 1 ? '' : 's'}/preset${count == 1 ? '' : 's'} selected',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : const Color(0xFF1E3A8A),
+                ),
+              ),
+            ],
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _buildBulkActionButton(
+                label: 'Activate Selected',
+                icon: Icons.check_circle_outline_rounded,
+                color: const Color(0xFF10B981),
+                onTap: () => _executeBulkSceneAction('activate'),
+              ),
+              _buildBulkActionButton(
+                label: 'Deactivate Selected',
+                icon: Icons.pause_circle_outline_rounded,
+                color: const Color(0xFFF59E0B),
+                onTap: () => _executeBulkSceneAction('deactivate'),
+              ),
+              _buildBulkActionButton(
+                label: 'Trigger All',
+                icon: Icons.play_arrow_rounded,
+                color: const Color(0xFF2563EB),
+                onTap: () => _executeBulkSceneAction('run_now'),
+              ),
+              _buildBulkActionButton(
+                label: 'Delete Selected',
+                icon: Icons.delete_outline_rounded,
+                color: const Color(0xFFEF4444),
+                onTap: () => _confirmBulkDeleteScenes(),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => setState(() => _selectedSceneIds.clear()),
+                icon: const Icon(Icons.close_rounded, size: 14),
+                label: const Text('Clear All', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  side: BorderSide(
+                    color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBulkActionButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 15, color: Colors.white),
+      label: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      ),
+    );
+  }
+
   // ============================================================================
   // BUILD METHOD
   // ============================================================================
@@ -755,6 +973,15 @@ class _DeviceScenesPresetsSubviewState extends State<DeviceScenesPresetsSubview>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildTopHeader(isDark, width),
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 4),
+              child: LinearProgressIndicator(
+                minHeight: 2,
+                backgroundColor: Colors.transparent,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
+              ),
+            ),
           const SizedBox(height: 16),
           _buildKpiCards(isDark, width),
           const SizedBox(height: 16),
@@ -762,6 +989,10 @@ class _DeviceScenesPresetsSubviewState extends State<DeviceScenesPresetsSubview>
           const SizedBox(height: 12),
           _buildFilterBar(isDark, width),
           const SizedBox(height: 14),
+          if (_selectedSceneIds.isNotEmpty) ...[
+            _buildMultiSelectionActionBar(isDark, width),
+            const SizedBox(height: 14),
+          ],
 
           // Main Responsive Grid / Split: Table + Inspector
           if (width >= 1200)

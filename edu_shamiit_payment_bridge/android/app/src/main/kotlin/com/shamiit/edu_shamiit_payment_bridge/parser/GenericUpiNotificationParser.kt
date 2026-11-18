@@ -41,14 +41,18 @@ class GenericUpiNotificationParser(private val context: Context? = null) : Notif
         val timestampStr = isoFormat.format(if (postTime > 0) Date(postTime) else Date())
         val eventUuid = UUID.randomUUID().toString()
 
-        val isOutgoing = fullContent.contains("paid", ignoreCase = true) ||
-                         fullContent.contains("debited", ignoreCase = true) ||
-                         fullContent.contains("sent", ignoreCase = true)
+        // Distinguish outgoing vs incoming payment notifications accurately:
+        val isOutgoing = fullContent.contains("paid to", ignoreCase = true) ||
+                         fullContent.contains("payment sent to", ignoreCase = true) ||
+                         fullContent.contains("you have sent", ignoreCase = true) ||
+                         fullContent.contains("you sent", ignoreCase = true) ||
+                         fullContent.contains("debited from", ignoreCase = true) ||
+                         (fullContent.contains("debited", ignoreCase = true) && !fullContent.contains("has sent", ignoreCase = true))
 
         val eventType = if (isOutgoing) "PAYMENT_SENT" else "PAYMENT_RECEIVED"
 
         var amountPaise = 0L
-        val amountPatternStr = "(?:Rs\\.?|INR|₹|amount of|credited with|received|received an amount of)\\s*[:]?\\s*(?:Rs\\.?|INR|₹)?\\s*([0-9,]+(?:\\.[0-9]{1,2})?)"
+        val amountPatternStr = "(?:Rs\\.?|INR|\\u20B9|₹|amount of|credited with|received|received an amount of)\\s*[:]?\\s*(?:Rs\\.?|INR|\\u20B9|₹)?\\s*([0-9,]+(?:\\.[0-9]{1,2})?)"
         val amountMatcher = getPattern(packageName, "amount", amountPatternStr).matcher(fullContent)
         if (amountMatcher.find()) {
             val rawAmt = amountMatcher.group(1)?.replace(",", "") ?: "0"
