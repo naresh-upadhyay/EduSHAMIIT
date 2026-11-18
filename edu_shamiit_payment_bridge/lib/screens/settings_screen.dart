@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants.dart';
 import '../core/platform_bridge.dart';
 import '../core/theme.dart';
@@ -313,26 +314,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: FutureBuilder<List<MonitoredAppItem>>(
         future: _appsFuture,
         builder: (context, snapshot) {
-          final apps = snapshot.data ??
-              [
-                MonitoredAppItem(
-                  id: '1',
-                  name: 'PhonePe',
-                  packageName: 'com.phonepe.app',
-                  isEnabled: true,
-                ),
-                MonitoredAppItem(
-                  id: '2',
-                  name: 'Google Pay',
-                  packageName: 'com.google.android.apps.nbu.paisa.user',
-                  isEnabled: true,
-                ),
-              ];
+          final rawApps = snapshot.data;
+          final apps = (rawApps != null && rawApps.isNotEmpty)
+              ? rawApps
+              : [
+                  MonitoredAppItem(
+                    id: '1',
+                    name: 'PhonePe',
+                    packageName: 'com.phonepe.app',
+                    isEnabled: true,
+                  ),
+                  MonitoredAppItem(
+                    id: '2',
+                    name: 'Google Pay',
+                    packageName: 'com.google.android.apps.nbu.paisa.user',
+                    isEnabled: true,
+                  ),
+                  MonitoredAppItem(
+                    id: '3',
+                    name: 'Paytm',
+                    packageName: 'net.one97.paytm',
+                    isEnabled: true,
+                  ),
+                  MonitoredAppItem(
+                    id: '4',
+                    name: 'BHIM UPI',
+                    packageName: 'in.org.npci.upiapp',
+                    isEnabled: true,
+                  ),
+                ];
 
           return Column(
             children: [
               ...apps.map((app) {
                 final isPhonePe = app.name.toLowerCase().contains('phonepe');
+                final isGPay = app.name.toLowerCase().contains('google') || app.name.toLowerCase().contains('gpay');
+                final isPaytm = app.name.toLowerCase().contains('paytm');
+                final isBhim = app.name.toLowerCase().contains('bhim');
+
+                Color iconBg = const Color(0xFF2563EB);
+                Widget iconContent = const Icon(Icons.payment, color: Colors.white, size: 18);
+                if (isPhonePe) {
+                  iconBg = const Color(0xFF5F259F);
+                  iconContent = const Text('पे', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold));
+                } else if (isGPay) {
+                  iconBg = const Color(0xFF4285F4);
+                  iconContent = const Text('G', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold));
+                } else if (isPaytm) {
+                  iconBg = const Color(0xFF002E6E);
+                  iconContent = const Text('P', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold));
+                } else if (isBhim) {
+                  iconBg = const Color(0xFF00796B);
+                  iconContent = const Text('B', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold));
+                }
+
                 return Column(
                   children: [
                     _buildSettingsTile(
@@ -340,36 +375,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         width: 32,
                         height: 32,
                         decoration: BoxDecoration(
-                          color: isPhonePe
-                              ? const Color(0xFF5F259F)
-                              : const Color(0xFF4285F4),
+                          color: iconBg,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Center(
-                          child: isPhonePe
-                              ? const Text(
-                                  'पे',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                )
-                              : const Icon(Icons.payment,
-                                  color: Colors.white, size: 18),
-                        ),
+                        child: Center(child: iconContent),
                       ),
                       title: app.name,
                       subtitle: app.packageName,
-                      trailing: Switch(
-                        value: app.isEnabled,
-                        activeThumbColor: AppColors.successGreen,
-                        activeTrackColor:
-                            AppColors.successGreen.withOpacity(0.4),
-                        onChanged: (val) async {
-                          await ApiService().toggleMonitoredApp(app.id, val);
-                          _fetch();
-                        },
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Switch(
+                            value: app.isEnabled,
+                            activeThumbColor: AppColors.successGreen,
+                            activeTrackColor: AppColors.successGreen.withOpacity(0.4),
+                            onChanged: (val) async {
+                              await ApiService().toggleMonitoredApp(app.id, val);
+                              await PlatformBridge.setAppMonitored(app.packageName, val);
+                              _fetch();
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.errorRed),
+                            tooltip: 'Remove App',
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (c) => AlertDialog(
+                                  title: const Text('Remove App'),
+                                  content: Text('Stop monitoring ${app.name}?'),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                                    ElevatedButton(
+                                      onPressed: () => Navigator.pop(c, true),
+                                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.errorRed, foregroundColor: Colors.white),
+                                      child: const Text('Remove'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirm == true) {
+                                await ApiService().deleteMonitoredApp(app.id);
+                                await PlatformBridge.setAppMonitored(app.packageName, false);
+                                _fetch();
+                              }
+                            },
+                          ),
+                        ],
                       ),
                     ),
                     const Divider(color: AppColors.border, height: 1),
@@ -418,22 +470,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       child: Column(
         children: [
-          // Server URL (Non-editable as requested by user)
+          // Server URL (Configurable)
           _buildSettingsTile(
             icon: Icons.cloud_outlined,
             iconColor: AppColors.primaryBlue,
-            title: 'Server URL (Production Cloud / Gateway)',
+            title: 'Server URL (Gateway / Cloud API)',
             subtitle: _serverUrl,
-            trailing: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.lock_outline, size: 16, color: AppColors.textMuted),
-                SizedBox(width: 4),
-                Text(
-                  'Locked',
-                  style: TextStyle(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.w500),
+            trailing: InkWell(
+              onTap: () => _showEditServerUrlDialog(),
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryBlue.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.primaryBlue.withOpacity(0.3)),
                 ),
-              ],
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.edit_outlined, size: 14, color: AppColors.primaryBlue),
+                    SizedBox(width: 4),
+                    Text(
+                      'Configure',
+                      style: TextStyle(fontSize: 11, color: AppColors.primaryBlue, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
           const Divider(color: AppColors.border, height: 1),
@@ -1063,30 +1127,180 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showAddAppDialog() {
     final nameCtrl = TextEditingController();
     final pkgCtrl = TextEditingController();
+    bool isSaving = false;
+
+    final presets = [
+      {'name': 'PhonePe', 'pkg': 'com.phonepe.app'},
+      {'name': 'Google Pay', 'pkg': 'com.google.android.apps.nbu.paisa.user'},
+      {'name': 'Paytm', 'pkg': 'net.one97.paytm'},
+      {'name': 'BHIM UPI', 'pkg': 'in.org.npci.upiapp'},
+      {'name': 'Cred', 'pkg': 'com.dreamplug.androidapp'},
+      {'name': 'Amazon Pay', 'pkg': 'in.amazon.mShop.android.shopping'},
+      {'name': 'WhatsApp Pay', 'pkg': 'com.whatsapp'},
+      {'name': 'Navi UPI', 'pkg': 'com.navi.mutualfunds'},
+      {'name': 'Super.money', 'pkg': 'money.super.app'},
+    ];
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Monitored UPI App'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Application Name (e.g. Paytm, BHIM)',
-                border: OutlineInputBorder(),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Add Monitored UPI App', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          content: SizedBox(
+            width: 440,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Quick select popular UPI apps:',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: presets.map((p) {
+                      final isSelected = pkgCtrl.text == p['pkg'];
+                      return ChoiceChip(
+                        label: Text(p['name']!, style: const TextStyle(fontSize: 12)),
+                        selected: isSelected,
+                        selectedColor: AppColors.primaryBlue.withOpacity(0.15),
+                        onSelected: (val) {
+                          setDialogState(() {
+                            nameCtrl.text = p['name']!;
+                            pkgCtrl.text = p['pkg']!;
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Application Name (e.g. Cred, PhonePe)',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: pkgCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Android Package Name (e.g. com.phonepe.app)',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: pkgCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Package Name (e.g. net.one97.paytm)',
-                border: OutlineInputBorder(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      final name = nameCtrl.text.trim();
+                      final pkg = pkgCtrl.text.trim();
+                      if (name.isEmpty || pkg.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please enter application name and package name'),
+                            backgroundColor: AppColors.errorRed,
+                          ),
+                        );
+                        return;
+                      }
+
+                      setDialogState(() => isSaving = true);
+                      final ok = await ApiService().addMonitoredApp(name, pkg);
+                      await PlatformBridge.setAppMonitored(pkg, true);
+                      if (mounted) {
+                        Navigator.pop(ctx);
+                        _fetch();
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(ok
+                                ? 'Saved $name to database & monitoring!'
+                                : 'Added $name locally (server offline)'),
+                            backgroundColor: ok ? AppColors.successGreen : Colors.orange,
+                          ),
+                        );
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryBlue,
+                foregroundColor: Colors.white,
               ),
+              child: Text(isSaving ? 'Saving...' : 'Add & Save to DB'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditServerUrlDialog() {
+    final urlCtrl = TextEditingController(text: _serverUrl);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Configure Backend Server URL', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Select a preset or enter your PC LAN IP to connect from a physical mobile device:',
+                style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  ActionChip(
+                    label: const Text('Local PC (WiFi)', style: TextStyle(fontSize: 11)),
+                    onPressed: () => urlCtrl.text = 'http://192.168.1.8:8082/api/v1/payment-bridge',
+                  ),
+                  ActionChip(
+                    label: const Text('Cloud (Live)', style: TextStyle(fontSize: 11)),
+                    onPressed: () => urlCtrl.text = 'https://eduapi.shamiit.com/api/v1/payment-bridge',
+                  ),
+                  ActionChip(
+                    label: const Text('Localhost (Web)', style: TextStyle(fontSize: 11)),
+                    onPressed: () => urlCtrl.text = 'http://localhost:8082/api/v1/payment-bridge',
+                  ),
+                  ActionChip(
+                    label: const Text('Emulator (10.0.2.2)', style: TextStyle(fontSize: 11)),
+                    onPressed: () => urlCtrl.text = 'http://10.0.2.2:8082/api/v1/payment-bridge',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: urlCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Payment Bridge Server URL',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+                style: const TextStyle(fontSize: 13),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -1094,20 +1308,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Added ${nameCtrl.text.trim()} to monitored apps'),
-                  backgroundColor: AppColors.successGreen,
-                ),
-              );
+            onPressed: () async {
+              final newUrl = urlCtrl.text.trim();
+              if (newUrl.isNotEmpty) {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setString(AppConstants.prefsServerUrlKey, newUrl);
+                ApiService().updateConfig(baseUrl: newUrl);
+                if (mounted) {
+                  setState(() => _serverUrl = newUrl);
+                  Navigator.pop(ctx);
+                  _fetch();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Server URL updated to $newUrl'),
+                      backgroundColor: AppColors.successGreen,
+                    ),
+                  );
+                }
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryBlue,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Add'),
+            child: const Text('Save URL'),
           ),
         ],
       ),

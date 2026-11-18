@@ -8,8 +8,12 @@ import android.util.Log
 import com.shamiit.edu_shamiit_payment_bridge.parser.NotificationParserFactory
 import com.shamiit.edu_shamiit_payment_bridge.storage.PaymentDatabaseHelper
 import com.shamiit.edu_shamiit_payment_bridge.sync.SyncManager
+import com.shamiit.edu_shamiit_payment_bridge.bridge.PaymentBridgeChannel
+import androidx.core.app.NotificationManagerCompat
 
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
 
 class PaymentNotificationListenerService : NotificationListenerService() {
 
@@ -51,6 +55,7 @@ class PaymentNotificationListenerService : NotificationListenerService() {
     private lateinit var dbHelper: PaymentDatabaseHelper
     private lateinit var syncManager: SyncManager
     private val backgroundExecutor = Executors.newSingleThreadExecutor()
+    private var heartbeatScheduler: ScheduledExecutorService? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -62,6 +67,7 @@ class PaymentNotificationListenerService : NotificationListenerService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        stopHeartbeatLoop()
         try {
             backgroundExecutor.shutdown()
         } catch (_: Throwable) {}
@@ -71,13 +77,41 @@ class PaymentNotificationListenerService : NotificationListenerService() {
         super.onListenerConnected()
         isServiceConnected = true
         Log.i(TAG, "Notification listener connected successfully")
-        syncManager.sendHeartbeat(batteryLevel = 100, isListenerActive = true, isAccessGranted = true)
+        startHeartbeatLoop()
     }
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         isServiceConnected = false
+        stopHeartbeatLoop()
         Log.w(TAG, "Notification listener disconnected")
+    }
+
+    private fun startHeartbeatLoop() {
+        stopHeartbeatLoop()
+        heartbeatScheduler = Executors.newSingleThreadScheduledExecutor()
+        heartbeatScheduler?.scheduleAtFixedRate({
+            try {
+                if (isServiceConnected) {
+                    val currentBattery = PaymentBridgeChannel.getActualBatteryLevel(this)
+                    val isAccessGranted = NotificationManagerCompat.getEnabledListenerPackages(this).contains(packageName)
+                    syncManager.sendHeartbeat(
+                        batteryLevel = currentBattery,
+                        isListenerActive = true,
+                        isAccessGranted = isAccessGranted
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Heartbeat loop error: ${e.message}")
+            }
+        }, 0, 30, TimeUnit.SECONDS)
+    }
+
+    private fun stopHeartbeatLoop() {
+        try {
+            heartbeatScheduler?.shutdownNow()
+            heartbeatScheduler = null
+        } catch (_: Throwable) {}
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {

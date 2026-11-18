@@ -3348,15 +3348,26 @@ async def test_device_active_status(
         seconds_ago = max(0, int(diff.total_seconds()))
         minutes_ago = seconds_ago // 60
 
-    # Consider background listener actively working if:
-    # 1. Listener service running
-    # 2. Notification access granted
-    # 3. Heartbeat within 10 minutes (or online flag is true)
-    hb_fresh = (seconds_ago is not None and seconds_ago <= 600) or d.get("is_online", False)
+    # Device is ONLY actively listening if:
+    # 1. Listener service is marked running
+    # 2. Notification access permission is granted
+    # 3. Heartbeat was received within the last 90 seconds (1.5 minutes)
+    hb_fresh = (seconds_ago is not None and seconds_ago <= 90)
     is_active = listener_ok and notif_perm_ok and hb_fresh
 
     time_desc = f"{minutes_ago}m ago" if (minutes_ago is not None and minutes_ago > 0) else f"{seconds_ago or 0}s ago"
-    batt = d.get("battery_level", 100)
+    batt = d.get("battery_level") if d.get("battery_level") is not None else 0
+
+    if not hb_fresh:
+        # Auto-update database to accurately mark device as offline
+        try:
+            await exec_sql(
+                "UPDATE public.payment_bridge_devices SET is_online = FALSE WHERE school_id = %s::UUID AND device_id = %s",
+                (school_id, device_id.strip()),
+                fetch=False,
+            )
+        except Exception:
+            pass
 
     if is_active:
         msg = f"Device '{d.get('device_name')}' is ACTIVE and listening for UPI notifications in background! (Last ping: {time_desc}, Battery: {batt}%)"
@@ -3368,8 +3379,8 @@ async def test_device_active_status(
         msg = f"Device '{d.get('device_name')}' background listener service is stopped."
         status_code = "LISTENER_STOPPED"
     else:
-        msg = f"Device '{d.get('device_name')}' is idle or sleeping. Last heartbeat: {time_desc}. Ensure battery optimization is disabled."
-        status_code = "IDLE_OR_OFFLINE"
+        msg = f"Device '{d.get('device_name')}' is OFFLINE / Switched Off. (Last ping was {time_desc}, Battery: {batt}%)"
+        status_code = "OFFLINE"
 
     return {
         "success": True,

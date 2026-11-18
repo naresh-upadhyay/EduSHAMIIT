@@ -249,6 +249,7 @@ class MonitoredAppCreate(BaseModel):
     package_name: str
     is_enabled: bool = True
     icon_name: Optional[str] = "payment"
+    device_id: Optional[str] = None
 
 
 # ============================================================================
@@ -1920,6 +1921,32 @@ async def list_monitored_apps(request: Request):
         "SELECT * FROM public.payment_bridge_monitored_apps WHERE school_id = %s ORDER BY created_at ASC",
         (school_id,),
     )
+    if not rows:
+        # Auto-seed standard Indian UPI apps if none exist for this school
+        default_apps = [
+            ("PhonePe", "com.phonepe.app", "phonepe"),
+            ("Google Pay", "com.google.android.apps.nbu.paisa.user", "google_pay"),
+            ("Paytm", "net.one97.paytm", "paytm"),
+            ("BHIM UPI", "in.org.npci.upiapp", "bhim"),
+        ]
+        for app_name, pkg, icon in default_apps:
+            try:
+                await exec_sql(
+                    """
+                    INSERT INTO public.payment_bridge_monitored_apps (
+                        school_id, app_name, package_name, is_enabled, icon_name
+                    ) VALUES (%s, %s, %s, TRUE, %s)
+                    ON CONFLICT (school_id, package_name) DO NOTHING
+                    """,
+                    (school_id, app_name, pkg, icon),
+                    fetch=False,
+                )
+            except Exception:
+                pass
+        rows = await exec_sql(
+            "SELECT * FROM public.payment_bridge_monitored_apps WHERE school_id = %s ORDER BY created_at ASC",
+            (school_id,),
+        )
     return serialize_rows(rows)
 
 
@@ -1929,12 +1956,15 @@ async def add_monitored_app(req: MonitoredAppCreate, request: Request):
     inserted = await exec_sql(
         """
         INSERT INTO public.payment_bridge_monitored_apps (
-            school_id, app_name, package_name, is_enabled, icon_name
-        ) VALUES (%s, %s, %s, %s, %s)
-        ON CONFLICT (school_id, package_name) DO UPDATE SET is_enabled = EXCLUDED.is_enabled
+            school_id, app_name, package_name, is_enabled, icon_name, device_id
+        ) VALUES (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT (school_id, package_name) DO UPDATE SET 
+            app_name = EXCLUDED.app_name,
+            is_enabled = EXCLUDED.is_enabled,
+            device_id = COALESCE(EXCLUDED.device_id, public.payment_bridge_monitored_apps.device_id)
         RETURNING id
         """,
-        (school_id, req.app_name, req.package_name, req.is_enabled, req.icon_name),
+        (school_id, req.app_name.strip(), req.package_name.strip(), req.is_enabled, req.icon_name or "payment", req.device_id),
     )
     return {"success": True, "id": str(inserted[0]["id"])}
 

@@ -2,6 +2,7 @@ package com.shamiit.edu_shamiit_payment_bridge.bridge
 
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
@@ -27,6 +28,23 @@ class PaymentBridgeChannel(private val context: Context) : MethodChannel.MethodC
         const val CHANNEL_NAME = "com.shamiit.payment_bridge/channel"
         private const val PREFS_DEVICE = "payment_bridge_device_prefs"
         private const val KEY_UNIQUE_DEVICE_ID = "unique_device_id"
+
+        fun getActualBatteryLevel(context: Context): Int {
+            try {
+                val bm = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+                val cap = bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                if (cap != null && cap in 1..100) {
+                    return cap
+                }
+                val batteryStatus: Intent? = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+                val level: Int = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+                val scale: Int = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+                if (level >= 0 && scale > 0) {
+                    return (level * 100 / scale.toFloat()).toInt()
+                }
+            } catch (_: Exception) {}
+            return 100
+        }
     }
 
     private val dbHelper = PaymentDatabaseHelper.getInstance(context)
@@ -132,8 +150,7 @@ class PaymentBridgeChannel(private val context: Context) : MethodChannel.MethodC
             }
 
             "getDiagnostics" -> {
-                val bm = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
-                val batteryLevel = bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 95
+                val batteryLevel = getActualBatteryLevel(context)
 
                 val pkgName = context.packageName
                 val isAccessGranted = NotificationManagerCompat.getEnabledListenerPackages(context).contains(pkgName)

@@ -124,7 +124,9 @@ class ApiService {
       list.add('http://10.0.2.2:8082/api/v1/payment-bridge$cleanPath');
       list.add('http://127.0.0.1:8082/api/v1/payment-bridge$cleanPath');
     } else {
+      list.add('http://192.168.1.8:8082/api/v1/payment-bridge$cleanPath');
       list.add('${AppConstants.livePaymentBridgeUrl}$cleanPath');
+      list.add('http://10.0.2.2:8082/api/v1/payment-bridge$cleanPath');
       list.add('http://127.0.0.1:8082/api/v1/payment-bridge$cleanPath');
     }
     final primary = '$_baseUrl$cleanPath';
@@ -210,6 +212,26 @@ class ApiService {
     throw lastError ?? Exception('Network connection failed');
   }
 
+  Future<http.Response> _deleteWithFallback(String pathAndQuery, {Duration timeout = const Duration(seconds: 4)}) async {
+    final candidates = _getCandidateUrls(pathAndQuery);
+    dynamic lastError;
+    http.Response? lastResponse;
+    for (final url in candidates) {
+      try {
+        final res = await http.delete(Uri.parse(url), headers: _headers).timeout(timeout);
+        if (res.statusCode >= 200 && res.statusCode < 400) {
+          _onSuccessUrl(url);
+          return res;
+        }
+        lastResponse = res;
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    if (lastResponse != null) return lastResponse;
+    throw lastError ?? Exception('Network connection failed');
+  }
+
   // =========================================================================
   // AUTHENTICATION & LOGIN FLOWS
   // =========================================================================
@@ -226,7 +248,9 @@ class ApiService {
       list.add('http://10.0.2.2:8082/api$cleanPath');
       list.add('http://127.0.0.1:8082/api$cleanPath');
     } else {
+      list.add('http://192.168.1.8:8082/api$cleanPath');
       list.add('${AppConstants.liveServerBaseUrl}/api$cleanPath');
+      list.add('http://10.0.2.2:8082/api$cleanPath');
       list.add('http://127.0.0.1:8082/api$cleanPath');
     }
     return list;
@@ -618,20 +642,65 @@ class ApiService {
       final res = await _getWithFallback('/monitored-apps');
       if (res.statusCode == 200) {
         final List<dynamic> list = json.decode(res.body);
-        return list.map((e) => MonitoredAppItem.fromJson(e)).toList();
+        if (list.isNotEmpty) {
+          return list.map((e) => MonitoredAppItem.fromJson(e)).toList();
+        }
       }
     } catch (e) {
       debugPrint('[ApiService] getMonitoredApps network fallback: $e');
     }
     return [
       MonitoredAppItem(id: '1', name: 'PhonePe', packageName: 'com.phonepe.app', isEnabled: true),
-      MonitoredAppItem(
-        id: '2',
-        name: 'Google Pay',
-        packageName: 'com.google.android.apps.nbu.paisa.user',
-        isEnabled: true,
-      ),
+      MonitoredAppItem(id: '2', name: 'Google Pay', packageName: 'com.google.android.apps.nbu.paisa.user', isEnabled: true),
+      MonitoredAppItem(id: '3', name: 'Paytm', packageName: 'net.one97.paytm', isEnabled: true),
+      MonitoredAppItem(id: '4', name: 'BHIM UPI', packageName: 'in.org.npci.upiapp', isEnabled: true),
     ];
+  }
+
+  Future<bool> addMonitoredApp(String name, String packageName, {String? iconName}) async {
+    try {
+      final body = json.encode({
+        'app_name': name.trim(),
+        'package_name': packageName.trim(),
+        'is_enabled': true,
+        'icon_name': iconName ?? 'payment',
+        'device_id': _deviceId.isNotEmpty ? _deviceId : null,
+      });
+      final res = await _postWithFallback('/monitored-apps', body: body);
+      return res.statusCode == 200 || res.statusCode == 201;
+    } catch (e) {
+      debugPrint('[ApiService] addMonitoredApp error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteMonitoredApp(String appId) async {
+    try {
+      final res = await _deleteWithFallback('/monitored-apps/$appId');
+      return res.statusCode == 200;
+    } catch (e) {
+      debugPrint('[ApiService] deleteMonitoredApp error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> sendHeartbeat() async {
+    try {
+      final diag = await PlatformBridge.getDiagnostics();
+      final body = json.encode({
+        'device_id': _deviceId,
+        'listener_active': diag['listener_service_running'] ?? true,
+        'notification_access_granted': diag['notification_access_granted'] ?? true,
+        'battery_level': diag['battery_level'] ?? 100,
+        'pending_queue_count': diag['pending_queue_count'] ?? 0,
+        'memory_usage_mb': 64,
+      });
+      final res = await _postWithFallback('/devices/heartbeat', body: body);
+      return res.statusCode == 200;
+    } catch (e) {
+      debugPrint('[ApiService] sendHeartbeat error: $e');
+      return false;
+    }
   }
 
   Future<bool> toggleMonitoredApp(String appId, bool isEnabled) async {

@@ -52,8 +52,13 @@ class SyncManager(private val context: Context) {
     fun getDeviceId(): String {
         val flutterPrefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
         val flutterDevice = flutterPrefs.getString("flutter.pref_device_id", null)
-        if (!flutterDevice.isNullOrEmpty()) {
+        if (!flutterDevice.isNullOrEmpty() && flutterDevice != "PB-AND-001") {
             return flutterDevice
+        }
+        val devicePrefs = context.getSharedPreferences("payment_bridge_device_prefs", Context.MODE_PRIVATE)
+        val generatedDevice = devicePrefs.getString("unique_device_id", null)
+        if (!generatedDevice.isNullOrEmpty()) {
+            return generatedDevice
         }
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return prefs.getString(KEY_DEVICE_ID, DEFAULT_DEVICE_ID) ?: DEFAULT_DEVICE_ID
@@ -61,7 +66,25 @@ class SyncManager(private val context: Context) {
 
     fun getSchoolId(): String {
         val flutterPrefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-        return flutterPrefs.getString("flutter.pref_school_id", null) ?: "33333333-3333-3333-3333-333333333333"
+        val sid = flutterPrefs.getString("flutter.pref_school_id", null)
+        if (!sid.isNullOrEmpty() && sid != "33333333-3333-3333-3333-333333333333") {
+            return sid
+        }
+        return "11111111-1111-1111-1111-111111111111"
+    }
+
+    private fun getCandidateUrls(): List<String> {
+        val primaryBase = getServerUrl().trimEnd('/')
+        val list = mutableListOf<String>()
+        if (primaryBase.isNotEmpty()) list.add(primaryBase)
+        if (!primaryBase.contains("192.168.1.8")) {
+            list.add("http://192.168.1.8:8082/api/v1/payment-bridge")
+        }
+        if (primaryBase.contains("10.0.2.2") || primaryBase.contains("127.0.0.1")) {
+            list.add(primaryBase.replace("10.0.2.2", "127.0.0.1"))
+            list.add(primaryBase.replace("127.0.0.1", "10.0.2.2"))
+        }
+        return list.distinct()
     }
 
     fun getAuthToken(): String? {
@@ -100,16 +123,7 @@ class SyncManager(private val context: Context) {
                 }
             )
             val jsonPayload = gson.toJson(payloadMap)
-
-            val primaryBase = getServerUrl().trimEnd('/')
-            val candidateUrls = if (primaryBase.contains("10.0.2.2") || primaryBase.contains("127.0.0.1")) {
-                listOf(
-                    primaryBase.replace("10.0.2.2", "127.0.0.1"),
-                    primaryBase.replace("127.0.0.1", "10.0.2.2")
-                )
-            } else {
-                listOf(primaryBase)
-            }
+            val candidateUrls = getCandidateUrls()
             var syncSuccess = false
             var syncedCount = 0
 
@@ -155,15 +169,7 @@ class SyncManager(private val context: Context) {
 
     fun sendHeartbeat(batteryLevel: Int, isListenerActive: Boolean, isAccessGranted: Boolean) {
         coroutineScope.launch {
-            val serverBase = getServerUrl().trimEnd('/')
-            val candidateUrls = if (serverBase.contains("10.0.2.2") || serverBase.contains("127.0.0.1")) {
-                listOf(
-                    serverBase.replace("10.0.2.2", "127.0.0.1"),
-                    serverBase.replace("127.0.0.1", "10.0.2.2")
-                )
-            } else {
-                listOf(serverBase)
-            }
+            val candidateUrls = getCandidateUrls()
             for (base in candidateUrls) {
                 try {
                     val url = URL("$base/devices/heartbeat")
