@@ -358,6 +358,27 @@ class PaymentBridgeChannel(private val context: Context) : MethodChannel.MethodC
                 }
             }
 
+            "deleteCustomFormat" -> {
+                val pkg = call.argument<String>("package")
+                val type = call.argument<String>("type")
+                if (pkg != null) {
+                    val prefs = context.getSharedPreferences("custom_formats", Context.MODE_PRIVATE)
+                    val editor = prefs.edit()
+                    if (type != null) {
+                        editor.remove("${pkg}_$type")
+                    } else {
+                        editor.remove("${pkg}_amount")
+                        editor.remove("${pkg}_sender")
+                        editor.remove("${pkg}_reference")
+                        editor.remove("${pkg}_masked")
+                    }
+                    editor.apply()
+                    result.success(true)
+                } else {
+                    result.error("INVALID_ARGS", "Package is required", null)
+                }
+            }
+
             else -> result.notImplemented()
         }
     }

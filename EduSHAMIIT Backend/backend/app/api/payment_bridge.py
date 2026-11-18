@@ -254,6 +254,16 @@ class MonitoredAppCreate(BaseModel):
     device_id: Optional[str] = None
 
 
+class CustomParserConfig(BaseModel):
+    package_name: str
+    app_name: Optional[str] = "Custom App"
+    amount_regex: Optional[str] = None
+    sender_regex: Optional[str] = None
+    reference_regex: Optional[str] = None
+    bank_regex: Optional[str] = None
+    is_active: bool = True
+
+
 # ============================================================================
 # 1. DEVICE MANAGEMENT ENDPOINTS
 # ============================================================================
@@ -945,22 +955,86 @@ async def associate_candidate(
             fetch=False,
         )
 
-    # 6. Issue Student Fee Payment Receipt
+    # 6. Issue Student Fee Payment Receipt / Update WAITING_CONFIRMATION payment
     if student_id:
-        await exec_sql(
+        existing_pay = await exec_sql(
             """
-            INSERT INTO public.student_fee_payments (
-                school_id, student_id, invoice_id, receipt_number, amount_paid,
-                payment_method, transaction_reference, payment_date, status, remarks
-            ) VALUES (
-                %s, %s, %s, %s, %s, 'UPI', %s, NOW(), 'SUCCESS',
-                'Auto-verified via EduSHAMIIT Payment Bridge UPI notification'
+            SELECT id FROM public.student_fee_payments
+            WHERE school_id = %s::UUID AND (
+                transaction_reference = %s
+                OR (invoice_id = %s::UUID AND status = 'WAITING_CONFIRMATION')
             )
-            ON CONFLICT DO NOTHING
+            ORDER BY created_at DESC LIMIT 1;
             """,
-            (school_id, student_id, invoice_id, receipt_num, paid_decimal, utr_val),
-            fetch=False,
+            (school_id, intent_ref, invoice_id),
         )
+        pay_id = None
+        if existing_pay:
+            pay_id = existing_pay[0]["id"]
+            await exec_sql(
+                """
+                UPDATE public.student_fee_payments
+                SET status = 'SUCCESS',
+                    receipt_number = %s,
+                    amount_paid = %s,
+                    transaction_reference = %s,
+                    payment_date = NOW(),
+                    status_remarks = 'Auto-verified via EduSHAMIIT Payment Bridge UPI notification',
+                    status_updated_at = NOW(),
+                    updated_at = NOW()
+                WHERE id = %s::UUID;
+                """,
+                (receipt_num, paid_decimal, utr_val, pay_id),
+                fetch=False,
+            )
+        else:
+            pay_rows = await exec_sql(
+                """
+                INSERT INTO public.student_fee_payments (
+                    school_id, student_id, invoice_id, receipt_number, amount_paid,
+                    payment_method, transaction_reference, payment_date, status, remarks
+                ) VALUES (
+                    %s::UUID, %s::UUID, %s::UUID, %s, %s, 'UPI', %s, NOW(), 'SUCCESS',
+                    'Auto-verified via EduSHAMIIT Payment Bridge UPI notification'
+                )
+                ON CONFLICT (school_id, receipt_number) DO UPDATE
+                SET status = 'SUCCESS',
+                    amount_paid = EXCLUDED.amount_paid,
+                    transaction_reference = EXCLUDED.transaction_reference,
+                    payment_date = NOW(),
+                    status_remarks = 'Auto-verified via EduSHAMIIT Payment Bridge UPI notification',
+                    updated_at = NOW()
+                RETURNING id;
+                """,
+                (school_id, student_id, invoice_id, receipt_num, paid_decimal, utr_val),
+            )
+            pay_id = pay_rows[0]["id"] if pay_rows else None
+
+        # Insert official audit history so Admin Drawer History tab reflects PAYMENT_CONFIRMED (SUCCESS)!
+        try:
+            await exec_sql(
+                """
+                INSERT INTO public.student_fee_audit_logs (
+                    school_id, student_id, entity_type, entity_id, action,
+                    description, old_status, new_status, amount,
+                    performed_by_id, performed_by_name, performed_by_role, created_at
+                ) VALUES (
+                    %s::UUID, %s::UUID, 'PAYMENT', %s::UUID, 'PAYMENT_CONFIRMED',
+                    %s, 'WAITING_CONFIRMATION', 'SUCCESS', %s,
+                    NULL, 'EduSHAMIIT Payment Bridge', 'Automated Gateway', NOW()
+                );
+                """,
+                (
+                    school_id,
+                    student_id,
+                    pay_id or intent_id,
+                    f"UPI payment {receipt_num} verified and settled for ₹{float(paid_decimal):.2f} (Ref: {utr_val})",
+                    paid_decimal,
+                ),
+                fetch=False,
+            )
+        except Exception as e:
+            logger.warning(f"[Matcher] Student fee audit log insertion notice: {e}")
 
     # 7. Update Payment Intent to VERIFIED_SUCCESS so QR screen transitions instantly!
     await exec_sql(
@@ -1993,19 +2067,34 @@ async def list_monitored_apps(request: Request):
 @router.post("/monitored-apps", tags=["Settings"])
 async def add_monitored_app(req: MonitoredAppCreate, request: Request):
     school_id = await resolve_school_id(request)
-    inserted = await exec_sql(
-        """
-        INSERT INTO public.payment_bridge_monitored_apps (
-            school_id, app_name, package_name, is_enabled, icon_name, device_id
-        ) VALUES (%s, %s, %s, %s, %s, %s)
-        ON CONFLICT (school_id, package_name) DO UPDATE SET 
-            app_name = EXCLUDED.app_name,
-            is_enabled = EXCLUDED.is_enabled,
-            device_id = COALESCE(EXCLUDED.device_id, public.payment_bridge_monitored_apps.device_id)
-        RETURNING id
-        """,
-        (school_id, req.app_name.strip(), req.package_name.strip(), req.is_enabled, req.icon_name or "payment", req.device_id),
-    )
+    try:
+        inserted = await exec_sql(
+            """
+            INSERT INTO public.payment_bridge_monitored_apps (
+                school_id, app_name, package_name, is_enabled, icon_name, device_id
+            ) VALUES (%s, %s, %s, %s, %s, %s)
+            ON CONFLICT (school_id, package_name) DO UPDATE SET 
+                app_name = EXCLUDED.app_name,
+                is_enabled = EXCLUDED.is_enabled,
+                device_id = COALESCE(EXCLUDED.device_id, public.payment_bridge_monitored_apps.device_id)
+            RETURNING id
+            """,
+            (school_id, req.app_name.strip(), req.package_name.strip(), req.is_enabled, req.icon_name or "payment", req.device_id),
+        )
+    except Exception as e:
+        logger.warning(f"Error inserting monitored app with device_id, using fallback: {e}")
+        inserted = await exec_sql(
+            """
+            INSERT INTO public.payment_bridge_monitored_apps (
+                school_id, app_name, package_name, is_enabled, icon_name
+            ) VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (school_id, package_name) DO UPDATE SET 
+                app_name = EXCLUDED.app_name,
+                is_enabled = EXCLUDED.is_enabled
+            RETURNING id
+            """,
+            (school_id, req.app_name.strip(), req.package_name.strip(), req.is_enabled, req.icon_name or "payment"),
+        )
     return {"success": True, "id": str(inserted[0]["id"])}
 
 
@@ -2027,6 +2116,62 @@ async def delete_monitored_app(app_id: str):
         fetch=False,
     )
     return {"success": True}
+
+
+@router.get("/custom-parsers", tags=["Settings"])
+async def get_custom_parsers(request: Request):
+    school_id = await resolve_school_id(request)
+    try:
+        rows = await exec_sql(
+            "SELECT * FROM public.payment_bridge_custom_parsers WHERE school_id = %s ORDER BY updated_at DESC",
+            (school_id,),
+        )
+        return serialize_rows(rows)
+    except Exception as e:
+        logger.warning(f"Error fetching custom parsers: {e}")
+        return []
+
+
+@router.post("/custom-parsers", tags=["Settings"])
+async def save_custom_parser(req: CustomParserConfig, request: Request):
+    school_id = await resolve_school_id(request)
+    try:
+        inserted = await exec_sql(
+            """
+            INSERT INTO public.payment_bridge_custom_parsers (
+                school_id, package_name, app_name, amount_regex, sender_regex, reference_regex, bank_regex, is_active, updated_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            ON CONFLICT (school_id, package_name) DO UPDATE SET
+                app_name = EXCLUDED.app_name,
+                amount_regex = EXCLUDED.amount_regex,
+                sender_regex = EXCLUDED.sender_regex,
+                reference_regex = EXCLUDED.reference_regex,
+                bank_regex = EXCLUDED.bank_regex,
+                is_active = EXCLUDED.is_active,
+                updated_at = NOW()
+            RETURNING id
+            """,
+            (school_id, req.package_name.strip(), (req.app_name or "Custom App").strip(), req.amount_regex, req.sender_regex, req.reference_regex, req.bank_regex, req.is_active),
+        )
+        return {"success": True, "id": str(inserted[0]["id"])}
+    except Exception as e:
+        logger.error(f"Error saving custom parser: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@router.delete("/custom-parsers/{package_name}", tags=["Settings"])
+async def delete_custom_parser(package_name: str, request: Request):
+    school_id = await resolve_school_id(request)
+    try:
+        await exec_sql(
+            "DELETE FROM public.payment_bridge_custom_parsers WHERE school_id = %s AND package_name = %s",
+            (school_id, package_name),
+            fetch=False,
+        )
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"Error deleting custom parser: {e}")
+        return {"success": False, "error": str(e)}
 
 
 # ============================================================================

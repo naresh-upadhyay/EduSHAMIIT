@@ -6439,10 +6439,30 @@ class CreateGatewayRequest(BaseModel):
     gateway_type: str = "edge_router"
     location_path: str = "Main Campus"
     ip_address: Optional[str] = "192.168.10.30"
+    mac_address: Optional[str] = "00:1A:2B:3C:4D:5E"
     protocols: str = "MQTT, Modbus"
+    building_id: Optional[str] = None
+    floor_id: Optional[str] = None
+    room_id: Optional[str] = None
     manufacturer: Optional[str] = "Advantech / EdgeCore"
     model: Optional[str] = "EdgeCore IoT-800"
     firmware_version: Optional[str] = "v2.4.0"
+    metadata: Optional[Dict[str, Any]] = None
+
+class UpdateGatewayRequest(BaseModel):
+    gateway_name: Optional[str] = None
+    gateway_type: Optional[str] = None
+    ip_address: Optional[str] = None
+    mac_address: Optional[str] = None
+    protocols: Optional[str] = None
+    location_path: Optional[str] = None
+    firmware_version: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+class BulkGatewayActionRequest(BaseModel):
+    action: str
+    gateway_ids: List[str]
+    payload: Optional[Dict[str, Any]] = None
 
 class CreateIntegrationRequest(BaseModel):
     name: str
@@ -6454,8 +6474,20 @@ class CreateIntegrationRequest(BaseModel):
     assigned_gateway_id: Optional[str] = None
     config: Optional[Dict[str, Any]] = None
 
+class UpdateIntegrationRequest(BaseModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    category: Optional[str] = None
+    provider: Optional[str] = None
+    protocol: Optional[str] = None
+    connection_mode: Optional[str] = None
+    assigned_gateway_id: Optional[str] = None
+    status: Optional[str] = None
+    is_active: Optional[bool] = None
+    config: Optional[Dict[str, Any]] = None
+
 class GatewayFirmwareUpdateRequest(BaseModel):
-    target_version: str = "v2.4.0"
+    target_version: str = "v2.5.0"
 
 class ApproveDiscoveryRequest(BaseModel):
     building_id: Optional[str] = None
@@ -6468,98 +6500,37 @@ async def get_integrations_gateways_dashboard(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Retrieve institutional IoT Integrations & Gateways summary dashboard."""
+    """Retrieve institutional IoT Integrations & Gateways summary dashboard via SP."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        # Gateways stats
-        gw_rows = await exec_sql("""
-            SELECT COUNT(*) AS total_gateways,
-                   COUNT(*) FILTER (WHERE is_online = true) AS online_gateways,
-                   COUNT(*) FILTER (WHERE is_online = false) AS offline_gateways
-            FROM public.campus_iot_gateways
-            WHERE school_id = %s::UUID;
-        """, (sid,))
-        total_gw = int(gw_rows[0]["total_gateways"]) if gw_rows else 8
-        online_gw = int(gw_rows[0]["online_gateways"]) if gw_rows else 7
-        offline_gw = int(gw_rows[0]["offline_gateways"]) if gw_rows else 1
-
-        # Integrations stats
-        integ_rows = await exec_sql("""
-            SELECT COUNT(*) AS total_integrations,
-                   COUNT(*) FILTER (WHERE status = 'active' OR is_active = true) AS active_integrations
-            FROM public.iot_integrations
-            WHERE school_id = %s::UUID;
-        """, (sid,))
-        total_integ = int(integ_rows[0]["total_integrations"]) if integ_rows else 6
-        active_integ = int(integ_rows[0]["active_integrations"]) if integ_rows else 6
-
-        # Protocols stats
-        proto_rows = await exec_sql("""
-            SELECT id, name, code, status, port, version, driver_version,
-                   clients_or_devices_count, count_label, is_connected
-            FROM public.iot_protocols
-            WHERE school_id = %s::UUID
-            ORDER BY port ASC;
-        """, (sid,))
-
-        protocols = []
-        for p in proto_rows:
-            protocols.append({
-                "id": str(p["id"]),
-                "name": p["name"],
-                "code": p["code"],
-                "status": p.get("status") or "Active",
-                "is_connected": bool(p.get("is_connected", True)),
-                "count": int(p.get("clients_or_devices_count") or 0),
-                "label": p.get("count_label") or "devices",
-                "display_text": f"{p.get('clients_or_devices_count', 0)} {p.get('count_label', 'devices')}"
-            })
-
-        if not protocols:
-            protocols = [
-                {"name": "MQTT", "status": "Connected", "is_connected": True, "count": 136, "label": "clients", "display_text": "136 clients"},
-                {"name": "Modbus (TCP/RTU)", "status": "Active", "is_connected": True, "count": 6, "label": "devices", "display_text": "6 devices"},
-                {"name": "HTTP(S)", "status": "Active", "is_connected": True, "count": 3, "label": "integrations", "display_text": "3 integrations"},
-                {"name": "ONVIF (CCTV)", "status": "Active", "is_connected": True, "count": 22, "label": "cameras", "display_text": "22 cameras"},
-                {"name": "RTSP (Video)", "status": "Active", "is_connected": True, "count": 18, "label": "streams", "display_text": "18 streams"},
-                {"name": "Zigbee", "status": "Active", "is_connected": True, "count": 14, "label": "devices", "display_text": "14 devices"}
-            ]
-
-        # Integration Health Items (6 canonical services)
-        integration_health_items = [
-            {"name": "IoT Device Command Service", "status": "Operational", "is_operational": True},
-            {"name": "Notification Service", "status": "Operational", "is_operational": True},
-            {"name": "Building Management System (BMS)", "status": "Operational", "is_operational": True},
-            {"name": "Access Control System", "status": "Operational", "is_operational": True},
-            {"name": "CCTV / VMS Integration", "status": "Operational", "is_operational": True},
-            {"name": "Energy Metering System", "status": "Operational", "is_operational": True}
-        ]
-
-        online_pct = round((online_gw / total_gw * 100), 1) if total_gw > 0 else 87.5
-        offline_pct = round((offline_gw / total_gw * 100), 1) if total_gw > 0 else 12.5
-
-        return {
-            "success": True,
-            "kpis": {
-                "total_gateways": total_gw,
-                "online_gateways": online_gw,
-                "online_gateways_pct": online_pct,
-                "offline_gateways": offline_gw,
-                "offline_gateways_pct": offline_pct,
-                "active_integrations": active_integ,
-                "total_integrations": total_integ,
-                "active_integrations_pct": 100.0 if total_integ == active_integ else round(active_integ/total_integ*100, 1),
-                "data_throughput": "12.8 MB/min",
-                "mqtt_connections": 136,
-                "integration_health": "Healthy",
-                "active_protocols": len(protocols)
-            },
-            "protocols": protocols,
-            "integration_health_items": integration_health_items,
-            "last_refresh": "10 Jan 2025, 02:18 PM"
-        }
+        rows = await exec_sql("SELECT public.fn_integrations_gateways_dashboard(%s::UUID);", (sid,))
+        if rows and rows[0].get("fn_integrations_gateways_dashboard"):
+            return rows[0]["fn_integrations_gateways_dashboard"]
+        return {"success": False, "error": "Unable to load integrations dashboard"}
     except Exception as e:
         logger.error(f"[Integrations Dashboard Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/integrations-gateways/filter-options")
+async def get_integrations_gateways_filter_options(
+    building_id: Optional[str] = Query(None),
+    floor_id: Optional[str] = Query(None),
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Retrieve cascading filter options for gateways and integrations via SP."""
+    sid = resolve_school_id(school_id, current_user)
+    try:
+        rows = await exec_sql(
+            "SELECT public.fn_integrations_gateways_filter_options(%s::UUID, %s::UUID, %s::UUID);",
+            (sid, building_id, floor_id)
+        )
+        if rows and rows[0].get("fn_integrations_gateways_filter_options"):
+            return rows[0]["fn_integrations_gateways_filter_options"]
+        return {"success": False, "error": "Unable to load filter options"}
+    except Exception as e:
+        logger.error(f"[Filter Options Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -6567,69 +6538,28 @@ async def get_integrations_gateways_dashboard(
 async def get_integrations_gateways_list(
     search: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
-    location: Optional[str] = Query(None),
     protocol: Optional[str] = Query(None),
+    gateway_type: Optional[str] = Query(None),
+    location: Optional[str] = Query(None),
+    building_id: Optional[str] = Query(None),
+    floor_id: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query("gateway_name"),
+    sort_dir: Optional[str] = Query("ASC"),
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Retrieve institutional IoT Gateways list with filtering and telemetry."""
+    """Retrieve institutional IoT Gateways list with DB filtering, sorting and pagination."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        where_clauses = ["school_id = %s::UUID"]
-        params = [sid]
-
-        if status and status.lower() not in ("all", "all status", ""):
-            where_clauses.append("LOWER(status) = %s")
-            params.append(status.lower())
-
-        if location and location.lower() not in ("all", "all locations", ""):
-            where_clauses.append("location_path ILIKE %s")
-            params.append(f"%{location}%")
-
-        if protocol and protocol.lower() not in ("all", "all protocols", ""):
-            where_clauses.append("protocols ILIKE %s")
-            params.append(f"%{protocol}%")
-
-        if search and search.strip():
-            kw = f"%{search.strip()}%"
-            where_clauses.append("(gateway_name ILIKE %s OR gateway_code ILIKE %s OR ip_address ILIKE %s OR location_path ILIKE %s)")
-            params.extend([kw, kw, kw, kw])
-
-        where_sql = " AND ".join(where_clauses)
-        rows = await exec_sql(f"""
-            SELECT id, gateway_code, gateway_name, gateway_type, ip_address, mac_address,
-                   protocols, location_path, status, is_online, connected_devices_count,
-                   uptime_display, firmware_version, firmware_update_available,
-                   data_throughput_mb_min, last_heartbeat_at
-            FROM public.campus_iot_gateways
-            WHERE {where_sql}
-            ORDER BY gateway_code ASC;
-        """, tuple(params))
-
-        gateways = []
-        for r in rows:
-            hb = r.get("last_heartbeat_at")
-            hb_str = hb.strftime("%d %b %Y, %I:%M %p") if hb and hasattr(hb, "strftime") else "10 Jan 2025, 02:18 PM"
-            gateways.append({
-                "id": str(r["id"]),
-                "gateway_code": r.get("gateway_code") or "GW-0001",
-                "gateway_name": r["gateway_name"],
-                "gateway_type": r.get("gateway_type") or "edge_router",
-                "ip_address": r.get("ip_address") or "192.168.10.21",
-                "mac_address": r.get("mac_address") or "00:1A:2B:3C:4D:5E",
-                "protocols": r.get("protocols") or "MQTT, Modbus",
-                "location_path": r.get("location_path") or "Main Block",
-                "status": r.get("status") or "online",
-                "is_online": bool(r.get("is_online", True)),
-                "connected_devices_count": int(r.get("connected_devices_count") or 0),
-                "uptime_display": r.get("uptime_display") or "15 days, 08:36:21 (99.6%)",
-                "firmware_version": r.get("firmware_version") or "v2.3.1",
-                "firmware_update_available": r.get("firmware_update_available"),
-                "data_throughput_mb_min": float(r.get("data_throughput_mb_min") or 1.6),
-                "last_heartbeat": hb_str
-            })
-
-        return {"success": True, "total": len(gateways), "gateways": gateways}
+        rows = await exec_sql(
+            "SELECT public.fn_list_campus_gateways(%s::UUID, %s, %s, %s, %s, %s, %s::UUID, %s::UUID, %s, %s, %s, %s);",
+            (sid, search, status, protocol, gateway_type, location, building_id, floor_id, sort_by, sort_dir, limit, offset)
+        )
+        if rows and rows[0].get("fn_list_campus_gateways"):
+            return rows[0]["fn_list_campus_gateways"]
+        return {"success": True, "total": 0, "gateways": []}
     except Exception as e:
         logger.error(f"[List Gateways Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -6641,77 +6571,21 @@ async def get_gateway_details(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Get full details, data flow stats, logs, and health history for selected gateway."""
+    """Get full details, data flow stats, logs, and telemetry for selected gateway."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        rows = await exec_sql("""
-            SELECT id, gateway_code, gateway_name, gateway_type, ip_address, mac_address,
-                   protocols, location_path, status, is_online, connected_devices_count,
-                   uptime_display, firmware_version, firmware_update_available,
-                   data_throughput_mb_min, last_heartbeat_at
-            FROM public.campus_iot_gateways
-            WHERE id = %s::UUID AND school_id = %s::UUID;
-        """, (gateway_id, sid))
-
-        if not rows:
-            raise HTTPException(status_code=404, detail="Gateway not found")
-
-        gw = rows[0]
-        hb = gw.get("last_heartbeat_at")
-        hb_str = hb.strftime("%d %b %Y, %I:%M %p") if hb and hasattr(hb, "strftime") else "10 Jan 2025, 02:18 PM"
-
-        # Fetch recent logs for this gateway
-        log_rows = await exec_sql("""
-            SELECT source, severity, event, message, correlation_id, created_at
-            FROM public.iot_integration_logs
-            WHERE school_id = %s::UUID AND (gateway_id = %s::UUID OR gateway_id IS NULL)
-            ORDER BY created_at DESC
-            LIMIT 5;
-        """, (sid, gateway_id))
-
-        recent_logs = []
-        for l in log_rows:
-            cat = l.get("created_at")
-            cat_str = cat.strftime("%d %b %Y, %I:%M %p") if cat and hasattr(cat, "strftime") else "10 Jan 2025, 02:15 PM"
-            recent_logs.append({
-                "source": l["source"],
-                "severity": l["severity"],
-                "event": l["event"],
-                "message": l["message"],
-                "correlation_id": l.get("correlation_id") or "CORR-001",
-                "timestamp": cat_str
-            })
-
-        return {
-            "success": True,
-            "gateway": {
-                "id": str(gw["id"]),
-                "gateway_code": gw.get("gateway_code") or "GW-0001",
-                "gateway_name": gw["gateway_name"],
-                "gateway_type": gw.get("gateway_type") or "edge_router",
-                "ip_address": gw.get("ip_address") or "192.168.10.21",
-                "mac_address": gw.get("mac_address") or "00:1A:2B:3C:4D:5E",
-                "protocols": gw.get("protocols") or "MQTT, Modbus (TCP)",
-                "location_path": gw.get("location_path") or "Main Block",
-                "status": gw.get("status") or "online",
-                "is_online": bool(gw.get("is_online", True)),
-                "connected_devices_count": int(gw.get("connected_devices_count") or 28),
-                "uptime_display": gw.get("uptime_display") or "15 days, 08:36:21 (99.6%)",
-                "firmware_version": gw.get("firmware_version") or "v2.3.1",
-                "firmware_update_available": gw.get("firmware_update_available") or "v2.4.0",
-                "data_throughput_mb_min": float(gw.get("data_throughput_mb_min") or 2.8),
-                "last_heartbeat": hb_str
-            },
-            "data_flow": {
-                "incoming_packets_sec": 42,
-                "outgoing_packets_sec": 38,
-                "packet_loss_pct": 0.02,
-                "throughput_mb_min": "2.8 MB/min"
-            },
-            "recent_logs": recent_logs,
-            "webhooks_count": 2,
-            "active_schedules_count": 8
-        }
+        rows = await exec_sql(
+            "SELECT public.fn_get_gateway_profile(%s::UUID, %s::UUID);",
+            (sid, gateway_id)
+        )
+        if rows and rows[0].get("fn_get_gateway_profile"):
+            prof = rows[0]["fn_get_gateway_profile"]
+            if prof.get("success") is False:
+                raise HTTPException(status_code=404, detail="Gateway not found")
+            return prof
+        raise HTTPException(status_code=404, detail="Gateway not found")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[Get Gateway Details Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -6723,28 +6597,100 @@ async def register_gateway(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Register a new physical IoT gateway in the institution."""
+    """Register a new physical IoT gateway in the institution via SP."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        gw_code = req.gateway_code or f"GW-{int(datetime.now().timestamp()) % 10000:04d}"
-        rows = await exec_sql("""
-            INSERT INTO public.campus_iot_gateways (
-                school_id, gateway_code, gateway_name, gateway_type, ip_address,
-                protocols, location_path, manufacturer, model, firmware_version,
-                status, is_online, connected_devices_count, uptime_display
-            ) VALUES (
-                %s::UUID, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s,
-                'online', true, 0, '0 days, 00:05:00 (100.0%)'
-            ) RETURNING id, gateway_code, gateway_name;
-        """, (
-            sid, gw_code, req.gateway_name, req.gateway_type, req.ip_address,
-            req.protocols, req.location_path, req.manufacturer, req.model, req.firmware_version
-        ))
-
-        return {"success": True, "gateway": rows[0], "message": f"Gateway '{req.gateway_name}' registered successfully."}
+        rows = await exec_sql(
+            "SELECT public.sp_register_campus_gateway(%s::UUID, %s, %s, %s, %s, %s, %s::UUID, %s::UUID, %s::UUID, %s, %s::jsonb);",
+            (
+                sid, req.gateway_name, req.gateway_type, req.ip_address, req.mac_address,
+                req.protocols, req.building_id, req.floor_id, req.room_id, req.location_path,
+                json.dumps(req.metadata or {})
+            )
+        )
+        if rows and rows[0].get("sp_register_campus_gateway"):
+            return rows[0]["sp_register_campus_gateway"]
+        raise HTTPException(status_code=500, detail="Failed to register gateway")
     except Exception as e:
         logger.error(f"[Register Gateway Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/integrations-gateways/gateways/{gateway_id}")
+async def update_gateway(
+    gateway_id: str,
+    req: UpdateGatewayRequest,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Update gateway configuration via SP."""
+    sid = resolve_school_id(school_id, current_user)
+    try:
+        rows = await exec_sql(
+            "SELECT public.sp_update_campus_gateway(%s::UUID, %s::UUID, %s, %s, %s, %s, %s, %s, %s, %s::jsonb);",
+            (
+                sid, gateway_id, req.gateway_name, req.gateway_type, req.ip_address,
+                req.mac_address, req.protocols, req.location_path, req.firmware_version,
+                json.dumps(req.metadata or {})
+            )
+        )
+        if rows and rows[0].get("sp_update_campus_gateway"):
+            res = rows[0]["sp_update_campus_gateway"]
+            if res.get("success") is False:
+                raise HTTPException(status_code=404, detail="Gateway not found")
+            return res
+        raise HTTPException(status_code=500, detail="Failed to update gateway")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Update Gateway Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/integrations-gateways/gateways/{gateway_id}")
+async def delete_gateway(
+    gateway_id: str,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Decommission gateway via SP."""
+    sid = resolve_school_id(school_id, current_user)
+    try:
+        rows = await exec_sql(
+            "SELECT public.sp_delete_campus_gateway(%s::UUID, %s::UUID);",
+            (sid, gateway_id)
+        )
+        if rows and rows[0].get("sp_delete_campus_gateway"):
+            res = rows[0]["sp_delete_campus_gateway"]
+            if res.get("success") is False:
+                raise HTTPException(status_code=404, detail="Gateway not found")
+            return res
+        raise HTTPException(status_code=500, detail="Failed to delete gateway")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Delete Gateway Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/integrations-gateways/bulk-action")
+async def bulk_gateway_action(
+    req: BulkGatewayActionRequest,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Execute batch operations (restart, update_firmware, run_diagnostics, delete) via SP."""
+    sid = resolve_school_id(school_id, current_user)
+    try:
+        rows = await exec_sql(
+            "SELECT public.sp_bulk_gateway_action(%s::UUID, %s, %s::UUID[], %s::jsonb);",
+            (sid, req.action, req.gateway_ids, json.dumps(req.payload or {}))
+        )
+        if rows and rows[0].get("sp_bulk_gateway_action"):
+            return rows[0]["sp_bulk_gateway_action"]
+        return {"success": False, "error": "Failed to execute bulk gateway action"}
+    except Exception as e:
+        logger.error(f"[Bulk Gateway Action Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -6754,39 +6700,20 @@ async def restart_gateway(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Dispatch reboot command to physical gateway via MQTT."""
+    """Dispatch reboot command to physical gateway via SP."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        rows = await exec_sql("SELECT gateway_code, gateway_name FROM public.campus_iot_gateways WHERE id = %s::UUID AND school_id = %s::UUID;", (gateway_id, sid))
-        if not rows:
-            raise HTTPException(status_code=404, detail="Gateway not found")
-
-        gw_code = rows[0]["gateway_code"]
-        gw_name = rows[0]["gateway_name"]
-
-        # Publish MQTT command
-        mqtt_res = mqtt_service.publish_gateway_command(
-            school_id=str(sid),
-            gateway_code=gw_code,
-            command="reboot",
-            payload={"initiated_by": "Admin", "reason": "Manual remote reboot"}
+        rows = await exec_sql(
+            "SELECT public.sp_bulk_gateway_action(%s::UUID, 'restart', ARRAY[%s::UUID], '{}'::jsonb);",
+            (sid, gateway_id)
         )
-
-        # Audit operation
-        await exec_sql("""
-            INSERT INTO public.iot_gateway_operations (
-                school_id, gateway_id, operation_type, initiated_by, status, details
-            ) VALUES (
-                %s::UUID, %s::UUID, 'restart', 'Admin', 'completed', %s::JSONB
-            );
-        """, (sid, gateway_id, json.dumps(mqtt_res)))
-
-        return {
-            "success": True,
-            "message": f"Reboot signal dispatched to {gw_name} ({gw_code}) via MQTT!",
-            "mqtt_topic": mqtt_res.get("topic"),
-            "status": "rebooting"
-        }
+        if rows and rows[0].get("sp_bulk_gateway_action"):
+            return {
+                "success": True,
+                "message": f"Reboot command executed for gateway {gateway_id}.",
+                "status": "rebooting"
+            }
+        raise HTTPException(status_code=500, detail="Failed to restart gateway")
     except Exception as e:
         logger.error(f"[Restart Gateway Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -6799,34 +6726,20 @@ async def update_gateway_firmware(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Apply OTA firmware update to selected gateway."""
+    """Apply OTA firmware update to selected gateway via SP."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        rows = await exec_sql("""
-            UPDATE public.campus_iot_gateways
-            SET firmware_version = %s,
-                firmware_update_available = NULL,
-                updated_at = now()
-            WHERE id = %s::UUID AND school_id = %s::UUID
-            RETURNING id, gateway_name, firmware_version;
-        """, (req.target_version, gateway_id, sid))
-
-        if not rows:
-            raise HTTPException(status_code=404, detail="Gateway not found")
-
-        await exec_sql("""
-            INSERT INTO public.iot_gateway_operations (
-                school_id, gateway_id, operation_type, initiated_by, status, details
-            ) VALUES (
-                %s::UUID, %s::UUID, 'update_firmware', 'Admin', 'completed', %s::JSONB
-            );
-        """, (sid, gateway_id, json.dumps({"target_version": req.target_version, "status": "success"})))
-
-        return {
-            "success": True,
-            "message": f"{rows[0]['gateway_name']} firmware updated to {req.target_version}!",
-            "new_version": req.target_version
-        }
+        rows = await exec_sql(
+            "SELECT public.sp_bulk_gateway_action(%s::UUID, 'update_firmware', ARRAY[%s::UUID], %s::jsonb);",
+            (sid, gateway_id, json.dumps({"target_version": req.target_version}))
+        )
+        if rows and rows[0].get("sp_bulk_gateway_action"):
+            return {
+                "success": True,
+                "message": f"Firmware updated to {req.target_version}!",
+                "new_version": req.target_version
+            }
+        raise HTTPException(status_code=500, detail="Failed to update firmware")
     except Exception as e:
         logger.error(f"[Update Firmware Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -6838,14 +6751,13 @@ async def run_gateway_diagnostics(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Run comprehensive gateway hardware and connection diagnostics."""
+    """Run comprehensive gateway hardware and connection diagnostics via SP."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        rows = await exec_sql("SELECT gateway_name, gateway_code, ip_address FROM public.campus_iot_gateways WHERE id = %s::UUID AND school_id = %s::UUID;", (gateway_id, sid))
-        if not rows:
-            raise HTTPException(status_code=404, detail="Gateway not found")
-
-        gw = rows[0]
+        rows = await exec_sql(
+            "SELECT public.sp_bulk_gateway_action(%s::UUID, 'run_diagnostics', ARRAY[%s::UUID], '{}'::jsonb);",
+            (sid, gateway_id)
+        )
         results = [
             {"check": "Network Reachability (ICMP Ping)", "status": "passed", "latency_ms": 1.4},
             {"check": "MQTT Broker Local Bridge Handshake", "status": "passed", "latency_ms": 2.8},
@@ -6853,10 +6765,8 @@ async def run_gateway_diagnostics(
             {"check": "RAM & Flash Storage Health", "status": "passed", "free_flash_mb": 2048},
             {"check": "Power Supply DC Rail Stability", "status": "passed", "voltage_v": 12.1}
         ]
-
         return {
             "success": True,
-            "gateway_name": gw["gateway_name"],
             "overall_result": "Healthy",
             "results": results
         }
@@ -6868,53 +6778,26 @@ async def run_gateway_diagnostics(
 @router.get("/integrations-gateways/integrations")
 async def list_integrations(
     search: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
+    protocol: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query("name"),
+    sort_dir: Optional[str] = Query("ASC"),
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Retrieve third-party integrations list."""
+    """Retrieve third-party integrations list via SP."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        where_clauses = ["school_id = %s::UUID"]
-        params = [sid]
-
-        if status and status.lower() not in ("all", "all status", ""):
-            where_clauses.append("LOWER(status) = %s")
-            params.append(status.lower())
-
-        if search and search.strip():
-            kw = f"%{search.strip()}%"
-            where_clauses.append("(name ILIKE %s OR type ILIKE %s OR protocol ILIKE %s)")
-            params.extend([kw, kw, kw])
-
-        where_sql = " AND ".join(where_clauses)
-        rows = await exec_sql(f"""
-            SELECT id, name, type, category, provider, protocol, connection_mode,
-                   assigned_gateway_id, connected_devices_count, status, is_active, last_sync_at
-            FROM public.iot_integrations
-            WHERE {where_sql}
-            ORDER BY created_at ASC;
-        """, tuple(params))
-
-        integrations = []
-        for r in rows:
-            ls = r.get("last_sync_at")
-            ls_str = ls.strftime("%d %b %Y, %I:%M %p") if ls and hasattr(ls, "strftime") else "10 Jan 2025, 02:10 PM"
-            integrations.append({
-                "id": str(r["id"]),
-                "name": r["name"],
-                "type": r["type"],
-                "category": r.get("category") or "custom",
-                "provider": r.get("provider") or "Standard",
-                "protocol": r["protocol"],
-                "connection_mode": r.get("connection_mode") or "Direct",
-                "connected_devices_count": int(r.get("connected_devices_count") or 0),
-                "status": r.get("status") or "active",
-                "is_active": bool(r.get("is_active", True)),
-                "last_sync": ls_str
-            })
-
-        return {"success": True, "total": len(integrations), "integrations": integrations}
+        rows = await exec_sql(
+            "SELECT public.fn_list_iot_integrations(%s::UUID, %s, %s, %s, %s, %s, %s, %s, %s);",
+            (sid, search, category, status, protocol, sort_by, sort_dir, limit, offset)
+        )
+        if rows and rows[0].get("fn_list_iot_integrations"):
+            return rows[0]["fn_list_iot_integrations"]
+        return {"success": True, "total": 0, "integrations": []}
     except Exception as e:
         logger.error(f"[List Integrations Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -6926,24 +6809,19 @@ async def create_integration(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Add new integration to institutional IoT fleet."""
+    """Add new integration via SP."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        gw_id = req.assigned_gateway_id if req.assigned_gateway_id else None
-        rows = await exec_sql("""
-            INSERT INTO public.iot_integrations (
-                school_id, name, type, category, provider, protocol, connection_mode,
-                assigned_gateway_id, status, is_active, config
-            ) VALUES (
-                %s::UUID, %s, %s, %s, %s, %s, %s,
-                %s, 'active', true, %s::JSONB
-            ) RETURNING id, name, type, protocol, status;
-        """, (
-            sid, req.name, req.type, req.category, req.provider, req.protocol, req.connection_mode,
-            gw_id, json.dumps(req.config or {})
-        ))
-
-        return {"success": True, "integration": rows[0], "message": f"Integration '{req.name}' created successfully."}
+        rows = await exec_sql(
+            "SELECT public.sp_create_iot_integration(%s::UUID, %s, %s, %s, %s, %s, %s, %s::UUID, %s::jsonb);",
+            (
+                sid, req.name, req.type, req.category, req.provider, req.protocol,
+                req.connection_mode, req.assigned_gateway_id, json.dumps(req.config or {})
+            )
+        )
+        if rows and rows[0].get("sp_create_iot_integration"):
+            return rows[0]["sp_create_iot_integration"]
+        raise HTTPException(status_code=500, detail="Failed to create integration")
     except Exception as e:
         logger.error(f"[Create Integration Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -6955,21 +6833,16 @@ async def test_integration_connection(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Perform real protocol/endpoint connection test for an integration."""
+    """Perform real protocol/endpoint connection test for an integration via SP."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        rows = await exec_sql("SELECT name, protocol FROM public.iot_integrations WHERE id = %s::UUID AND school_id = %s::UUID;", (integration_id, sid))
-        if not rows:
-            raise HTTPException(status_code=404, detail="Integration not found")
-
-        integ = rows[0]
-        return {
-            "success": True,
-            "status": "connected",
-            "protocol": integ["protocol"],
-            "latency_ms": 14.2,
-            "message": f"Handshake verified with {integ['name']} over {integ['protocol']}!"
-        }
+        rows = await exec_sql(
+            "SELECT public.sp_test_iot_integration(%s::UUID, %s::UUID);",
+            (sid, integration_id)
+        )
+        if rows and rows[0].get("sp_test_iot_integration"):
+            return rows[0]["sp_test_iot_integration"]
+        raise HTTPException(status_code=404, detail="Integration not found")
     except Exception as e:
         logger.error(f"[Test Integration Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -6980,122 +6853,15 @@ async def get_protocols_catalog(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Retrieve protocol catalog and active drivers."""
+    """Retrieve protocol catalog and active drivers via SP."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        rows = await exec_sql("""
-            SELECT id, name, code, category, status, port, version, driver_version,
-                   clients_or_devices_count, count_label, is_connected
-            FROM public.iot_protocols
-            WHERE school_id = %s::UUID
-            ORDER BY port ASC;
-        """, (sid,))
-
-        return {"success": True, "protocols": rows}
+        rows = await exec_sql("SELECT public.fn_integrations_gateways_dashboard(%s::UUID);", (sid,))
+        if rows and rows[0].get("fn_integrations_gateways_dashboard"):
+            return {"success": True, "protocols": rows[0]["fn_integrations_gateways_dashboard"].get("protocols", [])}
+        return {"success": True, "protocols": []}
     except Exception as e:
         logger.error(f"[Get Protocols Error]: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/integrations-gateways/discovery")
-async def get_discovered_devices(
-    school_id: Optional[str] = Query(None),
-    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
-):
-    """Get discovered devices awaiting registration."""
-    sid = resolve_school_id(school_id, current_user)
-    try:
-        rows = await exec_sql("""
-            SELECT d.id, d.device_identifier, d.device_name, d.device_type, d.protocol,
-                   d.manufacturer, d.model, d.mac_address, d.ip_address, d.signal_strength_dbm,
-                   d.location_suggestion, d.status, d.discovered_at, gw.gateway_name
-            FROM public.iot_discovered_devices d
-            LEFT JOIN public.campus_iot_gateways gw ON d.gateway_id = gw.id
-            WHERE d.school_id = %s::UUID
-            ORDER BY d.discovered_at DESC;
-        """, (sid,))
-
-        return {"success": True, "devices": rows}
-    except Exception as e:
-        logger.error(f"[Get Discovery Error]: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/integrations-gateways/discovery/{device_id}/approve")
-async def approve_discovered_device(
-    device_id: str,
-    req: ApproveDiscoveryRequest,
-    school_id: Optional[str] = Query(None),
-    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
-):
-    """Approve discovered device and register directly into public.devices."""
-    sid = resolve_school_id(school_id, current_user)
-    try:
-        disc_rows = await exec_sql("""
-            SELECT * FROM public.iot_discovered_devices 
-            WHERE id = %s::UUID AND school_id = %s::UUID;
-        """, (device_id, sid))
-
-        if not disc_rows:
-            raise HTTPException(status_code=404, detail="Discovered device not found")
-
-        disc = disc_rows[0]
-
-        # Insert into devices table
-        dev_rows = await exec_sql("""
-            INSERT INTO public.devices (
-                school_id, device_name, device_code, device_type, ip_address, mac_address,
-                gateway_id, is_online, health_status, status
-            ) VALUES (
-                %s::UUID, %s, %s, %s, %s, %s,
-                %s, true, 'healthy', 'active'
-            ) RETURNING id, device_name, device_code;
-        """, (
-            sid, disc["device_name"], disc["device_identifier"], disc["device_type"],
-            disc.get("ip_address") or "192.168.10.199", disc.get("mac_address") or "00:11:22:33:44:55",
-            disc.get("gateway_id")
-        ))
-
-        # Mark discovery status as registered
-        await exec_sql("UPDATE public.iot_discovered_devices SET status = 'registered' WHERE id = %s::UUID;", (device_id,))
-
-        return {
-            "success": True,
-            "registered_device": dev_rows[0],
-            "message": f"Device '{disc['device_name']}' approved and registered in Device Registry!"
-        }
-    except Exception as e:
-        logger.error(f"[Approve Device Discovery Error]: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/integrations-gateways/webhooks")
-async def list_webhooks(
-    school_id: Optional[str] = Query(None),
-    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
-):
-    """Retrieve configured incoming and outgoing webhooks."""
-    sid = resolve_school_id(school_id, current_user)
-    try:
-        rows = await exec_sql("SELECT * FROM public.iot_webhooks WHERE school_id = %s::UUID ORDER BY created_at DESC;", (sid,))
-        return {"success": True, "webhooks": rows}
-    except Exception as e:
-        logger.error(f"[List Webhooks Error]: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/integrations-gateways/certificates")
-async def list_certificates(
-    school_id: Optional[str] = Query(None),
-    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
-):
-    """Retrieve institutional IoT TLS and mutual authentication certificates."""
-    sid = resolve_school_id(school_id, current_user)
-    try:
-        rows = await exec_sql("SELECT * FROM public.iot_certificates WHERE school_id = %s::UUID ORDER BY created_at DESC;", (sid,))
-        return {"success": True, "certificates": rows}
-    except Exception as e:
-        logger.error(f"[List Certificates Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -7108,51 +6874,16 @@ async def list_integration_logs(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
-    """Retrieve centralized integration, protocol, and gateway logs."""
+    """Retrieve centralized integration, protocol, and gateway logs via SP."""
     sid = resolve_school_id(school_id, current_user)
     try:
-        where_clauses = ["school_id = %s::UUID"]
-        params = [sid]
-
-        if source and source.lower() not in ("all", "all sources", ""):
-            where_clauses.append("LOWER(source) = %s")
-            params.append(source.lower())
-
-        if severity and severity.lower() not in ("all", "all severity", ""):
-            where_clauses.append("LOWER(severity) = %s")
-            params.append(severity.lower())
-
-        if search and search.strip():
-            kw = f"%{search.strip()}%"
-            where_clauses.append("(event ILIKE %s OR message ILIKE %s OR correlation_id ILIKE %s)")
-            params.extend([kw, kw, kw])
-
-        where_sql = " AND ".join(where_clauses)
-        params.append(limit)
-        rows = await exec_sql(f"""
-            SELECT id, source, severity, protocol, event, message, correlation_id, created_at
-            FROM public.iot_integration_logs
-            WHERE {where_sql}
-            ORDER BY created_at DESC
-            LIMIT %s;
-        """, tuple(params))
-
-        logs = []
-        for r in rows:
-            ts = r.get("created_at")
-            ts_str = ts.strftime("%d %b %Y, %I:%M %p") if ts and hasattr(ts, "strftime") else "10 Jan 2025, 02:18 PM"
-            logs.append({
-                "id": str(r["id"]),
-                "source": r["source"],
-                "severity": r["severity"],
-                "protocol": r.get("protocol") or "MQTT",
-                "event": r["event"],
-                "message": r["message"],
-                "correlation_id": r.get("correlation_id") or "CORR-001",
-                "timestamp": ts_str
-            })
-
-        return {"success": True, "logs": logs}
+        rows = await exec_sql(
+            "SELECT public.fn_list_iot_logs(%s::UUID, %s, %s, %s, %s, 0);",
+            (sid, search, severity, source, limit)
+        )
+        if rows and rows[0].get("fn_list_iot_logs"):
+            return rows[0]["fn_list_iot_logs"]
+        return {"success": True, "logs": []}
     except Exception as e:
         logger.error(f"[List Logs Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -65,7 +65,11 @@ class _CollectStudentPaymentDialogState extends ConsumerState<CollectStudentPaym
     _selectedStudentId = widget.studentId;
     _selectedStudentName = widget.studentName;
     _amountController = TextEditingController(
-      text: widget.defaultAmount > 0 ? widget.defaultAmount.toInt().toString() : '4500',
+      text: widget.defaultAmount > 0
+          ? ((widget.defaultAmount * 100).round() % 100 != 0
+              ? widget.defaultAmount.toStringAsFixed(2)
+              : widget.defaultAmount.toInt().toString())
+          : '4500',
     );
     _refController.text = 'UPI-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
     _loadLookups();
@@ -421,7 +425,9 @@ class _CollectStudentPaymentDialogState extends ConsumerState<CollectStudentPaym
                             _selectedStudentId = val;
                             _selectedStudentName = match?.studentName;
                             if (match != null && match.balanceAmount > 0) {
-                              _amountController.text = match.balanceAmount.toInt().toString();
+                              _amountController.text = (match.balanceAmount * 100).round() % 100 != 0
+                                  ? match.balanceAmount.toStringAsFixed(2)
+                                  : match.balanceAmount.toInt().toString();
                             }
                           });
                         }

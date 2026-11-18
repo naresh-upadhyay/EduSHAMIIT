@@ -274,6 +274,25 @@ class PlatformBridge {
     }
   }
 
+  static Future<bool> deleteCustomFormat({
+    required String package,
+    String? type,
+  }) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
+    try {
+      final bool? res = await _channel.invokeMethod<bool>('deleteCustomFormat', {
+        'package': package,
+        'type': type,
+      });
+      return res ?? false;
+    } catch (e) {
+      debugPrint('deleteCustomFormat error: $e');
+      return false;
+    }
+  }
+
   static Future<List<Map<String, dynamic>>> getLocalNotifications() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
       return [];

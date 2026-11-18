@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/platform_bridge.dart';
 import '../core/theme.dart';
+import '../services/api_service.dart';
 
 class DynamicParserStudioDialog extends StatefulWidget {
   final String initialPackage;
@@ -48,6 +49,10 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
   late TextEditingController _refRegexCtrl;
   late TextEditingController _bankRegexCtrl;
 
+  // Onboarded / Monitored Apps list
+  List<Map<String, String>> _availableApps = [];
+  bool _isLoadingApps = false;
+
   // Extracted Results State
   bool _hasTested = false;
   String _extractedAmount = '';
@@ -57,6 +62,11 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
   String _extractedType = '';
   bool _isSuccess = false;
   String? _parseError;
+
+  // Rule state (CRUD tracking)
+  bool _hasCustomRulesActive = false;
+  bool _isSaving = false;
+  bool _isDeleting = false;
 
   @override
   void initState() {
@@ -84,27 +94,101 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
       text: r'bank account\s+([A-Za-z0-9\s-]+)|(\*+\s*\d{3,4})',
     );
 
-    // Auto-run test on open if inputs are provided
+    // Auto-run test and load dynamic apps on open
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadExistingFormats();
-      _runParserTest();
+      _loadDynamicApps();
+      _loadExistingFormatsForPackage(widget.initialPackage);
     });
   }
 
-  Future<void> _loadExistingFormats() async {
+  Future<void> _loadDynamicApps() async {
+    setState(() => _isLoadingApps = true);
+    final List<Map<String, String>> appsList = [
+      {'name': 'PhonePe', 'pkg': 'com.phonepe.app'},
+      {'name': 'Google Pay', 'pkg': 'com.google.android.apps.nbu.paisa.user'},
+      {'name': 'Paytm', 'pkg': 'net.one97.paytm'},
+      {'name': 'BHIM UPI', 'pkg': 'in.org.npci.upiapp'},
+      {'name': 'Cred', 'pkg': 'com.dreamplug.androidapp'},
+    ];
+
+    try {
+      final remoteApps = await ApiService().getMonitoredApps();
+      for (final app in remoteApps) {
+        if (!appsList.any((a) => a['pkg'] == app.packageName)) {
+          appsList.add({'name': app.name, 'pkg': app.packageName});
+        }
+      }
+    } catch (_) {}
+
+    // Universal fallback
+    if (!appsList.any((a) => a['pkg'] == '*')) {
+      appsList.add({'name': 'All Other Apps (*)', 'pkg': '*'});
+    }
+
+    if (mounted) {
+      setState(() {
+        _availableApps = appsList;
+        _isLoadingApps = false;
+      });
+    }
+  }
+
+  Future<void> _loadExistingFormatsForPackage(String pkg) async {
     final formats = await PlatformBridge.getCustomFormats();
-    final pkg = _packageCtrl.text.trim();
-    if (formats.containsKey('${pkg}_amount')) {
-      _amountRegexCtrl.text = formats['${pkg}_amount']!;
+    final cleanPkg = pkg.trim();
+    bool found = false;
+
+    if (formats.containsKey('${cleanPkg}_amount')) {
+      _amountRegexCtrl.text = formats['${cleanPkg}_amount']!;
+      found = true;
     }
-    if (formats.containsKey('${pkg}_sender')) {
-      _senderRegexCtrl.text = formats['${pkg}_sender']!;
+    if (formats.containsKey('${cleanPkg}_sender')) {
+      _senderRegexCtrl.text = formats['${cleanPkg}_sender']!;
+      found = true;
     }
-    if (formats.containsKey('${pkg}_reference')) {
-      _refRegexCtrl.text = formats['${pkg}_reference']!;
+    if (formats.containsKey('${cleanPkg}_reference')) {
+      _refRegexCtrl.text = formats['${cleanPkg}_reference']!;
+      found = true;
     }
-    if (formats.containsKey('${pkg}_masked')) {
-      _bankRegexCtrl.text = formats['${pkg}_masked']!;
+    if (formats.containsKey('${cleanPkg}_masked')) {
+      _bankRegexCtrl.text = formats['${cleanPkg}_masked']!;
+      found = true;
+    }
+
+    // Also check backend custom parsers in DB
+    if (!found) {
+      try {
+        final serverParsers = await ApiService().getCustomParsers();
+        final match = serverParsers.firstWhere(
+          (p) => p['package_name'] == cleanPkg,
+          orElse: () => {},
+        );
+        if (match.isNotEmpty) {
+          if (match['amount_regex'] != null && match['amount_regex'].toString().isNotEmpty) {
+            _amountRegexCtrl.text = match['amount_regex'].toString();
+            found = true;
+          }
+          if (match['sender_regex'] != null && match['sender_regex'].toString().isNotEmpty) {
+            _senderRegexCtrl.text = match['sender_regex'].toString();
+            found = true;
+          }
+          if (match['reference_regex'] != null && match['reference_regex'].toString().isNotEmpty) {
+            _refRegexCtrl.text = match['reference_regex'].toString();
+            found = true;
+          }
+          if (match['bank_regex'] != null && match['bank_regex'].toString().isNotEmpty) {
+            _bankRegexCtrl.text = match['bank_regex'].toString();
+            found = true;
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (mounted) {
+      setState(() {
+        _hasCustomRulesActive = found;
+      });
+      _runParserTest();
     }
   }
 
@@ -142,6 +226,22 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
         _senderRegexCtrl.text = r'(?:from)\s+([A-Za-z0-9\s.*]+?)(?:\s+UPI|$)';
         _refRegexCtrl.text = r'(?:Ref|UTR)\s*([A-Za-z0-9/_-]+)';
         _bankRegexCtrl.text = r'Paytm Payments Bank|(\*+\s*\d{3,4})';
+      } else if (appName == 'Cred') {
+        _packageCtrl.text = 'com.dreamplug.androidapp';
+        _titleCtrl.text = 'CRED';
+        _descriptionCtrl.text = 'Payment of ₹2 received from KM NEHA GOSWAMI on CRED to State Bank of India account. UTR: 432109876543';
+        _amountRegexCtrl.text = r'(?:Rs\.?|INR|₹|\u20B9)\s*([0-9,]+(?:\.[0-9]{1,2})?)';
+        _senderRegexCtrl.text = r'(?:from|by)\s+([A-Za-z0-9\s.*]+?)(?:\s+on|\s+to|\s+Ref|$)';
+        _refRegexCtrl.text = r'(?:UTR:?|Ref(?:erence)?:?|Txn(?:Id)?:?)\s*([A-Za-z0-9/_-]+)';
+        _bankRegexCtrl.text = r'(?:to|on)\s+([A-Za-z0-9\s-]+?)\s+account|(\*+\s*\d{3,4})';
+      } else if (appName == 'BHIM UPI') {
+        _packageCtrl.text = 'in.org.npci.upiapp';
+        _titleCtrl.text = 'BHIM';
+        _descriptionCtrl.text = 'You have received ₹100.00 from Naresh King UPI Ref 9876543210';
+        _amountRegexCtrl.text = r'(?:Rs\.?|INR|₹|\u20B9)\s*([0-9,]+(?:\.[0-9]{1,2})?)';
+        _senderRegexCtrl.text = r'(?:from|by)\s+([A-Za-z0-9\s.*]+?)(?:\s+UPI|$)';
+        _refRegexCtrl.text = r'(?:Ref|UTR)\s*([A-Za-z0-9/_-]+)';
+        _bankRegexCtrl.text = r'(\*+\s*\d{3,4})';
       } else if (appName == 'Bank SMS') {
         _packageCtrl.text = 'com.google.android.apps.messaging';
         _titleCtrl.text = 'SBI SMS (VM-SBIUPI)';
@@ -152,7 +252,7 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
         _bankRegexCtrl.text = r'(?:A/c|Account)\s*([*A-Za-z0-9]+)';
       }
     });
-    _runParserTest();
+    _loadExistingFormatsForPackage(_packageCtrl.text.trim());
   }
 
   void _runParserTest() {
@@ -225,36 +325,128 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
       return;
     }
 
-    await PlatformBridge.setCustomFormat(
-      package: pkg,
-      type: 'amount',
-      regex: _amountRegexCtrl.text.trim(),
-    );
-    await PlatformBridge.setCustomFormat(
-      package: pkg,
-      type: 'sender',
-      regex: _senderRegexCtrl.text.trim(),
-    );
-    await PlatformBridge.setCustomFormat(
-      package: pkg,
-      type: 'reference',
-      regex: _refRegexCtrl.text.trim(),
-    );
-    await PlatformBridge.setCustomFormat(
-      package: pkg,
-      type: 'masked',
-      regex: _bankRegexCtrl.text.trim(),
+    setState(() => _isSaving = true);
+
+    try {
+      // 1. Save to Android Local SharedPreferences
+      await PlatformBridge.setCustomFormat(
+        package: pkg,
+        type: 'amount',
+        regex: _amountRegexCtrl.text.trim(),
+      );
+      await PlatformBridge.setCustomFormat(
+        package: pkg,
+        type: 'sender',
+        regex: _senderRegexCtrl.text.trim(),
+      );
+      await PlatformBridge.setCustomFormat(
+        package: pkg,
+        type: 'reference',
+        regex: _refRegexCtrl.text.trim(),
+      );
+      await PlatformBridge.setCustomFormat(
+        package: pkg,
+        type: 'masked',
+        regex: _bankRegexCtrl.text.trim(),
+      );
+
+      // 2. Persist to Backend DB for cloud sync
+      final appName = _availableApps.firstWhere(
+        (a) => a['pkg'] == pkg,
+        orElse: () => {'name': 'Custom App', 'pkg': pkg},
+      )['name'];
+
+      await ApiService().saveCustomParser(
+        packageName: pkg,
+        appName: appName,
+        amountRegex: _amountRegexCtrl.text.trim(),
+        senderRegex: _senderRegexCtrl.text.trim(),
+        referenceRegex: _refRegexCtrl.text.trim(),
+        bankRegex: _bankRegexCtrl.text.trim(),
+      );
+
+      setState(() {
+        _hasCustomRulesActive = true;
+        _isSaving = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Parser formats saved & activated for $pkg!'),
+            backgroundColor: AppColors.successGreen,
+          ),
+        );
+        widget.onSaved?.call();
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      setState(() => _isSaving = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving rules: $e'), backgroundColor: AppColors.errorRed),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteRules() async {
+    final pkg = _packageCtrl.text.trim();
+    if (pkg.isEmpty) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reset Custom Rules?'),
+        content: Text('Delete custom parser rules for $pkg and revert to universal default matching?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.errorRed, foregroundColor: Colors.white),
+            child: const Text('Delete Rules'),
+          ),
+        ],
+      ),
     );
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Parser formats saved for $pkg successfully!'),
-          backgroundColor: AppColors.successGreen,
-        ),
-      );
-      widget.onSaved?.call();
-      Navigator.of(context).pop();
+    if (confirm != true) return;
+
+    setState(() => _isDeleting = true);
+
+    try {
+      await PlatformBridge.deleteCustomFormat(package: pkg);
+      await ApiService().deleteCustomParser(pkg);
+
+      // Restore default regexes
+      _amountRegexCtrl.text = r'(?:Rs\.?|INR|₹|\u20B9)\s*([0-9,]+(?:\.[0-9]{1,2})?)';
+      _senderRegexCtrl.text = r'(?:Money received\s+)?([A-Za-z0-9\s.*]+?)\s+has sent|(?:from|by)\s+([A-Za-z0-9\s.*]+?)(?:\s+Ref|\s+UPI|\s+to|\s*\(|$)';
+      _refRegexCtrl.text = r'(?:Ref(?:erence)?:?|UTR:?|Txn(?:Id)?:?|UPI/)\s*([A-Za-z0-9/_-]+)';
+      _bankRegexCtrl.text = r'bank account\s+([A-Za-z0-9\s-]+)|(\*+\s*\d{3,4})';
+
+      setState(() {
+        _hasCustomRulesActive = false;
+        _isDeleting = false;
+      });
+
+      _runParserTest();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Custom rules deleted for $pkg. Default parser restored.'),
+            backgroundColor: AppColors.primaryNavy,
+          ),
+        );
+        widget.onSaved?.call();
+      }
+    } catch (e) {
+      setState(() => _isDeleting = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting rules: $e'), backgroundColor: AppColors.errorRed),
+        );
+      }
     }
   }
 
@@ -276,7 +468,7 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 550, maxHeight: 750),
+        constraints: const BoxConstraints(maxWidth: 580, maxHeight: 780),
         child: Column(
           children: [
             // Modal Header
@@ -299,7 +491,7 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
                           style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                         Text(
-                          'Configure & test live notification pattern matching',
+                          'Configure & test live notification pattern matching for any UPI app',
                           style: TextStyle(color: Colors.white70, fontSize: 12),
                         ),
                       ],
@@ -320,9 +512,54 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Preset Quick Pickers
+                    // Dynamic App Selector
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Select App to Configure:',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryNavy),
+                        ),
+                        if (_isLoadingApps)
+                          const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: _availableApps.map((a) {
+                          final isSelected = _packageCtrl.text.trim() == a['pkg'];
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: ChoiceChip(
+                              label: Text(a['name']!, style: const TextStyle(fontSize: 12)),
+                              selected: isSelected,
+                              selectedColor: AppColors.primaryBlue.withOpacity(0.2),
+                              avatar: Icon(
+                                isSelected ? Icons.check_circle : Icons.apps,
+                                size: 16,
+                                color: isSelected ? AppColors.primaryBlue : AppColors.textSecondary,
+                              ),
+                              onSelected: (val) {
+                                if (val) {
+                                  _applyTemplate(a['name']!);
+                                }
+                              },
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Quick Sample Presets Picker
                     const Text(
-                      'Quick Presets:',
+                      'Sample Format Templates:',
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryNavy),
                     ),
                     const SizedBox(height: 8),
@@ -334,9 +571,13 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
                           const SizedBox(width: 8),
                           _buildPresetChip('PhonePe ("received from")'),
                           const SizedBox(width: 8),
+                          _buildPresetChip('Cred'),
+                          const SizedBox(width: 8),
                           _buildPresetChip('Google Pay'),
                           const SizedBox(width: 8),
                           _buildPresetChip('Paytm'),
+                          const SizedBox(width: 8),
+                          _buildPresetChip('BHIM UPI'),
                           const SizedBox(width: 8),
                           _buildPresetChip('Bank SMS'),
                         ],
@@ -344,16 +585,55 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Section 1: Monitored Package
-                    TextFormField(
-                      controller: _packageCtrl,
-                      decoration: InputDecoration(
-                        labelText: 'Application Package Name',
-                        hintText: 'e.g. com.phonepe.app or * for all',
-                        prefixIcon: const Icon(Icons.apps, size: 20),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      ),
+                    // Section 1: Monitored Package with Active Rules Status
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _packageCtrl,
+                            decoration: InputDecoration(
+                              labelText: 'Application Package Name',
+                              hintText: 'e.g. com.dreamplug.androidapp, com.phonepe.app, or *',
+                              prefixIcon: const Icon(Icons.apps, size: 20),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            ),
+                            onChanged: (val) => _loadExistingFormatsForPackage(val),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _hasCustomRulesActive
+                                ? AppColors.successGreen.withOpacity(0.12)
+                                : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: _hasCustomRulesActive
+                                  ? AppColors.successGreen.withOpacity(0.4)
+                                  : Colors.grey.shade300,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _hasCustomRulesActive ? 'CUSTOM RULES' : 'DEFAULT RULES',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: _hasCustomRulesActive ? AppColors.successGreen : AppColors.textSecondary,
+                                ),
+                              ),
+                              Text(
+                                _hasCustomRulesActive ? 'Active in DB' : 'Universal Matcher',
+                                style: const TextStyle(fontSize: 9, color: AppColors.textSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
 
@@ -383,7 +663,7 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
                             controller: _titleCtrl,
                             decoration: InputDecoration(
                               labelText: 'Notification Message Title',
-                              hintText: 'e.g. Money received',
+                              hintText: 'e.g. Money received, CRED, Google Pay',
                               isDense: true,
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                             ),
@@ -408,7 +688,7 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
 
                     // Section 3: Extraction Regex Rules
                     const Text(
-                      'Extraction Regex Rules (Customizable):',
+                      'Extraction Regex Rules (Customizable & Database Persisted):',
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primaryNavy),
                     ),
                     const SizedBox(height: 10),
@@ -416,9 +696,9 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
                     const SizedBox(height: 10),
                     _buildRegexField('Sender Name Regex', _senderRegexCtrl, 'Captures sender name'),
                     const SizedBox(height: 10),
-                    _buildRegexField('Bank Account / Masked Identifier', _bankRegexCtrl, 'Captures destination bank'),
+                    _buildRegexField('Bank Account / Masked Identifier', _bankRegexCtrl, 'Captures destination bank or masked number'),
                     const SizedBox(height: 10),
-                    _buildRegexField('Reference / UTR Regex', _refRegexCtrl, 'Captures transaction reference'),
+                    _buildRegexField('Reference / UTR Regex', _refRegexCtrl, 'Captures transaction reference / UTR'),
                     const SizedBox(height: 16),
 
                     // Test Action Button
@@ -438,7 +718,7 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Section 4: Live Extraction Result
+                    // Section 4: Live Extraction Result (Fixed Overflow Bug)
                     if (_hasTested) ...[
                       Container(
                         padding: const EdgeInsets.all(16),
@@ -452,23 +732,32 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
+                            // Responsive wrap to prevent 31px overflow on narrow screens
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              alignment: WrapAlignment.spaceBetween,
                               children: [
-                                Icon(
-                                  _isSuccess ? Icons.check_circle_rounded : Icons.error_outline_rounded,
-                                  color: _isSuccess ? AppColors.successGreen : AppColors.errorRed,
-                                  size: 20,
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _isSuccess ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+                                      color: _isSuccess ? AppColors.successGreen : AppColors.errorRed,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _isSuccess ? 'Extraction Successful' : 'Extraction Incomplete',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: _isSuccess ? AppColors.successGreen : AppColors.errorRed,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _isSuccess ? 'Extraction Successful' : 'Extraction Incomplete',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: _isSuccess ? AppColors.successGreen : AppColors.errorRed,
-                                  ),
-                                ),
-                                const Spacer(),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
@@ -500,7 +789,7 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
               ),
             ),
 
-            // Modal Footer Actions
+            // Modal Footer Actions (Full CRUD: Reset/Delete + Save/Update + Cancel)
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -508,21 +797,37 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog> {
                 borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  if (_hasCustomRulesActive)
+                    OutlinedButton.icon(
+                      onPressed: _isDeleting ? null : _deleteRules,
+                      icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.errorRed),
+                      label: Text(
+                        _isDeleting ? 'Resetting...' : 'Reset Rules',
+                        style: const TextStyle(color: AppColors.errorRed, fontSize: 12),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.errorRed),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  const Spacer(),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   ElevatedButton.icon(
-                    onPressed: _saveRules,
-                    icon: const Icon(Icons.save_rounded, size: 18),
-                    label: const Text('Save & Activate Rules'),
+                    onPressed: _isSaving ? null : _saveRules,
+                    icon: _isSaving
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.save_rounded, size: 18),
+                    label: Text(_isSaving ? 'Saving...' : 'Save & Activate Rules'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.successGreen,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                   ),

@@ -1,5 +1,21 @@
 import 'package:intl/intl.dart';
 
+/// Formats currency preserving paise precision whenever paise exist.
+/// Example:
+///   1.53 -> ₹ 1.53
+///   15001.53 -> ₹ 15,001.53
+///   8998.47 -> ₹ 8,998.47
+///   24000.0 -> ₹ 24,000
+///   0.0 -> ₹ 0
+String formatIndianCurrency(num amount) {
+  final d = amount.toDouble();
+  final hasPaise = (d * 100).round() % 100 != 0;
+  if (hasPaise) {
+    return '₹ ${NumberFormat('#,##,##0.00').format(d)}';
+  }
+  return '₹ ${NumberFormat('#,##,###').format(d.toInt())}';
+}
+
 class StudentFeeKPIs {
   final double totalBilled;
   final double totalCollected;
@@ -23,10 +39,10 @@ class StudentFeeKPIs {
     this.overdueStudentsCount = 0,
   });
 
-  String get totalBilledFormatted => '₹ ${NumberFormat('#,##,###').format(totalBilled.toInt())}';
-  String get totalCollectedFormatted => '₹ ${NumberFormat('#,##,###').format(totalCollected.toInt())}';
-  String get pendingDuesFormatted => '₹ ${NumberFormat('#,##,###').format(pendingDues.toInt())}';
-  String get overdueAmountFormatted => '₹ ${NumberFormat('#,##,###').format(overdueAmount.toInt())}';
+  String get totalBilledFormatted => formatIndianCurrency(totalBilled);
+  String get totalCollectedFormatted => formatIndianCurrency(totalCollected);
+  String get pendingDuesFormatted => formatIndianCurrency(pendingDues);
+  String get overdueAmountFormatted => formatIndianCurrency(overdueAmount);
   String get collectionRateFormatted => '${collectionRate.toStringAsFixed(1)}% Collection';
 
   factory StudentFeeKPIs.fromJson(Map<String, dynamic> json) {
@@ -81,9 +97,9 @@ class StudentFeeRosterItem {
     this.dueDate,
   });
 
-  String get totalBilledFormatted => '₹ ${NumberFormat('#,##,###').format(totalBilled.toInt())}';
-  String get paidAmountFormatted => '₹ ${NumberFormat('#,##,###').format(paidAmount.toInt())}';
-  String get balanceAmountFormatted => '₹ ${NumberFormat('#,##,###').format(balanceAmount.toInt())}';
+  String get totalBilledFormatted => formatIndianCurrency(totalBilled);
+  String get paidAmountFormatted => formatIndianCurrency(paidAmount);
+  String get balanceAmountFormatted => formatIndianCurrency(balanceAmount);
 
   factory StudentFeeRosterItem.fromJson(Map<String, dynamic> json) {
     return StudentFeeRosterItem(
@@ -152,9 +168,9 @@ class StudentFeeInvoiceItem {
     this.className,
   });
 
-  String get totalBilledFormatted => '₹ ${NumberFormat('#,##,###').format(totalBilled.toInt())}';
-  String get paidAmountFormatted => '₹ ${NumberFormat('#,##,###').format(paidAmount.toInt())}';
-  String get balanceAmountFormatted => '₹ ${NumberFormat('#,##,###').format(balanceAmount.toInt())}';
+  String get totalBilledFormatted => formatIndianCurrency(totalBilled);
+  String get paidAmountFormatted => formatIndianCurrency(paidAmount);
+  String get balanceAmountFormatted => formatIndianCurrency(balanceAmount);
 
   factory StudentFeeInvoiceItem.fromJson(Map<String, dynamic> json) {
     return StudentFeeInvoiceItem(
@@ -213,7 +229,7 @@ class StudentFeePaymentItem {
     this.invoiceNumber,
   });
 
-  String get amountPaidFormatted => '₹ ${NumberFormat('#,##,###').format(amountPaid.toInt())}';
+  String get amountPaidFormatted => formatIndianCurrency(amountPaid);
 
   factory StudentFeePaymentItem.fromJson(Map<String, dynamic> json) {
     return StudentFeePaymentItem(
@@ -257,7 +273,7 @@ class StudentFeeStructureItem {
     this.status = 'ACTIVE',
   });
 
-  String get amountFormatted => '₹ ${NumberFormat('#,##,###').format(amount.toInt())}';
+  String get amountFormatted => formatIndianCurrency(amount);
 
   factory StudentFeeStructureItem.fromJson(Map<String, dynamic> json) {
     return StudentFeeStructureItem(

@@ -766,4 +766,54 @@ class ApiService {
     final res = await syncNow();
     return res['success'] == true;
   }
+
+  Future<List<Map<String, dynamic>>> getCustomParsers() async {
+    try {
+      final res = await _getWithFallback('/custom-parsers');
+      if (res.statusCode == 200) {
+        final List<dynamic> data = json.decode(res.body);
+        return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+    } catch (e) {
+      debugPrint('[ApiService] getCustomParsers error: $e');
+    }
+    return [];
+  }
+
+  Future<bool> saveCustomParser({
+    required String packageName,
+    String? appName,
+    String? amountRegex,
+    String? senderRegex,
+    String? referenceRegex,
+    String? bankRegex,
+    bool isActive = true,
+  }) async {
+    try {
+      final body = json.encode({
+        'package_name': packageName.trim(),
+        'app_name': appName?.trim() ?? 'Custom App',
+        'amount_regex': amountRegex?.trim(),
+        'sender_regex': senderRegex?.trim(),
+        'reference_regex': referenceRegex?.trim(),
+        'bank_regex': bankRegex?.trim(),
+        'is_active': isActive,
+      });
+      final res = await _postWithFallback('/custom-parsers', body: body);
+      return res.statusCode == 200 || res.statusCode == 201;
+    } catch (e) {
+      debugPrint('[ApiService] saveCustomParser error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteCustomParser(String packageName) async {
+    try {
+      final res = await _deleteWithFallback('/custom-parsers/$packageName');
+      return res.statusCode == 200;
+    } catch (e) {
+      debugPrint('[ApiService] deleteCustomParser error: $e');
+      return false;
+    }
+  }
 }

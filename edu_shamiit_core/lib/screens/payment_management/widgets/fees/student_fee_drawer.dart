@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:edu_shamiit_core/utils/js_helper.dart';
+import '../../models/student_fee_models.dart';
 import '../../providers/student_fee_provider.dart';
 import 'dialogs/collect_student_payment_dialog.dart';
 import 'dialogs/generate_student_invoice_dialog.dart';
@@ -254,11 +255,11 @@ class _StudentFeeDrawerState extends ConsumerState<StudentFeeDrawer> with Single
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _buildMetricCard('Total Billed', '₹ ${NumberFormat('#,##,###').format(totalBilled.toInt())}', const Color(0xFF2563EB), isDark),
+                        _buildMetricCard('Total Billed', formatIndianCurrency(totalBilled), const Color(0xFF2563EB), isDark),
                         const SizedBox(height: 8),
-                        _buildMetricCard('Total Paid', '₹ ${NumberFormat('#,##,###').format(totalPaid.toInt())}', const Color(0xFF16A34A), isDark),
+                        _buildMetricCard('Total Paid', formatIndianCurrency(totalPaid), const Color(0xFF16A34A), isDark),
                         const SizedBox(height: 8),
-                        _buildMetricCard('Outstanding Dues', '₹ ${NumberFormat('#,##,###').format(balance.toInt())}', const Color(0xFFDC2626), isDark),
+                        _buildMetricCard('Outstanding Dues', formatIndianCurrency(balance), const Color(0xFFDC2626), isDark),
                         const SizedBox(height: 16),
                         Text(
                           'Payment Clearance (${(progress * 100).toStringAsFixed(0)}%)',
@@ -308,7 +309,7 @@ class _StudentFeeDrawerState extends ConsumerState<StudentFeeDrawer> with Single
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                Text('₹ ${NumberFormat('#,##,###').format(invBilled.toInt())}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                                Text(formatIndianCurrency(invBilled), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                                 Text(invStatus, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: invStatus == 'Paid' ? const Color(0xFF16A34A) : const Color(0xFFDC2626))),
                               ],
                             ),
@@ -423,7 +424,7 @@ class _StudentFeeDrawerState extends ConsumerState<StudentFeeDrawer> with Single
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      '₹ ${NumberFormat('#,##,###').format(amt.toInt())}.00',
+                                      formatIndianCurrency(amt),
                                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF16A34A)),
                                     ),
                                     Container(
@@ -720,7 +721,7 @@ class _StudentFeeDrawerState extends ConsumerState<StudentFeeDrawer> with Single
                                           borderRadius: BorderRadius.circular(4),
                                         ),
                                         child: Text(
-                                          '\u20B9 ${NumberFormat('#,##,###').format(amt.toInt())}',
+                                          formatIndianCurrency(amt),
                                           style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF16A34A)),
                                         ),
                                       ),
@@ -823,7 +824,7 @@ class _StudentFeeDrawerState extends ConsumerState<StudentFeeDrawer> with Single
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Receipt: ${pay['receipt_number']} | Amount: ₹ ${pay['amount_paid']}',
+                    'Receipt: ${pay['receipt_number']} | Amount: ${formatIndianCurrency((pay['amount_paid'] as num?)?.toDouble() ?? 0.0)}',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,

@@ -66,7 +66,7 @@ class PaymentNotificationListenerService : NotificationListenerService() {
             // Support PhonePe, GPay, Paytm, BHIM, Cred, bank apps, and SMS variants automatically
             return lower.contains("phonepe") || lower.contains("paisa") || 
                    lower.contains("paytm") || lower.contains("upi") || 
-                   lower.contains("cred") || lower.contains("message") ||
+                   lower.contains("cred") || lower.contains("dreamplug") || lower.contains("message") ||
                    lower.contains("mms") || lower.contains("sms") ||
                    lower.contains("bank")
         }

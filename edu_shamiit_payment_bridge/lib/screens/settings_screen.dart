@@ -642,279 +642,104 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildParserSettingsCard() {
-    final apps = [
-      {'name': 'PhonePe', 'pkg': 'com.phonepe.app', 'color': const Color(0xFF5F259F)},
-      {'name': 'Google Pay', 'pkg': 'com.google.android.apps.nbu.paisa.user', 'color': const Color(0xFF4285F4)},
-      {'name': 'Paytm', 'pkg': 'net.one97.paytm', 'color': const Color(0xFF002E6E)},
-      {'name': 'BHIM UPI', 'pkg': 'in.org.npci.upiapp', 'color': const Color(0xFF00796B)},
-      {'name': 'All Other UPI Apps', 'pkg': '*', 'color': AppColors.primaryNavy},
-    ];
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
-      child: Column(
-        children: [
-          ...apps.map((a) {
-            return Column(
-              children: [
-                _buildSettingsTile(
-                  leadingWidget: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: a['color'] as Color,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: Text(
-                        (a['name'] as String)[0],
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
+      child: FutureBuilder<List<MonitoredAppItem>>(
+        future: _appsFuture,
+        builder: (context, snapshot) {
+          final List<Map<String, dynamic>> apps = [];
+          final rawApps = snapshot.data;
+          if (rawApps != null && rawApps.isNotEmpty) {
+            for (final a in rawApps) {
+              Color c = const Color(0xFF2563EB);
+              final lower = a.name.toLowerCase();
+              if (lower.contains('phonepe')) {
+                c = const Color(0xFF5F259F);
+              } else if (lower.contains('google') || lower.contains('gpay')) {
+                c = const Color(0xFF4285F4);
+              } else if (lower.contains('paytm')) {
+                c = const Color(0xFF002E6E);
+              } else if (lower.contains('bhim')) {
+                c = const Color(0xFF00796B);
+              } else if (lower.contains('cred')) {
+                c = const Color(0xFF1B1B1B);
+              }
+              apps.add({'name': a.name, 'pkg': a.packageName, 'color': c});
+            }
+          } else {
+            apps.addAll([
+              {'name': 'PhonePe', 'pkg': 'com.phonepe.app', 'color': const Color(0xFF5F259F)},
+              {'name': 'Google Pay', 'pkg': 'com.google.android.apps.nbu.paisa.user', 'color': const Color(0xFF4285F4)},
+              {'name': 'Paytm', 'pkg': 'net.one97.paytm', 'color': const Color(0xFF002E6E)},
+              {'name': 'BHIM UPI', 'pkg': 'in.org.npci.upiapp', 'color': const Color(0xFF00796B)},
+              {'name': 'Cred', 'pkg': 'com.dreamplug.androidapp', 'color': const Color(0xFF1B1B1B)},
+            ]);
+          }
+
+          if (!apps.any((a) => a['pkg'] == '*')) {
+            apps.add({'name': 'All Other UPI Apps', 'pkg': '*', 'color': AppColors.primaryNavy});
+          }
+
+          return Column(
+            children: [
+              ...apps.map((a) {
+                return Column(
+                  children: [
+                    _buildSettingsTile(
+                      leadingWidget: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: a['color'] as Color,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Text(
+                            (a['name'] as String)[0],
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                  title: a['name'] as String,
-                  subtitle: a['pkg'] == '*' ? 'Default fallback parser' : a['pkg'] as String,
-                  trailing: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Configure',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.primaryBlue,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      title: a['name'] as String,
+                      subtitle: a['pkg'] == '*' ? 'Default fallback parser' : a['pkg'] as String,
+                      trailing: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Configure',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.primaryBlue,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(Icons.chevron_right, size: 16, color: AppColors.textSecondary),
+                        ],
                       ),
-                      SizedBox(width: 4),
-                      Icon(Icons.chevron_right, size: 16, color: AppColors.textSecondary),
-                    ],
-                  ),
-                  onTap: () => _showCustomFormatDialog(initialPkg: a['pkg'] as String),
-                ),
-                if (a != apps.last) const Divider(color: AppColors.border, height: 1),
-              ],
-            );
-          }),
-        ],
+                      onTap: () => _showCustomFormatDialog(initialPkg: a['pkg'] as String),
+                    ),
+                    if (a != apps.last) const Divider(color: AppColors.border, height: 1),
+                  ],
+                );
+              }),
+            ],
+          );
+        },
       ),
     );
   }
 
   void _showCustomFormatDialog({String initialPkg = 'com.phonepe.app'}) {
     DynamicParserStudioDialog.show(context, initialPackage: initialPkg, onSaved: _fetch);
-    return;
-    final pkgCtrl = TextEditingController(text: initialPkg);
-    final regexCtrl = TextEditingController(text: r'(?:Rs\.?|₹|INR)\s*([0-9,]+(?:\.[0-9]{1,2})?)');
-    final sampleTextCtrl = TextEditingController(
-      text: 'Received Rs 2,500.00 from **** 4432 via UPI/438729106731',
-    );
-    String selectedType = 'amount';
-    String liveExtracted = '2,500.00';
-
-    void updateLiveExtraction(String regexStr, String textStr, void Function(void Function()) setDialogState) {
-      try {
-        final reg = RegExp(regexStr, caseSensitive: false);
-        final match = reg.firstMatch(textStr);
-        setDialogState(() {
-          if (match != null && match.groupCount >= 1) {
-            liveExtracted = match.group(1) ?? '(Matched empty)';
-          } else if (match != null) {
-            liveExtracted = match.group(0) ?? '(Full match)';
-          } else {
-            liveExtracted = '(No match)';
-          }
-        });
-      } catch (e) {
-        setDialogState(() {
-          liveExtracted = 'Invalid regex: $e';
-        });
-      }
-    }
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
-            children: [
-              Icon(Icons.code, color: AppColors.primaryNavy, size: 22),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Message Format Parser',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryNavy),
-                ),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Adapt to bank/UPI format changes by configuring extraction regex per app and field:',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: pkgCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Application Package',
-                    hintText: 'e.g. com.phonepe.app or * for all',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedType,
-                  decoration: const InputDecoration(
-                    labelText: 'Target Field',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'amount', child: Text('Amount (Paise/Rupees)')),
-                    DropdownMenuItem(value: 'reference', child: Text('Reference / UTR / Txn ID')),
-                    DropdownMenuItem(value: 'sender', child: Text('Sender Name')),
-                    DropdownMenuItem(value: 'masked', child: Text('Masked Account (**** 1234)')),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) {
-                      setDialogState(() {
-                        selectedType = val;
-                        if (val == 'amount') {
-                          regexCtrl.text = r'(?:Rs\.?|₹|INR)\s*([0-9,]+(?:\.[0-9]{1,2})?)';
-                        } else if (val == 'reference') {
-                          regexCtrl.text = r'(?:Ref(?:erence)?|UTR|Txn(?:Id)?|UPI/)\s*([A-Za-z0-9/_-]+)';
-                        } else if (val == 'sender') {
-                          regexCtrl.text = r'(?:from|by)\s+([*\d\w\s]+?)(?:\s+Ref|\s+UPI|\s*\(|$)';
-                        } else if (val == 'masked') {
-                          regexCtrl.text = r'(\*+\s*\d{3,4})';
-                        }
-                      });
-                      updateLiveExtraction(regexCtrl.text, sampleTextCtrl.text, setDialogState);
-                    }
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: regexCtrl,
-                  maxLines: 2,
-                  onChanged: (v) => updateLiveExtraction(v, sampleTextCtrl.text, setDialogState),
-                  decoration: const InputDecoration(
-                    labelText: 'Regular Expression (Capture Group 1)',
-                    hintText: r'(?:Rs\.?|₹)\s*([0-9,]+)',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                const Text(
-                  'Live Extraction Test:',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryNavy),
-                ),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: sampleTextCtrl,
-                  maxLines: 2,
-                  onChanged: (v) => updateLiveExtraction(regexCtrl.text, v, setDialogState),
-                  decoration: const InputDecoration(
-                    labelText: 'Test Notification Text',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: liveExtracted.startsWith('Invalid') || liveExtracted.startsWith('(No match')
-                        ? AppColors.errorRedBg
-                        : AppColors.successGreenBg,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: liveExtracted.startsWith('Invalid') || liveExtracted.startsWith('(No match')
-                          ? AppColors.errorRed
-                          : AppColors.successGreen,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        liveExtracted.startsWith('Invalid') || liveExtracted.startsWith('(No match')
-                            ? Icons.error_outline
-                            : Icons.check_circle_outline,
-                        size: 16,
-                        color: liveExtracted.startsWith('Invalid') || liveExtracted.startsWith('(No match')
-                            ? AppColors.errorRed
-                            : AppColors.successGreen,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Extracted: $liveExtracted',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: liveExtracted.startsWith('Invalid') || liveExtracted.startsWith('(No match')
-                                ? AppColors.errorRed
-                                : AppColors.successGreen,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final success = await PlatformBridge.setCustomFormat(
-                  package: pkgCtrl.text.trim(),
-                  type: selectedType,
-                  regex: regexCtrl.text.trim(),
-                );
-                if (ctx.mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(success
-                          ? 'Custom rule applied for ${pkgCtrl.text.trim()} ($selectedType)!'
-                          : 'Failed to update custom format.'),
-                      backgroundColor: success ? AppColors.successGreen : AppColors.errorRed,
-                    ),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryBlue,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              child: const Text('Save & Apply'),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildSettingsTile({
