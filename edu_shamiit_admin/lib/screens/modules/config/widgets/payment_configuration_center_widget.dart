@@ -588,8 +588,15 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                   },
                   child: const Text('Set Default', style: TextStyle(fontSize: 11)),
                 ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               IconButton(
+                tooltip: 'Edit UPI Account Details',
+                icon: const Icon(Icons.edit_outlined, color: Color(0xFF2563EB), size: 18),
+                onPressed: () => _showEditUpiAccountDialog(acc, isDark),
+              ),
+              const SizedBox(width: 2),
+              IconButton(
+                tooltip: 'Deactivate / Delete',
                 icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20),
                 onPressed: () async {
                   await PaymentManagementApiService.instance.deactivateUpiAccount(id);
@@ -842,36 +849,321 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
     );
   }
 
+  void _showEditUpiAccountDialog(Map<String, dynamic> acc, bool isDark) {
+    final id = acc['id']?.toString() ?? '';
+    final vpaCtrl = TextEditingController(text: acc['vpa']?.toString() ?? '');
+    final nameCtrl = TextEditingController(text: acc['display_name']?.toString() ?? '');
+    final benCtrl = TextEditingController(text: acc['beneficiary_name']?.toString() ?? '');
+    final bankCtrl = TextEditingController(text: acc['bank_name']?.toString() ?? 'State Bank of India');
+    final currentDeviceId = acc['device_id']?.toString() ?? '';
+
+    // Extract registered devices for this institution
+    final registeredDevices = (_bridgeStatus['devices'] as List?)
+            ?.map((e) => Map<String, dynamic>.from(e))
+            .toList() ??
+        (_bridgeStatus['device'] != null ? [Map<String, dynamic>.from(_bridgeStatus['device'])] : []);
+
+    final deviceCtrl = TextEditingController(text: currentDeviceId);
+    bool setAsDefault = acc['is_default'] == true;
+    bool isTestingDevice = false;
+    Map<String, dynamic>? deviceTestResult;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Edit Institutional UPI VPA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildTextField('UPI VPA / ID', vpaCtrl, isDark, 'e.g. schoolname@sbi'),
+                  const SizedBox(height: 12),
+                  _buildTextField('Account Nickname', nameCtrl, isDark, 'e.g. Campus Fee Collection UPI'),
+                  const SizedBox(height: 12),
+                  _buildTextField('Beneficiary Name', benCtrl, isDark, 'Official Account Holder Name'),
+                  const SizedBox(height: 12),
+                  _buildTextField('Bank Name', bankCtrl, isDark, 'e.g. HDFC Bank, SBI'),
+                  const SizedBox(height: 12),
+
+                  // Device ID & Background Active Test
+                  Text(
+                    'Linked Payment Bridge Terminal (Device ID)',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  if (registeredDevices.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      margin: const EdgeInsets.only(bottom: 6),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: registeredDevices.any((d) => d['device_id'] == deviceCtrl.text)
+                              ? deviceCtrl.text
+                              : null,
+                          hint: const Text('Select Registered Device Terminal', style: TextStyle(fontSize: 12)),
+                          isExpanded: true,
+                          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          items: registeredDevices.map((d) {
+                            final did = d['device_id'].toString();
+                            final dname = d['device_name']?.toString() ?? 'Terminal';
+                            final isOnline = d['is_online'] == true;
+                            return DropdownMenuItem<String>(
+                              value: did,
+                              child: Text(
+                                '$dname ($did)${isOnline ? " • Active" : ""}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setDialogState(() {
+                                deviceCtrl.text = val;
+                                deviceTestResult = null;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: deviceCtrl,
+                          decoration: InputDecoration(
+                            hintText: 'e.g. PB-DEV-WEB001',
+                            filled: true,
+                            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          ),
+                          style: const TextStyle(fontSize: 13),
+                          onChanged: (_) {
+                            if (deviceTestResult != null) {
+                              setDialogState(() => deviceTestResult = null);
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          side: const BorderSide(color: Color(0xFF2563EB)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        icon: isTestingDevice
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2563EB)),
+                              )
+                            : const Icon(Icons.sensors, size: 16, color: Color(0xFF2563EB)),
+                        label: Text(
+                          isTestingDevice ? 'Testing...' : 'Test Device',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF2563EB), fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: isTestingDevice
+                            ? null
+                            : () async {
+                                final targetDevId = deviceCtrl.text.trim();
+                                if (targetDevId.isEmpty) return;
+                                setDialogState(() => isTestingDevice = true);
+                                final res = await PaymentManagementApiService.instance.testDeviceActive(targetDevId);
+                                setDialogState(() {
+                                  isTestingDevice = false;
+                                  deviceTestResult = res;
+                                });
+                              },
+                      ),
+                    ],
+                  ),
+                  if (deviceTestResult != null) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: deviceTestResult!['is_active'] == true
+                            ? const Color(0xFF16A34A).withValues(alpha: 0.12)
+                            : Colors.orange.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: deviceTestResult!['is_active'] == true
+                              ? const Color(0xFF16A34A)
+                              : Colors.orange,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            deviceTestResult!['is_active'] == true
+                                ? Icons.check_circle_rounded
+                                : Icons.warning_amber_rounded,
+                            size: 18,
+                            color: deviceTestResult!['is_active'] == true
+                                ? const Color(0xFF16A34A)
+                                : Colors.orange,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              deviceTestResult!['message'] ?? 'Device status received',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: deviceTestResult!['is_active'] == true
+                                    ? const Color(0xFF16A34A)
+                                    : (isDark ? Colors.orange[200] : Colors.orange[900]),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  CheckboxListTile(
+                    title: const Text('Set as Default Receiving UPI Account', style: TextStyle(fontSize: 12)),
+                    value: setAsDefault,
+                    onChanged: (val) => setDialogState(() => setAsDefault = val ?? false),
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), foregroundColor: Colors.white),
+              onPressed: () async {
+                if (vpaCtrl.text.trim().isEmpty) return;
+                final ok = await PaymentManagementApiService.instance.updateUpiAccount(id, {
+                  'vpa': vpaCtrl.text.trim(),
+                  'display_name': nameCtrl.text.trim(),
+                  'beneficiary_name': benCtrl.text.trim(),
+                  'bank_name': bankCtrl.text.trim(),
+                  'device_id': deviceCtrl.text.trim().isNotEmpty ? deviceCtrl.text.trim() : null,
+                  'is_default': setAsDefault,
+                });
+                if (ctx.mounted) Navigator.of(ctx).pop();
+                if (ok && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('UPI account details updated successfully!'),
+                      backgroundColor: Color(0xFF16A34A),
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                }
+                _loadConfig();
+              },
+              child: const Text('Update Account'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showQrPreviewDialog(String vpa, String beneficiary, bool isDark) {
     final sampleUri = 'upi://pay?pa=$vpa&pn=${Uri.encodeComponent(beneficiary)}&cu=INR&tn=Sample%20Fee%20QR';
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => Dialog(
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('VPA QR Preview: $vpa', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-              child: QrImageView(
-                data: sampleUri,
-                version: QrVersions.auto,
-                size: 200,
-                backgroundColor: Colors.white,
+        child: Container(
+          width: 380,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'VPA QR Preview: $vpa',
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 14),
-            Text('Beneficiary: $beneficiary', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-            const SizedBox(height: 4),
-            Text('Scan to verify payee details in your UPI application.', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
-          ],
+              const SizedBox(height: 16),
+              Container(
+                width: 220,
+                height: 220,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                ),
+                child: Center(
+                  child: QrImageView(
+                    data: sampleUri,
+                    version: QrVersions.auto,
+                    size: 200,
+                    backgroundColor: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Beneficiary: $beneficiary',
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Scan to verify payee details in your UPI application.',
+                style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
+          ),
         ),
-        actions: [
-          ElevatedButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close')),
-        ],
       ),
     );
   }
@@ -1009,8 +1301,15 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                   },
                   child: const Text('Set Default', style: TextStyle(fontSize: 11)),
                 ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               IconButton(
+                tooltip: 'Edit Bank Account Details',
+                icon: const Icon(Icons.edit_outlined, color: Color(0xFF0D9488), size: 18),
+                onPressed: () => _showEditBankAccountDialog(b, isDark),
+              ),
+              const SizedBox(width: 2),
+              IconButton(
+                tooltip: 'Deactivate / Delete',
                 icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20),
                 onPressed: () async {
                   await PaymentManagementApiService.instance.deactivateBankAccount(id);
@@ -1089,6 +1388,85 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
             child: const Text('Save Bank Account'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showEditBankAccountDialog(Map<String, dynamic> acc, bool isDark) {
+    final id = acc['id']?.toString() ?? '';
+    final nickCtrl = TextEditingController(text: acc['account_nickname']?.toString() ?? '');
+    final bankCtrl = TextEditingController(text: acc['bank_name']?.toString() ?? 'State Bank of India');
+    final branchCtrl = TextEditingController(text: acc['branch_name']?.toString() ?? 'Main Branch');
+    final holderCtrl = TextEditingController(text: acc['account_holder_name']?.toString() ?? _instNameCtrl.text);
+    final numCtrl = TextEditingController(text: acc['account_number']?.toString() ?? '');
+    final ifscCtrl = TextEditingController(text: acc['ifsc_code']?.toString() ?? 'SBIN0001234');
+    String type = acc['account_type']?.toString() ?? 'Current';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Edit Institutional Bank Account', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildTextField('Account Nickname', nickCtrl, isDark, 'e.g. Tuition Fee Account'),
+                  const SizedBox(height: 12),
+                  _buildTextField('Bank Name', bankCtrl, isDark, 'e.g. State Bank of India'),
+                  const SizedBox(height: 12),
+                  _buildTextField('Branch Name', branchCtrl, isDark, 'e.g. Main Branch, MG Road'),
+                  const SizedBox(height: 12),
+                  _buildTextField('Account Holder / Beneficiary Name', holderCtrl, isDark, 'Official Name registered with Bank'),
+                  const SizedBox(height: 12),
+                  _buildTextField('Account Number', numCtrl, isDark, 'Full Bank Account Number'),
+                  const SizedBox(height: 12),
+                  _buildTextField('IFSC Code', ifscCtrl, isDark, '11-character IFSC'),
+                  const SizedBox(height: 12),
+                  _buildDropdown('Account Type', type, ['Current', 'Savings', 'Overdraft'], (val) {
+                    if (val != null) setDialogState(() => type = val);
+                  }, isDark),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D9488), foregroundColor: Colors.white),
+              onPressed: () async {
+                if (numCtrl.text.trim().isEmpty) return;
+                final ok = await PaymentManagementApiService.instance.updateBankAccount(id, {
+                  'account_nickname': nickCtrl.text.trim(),
+                  'bank_name': bankCtrl.text.trim(),
+                  'branch_name': branchCtrl.text.trim(),
+                  'account_holder_name': holderCtrl.text.trim(),
+                  'account_number': numCtrl.text.trim(),
+                  'ifsc_code': ifscCtrl.text.trim(),
+                  'account_type': type,
+                  'is_default': acc['is_default'] == true,
+                });
+                if (ctx.mounted) Navigator.of(ctx).pop();
+                if (ok && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Bank account details updated successfully!'),
+                      backgroundColor: Color(0xFF0D9488),
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                }
+                _loadConfig();
+              },
+              child: const Text('Update Bank Account'),
+            ),
+          ],
+        ),
       ),
     );
   }
