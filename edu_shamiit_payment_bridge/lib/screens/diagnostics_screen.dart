@@ -253,62 +253,55 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
     );
   }
 
+  bool _isForceSyncing = false;
+
   Widget _buildActionsCard() {
-    return Column(
-      children: [
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () => _simulateNotification(),
-            icon: const Icon(Icons.send_outlined, size: 18),
-            label: const Text('Simulate Test UPI Notification'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryNavy,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _isForceSyncing
+            ? null
+            : () async {
+                setState(() => _isForceSyncing = true);
+                final ok = await ApiService().triggerSync();
+                await PlatformBridge.syncNow();
+                await _checkStatus();
+                if (mounted) {
+                  setState(() => _isForceSyncing = false);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(ok
+                          ? 'Synchronization completed successfully with backend!'
+                          : 'Sync queued locally or server unavailable'),
+                      backgroundColor: ok ? AppColors.successGreen : AppColors.warningOrange,
+                    ),
+                  );
+                }
+              },
+        icon: _isForceSyncing
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              )
+            : const Icon(Icons.sync, size: 18),
+        label: Text(
+          _isForceSyncing ? 'Synchronizing...' : 'Force Sync with Backend',
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () async {
-              final ok = await ApiService().triggerSync();
-              await _checkStatus();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(ok
-                        ? 'Sync initiated successfully with backend!'
-                        : 'Sync queued locally or server unavailable'),
-                    backgroundColor: ok ? AppColors.successGreen : AppColors.warningOrange,
-                  ),
-                );
-              }
-            },
-            icon: const Icon(Icons.sync, size: 18, color: AppColors.primaryBlue),
-            label: const Text(
-              'Force Sync with Backend',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primaryBlue,
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.primaryBlue),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primaryBlue,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
           ),
+          elevation: 0,
         ),
-      ],
+      ),
     );
   }
 
@@ -399,26 +392,5 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
         ),
       ],
     );
-  }
-
-  void _simulateNotification() async {
-    final ok = await PlatformBridge.simulateNotification(
-      package: 'com.phonepe.app',
-      title: 'Payment Received',
-      text: 'Received Rs 2000.34 from **** 9821 Ref: UPI/${DateTime.now().millisecondsSinceEpoch}',
-    );
-    await _checkStatus();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            ok
-                ? 'Simulated UPI notification dispatched to native listener and synced!'
-                : 'Failed to simulate notification',
-          ),
-          backgroundColor: ok ? AppColors.successGreen : AppColors.errorRed,
-        ),
-      );
-    }
   }
 }

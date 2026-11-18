@@ -11,6 +11,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
+import android.service.notification.NotificationListenerService
 import androidx.core.app.NotificationManagerCompat
 import com.shamiit.edu_shamiit_payment_bridge.notification.PaymentNotificationListenerService
 import com.shamiit.edu_shamiit_payment_bridge.parser.NotificationParserFactory
@@ -116,7 +117,7 @@ class PaymentBridgeChannel(private val context: Context) : MethodChannel.MethodC
                 if (isAccessGranted && !PaymentNotificationListenerService.isServiceConnected) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                         try {
-                            PaymentNotificationListenerService.requestRebind(
+                            NotificationListenerService.requestRebind(
                                 ComponentName(context, PaymentNotificationListenerService::class.java)
                             )
                         } catch (_: Exception) {}
@@ -137,7 +138,7 @@ class PaymentBridgeChannel(private val context: Context) : MethodChannel.MethodC
                     } catch (_: Exception) {}
                 } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     try {
-                        PaymentNotificationListenerService.requestRebind(
+                        NotificationListenerService.requestRebind(
                             ComponentName(context, PaymentNotificationListenerService::class.java)
                         )
                     } catch (_: Exception) {}

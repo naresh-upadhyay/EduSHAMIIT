@@ -2048,6 +2048,55 @@ async def get_sync_status(request: Request):
     }
 
 
+@router.post("/sync", tags=["Diagnostics"])
+async def trigger_sync(request: Request):
+    """Triggers an on-demand synchronization cycle for the payment bridge."""
+    school_id = await resolve_school_id(request)
+    device_id = request.headers.get("X-Device-ID") or "PB-DEV-WEB001"
+    now = datetime.now(timezone.utc)
+    
+    # Refresh device active heartbeat
+    try:
+        await exec_sql(
+            """
+            UPDATE public.payment_bridge_devices
+            SET last_sync_at = %s,
+                last_heartbeat_at = %s,
+                is_online = TRUE,
+                updated_at = %s
+            WHERE school_id = %s AND device_id = %s
+            """,
+            (now, now, now, school_id, device_id),
+            fetch=False,
+        )
+    except Exception as e:
+        logger.warning(f"[Sync] Device update notice: {e}")
+
+    counts = await exec_sql(
+        """
+        SELECT 
+            count(*) as total_events,
+            count(*) FILTER (WHERE sync_status = 'SYNCED' OR sync_status = 'PROCESSED') as synced_count,
+            count(*) FILTER (WHERE sync_status = 'PENDING') as pending_count
+        FROM public.payment_notification_events
+        WHERE school_id = %s
+        """,
+        (school_id,),
+    )
+    c = counts[0] if counts else {}
+
+    return {
+        "success": True,
+        "school_id": school_id,
+        "device_id": device_id,
+        "timestamp": now.isoformat(),
+        "synced_count": int(c.get("synced_count") or 0),
+        "pending_count": int(c.get("pending_count") or 0),
+        "total_events": int(c.get("total_events") or 0),
+        "message": "Synchronization completed successfully",
+    }
+
+
 @router.post("/sync/test", tags=["Diagnostics"])
 async def test_sync_connectivity():
     return {

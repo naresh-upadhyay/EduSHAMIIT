@@ -263,23 +263,6 @@ class _CollectStudentPaymentDialogState extends ConsumerState<CollectStudentPaym
     }
   }
 
-  Future<void> _simulateBridgePayment() async {
-    final intentId = _activeIntent!['intent_id'] as String;
-    setState(() => _submitting = true);
-    final res = await PaymentManagementApiService.instance.simulateBridgePayment(intentId);
-    if (!mounted) return;
-    setState(() => _submitting = false);
-
-    if (res != null && res['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Simulated Payment Bridge event processed! Receipt: ${res['receipt_number']}'),
-          backgroundColor: const Color(0xFF16A34A),
-        ),
-      );
-    }
-  }
-
   // =========================================================================
   // OFFLINE COLLECTION (CASH, CHEQUE, POS)
   // =========================================================================
@@ -787,18 +770,6 @@ class _CollectStudentPaymentDialogState extends ConsumerState<CollectStudentPaym
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 16),
-
-          // Developer / QA Simulation Action
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-            ),
-            icon: const Icon(Icons.flash_on_rounded, size: 14, color: Colors.amber),
-            label: const Text('Simulate Bridge Notification (Test)', style: TextStyle(fontSize: 11)),
-            onPressed: _submitting ? null : _simulateBridgePayment,
           ),
         ] else ...[
           // TIMEOUT / 7 MINUTES EXPIRED STATE

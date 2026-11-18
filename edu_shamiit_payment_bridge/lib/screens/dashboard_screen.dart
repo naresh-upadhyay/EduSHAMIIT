@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../core/theme.dart';
 import '../core/platform_bridge.dart';
@@ -19,6 +20,10 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
   late Future<DashboardData> _dashboardFuture;
+  DashboardData? _cachedData;
+  StreamSubscription? _wsSubscription;
+  DateTime _lastRefreshTime = DateTime.fromMillisecondsSinceEpoch(0);
+  bool _isFetching = false;
   bool _isListenerActive = false;
   bool _notificationAccessGranted = false;
   bool _isSyncing = false;
@@ -29,11 +34,33 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     WidgetsBinding.instance.addObserver(this);
     _refresh();
     _checkNativeStatus();
-    WebSocketService().stream.listen((event) {
-      if (mounted) {
-        setState(() {
-          _dashboardFuture = ApiService().getDashboardData();
-        });
+    
+    // Smart WebSocket subscription - only react to real payment business events
+    _wsSubscription = WebSocketService().stream.listen((event) {
+      final type = (event['type'] ?? event['event'] ?? '').toString().toUpperCase();
+      // Completely ignore heartbeat pings/pongs to avoid burdening the backend
+      if (type == 'PONG' || type == 'PING' || type == 'DEVICE_HEARTBEAT') {
+        return;
+      }
+      
+      // Real-time direct payload update if provided
+      if (type == 'DASHBOARD_UPDATE' && event['data'] != null) {
+        try {
+          final updated = DashboardData.fromJson(Map<String, dynamic>.from(event['data']));
+          if (mounted) {
+            setState(() {
+              _cachedData = updated;
+            });
+          }
+          return;
+        } catch (_) {}
+      }
+
+      // Business event received - throttle and refresh
+      if (type == 'PAYMENT_RECEIVED' || type == 'PAYMENT_CONFIRMED' || 
+          type == 'PAYMENT_VERIFIED' || type == 'NOTIFICATION_INGESTED' ||
+          type == 'FORCE_SYNC' || type == 'METRICS_UPDATED') {
+        _throttledRefresh();
       }
     });
   }
@@ -41,6 +68,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _wsSubscription?.cancel();
     super.dispose();
   }
 
@@ -48,7 +76,11 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _checkNativeStatus();
-      _refresh();
+      // Only refresh on resume if at least 60 seconds elapsed to prevent burdening API
+      final now = DateTime.now();
+      if (now.difference(_lastRefreshTime).inSeconds >= 60) {
+        _throttledRefresh();
+      }
     }
   }
 
@@ -63,9 +95,32 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     }
   }
 
+  void _throttledRefresh() {
+    final now = DateTime.now();
+    if (now.difference(_lastRefreshTime).inSeconds < 5 || _isFetching) {
+      return; // Rate limit to at most once every 5 seconds
+    }
+    _refresh();
+  }
+
   void _refresh() {
+    _isFetching = true;
+    _lastRefreshTime = DateTime.now();
+    final future = ApiService().getDashboardData();
     setState(() {
-      _dashboardFuture = ApiService().getDashboardData();
+      _dashboardFuture = future;
+    });
+    future.then((data) {
+      if (mounted) {
+        setState(() {
+          _cachedData = data;
+          _isFetching = false;
+        });
+      }
+    }).catchError((e) {
+      if (mounted) {
+        setState(() => _isFetching = false);
+      }
     });
   }
 
@@ -78,6 +133,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       ),
     );
     await PlatformBridge.syncNow();
+    await ApiService().syncNow();
     await Future.delayed(const Duration(milliseconds: 600));
     _refresh();
     await _checkNativeStatus();
@@ -150,12 +206,13 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               child: FutureBuilder<DashboardData>(
                 future: _dashboardFuture,
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
+                  // Only show full screen spinner on very first load before any data is cached
+                  if (snapshot.connectionState == ConnectionState.waiting && _cachedData == null) {
                     return const Center(child: CircularProgressIndicator());
                   }
 
-                  final hasError = snapshot.hasError;
-                  final data = snapshot.data ?? DashboardData.empty(isConnected: false);
+                  final hasError = snapshot.hasError && _cachedData == null;
+                  final data = snapshot.data ?? _cachedData ?? DashboardData.empty(isConnected: false);
 
                   return SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
