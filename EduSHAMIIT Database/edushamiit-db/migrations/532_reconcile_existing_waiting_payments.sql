@@ -35,11 +35,12 @@ BEGIN
         FROM public.student_fee_payments
         WHERE school_id = r.school_id 
           AND (
-              transaction_reference = r.intent_reference 
+              receipt_number = r.receipt_number
+              OR transaction_reference = r.intent_reference 
               OR transaction_reference = r.transaction_reference 
               OR (invoice_id = r.invoice_id AND status = 'WAITING_CONFIRMATION')
           )
-        ORDER BY created_at DESC LIMIT 1;
+        ORDER BY (receipt_number = r.receipt_number) DESC, created_at DESC LIMIT 1;
 
         IF v_pay_id IS NOT NULL THEN
             UPDATE public.student_fee_payments
