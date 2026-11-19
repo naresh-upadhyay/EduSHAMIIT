@@ -848,7 +848,7 @@ async def add_group_member(group_id: str, request: dict, user=Depends(get_curren
     caller = await _get_caller_profile(user, sb)
     caller_id = str(caller.get("id") or user.get("id"))
     
-    group = await sb.table("groups").select("created_by, school_id").eq("id", group_id).maybe_single().aexecute()
+    group = await sb.table("groups").select("created_by, school_id, is_private").eq("id", group_id).maybe_single().aexecute()
     if not group.data:
         raise HTTPException(status_code=404, detail="Group not found")
         
@@ -856,13 +856,20 @@ async def add_group_member(group_id: str, request: dict, user=Depends(get_curren
     is_creator = (caller_id == creator_id)
     is_app_admin = caller.get("role") in ("admin", "super_admin", "principal") or user.get("role") in ("admin", "super_admin", "principal")
     
+    user_uid = str(user.get("id")) if user.get("id") else caller_id
     caller_membership = await sb.table("group_members").select("role").eq("group_id", group_id).or_(
-        f"member_id.eq.{caller_id},user_id.eq.{caller_id}"
+        f"member_id.eq.{caller_id},member_id.eq.{user_uid},user_id.eq.{caller_id},user_id.eq.{user_uid}"
     ).maybe_single().aexecute()
     is_group_admin = bool(caller_membership.data and caller_membership.data.get("role") == "admin")
-    
-    if not (is_creator or is_app_admin or is_group_admin):
-        raise HTTPException(status_code=403, detail="Only group admins can add new members")
+    is_member = bool(caller_membership.data)
+    is_private = bool(group.data.get("is_private", False))
+
+    if is_private:
+        if not (is_creator or is_app_admin or is_group_admin):
+            raise HTTPException(status_code=403, detail="Only group admins can add new members")
+    else:
+        if not (is_creator or is_app_admin or is_group_admin or is_member):
+            raise HTTPException(status_code=403, detail="Only group members can add new members")
         
     member_ids = []
     if "member_ids" in request and isinstance(request["member_ids"], list):
