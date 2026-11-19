@@ -190,40 +190,14 @@ class StaffSalaryNotifier extends StateNotifier<StaffSalaryState> {
       department: state.selectedDepartment,
       role: state.selectedRole,
       status: statusFilter,
+      sortBy: state.sortColumn ?? 'name',
+      sortOrder: state.sortAscending ? 'ASC' : 'DESC',
       page: state.currentPage,
       pageSize: state.pageSize,
     );
 
-    var list = data['staff'] as List<StaffSalaryRosterItem>? ?? [];
+    final list = data['staff'] as List<StaffSalaryRosterItem>? ?? [];
     final pagination = data['pagination'] as Map<String, dynamic>? ?? {};
-
-    // Apply client sorting if active
-    if (state.sortColumn != null) {
-      list = List.from(list);
-      list.sort((a, b) {
-        int cmp = 0;
-        switch (state.sortColumn) {
-          case 'name':
-            cmp = a.staffName.compareTo(b.staffName);
-            break;
-          case 'gross':
-            cmp = a.grossSalary.compareTo(b.grossSalary);
-            break;
-          case 'deductions':
-            cmp = a.totalDeductions.compareTo(b.totalDeductions);
-            break;
-          case 'net':
-            cmp = a.actualNetPay.compareTo(b.actualNetPay);
-            break;
-          case 'status':
-            cmp = a.status.compareTo(b.status);
-            break;
-          default:
-            cmp = a.staffName.compareTo(b.staffName);
-        }
-        return state.sortAscending ? cmp : -cmp;
-      });
-    }
 
     state = state.copyWith(
       staffRoster: list,
@@ -296,13 +270,24 @@ class StaffSalaryNotifier extends StateNotifier<StaffSalaryState> {
     }
   }
 
+  void setPageSize(int size) {
+    if (state.pageSize != size) {
+      state = state.copyWith(pageSize: size, currentPage: 1);
+      loadRoster();
+    }
+  }
+
   void toggleSort(String column) {
     if (state.sortColumn == column) {
-      state = state.copyWith(sortAscending: !state.sortAscending);
+      state = state.copyWith(sortAscending: !state.sortAscending, currentPage: 1);
     } else {
-      state = state.copyWith(sortColumn: column, sortAscending: true);
+      state = state.copyWith(sortColumn: column, sortAscending: true, currentPage: 1);
     }
     loadRoster();
+  }
+
+  void clearSelection() {
+    state = state.copyWith(selectedStaffIds: {});
   }
 
   Future<void> openStaffDrawer(String staffId) async {

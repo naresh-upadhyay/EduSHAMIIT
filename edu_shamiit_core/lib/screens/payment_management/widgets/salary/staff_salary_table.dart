@@ -41,6 +41,10 @@ class StaffSalaryTable extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // 1. Floating Multi-Selection Action Toolbar
+          if (state.selectedStaffIds.isNotEmpty)
+            _buildMultiSelectionBar(context, state, notifier, isDark),
+
           Expanded(
             child: state.isLoading && staff.isEmpty
                 ? const Center(child: CircularProgressIndicator())
@@ -85,24 +89,24 @@ class StaffSalaryTable extends ConsumerWidget {
                                   ),
                                 ),
                                 DataColumn(
-                                  label: const Text('STAFF MEMBER', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                                  label: _buildSortableHeader('STAFF MEMBER', 'name', state),
                                   onSort: (_, __) => notifier.toggleSort('name'),
                                 ),
                                 const DataColumn(label: Text('DEPARTMENT', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
                                 DataColumn(
-                                  label: const Text('GROSS SALARY', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                                  label: _buildSortableHeader('GROSS SALARY', 'gross', state),
                                   onSort: (_, __) => notifier.toggleSort('gross'),
                                 ),
                                 DataColumn(
-                                  label: const Text('DEDUCTIONS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                                  label: _buildSortableHeader('DEDUCTIONS', 'deductions', state),
                                   onSort: (_, __) => notifier.toggleSort('deductions'),
                                 ),
                                 DataColumn(
-                                  label: const Text('NET PAY', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                                  label: _buildSortableHeader('NET PAY', 'net', state),
                                   onSort: (_, __) => notifier.toggleSort('net'),
                                 ),
                                 DataColumn(
-                                  label: const Text('STATUS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                                  label: _buildSortableHeader('STATUS', 'status', state),
                                   onSort: (_, __) => notifier.toggleSort('status'),
                                 ),
                                 const DataColumn(label: Text('ACTIONS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
@@ -345,45 +349,338 @@ class StaffSalaryTable extends ConsumerWidget {
                       ),
           ),
 
-          // Pagination Bar
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
-              border: Border(
-                top: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Showing ${staff.length} staff members (Page ${state.currentPage} of ${state.totalPages})',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                  ),
-                ),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left_rounded, size: 20),
-                      onPressed: state.currentPage > 1 ? () => notifier.setPage(state.currentPage - 1) : null,
-                    ),
-                    Text('${state.currentPage}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                    IconButton(
-                      icon: const Icon(Icons.chevron_right_rounded, size: 20),
-                      onPressed: state.currentPage < state.totalPages ? () => notifier.setPage(state.currentPage + 1) : null,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          // 3. Premium Pagination Footer with Page Size & Numbered Controls
+          _buildPaginationFooter(state, notifier, isDark),
         ],
       ),
     );
+  }
+
+  Widget _buildSortableHeader(String label, String columnKey, StaffSalaryState state) {
+    final isSorted = state.sortColumn == columnKey;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+        const SizedBox(width: 4),
+        Icon(
+          isSorted
+              ? (state.sortAscending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+              : Icons.unfold_more_rounded,
+          size: 14,
+          color: isSorted ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMultiSelectionBar(BuildContext context, StaffSalaryState state, StaffSalaryNotifier notifier, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF064E3B).withValues(alpha: 0.3) : const Color(0xFFECFDF5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF10B981), width: 1.2),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18),
+            const SizedBox(width: 8),
+            Text(
+              '${state.selectedStaffIds.length} staff member${state.selectedStaffIds.length > 1 ? "s" : ""} selected',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: isDark ? Colors.white : const Color(0xFF064E3B),
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Disburse Selected
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF16A34A),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              icon: const Icon(Icons.payments_outlined, size: 16),
+              label: const Text('Disburse Selected', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Disburse Salaries'),
+                    content: Text('Disburse salaries and generate payslips for ${state.selectedStaffIds.length} selected staff members for ${state.selectedMonthStr}?'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF16A34A), foregroundColor: Colors.white),
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Confirm Disburse'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  final ok = await notifier.executeBulkAction('disburse');
+                  if (context.mounted && ok) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Salaries disbursed successfully for selected staff')),
+                    );
+                  }
+                }
+              },
+            ),
+            const SizedBox(width: 8),
+            // Approve Payouts
+            TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: const Color(0xFF2563EB)),
+              icon: const Icon(Icons.check_circle_outline, size: 16),
+              label: const Text('Approve Payouts', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              onPressed: () async {
+                final ok = await notifier.executeBulkAction('approve');
+                if (context.mounted && ok) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Payouts approved for selected staff members')),
+                  );
+                }
+              },
+            ),
+            const SizedBox(width: 8),
+            // Put On Hold
+            TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: const Color(0xFFDC2626)),
+              icon: const Icon(Icons.pause_circle_outline, size: 16),
+              label: const Text('Put On Hold', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Put Salaries On Hold'),
+                    content: Text('Put payroll on hold for ${state.selectedStaffIds.length} selected staff members?'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Put On Hold'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  await notifier.executeBulkAction('hold');
+                }
+              },
+            ),
+            const SizedBox(width: 8),
+            // Clear selection
+            IconButton(
+              icon: const Icon(Icons.close, size: 18),
+              tooltip: 'Clear selection',
+              onPressed: () => notifier.clearSelection(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaginationFooter(StaffSalaryState state, StaffSalaryNotifier notifier, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+        border: Border(
+          top: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        ),
+      ),
+      child: LayoutBuilder(
+        builder: (ctx, constraints) {
+          final isNarrow = constraints.maxWidth < 650;
+          final startItem = state.totalItems == 0 ? 0 : (state.currentPage - 1) * state.pageSize + 1;
+          final endItem = (state.currentPage * state.pageSize).clamp(0, state.totalItems);
+
+          final pageSizeDropdown = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Rows per page:',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(width: 8),
+              DropdownButton<int>(
+                value: state.pageSize,
+                underline: const SizedBox.shrink(),
+                dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+                items: const [10, 25, 50, 100].map((s) => DropdownMenuItem(value: s, child: Text('$s'))).toList(),
+                onChanged: (val) {
+                  if (val != null) notifier.setPageSize(val);
+                },
+              ),
+            ],
+          );
+
+          final itemsCountText = Text(
+            'Showing $startItem-$endItem of ${state.totalItems}',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            ),
+          );
+
+          final paginationButtons = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.first_page_rounded, size: 20),
+                tooltip: 'First Page',
+                onPressed: state.currentPage > 1 ? () => notifier.setPage(1) : null,
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                tooltip: 'Previous Page',
+                onPressed: state.currentPage > 1 ? () => notifier.setPage(state.currentPage - 1) : null,
+              ),
+              ..._buildPageNumbers(state.currentPage, state.totalPages, (p) => notifier.setPage(p), isDark),
+              IconButton(
+                icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                tooltip: 'Next Page',
+                onPressed: state.currentPage < state.totalPages ? () => notifier.setPage(state.currentPage + 1) : null,
+              ),
+              IconButton(
+                icon: const Icon(Icons.last_page_rounded, size: 20),
+                tooltip: 'Last Page',
+                onPressed: state.currentPage < state.totalPages ? () => notifier.setPage(state.totalPages) : null,
+              ),
+            ],
+          );
+
+          if (isNarrow) {
+            return Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    pageSizeDropdown,
+                    itemsCountText,
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: paginationButtons,
+                ),
+              ],
+            );
+          }
+
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  pageSizeDropdown,
+                  const SizedBox(width: 16),
+                  itemsCountText,
+                ],
+              ),
+              paginationButtons,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  List<Widget> _buildPageNumbers(int current, int total, Function(int) onSelect, bool isDark) {
+    if (total <= 1) {
+      return [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(color: const Color(0xFF16A34A), borderRadius: BorderRadius.circular(6)),
+          child: const Text('1', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+        )
+      ];
+    }
+
+    final widgets = <Widget>[];
+    final start = (current - 2).clamp(1, total);
+    final end = (current + 2).clamp(1, total);
+
+    if (start > 1) {
+      widgets.add(InkWell(
+        onTap: () => onSelect(1),
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+          child: Text('1', style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87)),
+        ),
+      ));
+      if (start > 2) {
+        widgets.add(const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 2),
+          child: Text('..', style: TextStyle(fontSize: 11, color: Colors.grey)),
+        ));
+      }
+    }
+
+    for (int p = start; p <= end; p++) {
+      final isSelected = p == current;
+      widgets.add(
+        InkWell(
+          onTap: () => onSelect(p),
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isSelected ? const Color(0xFF16A34A) : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              '$p',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (end < total) {
+      if (end < total - 1) {
+        widgets.add(const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 2),
+          child: Text('..', style: TextStyle(fontSize: 11, color: Colors.grey)),
+        ));
+      }
+      widgets.add(InkWell(
+        onTap: () => onSelect(total),
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+          child: Text('$total', style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87)),
+        ),
+      ));
+    }
+
+    return widgets;
   }
 
   Widget _buildStatusBadge(String status) {

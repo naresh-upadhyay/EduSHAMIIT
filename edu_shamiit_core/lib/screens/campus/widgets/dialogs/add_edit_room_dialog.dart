@@ -8,14 +8,16 @@ class AddEditRoomDialog extends StatefulWidget {
   final BuildingModel building;
   final List<BuildingFloorModel> floors;
   final RoomModel? room;
-  final VoidCallback onSaved;
+  final VoidCallback? onSaved;
+  final void Function(String floorId)? onSavedWithFloor;
 
   const AddEditRoomDialog({
     super.key,
     required this.building,
     required this.floors,
     this.room,
-    required this.onSaved,
+    this.onSaved,
+    this.onSavedWithFloor,
   });
 
   @override
@@ -56,6 +58,10 @@ class _AddEditRoomDialogState extends State<AddEditRoomDialog> {
   List<String> _roomTypes = [];
   List<String> _operationalStatuses = [];
   List<String> _assignmentStatuses = [];
+  List<String> _departments = [];
+  List<Map<String, dynamic>> _staffUsers = [];
+  final _deptFocusNode = FocusNode();
+  final _personFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -98,11 +104,15 @@ class _AddEditRoomDialogState extends State<AddEditRoomDialog> {
     final rTypes = await CampusLookupHelper.instance.getLookupLabels('ROOM_TYPE');
     final opStats = await CampusLookupHelper.instance.getLookupLabels('ROOM_STATUS');
     final asStats = await CampusLookupHelper.instance.getLookupLabels('ROOM_ASSIGNMENT_STATUS');
+    final staff = await CampusLookupHelper.instance.getStaffUsers();
+    final depts = await CampusLookupHelper.instance.getDepartments();
     if (mounted) {
       setState(() {
         _roomTypes = rTypes;
         _operationalStatuses = opStats;
         _assignmentStatuses = asStats;
+        _staffUsers = staff;
+        _departments = depts;
         if (!_roomTypes.contains(_roomType) && _roomTypes.isNotEmpty) {
           _roomType = _roomTypes.first;
         }
@@ -134,6 +144,8 @@ class _AddEditRoomDialogState extends State<AddEditRoomDialog> {
     _windowsCtrl.dispose();
     _deptCtrl.dispose();
     _personCtrl.dispose();
+    _deptFocusNode.dispose();
+    _personFocusNode.dispose();
     super.dispose();
   }
 
@@ -184,7 +196,8 @@ class _AddEditRoomDialogState extends State<AddEditRoomDialog> {
       setState(() => _isSaving = false);
       if (res['success'] == true) {
         Navigator.of(context).pop();
-        widget.onSaved();
+        widget.onSavedWithFloor?.call(_selectedFloorId);
+        widget.onSaved?.call();
       } else {
         setState(() => _error = res['message'] ?? 'Failed to save room.');
       }
@@ -197,6 +210,7 @@ class _AddEditRoomDialogState extends State<AddEditRoomDialog> {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
     final dialogWidth = math.min(680.0, screenWidth * 0.95);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
@@ -597,29 +611,263 @@ class _AddEditRoomDialogState extends State<AddEditRoomDialog> {
                           const Text('4. Assignment & Department', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF2563EB))),
                           const SizedBox(height: 10),
                           if (isCompact) ...[
-                            TextFormField(
-                              controller: _deptCtrl,
-                              decoration: const InputDecoration(labelText: 'Responsible Department', hintText: 'e.g. Science Faculty'),
+                            RawAutocomplete<String>(
+                              optionsBuilder: (TextEditingValue textEditingValue) {
+                                if (textEditingValue.text.isEmpty) return _departments;
+                                final q = textEditingValue.text.toLowerCase();
+                                return _departments.where((d) => d.toLowerCase().contains(q));
+                              },
+                              focusNode: _deptFocusNode,
+                              textEditingController: _deptCtrl,
+                              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                                return TextFormField(
+                                  controller: controller,
+                                  focusNode: focusNode,
+                                  decoration: InputDecoration(
+                                    labelText: 'Responsible Department',
+                                    hintText: 'Select or type department',
+                                    prefixIcon: const Icon(Icons.business_outlined, size: 18),
+                                    suffixIcon: _departments.isNotEmpty ? const Icon(Icons.arrow_drop_down, size: 20) : null,
+                                  ),
+                                );
+                              },
+                              optionsViewBuilder: (context, onSelected, options) {
+                                return Align(
+                                  alignment: Alignment.topLeft,
+                                  child: Material(
+                                    elevation: 4,
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Container(
+                                      width: dialogWidth - 40,
+                                      constraints: const BoxConstraints(maxHeight: 180),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                      ),
+                                      child: ListView.builder(
+                                        padding: EdgeInsets.zero,
+                                        shrinkWrap: true,
+                                        itemCount: options.length,
+                                        itemBuilder: (context, idx) {
+                                          final d = options.elementAt(idx);
+                                          return ListTile(
+                                            dense: true,
+                                            title: Text(d, style: const TextStyle(fontSize: 12.5)),
+                                            onTap: () => onSelected(d),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                             const SizedBox(height: 10),
-                            TextFormField(
-                              controller: _personCtrl,
-                              decoration: const InputDecoration(labelText: 'Incharge Person Name', hintText: 'e.g. Mr. Sharma'),
+                            RawAutocomplete<Map<String, dynamic>>(
+                              optionsBuilder: (TextEditingValue textEditingValue) {
+                                if (textEditingValue.text.isEmpty) return _staffUsers;
+                                final q = textEditingValue.text.toLowerCase();
+                                return _staffUsers.where((u) {
+                                  final name = (u['full_name'] ?? u['username'] ?? '').toString().toLowerCase();
+                                  final role = (u['role'] ?? '').toString().toLowerCase();
+                                  final dept = (u['department'] ?? '').toString().toLowerCase();
+                                  return name.contains(q) || role.contains(q) || dept.contains(q);
+                                });
+                              },
+                              displayStringForOption: (u) => (u['full_name'] ?? u['username'] ?? '').toString(),
+                              focusNode: _personFocusNode,
+                              textEditingController: _personCtrl,
+                              onSelected: (u) {
+                                final name = (u['full_name'] ?? u['username'] ?? '').toString();
+                                _personCtrl.text = name;
+                                final dept = (u['department'] ?? '').toString();
+                                if (dept.isNotEmpty && _deptCtrl.text.trim().isEmpty) {
+                                  _deptCtrl.text = dept;
+                                }
+                              },
+                              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                                return TextFormField(
+                                  controller: controller,
+                                  focusNode: focusNode,
+                                  decoration: InputDecoration(
+                                    labelText: 'Incharge Person Name',
+                                    hintText: 'Search user from User Management',
+                                    prefixIcon: const Icon(Icons.person_outline, size: 18),
+                                    suffixIcon: _staffUsers.isNotEmpty ? const Icon(Icons.arrow_drop_down, size: 20) : null,
+                                  ),
+                                );
+                              },
+                              optionsViewBuilder: (context, onSelected, options) {
+                                return Align(
+                                  alignment: Alignment.topLeft,
+                                  child: Material(
+                                    elevation: 4,
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Container(
+                                      width: dialogWidth - 40,
+                                      constraints: const BoxConstraints(maxHeight: 200),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                      ),
+                                      child: ListView.builder(
+                                        padding: EdgeInsets.zero,
+                                        shrinkWrap: true,
+                                        itemCount: options.length,
+                                        itemBuilder: (context, idx) {
+                                          final u = options.elementAt(idx);
+                                          final name = (u['full_name'] ?? u['username'] ?? '').toString();
+                                          final role = (u['role'] ?? '').toString();
+                                          final dept = (u['department'] ?? '').toString();
+                                          return ListTile(
+                                            dense: true,
+                                            title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                                            subtitle: Text(
+                                              [if (role.isNotEmpty) role, if (dept.isNotEmpty) dept].join(' • '),
+                                              style: const TextStyle(fontSize: 11),
+                                            ),
+                                            onTap: () => onSelected(u),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                           ] else ...[
                             Row(
                               children: [
                                 Expanded(
-                                  child: TextFormField(
-                                    controller: _deptCtrl,
-                                    decoration: const InputDecoration(labelText: 'Responsible Department', hintText: 'e.g. Science Faculty'),
+                                  child: RawAutocomplete<String>(
+                                    optionsBuilder: (TextEditingValue textEditingValue) {
+                                      if (textEditingValue.text.isEmpty) return _departments;
+                                      final q = textEditingValue.text.toLowerCase();
+                                      return _departments.where((d) => d.toLowerCase().contains(q));
+                                    },
+                                    focusNode: _deptFocusNode,
+                              textEditingController: _deptCtrl,
+                                    fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                                      return TextFormField(
+                                        controller: controller,
+                                        focusNode: focusNode,
+                                        decoration: InputDecoration(
+                                          labelText: 'Responsible Department',
+                                          hintText: 'Select or type department',
+                                          prefixIcon: const Icon(Icons.business_outlined, size: 18),
+                                          suffixIcon: _departments.isNotEmpty ? const Icon(Icons.arrow_drop_down, size: 20) : null,
+                                        ),
+                                      );
+                                    },
+                                    optionsViewBuilder: (context, onSelected, options) {
+                                      return Align(
+                                        alignment: Alignment.topLeft,
+                                        child: Material(
+                                          elevation: 4,
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Container(
+                                            width: (dialogWidth - 52) / 2,
+                                            constraints: const BoxConstraints(maxHeight: 180),
+                                            decoration: BoxDecoration(
+                                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                            ),
+                                            child: ListView.builder(
+                                              padding: EdgeInsets.zero,
+                                              shrinkWrap: true,
+                                              itemCount: options.length,
+                                              itemBuilder: (context, idx) {
+                                                final d = options.elementAt(idx);
+                                                return ListTile(
+                                                  dense: true,
+                                                  title: Text(d, style: const TextStyle(fontSize: 12.5)),
+                                                  onTap: () => onSelected(d),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
-                                  child: TextFormField(
-                                    controller: _personCtrl,
-                                    decoration: const InputDecoration(labelText: 'Incharge Person Name', hintText: 'e.g. Mr. Sharma'),
+                                  child: RawAutocomplete<Map<String, dynamic>>(
+                                    optionsBuilder: (TextEditingValue textEditingValue) {
+                                      if (textEditingValue.text.isEmpty) return _staffUsers;
+                                      final q = textEditingValue.text.toLowerCase();
+                                      return _staffUsers.where((u) {
+                                        final name = (u['full_name'] ?? u['username'] ?? '').toString().toLowerCase();
+                                        final role = (u['role'] ?? '').toString().toLowerCase();
+                                        final dept = (u['department'] ?? '').toString().toLowerCase();
+                                        return name.contains(q) || role.contains(q) || dept.contains(q);
+                                      });
+                                    },
+                                    displayStringForOption: (u) => (u['full_name'] ?? u['username'] ?? '').toString(),
+                                    focusNode: _personFocusNode,
+                              textEditingController: _personCtrl,
+                                    onSelected: (u) {
+                                      final name = (u['full_name'] ?? u['username'] ?? '').toString();
+                                      _personCtrl.text = name;
+                                      final dept = (u['department'] ?? '').toString();
+                                      if (dept.isNotEmpty && _deptCtrl.text.trim().isEmpty) {
+                                        _deptCtrl.text = dept;
+                                      }
+                                    },
+                                    fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                                      return TextFormField(
+                                        controller: controller,
+                                        focusNode: focusNode,
+                                        decoration: InputDecoration(
+                                          labelText: 'Incharge Person Name',
+                                          hintText: 'Search user from User Management',
+                                          prefixIcon: const Icon(Icons.person_outline, size: 18),
+                                          suffixIcon: _staffUsers.isNotEmpty ? const Icon(Icons.arrow_drop_down, size: 20) : null,
+                                        ),
+                                      );
+                                    },
+                                    optionsViewBuilder: (context, onSelected, options) {
+                                      return Align(
+                                        alignment: Alignment.topLeft,
+                                        child: Material(
+                                          elevation: 4,
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Container(
+                                            width: (dialogWidth - 52) / 2,
+                                            constraints: const BoxConstraints(maxHeight: 200),
+                                            decoration: BoxDecoration(
+                                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                            ),
+                                            child: ListView.builder(
+                                              padding: EdgeInsets.zero,
+                                              shrinkWrap: true,
+                                              itemCount: options.length,
+                                              itemBuilder: (context, idx) {
+                                                final u = options.elementAt(idx);
+                                                final name = (u['full_name'] ?? u['username'] ?? '').toString();
+                                                final role = (u['role'] ?? '').toString();
+                                                final dept = (u['department'] ?? '').toString();
+                                                return ListTile(
+                                                  dense: true,
+                                                  title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                                                  subtitle: Text(
+                                                    [if (role.isNotEmpty) role, if (dept.isNotEmpty) dept].join(' • '),
+                                                    style: const TextStyle(fontSize: 11),
+                                                  ),
+                                                  onTap: () => onSelected(u),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                               ],

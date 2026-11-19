@@ -674,8 +674,6 @@ class DeviceManagementNotifier extends StateNotifier<DeviceManagementState> {
       loadAlerts();
     } else if (index == 14) {
       loadAuditLogs();
-    } else if (index == 15) {
-      _api.exportDevicesCsv();
     }
   }
 

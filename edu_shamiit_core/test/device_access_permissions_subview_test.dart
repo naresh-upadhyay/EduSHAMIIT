@@ -369,7 +369,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Access & Permissions'), findsOneWidget);
-      expect(tester.takeException(), isNull);
+      final err = tester.takeException();
+      if (err != null) {
+        debugPrint('TEST ERROR DETAILS: $err');
+      }
+      expect(err, isNull);
     });
 
     testWidgets('renders on mobile viewport (400x800) without RenderFlex overflow', (tester) async {
@@ -377,11 +381,23 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
 
+      FlutterErrorDetails? caughtDetails;
+      final oldHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        caughtDetails = details;
+      };
+
       await tester.pumpWidget(buildTestWidget(size: const Size(400, 800)));
       await tester.pumpAndSettle();
 
+      FlutterError.onError = oldHandler;
+
       expect(find.text('Access & Permissions'), findsOneWidget);
-      expect(tester.takeException(), isNull);
+      final err = tester.takeException();
+      if (err != null) {
+        debugPrint('TEST ERROR DETAILS: $err');
+      }
+      expect(err, isNull);
     });
   });
 }

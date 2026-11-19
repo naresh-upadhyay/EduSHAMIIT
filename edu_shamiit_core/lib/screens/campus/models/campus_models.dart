@@ -390,3 +390,189 @@ class RoomEquipmentModel {
     );
   }
 }
+
+/// Building Document / Compliance Model
+class BuildingDocumentModel {
+  final String id;
+  final String? schoolId;
+  final String? buildingId;
+  final String? roomId;
+  final String documentName;
+  final String documentType;
+  final String fileUrl;
+  final int fileSizeBytes;
+  final String mimeType;
+  final String? issueDate;
+  final String? expiryDate;
+  final String? issuingAuthority;
+  final String status;
+  final String? createdAt;
+
+  const BuildingDocumentModel({
+    required this.id,
+    this.schoolId,
+    this.buildingId,
+    this.roomId,
+    required this.documentName,
+    this.documentType = 'Compliance',
+    required this.fileUrl,
+    this.fileSizeBytes = 0,
+    this.mimeType = 'application/pdf',
+    this.issueDate,
+    this.expiryDate,
+    this.issuingAuthority,
+    this.status = 'Valid',
+    this.createdAt,
+  });
+
+  factory BuildingDocumentModel.fromJson(Map<String, dynamic> json) {
+    return BuildingDocumentModel(
+      id: json['id']?.toString() ?? '',
+      schoolId: json['school_id']?.toString(),
+      buildingId: json['building_id']?.toString(),
+      roomId: json['room_id']?.toString(),
+      documentName: json['document_name']?.toString() ?? 'Document',
+      documentType: json['document_type']?.toString() ?? 'Compliance',
+      fileUrl: json['file_url']?.toString() ?? '',
+      fileSizeBytes: (json['file_size_bytes'] as num?)?.toInt() ?? 0,
+      mimeType: json['mime_type']?.toString() ?? 'application/pdf',
+      issueDate: json['issue_date']?.toString(),
+      expiryDate: json['expiry_date']?.toString(),
+      issuingAuthority: json['issuing_authority']?.toString(),
+      status: json['status']?.toString() ?? 'Valid',
+      createdAt: json['created_at']?.toString(),
+    );
+  }
+}
+
+/// Building Occupancy / Allocation Model
+class BuildingOccupancyModel {
+  final String id;
+  final String roomId;
+  final String roomNumber;
+  final String? roomName;
+  final String? floorName;
+  final String referenceModule;
+  final String? referenceName;
+  final String assignmentPurpose;
+  final String? startDate;
+  final String? endDate;
+  final String? assignedToName;
+  final String status;
+  final String? notes;
+  final int maxCapacity;
+  final int currentOccupancy;
+  final String? createdAt;
+
+  const BuildingOccupancyModel({
+    required this.id,
+    required this.roomId,
+    required this.roomNumber,
+    this.roomName,
+    this.floorName,
+    this.referenceModule = 'General',
+    this.referenceName,
+    this.assignmentPurpose = 'General Allocation',
+    this.startDate,
+    this.endDate,
+    this.assignedToName,
+    this.status = 'Active',
+    this.notes,
+    this.maxCapacity = 40,
+    this.currentOccupancy = 0,
+    this.createdAt,
+  });
+
+  factory BuildingOccupancyModel.fromJson(Map<String, dynamic> json) {
+    return BuildingOccupancyModel(
+      id: json['id']?.toString() ?? '',
+      roomId: json['room_id']?.toString() ?? '',
+      roomNumber: json['room_number']?.toString() ?? '',
+      roomName: json['room_name']?.toString(),
+      floorName: json['floor_name']?.toString(),
+      referenceModule: json['reference_module']?.toString() ?? 'General',
+      referenceName: json['reference_name']?.toString(),
+      assignmentPurpose: json['assignment_purpose']?.toString() ?? 'General Allocation',
+      startDate: json['start_date']?.toString(),
+      endDate: json['end_date']?.toString(),
+      assignedToName: json['assigned_to_name']?.toString(),
+      status: json['status']?.toString() ?? 'Active',
+      notes: json['notes']?.toString(),
+      maxCapacity: (json['max_capacity'] as num?)?.toInt() ?? 40,
+      currentOccupancy: (json['current_occupancy'] as num?)?.toInt() ?? 0,
+      createdAt: json['created_at']?.toString(),
+    );
+  }
+}
+
+/// Building Maintenance Request Model
+class BuildingMaintenanceModel {
+  final String id;
+  final String requestCode;
+  final String title;
+  final String? description;
+  final String requestType;
+  final String priority;
+  final String status;
+  final String? buildingId;
+  final String? floorId;
+  final String? roomId;
+  final String? roomNumber;
+  final String? floorName;
+  final String? reportedByName;
+  final String? assignedToName;
+  final String? scheduledAt;
+  final String? preferredDate;
+  final double estimatedCost;
+  final double actualCost;
+  final String? resolutionNotes;
+  final String? createdAt;
+
+  const BuildingMaintenanceModel({
+    required this.id,
+    required this.requestCode,
+    required this.title,
+    this.description,
+    this.requestType = 'Corrective',
+    this.priority = 'Medium',
+    this.status = 'Pending',
+    this.buildingId,
+    this.floorId,
+    this.roomId,
+    this.roomNumber,
+    this.floorName,
+    this.reportedByName,
+    this.assignedToName,
+    this.scheduledAt,
+    this.preferredDate,
+    this.estimatedCost = 0.0,
+    this.actualCost = 0.0,
+    this.resolutionNotes,
+    this.createdAt,
+  });
+
+  factory BuildingMaintenanceModel.fromJson(Map<String, dynamic> json) {
+    return BuildingMaintenanceModel(
+      id: json['id']?.toString() ?? '',
+      requestCode: json['request_code']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      description: json['description']?.toString(),
+      requestType: json['request_type']?.toString() ?? 'Corrective',
+      priority: json['priority']?.toString() ?? 'Medium',
+      status: json['status']?.toString() ?? 'Pending',
+      buildingId: json['building_id']?.toString(),
+      floorId: json['floor_id']?.toString(),
+      roomId: json['room_id']?.toString(),
+      roomNumber: json['room_number']?.toString(),
+      floorName: json['floor_name']?.toString(),
+      reportedByName: json['reported_by_name']?.toString(),
+      assignedToName: json['assigned_to_name']?.toString(),
+      scheduledAt: json['scheduled_at']?.toString(),
+      preferredDate: json['preferred_date']?.toString(),
+      estimatedCost: (json['estimated_cost'] as num?)?.toDouble() ?? 0.0,
+      actualCost: (json['actual_cost'] as num?)?.toDouble() ?? 0.0,
+      resolutionNotes: json['resolution_notes']?.toString(),
+      createdAt: json['created_at']?.toString(),
+    );
+  }
+}

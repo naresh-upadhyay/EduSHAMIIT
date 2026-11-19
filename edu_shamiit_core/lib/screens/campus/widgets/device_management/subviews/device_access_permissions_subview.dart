@@ -59,16 +59,33 @@ class _DeviceAccessPermissionsSubviewState
   List<AccessRequestItem> _accessRequests = [];
   List<SecurityAuditLogItem> _auditLogs = [];
 
+  // Canonical dropdown options from backend
+  List<Map<String, dynamic>> _dropdownRoles = [];
+  List<Map<String, dynamic>> _dropdownUsers = [];
+  List<Map<String, dynamic>> _dropdownLocations = [];
+
+  // Multi-selection state
+  Set<String> _selectedRoleIds = {};
+  Set<String> _selectedUserIds = {};
+
   // Selected Role for Right Inspector Panel
   EnterpriseRoleItem? _selectedRole;
+
+  // Roles Table sorting & pagination
+  String _roleSortColumn = 'priority';
+  bool _roleSortAsc = false;
+  int _rolesCurrentPage = 1;
+  int _rolesPageSize = 10;
 
   // Filters for User Access Table
   String _selectedRoleFilter = 'All Roles';
   String _selectedStatusFilter = 'All Status';
   String _userSearchQuery = '';
+  String _userSortColumn = 'user_name';
+  bool _userSortAsc = true;
   int _userCurrentPage = 1;
   int _userTotalCount = 238;
-  final int _userPageSize = 5;
+  int _userPageSize = 10;
 
   // Accordion Expand/Collapse States (Inspector Panel)
   bool _accPermissionMatrixExpanded = false;
@@ -101,6 +118,41 @@ class _DeviceAccessPermissionsSubviewState
       PermissionCoverageItem(domain: 'Scheduling & Automation', percentage: 80),
       PermissionCoverageItem(domain: 'Reports & Analytics', percentage: 76),
       PermissionCoverageItem(domain: 'System & Integration', percentage: 68),
+    ];
+
+    _dropdownRoles = [
+      {'id': 'c1000000-0000-0000-0000-000000000001', 'name': 'super_admin', 'display_name': 'Super Admin', 'code': 'SUPER_ADMIN'},
+      {'id': 'c1000000-0000-0000-0000-000000000002', 'name': 'device_administrator', 'display_name': 'Device Administrator', 'code': 'DEVICE_ADMIN'},
+      {'id': 'c1000000-0000-0000-0000-000000000003', 'name': 'facility_manager', 'display_name': 'Facility Manager', 'code': 'FACILITY_MANAGER'},
+      {'id': 'c1000000-0000-0000-0000-000000000004', 'name': 'maintenance_staff', 'display_name': 'Maintenance Staff', 'code': 'MAINTENANCE_STAFF'},
+      {'id': 'c1000000-0000-0000-0000-000000000005', 'name': 'teacher', 'display_name': 'Teacher', 'code': 'TEACHER'},
+      {'id': 'c1000000-0000-0000-0000-000000000006', 'name': 'view_only', 'display_name': 'View Only', 'code': 'VIEW_ONLY'},
+      {'id': 'c1000000-0000-0000-0000-000000000007', 'name': 'it_iot_admin', 'display_name': 'IT/IoT Administrator', 'code': 'IT_IOT_ADMIN'},
+      {'id': 'c1000000-0000-0000-0000-000000000008', 'name': 'security_officer', 'display_name': 'Security Officer', 'code': 'SECURITY_OFFICER'},
+      {'id': 'c1000000-0000-0000-0000-000000000009', 'name': 'campus_administrator', 'display_name': 'Campus Administrator', 'code': 'CAMPUS_ADMIN'},
+    ];
+
+    _dropdownUsers = [
+      {'id': 'u1', 'full_name': 'King Doe', 'email': 'admin@edushamiit.com', 'role': 'Super Admin', 'department': 'Administration'},
+      {'id': 'u2', 'full_name': 'Amit Sharma', 'email': 'amit.sharma@edushamiit.edu', 'role': 'Device Administrator', 'department': 'IT Team'},
+      {'id': 'u3', 'full_name': 'Priya Verma', 'email': 'priya.verma@edushamiit.edu', 'role': 'Facility Manager', 'department': 'Facility Team'},
+      {'id': 'u4', 'full_name': 'Rohan Mehta', 'email': 'rohan.mehta@edushamiit.edu', 'role': 'Teacher', 'department': 'Science Department'},
+      {'id': 'u5', 'full_name': 'Aarav Sharma', 'email': 'aarav.sharma@edushamiit.com', 'role': 'Student', 'department': 'Grade 10'},
+      {'id': 'u6', 'full_name': 'Amit Chauhan', 'email': 'amit.chauhan@school.edu', 'role': 'Hostel Warden', 'department': 'Hostel Operations'},
+      {'id': 'u7', 'full_name': 'Teacher One School A', 'email': 'teacher1@school-a.edu', 'role': 'Teacher', 'department': 'Mathematics'},
+      {'id': 'u8', 'full_name': 'Dr. Universal Tester', 'email': 'universal.tester@edushamiit.edu', 'role': 'Teacher', 'department': 'R&D'},
+    ];
+
+    _dropdownLocations = [
+      {'name': 'All Locations'},
+      {'name': 'Academic Block (A)'},
+      {'name': 'Academic Block (B)'},
+      {'name': 'Admin Block'},
+      {'name': 'Library Block'},
+      {'name': 'Laboratories Block'},
+      {'name': 'Auditorium Block'},
+      {'name': 'Sports Complex'},
+      {'name': 'Hostel Block A'},
     ];
 
     _roles = [
@@ -519,12 +571,155 @@ class _DeviceAccessPermissionsSubviewState
           _recentUsers = (data['users'] as List)
               .map((e) => EnterpriseUserAccessItem.fromJson(e))
               .toList();
-          _userTotalCount = data['total'] ?? 238;
+          _userTotalCount = data['total'] ?? data['total_count'] ?? 238;
+        }
+      }
+    } catch (_) {}
+
+    try {
+      final dropRes = await http
+          .get(Uri.parse('$_apiBase/dropdown-options'), headers: headers)
+          .timeout(const Duration(seconds: 4));
+      if (dropRes.statusCode == 200) {
+        final data = jsonDecode(dropRes.body);
+        if (data['success'] == true) {
+          if (data['roles'] != null) {
+            _dropdownRoles = List<Map<String, dynamic>>.from(data['roles']);
+          }
+          if (data['users'] != null) {
+            _dropdownUsers = List<Map<String, dynamic>>.from(data['users']);
+          }
+          if (data['locations'] != null) {
+            _dropdownLocations = List<Map<String, dynamic>>.from(data['locations']);
+          }
         }
       }
     } catch (_) {}
 
     if (mounted) setState(() => _isLoading = false);
+  }
+
+  Future<void> _filterUsersFromBackend() async {
+    if (widget.apiBaseUrl != null && widget.apiBaseUrl!.contains('mock')) return;
+    final headers = await _getHeaders();
+    try {
+      final queryParams = <String, String>{
+        'page': '$_userCurrentPage',
+        'page_size': '$_userPageSize',
+        'sort_by': _userSortColumn,
+        'sort_asc': '$_userSortAsc',
+      };
+      if (_selectedRoleFilter != 'All Roles') {
+        queryParams['role'] = _selectedRoleFilter;
+      }
+      if (_selectedStatusFilter != 'All Status') {
+        queryParams['status'] = _selectedStatusFilter;
+      }
+      if (_userSearchQuery.trim().isNotEmpty) {
+        queryParams['search'] = _userSearchQuery.trim();
+      }
+
+      final uri = Uri.parse('$_apiBase/users').replace(queryParameters: queryParams);
+      final res = await http.get(uri, headers: headers).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data['success'] == true && data['users'] != null) {
+          setState(() {
+            _recentUsers = (data['users'] as List)
+                .map((e) => EnterpriseUserAccessItem.fromJson(e))
+                .toList();
+            _userTotalCount = data['total'] ?? data['total_count'] ?? _recentUsers.length;
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _executeBulkUserAction(String action) async {
+    if (_selectedUserIds.isEmpty) return;
+    final headers = await _getHeaders();
+    final count = _selectedUserIds.length;
+    try {
+      if (widget.apiBaseUrl != null && !widget.apiBaseUrl!.contains('mock')) {
+        await http.post(
+          Uri.parse('$_apiBase/users/bulk-action'),
+          headers: headers,
+          body: jsonEncode({
+            'action': action,
+            'user_ids': _selectedUserIds.toList(),
+          }),
+        ).timeout(const Duration(seconds: 4));
+      }
+    } catch (_) {}
+
+    setState(() {
+      for (final uid in _selectedUserIds) {
+        final idx = _recentUsers.indexWhere((u) => u.id == uid);
+        if (idx >= 0) {
+          if (action == 'activate') {
+            _recentUsers[idx] = _recentUsers[idx].copyWith(status: 'Active');
+          } else if (action == 'deactivate') {
+            _recentUsers[idx] = _recentUsers[idx].copyWith(status: 'Suspended');
+          } else if (action == 'revoke') {
+            _recentUsers.removeAt(idx);
+          }
+        }
+      }
+      _selectedUserIds.clear();
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Bulk $action completed for $count user${count > 1 ? "s" : ""}!'),
+        backgroundColor: action == 'revoke' ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+      ),
+    );
+  }
+
+  Future<void> _revokeSingleUser(EnterpriseUserAccessItem user) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
+            SizedBox(width: 8),
+            Text('Revoke User Access'),
+          ],
+        ),
+        content: Text('Are you sure you want to revoke campus device access for "${user.userName}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444), foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Revoke Access'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    if (widget.apiBaseUrl != null && !widget.apiBaseUrl!.contains('mock')) {
+      try {
+        final headers = await _getHeaders();
+        await http.delete(Uri.parse('$_apiBase/users/${user.id}'), headers: headers).timeout(const Duration(seconds: 4));
+      } catch (_) {}
+    }
+
+    setState(() {
+      _recentUsers.removeWhere((u) => u.id == user.id);
+      _selectedUserIds.remove(user.id);
+      if (_userTotalCount > 0) _userTotalCount--;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Access revoked for "${user.userName}"'),
+        backgroundColor: const Color(0xFFEF4444),
+      ),
+    );
   }
 
   // --- ACTIONS & MODALS ---
@@ -577,6 +772,10 @@ class _DeviceAccessPermissionsSubviewState
       builder: (ctx) => _AssignUserAccessDialog(
         user: user,
         roles: _roles,
+        dropdownUsers: _dropdownUsers,
+        dropdownRoles: _dropdownRoles,
+        dropdownLocations: _dropdownLocations,
+        apiBaseUrl: widget.apiBaseUrl,
         onUserAssigned: (updatedUser) {
           setState(() {
             final idx = _recentUsers.indexWhere((u) => u.id == updatedUser.id);
@@ -584,6 +783,7 @@ class _DeviceAccessPermissionsSubviewState
               _recentUsers[idx] = updatedUser;
             } else {
               _recentUsers.insert(0, updatedUser);
+              _userTotalCount++;
             }
           });
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1453,9 +1653,35 @@ class _DeviceAccessPermissionsSubviewState
   }
 
   // ============================================================================
-  // CENTRAL TABLE 1: ROLES (12)
+  // CENTRAL TABLE 1: ROLES CATALOG
   // ============================================================================
   Widget _buildRolesTableCard(bool isDark) {
+    // Sort roles
+    final sortedRoles = List<EnterpriseRoleItem>.from(_roles);
+    sortedRoles.sort((a, b) {
+      int cmp = 0;
+      if (_roleSortColumn == 'role_name') {
+        cmp = a.roleName.compareTo(b.roleName);
+      } else if (_roleSortColumn == 'users_count') {
+        cmp = a.usersCount.compareTo(b.usersCount);
+      } else if (_roleSortColumn == 'status') {
+        cmp = a.status.compareTo(b.status);
+      } else {
+        cmp = a.priority.compareTo(b.priority);
+      }
+      return _roleSortAsc ? cmp : -cmp;
+    });
+
+    final totalRoles = sortedRoles.length;
+    final totalRolePages = (totalRoles / _rolesPageSize).ceil().clamp(1, 9999);
+    final currentRolePage = _rolesCurrentPage.clamp(1, totalRolePages);
+    final startRoleIdx = (currentRolePage - 1) * _rolesPageSize;
+    final endRoleIdx = (startRoleIdx + _rolesPageSize).clamp(0, totalRoles);
+    final pagedRoles = totalRoles > 0 ? sortedRoles.sublist(startRoleIdx, endRoleIdx) : <EnterpriseRoleItem>[];
+
+    final isAllSelected = pagedRoles.isNotEmpty && pagedRoles.every((r) => _selectedRoleIds.contains(r.id));
+    final isSomeSelected = pagedRoles.any((r) => _selectedRoleIds.contains(r.id)) && !isAllSelected;
+
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1478,7 +1704,7 @@ class _DeviceAccessPermissionsSubviewState
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          'Roles (${_roles.length})',
+                          'Roles ($totalRoles)',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -1502,36 +1728,215 @@ class _DeviceAccessPermissionsSubviewState
           ),
           const Divider(height: 1),
 
+          // Multi-Selection Action Toolbar
+          if (_selectedRoleIds.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1677F2).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF1677F2).withValues(alpha: 0.3)),
+              ),
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 6,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF1677F2), size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${_selectedRoleIds.length} of $totalRoles roles selected',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Color(0xFF1677F2)),
+                      ),
+                    ],
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF1677F2),
+                          side: const BorderSide(color: Color(0xFF1677F2)),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Assigning policies to ${_selectedRoleIds.length} roles...')),
+                          );
+                        },
+                        icon: const Icon(Icons.shield_outlined, size: 14),
+                        label: const Text('Assign Policy', style: TextStyle(fontSize: 11.5)),
+                      ),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1677F2),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Exported ${_selectedRoleIds.length} roles.')),
+                          );
+                        },
+                        icon: const Icon(Icons.download_rounded, size: 14),
+                        label: const Text('Export Selected', style: TextStyle(fontSize: 11.5)),
+                      ),
+                      TextButton(
+                        onPressed: () => setState(() => _selectedRoleIds.clear()),
+                        child: const Text('Deselect All', style: TextStyle(fontSize: 11.5)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
           // Table
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
               showCheckboxColumn: false,
-              headingRowHeight: 38,
-              dataRowMinHeight: 46,
-              dataRowMaxHeight: 46,
+              headingRowHeight: 40,
+              dataRowMinHeight: 48,
+              dataRowMaxHeight: 48,
               horizontalMargin: 12,
               columnSpacing: 16,
-              columns: const [
-                DataColumn(label: SizedBox(width: 20)),
-                DataColumn(label: Text('Role Name ↑', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                DataColumn(label: Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                DataColumn(label: Text('Users', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                DataColumn(label: Text('Key Permissions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+              columns: [
+                DataColumn(
+                  label: Checkbox(
+                    value: isAllSelected ? true : (isSomeSelected ? null : false),
+                    tristate: true,
+                    activeColor: const Color(0xFF1677F2),
+                    onChanged: (val) {
+                      setState(() {
+                        if (val == true) {
+                          _selectedRoleIds.addAll(pagedRoles.map((r) => r.id));
+                        } else {
+                          for (final r in pagedRoles) {
+                            _selectedRoleIds.remove(r.id);
+                          }
+                        }
+                      });
+                    },
+                  ),
+                ),
+                DataColumn(
+                  label: InkWell(
+                    onTap: () {
+                      setState(() {
+                        if (_roleSortColumn == 'role_name') {
+                          _roleSortAsc = !_roleSortAsc;
+                        } else {
+                          _roleSortColumn = 'role_name';
+                          _roleSortAsc = true;
+                        }
+                      });
+                    },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Role Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const SizedBox(width: 4),
+                        Icon(
+                          _roleSortColumn == 'role_name'
+                              ? (_roleSortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                              : Icons.unfold_more_rounded,
+                          size: 14,
+                          color: _roleSortColumn == 'role_name' ? const Color(0xFF1677F2) : const Color(0xFF94A3B8),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const DataColumn(label: Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                DataColumn(
+                  label: InkWell(
+                    onTap: () {
+                      setState(() {
+                        if (_roleSortColumn == 'users_count') {
+                          _roleSortAsc = !_roleSortAsc;
+                        } else {
+                          _roleSortColumn = 'users_count';
+                          _roleSortAsc = true;
+                        }
+                      });
+                    },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Users', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const SizedBox(width: 4),
+                        Icon(
+                          _roleSortColumn == 'users_count'
+                              ? (_roleSortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                              : Icons.unfold_more_rounded,
+                          size: 14,
+                          color: _roleSortColumn == 'users_count' ? const Color(0xFF1677F2) : const Color(0xFF94A3B8),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const DataColumn(label: Text('Key Permissions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                DataColumn(
+                  label: InkWell(
+                    onTap: () {
+                      setState(() {
+                        if (_roleSortColumn == 'status') {
+                          _roleSortAsc = !_roleSortAsc;
+                        } else {
+                          _roleSortColumn = 'status';
+                          _roleSortAsc = true;
+                        }
+                      });
+                    },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const SizedBox(width: 4),
+                        Icon(
+                          _roleSortColumn == 'status'
+                              ? (_roleSortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                              : Icons.unfold_more_rounded,
+                          size: 14,
+                          color: _roleSortColumn == 'status' ? const Color(0xFF1677F2) : const Color(0xFF94A3B8),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
               ],
-              rows: _roles.take(6).map((r) {
+              rows: pagedRoles.map((r) {
                 final isSelected = _selectedRole?.id == r.id;
+                final isChecked = _selectedRoleIds.contains(r.id);
                 return DataRow(
                   selected: isSelected,
                   onSelectChanged: (_) => setState(() => _selectedRole = r),
                   cells: [
                     DataCell(
                       Checkbox(
-                        value: isSelected,
-                        onChanged: (_) => setState(() => _selectedRole = r),
+                        value: isChecked,
                         activeColor: const Color(0xFF1677F2),
+                        onChanged: (val) {
+                          setState(() {
+                            if (val == true) {
+                              _selectedRoleIds.add(r.id);
+                            } else {
+                              _selectedRoleIds.remove(r.id);
+                            }
+                            _selectedRole = r;
+                          });
+                        },
                       ),
                     ),
                     DataCell(
@@ -1647,17 +2052,41 @@ class _DeviceAccessPermissionsSubviewState
               spacing: 8,
               runSpacing: 4,
               children: [
-                const Text('Showing 1 - 6 of 12 roles', style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
+                Text(
+                  'Showing ${totalRoles == 0 ? 0 : startRoleIdx + 1} - $endRoleIdx of $totalRoles roles',
+                  style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                ),
                 Wrap(
                   crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 4,
+                  spacing: 6,
                   runSpacing: 4,
                   children: [
-                    const Text('Rows per page: 10', style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
-                    const SizedBox(width: 12),
+                    const Text('Rows per page:', style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: _rolesPageSize,
+                        isDense: true,
+                        style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white : Colors.black87),
+                        items: const [
+                          DropdownMenuItem(value: 5, child: Text('5')),
+                          DropdownMenuItem(value: 10, child: Text('10')),
+                          DropdownMenuItem(value: 25, child: Text('25')),
+                          DropdownMenuItem(value: 50, child: Text('50')),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) {
+                            setState(() {
+                              _rolesPageSize = v;
+                              _rolesCurrentPage = 1;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     IconButton(
                       icon: const Icon(Icons.chevron_left_rounded, size: 18),
-                      onPressed: () {},
+                      onPressed: _rolesCurrentPage > 1 ? () => setState(() => _rolesCurrentPage--) : null,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
@@ -1668,16 +2097,12 @@ class _DeviceAccessPermissionsSubviewState
                         color: const Color(0xFF1677F2),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Text('1', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                      child: Text('$_rolesCurrentPage', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
                     ),
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      child: const Text('2', style: TextStyle(fontSize: 11)),
-                    ),
+                    Text('of $totalRolePages', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                     IconButton(
                       icon: const Icon(Icons.chevron_right_rounded, size: 18),
-                      onPressed: () {},
+                      onPressed: _rolesCurrentPage < totalRolePages ? () => setState(() => _rolesCurrentPage++) : null,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
@@ -1695,6 +2120,67 @@ class _DeviceAccessPermissionsSubviewState
   // CENTRAL TABLE 2: USER ACCESS (RECENT)
   // ============================================================================
   Widget _buildUserAccessTableCard(bool isDark) {
+    // Filter users locally or against current fetch
+    final filteredUsers = _recentUsers.where((u) {
+      if (_selectedRoleFilter != 'All Roles') {
+        if (!u.roleName.toLowerCase().contains(_selectedRoleFilter.toLowerCase())) {
+          return false;
+        }
+      }
+      if (_selectedStatusFilter != 'All Status') {
+        if (u.status.toLowerCase() != _selectedStatusFilter.toLowerCase()) {
+          return false;
+        }
+      }
+      if (_userSearchQuery.trim().isNotEmpty) {
+        final q = _userSearchQuery.toLowerCase();
+        if (!u.userName.toLowerCase().contains(q) && !u.email.toLowerCase().contains(q)) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+
+    // Sort users
+    filteredUsers.sort((a, b) {
+      int cmp = 0;
+      if (_userSortColumn == 'role_name') {
+        cmp = a.roleName.compareTo(b.roleName);
+      } else if (_userSortColumn == 'group_name') {
+        cmp = a.groupName.compareTo(b.groupName);
+      } else if (_userSortColumn == 'location_scope') {
+        cmp = a.locationScope.compareTo(b.locationScope);
+      } else if (_userSortColumn == 'status') {
+        cmp = a.status.compareTo(b.status);
+      } else if (_userSortColumn == 'last_login') {
+        cmp = a.lastLogin.compareTo(b.lastLogin);
+      } else {
+        cmp = a.userName.compareTo(b.userName);
+      }
+      return _userSortAsc ? cmp : -cmp;
+    });
+
+    final totalUsers = filteredUsers.length;
+    final totalUserPages = (totalUsers / _userPageSize).ceil().clamp(1, 9999);
+    final currentUserPage = _userCurrentPage.clamp(1, totalUserPages);
+    final startUserIdx = (currentUserPage - 1) * _userPageSize;
+    final endUserIdx = (startUserIdx + _userPageSize).clamp(0, totalUsers);
+    final pagedUsers = totalUsers > 0 ? filteredUsers.sublist(startUserIdx, endUserIdx) : <EnterpriseUserAccessItem>[];
+
+    final isAllSelected = pagedUsers.isNotEmpty && pagedUsers.every((u) => _selectedUserIds.contains(u.id));
+    final isSomeSelected = pagedUsers.any((u) => _selectedUserIds.contains(u.id)) && !isAllSelected;
+
+    // Available roles for filter dropdown
+    final filterRoleNames = <String>{'All Roles'};
+    if (_dropdownRoles.isNotEmpty) {
+      for (final r in _dropdownRoles) {
+        final dname = r['display_name'] ?? r['name'];
+        if (dname != null) filterRoleNames.add(dname.toString());
+      }
+    } else {
+      filterRoleNames.addAll(['Super Admin', 'Device Administrator', 'Facility Manager', 'Teacher', 'Maintenance Staff', 'Security Officer']);
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1713,14 +2199,22 @@ class _DeviceAccessPermissionsSubviewState
               spacing: 10,
               runSpacing: 8,
               children: [
-                const Row(
+                Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.person_outline_rounded, color: Color(0xFF1677F2), size: 18),
-                    SizedBox(width: 8),
+                    const Icon(Icons.person_outline_rounded, color: Color(0xFF1677F2), size: 18),
+                    const SizedBox(width: 8),
+                    const Flexible(
+                      child: Text(
+                        'User Access (Recent)',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
                     Text(
-                      'User Access (Recent)',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                      '($totalUsers)',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                     ),
                   ],
                 ),
@@ -1729,7 +2223,7 @@ class _DeviceAccessPermissionsSubviewState
                   runSpacing: 6,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    // Roles Dropdown
+                    // Roles Dropdown (Canonical from app_roles)
                     Container(
                       height: 32,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1739,19 +2233,20 @@ class _DeviceAccessPermissionsSubviewState
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
-                          value: _selectedRoleFilter,
+                          value: filterRoleNames.contains(_selectedRoleFilter) ? _selectedRoleFilter : 'All Roles',
                           isDense: true,
                           style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white : Colors.black87),
-                          items: const [
-                            DropdownMenuItem(value: 'All Roles', child: Text('All Roles')),
-                            DropdownMenuItem(value: 'Super Admin', child: Text('Super Admin')),
-                            DropdownMenuItem(value: 'Device Administrator', child: Text('Device Administrator')),
-                            DropdownMenuItem(value: 'Facility Manager', child: Text('Facility Manager')),
-                            DropdownMenuItem(value: 'Teacher', child: Text('Teacher')),
-                            DropdownMenuItem(value: 'Maintenance Staff', child: Text('Maintenance Staff')),
-                          ],
+                          items: filterRoleNames.map((r) {
+                            return DropdownMenuItem<String>(value: r, child: Text(r));
+                          }).toList(),
                           onChanged: (v) {
-                            if (v != null) setState(() => _selectedRoleFilter = v);
+                            if (v != null) {
+                              setState(() {
+                                _selectedRoleFilter = v;
+                                _userCurrentPage = 1;
+                              });
+                              _filterUsersFromBackend();
+                            }
                           },
                         ),
                       ),
@@ -1775,14 +2270,20 @@ class _DeviceAccessPermissionsSubviewState
                             DropdownMenuItem(value: 'Suspended', child: Text('Suspended')),
                           ],
                           onChanged: (v) {
-                            if (v != null) setState(() => _selectedStatusFilter = v);
+                            if (v != null) {
+                              setState(() {
+                                _selectedStatusFilter = v;
+                                _userCurrentPage = 1;
+                              });
+                              _filterUsersFromBackend();
+                            }
                           },
                         ),
                       ),
                     ),
                     // Search Bar
                     SizedBox(
-                      width: 170,
+                      width: 180,
                       height: 32,
                       child: TextField(
                         decoration: InputDecoration(
@@ -1793,18 +2294,24 @@ class _DeviceAccessPermissionsSubviewState
                           contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
                         ),
-                        onChanged: (v) => setState(() => _userSearchQuery = v),
+                        onChanged: (v) {
+                          setState(() {
+                            _userSearchQuery = v;
+                            _userCurrentPage = 1;
+                          });
+                        },
                       ),
                     ),
-                    InkWell(
-                      onTap: () => setState(() => _selectedSubTab = 2),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('View All', style: TextStyle(color: Color(0xFF1677F2), fontSize: 12, fontWeight: FontWeight.w600)),
-                          Icon(Icons.arrow_forward_rounded, color: Color(0xFF1677F2), size: 14),
-                        ],
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        visualDensity: VisualDensity.compact,
                       ),
+                      onPressed: () => _openAssignUserAccessModal(),
+                      icon: const Icon(Icons.person_add_rounded, size: 14),
+                      label: const Text('Assign User Access', style: TextStyle(fontSize: 11.5)),
                     ),
                   ],
                 ),
@@ -1813,38 +2320,271 @@ class _DeviceAccessPermissionsSubviewState
           ),
           const Divider(height: 1),
 
+          // Multi-Selection Action Toolbar
+          if (_selectedUserIds.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1677F2).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF1677F2).withValues(alpha: 0.3)),
+              ),
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 6,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF1677F2), size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${_selectedUserIds.length} of $totalUsers users selected',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Color(0xFF1677F2)),
+                      ),
+                    ],
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: () => _executeBulkUserAction('activate'),
+                        icon: const Icon(Icons.check_circle_outline_rounded, size: 14),
+                        label: const Text('Activate Selected', style: TextStyle(fontSize: 11.5)),
+                      ),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF59E0B),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: () => _executeBulkUserAction('deactivate'),
+                        icon: const Icon(Icons.pause_circle_outline_rounded, size: 14),
+                        label: const Text('Deactivate Selected', style: TextStyle(fontSize: 11.5)),
+                      ),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFEF4444),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: () => _executeBulkUserAction('revoke'),
+                        icon: const Icon(Icons.delete_outline_rounded, size: 14),
+                        label: const Text('Revoke Selected', style: TextStyle(fontSize: 11.5)),
+                      ),
+                      TextButton(
+                        onPressed: () => setState(() => _selectedUserIds.clear()),
+                        child: const Text('Deselect All', style: TextStyle(fontSize: 11.5)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
           // Users Table
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
               showCheckboxColumn: false,
-              headingRowHeight: 38,
-              dataRowMinHeight: 46,
-              dataRowMaxHeight: 46,
+              headingRowHeight: 40,
+              dataRowMinHeight: 48,
+              dataRowMaxHeight: 48,
               horizontalMargin: 12,
               columnSpacing: 16,
-              columns: const [
-                DataColumn(label: SizedBox(width: 20)),
-                DataColumn(label: Text('User Name ↑', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                DataColumn(label: Text('Role', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                DataColumn(label: Text('User Group', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                DataColumn(label: Text('Location Scope', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                DataColumn(label: Text('Last Login', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+              columns: [
+                DataColumn(
+                  label: Checkbox(
+                    value: isAllSelected ? true : (isSomeSelected ? null : false),
+                    tristate: true,
+                    activeColor: const Color(0xFF1677F2),
+                    onChanged: (val) {
+                      setState(() {
+                        if (val == true) {
+                          _selectedUserIds.addAll(pagedUsers.map((u) => u.id));
+                        } else {
+                          for (final u in pagedUsers) {
+                            _selectedUserIds.remove(u.id);
+                          }
+                        }
+                      });
+                    },
+                  ),
+                ),
+                DataColumn(
+                  label: InkWell(
+                    onTap: () {
+                      setState(() {
+                        if (_userSortColumn == 'user_name') {
+                          _userSortAsc = !_userSortAsc;
+                        } else {
+                          _userSortColumn = 'user_name';
+                          _userSortAsc = true;
+                        }
+                      });
+                    },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('User Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const SizedBox(width: 4),
+                        Icon(
+                          _userSortColumn == 'user_name'
+                              ? (_userSortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                              : Icons.unfold_more_rounded,
+                          size: 14,
+                          color: _userSortColumn == 'user_name' ? const Color(0xFF1677F2) : const Color(0xFF94A3B8),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                DataColumn(
+                  label: InkWell(
+                    onTap: () {
+                      setState(() {
+                        if (_userSortColumn == 'role_name') {
+                          _userSortAsc = !_userSortAsc;
+                        } else {
+                          _userSortColumn = 'role_name';
+                          _userSortAsc = true;
+                        }
+                      });
+                    },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Role', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const SizedBox(width: 4),
+                        Icon(
+                          _userSortColumn == 'role_name'
+                              ? (_userSortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                              : Icons.unfold_more_rounded,
+                          size: 14,
+                          color: _userSortColumn == 'role_name' ? const Color(0xFF1677F2) : const Color(0xFF94A3B8),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const DataColumn(label: Text('User Group', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                DataColumn(
+                  label: InkWell(
+                    onTap: () {
+                      setState(() {
+                        if (_userSortColumn == 'location_scope') {
+                          _userSortAsc = !_userSortAsc;
+                        } else {
+                          _userSortColumn = 'location_scope';
+                          _userSortAsc = true;
+                        }
+                      });
+                    },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Location Scope', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const SizedBox(width: 4),
+                        Icon(
+                          _userSortColumn == 'location_scope'
+                              ? (_userSortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                              : Icons.unfold_more_rounded,
+                          size: 14,
+                          color: _userSortColumn == 'location_scope' ? const Color(0xFF1677F2) : const Color(0xFF94A3B8),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                DataColumn(
+                  label: InkWell(
+                    onTap: () {
+                      setState(() {
+                        if (_userSortColumn == 'status') {
+                          _userSortAsc = !_userSortAsc;
+                        } else {
+                          _userSortColumn = 'status';
+                          _userSortAsc = true;
+                        }
+                      });
+                    },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const SizedBox(width: 4),
+                        Icon(
+                          _userSortColumn == 'status'
+                              ? (_userSortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                              : Icons.unfold_more_rounded,
+                          size: 14,
+                          color: _userSortColumn == 'status' ? const Color(0xFF1677F2) : const Color(0xFF94A3B8),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                DataColumn(
+                  label: InkWell(
+                    onTap: () {
+                      setState(() {
+                        if (_userSortColumn == 'last_login') {
+                          _userSortAsc = !_userSortAsc;
+                        } else {
+                          _userSortColumn = 'last_login';
+                          _userSortAsc = true;
+                        }
+                      });
+                    },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Last Login', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const SizedBox(width: 4),
+                        Icon(
+                          _userSortColumn == 'last_login'
+                              ? (_userSortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                              : Icons.unfold_more_rounded,
+                          size: 14,
+                          color: _userSortColumn == 'last_login' ? const Color(0xFF1677F2) : const Color(0xFF94A3B8),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
               ],
-              rows: _recentUsers.where((u) {
-                if (_userSearchQuery.isNotEmpty) {
-                  final q = _userSearchQuery.toLowerCase();
-                  if (!u.userName.toLowerCase().contains(q) && !u.email.toLowerCase().contains(q)) {
-                    return false;
-                  }
-                }
-                return true;
-              }).map((u) {
+              rows: pagedUsers.map((u) {
+                final isChecked = _selectedUserIds.contains(u.id);
                 return DataRow(
                   cells: [
-                    DataCell(Checkbox(value: false, onChanged: (_) {}, activeColor: const Color(0xFF1677F2))),
+                    DataCell(
+                      Checkbox(
+                        value: isChecked,
+                        activeColor: const Color(0xFF1677F2),
+                        onChanged: (val) {
+                          setState(() {
+                            if (val == true) {
+                              _selectedUserIds.add(u.id);
+                            } else {
+                              _selectedUserIds.remove(u.id);
+                            }
+                          });
+                        },
+                      ),
+                    ),
                     DataCell(
                       Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1853,12 +2593,20 @@ class _DeviceAccessPermissionsSubviewState
                             radius: 12,
                             backgroundColor: const Color(0xFF1677F2).withValues(alpha: 0.1),
                             child: Text(
-                              u.userName.isNotEmpty ? u.userName[0] : 'U',
+                              u.userName.isNotEmpty ? u.userName[0].toUpperCase() : 'U',
                               style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1677F2)),
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text(u.userName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(u.userName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                              if (u.email.isNotEmpty)
+                                Text(u.email, style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -1890,17 +2638,27 @@ class _DeviceAccessPermissionsSubviewState
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                          color: u.status == 'Active'
+                              ? const Color(0xFF10B981).withValues(alpha: 0.12)
+                              : const Color(0xFFEF4444).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 12),
+                            Icon(
+                              u.status == 'Active' ? Icons.check_circle_rounded : Icons.pause_circle_rounded,
+                              color: u.status == 'Active' ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                              size: 12,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               u.status,
-                              style: const TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                color: u.status == 'Active' ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ],
                         ),
@@ -1918,10 +2676,11 @@ class _DeviceAccessPermissionsSubviewState
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           IconButton(
-                            icon: const Icon(Icons.more_vert_rounded, size: 16, color: Color(0xFF64748B)),
-                            onPressed: () {},
+                            icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
+                            onPressed: () => _revokeSingleUser(u),
+                            tooltip: 'Revoke Access',
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
                           ),
@@ -1944,34 +2703,69 @@ class _DeviceAccessPermissionsSubviewState
               spacing: 8,
               runSpacing: 4,
               children: [
-                Text('Showing 1 - ${_recentUsers.length} of $_userTotalCount users',
-                    style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
+                Text(
+                  'Showing ${totalUsers == 0 ? 0 : startUserIdx + 1} - $endUserIdx of $totalUsers users',
+                  style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                ),
                 Wrap(
                   crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 4,
+                  spacing: 6,
                   runSpacing: 4,
                   children: [
-                    const Text('Rows per page: 10', style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
-                    const SizedBox(width: 12),
+                    const Text('Rows per page:', style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: _userPageSize,
+                        isDense: true,
+                        style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white : Colors.black87),
+                        items: const [
+                          DropdownMenuItem(value: 5, child: Text('5')),
+                          DropdownMenuItem(value: 10, child: Text('10')),
+                          DropdownMenuItem(value: 25, child: Text('25')),
+                          DropdownMenuItem(value: 50, child: Text('50')),
+                          DropdownMenuItem(value: 100, child: Text('100')),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) {
+                            setState(() {
+                              _userPageSize = v;
+                              _userCurrentPage = 1;
+                            });
+                            _filterUsersFromBackend();
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     IconButton(
                       icon: const Icon(Icons.chevron_left_rounded, size: 18),
-                      onPressed: _userCurrentPage > 1 ? () => setState(() => _userCurrentPage--) : null,
+                      onPressed: _userCurrentPage > 1
+                          ? () {
+                              setState(() => _userCurrentPage--);
+                              _filterUsersFromBackend();
+                            }
+                          : null,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
                     Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: const Color(0xFF1677F2),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text('$_userCurrentPage', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
                     ),
-                    const Text(' 2  3  4  5  ...  48 ', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                    Text('of $totalUserPages', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                     IconButton(
                       icon: const Icon(Icons.chevron_right_rounded, size: 18),
-                      onPressed: () => setState(() => _userCurrentPage++),
+                      onPressed: _userCurrentPage < totalUserPages
+                          ? () {
+                              setState(() => _userCurrentPage++);
+                              _filterUsersFromBackend();
+                            }
+                          : null,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
@@ -3066,95 +3860,419 @@ class _CreateRoleDialogState extends State<_CreateRoleDialog> {
   }
 }
 
-// 2. Assign User Access Dialog
+// 2. Assign User Access Dialog (Canonical Dropdowns for Users, Roles, Locations & Permissions)
 class _AssignUserAccessDialog extends StatefulWidget {
   final EnterpriseUserAccessItem? user;
   final List<EnterpriseRoleItem> roles;
+  final List<Map<String, dynamic>> dropdownUsers;
+  final List<Map<String, dynamic>> dropdownRoles;
+  final List<Map<String, dynamic>> dropdownLocations;
+  final String? apiBaseUrl;
   final ValueChanged<EnterpriseUserAccessItem> onUserAssigned;
 
-  const _AssignUserAccessDialog({this.user, required this.roles, required this.onUserAssigned});
+  const _AssignUserAccessDialog({
+    this.user,
+    required this.roles,
+    this.dropdownUsers = const [],
+    this.dropdownRoles = const [],
+    this.dropdownLocations = const [],
+    this.apiBaseUrl,
+    required this.onUserAssigned,
+  });
 
   @override
   State<_AssignUserAccessDialog> createState() => _AssignUserAccessDialogState();
 }
 
 class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
-  late TextEditingController _nameCtrl;
-  String _role = 'Facility Manager';
-  String _group = 'Facility Team';
-  String _scope = 'Academic Block (A)';
+  String? _selectedUserId;
+  Map<String, dynamic>? _selectedUser;
+  String _userSearch = '';
+
+  String? _selectedRoleId;
+  String _selectedRoleName = 'Facility Manager';
+
+  String _selectedScope = 'All Locations';
+  String _selectedAccessLevel = 'Full Control';
+  final Set<String> _selectedFeatures = {
+    'Devices & Groups',
+    'Live Control',
+    'Scenes & Presets',
+    'Schedules & Timers',
+    'Energy & Analytics',
+    'Device Health & Diagnostics',
+  };
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _nameCtrl = TextEditingController(text: widget.user?.userName ?? 'Gaurav Sen');
-    _role = widget.user?.roleName ?? 'Facility Manager';
-    _group = widget.user?.groupName ?? 'Facility Team';
-    _scope = widget.user?.locationScope ?? 'Academic Block (A)';
+    if (widget.user != null) {
+      _selectedUserId = widget.user!.id;
+      _selectedRoleName = widget.user!.roleName;
+      _selectedScope = widget.user!.locationScope;
+      _selectedUser = {
+        'id': widget.user!.id,
+        'full_name': widget.user!.userName,
+        'email': widget.user!.email,
+        'role': widget.user!.roleName,
+        'department': widget.user!.groupName,
+      };
+      for (final r in widget.dropdownRoles) {
+        if ((r['display_name'] != null && r['display_name'].toString().toLowerCase() == _selectedRoleName.toLowerCase()) ||
+            (r['name'] != null && r['name'].toString().toLowerCase() == _selectedRoleName.toLowerCase())) {
+          _selectedRoleId = r['id']?.toString();
+          break;
+        }
+      }
+    } else {
+      if (widget.dropdownUsers.isNotEmpty) {
+        _selectedUser = widget.dropdownUsers.first;
+        _selectedUserId = _selectedUser!['id']?.toString();
+      }
+      if (widget.dropdownRoles.isNotEmpty) {
+        final r = widget.dropdownRoles.first;
+        _selectedRoleId = r['id']?.toString();
+        _selectedRoleName = r['display_name'] ?? r['name'] ?? 'Facility Manager';
+      }
+    }
+  }
+
+  Future<void> _submitAssignment() async {
+    final userId = _selectedUserId ?? widget.user?.id ?? 'u-${DateTime.now().millisecondsSinceEpoch}';
+    final userName = _selectedUser?['full_name']?.toString() ?? widget.user?.userName ?? 'User';
+    final userEmail = _selectedUser?['email']?.toString() ?? widget.user?.email ?? '';
+    final groupName = _selectedUser?['department']?.toString() ?? widget.user?.groupName ?? 'General';
+    final roleId = _selectedRoleId ?? (widget.roles.isNotEmpty ? widget.roles.first.id : 'role-1');
+
+    setState(() => _isSaving = true);
+
+    if (widget.apiBaseUrl != null && !widget.apiBaseUrl!.contains('mock')) {
+      try {
+        final token = (await SharedPreferences.getInstance()).getString('auth_token');
+        final targetUrl = '${widget.apiBaseUrl}/access-permissions/users/assign';
+        await http.post(
+          Uri.parse(targetUrl),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            if (token != null) 'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'user_id': userId,
+            'role_id': roleId,
+            'role_name': _selectedRoleName,
+            'location_scope': _selectedScope,
+            'access_level': _selectedAccessLevel,
+            'department': groupName,
+            'feature_permissions': _selectedFeatures.toList(),
+            'status': 'Active',
+          }),
+        ).timeout(const Duration(seconds: 4));
+      } catch (_) {}
+    }
+
+    final updated = EnterpriseUserAccessItem(
+      id: userId,
+      userName: userName,
+      email: userEmail,
+      roleName: _selectedRoleName,
+      groupName: groupName,
+      locationScope: _selectedScope,
+      status: 'Active',
+      lastLogin: 'Just now',
+    );
+
+    widget.onUserAssigned(updated);
+    if (mounted) Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final filteredUsers = widget.dropdownUsers.where((u) {
+      if (_userSearch.trim().isEmpty) return true;
+      final q = _userSearch.toLowerCase();
+      final name = (u['full_name'] ?? '').toString().toLowerCase();
+      final email = (u['email'] ?? '').toString().toLowerCase();
+      return name.contains(q) || email.contains(q);
+    }).toList();
+
     return AlertDialog(
-      title: const Row(
+      title: Row(
         children: [
-          Icon(Icons.person_add_outlined, color: Color(0xFF10B981)),
-          SizedBox(width: 8),
-          Text('Assign User Access'),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF10B981).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Icon(Icons.person_add_outlined, color: Color(0xFF10B981), size: 20),
+          ),
+          const SizedBox(width: 10),
+          Text(widget.user != null ? 'Edit User Device Access' : 'Assign Device Access Permissions'),
         ],
       ),
       content: SizedBox(
-        width: 440,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('User Name', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            TextField(controller: _nameCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true)),
-            const SizedBox(height: 10),
-            const Text('Assign Role', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            DropdownButtonFormField<String>(
-              initialValue: _role,
-              isDense: true,
-              decoration: const InputDecoration(border: OutlineInputBorder()),
-              items: const [
-                DropdownMenuItem(value: 'Facility Manager', child: Text('Facility Manager')),
-                DropdownMenuItem(value: 'Device Administrator', child: Text('Device Administrator')),
-                DropdownMenuItem(value: 'Teacher', child: Text('Teacher')),
-                DropdownMenuItem(value: 'Maintenance Staff', child: Text('Maintenance Staff')),
-                DropdownMenuItem(value: 'View Only', child: Text('View Only')),
+        width: 500,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // User Selection
+              const Text('1. Institutional User (from User Management)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              if (widget.user != null)
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 14,
+                        backgroundColor: const Color(0xFF1677F2),
+                        child: Text(
+                          widget.user!.userName.isNotEmpty ? widget.user!.userName[0].toUpperCase() : 'U',
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(widget.user!.userName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text(widget.user!.email, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else ...[
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search users by name or email...',
+                    hintStyle: const TextStyle(fontSize: 11.5),
+                    prefixIcon: const Icon(Icons.search_rounded, size: 16),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
+                  onChanged: (v) => setState(() => _userSearch = v),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  height: 120,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  ),
+                  child: filteredUsers.isEmpty
+                      ? const Center(child: Text('No users found', style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B))))
+                      : ListView.separated(
+                          itemCount: filteredUsers.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (ctx, idx) {
+                            final u = filteredUsers[idx];
+                            final isSel = _selectedUserId == u['id']?.toString();
+                            return ListTile(
+                              dense: true,
+                              selected: isSel,
+                              selectedTileColor: const Color(0xFF1677F2).withValues(alpha: 0.1),
+                              leading: CircleAvatar(
+                                radius: 12,
+                                backgroundColor: const Color(0xFF1677F2).withValues(alpha: 0.1),
+                                child: Text(
+                                  (u['full_name'] != null && u['full_name'].toString().isNotEmpty)
+                                      ? u['full_name'].toString()[0].toUpperCase()
+                                      : 'U',
+                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1677F2)),
+                                ),
+                              ),
+                              title: Text(u['full_name']?.toString() ?? 'User', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                              subtitle: Text(u['email']?.toString() ?? '', style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B))),
+                              trailing: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1677F2).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(u['role']?.toString() ?? 'Role', style: const TextStyle(fontSize: 9.5, color: Color(0xFF1677F2), fontWeight: FontWeight.w500)),
+                              ),
+                              onTap: () {
+                                setState(() {
+                                  _selectedUserId = u['id']?.toString();
+                                  _selectedUser = u;
+                                });
+                              },
+                            );
+                          },
+                        ),
+                ),
               ],
-              onChanged: (v) => setState(() => _role = v!),
-            ),
-            const SizedBox(height: 10),
-            const Text('Location Scope', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            TextField(
-              decoration: InputDecoration(border: const OutlineInputBorder(), isDense: true, hintText: _scope),
-              onChanged: (v) => _scope = v,
-            ),
-          ],
+              const SizedBox(height: 14),
+
+              // Role Selection
+              const Text('2. Assign Institutional Role (from Roles Management)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String>(
+                value: _selectedRoleId ?? (widget.dropdownRoles.isNotEmpty ? widget.dropdownRoles.first['id']?.toString() : null),
+                isDense: true,
+                decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10)),
+                items: widget.dropdownRoles.map((r) {
+                  final dname = r['display_name'] ?? r['name'] ?? 'Role';
+                  return DropdownMenuItem<String>(
+                    value: r['id']?.toString(),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.shield_outlined, size: 14, color: Color(0xFF1677F2)),
+                        const SizedBox(width: 8),
+                        Text(dname, style: const TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (v) {
+                  if (v != null) {
+                    setState(() {
+                      _selectedRoleId = v;
+                      final match = widget.dropdownRoles.firstWhere((r) => r['id']?.toString() == v, orElse: () => {});
+                      _selectedRoleName = match['display_name'] ?? match['name'] ?? 'Facility Manager';
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 14),
+
+              // Location Scope Selection
+              const Text('3. Location Scope (from Buildings)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String>(
+                value: _selectedScope,
+                isDense: true,
+                decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10)),
+                items: (widget.dropdownLocations.isNotEmpty
+                        ? widget.dropdownLocations.map((l) => l['name']?.toString() ?? 'All Locations').toSet().toList()
+                        : ['All Locations', 'Academic Block (A)', 'Academic Block (B)', 'Admin Block', 'Library Block', 'Laboratories Block', 'Auditorium Block', 'Sports Complex', 'Hostel Block A'])
+                    .map((loc) {
+                  return DropdownMenuItem<String>(
+                    value: loc,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.location_on_outlined, size: 14, color: Color(0xFF10B981)),
+                        const SizedBox(width: 8),
+                        Text(loc, style: const TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (v) {
+                  if (v != null) setState(() => _selectedScope = v);
+                },
+              ),
+              const SizedBox(height: 14),
+
+              // Access Level
+              const Text('4. Access Level', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String>(
+                value: _selectedAccessLevel,
+                isDense: true,
+                decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10)),
+                items: const [
+                  DropdownMenuItem(value: 'Full Control', child: Text('Full Control (Read, Write, Execute, Admin)', style: TextStyle(fontSize: 12))),
+                  DropdownMenuItem(value: 'Operator', child: Text('Operator (Read, Live Control, Schedules)', style: TextStyle(fontSize: 12))),
+                  DropdownMenuItem(value: 'Monitor Only', child: Text('Monitor Only (Telemetry, Read Only)', style: TextStyle(fontSize: 12))),
+                  DropdownMenuItem(value: 'Restricted', child: Text('Restricted (Single Room or Emergency)', style: TextStyle(fontSize: 12))),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => _selectedAccessLevel = v);
+                },
+              ),
+              const SizedBox(height: 14),
+
+              // Granular Features
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('5. Feature Permissions', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        if (_selectedFeatures.length == 8) {
+                          _selectedFeatures.clear();
+                        } else {
+                          _selectedFeatures.addAll([
+                            'Devices & Groups',
+                            'Live Control',
+                            'Scenes & Presets',
+                            'Schedules & Timers',
+                            'Energy & Analytics',
+                            'Device Health & Diagnostics',
+                            'Integrations & Gateways',
+                            'Security Audit',
+                          ]);
+                        }
+                      });
+                    },
+                    style: TextButton.styleFrom(visualDensity: VisualDensity.compact, padding: EdgeInsets.zero),
+                    child: Text(_selectedFeatures.length == 8 ? 'Clear All' : 'Select All', style: const TextStyle(fontSize: 11.5)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  'Devices & Groups',
+                  'Live Control',
+                  'Scenes & Presets',
+                  'Schedules & Timers',
+                  'Energy & Analytics',
+                  'Device Health & Diagnostics',
+                  'Integrations & Gateways',
+                  'Security Audit',
+                ].map((feat) {
+                  final isChecked = _selectedFeatures.contains(feat);
+                  return FilterChip(
+                    label: Text(feat, style: TextStyle(fontSize: 11, color: isChecked ? Colors.white : null)),
+                    selected: isChecked,
+                    selectedColor: const Color(0xFF10B981),
+                    checkmarkColor: Colors.white,
+                    onSelected: (val) {
+                      setState(() {
+                        if (val) {
+                          _selectedFeatures.add(feat);
+                        } else {
+                          _selectedFeatures.remove(feat);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
         ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white),
-          onPressed: () {
-            final u = EnterpriseUserAccessItem(
-              id: widget.user?.id ?? 'e1000000-${DateTime.now().millisecondsSinceEpoch}',
-              userName: _nameCtrl.text.trim(),
-              roleName: _role,
-              groupName: _group,
-              locationScope: _scope,
-              status: 'Active',
-            );
-            widget.onUserAssigned(u);
-            Navigator.pop(context);
-          },
-          child: const Text('Confirm Assignment'),
+          onPressed: _isSaving ? null : _submitAssignment,
+          child: _isSaving
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Text('Confirm Assignment'),
         ),
       ],
     );

@@ -158,7 +158,7 @@ class DeviceManagementApiService {
   /// 9. Export Devices CSV
   Future<void> exportDevicesCsv() async {
     try {
-      final url = '${AppConfig.apiBaseUrl}/api/v1/devices/export';
+      final url = '${AppConfig.baseUrl}/api/v1/devices/export';
       getDownloadHelper().downloadFile(url, 'campus_devices_export.csv');
     } catch (_) {}
   }

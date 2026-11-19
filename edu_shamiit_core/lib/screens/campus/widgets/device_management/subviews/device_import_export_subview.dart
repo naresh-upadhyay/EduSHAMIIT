@@ -207,6 +207,10 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
   // Selected row checkboxes for batch operations
   final Set<String> _selectedOperationIds = {};
 
+  // Sorting state
+  String _sortColumn = 'started_at';
+  bool _sortAsc = false;
+
   // Pagination state
   int _currentPage = 1;
   int _rowsPerPage = 10;
@@ -573,12 +577,17 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
       final queryParams = {
         'page': _currentPage.toString(),
         'page_size': _rowsPerPage.toString(),
+        'sort_by': _sortColumn,
+        'sort_asc': _sortAsc.toString(),
       };
       if (_selectedTypeFilter != 'All Operations') {
         queryParams['operation_type'] = _selectedTypeFilter;
       }
       if (_selectedStatusFilter != 'All Status') {
         queryParams['status'] = _selectedStatusFilter;
+      }
+      if (_selectedDateRange != 'All Time') {
+        queryParams['date_range'] = _selectedDateRange;
       }
       if (_searchController.text.isNotEmpty) {
         queryParams['search'] = _searchController.text.trim();
@@ -1781,12 +1790,114 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
           _buildHistoryTableControls(isDark),
           const SizedBox(height: 14),
 
+          // Multi-Selection Action Toolbar
+          if (_selectedOperationIds.isNotEmpty) ...[
+            _buildMultiSelectionToolbar(isDark),
+            const SizedBox(height: 12),
+          ],
+
           // Scrollable Data Table
           _buildResponsiveHistoryTable(isDark),
           const SizedBox(height: 14),
 
           // Table Pagination Footer
           _buildTablePaginationFooter(isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMultiSelectionToolbar(bool isDark) {
+    final count = _selectedOperationIds.length;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.3)),
+      ),
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 6,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF2563EB), size: 16),
+              const SizedBox(width: 8),
+              Text(
+                '$count operation${count > 1 ? "s" : ""} selected',
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5, color: Color(0xFF2563EB)),
+              ),
+            ],
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF2563EB),
+                  side: const BorderSide(color: Color(0xFF2563EB)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                onPressed: _bulkDownloadSelected,
+                icon: const Icon(Icons.download_rounded, size: 14),
+                label: const Text('Download Selected', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+              ),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFEF4444),
+                  side: const BorderSide(color: Color(0xFFEF4444)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                onPressed: _bulkDeleteSelected,
+                icon: const Icon(Icons.delete_outline_rounded, size: 14),
+                label: const Text('Delete Selected', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _selectedOperationIds.clear()),
+                child: const Text('Deselect All', style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSortableHeader(String title, String columnKey, bool isDark) {
+    final isSorted = _sortColumn == columnKey;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          if (_sortColumn == columnKey) {
+            _sortAsc = !_sortAsc;
+          } else {
+            _sortColumn = columnKey;
+            _sortAsc = true;
+          }
+        });
+        _fetchHistoryData();
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(title, style: _historyHeaderStyle(isDark)),
+          const SizedBox(width: 4),
+          Icon(
+            isSorted
+                ? (_sortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                : Icons.unfold_more_rounded,
+            size: 13,
+            color: isSorted ? const Color(0xFF2563EB) : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+          ),
         ],
       ),
     );
@@ -1936,6 +2047,52 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
       );
     }
 
+    // Client-side sort fallback / consistency
+    final sortedList = List<ImportExportOperation>.from(_operations);
+    sortedList.sort((a, b) {
+      int cmp = 0;
+      switch (_sortColumn) {
+        case 'operation_id':
+          cmp = a.operationId.compareTo(b.operationId);
+          break;
+        case 'type':
+          cmp = a.type.compareTo(b.type);
+          break;
+        case 'operation':
+          cmp = a.operation.compareTo(b.operation);
+          break;
+        case 'file_name':
+          cmp = a.fileName.compareTo(b.fileName);
+          break;
+        case 'records':
+          cmp = a.records.compareTo(b.records);
+          break;
+        case 'success':
+          cmp = a.success.compareTo(b.success);
+          break;
+        case 'failed':
+          cmp = a.failed.compareTo(b.failed);
+          break;
+        case 'user':
+          cmp = a.user.compareTo(b.user);
+          break;
+        case 'duration':
+          cmp = a.duration.compareTo(b.duration);
+          break;
+        case 'status':
+          cmp = a.status.compareTo(b.status);
+          break;
+        case 'started_at':
+        default:
+          cmp = a.startedAt.compareTo(b.startedAt);
+          break;
+      }
+      return _sortAsc ? cmp : -cmp;
+    });
+
+    final isAllSelected = sortedList.isNotEmpty && sortedList.every((o) => _selectedOperationIds.contains(o.operationId));
+    final isSomeSelected = sortedList.any((o) => _selectedOperationIds.contains(o.operationId)) && !isAllSelected;
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: ConstrainedBox(
@@ -1955,11 +2112,13 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
               label: SizedBox(
                 width: 24,
                 child: Checkbox(
-                  value: _selectedOperationIds.length == _operations.length && _operations.isNotEmpty,
+                  value: isAllSelected ? true : (isSomeSelected ? null : false),
+                  tristate: true,
+                  activeColor: const Color(0xFF2563EB),
                   onChanged: (val) {
                     setState(() {
                       if (val == true) {
-                        _selectedOperationIds.addAll(_operations.map((o) => o.operationId));
+                        _selectedOperationIds.addAll(sortedList.map((o) => o.operationId));
                       } else {
                         _selectedOperationIds.clear();
                       }
@@ -1968,20 +2127,20 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
                 ),
               ),
             ),
-            DataColumn(label: Text('Operation ID \u2195', style: _historyHeaderStyle(isDark))),
-            DataColumn(label: Text('Type', style: _historyHeaderStyle(isDark))),
-            DataColumn(label: Text('Operation', style: _historyHeaderStyle(isDark))),
-            DataColumn(label: Text('File Name', style: _historyHeaderStyle(isDark))),
-            DataColumn(label: Text('Records', style: _historyHeaderStyle(isDark))),
-            DataColumn(label: Text('Success', style: _historyHeaderStyle(isDark))),
-            DataColumn(label: Text('Failed', style: _historyHeaderStyle(isDark))),
-            DataColumn(label: Text('User', style: _historyHeaderStyle(isDark))),
-            DataColumn(label: Text('Started At \u2195', style: _historyHeaderStyle(isDark))),
-            DataColumn(label: Text('Duration', style: _historyHeaderStyle(isDark))),
-            DataColumn(label: Text('Status', style: _historyHeaderStyle(isDark))),
+            DataColumn(label: _buildSortableHeader('Operation ID', 'operation_id', isDark)),
+            DataColumn(label: _buildSortableHeader('Type', 'type', isDark)),
+            DataColumn(label: _buildSortableHeader('Operation', 'operation', isDark)),
+            DataColumn(label: _buildSortableHeader('File Name', 'file_name', isDark)),
+            DataColumn(label: _buildSortableHeader('Records', 'records', isDark)),
+            DataColumn(label: _buildSortableHeader('Success', 'success', isDark)),
+            DataColumn(label: _buildSortableHeader('Failed', 'failed', isDark)),
+            DataColumn(label: _buildSortableHeader('User', 'user', isDark)),
+            DataColumn(label: _buildSortableHeader('Started At', 'started_at', isDark)),
+            DataColumn(label: _buildSortableHeader('Duration', 'duration', isDark)),
+            DataColumn(label: _buildSortableHeader('Status', 'status', isDark)),
             DataColumn(label: Text('Actions', style: _historyHeaderStyle(isDark))),
           ],
-          rows: _operations.map((op) {
+          rows: sortedList.map((op) {
             final isChecked = _selectedOperationIds.contains(op.operationId);
             final isImport = op.type == 'Import';
             final badgeBg = isImport
@@ -2008,6 +2167,7 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
                     width: 24,
                     child: Checkbox(
                       value: isChecked,
+                      activeColor: const Color(0xFF2563EB),
                       onChanged: (val) {
                         setState(() {
                           if (val == true) {
@@ -2103,12 +2263,12 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
                       ),
                       const SizedBox(width: 8),
                       IconButton(
-                        icon: const Icon(Icons.more_vert_rounded, size: 16),
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                        color: const Color(0xFFEF4444),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
-                        tooltip: 'More actions',
-                        onPressed: () {},
+                        tooltip: 'Delete operation',
+                        onPressed: () => _deleteSingleOperation(op),
                       ),
                     ],
                   ),
@@ -2138,13 +2298,57 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
   }
 
   Widget _buildTablePaginationFooter(bool isDark) {
+    final totalOps = _totalOperations;
+    final totalPages = (totalOps / _rowsPerPage).ceil().clamp(1, 9999);
+    final currentPage = _currentPage.clamp(1, totalPages);
+    final startIdx = totalOps == 0 ? 0 : (currentPage - 1) * _rowsPerPage + 1;
+    final endIdx = (currentPage * _rowsPerPage).clamp(0, totalOps);
+
     final infoText = Text(
-      'Showing 1 \u2013 10 of $_totalOperations operations',
+      'Showing $startIdx \u2013 $endIdx of $totalOps operations',
       style: TextStyle(
         fontSize: 11.5,
         color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
       ),
     );
+
+    // Build visible page numbers window around currentPage
+    List<Widget> pagePillWidgets = [];
+    int startPage = (currentPage - 2).clamp(1, totalPages);
+    int endPage = (startPage + 4).clamp(1, totalPages);
+    if (endPage - startPage < 4) {
+      startPage = (endPage - 4).clamp(1, totalPages);
+    }
+
+    if (startPage > 1) {
+      pagePillWidgets.add(_buildPagePill(1, isActive: currentPage == 1, isDark: isDark, onTap: () {
+        setState(() => _currentPage = 1);
+        _fetchHistoryData();
+      }));
+      if (startPage > 2) {
+        pagePillWidgets.add(Text(' ... ', style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[600])));
+      }
+    }
+
+    for (int p = startPage; p <= endPage; p++) {
+      final pNum = p;
+      pagePillWidgets.add(
+        _buildPagePill(pNum, isActive: pNum == currentPage, isDark: isDark, onTap: () {
+          setState(() => _currentPage = pNum);
+          _fetchHistoryData();
+        }),
+      );
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        pagePillWidgets.add(Text(' ... ', style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[600])));
+      }
+      pagePillWidgets.add(_buildPagePill(totalPages, isActive: currentPage == totalPages, isDark: isDark, onTap: () {
+        setState(() => _currentPage = totalPages);
+        _fetchHistoryData();
+      }));
+    }
 
     final paginationRow = Row(
       mainAxisSize: MainAxisSize.min,
@@ -2155,11 +2359,14 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
         ),
         DropdownButtonHideUnderline(
           child: DropdownButton<int>(
-            value: _rowsPerPage,
-            items: [5, 10, 25, 50].map((count) => DropdownMenuItem(value: count, child: Text('$count', style: const TextStyle(fontSize: 11)))).toList(),
+            value: [5, 10, 25, 50, 100].contains(_rowsPerPage) ? _rowsPerPage : 10,
+            items: [5, 10, 25, 50, 100].map((count) => DropdownMenuItem(value: count, child: Text('$count', style: const TextStyle(fontSize: 11)))).toList(),
             onChanged: (val) {
               if (val != null) {
-                setState(() => _rowsPerPage = val);
+                setState(() {
+                  _rowsPerPage = val;
+                  _currentPage = 1;
+                });
                 _fetchHistoryData();
               }
             },
@@ -2168,22 +2375,22 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
         const SizedBox(width: 12),
         IconButton(
           icon: const Icon(Icons.chevron_left_rounded, size: 18),
-          onPressed: _currentPage > 1 ? () => setState(() => _currentPage--) : null,
+          onPressed: _currentPage > 1 ? () {
+            setState(() => _currentPage--);
+            _fetchHistoryData();
+          } : null,
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
         ),
-        const SizedBox(width: 6),
-        _buildPagePill(1, isActive: true, isDark: isDark),
-        _buildPagePill(2, isDark: isDark),
-        _buildPagePill(3, isDark: isDark),
-        _buildPagePill(4, isDark: isDark),
-        _buildPagePill(5, isDark: isDark),
-        Text(' ... ', style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[600])),
-        _buildPagePill(49, isDark: isDark),
-        const SizedBox(width: 6),
+        const SizedBox(width: 4),
+        ...pagePillWidgets,
+        const SizedBox(width: 4),
         IconButton(
           icon: const Icon(Icons.chevron_right_rounded, size: 18),
-          onPressed: () => setState(() => _currentPage++),
+          onPressed: _currentPage < totalPages ? () {
+            setState(() => _currentPage++);
+            _fetchHistoryData();
+          } : null,
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
         ),
@@ -2205,23 +2412,145 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
     );
   }
 
-  Widget _buildPagePill(int pageNum, {bool isActive = false, required bool isDark}) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 2),
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: isActive ? const Color(0xFF2563EB) : Colors.transparent,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        '$pageNum',
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-          color: isActive ? Colors.white : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+  Widget _buildPagePill(int pageNum, {bool isActive = false, required bool isDark, VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFF2563EB) : Colors.transparent,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(
+            color: isActive ? const Color(0xFF2563EB) : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+          ),
+        ),
+        child: Text(
+          '$pageNum',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            color: isActive ? Colors.white : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+          ),
         ),
       ),
     );
+  }
+
+  void _bulkDownloadSelected() {
+    final count = _selectedOperationIds.length;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Generating batch ZIP archive for $count operations...'),
+        backgroundColor: const Color(0xFF2563EB),
+      ),
+    );
+  }
+
+  void _bulkDeleteSelected() async {
+    final count = _selectedOperationIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E293B) : Colors.white,
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
+            SizedBox(width: 8),
+            Text('Bulk Delete Operations'),
+          ],
+        ),
+        content: Text('Are you sure you want to delete $count selected operation records?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444), foregroundColor: Colors.white),
+            child: const Text('Delete All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final headers = await _getHeaders();
+        await http.post(
+          Uri.parse('$_baseUrl/api/v1/devices/import-export/bulk-action'),
+          headers: headers,
+          body: json.encode({
+            'action': 'delete',
+            'operation_ids': _selectedOperationIds.toList(),
+          }),
+        ).timeout(const Duration(seconds: 4));
+      } catch (_) {}
+
+      setState(() {
+        _operations.removeWhere((o) => _selectedOperationIds.contains(o.operationId));
+        _totalOperations = (_totalOperations - count).clamp(0, 999999);
+        _selectedOperationIds.clear();
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$count operations deleted successfully.'),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+      }
+    }
+  }
+
+  void _deleteSingleOperation(ImportExportOperation op) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E293B) : Colors.white,
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
+            SizedBox(width: 8),
+            Text('Delete Operation Record'),
+          ],
+        ),
+        content: Text('Are you sure you want to delete the operation log for "${op.operationId}" (${op.fileName})?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444), foregroundColor: Colors.white),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final headers = await _getHeaders();
+        await http.delete(
+          Uri.parse('$_baseUrl/api/v1/devices/import-export/history/${op.operationId}'),
+          headers: headers,
+        ).timeout(const Duration(seconds: 4));
+      } catch (_) {}
+
+      setState(() {
+        _operations.removeWhere((o) => o.operationId == op.operationId);
+        _selectedOperationIds.remove(op.operationId);
+        if (_totalOperations > 0) _totalOperations--;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Operation "${op.operationId}" deleted successfully.'),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+      }
+    }
   }
 
   // ============================================================================

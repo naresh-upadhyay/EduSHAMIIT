@@ -84,7 +84,7 @@ class GenericUpiNotificationParser(private val context: Context? = null) : Notif
         val caseSensitive = prefs?.getBoolean("${packageName}_case_sensitive", false) ?: false
 
         // =========================================================================
-        // QUALITY GATE 0: Azure DevOps Style Multi-Condition Rule Engine (AND / OR / NOT)
+        // QUALITY GATE 0: Multi-Condition Logic & Quality Rule Engine (AND / OR / NOT)
         // If user configured rich custom query conditions, evaluate them first!
         // =========================================================================
         val rulesJsonStr = prefs?.getString("${packageName}_rules_json", null)

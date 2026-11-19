@@ -402,8 +402,8 @@ class PaymentBridgeChannel(private val context: Context) : MethodChannel.MethodC
                     call.argument<String>("reference_regex")?.let { editor.putString("${pkg}_reference", it) }
                     call.argument<String>("bank_regex")?.let { editor.putString("${pkg}_masked", it) }
 
-                    // Custom Gate Rules (Title match, Inclusion keywords, Exclusion/Ignore keywords, and Azure-DevOps Style Query Rules JSON)
-                    call.argument<String>("rules_json")?.let { editor.putString("${pkg}_rules_json", it) }
+                    // Custom Gate Rules (Title match, Inclusion keywords, Exclusion/Ignore keywords, and Multi-Condition Query Rules JSON)
+                call.argument<String>("rules_json")?.let { editor.putString("${pkg}_rules_json", it) }
                     call.argument<String>("title_match_mode")?.let { editor.putString("${pkg}_title_match_mode", it) }
                     call.argument<String>("title_match_value")?.let { editor.putString("${pkg}_title_match_value", it) }
                     call.argument<String>("required_keywords")?.let { editor.putString("${pkg}_required_keywords", it) }

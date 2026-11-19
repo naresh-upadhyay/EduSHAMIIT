@@ -36,6 +36,19 @@ class CampusState {
   final String? filterRoomStatus;
   final String? filterAssignmentStatus;
 
+  // Building Documents
+  final List<BuildingDocumentModel> buildingDocuments;
+  final bool isDocumentsLoading;
+
+  // Building Occupancy
+  final List<BuildingOccupancyModel> buildingOccupancy;
+  final Map<String, dynamic> occupancyMetrics;
+  final bool isOccupancyLoading;
+
+  // Building Maintenance
+  final List<BuildingMaintenanceModel> buildingMaintenance;
+  final bool isMaintenanceLoading;
+
   // Inspect drawer
   final RoomModel? inspectedRoom;
   final String? errorMessage;
@@ -67,6 +80,13 @@ class CampusState {
     this.filterRoomType,
     this.filterRoomStatus,
     this.filterAssignmentStatus,
+    this.buildingDocuments = const [],
+    this.isDocumentsLoading = false,
+    this.buildingOccupancy = const [],
+    this.occupancyMetrics = const {},
+    this.isOccupancyLoading = false,
+    this.buildingMaintenance = const [],
+    this.isMaintenanceLoading = false,
     this.inspectedRoom,
     this.errorMessage,
   });
@@ -98,10 +118,21 @@ class CampusState {
     String? filterRoomType,
     String? filterRoomStatus,
     String? filterAssignmentStatus,
+    List<BuildingDocumentModel>? buildingDocuments,
+    bool? isDocumentsLoading,
+    List<BuildingOccupancyModel>? buildingOccupancy,
+    Map<String, dynamic>? occupancyMetrics,
+    bool? isOccupancyLoading,
+    List<BuildingMaintenanceModel>? buildingMaintenance,
+    bool? isMaintenanceLoading,
     RoomModel? inspectedRoom,
     String? errorMessage,
     bool clearInspectedRoom = false,
     bool clearSelectedBuilding = false,
+    bool clearFloorFilter = false,
+    bool clearRoomTypeFilter = false,
+    bool clearRoomStatusFilter = false,
+    bool clearAssignmentFilter = false,
   }) {
     return CampusState(
       isLoading: isLoading ?? this.isLoading,
@@ -126,10 +157,17 @@ class CampusState {
       roomsPageSize: roomsPageSize ?? this.roomsPageSize,
       roomsViewMode: roomsViewMode ?? this.roomsViewMode,
       roomSearchQuery: roomSearchQuery ?? this.roomSearchQuery,
-      filterFloorId: filterFloorId ?? this.filterFloorId,
-      filterRoomType: filterRoomType ?? this.filterRoomType,
-      filterRoomStatus: filterRoomStatus ?? this.filterRoomStatus,
-      filterAssignmentStatus: filterAssignmentStatus ?? this.filterAssignmentStatus,
+      filterFloorId: clearFloorFilter ? null : (filterFloorId ?? this.filterFloorId),
+      filterRoomType: clearRoomTypeFilter ? null : (filterRoomType ?? this.filterRoomType),
+      filterRoomStatus: clearRoomStatusFilter ? null : (filterRoomStatus ?? this.filterRoomStatus),
+      filterAssignmentStatus: clearAssignmentFilter ? null : (filterAssignmentStatus ?? this.filterAssignmentStatus),
+      buildingDocuments: buildingDocuments ?? this.buildingDocuments,
+      isDocumentsLoading: isDocumentsLoading ?? this.isDocumentsLoading,
+      buildingOccupancy: buildingOccupancy ?? this.buildingOccupancy,
+      occupancyMetrics: occupancyMetrics ?? this.occupancyMetrics,
+      isOccupancyLoading: isOccupancyLoading ?? this.isOccupancyLoading,
+      buildingMaintenance: buildingMaintenance ?? this.buildingMaintenance,
+      isMaintenanceLoading: isMaintenanceLoading ?? this.isMaintenanceLoading,
       inspectedRoom: clearInspectedRoom ? null : (inspectedRoom ?? this.inspectedRoom),
       errorMessage: errorMessage,
     );
@@ -221,11 +259,23 @@ class CampusNotifier extends StateNotifier<CampusState> {
       roomsPage: 1,
       floorsPage: 1,
       filterFloorId: null,
+      clearFloorFilter: true,
       filterRoomType: null,
+      clearRoomTypeFilter: true,
       filterRoomStatus: null,
+      clearRoomStatusFilter: true,
+      filterAssignmentStatus: null,
+      clearAssignmentFilter: true,
       clearInspectedRoom: true,
     );
     loadBuildingDetails(building.id);
+    if (state.activeBuildingSubTab == 2) {
+      loadBuildingOccupancy(building.id);
+    } else if (state.activeBuildingSubTab == 3) {
+      loadBuildingMaintenance(building.id);
+    } else if (state.activeBuildingSubTab == 4) {
+      loadBuildingDocuments(building.id);
+    }
   }
 
   void setActiveCampusTab(int tabIndex) {
@@ -234,6 +284,15 @@ class CampusNotifier extends StateNotifier<CampusState> {
 
   void setActiveBuildingSubTab(int subTabIndex) {
     state = state.copyWith(activeBuildingSubTab: subTabIndex);
+    if (state.selectedBuilding != null) {
+      if (subTabIndex == 2) {
+        loadBuildingOccupancy(state.selectedBuilding!.id);
+      } else if (subTabIndex == 3) {
+        loadBuildingMaintenance(state.selectedBuilding!.id);
+      } else if (subTabIndex == 4) {
+        loadBuildingDocuments(state.selectedBuilding!.id);
+      }
+    }
   }
 
   void setBuildingSearchQuery(String query) async {
@@ -286,17 +345,29 @@ class CampusNotifier extends StateNotifier<CampusState> {
   }
 
   void setFilterFloor(String? floorId) {
-    state = state.copyWith(filterFloorId: floorId, roomsPage: 1);
+    state = state.copyWith(
+      filterFloorId: floorId,
+      clearFloorFilter: floorId == null,
+      roomsPage: 1,
+    );
     reloadRooms(page: 1);
   }
 
   void setFilterRoomType(String? type) {
-    state = state.copyWith(filterRoomType: type, roomsPage: 1);
+    state = state.copyWith(
+      filterRoomType: type,
+      clearRoomTypeFilter: type == null || type == 'All',
+      roomsPage: 1,
+    );
     reloadRooms(page: 1);
   }
 
   void setFilterRoomStatus(String? status) {
-    state = state.copyWith(filterRoomStatus: status, roomsPage: 1);
+    state = state.copyWith(
+      filterRoomStatus: status,
+      clearRoomStatusFilter: status == null || status == 'All',
+      roomsPage: 1,
+    );
     reloadRooms(page: 1);
   }
 
@@ -312,12 +383,137 @@ class CampusNotifier extends StateNotifier<CampusState> {
     state = state.copyWith(
       roomSearchQuery: '',
       filterFloorId: null,
+      clearFloorFilter: true,
       filterRoomType: null,
+      clearRoomTypeFilter: true,
       filterRoomStatus: null,
+      clearRoomStatusFilter: true,
       filterAssignmentStatus: null,
+      clearAssignmentFilter: true,
       roomsPage: 1,
     );
     reloadRooms(page: 1);
+  }
+
+  /// Called after a room is created/updated so it instantly appears in the grid
+  Future<void> onRoomCreated(String buildingId, {String? targetFloorId}) async {
+    state = state.copyWith(
+      filterFloorId: targetFloorId,
+      clearFloorFilter: targetFloorId == null,
+      roomsPage: 1,
+      activeBuildingSubTab: 1,
+    );
+    await loadBuildingDetails(buildingId);
+  }
+
+  // =========================================================================
+  // SUBTAB 4: Building Documents CRUD
+  // =========================================================================
+  Future<void> loadBuildingDocuments(String buildingId) async {
+    state = state.copyWith(isDocumentsLoading: true);
+    try {
+      final docs = await _api.getBuildingDocuments(buildingId);
+      state = state.copyWith(isDocumentsLoading: false, buildingDocuments: docs);
+    } catch (e) {
+      state = state.copyWith(isDocumentsLoading: false, errorMessage: e.toString());
+    }
+  }
+
+  Future<bool> saveBuildingDocument(String buildingId, Map<String, dynamic> payload, {String? docId}) async {
+    final res = await _api.saveBuildingDocument(buildingId, payload, docId: docId);
+    if (res['success'] == true) {
+      await loadBuildingDocuments(buildingId);
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> deleteBuildingDocument(String buildingId, String docId) async {
+    final res = await _api.deleteBuildingDocument(buildingId, docId);
+    if (res['success'] == true) {
+      await loadBuildingDocuments(buildingId);
+      return true;
+    }
+    return false;
+  }
+
+  // =========================================================================
+  // SUBTAB 2: Building Occupancy CRUD
+  // =========================================================================
+  Future<void> loadBuildingOccupancy(String buildingId) async {
+    state = state.copyWith(isOccupancyLoading: true);
+    try {
+      final res = await _api.getBuildingOccupancy(buildingId);
+      final list = (res['data'] as List<BuildingOccupancyModel>?) ?? [];
+      final metrics = (res['metrics'] as Map<String, dynamic>?) ?? {};
+      state = state.copyWith(
+        isOccupancyLoading: false,
+        buildingOccupancy: list,
+        occupancyMetrics: metrics,
+      );
+    } catch (e) {
+      state = state.copyWith(isOccupancyLoading: false, errorMessage: e.toString());
+    }
+  }
+
+  Future<bool> saveBuildingOccupancy(String buildingId, Map<String, dynamic> payload, {String? assignmentId}) async {
+    final res = await _api.saveBuildingOccupancy(buildingId, payload, assignmentId: assignmentId);
+    if (res['success'] == true) {
+      await loadBuildingOccupancy(buildingId);
+      await loadBuildingDetails(buildingId);
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> deleteBuildingOccupancy(String buildingId, String assignmentId) async {
+    final res = await _api.deleteBuildingOccupancy(buildingId, assignmentId);
+    if (res['success'] == true) {
+      await loadBuildingOccupancy(buildingId);
+      await loadBuildingDetails(buildingId);
+      return true;
+    }
+    return false;
+  }
+
+  // =========================================================================
+  // SUBTAB 3: Building Maintenance CRUD
+  // =========================================================================
+  Future<void> loadBuildingMaintenance(String buildingId) async {
+    state = state.copyWith(isMaintenanceLoading: true);
+    try {
+      final items = await _api.getBuildingMaintenance(buildingId);
+      state = state.copyWith(isMaintenanceLoading: false, buildingMaintenance: items);
+    } catch (e) {
+      state = state.copyWith(isMaintenanceLoading: false, errorMessage: e.toString());
+    }
+  }
+
+  Future<bool> saveBuildingMaintenance(String buildingId, Map<String, dynamic> payload, {String? requestId}) async {
+    final res = await _api.saveBuildingMaintenance(buildingId, payload, requestId: requestId);
+    if (res['success'] == true) {
+      await loadBuildingMaintenance(buildingId);
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> deleteBuildingMaintenance(String buildingId, String requestId) async {
+    final res = await _api.deleteBuildingMaintenance(buildingId, requestId);
+    if (res['success'] == true) {
+      await loadBuildingMaintenance(buildingId);
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> updateBuildingMaintenanceStatus(String buildingId, String requestId, String status) async {
+    final res = await _api.saveBuildingMaintenance(buildingId, {'status': status}, requestId: requestId);
+    if (res['success'] == true) {
+      await loadBuildingMaintenance(buildingId);
+      return true;
+    }
+    return false;
   }
 }
 

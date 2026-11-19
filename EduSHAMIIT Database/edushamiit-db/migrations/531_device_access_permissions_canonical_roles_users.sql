@@ -503,22 +503,29 @@ $$;
 
 
 -- Function 4: Get Detailed Role Permissions Matrix
-CREATE OR REPLACE FUNCTION public.fn_get_role_permissions_matrix(p_role_id UUID)
+CREATE OR REPLACE FUNCTION public.fn_get_role_permissions_matrix(p_role_id UUID DEFAULT NULL)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
+    v_target_role_id UUID;
     v_role_record RECORD;
     v_matrix JSONB;
 BEGIN
+    IF p_role_id IS NULL THEN
+        SELECT id INTO v_target_role_id FROM public.app_roles ORDER BY level ASC, name ASC LIMIT 1;
+    ELSE
+        v_target_role_id := p_role_id;
+    END IF;
+
     SELECT id, name, COALESCE(display_name, name) as dname, code, description 
     INTO v_role_record 
     FROM public.app_roles 
-    WHERE id = p_role_id;
+    WHERE id = v_target_role_id;
 
     IF NOT FOUND THEN
-        RETURN jsonb_build_object('success', false, 'error', 'Role not found');
+        RETURN jsonb_build_object('success', false, 'error', 'Role not found', 'matrix', '[]'::jsonb, 'permissions', '[]'::jsonb);
     END IF;
 
     SELECT jsonb_agg(
@@ -536,7 +543,7 @@ BEGIN
         ) ORDER BY rp.resource ASC
     ) INTO v_matrix
     FROM public.campus_device_role_permissions rp
-    WHERE rp.role_id = p_role_id;
+    WHERE rp.role_id = v_target_role_id;
 
     RETURN jsonb_build_object(
         'success', true,
@@ -547,7 +554,8 @@ BEGIN
             'code', v_role_record.code,
             'description', v_role_record.description
         ),
-        'permissions', COALESCE(v_matrix, '[]'::jsonb)
+        'permissions', COALESCE(v_matrix, '[]'::jsonb),
+        'matrix', COALESCE(v_matrix, '[]'::jsonb)
     );
 END;
 $$;

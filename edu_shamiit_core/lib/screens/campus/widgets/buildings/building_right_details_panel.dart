@@ -3,6 +3,7 @@ import '../../models/campus_models.dart';
 
 class BuildingRightDetailsPanel extends StatelessWidget {
   final BuildingModel building;
+  final VoidCallback? onUpdateImage;
   final VoidCallback onAddRoom;
   final VoidCallback onAllocateRoom;
   final VoidCallback onRoomSetup;
@@ -13,6 +14,7 @@ class BuildingRightDetailsPanel extends StatelessWidget {
   const BuildingRightDetailsPanel({
     super.key,
     required this.building,
+    this.onUpdateImage,
     required this.onAddRoom,
     required this.onAllocateRoom,
     required this.onRoomSetup,
@@ -51,6 +53,68 @@ class BuildingRightDetailsPanel extends StatelessWidget {
             ),
             child: Stack(
               children: [
+                if (building.imageUrl == null || building.imageUrl!.isEmpty)
+                  Center(
+                    child: InkWell(
+                      onTap: onUpdateImage,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: const Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.add_a_photo_outlined, size: 28, color: Color(0xFF2563EB)),
+                            SizedBox(height: 6),
+                            Text(
+                              'Upload Building Photo',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF2563EB),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // Top-left camera / change button
+                if (onUpdateImage != null)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Tooltip(
+                      message: building.imageUrl != null && building.imageUrl!.isNotEmpty ? 'Change Photo' : 'Upload Photo',
+                      child: InkWell(
+                        onTap: onUpdateImage,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.65),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.camera_alt_outlined, color: Colors.white, size: 15),
+                              SizedBox(width: 4),
+                              Text('Photo', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
                 // Top-right zoom icon
                 Positioned(
                   top: 8,

@@ -81,6 +81,8 @@ class PaymentManagementApiService {
     String search = '',
     String? className,
     String? status,
+    String? sortBy,
+    String? sortOrder,
     int page = 1,
     int pageSize = 10,
   }) async {
@@ -96,6 +98,12 @@ class PaymentManagementApiService {
       }
       if (status != null && status != 'All Status' && status != 'All Fees' && status != 'All') {
         query['status'] = status;
+      }
+      if (sortBy != null && sortBy.isNotEmpty) {
+        query['sort_by'] = sortBy;
+      }
+      if (sortOrder != null && sortOrder.isNotEmpty) {
+        query['sort_order'] = sortOrder;
       }
 
       final res = await _api.get(
@@ -424,6 +432,8 @@ class PaymentManagementApiService {
     String? department,
     String? role,
     String? status,
+    String? sortBy,
+    String? sortOrder,
     int page = 1,
     int pageSize = 10,
   }) async {
@@ -442,6 +452,12 @@ class PaymentManagementApiService {
       }
       if (status != null && status != 'All Status' && status != 'All Staff' && status != 'All') {
         query['status'] = status;
+      }
+      if (sortBy != null && sortBy.isNotEmpty) {
+        query['sort_by'] = sortBy;
+      }
+      if (sortOrder != null && sortOrder.isNotEmpty) {
+        query['sort_order'] = sortOrder;
       }
 
       final res = await _api.get(

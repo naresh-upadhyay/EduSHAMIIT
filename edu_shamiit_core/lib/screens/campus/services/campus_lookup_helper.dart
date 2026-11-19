@@ -157,6 +157,23 @@ class CampusLookupHelper {
     }
   }
 
+  List<Map<String, dynamic>> _cachedUsers = [];
+
+  Future<List<Map<String, dynamic>>> getStaffUsers({bool forceRefresh = false}) async {
+    if (!forceRefresh && _cachedUsers.isNotEmpty) {
+      return _cachedUsers;
+    }
+    try {
+      final res = await _api.get('/auth/users', useCache: false);
+      if (res['success'] == true && res['data'] is List) {
+        final list = List<Map<String, dynamic>>.from(res['data']);
+        _cachedUsers = list;
+        return list;
+      }
+    } catch (_) {}
+    return _cachedUsers;
+  }
+
   Future<List<String>> getDepartments() async {
     return getLookupLabels(
       'DEPARTMENT',

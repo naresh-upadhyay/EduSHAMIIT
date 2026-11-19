@@ -1,4 +1,6 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../../models/campus_models.dart';
 import '../../services/campus_api_service.dart';
@@ -43,6 +45,16 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
 
   List<String> _buildingTypes = [];
   List<String> _statuses = [];
+  List<String> _departments = [];
+  List<Map<String, dynamic>> _staffUsers = [];
+
+  Uint8List? _pickedImageBytes;
+  String? _pickedImageName;
+  bool _isUploadingImage = false;
+  bool _showDirectUrl = false;
+
+  final _managerFocusNode = FocusNode();
+  final _deptFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -75,11 +87,14 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
   Future<void> _loadAsyncLookups() async {
     final bTypes = await CampusLookupHelper.instance.getLookupLabels('BUILDING_TYPE');
     final stats = await CampusLookupHelper.instance.getLookupLabels('BUILDING_STATUS');
-    await CampusLookupHelper.instance.getDepartments();
+    final depts = await CampusLookupHelper.instance.getDepartments();
+    final staff = await CampusLookupHelper.instance.getStaffUsers();
     if (mounted) {
       setState(() {
         _buildingTypes = bTypes;
         _statuses = stats;
+        _departments = depts;
+        _staffUsers = staff;
         if (!_buildingTypes.contains(_buildingType) && _buildingTypes.isNotEmpty) {
           _buildingType = _buildingTypes.first;
         }
@@ -87,6 +102,42 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
           _status = _statuses.first;
         }
       });
+    }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final res = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+        withData: true,
+      );
+      if (res != null && res.files.isNotEmpty) {
+        final file = res.files.first;
+        if (file.bytes != null) {
+          setState(() {
+            _pickedImageBytes = file.bytes;
+            _pickedImageName = file.name;
+            _isUploadingImage = true;
+          });
+          final uploadedUrl = await CampusApiService.instance.uploadImage(file.bytes!, file.name);
+          if (mounted) {
+            setState(() {
+              _isUploadingImage = false;
+              if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+                _imageCtrl.text = uploadedUrl;
+              }
+            });
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isUploadingImage = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick or upload image: $e')),
+        );
+      }
     }
   }
 
@@ -105,6 +156,8 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
     _managerPhoneCtrl.dispose();
     _deptCtrl.dispose();
     _imageCtrl.dispose();
+    _managerFocusNode.dispose();
+    _deptFocusNode.dispose();
     super.dispose();
   }
 
@@ -155,7 +208,8 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
     final isEdit = widget.building != null;
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    final dialogWidth = math.min(600.0, screenWidth * 0.95);
+    final dialogWidth = math.min(600.0, math.max(280.0, screenWidth - 24));
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
@@ -417,44 +471,364 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
                           const Text('Management & Incharge', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF2563EB))),
                           const SizedBox(height: 10),
 
+                          // Building Manager Autocomplete (from User Management)
+                          RawAutocomplete<Map<String, dynamic>>(
+                            optionsBuilder: (TextEditingValue textEditingValue) {
+                              if (textEditingValue.text.isEmpty) return _staffUsers;
+                              final q = textEditingValue.text.toLowerCase();
+                              return _staffUsers.where((u) {
+                                final name = (u['full_name'] ?? u['username'] ?? '').toString().toLowerCase();
+                                final role = (u['role'] ?? '').toString().toLowerCase();
+                                final dept = (u['department'] ?? '').toString().toLowerCase();
+                                return name.contains(q) || role.contains(q) || dept.contains(q);
+                              });
+                            },
+                            displayStringForOption: (u) => (u['full_name'] ?? u['username'] ?? '').toString(),
+                            focusNode: _managerFocusNode,
+                            textEditingController: _managerNameCtrl,
+                            onSelected: (u) {
+                              final name = (u['full_name'] ?? u['username'] ?? '').toString();
+                              _managerNameCtrl.text = name;
+                              final phone = (u['phone'] ?? u['contact_number'] ?? '').toString();
+                              if (phone.isNotEmpty) {
+                                _managerPhoneCtrl.text = phone;
+                              }
+                              final dept = (u['department'] ?? '').toString();
+                              if (dept.isNotEmpty && _deptCtrl.text.trim().isEmpty) {
+                                _deptCtrl.text = dept;
+                              }
+                            },
+                            fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                              return TextFormField(
+                                controller: controller,
+                                focusNode: focusNode,
+                                decoration: InputDecoration(
+                                  labelText: 'Building Manager',
+                                  hintText: 'Select or search user from User Management',
+                                  prefixIcon: const Icon(Icons.person_outline, size: 18),
+                                  suffixIcon: _staffUsers.isNotEmpty ? const Icon(Icons.arrow_drop_down, size: 20) : null,
+                                ),
+                              );
+                            },
+                            optionsViewBuilder: (context, onSelected, options) {
+                              return Align(
+                                alignment: Alignment.topLeft,
+                                child: Material(
+                                  elevation: 4,
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    width: dialogWidth - 40,
+                                    constraints: const BoxConstraints(maxHeight: 200),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                    ),
+                                    child: ListView.builder(
+                                      padding: EdgeInsets.zero,
+                                      shrinkWrap: true,
+                                      itemCount: options.length,
+                                      itemBuilder: (context, idx) {
+                                        final u = options.elementAt(idx);
+                                        final name = (u['full_name'] ?? u['username'] ?? '').toString();
+                                        final role = (u['role'] ?? '').toString();
+                                        final dept = (u['department'] ?? '').toString();
+                                        return ListTile(
+                                          dense: true,
+                                          title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                                          subtitle: Text(
+                                            [if (role.isNotEmpty) role, if (dept.isNotEmpty) dept].join(' • '),
+                                            style: const TextStyle(fontSize: 11),
+                                          ),
+                                          onTap: () => onSelected(u),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Manager Contact & Responsible Department
                           if (isCompact) ...[
                             TextFormField(
-                              controller: _managerNameCtrl,
-                              decoration: const InputDecoration(labelText: 'Building Manager', hintText: 'e.g. Dr. Rajesh Sharma'),
-                            ),
-                            const SizedBox(height: 10),
-                            TextFormField(
                               controller: _managerPhoneCtrl,
-                              decoration: const InputDecoration(labelText: 'Manager Contact', hintText: '+91 98450 12345'),
+                              decoration: const InputDecoration(
+                                labelText: 'Manager Contact',
+                                hintText: '+91 98450 12345',
+                                prefixIcon: Icon(Icons.phone_outlined, size: 18),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            RawAutocomplete<String>(
+                              optionsBuilder: (TextEditingValue textEditingValue) {
+                                if (textEditingValue.text.isEmpty) return _departments;
+                                final q = textEditingValue.text.toLowerCase();
+                                return _departments.where((d) => d.toLowerCase().contains(q));
+                              },
+                              focusNode: _deptFocusNode,
+                              textEditingController: _deptCtrl,
+                              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                                return TextFormField(
+                                  controller: controller,
+                                  focusNode: focusNode,
+                                  decoration: InputDecoration(
+                                    labelText: 'Responsible Department',
+                                    hintText: 'Select or type department',
+                                    prefixIcon: const Icon(Icons.business_outlined, size: 18),
+                                    suffixIcon: _departments.isNotEmpty ? const Icon(Icons.arrow_drop_down, size: 20) : null,
+                                  ),
+                                );
+                              },
+                              optionsViewBuilder: (context, onSelected, options) {
+                                return Align(
+                                  alignment: Alignment.topLeft,
+                                  child: Material(
+                                    elevation: 4,
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Container(
+                                      width: dialogWidth - 40,
+                                      constraints: const BoxConstraints(maxHeight: 180),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                      ),
+                                      child: ListView.builder(
+                                        padding: EdgeInsets.zero,
+                                        shrinkWrap: true,
+                                        itemCount: options.length,
+                                        itemBuilder: (context, idx) {
+                                          final d = options.elementAt(idx);
+                                          return ListTile(
+                                            dense: true,
+                                            title: Text(d, style: const TextStyle(fontSize: 12.5)),
+                                            onTap: () => onSelected(d),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                           ] else ...[
                             Row(
                               children: [
                                 Expanded(
                                   child: TextFormField(
-                                    controller: _managerNameCtrl,
-                                    decoration: const InputDecoration(labelText: 'Building Manager', hintText: 'e.g. Dr. Rajesh Sharma'),
+                                    controller: _managerPhoneCtrl,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Manager Contact',
+                                      hintText: '+91 98450 12345',
+                                      prefixIcon: Icon(Icons.phone_outlined, size: 18),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
-                                  child: TextFormField(
-                                    controller: _managerPhoneCtrl,
-                                    decoration: const InputDecoration(labelText: 'Manager Contact', hintText: '+91 98450 12345'),
+                                  child: RawAutocomplete<String>(
+                                    optionsBuilder: (TextEditingValue textEditingValue) {
+                                      if (textEditingValue.text.isEmpty) return _departments;
+                                      final q = textEditingValue.text.toLowerCase();
+                                      return _departments.where((d) => d.toLowerCase().contains(q));
+                                    },
+                                    focusNode: _deptFocusNode,
+                              textEditingController: _deptCtrl,
+                                    fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                                      return TextFormField(
+                                        controller: controller,
+                                        focusNode: focusNode,
+                                        decoration: InputDecoration(
+                                          labelText: 'Responsible Department',
+                                          hintText: 'Select or type department',
+                                          prefixIcon: const Icon(Icons.business_outlined, size: 18),
+                                          suffixIcon: _departments.isNotEmpty ? const Icon(Icons.arrow_drop_down, size: 20) : null,
+                                        ),
+                                      );
+                                    },
+                                    optionsViewBuilder: (context, onSelected, options) {
+                                      return Align(
+                                        alignment: Alignment.topLeft,
+                                        child: Material(
+                                          elevation: 4,
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Container(
+                                            width: (dialogWidth - 52) / 2,
+                                            constraints: const BoxConstraints(maxHeight: 180),
+                                            decoration: BoxDecoration(
+                                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                            ),
+                                            child: ListView.builder(
+                                              padding: EdgeInsets.zero,
+                                              shrinkWrap: true,
+                                              itemCount: options.length,
+                                              itemBuilder: (context, idx) {
+                                                final d = options.elementAt(idx);
+                                                return ListTile(
+                                                  dense: true,
+                                                  title: Text(d, style: const TextStyle(fontSize: 12.5)),
+                                                  onTap: () => onSelected(d),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                               ],
                             ),
                           ],
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _deptCtrl,
-                            decoration: const InputDecoration(labelText: 'Responsible Department', hintText: 'e.g. Senior Secondary Wing'),
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _imageCtrl,
-                            decoration: const InputDecoration(labelText: 'Image URL', hintText: 'https://...'),
+                          const SizedBox(height: 18),
+
+                          // Building Image Upload & Preview Section
+                          const Text('Building Image', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF2563EB))),
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (_pickedImageBytes != null || _imageCtrl.text.trim().isNotEmpty) ...[
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Container(
+                                      height: 130,
+                                      width: double.infinity,
+                                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                                      child: _pickedImageBytes != null
+                                          ? Image.memory(_pickedImageBytes!, fit: BoxFit.cover)
+                                          : Image.network(
+                                              _imageCtrl.text.trim(),
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => const Center(
+                                                child: Icon(Icons.broken_image, size: 36, color: Colors.grey),
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Wrap(
+                                    alignment: WrapAlignment.spaceBetween,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    children: [
+                                      ConstrainedBox(
+                                        constraints: const BoxConstraints(maxWidth: 160),
+                                        child: Text(
+                                          _pickedImageName ?? _imageCtrl.text.trim(),
+                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
+                                        children: [
+                                          OutlinedButton.icon(
+                                            onPressed: _isUploadingImage ? null : _pickImage,
+                                            icon: const Icon(Icons.change_circle_outlined, size: 14),
+                                            label: const Text('Change', style: TextStyle(fontSize: 11)),
+                                            style: OutlinedButton.styleFrom(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            ),
+                                          ),
+                                          TextButton.icon(
+                                            onPressed: () {
+                                              setState(() {
+                                                _pickedImageBytes = null;
+                                                _pickedImageName = null;
+                                                _imageCtrl.clear();
+                                              });
+                                            },
+                                            icon: const Icon(Icons.delete_outline, size: 14, color: Colors.red),
+                                            label: const Text('Remove', style: TextStyle(fontSize: 11, color: Colors.red)),
+                                            style: TextButton.styleFrom(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ] else ...[
+                                  InkWell(
+                                    onTap: _isUploadingImage ? null : _pickImage,
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Container(
+                                      height: 100,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: const Color(0xFF2563EB).withValues(alpha: 0.35),
+                                          style: BorderStyle.solid,
+                                        ),
+                                        color: const Color(0xFF2563EB).withValues(alpha: 0.04),
+                                      ),
+                                      child: Center(
+                                        child: _isUploadingImage
+                                            ? const Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+                                                  SizedBox(height: 8),
+                                                  Text('Uploading image...', style: TextStyle(fontSize: 12)),
+                                                ],
+                                              )
+                                            : const Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.add_photo_alternate_outlined, size: 32, color: Color(0xFF2563EB)),
+                                                  SizedBox(height: 6),
+                                                  Text('Click to upload building photo', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF2563EB))),
+                                                  SizedBox(height: 2),
+                                                  Text('PNG, JPG, WEBP supported', style: TextStyle(fontSize: 10.5, color: Colors.grey)),
+                                                ],
+                                              ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 8),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: TextButton(
+                                    onPressed: () => setState(() => _showDirectUrl = !_showDirectUrl),
+                                    style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
+                                    child: Text(
+                                      _showDirectUrl ? 'Hide direct image URL' : 'Or specify direct image URL',
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFF2563EB)),
+                                    ),
+                                  ),
+                                ),
+                                if (_showDirectUrl) ...[
+                                  const SizedBox(height: 4),
+                                  TextFormField(
+                                    controller: _imageCtrl,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Image URL',
+                                      hintText: 'https://...',
+                                      isDense: true,
+                                    ),
+                                    onChanged: (v) => setState(() {}),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
                         ],
                       );

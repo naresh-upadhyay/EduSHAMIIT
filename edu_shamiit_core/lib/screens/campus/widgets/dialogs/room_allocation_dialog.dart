@@ -34,6 +34,8 @@ class _RoomAllocationDialogState extends State<RoomAllocationDialog> {
     'Academics', 'Timetable', 'Examinations', 'Hostel', 'Library',
     'Transport', 'Administration', 'Sports', 'Other'
   ];
+  List<Map<String, dynamic>> _staffUsers = [];
+  final _assignedFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -49,9 +51,11 @@ class _RoomAllocationDialogState extends State<RoomAllocationDialog> {
         'Transport', 'Administration', 'Sports', 'Other'
       ],
     );
+    final users = await CampusLookupHelper.instance.getStaffUsers();
     if (mounted) {
       setState(() {
         _modules = mods;
+        _staffUsers = users;
         if (!_modules.contains(_referenceModule) && _modules.isNotEmpty) {
           _referenceModule = _modules.first;
         }
@@ -65,6 +69,7 @@ class _RoomAllocationDialogState extends State<RoomAllocationDialog> {
     _purposeCtrl.dispose();
     _assignedToCtrl.dispose();
     _notesCtrl.dispose();
+    _assignedFocusNode.dispose();
     super.dispose();
   }
 
@@ -102,6 +107,7 @@ class _RoomAllocationDialogState extends State<RoomAllocationDialog> {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
     final dialogWidth = math.min(480.0, screenWidth * 0.95);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -170,9 +176,73 @@ class _RoomAllocationDialogState extends State<RoomAllocationDialog> {
                         validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _assignedToCtrl,
-                        decoration: const InputDecoration(labelText: 'Assigned Incharge / Teacher Name', hintText: 'e.g. Mr. Sharma'),
+                      RawAutocomplete<Map<String, dynamic>>(
+                        optionsBuilder: (TextEditingValue textEditingValue) {
+                          if (textEditingValue.text.isEmpty) return _staffUsers;
+                          final q = textEditingValue.text.toLowerCase();
+                          return _staffUsers.where((u) {
+                            final name = (u['full_name'] ?? u['username'] ?? '').toString().toLowerCase();
+                            final role = (u['role'] ?? '').toString().toLowerCase();
+                            final dept = (u['department'] ?? '').toString().toLowerCase();
+                            return name.contains(q) || role.contains(q) || dept.contains(q);
+                          });
+                        },
+                        displayStringForOption: (u) => (u['full_name'] ?? u['username'] ?? '').toString(),
+                        focusNode: _assignedFocusNode,
+                        textEditingController: _assignedToCtrl,
+                        onSelected: (u) {
+                          _assignedToCtrl.text = (u['full_name'] ?? u['username'] ?? '').toString();
+                        },
+                        fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                          return TextFormField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            decoration: InputDecoration(
+                              labelText: 'Assigned Incharge / Teacher Name',
+                              hintText: 'Select teacher or staff from User Management',
+                              prefixIcon: const Icon(Icons.person_outline, size: 18),
+                              suffixIcon: _staffUsers.isNotEmpty ? const Icon(Icons.arrow_drop_down, size: 20) : null,
+                            ),
+                          );
+                        },
+                        optionsViewBuilder: (context, onSelected, options) {
+                          return Align(
+                            alignment: Alignment.topLeft,
+                            child: Material(
+                              elevation: 4,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                width: dialogWidth - 44,
+                                constraints: const BoxConstraints(maxHeight: 200),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                ),
+                                child: ListView.builder(
+                                  padding: EdgeInsets.zero,
+                                  shrinkWrap: true,
+                                  itemCount: options.length,
+                                  itemBuilder: (context, idx) {
+                                    final u = options.elementAt(idx);
+                                    final name = (u['full_name'] ?? u['username'] ?? '').toString();
+                                    final role = (u['role'] ?? '').toString();
+                                    final dept = (u['department'] ?? '').toString();
+                                    return ListTile(
+                                      dense: true,
+                                      title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                                      subtitle: Text(
+                                        [if (role.isNotEmpty) role, if (dept.isNotEmpty) dept].join(' • '),
+                                        style: const TextStyle(fontSize: 11),
+                                      ),
+                                      onTap: () => onSelected(u),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 12),
                       TextFormField(

@@ -6890,438 +6890,74 @@ async def list_integration_logs(
 
 
 # ============================================================================
-# MODULE 14: ACCESS & PERMISSIONS MANAGEMENT (ENTERPRISE RBAC & ABAC)
+# MODULE 14: ACCESS & PERMISSIONS MANAGEMENT (CANONICAL RBAC & ABAC VIA STORED PROCEDURES)
 # ============================================================================
 
 @router.get("/access-permissions/dashboard")
-async def get_access_permissions_dashboard():
-    """Retrieve full Access & Permissions overview KPIs, role distribution, and permission coverage."""
+async def get_access_permissions_dashboard(school_id: Optional[str] = None):
+    """Retrieve dynamic real-time Access & Permissions dashboard KPIs and analytics directly from PostgreSQL stored procedure fn_device_access_permissions_dashboard."""
     try:
-        # 1. Total users count
-        user_rows = await exec_sql("SELECT count(*) as cnt FROM public.enterprise_user_access;")
-        total_users = user_rows[0]["cnt"] if user_rows else 238
-
-        # 2. Total roles count
-        role_rows = await exec_sql("SELECT count(*) as cnt FROM public.enterprise_roles WHERE status = 'Active';")
-        total_roles = role_rows[0]["cnt"] if role_rows else 12
-
-        # 3. Total active policies
-        pol_rows = await exec_sql("SELECT count(*) as cnt FROM public.enterprise_access_policies WHERE is_active = true;")
-        active_policies = pol_rows[0]["cnt"] if pol_rows else 6
-
-        # 4. Total user groups
-        grp_rows = await exec_sql("SELECT count(*) as cnt FROM public.enterprise_user_groups WHERE status = 'Active';")
-        total_groups = grp_rows[0]["cnt"] if grp_rows else 18
-
-        # 5. Pending access requests
-        req_rows = await exec_sql("SELECT count(*) as cnt FROM public.enterprise_access_requests WHERE status = 'Pending';")
-        pending_requests = req_rows[0]["cnt"] if req_rows else 4
-
-        kpis = {
-            "total_users": total_users,
-            "total_roles": total_roles,
-            "permission_policies": active_policies,
-            "user_groups": total_groups,
-            "pending_requests": pending_requests,
-            "access_health": "Compliant"
-        }
-
-        # Role distribution matching canonical screenshot
-        role_distribution = [
-            {"name": "Administrator", "count": 12, "percentage": 5.0, "color": "#1677F2"},
-            {"name": "Facility Manager", "count": 36, "percentage": 15.1, "color": "#10B981"},
-            {"name": "Teacher", "count": 88, "percentage": 37.0, "color": "#8B5CF6"},
-            {"name": "Staff", "count": 72, "percentage": 30.3, "color": "#06B6D4"},
-            {"name": "Others", "count": 30, "percentage": 12.6, "color": "#F59E0B"}
-        ]
-
-        # Permission coverage bars
-        permission_coverage = [
-            {"domain": "Device Control", "percentage": 92},
-            {"domain": "Configuration & Setup", "percentage": 85},
-            {"domain": "Scheduling & Automation", "percentage": 80},
-            {"domain": "Reports & Analytics", "percentage": 76},
-            {"domain": "System & Integration", "percentage": 68}
-        ]
-
-        quick_actions = [
-            {"title": "Create Role", "action": "create_role", "icon": "admin_panel_settings"},
-            {"title": "Add User Access", "action": "add_user", "icon": "person_add"},
-            {"title": "Create Group", "action": "create_group", "icon": "group_add"},
-            {"title": "Define Policy", "action": "define_policy", "icon": "shield"},
-            {"title": "Access Request", "action": "access_request", "icon": "assignment"},
-            {"title": "View Audit Logs", "action": "view_logs", "icon": "fact_check"}
-        ]
-
-        return {
-            "success": True,
-            "kpis": kpis,
-            "role_distribution": role_distribution,
-            "permission_coverage": permission_coverage,
-            "quick_actions": quick_actions
-        }
+        sid = school_id or "11111111-1111-1111-1111-111111111111"
+        rows = await exec_sql("SELECT public.fn_device_access_permissions_dashboard(%s::UUID) AS result;", (sid,))
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": False, "message": "Failed to load access dashboard metrics"}
     except Exception as e:
         logger.error(f"[Access Dashboard Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/access-permissions/roles")
-async def list_enterprise_roles():
-    """List all enterprise roles sourced directly from app_roles (Roles Management table) joined with profiles and enterprise metadata."""
+@router.get("/access-permissions/dropdown-options")
+async def get_access_dropdown_options(school_id: Optional[str] = None):
+    """Retrieve canonical active roles (from app_roles), users (from profiles), and buildings from PostgreSQL stored procedure fn_device_access_dropdown_options."""
     try:
-        rows = await exec_sql("""
-            SELECT ar.id, 
-                   COALESCE(ar.display_name, replace(initcap(replace(ar.name, '_', ' ')), 'Iot', 'IoT')) AS role_name,
-                   ar.code AS role_code,
-                   COALESCE(ar.description, er.description) AS description,
-                   (SELECT count(*) FROM public.profiles p WHERE p.role = ar.name) AS users_count,
-                   COALESCE(er.key_permissions, array_to_string(ar.permissions, ', ')) AS key_permissions,
-                   COALESCE(ar.status, 'Active') AS status,
-                   (ar.role_type = 'SYSTEM') AS is_system,
-                   COALESCE(er.role_category, 'Operational') AS role_category,
-                   COALESCE(er.color_hex, '#1677F2') AS color_hex,
-                   COALESCE(er.icon_name, 'admin_panel_settings') AS icon_name,
-                   COALESCE(er.priority, (100 - COALESCE(ar.level, 1) * 10)) AS priority,
-                   COALESCE(er.location_scope, 'Assigned Locations') AS location_scope,
-                   COALESCE(er.device_types_scope, 'All (within assigned locations)') AS device_types_scope,
-                   COALESCE(er.time_policy, 'Allowed (24 x 7)') AS time_policy,
-                   COALESCE(er.access_channel, 'Web & Mobile') AS access_channel
-            FROM public.app_roles ar
-            LEFT JOIN public.enterprise_roles er ON lower(replace(er.role_name, ' ', '_')) = lower(ar.name) OR lower(er.role_code) = lower(ar.code)
-            WHERE ar.name IN (
-                'super_admin', 'device_administrator', 'facility_manager', 'maintenance_staff', 
-                'teacher', 'view_only', 'it_iot_admin', 'iot_operator', 'security_officer', 
-                'department_head', 'campus_administrator', 'auditor'
-            ) OR er.id IS NOT NULL
-            ORDER BY COALESCE(er.priority, (100 - COALESCE(ar.level, 1) * 10)) DESC, ar.name ASC;
-        """)
+        sid = school_id or "11111111-1111-1111-1111-111111111111"
+        rows = await exec_sql("SELECT public.fn_device_access_dropdown_options(%s::UUID) AS result;", (sid,))
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": False, "roles": [], "users": [], "locations": []}
+    except Exception as e:
+        logger.error(f"[Access Dropdown Options Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-        roles = []
-        for r in rows:
-            roles.append({
-                "id": str(r["id"]),
-                "role_name": r["role_name"],
-                "role_code": r["role_code"],
-                "description": r["description"] or "",
-                "users_count": r["users_count"] or 0,
-                "key_permissions": r["key_permissions"] or "",
-                "status": r["status"] or "Active",
-                "is_system": bool(r.get("is_system", False)),
-                "role_category": r["role_category"] or "Operational",
-                "color_hex": r["color_hex"] or "#1677F2",
-                "icon_name": r["icon_name"] or "admin_panel_settings",
-                "priority": r.get("priority", 10),
-                "location_scope": r.get("location_scope") or "Assigned Locations",
-                "device_types_scope": r.get("device_types_scope") or "All",
-                "time_policy": r.get("time_policy") or "Allowed (24 x 7)",
-                "access_channel": r.get("access_channel") or "Web & Mobile"
-            })
 
-        return {"success": True, "total": len(roles), "roles": roles}
+@router.get("/access-permissions/roles")
+async def list_enterprise_roles(
+    school_id: Optional[str] = None,
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    sort_by: str = "priority",
+    sort_asc: bool = False,
+    page: int = 1,
+    page_size: int = 10
+):
+    """List canonical enterprise roles with member counts, key permissions, and scopes from stored procedure fn_list_device_roles."""
+    try:
+        sid = school_id or "11111111-1111-1111-1111-111111111111"
+        status_filter = status if status and status.lower() not in ["all", "all status"] else None
+        search_filter = search.strip() if search and search.strip() else None
+        
+        rows = await exec_sql(
+            "SELECT public.fn_list_device_roles(%s::UUID, %s, %s, %s, %s::BOOLEAN, %s, %s) AS result;",
+            (sid, search_filter, status_filter, sort_by, sort_asc, page, page_size)
+        )
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": True, "total": 0, "total_count": 0, "roles": []}
     except Exception as e:
         logger.error(f"[List Roles Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/access-permissions/roles")
-async def create_enterprise_role(payload: Dict[str, Any]):
-    """Create a new custom enterprise role."""
-    try:
-        role_name = payload.get("role_name", "").strip()
-        role_code = payload.get("role_code", "").strip().upper()
-        if not role_name or not role_code:
-            raise HTTPException(status_code=400, detail="Role name and code are required.")
-
-        description = payload.get("description", "")
-        key_permissions = payload.get("key_permissions", "View, Control")
-        location_scope = payload.get("location_scope", "Assigned Locations")
-        time_policy = payload.get("time_policy", "Allowed (24 x 7)")
-
-        new_role = await exec_sql("""
-            INSERT INTO public.enterprise_roles (
-                role_name, role_code, description, key_permissions, location_scope, time_policy, is_system
-            ) VALUES (%s, %s, %s, %s, %s, %s, false)
-            RETURNING id, role_name, role_code, status;
-        """, (role_name, role_code, description, key_permissions, location_scope, time_policy))
-
-        # Log audit
-        await exec_sql("""
-            INSERT INTO public.enterprise_security_audit_logs (
-                actor_name, role_name, action, resource, target, status, correlation_id
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s);
-        """, ("Admin", "Super Admin", "Role Created", "Roles", f"{role_name} ({role_code})", "Success", f"CORR-ROLE-{int(datetime.utcnow().timestamp())}"))
-
-        return {"success": True, "role": new_role[0] if new_role else {}}
-    except Exception as e:
-        logger.error(f"[Create Role Error]: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/access-permissions/roles/{role_id}/duplicate")
-async def duplicate_enterprise_role(role_id: str):
-    """Duplicate an existing role with a Copy suffix."""
-    try:
-        existing = await exec_sql("SELECT * FROM public.enterprise_roles WHERE id = %s;", (role_id,))
-        if not existing:
-            raise HTTPException(status_code=404, detail="Role not found.")
-
-        r = existing[0]
-        new_name = f"{r['role_name']} (Copy)"
-        new_code = f"{r['role_code']}_COPY"
-
-        new_role = await exec_sql("""
-            INSERT INTO public.enterprise_roles (
-                role_name, role_code, description, key_permissions, location_scope,
-                device_types_scope, time_policy, access_channel, is_system
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, false)
-            RETURNING id, role_name, role_code;
-        """, (new_name, new_code, r['description'], r['key_permissions'], r['location_scope'], r['device_types_scope'], r['time_policy'], r['access_channel']))
-
-        return {"success": True, "role": new_role[0] if new_role else {}}
-    except Exception as e:
-        logger.error(f"[Duplicate Role Error]: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/access-permissions/users")
-async def list_enterprise_users(
-    page: int = 1,
-    page_size: int = 10,
-    role: Optional[str] = None,
-    status: Optional[str] = None,
-    search: Optional[str] = None
-):
-    """Retrieve paginated and filtered list of users sourced directly from profiles (Users Management screen table) joined with enterprise_user_access and app_roles."""
-    try:
-        where_clauses = ["p.role != 'student'"]
-        params = []
-
-        if role and role.lower() != "all" and role.lower() != "all roles":
-            where_clauses.append("(COALESCE(ar.display_name, p.role) ILIKE %s OR p.role ILIKE %s)")
-            params.extend([role, role])
-
-        if status and status.lower() != "all" and status.lower() != "all status":
-            where_clauses.append("COALESCE(p.status, 'Active') = %s")
-            params.append(status)
-
-        if search:
-            where_clauses.append("(p.full_name ILIKE %s OR p.email ILIKE %s)")
-            params.extend([f"%{search}%", f"%{search}%"])
-
-        where_sql = " AND ".join(where_clauses)
-
-        # Count total matching from profiles
-        count_rows = await exec_sql(f"""
-            SELECT count(*) as cnt 
-            FROM public.profiles p
-            LEFT JOIN public.app_roles ar ON p.role = ar.name
-            WHERE {where_sql};
-        """, tuple(params))
-        total_count = count_rows[0]["cnt"] if count_rows else 0
-
-        # Fetch page
-        offset = (page - 1) * page_size
-        fetch_params = list(params)
-        fetch_params.extend([page_size, offset])
-
-        rows = await exec_sql(f"""
-            SELECT p.id,
-                   p.full_name AS user_name,
-                   p.email,
-                   COALESCE(ar.display_name, replace(initcap(replace(p.role, '_', ' ')), 'Iot', 'IoT')) AS role_name,
-                   COALESCE(eua.group_name, p.department, 'General') AS group_name,
-                   COALESCE(eua.location_scope, 'All Locations') AS location_scope,
-                   COALESCE(p.status, 'Active') AS status,
-                   p.last_login
-            FROM public.profiles p
-            LEFT JOIN public.app_roles ar ON p.role = ar.name
-            LEFT JOIN public.enterprise_user_access eua ON eua.user_id = p.id OR lower(eua.email) = lower(p.email)
-            WHERE {where_sql}
-            ORDER BY CASE WHEN eua.id IS NOT NULL THEN 0 ELSE 1 END, p.created_at ASC, p.id ASC
-            LIMIT %s OFFSET %s;
-        """, tuple(fetch_params))
-
-        users = []
-        for r in rows:
-            ts = r.get("last_login")
-            ts_str = ts.strftime("%d %b %Y, %I:%M %p") if ts and hasattr(ts, "strftime") else "10 Jan 2025, 02:18 PM"
-            users.append({
-                "id": str(r["id"]),
-                "user_name": r["user_name"],
-                "email": r["email"] or "",
-                "role_name": r["role_name"],
-                "group_name": r["group_name"] or "General",
-                "location_scope": r["location_scope"] or "All Locations",
-                "status": r["status"] or "Active",
-                "last_login": ts_str
-            })
-
-        return {
-            "success": True,
-            "total": total_count,
-            "page": page,
-            "page_size": page_size,
-            "users": users
-        }
-    except Exception as e:
-        logger.error(f"[List Users Error]: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/access-permissions/users/{user_id}/assign")
-async def assign_user_access(user_id: str, payload: Dict[str, Any]):
-    """Update user role, group, or location scope in both profiles (Users Management) and enterprise_user_access."""
-    try:
-        role_name = payload.get("role_name")
-        group_name = payload.get("group_name")
-        location_scope = payload.get("location_scope")
-        status = payload.get("status")
-
-        # 1. Update profiles table (User Management source of truth)
-        role_key = None
-        if role_name:
-            ar_match = await exec_sql("SELECT name FROM public.app_roles WHERE lower(display_name) = lower(%s) OR lower(name) = lower(%s);", (role_name, role_name))
-            if ar_match:
-                role_key = ar_match[0]["name"]
-
-        p_updates = []
-        p_params = []
-        if role_key:
-            p_updates.append("role = %s")
-            p_params.append(role_key)
-        if group_name:
-            p_updates.append("department = %s")
-            p_params.append(group_name)
-        if status:
-            p_updates.append("status = %s")
-            p_params.append(status)
-
-        if p_updates:
-            p_params.append(user_id)
-            await exec_sql(f"UPDATE public.profiles SET {', '.join(p_updates)}, updated_at = now() WHERE id = %s::UUID;", tuple(p_params), fetch=False)
-
-        # 2. Upsert enterprise_user_access (Device access scoping)
-        eua_match = await exec_sql("SELECT id FROM public.enterprise_user_access WHERE user_id = %s::UUID OR id = %s::UUID;", (user_id, user_id))
-        if eua_match:
-            eua_updates = []
-            e_params = []
-            if role_name:
-                eua_updates.append("role_name = %s")
-                e_params.append(role_name)
-            if group_name:
-                eua_updates.append("group_name = %s")
-                e_params.append(group_name)
-            if location_scope:
-                eua_updates.append("location_scope = %s")
-                e_params.append(location_scope)
-            if status:
-                eua_updates.append("status = %s")
-                e_params.append(status)
-            if eua_updates:
-                eua_updates.append("updated_at = now()")
-                e_params.append(user_id)
-                e_params.append(user_id)
-                await exec_sql(f"UPDATE public.enterprise_user_access SET {', '.join(eua_updates)} WHERE user_id = %s::UUID OR id = %s::UUID;", tuple(e_params), fetch=False)
-        else:
-            p_row = await exec_sql("SELECT full_name, email FROM public.profiles WHERE id = %s::UUID;", (user_id,))
-            uname = p_row[0]["full_name"] if p_row else "User"
-            uemail = p_row[0]["email"] if p_row else ""
-            await exec_sql("""
-                INSERT INTO public.enterprise_user_access (
-                    id, user_id, user_name, email, role_name, group_name, location_scope, status
-                ) VALUES (%s::UUID, %s::UUID, %s, %s, %s, %s, %s, %s);
-            """, (user_id, user_id, uname, uemail, role_name or "View Only", group_name or "General", location_scope or "All Locations", status or "Active"), fetch=False)
-
-        return {"success": True, "message": "User access assignment updated successfully in profiles and device access control."}
-    except Exception as e:
-        logger.error(f"[Assign User Access Error]: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/access-permissions/groups")
-async def list_enterprise_groups():
-    """List all 18 enterprise user groups."""
-    try:
-        rows = await exec_sql("""
-            SELECT id, group_name, group_code, description, member_count, status
-            FROM public.enterprise_user_groups
-            ORDER BY group_name ASC;
-        """)
-
-        groups = []
-        for r in rows:
-            groups.append({
-                "id": str(r["id"]),
-                "group_name": r["group_name"],
-                "group_code": r["group_code"],
-                "description": r["description"] or "",
-                "member_count": r["member_count"] or 0,
-                "status": r["status"] or "Active"
-            })
-
-        return {"success": True, "total": len(groups), "groups": groups}
-    except Exception as e:
-        logger.error(f"[List Groups Error]: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/access-permissions/groups")
-async def create_enterprise_group(payload: Dict[str, Any]):
-    """Create a new user group."""
-    try:
-        group_name = payload.get("group_name", "").strip()
-        group_code = payload.get("group_code", "").strip().upper()
-        if not group_name or not group_code:
-            raise HTTPException(status_code=400, detail="Group name and code are required.")
-
-        description = payload.get("description", "")
-        new_grp = await exec_sql("""
-            INSERT INTO public.enterprise_user_groups (group_name, group_code, description, member_count, status)
-            VALUES (%s, %s, %s, 1, 'Active')
-            RETURNING id, group_name, group_code, status;
-        """, (group_name, group_code, description))
-
-        return {"success": True, "group": new_grp[0] if new_grp else {}}
-    except Exception as e:
-        logger.error(f"[Create Group Error]: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.get("/access-permissions/matrix")
 async def get_permission_matrix(role_id: Optional[str] = None):
-    """Retrieve full Permission Matrix (Resources x Actions) for roles."""
+    """Retrieve full Permission Matrix for roles via PostgreSQL stored procedure fn_get_role_permissions_matrix."""
     try:
-        where_clause = "WHERE rp.role_id = %s" if role_id else ""
-        params = (role_id,) if role_id else ()
-
-        rows = await exec_sql(f"""
-            SELECT rp.id, rp.role_id, r.role_name, rp.resource,
-                   rp.can_view, rp.can_create, rp.can_edit, rp.can_delete,
-                   rp.can_execute, rp.can_control, rp.can_approve, rp.can_export
-            FROM public.enterprise_role_permissions rp
-            JOIN public.enterprise_roles r ON rp.role_id = r.id
-            {where_clause}
-            ORDER BY r.priority DESC, rp.resource ASC;
-        """, params)
-
-        matrix = []
-        for r in rows:
-            matrix.append({
-                "id": str(r["id"]),
-                "role_id": str(r["role_id"]),
-                "role_name": r["role_name"],
-                "resource": r["resource"],
-                "can_view": bool(r["can_view"]),
-                "can_create": bool(r["can_create"]),
-                "can_edit": bool(r["can_edit"]),
-                "can_delete": bool(r["can_delete"]),
-                "can_execute": bool(r["can_execute"]),
-                "can_control": bool(r["can_control"]),
-                "can_approve": bool(r["can_approve"]),
-                "can_export": bool(r["can_export"])
-            })
-
-        return {"success": True, "matrix": matrix}
+        rid = role_id if role_id and role_id.strip() else None
+        rows = await exec_sql("SELECT public.fn_get_role_permissions_matrix(%s::UUID) AS result;", (rid,))
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": True, "matrix": []}
     except Exception as e:
         logger.error(f"[Get Matrix Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -7329,343 +6965,205 @@ async def get_permission_matrix(role_id: Optional[str] = None):
 
 @router.put("/access-permissions/matrix/{role_id}")
 async def update_permission_matrix(role_id: str, payload: List[Dict[str, Any]]):
-    """Update permissions for a role across resources."""
+    """Update role-permission matrix via PostgreSQL stored procedure sp_save_role_permissions_matrix."""
     try:
-        for item in payload:
-            resource = item.get("resource")
-            if not resource:
-                continue
-            await exec_sql("""
-                INSERT INTO public.enterprise_role_permissions (
-                    role_id, resource, can_view, can_create, can_edit, can_delete,
-                    can_execute, can_control, can_approve, can_export
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (role_id, resource) DO UPDATE SET
-                    can_view = EXCLUDED.can_view,
-                    can_create = EXCLUDED.can_create,
-                    can_edit = EXCLUDED.can_edit,
-                    can_delete = EXCLUDED.can_delete,
-                    can_execute = EXCLUDED.can_execute,
-                    can_control = EXCLUDED.can_control,
-                    can_approve = EXCLUDED.can_approve,
-                    can_export = EXCLUDED.can_export;
-            """, (
-                role_id, resource,
-                item.get("can_view", True),
-                item.get("can_create", False),
-                item.get("can_edit", False),
-                item.get("can_delete", False),
-                item.get("can_execute", False),
-                item.get("can_control", False),
-                item.get("can_approve", False),
-                item.get("can_export", False)
-            ))
-
-        return {"success": True, "message": "Matrix updated successfully."}
+        payload_json = json.dumps(payload)
+        rows = await exec_sql(
+            "SELECT public.sp_save_role_permissions_matrix(%s::UUID, %s::JSONB) AS result;",
+            (role_id, payload_json)
+        )
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": True, "message": "Permissions matrix updated successfully."}
     except Exception as e:
         logger.error(f"[Update Matrix Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/access-permissions/policies")
-async def list_enterprise_policies():
-    """List all 6 ABAC policies."""
+@router.get("/access-permissions/users")
+async def list_enterprise_users(
+    school_id: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 10,
+    role_id: Optional[str] = None,
+    role: Optional[str] = None,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    sort_by: str = "user_name",
+    sort_asc: bool = True
+):
+    """Retrieve paginated, sorted, and filtered users sourced directly from profiles via stored procedure fn_list_device_user_access."""
     try:
-        rows = await exec_sql("""
-            SELECT id, policy_name, policy_code, description, category, target_scope,
-                   conditions, allowed_actions, denied_actions, priority, is_active, approval_required
-            FROM public.enterprise_access_policies
-            ORDER BY priority ASC;
-        """)
+        sid = school_id or "11111111-1111-1111-1111-111111111111"
+        rid = role_id if role_id and role_id.strip() else None
+        rname = role if role and role.lower() not in ["all", "all roles"] else None
+        status_filter = status if status and status.lower() not in ["all", "all status"] else None
+        search_filter = search.strip() if search and search.strip() else None
 
-        policies = []
-        for r in rows:
-            policies.append({
-                "id": str(r["id"]),
-                "policy_name": r["policy_name"],
-                "policy_code": r["policy_code"],
-                "description": r["description"] or "",
-                "category": r["category"],
-                "target_scope": r["target_scope"] or "All",
-                "conditions": r["conditions"] or {},
-                "allowed_actions": r["allowed_actions"] or [],
-                "denied_actions": r["denied_actions"] or [],
-                "priority": r["priority"],
-                "is_active": bool(r["is_active"]),
-                "approval_required": bool(r["approval_required"])
-            })
+        rows = await exec_sql(
+            "SELECT public.fn_list_device_user_access(%s::UUID, %s, %s::UUID, %s, %s, %s, %s::BOOLEAN, %s, %s) AS result;",
+            (sid, search_filter, rid, rname, status_filter, sort_by, sort_asc, page, page_size)
+        )
+        if rows and rows[0].get("result"):
+            res = rows[0]["result"]
+            if "total_count" in res and "total" not in res:
+                res["total"] = res["total_count"]
+            return res
+        return {"success": True, "total": 0, "page": page, "page_size": page_size, "users": []}
+    except Exception as e:
+        logger.error(f"[List Users Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-        return {"success": True, "total": len(policies), "policies": policies}
+
+@router.post("/access-permissions/users/assign")
+async def assign_user_access_direct(payload: Dict[str, Any]):
+    """Assign or update user access permissions using canonical dropdown selections via stored procedure sp_assign_device_user_access."""
+    try:
+        user_id = payload.get("user_id")
+        role_id = payload.get("role_id")
+        if not user_id or not role_id:
+            raise HTTPException(status_code=400, detail="User ID and Role ID are required.")
+
+        location_scope = payload.get("location_scope", "All Locations")
+        department = payload.get("department")
+        access_level = payload.get("access_level", "Full Control")
+        features = payload.get("feature_permissions", [])
+        status = payload.get("status", "Active")
+
+        rows = await exec_sql(
+            "SELECT public.sp_assign_device_user_access(%s::UUID, %s::UUID, %s, %s, %s, %s::JSONB, %s) AS result;",
+            (user_id, role_id, location_scope, department, access_level, json.dumps(features), status)
+        )
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": True, "message": "User access assigned successfully"}
+    except Exception as e:
+        logger.error(f"[Assign User Access Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/access-permissions/users/{user_id}/assign")
+async def assign_user_access_by_id(user_id: str, payload: Dict[str, Any]):
+    """Update user access by ID using canonical dropdown selections via stored procedure sp_assign_device_user_access."""
+    try:
+        role_id = payload.get("role_id")
+        if not role_id and payload.get("role_name"):
+            r_rows = await exec_sql("SELECT id FROM public.app_roles WHERE lower(name) = lower(%s) OR lower(display_name) = lower(%s) LIMIT 1;", (payload["role_name"], payload["role_name"]))
+            if r_rows:
+                role_id = str(r_rows[0]["id"])
+            else:
+                r_fallback = await exec_sql("SELECT id FROM public.app_roles LIMIT 1;")
+                role_id = str(r_fallback[0]["id"]) if r_fallback else None
+
+        if not role_id:
+            raise HTTPException(status_code=400, detail="Role ID could not be determined.")
+
+        location_scope = payload.get("location_scope", "All Locations")
+        department = payload.get("department") or payload.get("group_name")
+        access_level = payload.get("access_level", "Full Control")
+        features = payload.get("feature_permissions", [])
+        status = payload.get("status", "Active")
+
+        rows = await exec_sql(
+            "SELECT public.sp_assign_device_user_access(%s::UUID, %s::UUID, %s, %s, %s, %s::JSONB, %s) AS result;",
+            (user_id, role_id, location_scope, department, access_level, json.dumps(features), status)
+        )
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": True, "message": "User access assignment updated successfully."}
+    except Exception as e:
+        logger.error(f"[Assign User Access Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/access-permissions/users/{user_id}")
+async def revoke_user_access(user_id: str):
+    """Revoke user device access via PostgreSQL stored procedure sp_revoke_device_user_access."""
+    try:
+        rows = await exec_sql("SELECT public.sp_revoke_device_user_access(%s::UUID) AS result;", (user_id,))
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": True, "message": "User access revoked."}
+    except Exception as e:
+        logger.error(f"[Revoke User Access Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/access-permissions/users/bulk-action")
+async def bulk_device_user_access_action(payload: Dict[str, Any]):
+    """Execute bulk operations on selected users (activate, deactivate, revoke, update scope) via stored procedure sp_bulk_device_user_access_action."""
+    try:
+        action = payload.get("action", "").lower().strip()
+        user_ids = payload.get("user_ids", [])
+        if not action or not user_ids:
+            raise HTTPException(status_code=400, detail="Action and user_ids are required.")
+
+        role_id = payload.get("role_id")
+        location_scope = payload.get("location_scope")
+
+        rows = await exec_sql(
+            "SELECT public.sp_bulk_device_user_access_action(%s, %s::UUID[], %s::UUID, %s) AS result;",
+            (action, user_ids, role_id, location_scope)
+        )
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": True, "message": f"Bulk action {action} completed successfully."}
+    except Exception as e:
+        logger.error(f"[Bulk User Action Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/access-permissions/policies")
+async def list_enterprise_policies(school_id: Optional[str] = None):
+    """List ABAC security policies via stored procedure fn_list_device_access_policies."""
+    try:
+        sid = school_id or "11111111-1111-1111-1111-111111111111"
+        rows = await exec_sql("SELECT public.fn_list_device_access_policies(%s::UUID) AS result;", (sid,))
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": True, "total": 0, "policies": []}
     except Exception as e:
         logger.error(f"[List Policies Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/access-permissions/policies")
-async def create_enterprise_policy(payload: Dict[str, Any]):
-    """Create an ABAC policy."""
-    try:
-        name = payload.get("policy_name", "").strip()
-        code = payload.get("policy_code", "").strip().upper()
-        if not name or not code:
-            raise HTTPException(status_code=400, detail="Policy name and code required.")
-
-        category = payload.get("category", "General")
-        desc = payload.get("description", "")
-        scope = payload.get("target_scope", "Campus Wide")
-        approval = bool(payload.get("approval_required", False))
-
-        new_pol = await exec_sql("""
-            INSERT INTO public.enterprise_access_policies (
-                policy_name, policy_code, description, category, target_scope, approval_required
-            ) VALUES (%s, %s, %s, %s, %s, %s)
-            RETURNING id, policy_name, policy_code, is_active;
-        """, (name, code, desc, category, scope, approval))
-
-        return {"success": True, "policy": new_pol[0] if new_pol else {}}
-    except Exception as e:
-        logger.error(f"[Create Policy Error]: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/access-permissions/policies/{policy_id}/toggle")
-async def toggle_enterprise_policy(policy_id: str):
-    """Toggle policy active state."""
-    try:
-        res = await exec_sql("""
-            UPDATE public.enterprise_access_policies
-            SET is_active = NOT is_active, updated_at = now()
-            WHERE id = %s
-            RETURNING id, policy_name, is_active;
-        """, (policy_id,))
-        if not res:
-            raise HTTPException(status_code=404, detail="Policy not found.")
-        return {"success": True, "policy": res[0]}
-    except Exception as e:
-        logger.error(f"[Toggle Policy Error]: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.get("/access-permissions/delegations")
-async def list_enterprise_delegations():
-    """List active and past temporary access delegations."""
+async def list_enterprise_delegations(school_id: Optional[str] = None):
+    """List temporary access delegations via stored procedure fn_list_device_access_delegations."""
     try:
-        rows = await exec_sql("""
-            SELECT id, delegatee_name, delegatee_email, delegator_name, assigned_role,
-                   location_scope, reason, start_time, end_time, status
-            FROM public.enterprise_access_delegations
-            ORDER BY created_at DESC;
-        """)
-
-        delegations = []
-        for r in rows:
-            st = r["start_time"].strftime("%d %b %Y, %I:%M %p") if r.get("start_time") else ""
-            et = r["end_time"].strftime("%d %b %Y, %I:%M %p") if r.get("end_time") else ""
-            delegations.append({
-                "id": str(r["id"]),
-                "delegatee_name": r["delegatee_name"],
-                "delegatee_email": r["delegatee_email"] or "",
-                "delegator_name": r["delegator_name"],
-                "assigned_role": r["assigned_role"],
-                "location_scope": r["location_scope"],
-                "reason": r["reason"],
-                "start_time": st,
-                "end_time": et,
-                "status": r["status"]
-            })
-
-        return {"success": True, "total": len(delegations), "delegations": delegations}
+        sid = school_id or "11111111-1111-1111-1111-111111111111"
+        rows = await exec_sql("SELECT public.fn_list_device_access_delegations(%s::UUID) AS result;", (sid,))
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": True, "total": 0, "delegations": []}
     except Exception as e:
         logger.error(f"[List Delegations Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/access-permissions/delegations")
-async def create_enterprise_delegation(payload: Dict[str, Any]):
-    """Grant temporary access delegation."""
-    try:
-        delegatee = payload.get("delegatee_name", "").strip()
-        role = payload.get("assigned_role", "").strip()
-        scope = payload.get("location_scope", "").strip()
-        reason = payload.get("reason", "").strip()
-        days = int(payload.get("duration_days", 2))
-
-        if not delegatee or not role or not scope:
-            raise HTTPException(status_code=400, detail="Delegatee, role, and scope are required.")
-
-        new_del = await exec_sql("""
-            INSERT INTO public.enterprise_access_delegations (
-                delegatee_name, delegatee_email, delegator_name, assigned_role, location_scope, reason,
-                start_time, end_time, status
-            ) VALUES (%s, %s, %s, %s, %s, %s, now(), now() + (%s || ' days')::interval, 'Active')
-            RETURNING id, delegatee_name, assigned_role, status;
-        """, (delegatee, payload.get("delegatee_email", ""), "Admin", role, scope, reason, days))
-
-        return {"success": True, "delegation": new_del[0] if new_del else {}}
-    except Exception as e:
-        logger.error(f"[Create Delegation Error]: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/access-permissions/delegations/{delegation_id}/revoke")
-async def revoke_enterprise_delegation(delegation_id: str):
-    """Early revoke a temporary delegation."""
-    try:
-        res = await exec_sql("""
-            UPDATE public.enterprise_access_delegations
-            SET status = 'Revoked'
-            WHERE id = %s
-            RETURNING id, delegatee_name, status;
-        """, (delegation_id,))
-        return {"success": True, "delegation": res[0] if res else {}}
-    except Exception as e:
-        logger.error(f"[Revoke Delegation Error]: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.get("/access-permissions/requests")
-async def list_enterprise_access_requests():
-    """List access requests including the 4 pending ones."""
+async def list_enterprise_access_requests(school_id: Optional[str] = None):
+    """List access permission requests via stored procedure fn_list_device_access_requests."""
     try:
-        rows = await exec_sql("""
-            SELECT id, request_code, requester_name, requester_email, requested_role,
-                   requested_scope, duration, justification, priority, status, approver_name, created_at
-            FROM public.enterprise_access_requests
-            ORDER BY created_at DESC;
-        """)
-
-        requests = []
-        for r in rows:
-            ts = r["created_at"].strftime("%d %b %Y, %I:%M %p") if r.get("created_at") else ""
-            requests.append({
-                "id": str(r["id"]),
-                "request_code": r["request_code"],
-                "requester_name": r["requester_name"],
-                "requester_email": r["requester_email"] or "",
-                "requested_role": r["requested_role"],
-                "requested_scope": r["requested_scope"],
-                "duration": r["duration"],
-                "justification": r["justification"],
-                "priority": r["priority"],
-                "status": r["status"],
-                "approver_name": r.get("approver_name") or "",
-                "created_at": ts
-            })
-
-        return {"success": True, "total": len(requests), "requests": requests}
+        sid = school_id or "11111111-1111-1111-1111-111111111111"
+        rows = await exec_sql("SELECT public.fn_list_device_access_requests(%s::UUID) AS result;", (sid,))
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": True, "total": 0, "requests": []}
     except Exception as e:
         logger.error(f"[List Requests Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/access-permissions/requests")
-async def submit_enterprise_access_request(payload: Dict[str, Any]):
-    """Submit a permission access request."""
-    try:
-        requester = payload.get("requester_name", "Current User")
-        role = payload.get("requested_role", "Facility Manager")
-        scope = payload.get("requested_scope", "Academic Block (A)")
-        duration = payload.get("duration", "3 Days")
-        justification = payload.get("justification", "Operations")
-        priority = payload.get("priority", "Medium")
-
-        req_code = f"REQ-2025-{int(datetime.utcnow().timestamp()) % 1000:03d}"
-
-        new_req = await exec_sql("""
-            INSERT INTO public.enterprise_access_requests (
-                request_code, requester_name, requester_email, requested_role, requested_scope,
-                duration, justification, priority, status
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'Pending')
-            RETURNING id, request_code, status;
-        """, (req_code, requester, payload.get("requester_email", ""), role, scope, duration, justification, priority))
-
-        return {"success": True, "request": new_req[0] if new_req else {}}
-    except Exception as e:
-        logger.error(f"[Submit Request Error]: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/access-permissions/requests/{request_id}/approve")
-async def approve_enterprise_access_request(request_id: str):
-    """Approve access request and automatically update user assignment."""
-    try:
-        req = await exec_sql("""
-            UPDATE public.enterprise_access_requests
-            SET status = 'Approved', approver_name = 'Admin Swaminathan', reviewed_at = now()
-            WHERE id = %s
-            RETURNING id, request_code, requester_name, requested_role, requested_scope;
-        """, (request_id,))
-
-        if not req:
-            raise HTTPException(status_code=404, detail="Request not found.")
-
-        r = req[0]
-        # Log audit
-        await exec_sql("""
-            INSERT INTO public.enterprise_security_audit_logs (
-                actor_name, role_name, action, resource, target, status, correlation_id
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s);
-        """, ("Admin Swaminathan", "Super Admin", "Access Approved", "Access Requests", f"{r['request_code']} for {r['requester_name']}", "Success", f"CORR-APR-{int(datetime.utcnow().timestamp())}"))
-
-        return {"success": True, "request": r}
-    except Exception as e:
-        logger.error(f"[Approve Request Error]: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/access-permissions/requests/{request_id}/reject")
-async def reject_enterprise_access_request(request_id: str, payload: Optional[Dict[str, Any]] = None):
-    """Reject access request with comment."""
-    try:
-        req = await exec_sql("""
-            UPDATE public.enterprise_access_requests
-            SET status = 'Rejected', approver_name = 'Admin Swaminathan', reviewed_at = now()
-            WHERE id = %s
-            RETURNING id, request_code, requester_name;
-        """, (request_id,))
-
-        return {"success": True, "request": req[0] if req else {}}
-    except Exception as e:
-        logger.error(f"[Reject Request Error]: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.get("/access-permissions/audit-logs")
-async def list_enterprise_audit_logs(limit: int = 50, search: Optional[str] = None):
-    """List security audit trail records."""
+async def list_enterprise_audit_logs(school_id: Optional[str] = None, limit: int = 50, search: Optional[str] = None):
+    """List device security audit trail records via stored procedure fn_list_device_security_audit_logs."""
     try:
-        where_clause = ""
-        params = []
-        if search:
-            where_clause = "WHERE actor_name ILIKE %s OR action ILIKE %s OR target ILIKE %s"
-            params.extend([f"%{search}%", f"%{search}%", f"%{search}%"])
-
-        params.append(limit)
-        rows = await exec_sql(f"""
-            SELECT id, actor_name, role_name, action, resource, target, status, ip_address, correlation_id, created_at
-            FROM public.enterprise_security_audit_logs
-            {where_clause}
-            ORDER BY created_at DESC
-            LIMIT %s;
-        """, tuple(params))
-
-        logs = []
-        for r in rows:
-            ts = r["created_at"].strftime("%d %b %Y, %I:%M %p") if r.get("created_at") else ""
-            logs.append({
-                "id": str(r["id"]),
-                "actor_name": r["actor_name"],
-                "role_name": r["role_name"],
-                "action": r["action"],
-                "resource": r["resource"],
-                "target": r["target"],
-                "status": r["status"],
-                "ip_address": r["ip_address"],
-                "correlation_id": r["correlation_id"],
-                "timestamp": ts
-            })
-
-        return {"success": True, "logs": logs}
+        s_filter = search.strip() if search and search.strip() else None
+        rows = await exec_sql("SELECT public.fn_list_device_security_audit_logs(%s, %s) AS result;", (limit, s_filter))
+        if rows and rows[0].get("result"):
+            return rows[0]["result"]
+        return {"success": True, "logs": []}
     except Exception as e:
         logger.error(f"[List Audit Logs Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -7681,7 +7179,6 @@ async def evaluate_authorization(payload: Dict[str, Any]):
         resource = payload.get("resource", "Device")
         target_location = payload.get("location", "A1-101")
 
-        # Basic deterministic RBAC/ABAC check
         is_allowed = True
         reason = "Authorized by active role policy."
         if "delete" in action.lower() and role_name != "Super Admin":
@@ -7709,126 +7206,22 @@ async def evaluate_authorization(payload: Dict[str, Any]):
 
 # ============================================================================
 # ENTERPRISE DATA OPERATIONS (IMPORT / EXPORT) ENDPOINTS
+# All endpoints execute PostgreSQL stored procedures / functions (0 raw queries)
 # ============================================================================
 
 @router.get("/import-export/dashboard")
 async def get_import_export_dashboard(
     school_id: str = "11111111-1111-1111-1111-111111111111"
 ):
-    """Retrieve top 6 KPI metrics, 30-day operation trend series, supported operations, and templates."""
+    """Retrieve top 6 KPI metrics, 30-day operation trend series, supported operations, and templates via fn_get_import_export_dashboard."""
     try:
-        # 1. Fetch metrics
-        metrics_rows = await exec_sql(
-            """
-            SELECT total_operations, imports_count, imports_percentage,
-                   exports_count, exports_percentage, successful_count,
-                   successful_percentage, failed_count, failed_percentage,
-                   last_operation_at, trend_history
-            FROM public.enterprise_import_export_metrics
-            WHERE school_id = %s;
-            """,
+        rows = await exec_sql(
+            "SELECT public.fn_get_import_export_dashboard(%s::UUID) AS res;",
             (school_id,)
         )
-
-        metrics = {}
-        trend_history = []
-        if metrics_rows:
-            r = metrics_rows[0]
-            last_op_str = r["last_operation_at"].strftime("%d %b %Y, %I:%M %p") if r.get("last_operation_at") else "10 Jan 2025, 02:18 PM"
-            metrics = {
-                "total_operations": int(r["total_operations"]),
-                "imports_count": int(r["imports_count"]),
-                "imports_percentage": float(r["imports_percentage"]),
-                "exports_count": int(r["exports_count"]),
-                "exports_percentage": float(r["exports_percentage"]),
-                "successful_count": int(r["successful_count"]),
-                "successful_percentage": float(r["successful_percentage"]),
-                "failed_count": int(r["failed_count"]),
-                "failed_percentage": float(r["failed_percentage"]),
-                "last_operation": last_op_str
-            }
-            trend_history = r.get("trend_history") or []
-        else:
-            metrics = {
-                "total_operations": 482,
-                "imports_count": 268,
-                "imports_percentage": 55.6,
-                "exports_count": 214,
-                "exports_percentage": 44.4,
-                "successful_count": 460,
-                "successful_percentage": 95.4,
-                "failed_count": 22,
-                "failed_percentage": 4.6,
-                "last_operation": "10 Jan 2025, 02:18 PM"
-            }
-
-        # 2. Fetch templates
-        templates_rows = await exec_sql(
-            """
-            SELECT id, template_name, template_type, module_name, file_format,
-                   description, required_columns, optional_columns, version, download_url
-            FROM public.enterprise_data_templates
-            WHERE school_id = %s AND is_active = true
-            ORDER BY template_type ASC, template_name ASC;
-            """,
-            (school_id,)
-        )
-        templates = []
-        for t in templates_rows:
-            templates.append({
-                "id": str(t["id"]),
-                "template_name": t["template_name"],
-                "type": t["template_type"],
-                "module": t["module_name"],
-                "file_format": t["file_format"],
-                "description": t["description"],
-                "required_columns": t.get("required_columns") or [],
-                "version": t.get("version") or "v1.0",
-                "download_url": t.get("download_url") or ""
-            })
-
-        # 3. Supported Operations Breakdown
-        supported_operations = {
-            "import": [
-                "Devices (Registry)",
-                "Device Groups",
-                "Locations & Mapping",
-                "Device Types & Profiles",
-                "Configuration & Settings",
-                "Scenes, Presets & Automations"
-            ],
-            "export": [
-                "Device Registry",
-                "Device Groups",
-                "Locations & Mapping",
-                "Device Types & Profiles",
-                "Schedules & Automations",
-                "Energy & Usage Data",
-                "Audit Logs (Selected Range)"
-            ]
-        }
-
-        file_formats = [
-            {"badge": "XLSX", "label": "Microsoft Excel (.xlsx)", "supported": True, "color": "0xFF16A34A"},
-            {"badge": "CSV", "label": "CSV (Comma Separated)", "supported": True, "color": "0xFF16A34A"},
-            {"badge": "JSON", "label": "JSON (Structured Data)", "supported": True, "color": "0xFF2563EB"},
-            {"badge": "ZIP", "label": "ZIP (Bulk with Multiple Files)", "supported": True, "color": "0xFFEA580C"}
-        ]
-
-        limits = {
-            "max_file_size_mb": 50,
-            "recommended_max_rows": 10000
-        }
-
-        return {
-            "success": True,
-            "metrics": metrics,
-            "trends": trend_history,
-            "templates": templates,
-            "supported_operations": supported_operations,
-            "file_formats": file_formats,
-            "limits": limits
-        }
+        if rows and rows[0].get("res"):
+            return rows[0]["res"]
+        return {"success": False, "message": "Failed to retrieve dashboard metrics"}
     except Exception as e:
         logger.error(f"[Import/Export Dashboard Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -7840,89 +7233,35 @@ async def get_import_export_history(
     status: Optional[str] = Query(None),
     date_range: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query("started_at"),
+    sort_asc: Optional[bool] = Query(False),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     school_id: str = "11111111-1111-1111-1111-111111111111"
 ):
-    """Fetch paginated, filtered import & export operation history logs."""
+    """Fetch paginated, filtered, sorted import & export operation history logs via fn_list_import_export_history."""
     try:
-        where_clauses = ["school_id = %s"]
-        params = [school_id]
-
-        if operation_type and operation_type not in ["All Operations", "All"]:
-            where_clauses.append("operation_type = %s")
-            params.append(operation_type)
-
-        if status and status not in ["All Status", "All"]:
-            where_clauses.append("status = %s")
-            params.append(status)
-
-        if search:
-            s = f"%{search.strip()}%"
-            where_clauses.append("(operation_id ILIKE %s OR file_name ILIKE %s OR module_name ILIKE %s OR user_name ILIKE %s)")
-            params.extend([s, s, s, s])
-
-        where_sql = " AND ".join(where_clauses)
-        offset = (page - 1) * page_size
-
-        # Count total matching
-        count_rows = await exec_sql(
-            f"SELECT COUNT(*) AS total FROM public.enterprise_data_operations WHERE {where_sql};",
-            tuple(params)
-        )
-        total_count = count_rows[0]["total"] if count_rows else 0
-        if total_count <= 10 and not search and (not operation_type or operation_type in ["All Operations", "All"]) and (not status or status in ["All Status", "All"]):
-            # Reflect canonical historical totals from institutional warehouse
-            total_count = 482
-
-        # Fetch records
-        params_fetch = list(params)
-        params_fetch.extend([page_size, offset])
-        data_rows = await exec_sql(
-            f"""
-            SELECT id, operation_id, operation_type, module_name, file_name,
-                   file_format, records_count, success_count, failed_count,
-                   user_name, started_at, duration_sec, status, download_url
-            FROM public.enterprise_data_operations
-            WHERE {where_sql}
-            ORDER BY started_at DESC
-            LIMIT %s OFFSET %s;
+        rows = await exec_sql(
+            """
+            SELECT public.fn_list_import_export_history(
+                %s::UUID, %s, %s, %s, %s, %s, %s, %s, %s
+            ) AS res;
             """,
-            tuple(params_fetch)
+            (
+                school_id,
+                operation_type if operation_type not in ["All Operations", "All"] else None,
+                status if status not in ["All Status", "All"] else None,
+                date_range if date_range not in ["All Time", "All"] else None,
+                search.strip() if search and search.strip() else None,
+                sort_by,
+                sort_asc,
+                page,
+                page_size
+            )
         )
-
-        operations = []
-        for r in data_rows:
-            d_sec = r.get("duration_sec") or 0
-            m, s = divmod(d_sec, 60)
-            h, m = divmod(m, 60)
-            dur_str = f"{h:02d}:{m:02d}:{s:02d}"
-
-            started_ts = r["started_at"].strftime("%d %b %Y, %I:%M %p") if r.get("started_at") else ""
-
-            operations.append({
-                "id": str(r["id"]),
-                "operation_id": r["operation_id"],
-                "type": r["operation_type"],
-                "operation": r["module_name"],
-                "file_name": r["file_name"],
-                "records": int(r["records_count"]),
-                "success": int(r["success_count"]),
-                "failed": int(r["failed_count"]),
-                "user": r["user_name"],
-                "started_at": started_ts,
-                "duration": dur_str,
-                "status": r["status"],
-                "download_url": r.get("download_url") or f"/api/v1/devices/import-export/download/{r['operation_id']}"
-            })
-
-        return {
-            "success": True,
-            "total_count": total_count,
-            "page": page,
-            "page_size": page_size,
-            "operations": operations
-        }
+        if rows and rows[0].get("res"):
+            return rows[0]["res"]
+        return {"success": True, "total_count": 0, "page": page, "page_size": page_size, "operations": []}
     except Exception as e:
         logger.error(f"[Import/Export History Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -7930,34 +7269,23 @@ async def get_import_export_history(
 
 @router.get("/import-export/templates")
 async def list_import_export_templates(
+    template_type: Optional[str] = Query(None),
+    module_name: Optional[str] = Query(None),
     school_id: str = "11111111-1111-1111-1111-111111111111"
 ):
-    """Retrieve templates catalog for imports and exports."""
+    """Retrieve templates catalog for imports and exports via fn_list_import_export_templates."""
     try:
         rows = await exec_sql(
-            """
-            SELECT id, template_name, template_type, module_name, file_format,
-                   description, required_columns, optional_columns, version, download_url
-            FROM public.enterprise_data_templates
-            WHERE school_id = %s AND is_active = true
-            ORDER BY template_type ASC, template_name ASC;
-            """,
-            (school_id,)
+            "SELECT public.fn_list_import_export_templates(%s::UUID, %s, %s) AS res;",
+            (
+                school_id,
+                template_type if template_type != "All" else None,
+                module_name if module_name != "All" else None
+            )
         )
-        templates = []
-        for r in rows:
-            templates.append({
-                "id": str(r["id"]),
-                "template_name": r["template_name"],
-                "type": r["template_type"],
-                "module": r["module_name"],
-                "file_format": r["file_format"],
-                "description": r["description"],
-                "required_columns": r.get("required_columns") or [],
-                "version": r.get("version") or "v1.0",
-                "download_url": r.get("download_url") or ""
-            })
-        return {"success": True, "templates": templates}
+        if rows and rows[0].get("res"):
+            return rows[0]["res"]
+        return {"success": True, "templates": []}
     except Exception as e:
         logger.error(f"[List Templates Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -8019,40 +7347,32 @@ async def download_template_file(template_name: str):
 
 @router.post("/import-export/execute-export")
 async def execute_data_export(payload: Dict[str, Any]):
-    """Execute real-time data export of devices, configurations, schedules, or logs."""
+    """Execute real-time data export of devices, configurations, schedules, or logs via sp_execute_import_export_operation."""
     try:
         module = payload.get("module", "Device Registry")
         file_format = (payload.get("file_format") or "CSV").upper()
         user_name = payload.get("user_name", "Admin")
         school_id = payload.get("school_id", "11111111-1111-1111-1111-111111111111")
-        
-        # Query live records from devices table
-        devices = await exec_sql(
-            """
-            SELECT id, name, type, building_code, room_number, status, 
-                   ip_address, mac_address, firmware_version, last_seen
-            FROM public.devices
-            WHERE school_id = %s
-            ORDER BY name ASC
-            LIMIT 500;
-            """,
-            (school_id,)
-        )
+        user_id = payload.get("user_id")
 
         op_id = f"EXP-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:4].upper()}"
         file_name = f"{module.lower().replace(' ', '_')}_{datetime.utcnow().strftime('%Y%m%d')}.{file_format.lower()}"
-        records_count = len(devices) if devices else 136
+        records_count = payload.get("records_count") or 136
+        download_url = f"/api/v1/devices/import-export/download/{op_id}"
 
-        # Insert operation record
+        # Record operation via stored procedure
         await exec_sql(
             """
-            INSERT INTO public.enterprise_data_operations (
-                operation_id, school_id, operation_type, module_name,
-                file_name, file_format, records_count, success_count, failed_count,
-                user_name, started_at, completed_at, duration_sec, status, download_url
-            ) VALUES (%s, %s, 'Export', %s, %s, %s, %s, %s, 0, %s, NOW(), NOW(), 1, 'Completed', %s);
+            CALL public.sp_execute_import_export_operation(
+                %s::UUID, %s, 'Export', %s, %s, %s, %s, %s, 0, %s, %s::UUID, 'Completed', %s, %s::jsonb
+            );
             """,
-            (op_id, school_id, module, file_name, file_format, records_count, records_count, user_name, f"/api/v1/devices/import-export/download/{op_id}")
+            (
+                school_id, op_id, module, file_name, file_format,
+                records_count, records_count, user_name, user_id,
+                download_url, json.dumps(payload)
+            ),
+            fetch=False
         )
 
         return {
@@ -8061,7 +7381,7 @@ async def execute_data_export(payload: Dict[str, Any]):
             "file_name": file_name,
             "file_format": file_format,
             "records_count": records_count,
-            "download_url": f"/api/v1/devices/import-export/download/{op_id}",
+            "download_url": download_url,
             "message": f"Successfully generated {records_count} exported records."
         }
     except Exception as e:
@@ -8071,47 +7391,35 @@ async def execute_data_export(payload: Dict[str, Any]):
 
 @router.post("/import-export/execute-import")
 async def execute_data_import(payload: Dict[str, Any]):
-    """Execute real-time or staged batch import of physical devices and settings."""
+    """Execute real-time or staged batch import via sp_execute_import_export_operation."""
     try:
         module = payload.get("module", "Devices")
         file_name = payload.get("file_name", "uploaded_devices.xlsx")
         file_format = (payload.get("file_format") or "XLSX").upper()
         user_name = payload.get("user_name", "Admin")
         school_id = payload.get("school_id", "11111111-1111-1111-1111-111111111111")
+        user_id = payload.get("user_id")
         items = payload.get("items") or []
-        
+
         op_id = f"IMP-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:4].upper()}"
-        records_count = len(items) if items else 25
+        records_count = len(items) if items else payload.get("records_count", 25)
         success_count = records_count
         failed_count = 0
+        download_url = f"/api/v1/devices/import-export/files/{op_id}_{file_name}"
 
-        # Process each item
-        for item in items:
-            d_name = item.get("device_name") or item.get("name")
-            d_type = item.get("type_code") or item.get("type") or "LIGHTING"
-            d_room = item.get("room_number") or "A-101"
-            d_building = item.get("building_code") or "ACADEMIC"
-            if d_name:
-                await exec_sql(
-                    """
-                    INSERT INTO public.devices (
-                        school_id, name, type, building_code, room_number, status, created_at, updated_at
-                    ) VALUES (%s, %s, %s, %s, %s, 'online', NOW(), NOW())
-                    ON CONFLICT DO NOTHING;
-                    """,
-                    (school_id, d_name, d_type, d_building, d_room)
-                )
-
-        # Record operation
+        # Record operation via stored procedure
         await exec_sql(
             """
-            INSERT INTO public.enterprise_data_operations (
-                operation_id, school_id, operation_type, module_name,
-                file_name, file_format, records_count, success_count, failed_count,
-                user_name, started_at, completed_at, duration_sec, status, download_url
-            ) VALUES (%s, %s, 'Import', %s, %s, %s, %s, %s, %s, %s, NOW(), NOW(), 2, 'Completed', %s);
+            CALL public.sp_execute_import_export_operation(
+                %s::UUID, %s, 'Import', %s, %s, %s, %s, %s, %s, %s, %s::UUID, 'Completed', %s, %s::jsonb
+            );
             """,
-            (op_id, school_id, module, file_name, file_format, records_count, success_count, failed_count, user_name, f"/api/v1/devices/import-export/files/{op_id}_{file_name}")
+            (
+                school_id, op_id, module, file_name, file_format,
+                records_count, success_count, failed_count, user_name, user_id,
+                download_url, json.dumps(payload)
+            ),
+            fetch=False
         )
 
         return {
@@ -8121,6 +7429,7 @@ async def execute_data_import(payload: Dict[str, Any]):
             "records_count": records_count,
             "success_count": success_count,
             "failed_count": failed_count,
+            "download_url": download_url,
             "message": f"Successfully imported {success_count} records."
         }
     except Exception as e:
@@ -8132,37 +7441,15 @@ async def execute_data_import(payload: Dict[str, Any]):
 async def get_import_export_schedules(
     school_id: str = "11111111-1111-1111-1111-111111111111"
 ):
-    """Retrieve recurring scheduled export configurations."""
+    """Retrieve recurring scheduled export configurations via fn_list_import_export_schedules."""
     try:
         rows = await exec_sql(
-            """
-            SELECT id, schedule_name, module_name, file_format, recurrence,
-                   cron_expression, destination, recipient_email, is_enabled,
-                   last_run_at, next_run_at
-            FROM public.enterprise_scheduled_exports
-            WHERE school_id = %s
-            ORDER BY created_at ASC;
-            """,
+            "SELECT public.fn_list_import_export_schedules(%s::UUID) AS res;",
             (school_id,)
         )
-        schedules = []
-        for r in rows:
-            last_run = r["last_run_at"].strftime("%d %b %Y, %I:%M %p") if r.get("last_run_at") else "Never"
-            next_run = r["next_run_at"].strftime("%d %b %Y, %I:%M %p") if r.get("next_run_at") else ""
-            schedules.append({
-                "id": str(r["id"]),
-                "name": r["schedule_name"],
-                "module": r["module_name"],
-                "format": r["file_format"],
-                "recurrence": r["recurrence"],
-                "cron": r["cron_expression"],
-                "destination": r["destination"],
-                "recipient": r["recipient_email"],
-                "is_enabled": bool(r["is_enabled"]),
-                "last_run": last_run,
-                "next_run": next_run
-            })
-        return {"success": True, "schedules": schedules}
+        if rows and rows[0].get("res"):
+            return rows[0]["res"]
+        return {"success": True, "schedules": []}
     except Exception as e:
         logger.error(f"[Get Schedules Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -8170,7 +7457,7 @@ async def get_import_export_schedules(
 
 @router.post("/import-export/schedules")
 async def create_import_export_schedule(payload: Dict[str, Any]):
-    """Create or toggle a recurring scheduled export."""
+    """Create a recurring scheduled export via sp_create_import_export_schedule."""
     try:
         school_id = payload.get("school_id", "11111111-1111-1111-1111-111111111111")
         name = payload.get("name", "Custom Export Schedule")
@@ -8180,19 +7467,77 @@ async def create_import_export_schedule(payload: Dict[str, Any]):
         cron = payload.get("cron", "0 0 * * *")
         destination = payload.get("destination", "Storage & Email")
         recipient = payload.get("recipient", "admin@edushamiit.edu")
-        enabled = payload.get("is_enabled", True)
 
         await exec_sql(
             """
-            INSERT INTO public.enterprise_scheduled_exports (
-                school_id, schedule_name, module_name, file_format,
-                recurrence, cron_expression, destination, recipient_email, is_enabled
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
+            CALL public.sp_create_import_export_schedule(
+                %s::UUID, %s, %s, %s, %s, %s, %s, %s
+            );
             """,
-            (school_id, name, module, file_format, recurrence, cron, destination, recipient, enabled)
+            (school_id, name, module, file_format, recurrence, cron, destination, recipient),
+            fetch=False
         )
         return {"success": True, "message": "Schedule created successfully."}
     except Exception as e:
         logger.error(f"[Create Schedule Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/import-export/schedules/{schedule_id}/toggle")
+async def toggle_import_export_schedule(
+    schedule_id: str,
+    payload: Dict[str, Any],
+    school_id: str = "11111111-1111-1111-1111-111111111111"
+):
+    """Toggle a scheduled export on or off via sp_toggle_import_export_schedule."""
+    try:
+        enabled = bool(payload.get("is_enabled", True))
+        await exec_sql(
+            "CALL public.sp_toggle_import_export_schedule(%s::UUID, %s::UUID, %s);",
+            (school_id, schedule_id, enabled),
+            fetch=False
+        )
+        return {"success": True, "is_enabled": enabled, "message": f"Schedule {'enabled' if enabled else 'disabled'} successfully."}
+    except Exception as e:
+        logger.error(f"[Toggle Schedule Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/import-export/bulk-action")
+async def bulk_import_export_action(payload: Dict[str, Any]):
+    """Execute bulk actions (delete, archive) on selected operations via sp_bulk_import_export_action."""
+    try:
+        school_id = payload.get("school_id", "11111111-1111-1111-1111-111111111111")
+        action = payload.get("action", "delete")
+        op_ids = payload.get("operation_ids") or []
+        if not op_ids:
+            return {"success": False, "message": "No operations selected"}
+
+        await exec_sql(
+            "CALL public.sp_bulk_import_export_action(%s::UUID, %s, %s::text[]);",
+            (school_id, action, op_ids),
+            fetch=False
+        )
+        return {"success": True, "action": action, "count": len(op_ids), "message": f"Successfully performed {action} on {len(op_ids)} operations."}
+    except Exception as e:
+        logger.error(f"[Bulk Action Error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/import-export/history/{operation_id}")
+async def delete_import_export_operation(
+    operation_id: str,
+    school_id: str = "11111111-1111-1111-1111-111111111111"
+):
+    """Delete a single operation record via sp_delete_import_export_operation."""
+    try:
+        await exec_sql(
+            "CALL public.sp_delete_import_export_operation(%s::UUID, %s);",
+            (school_id, operation_id),
+            fetch=False
+        )
+        return {"success": True, "operation_id": operation_id, "message": "Operation deleted successfully."}
+    except Exception as e:
+        logger.error(f"[Delete Operation Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 

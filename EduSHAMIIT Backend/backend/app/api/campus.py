@@ -11,8 +11,8 @@ Provides high-performance endpoints executing PostgreSQL stored procedures and f
 - Streaming Data Export (CSV)
 - Cross-Module Reusable Room Allocations & Inspections
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status, UploadFile, File, Form
+from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any, Union
 from datetime import datetime, date, time
@@ -21,6 +21,8 @@ import io
 import csv
 import json
 import uuid
+import os
+import mimetypes
 import logging
 import asyncio
 import psycopg2
@@ -219,6 +221,52 @@ class InspectionPayload(BaseModel):
     next_inspection_date: Optional[str] = None
     findings: Optional[str] = None
     recommendations: Optional[str] = None
+
+
+class BuildingDocumentPayload(BaseModel):
+    id: Optional[str] = None
+    building_id: str
+    room_id: Optional[str] = None
+    document_name: str = Field(..., min_length=1, max_length=200)
+    document_type: Optional[str] = "Compliance"
+    file_url: str = Field(..., min_length=1)
+    file_size_bytes: Optional[int] = 0
+    mime_type: Optional[str] = "application/pdf"
+    issue_date: Optional[str] = None
+    expiry_date: Optional[str] = None
+    issuing_authority: Optional[str] = None
+    status: Optional[str] = "Valid"
+
+
+class CampusMaintenancePayload(BaseModel):
+    id: Optional[str] = None
+    building_id: str
+    floor_id: Optional[str] = None
+    room_id: Optional[str] = None
+    title: str = Field(..., min_length=1, max_length=200)
+    description: Optional[str] = None
+    request_type: Optional[str] = "Corrective"
+    priority: Optional[str] = "Medium"
+    status: Optional[str] = "Pending"
+    reported_by_name: Optional[str] = None
+    assigned_to_name: Optional[str] = None
+    preferred_date: Optional[str] = None
+    estimated_cost: Optional[float] = 0.0
+    actual_cost: Optional[float] = 0.0
+    resolution_notes: Optional[str] = None
+
+
+class BuildingOccupancyPayload(BaseModel):
+    id: Optional[str] = None
+    room_id: str
+    reference_module: Optional[str] = "General"
+    reference_name: Optional[str] = None
+    assignment_purpose: Optional[str] = "General Allocation"
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    assigned_to_name: Optional[str] = None
+    status: Optional[str] = "Active"
+    notes: Optional[str] = None
 
 
 # ============================================================================
@@ -990,3 +1038,566 @@ async def export_campus_data(
     except Exception as e:
         logger.error(f"Error exporting campus data: {e}")
         raise HTTPException(status_code=500, detail=f"Export error: {str(e)}")
+
+
+# ----------------------------------------------------------------------------
+# 11. Campus Image Upload & Serving
+# ----------------------------------------------------------------------------
+@router.post("/upload-image")
+async def upload_campus_image(
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+):
+    """Upload an image file (building, room, floor) and return an accessible URL."""
+    try:
+        content = await file.read()
+        if len(content) == 0:
+            raise HTTPException(status_code=400, detail="Uploaded image is empty")
+        if len(content) > 15 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="Image size exceeds 15MB limit")
+
+        content_type = file.content_type or "image/jpeg"
+        if not content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="File must be an image (JPEG, PNG, WebP)")
+
+        file_ext = os.path.splitext(file.filename or "")[1].lower()
+        if not file_ext:
+            file_ext = ".jpg" if "jpeg" in content_type else ".png"
+
+        safe_name = f"{uuid.uuid4().hex[:12]}_{os.path.basename(file.filename or 'campus_image' + file_ext)}"
+
+        # Save locally to assets/campus_images
+        upload_dir = os.path.abspath(os.path.join(os.getcwd(), "assets", "campus_images"))
+        os.makedirs(upload_dir, exist_ok=True)
+        local_path = os.path.join(upload_dir, safe_name)
+        with open(local_path, "wb") as f:
+            f.write(content)
+
+        file_url = f"/api/campus/images/{safe_name}"
+
+        # Attempt upload to Supabase Storage if configured
+        try:
+            from app.services.supabase_client import get_supabase
+            sb = get_supabase()
+            school_id = _get_school_id(user)
+            storage_path = f"campus/{school_id}/{safe_name}"
+            sb.storage.from_("campus-attachments").upload(
+                path=storage_path,
+                file=content,
+                file_options={"content-type": content_type}
+            )
+            public_url = sb.storage.from_("campus-attachments").get_public_url(storage_path)
+            if public_url:
+                file_url = public_url
+        except Exception as storage_err:
+            logger.info(f"[Campus Image Upload] Supabase Storage upload fallback: {storage_err}")
+
+        return {
+            "success": True,
+            "data": {
+                "file_name": file.filename,
+                "safe_name": safe_name,
+                "file_url": file_url,
+                "url": file_url,
+                "file_size": len(content),
+                "content_type": content_type
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Campus image upload failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Image upload failed: {str(e)}")
+
+
+@router.get("/images/{file_name}")
+async def get_campus_image(file_name: str):
+    """Serve locally uploaded campus images with browser caching."""
+    media_dirs = [
+        os.path.abspath(os.path.join(os.getcwd(), "assets", "campus_images")),
+        os.path.abspath(os.path.join(os.getcwd(), "assets", "uploads")),
+        os.path.abspath(os.path.join(os.getcwd(), "assets")),
+    ]
+    target_path = None
+    for d in media_dirs:
+        candidate = os.path.abspath(os.path.join(d, file_name))
+        if candidate.startswith(d) and os.path.exists(candidate) and os.path.isfile(candidate):
+            target_path = candidate
+            break
+
+    if not target_path:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    ext = os.path.splitext(file_name)[1].lower()
+    media_types = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+        ".svg": "image/svg+xml",
+    }
+    content_type = media_types.get(ext, "image/jpeg")
+    return FileResponse(target_path, media_type=content_type)
+
+
+# ----------------------------------------------------------------------------
+# 12. Building Documents CRUD
+# ----------------------------------------------------------------------------
+@router.get("/buildings/{building_id}/documents")
+async def list_building_documents(
+    building_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """List all compliance, insurance, architectural, and safety documents for a building."""
+    school_id = _get_school_id(user)
+    try:
+        sql = """
+            SELECT id, school_id, building_id, room_id, document_name, document_type,
+                   file_url, file_size_bytes, mime_type, issue_date, expiry_date,
+                   issuing_authority, status, created_at
+            FROM public.building_documents
+            WHERE building_id = %s::UUID AND school_id = %s::UUID AND deleted_at IS NULL
+            ORDER BY created_at DESC
+        """
+        rows = await exec_sql(sql, (building_id, school_id))
+        return {
+            "success": True,
+            "data": [_serialize_val(r) for r in rows]
+        }
+    except Exception as e:
+        logger.error(f"Error fetching building documents: {e}")
+        raise HTTPException(status_code=500, detail=f"Database query error: {str(e)}")
+
+
+@router.post("/buildings/{building_id}/documents")
+async def create_building_document(
+    building_id: str,
+    payload: BuildingDocumentPayload,
+    user: dict = Depends(get_current_user),
+):
+    """Add a compliance / building document record."""
+    school_id = _get_school_id(user)
+    user_id = _get_user_id(user)
+    try:
+        sql = """
+            INSERT INTO public.building_documents (
+                school_id, building_id, room_id, document_name, document_type,
+                file_url, file_size_bytes, mime_type, issue_date, expiry_date,
+                issuing_authority, status, uploaded_by, created_at
+            ) VALUES (
+                %s::UUID, %s::UUID, NULLIF(%s, '')::UUID, %s, %s,
+                %s, %s, %s, %s::DATE, %s::DATE,
+                %s, %s, %s::UUID, NOW()
+            ) RETURNING *;
+        """
+        params = (
+            school_id, building_id, payload.room_id, payload.document_name, payload.document_type,
+            payload.file_url, payload.file_size_bytes or 0, payload.mime_type or "application/pdf",
+            payload.issue_date, payload.expiry_date,
+            payload.issuing_authority, payload.status or "Valid", user_id
+        )
+        rows = await exec_sql(sql, params)
+        return {"success": True, "data": _serialize_val(rows[0])}
+    except Exception as e:
+        logger.error(f"Error adding building document: {e}")
+        raise HTTPException(status_code=500, detail=f"Database write error: {str(e)}")
+
+
+@router.put("/buildings/{building_id}/documents/{document_id}")
+async def update_building_document(
+    building_id: str,
+    document_id: str,
+    payload: BuildingDocumentPayload,
+    user: dict = Depends(get_current_user),
+):
+    """Update building document details."""
+    school_id = _get_school_id(user)
+    try:
+        sql = """
+            UPDATE public.building_documents SET
+                document_name = %s,
+                document_type = %s,
+                file_url = COALESCE(NULLIF(%s, ''), file_url),
+                issue_date = %s::DATE,
+                expiry_date = %s::DATE,
+                issuing_authority = %s,
+                status = %s
+            WHERE id = %s::UUID AND building_id = %s::UUID AND school_id = %s::UUID AND deleted_at IS NULL
+            RETURNING *;
+        """
+        params = (
+            payload.document_name, payload.document_type, payload.file_url,
+            payload.issue_date, payload.expiry_date,
+            payload.issuing_authority, payload.status or "Valid",
+            document_id, building_id, school_id
+        )
+        rows = await exec_sql(sql, params)
+        if not rows:
+            raise HTTPException(status_code=404, detail="Document not found")
+        return {"success": True, "data": _serialize_val(rows[0])}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating building document: {e}")
+        raise HTTPException(status_code=500, detail=f"Database write error: {str(e)}")
+
+
+@router.delete("/buildings/{building_id}/documents/{document_id}")
+async def delete_building_document(
+    building_id: str,
+    document_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """Soft delete building document."""
+    school_id = _get_school_id(user)
+    try:
+        sql = """
+            UPDATE public.building_documents
+            SET deleted_at = NOW()
+            WHERE id = %s::UUID AND building_id = %s::UUID AND school_id = %s::UUID
+            RETURNING id;
+        """
+        rows = await exec_sql(sql, (document_id, building_id, school_id))
+        if not rows:
+            raise HTTPException(status_code=404, detail="Document not found")
+        return {"success": True, "message": "Document deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting building document: {e}")
+        raise HTTPException(status_code=500, detail=f"Database execution error: {str(e)}")
+
+
+# ----------------------------------------------------------------------------
+# 13. Building Occupancy & Allocations CRUD
+# ----------------------------------------------------------------------------
+@router.get("/buildings/{building_id}/occupancy")
+async def get_building_occupancy(
+    building_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """Get building occupancy summary metrics and room allocations."""
+    school_id = _get_school_id(user)
+    try:
+        stats_sql = """
+            SELECT 
+                COALESCE(SUM(r.max_capacity), 0)::INT AS total_capacity,
+                COALESCE(SUM(r.current_occupancy), 0)::INT AS current_occupancy,
+                COUNT(r.id)::INT AS total_rooms,
+                COUNT(CASE WHEN r.assignment_status = 'Assigned' THEN 1 END)::INT AS occupied_rooms
+            FROM public.rooms r
+            WHERE r.building_id = %s::UUID AND r.school_id = %s::UUID AND r.deleted_at IS NULL
+        """
+        stats_rows = await exec_sql(stats_sql, (building_id, school_id))
+        stats = stats_rows[0] if stats_rows else {"total_capacity": 0, "current_occupancy": 0, "total_rooms": 0, "occupied_rooms": 0}
+        total_cap = stats["total_capacity"]
+        curr_occ = stats["current_occupancy"]
+        available_cap = max(0, total_cap - curr_occ)
+        occ_rate = round((curr_occ / total_cap * 100.0), 1) if total_cap > 0 else 0.0
+
+        alloc_sql = """
+            SELECT ra.id, ra.room_id, r.room_number, r.name AS room_name, f.name AS floor_name,
+                   ra.reference_module, ra.reference_name, ra.assignment_purpose,
+                   ra.start_date, ra.end_date, ra.assigned_to_name, ra.status, ra.notes,
+                   r.max_capacity, r.current_occupancy, ra.created_at
+            FROM public.room_assignments ra
+            JOIN public.rooms r ON ra.room_id = r.id
+            JOIN public.building_floors f ON r.floor_id = f.id
+            WHERE r.building_id = %s::UUID AND ra.school_id = %s::UUID AND ra.deleted_at IS NULL
+            ORDER BY ra.created_at DESC
+        """
+        alloc_rows = await exec_sql(alloc_sql, (building_id, school_id))
+
+        return {
+            "success": True,
+            "metrics": {
+                "total_capacity": total_cap,
+                "current_occupancy": curr_occ,
+                "available_capacity": available_cap,
+                "occupancy_rate": occ_rate,
+                "total_rooms": stats["total_rooms"],
+                "occupied_rooms": stats["occupied_rooms"],
+            },
+            "data": [_serialize_val(r) for r in alloc_rows]
+        }
+    except Exception as e:
+        logger.error(f"Error fetching building occupancy: {e}")
+        raise HTTPException(status_code=500, detail=f"Database query error: {str(e)}")
+
+
+@router.post("/buildings/{building_id}/occupancy")
+async def create_building_occupancy(
+    building_id: str,
+    payload: BuildingOccupancyPayload,
+    user: dict = Depends(get_current_user),
+):
+    """Allocate a room in this building."""
+    school_id = _get_school_id(user)
+    user_id = _get_user_id(user)
+    try:
+        sql = """
+            INSERT INTO public.room_assignments (
+                school_id, room_id, reference_module, reference_name,
+                assignment_purpose, start_date, end_date, assigned_to_name,
+                status, notes, created_by
+            ) VALUES (
+                %s::UUID, %s::UUID, %s, %s,
+                %s, %s::DATE, %s::DATE, %s,
+                %s, %s, %s::UUID
+            ) RETURNING *;
+        """
+        params = (
+            school_id, payload.room_id, payload.reference_module or "General", payload.reference_name,
+            payload.assignment_purpose or "General Allocation", payload.start_date, payload.end_date,
+            payload.assigned_to_name, payload.status or "Active", payload.notes, user_id
+        )
+        rows = await exec_sql(sql, params)
+
+        # Mark room as Assigned and update occupancy
+        await exec_sql(
+            """
+            UPDATE public.rooms
+            SET assignment_status = 'Assigned',
+                current_occupancy = CASE WHEN current_occupancy = 0 THEN max_capacity ELSE current_occupancy END
+            WHERE id = %s::UUID AND school_id = %s::UUID
+            """,
+            (payload.room_id, school_id),
+            fetch=False
+        )
+
+        return {"success": True, "data": _serialize_val(rows[0])}
+    except Exception as e:
+        logger.error(f"Error creating occupancy: {e}")
+        raise HTTPException(status_code=500, detail=f"Database write error: {str(e)}")
+
+
+@router.put("/buildings/{building_id}/occupancy/{assignment_id}")
+async def update_building_occupancy(
+    building_id: str,
+    assignment_id: str,
+    payload: BuildingOccupancyPayload,
+    user: dict = Depends(get_current_user),
+):
+    """Update occupancy allocation details."""
+    school_id = _get_school_id(user)
+    try:
+        sql = """
+            UPDATE public.room_assignments SET
+                reference_module = %s,
+                reference_name = %s,
+                assignment_purpose = %s,
+                start_date = %s::DATE,
+                end_date = %s::DATE,
+                assigned_to_name = %s,
+                status = %s,
+                notes = %s,
+                updated_at = NOW()
+            WHERE id = %s::UUID AND school_id = %s::UUID AND deleted_at IS NULL
+            RETURNING *;
+        """
+        params = (
+            payload.reference_module or "General", payload.reference_name, payload.assignment_purpose,
+            payload.start_date, payload.end_date, payload.assigned_to_name, payload.status or "Active",
+            payload.notes, assignment_id, school_id
+        )
+        rows = await exec_sql(sql, params)
+        if not rows:
+            raise HTTPException(status_code=404, detail="Occupancy record not found")
+        return {"success": True, "data": _serialize_val(rows[0])}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating occupancy: {e}")
+        raise HTTPException(status_code=500, detail=f"Database write error: {str(e)}")
+
+
+@router.delete("/buildings/{building_id}/occupancy/{assignment_id}")
+async def delete_building_occupancy(
+    building_id: str,
+    assignment_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """Release / deallocate occupancy and free room."""
+    school_id = _get_school_id(user)
+    try:
+        sql = """
+            UPDATE public.room_assignments
+            SET deleted_at = NOW(), status = 'Released'
+            WHERE id = %s::UUID AND school_id = %s::UUID
+            RETURNING room_id;
+        """
+        rows = await exec_sql(sql, (assignment_id, school_id))
+        if not rows:
+            raise HTTPException(status_code=404, detail="Occupancy record not found")
+
+        room_id = rows[0]["room_id"]
+        # Check if any active assignments remain for room
+        active_check = await exec_sql(
+            "SELECT COUNT(id)::INT AS cnt FROM public.room_assignments WHERE room_id = %s::UUID AND deleted_at IS NULL AND status = 'Active'",
+            (room_id,)
+        )
+        if active_check and active_check[0]["cnt"] == 0:
+            await exec_sql(
+                "UPDATE public.rooms SET assignment_status = 'Unassigned', current_occupancy = 0 WHERE id = %s::UUID",
+                (room_id,),
+                fetch=False
+            )
+
+        return {"success": True, "message": "Allocation released successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting occupancy: {e}")
+        raise HTTPException(status_code=500, detail=f"Database execution error: {str(e)}")
+
+
+# ----------------------------------------------------------------------------
+# 14. Building Maintenance Requests CRUD
+# ----------------------------------------------------------------------------
+@router.get("/buildings/{building_id}/maintenance")
+async def list_building_maintenance(
+    building_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """List maintenance requests and work orders for a building."""
+    school_id = _get_school_id(user)
+    try:
+        sql = """
+            SELECT mr.id, mr.request_code, mr.title, mr.description, mr.request_type,
+                   mr.priority, mr.status, mr.building_id, mr.floor_id, mr.room_id,
+                   r.room_number, f.name AS floor_name, mr.reported_by_name, mr.assigned_to_name,
+                   mr.scheduled_at, mr.preferred_date, mr.estimated_cost, mr.actual_cost,
+                   mr.resolution_notes, mr.created_at
+            FROM public.maintenance_requests mr
+            LEFT JOIN public.rooms r ON mr.room_id = r.id
+            LEFT JOIN public.building_floors f ON mr.floor_id = f.id
+            WHERE (mr.building_id = %s::UUID OR r.building_id = %s::UUID)
+              AND mr.school_id = %s::UUID AND mr.deleted_at IS NULL
+            ORDER BY mr.created_at DESC
+        """
+        rows = await exec_sql(sql, (building_id, building_id, school_id))
+        return {
+            "success": True,
+            "data": [_serialize_val(r) for r in rows]
+        }
+    except Exception as e:
+        logger.error(f"Error listing building maintenance: {e}")
+        raise HTTPException(status_code=500, detail=f"Database query error: {str(e)}")
+
+
+@router.post("/buildings/{building_id}/maintenance")
+async def create_building_maintenance(
+    building_id: str,
+    payload: CampusMaintenancePayload,
+    user: dict = Depends(get_current_user),
+):
+    """Create a new maintenance request for this building."""
+    school_id = _get_school_id(user)
+    user_id = _get_user_id(user)
+    req_code = f"MT-{uuid.uuid4().hex[:6].upper()}"
+    try:
+        sql = """
+            INSERT INTO public.maintenance_requests (
+                school_id, request_code, title, description, request_type,
+                priority, status, building_id, floor_id, room_id,
+                reported_by_name, reported_by_user_id, assigned_to_name,
+                preferred_date, estimated_cost, actual_cost, resolution_notes,
+                created_by, created_at, updated_at
+            ) VALUES (
+                %s::UUID, %s, %s, %s, %s,
+                %s, %s, %s::UUID, NULLIF(%s, '')::UUID, NULLIF(%s, '')::UUID,
+                %s, %s::UUID, %s,
+                %s::DATE, %s, %s, %s,
+                %s::UUID, NOW(), NOW()
+            ) RETURNING *;
+        """
+        params = (
+            school_id, req_code, payload.title, payload.description, payload.request_type or "Corrective",
+            payload.priority or "Medium", payload.status or "Pending", building_id, payload.floor_id, payload.room_id,
+            payload.reported_by_name or user.get("full_name") or "Campus Administrator", user_id, payload.assigned_to_name,
+            payload.preferred_date, payload.estimated_cost or 0.0, payload.actual_cost or 0.0, payload.resolution_notes,
+            user_id
+        )
+        rows = await exec_sql(sql, params)
+        return {"success": True, "data": _serialize_val(rows[0])}
+    except Exception as e:
+        logger.error(f"Error creating building maintenance: {e}")
+        raise HTTPException(status_code=500, detail=f"Database write error: {str(e)}")
+
+
+@router.put("/buildings/{building_id}/maintenance/{request_id}")
+async def update_building_maintenance(
+    building_id: str,
+    request_id: str,
+    payload: CampusMaintenancePayload,
+    user: dict = Depends(get_current_user),
+):
+    """Update maintenance request details or status."""
+    school_id = _get_school_id(user)
+    user_id = _get_user_id(user)
+    try:
+        sql = """
+            UPDATE public.maintenance_requests SET
+                title = %s,
+                description = %s,
+                request_type = %s,
+                priority = %s,
+                status = %s,
+                floor_id = NULLIF(%s, '')::UUID,
+                room_id = NULLIF(%s, '')::UUID,
+                assigned_to_name = %s,
+                preferred_date = %s::DATE,
+                estimated_cost = %s,
+                actual_cost = %s,
+                resolution_notes = %s,
+                resolved_at = CASE WHEN %s = 'Completed' AND resolved_at IS NULL THEN NOW() ELSE resolved_at END,
+                updated_by = %s::UUID,
+                updated_at = NOW()
+            WHERE id = %s::UUID AND school_id = %s::UUID AND deleted_at IS NULL
+            RETURNING *;
+        """
+        params = (
+            payload.title, payload.description, payload.request_type or "Corrective",
+            payload.priority or "Medium", payload.status or "Pending",
+            payload.floor_id, payload.room_id, payload.assigned_to_name,
+            payload.preferred_date, payload.estimated_cost or 0.0, payload.actual_cost or 0.0,
+            payload.resolution_notes, payload.status, user_id,
+            request_id, school_id
+        )
+        rows = await exec_sql(sql, params)
+        if not rows:
+            raise HTTPException(status_code=404, detail="Maintenance request not found")
+        return {"success": True, "data": _serialize_val(rows[0])}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating building maintenance: {e}")
+        raise HTTPException(status_code=500, detail=f"Database write error: {str(e)}")
+
+
+@router.delete("/buildings/{building_id}/maintenance/{request_id}")
+async def delete_building_maintenance(
+    building_id: str,
+    request_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """Soft-delete a maintenance request."""
+    school_id = _get_school_id(user)
+    user_id = _get_user_id(user)
+    try:
+        sql = """
+            UPDATE public.maintenance_requests
+            SET deleted_at = NOW(), deleted_by = %s::UUID
+            WHERE id = %s::UUID AND school_id = %s::UUID
+            RETURNING id;
+        """
+        rows = await exec_sql(sql, (user_id, request_id, school_id))
+        if not rows:
+            raise HTTPException(status_code=404, detail="Maintenance request not found")
+        return {"success": True, "message": "Maintenance request deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting building maintenance: {e}")
+        raise HTTPException(status_code=500, detail=f"Database execution error: {str(e)}")

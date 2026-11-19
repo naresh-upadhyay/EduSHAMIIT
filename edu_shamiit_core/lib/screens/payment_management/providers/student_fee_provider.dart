@@ -187,40 +187,14 @@ class StudentFeeNotifier extends StateNotifier<StudentFeeState> {
       search: state.searchQuery,
       className: state.selectedClass,
       status: statusFilter,
+      sortBy: state.sortColumn ?? 'name',
+      sortOrder: state.sortAscending ? 'ASC' : 'DESC',
       page: state.currentPage,
       pageSize: state.pageSize,
     );
 
-    var list = data['students'] as List<StudentFeeRosterItem>? ?? [];
+    final list = data['students'] as List<StudentFeeRosterItem>? ?? [];
     final pagination = data['pagination'] as Map<String, dynamic>? ?? {};
-
-    // Apply client sorting if active
-    if (state.sortColumn != null) {
-      list = List.from(list);
-      list.sort((a, b) {
-        int cmp = 0;
-        switch (state.sortColumn) {
-          case 'name':
-            cmp = a.studentName.compareTo(b.studentName);
-            break;
-          case 'billed':
-            cmp = a.totalBilled.compareTo(b.totalBilled);
-            break;
-          case 'paid':
-            cmp = a.paidAmount.compareTo(b.paidAmount);
-            break;
-          case 'balance':
-            cmp = a.balanceAmount.compareTo(b.balanceAmount);
-            break;
-          case 'status':
-            cmp = a.status.compareTo(b.status);
-            break;
-          default:
-            cmp = a.studentName.compareTo(b.studentName);
-        }
-        return state.sortAscending ? cmp : -cmp;
-      });
-    }
 
     state = state.copyWith(
       studentFeesRoster: list,
@@ -285,13 +259,24 @@ class StudentFeeNotifier extends StateNotifier<StudentFeeState> {
     }
   }
 
+  void setPageSize(int size) {
+    if (state.pageSize != size) {
+      state = state.copyWith(pageSize: size, currentPage: 1);
+      loadRoster();
+    }
+  }
+
   void toggleSort(String column) {
     if (state.sortColumn == column) {
-      state = state.copyWith(sortAscending: !state.sortAscending);
+      state = state.copyWith(sortAscending: !state.sortAscending, currentPage: 1);
     } else {
-      state = state.copyWith(sortColumn: column, sortAscending: true);
+      state = state.copyWith(sortColumn: column, sortAscending: true, currentPage: 1);
     }
     loadRoster();
+  }
+
+  void clearSelection() {
+    state = state.copyWith(selectedStudentIds: {});
   }
 
   Future<void> openStudentDrawer(String studentId) async {

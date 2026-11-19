@@ -9,7 +9,11 @@ import 'widgets/campus_kpi_cards.dart';
 import 'widgets/buildings/building_left_panel.dart';
 import 'widgets/buildings/building_center_panel.dart';
 import 'widgets/buildings/building_right_details_panel.dart';
+import 'package:file_picker/file_picker.dart';
 import 'widgets/dialogs/add_edit_building_dialog.dart';
+import 'widgets/dialogs/add_edit_building_document_dialog.dart';
+import 'widgets/dialogs/add_edit_building_maintenance_dialog.dart';
+import 'widgets/dialogs/add_edit_building_occupancy_dialog.dart';
 import 'widgets/dialogs/add_edit_floor_dialog.dart';
 import 'widgets/dialogs/add_edit_room_dialog.dart';
 import 'widgets/dialogs/bulk_create_rooms_dialog.dart';
@@ -222,8 +226,8 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
       builder: (_) => AddEditRoomDialog(
         building: building,
         floors: floors,
-        onSaved: () {
-          ref.read(campusProvider.notifier).loadBuildingDetails(building.id);
+        onSavedWithFloor: (floorId) {
+          ref.read(campusProvider.notifier).onRoomCreated(building.id, targetFloorId: floorId);
           _showSnackbar('Room created successfully!');
         },
       ),
@@ -238,8 +242,8 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
         building: building,
         floors: floors,
         room: room,
-        onSaved: () {
-          ref.read(campusProvider.notifier).loadBuildingDetails(building.id);
+        onSavedWithFloor: (floorId) {
+          ref.read(campusProvider.notifier).onRoomCreated(building.id, targetFloorId: floorId);
           _showSnackbar('Room updated successfully!');
         },
       ),
@@ -339,6 +343,216 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
         },
       ),
     );
+  }
+
+  void _updateBuildingPhoto(BuildingModel building) async {
+    try {
+      final res = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+        withData: true,
+      );
+      if (res != null && res.files.isNotEmpty) {
+        final file = res.files.first;
+        if (file.bytes != null) {
+          _showSnackbar('Uploading building image...');
+          final uploadedUrl = await CampusApiService.instance.uploadImage(file.bytes!, file.name);
+          if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+            await CampusApiService.instance.saveBuilding({'image_url': uploadedUrl}, buildingId: building.id);
+            ref.read(campusProvider.notifier).loadAll();
+            _showSnackbar('Building photo updated successfully!');
+          }
+        }
+      }
+    } catch (e) {
+      _showSnackbar('Failed to update image: $e', isError: true);
+    }
+  }
+
+  // Occupancy CRUD Dialogs
+  void _openAddOccupancyDialog(BuildingModel building, List<RoomModel> rooms) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AddEditBuildingOccupancyDialog(
+        building: building,
+        rooms: rooms,
+        onSaved: () {
+          ref.read(campusProvider.notifier).loadBuildingOccupancy(building.id);
+          _showSnackbar('Space allocated successfully!');
+        },
+      ),
+    );
+  }
+
+  void _openEditOccupancyDialog(BuildingModel building, List<RoomModel> rooms, BuildingOccupancyModel occupancy) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AddEditBuildingOccupancyDialog(
+        building: building,
+        rooms: rooms,
+        occupancy: occupancy,
+        onSaved: () {
+          ref.read(campusProvider.notifier).loadBuildingOccupancy(building.id);
+          _showSnackbar('Allocation updated successfully!');
+        },
+      ),
+    );
+  }
+
+  void _deleteOccupancy(BuildingModel building, BuildingOccupancyModel occupancy) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Release Allocation for ${occupancy.referenceName}?'),
+        content: const Text('Are you sure you want to release this space assignment?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            child: const Text('Release Space'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final success = await ref.read(campusProvider.notifier).deleteBuildingOccupancy(building.id, occupancy.id);
+      if (success) {
+        _showSnackbar('Space assignment released.');
+      } else {
+        _showSnackbar('Failed to release space assignment.', isError: true);
+      }
+    }
+  }
+
+  // Maintenance CRUD Dialogs
+  void _openAddMaintenanceDialog(BuildingModel building, List<BuildingFloorModel> floors, List<RoomModel> rooms) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AddEditBuildingMaintenanceDialog(
+        building: building,
+        floors: floors,
+        rooms: rooms,
+        onSaved: () {
+          ref.read(campusProvider.notifier).loadBuildingMaintenance(building.id);
+          _showSnackbar('Maintenance request logged successfully!');
+        },
+      ),
+    );
+  }
+
+  void _openEditMaintenanceDialog(BuildingModel building, List<BuildingFloorModel> floors, List<RoomModel> rooms, BuildingMaintenanceModel m) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AddEditBuildingMaintenanceDialog(
+        building: building,
+        floors: floors,
+        rooms: rooms,
+        maintenance: m,
+        onSaved: () {
+          ref.read(campusProvider.notifier).loadBuildingMaintenance(building.id);
+          _showSnackbar('Maintenance request updated successfully!');
+        },
+      ),
+    );
+  }
+
+  void _deleteMaintenance(BuildingModel building, BuildingMaintenanceModel m) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete Request ${m.requestCode}?'),
+        content: const Text('Are you sure you want to delete this maintenance request?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            child: const Text('Delete Request'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final success = await ref.read(campusProvider.notifier).deleteBuildingMaintenance(building.id, m.id);
+      if (success) {
+        _showSnackbar('Maintenance request deleted.');
+      } else {
+        _showSnackbar('Failed to delete maintenance request.', isError: true);
+      }
+    }
+  }
+
+  void _quickUpdateMaintenanceStatus(BuildingModel building, BuildingMaintenanceModel m, String status) async {
+    final success = await ref.read(campusProvider.notifier).updateBuildingMaintenanceStatus(building.id, m.id, status);
+    if (success) {
+      _showSnackbar('Request status updated to $status.');
+    } else {
+      _showSnackbar('Failed to update status.', isError: true);
+    }
+  }
+
+  // Documents CRUD Dialogs
+  void _openAddDocumentDialog(BuildingModel building) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AddEditBuildingDocumentDialog(
+        building: building,
+        onSaved: () {
+          ref.read(campusProvider.notifier).loadBuildingDocuments(building.id);
+          _showSnackbar('Document uploaded successfully!');
+        },
+      ),
+    );
+  }
+
+  void _openEditDocumentDialog(BuildingModel building, BuildingDocumentModel doc) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AddEditBuildingDocumentDialog(
+        building: building,
+        document: doc,
+        onSaved: () {
+          ref.read(campusProvider.notifier).loadBuildingDocuments(building.id);
+          _showSnackbar('Document updated successfully!');
+        },
+      ),
+    );
+  }
+
+  void _deleteDocument(BuildingModel building, BuildingDocumentModel doc) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete ${doc.documentName}?'),
+        content: const Text('Are you sure you want to delete this document attachment?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            child: const Text('Delete Document'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final success = await ref.read(campusProvider.notifier).deleteBuildingDocument(building.id, doc.id);
+      if (success) {
+        _showSnackbar('Document deleted.');
+      } else {
+        _showSnackbar('Failed to delete document.', isError: true);
+      }
+    }
   }
 
   void _showSnackbar(String msg, {bool isError = false}) {
@@ -518,6 +732,22 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
                                   onEditRoom: (r) => _openEditRoomDialog(bld, state.floors, r),
                                   onManageEquipment: _openEquipmentDialog,
                                   onDeleteRoom: (r) => _deleteRoom(bld, r),
+                                  occupancyList: state.buildingOccupancy,
+                                  isOccupancyLoading: state.isOccupancyLoading,
+                                  onAddOccupancy: () => _openAddOccupancyDialog(bld, state.rooms),
+                                  onEditOccupancy: (occ) => _openEditOccupancyDialog(bld, state.rooms, occ),
+                                  onDeleteOccupancy: (occ) => _deleteOccupancy(bld, occ),
+                                  maintenanceList: state.buildingMaintenance,
+                                  isMaintenanceLoading: state.isMaintenanceLoading,
+                                  onAddMaintenance: () => _openAddMaintenanceDialog(bld, state.floors, state.rooms),
+                                  onEditMaintenance: (m) => _openEditMaintenanceDialog(bld, state.floors, state.rooms, m),
+                                  onDeleteMaintenance: (m) => _deleteMaintenance(bld, m),
+                                  onQuickUpdateMaintenanceStatus: (m, status) => _quickUpdateMaintenanceStatus(bld, m, status),
+                                  documentsList: state.buildingDocuments,
+                                  isDocumentsLoading: state.isDocumentsLoading,
+                                  onAddDocument: () => _openAddDocumentDialog(bld),
+                                  onEditDocument: (d) => _openEditDocumentDialog(bld, d),
+                                  onDeleteDocument: (d) => _deleteDocument(bld, d),
                                 ),
                               ),
                               const SizedBox(width: 14),
@@ -527,6 +757,7 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
                                 width: 290,
                                 child: BuildingRightDetailsPanel(
                                   building: bld,
+                                  onUpdateImage: () => _updateBuildingPhoto(bld),
                                   onAddRoom: () => _openAddRoomDialog(bld, state.floors),
                                   onAllocateRoom: () {
                                     if (state.rooms.isNotEmpty) {
@@ -597,6 +828,22 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
                                   onEditRoom: (r) => _openEditRoomDialog(bld, state.floors, r),
                                   onManageEquipment: _openEquipmentDialog,
                                   onDeleteRoom: (r) => _deleteRoom(bld, r),
+                                  occupancyList: state.buildingOccupancy,
+                                  isOccupancyLoading: state.isOccupancyLoading,
+                                  onAddOccupancy: () => _openAddOccupancyDialog(bld, state.rooms),
+                                  onEditOccupancy: (occ) => _openEditOccupancyDialog(bld, state.rooms, occ),
+                                  onDeleteOccupancy: (occ) => _deleteOccupancy(bld, occ),
+                                  maintenanceList: state.buildingMaintenance,
+                                  isMaintenanceLoading: state.isMaintenanceLoading,
+                                  onAddMaintenance: () => _openAddMaintenanceDialog(bld, state.floors, state.rooms),
+                                  onEditMaintenance: (m) => _openEditMaintenanceDialog(bld, state.floors, state.rooms, m),
+                                  onDeleteMaintenance: (m) => _deleteMaintenance(bld, m),
+                                  onQuickUpdateMaintenanceStatus: (m, status) => _quickUpdateMaintenanceStatus(bld, m, status),
+                                  documentsList: state.buildingDocuments,
+                                  isDocumentsLoading: state.isDocumentsLoading,
+                                  onAddDocument: () => _openAddDocumentDialog(bld),
+                                  onEditDocument: (d) => _openEditDocumentDialog(bld, d),
+                                  onDeleteDocument: (d) => _deleteDocument(bld, d),
                                 ),
                               ),
                             ],
@@ -696,6 +943,22 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
                                   onEditRoom: (r) => _openEditRoomDialog(bld, state.floors, r),
                                   onManageEquipment: _openEquipmentDialog,
                                   onDeleteRoom: (r) => _deleteRoom(bld, r),
+                                  occupancyList: state.buildingOccupancy,
+                                  isOccupancyLoading: state.isOccupancyLoading,
+                                  onAddOccupancy: () => _openAddOccupancyDialog(bld, state.rooms),
+                                  onEditOccupancy: (occ) => _openEditOccupancyDialog(bld, state.rooms, occ),
+                                  onDeleteOccupancy: (occ) => _deleteOccupancy(bld, occ),
+                                  maintenanceList: state.buildingMaintenance,
+                                  isMaintenanceLoading: state.isMaintenanceLoading,
+                                  onAddMaintenance: () => _openAddMaintenanceDialog(bld, state.floors, state.rooms),
+                                  onEditMaintenance: (m) => _openEditMaintenanceDialog(bld, state.floors, state.rooms, m),
+                                  onDeleteMaintenance: (m) => _deleteMaintenance(bld, m),
+                                  onQuickUpdateMaintenanceStatus: (m, status) => _quickUpdateMaintenanceStatus(bld, m, status),
+                                  documentsList: state.buildingDocuments,
+                                  isDocumentsLoading: state.isDocumentsLoading,
+                                  onAddDocument: () => _openAddDocumentDialog(bld),
+                                  onEditDocument: (d) => _openEditDocumentDialog(bld, d),
+                                  onDeleteDocument: (d) => _deleteDocument(bld, d),
                                 ),
                               ],
                             ),

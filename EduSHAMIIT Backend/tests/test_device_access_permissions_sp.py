@@ -122,6 +122,65 @@ def test_bulk_device_user_access_action():
     assert bulk_res["success"] is True
     assert bulk_res["action"] == "activate"
 
+def test_device_access_policies_delegations_requests_logs():
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # Policies
+    cur.execute("SELECT public.fn_list_device_access_policies(NULL::UUID);")
+    p_res = cur.fetchone()[0]
+    assert p_res["success"] is True
+    assert len(p_res["policies"]) > 0
+
+    # Delegations
+    cur.execute("SELECT public.fn_list_device_access_delegations(NULL::UUID);")
+    d_res = cur.fetchone()[0]
+    assert d_res["success"] is True
+
+    # Requests
+    cur.execute("SELECT public.fn_list_device_access_requests(NULL::UUID);")
+    r_res = cur.fetchone()[0]
+    assert r_res["success"] is True
+
+    # Audit Logs
+    cur.execute("SELECT public.fn_list_device_security_audit_logs(50, NULL::TEXT);")
+    a_res = cur.fetchone()[0]
+    assert a_res["success"] is True
+
+    conn.close()
+
+def test_matrix_get_and_save():
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("SELECT public.fn_device_access_dropdown_options(NULL);")
+    opts = cur.fetchone()[0]
+    role_id = opts["roles"][0]["id"]
+
+    # Get matrix
+    cur.execute("SELECT public.fn_get_role_permissions_matrix(%s::UUID);", (role_id,))
+    m_res = cur.fetchone()[0]
+    assert m_res["success"] is True
+    assert len(m_res["matrix"]) > 0
+
+    # Save matrix
+    matrix_payload = [
+        {
+            "resource": "Devices & Groups",
+            "can_view": True,
+            "can_control": True,
+            "can_configure": True,
+            "can_schedule": False,
+            "can_delete": False,
+            "can_export": True
+        }
+    ]
+    cur.execute("SELECT public.sp_save_role_permissions_matrix(%s::UUID, %s::JSONB);", (role_id, json.dumps(matrix_payload)))
+    save_res = cur.fetchone()[0]
+    assert save_res["success"] is True
+
+    conn.close()
+
 if __name__ == "__main__":
     test_device_access_dashboard()
     test_device_access_dropdown_options()
@@ -129,4 +188,6 @@ if __name__ == "__main__":
     test_list_device_user_access()
     test_assign_and_revoke_user_access()
     test_bulk_device_user_access_action()
-    print("All 6 backend tests passed successfully!")
+    test_device_access_policies_delegations_requests_logs()
+    test_matrix_get_and_save()
+    print("All 8 backend tests passed successfully!")

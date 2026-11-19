@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../models/campus_models.dart';
+import 'documents_subtab_view.dart';
 import 'floors_subtab_view.dart';
+import 'maintenance_subtab_view.dart';
+import 'occupancy_subtab_view.dart';
 import 'rooms_subtab_view.dart';
 
 class BuildingCenterPanel extends StatelessWidget {
@@ -41,6 +44,28 @@ class BuildingCenterPanel extends StatelessWidget {
   final ValueChanged<RoomModel> onManageEquipment;
   final ValueChanged<RoomModel> onDeleteRoom;
 
+  // Occupancy Props
+  final List<BuildingOccupancyModel> occupancyList;
+  final bool isOccupancyLoading;
+  final VoidCallback? onAddOccupancy;
+  final ValueChanged<BuildingOccupancyModel>? onEditOccupancy;
+  final ValueChanged<BuildingOccupancyModel>? onDeleteOccupancy;
+
+  // Maintenance Props
+  final List<BuildingMaintenanceModel> maintenanceList;
+  final bool isMaintenanceLoading;
+  final VoidCallback? onAddMaintenance;
+  final ValueChanged<BuildingMaintenanceModel>? onEditMaintenance;
+  final ValueChanged<BuildingMaintenanceModel>? onDeleteMaintenance;
+  final void Function(BuildingMaintenanceModel, String)? onQuickUpdateMaintenanceStatus;
+
+  // Documents Props
+  final List<BuildingDocumentModel> documentsList;
+  final bool isDocumentsLoading;
+  final VoidCallback? onAddDocument;
+  final ValueChanged<BuildingDocumentModel>? onEditDocument;
+  final ValueChanged<BuildingDocumentModel>? onDeleteDocument;
+
   const BuildingCenterPanel({
     super.key,
     required this.building,
@@ -75,6 +100,22 @@ class BuildingCenterPanel extends StatelessWidget {
     required this.onEditRoom,
     required this.onManageEquipment,
     required this.onDeleteRoom,
+    this.occupancyList = const [],
+    this.isOccupancyLoading = false,
+    this.onAddOccupancy,
+    this.onEditOccupancy,
+    this.onDeleteOccupancy,
+    this.maintenanceList = const [],
+    this.isMaintenanceLoading = false,
+    this.onAddMaintenance,
+    this.onEditMaintenance,
+    this.onDeleteMaintenance,
+    this.onQuickUpdateMaintenanceStatus,
+    this.documentsList = const [],
+    this.isDocumentsLoading = false,
+    this.onAddDocument,
+    this.onEditDocument,
+    this.onDeleteDocument,
   });
 
   @override
@@ -444,11 +485,36 @@ class BuildingCenterPanel extends StatelessWidget {
               onDeleteRoom: onDeleteRoom,
             )
           else if (activeSubTab == 2)
-            _buildOccupancySubtab(isDark)
+            OccupancySubtabView(
+              building: building,
+              occupancyList: occupancyList,
+              rooms: rooms,
+              isLoading: isOccupancyLoading,
+              onAddOccupancy: onAddOccupancy ?? () {},
+              onEditOccupancy: onEditOccupancy ?? (_) {},
+              onDeleteOccupancy: onDeleteOccupancy ?? (_) {},
+            )
           else if (activeSubTab == 3)
-            _buildMaintenanceSubtab(isDark)
+            MaintenanceSubtabView(
+              building: building,
+              maintenanceList: maintenanceList,
+              floors: floors,
+              rooms: rooms,
+              isLoading: isMaintenanceLoading,
+              onAddMaintenance: onAddMaintenance ?? () {},
+              onEditMaintenance: onEditMaintenance ?? (_) {},
+              onDeleteMaintenance: onDeleteMaintenance ?? (_) {},
+              onQuickUpdateStatus: onQuickUpdateMaintenanceStatus ?? (_, __) {},
+            )
           else
-            _buildDocumentsSubtab(isDark),
+            DocumentsSubtabView(
+              building: building,
+              documents: documentsList,
+              isLoading: isDocumentsLoading,
+              onAddDocument: onAddDocument ?? () {},
+              onEditDocument: onEditDocument ?? (_) {},
+              onDeleteDocument: onDeleteDocument ?? (_) {},
+            ),
         ],
       ),
     );
@@ -569,78 +635,7 @@ class BuildingCenterPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildOccupancySubtab(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Occupancy Analysis', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 12),
-          Text(
-            'Current occupied capacity is ${building.currentOccupancy} students/staff out of ${building.totalCapacity} maximum capacity (${building.occupancyRate}%). 41 available slots are ready for immediate allocation.',
-            style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildMaintenanceSubtab(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Maintenance & Facility Inspections', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-          SizedBox(height: 12),
-          Text(
-            'All critical systems (Fire safety, Water pump, HVAC, Electrical earthing) are up to date. 1 fixture (Exhaust Fume Hood) is currently undergoing scheduled service.',
-            style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDocumentsSubtab(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Building Compliance & Documents', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-          SizedBox(height: 12),
-          ListTile(
-            leading: Icon(Icons.picture_as_pdf, color: Colors.red),
-            title: Text('Fire Safety NOC & Compliance Certificate', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-            subtitle: Text('Valid until Dec 31, 2028 • Karnataka Fire Services'),
-          ),
-          Divider(),
-          ListTile(
-            leading: Icon(Icons.picture_as_pdf, color: Colors.red),
-            title: Text('Municipal Occupancy Certificate', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-            subtitle: Text('Valid until Jun 30, 2030 • BBMP Bangalore'),
-          ),
-        ],
-      ),
-    );
-  }
 
   String _formatNumber(int val) {
     if (val >= 1000) {

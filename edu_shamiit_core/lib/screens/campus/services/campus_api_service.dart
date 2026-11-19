@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import '../../../config/app_config.dart';
 import '../../../services/api_service.dart';
 import '../../../utils/download_helper.dart';
@@ -290,5 +291,139 @@ class CampusApiService {
       '${AppConfig.apiBaseUrl}$url',
       'campus_${exportType}_${DateTime.now().millisecondsSinceEpoch}.csv',
     );
+  }
+
+  // 13. Image Upload
+  Future<String?> uploadImage(Uint8List bytes, String filename) async {
+    try {
+      final res = await _api.multipartPostBytes(
+        '/v1/campus/upload-image',
+        bytes,
+        filename,
+        'file',
+      );
+      if (res['success'] == true) {
+        return (res['data']?['url'] ?? res['data']?['file_url'])?.toString();
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // 14. Building Documents CRUD
+  Future<List<BuildingDocumentModel>> getBuildingDocuments(String buildingId) async {
+    try {
+      final res = await _api.get('/v1/campus/buildings/$buildingId/documents', useCache: false);
+      if (res['data'] is List) {
+        return (res['data'] as List)
+            .map((e) => BuildingDocumentModel.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<Map<String, dynamic>> saveBuildingDocument(
+    String buildingId,
+    Map<String, dynamic> payload, {
+    String? docId,
+  }) async {
+    try {
+      if (docId != null && docId.isNotEmpty) {
+        return await _api.put('/v1/campus/buildings/$buildingId/documents/$docId', payload);
+      } else {
+        return await _api.post('/v1/campus/buildings/$buildingId/documents', payload);
+      }
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteBuildingDocument(String buildingId, String docId) async {
+    try {
+      return await _api.delete('/v1/campus/buildings/$buildingId/documents/$docId');
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // 15. Building Occupancy CRUD
+  Future<Map<String, dynamic>> getBuildingOccupancy(String buildingId) async {
+    try {
+      final res = await _api.get('/v1/campus/buildings/$buildingId/occupancy', useCache: false);
+      final list = (res['data'] as List?)
+              ?.map((e) => BuildingOccupancyModel.fromJson(Map<String, dynamic>.from(e as Map)))
+              .toList() ??
+          <BuildingOccupancyModel>[];
+      final metrics = (res['metrics'] as Map<String, dynamic>?) ?? {};
+      return {
+        'metrics': metrics,
+        'data': list,
+      };
+    } catch (_) {}
+    return {
+      'metrics': <String, dynamic>{},
+      'data': <BuildingOccupancyModel>[],
+    };
+  }
+
+  Future<Map<String, dynamic>> saveBuildingOccupancy(
+    String buildingId,
+    Map<String, dynamic> payload, {
+    String? assignmentId,
+  }) async {
+    try {
+      if (assignmentId != null && assignmentId.isNotEmpty) {
+        return await _api.put('/v1/campus/buildings/$buildingId/occupancy/$assignmentId', payload);
+      } else {
+        return await _api.post('/v1/campus/buildings/$buildingId/occupancy', payload);
+      }
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteBuildingOccupancy(String buildingId, String assignmentId) async {
+    try {
+      return await _api.delete('/v1/campus/buildings/$buildingId/occupancy/$assignmentId');
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // 16. Building Maintenance CRUD
+  Future<List<BuildingMaintenanceModel>> getBuildingMaintenance(String buildingId) async {
+    try {
+      final res = await _api.get('/v1/campus/buildings/$buildingId/maintenance', useCache: false);
+      if (res['data'] is List) {
+        return (res['data'] as List)
+            .map((e) => BuildingMaintenanceModel.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<Map<String, dynamic>> saveBuildingMaintenance(
+    String buildingId,
+    Map<String, dynamic> payload, {
+    String? requestId,
+  }) async {
+    try {
+      if (requestId != null && requestId.isNotEmpty) {
+        return await _api.put('/v1/campus/buildings/$buildingId/maintenance/$requestId', payload);
+      } else {
+        return await _api.post('/v1/campus/buildings/$buildingId/maintenance', payload);
+      }
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteBuildingMaintenance(String buildingId, String requestId) async {
+    try {
+      return await _api.delete('/v1/campus/buildings/$buildingId/maintenance/$requestId');
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
   }
 }
