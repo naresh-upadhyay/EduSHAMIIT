@@ -43,6 +43,7 @@ class PaymentNotificationListenerService : NotificationListenerService() {
             "in.org.npci.upiapp",
             "com.dreamplug.androidapp",
             "com.sbi.upi",
+            "com.canarabank.mobility",
             "com.google.android.apps.messaging",
             "com.android.mms",
             "com.miui.mms",

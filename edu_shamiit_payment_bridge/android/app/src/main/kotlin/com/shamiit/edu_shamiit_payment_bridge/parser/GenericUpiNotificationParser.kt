@@ -71,12 +71,18 @@ class GenericUpiNotificationParser(private val context: Context? = null) : Notif
         val eventUuid = UUID.randomUUID().toString()
 
         val appName = when {
+            packageName.contains("messaging", ignoreCase = true) || packageName.contains("mms", ignoreCase = true) -> "SMS / Messages"
             packageName.contains("phonepe", ignoreCase = true) || fullContent.contains("PhonePe", ignoreCase = true) -> "PhonePe"
             packageName.contains("paisa", ignoreCase = true) || packageName.contains("google", ignoreCase = true) || fullContent.contains("Google Pay", ignoreCase = true) || fullContent.contains("GPay", ignoreCase = true) -> "Google Pay"
             packageName.contains("paytm", ignoreCase = true) || fullContent.contains("Paytm", ignoreCase = true) -> "Paytm"
             packageName.contains("bhim", ignoreCase = true) || fullContent.contains("BHIM", ignoreCase = true) -> "BHIM UPI"
             packageName.contains("cred", ignoreCase = true) || fullContent.contains("CRED", ignoreCase = true) -> "CRED"
-            packageName.contains("canara", ignoreCase = true) || fullContent.contains("Canara", ignoreCase = true) || (title?.contains("CANBNK", ignoreCase = true) == true) -> "Canara Bank"
+            packageName.contains("canara", ignoreCase = true) || fullContent.contains("Canara ai1", ignoreCase = true) -> "Canara Bank"
+            packageName.contains("sbi", ignoreCase = true) -> "SBI UPI"
+            packageName.contains("icici", ignoreCase = true) -> "ICICI Bank"
+            packageName.contains("hdfc", ignoreCase = true) -> "HDFC Bank"
+            packageName.contains("amazon", ignoreCase = true) -> "Amazon Pay"
+            packageName.contains("whatsapp", ignoreCase = true) -> "WhatsApp Pay"
             else -> "UPI App"
         }
 

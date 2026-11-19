@@ -358,6 +358,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 final isGPay = app.name.toLowerCase().contains('google') || app.name.toLowerCase().contains('gpay');
                 final isPaytm = app.name.toLowerCase().contains('paytm');
                 final isBhim = app.name.toLowerCase().contains('bhim');
+                final isCanara = app.name.toLowerCase().contains('canara') || app.packageName.contains('canarabank');
+                final isSms = app.name.toLowerCase().contains('sms') || app.name.toLowerCase().contains('message') || app.packageName.contains('messaging') || app.packageName.contains('mms');
 
                 Color iconBg = const Color(0xFF2563EB);
                 Widget iconContent = const Icon(Icons.payment, color: Colors.white, size: 18);
@@ -373,6 +375,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 } else if (isBhim) {
                   iconBg = const Color(0xFF00796B);
                   iconContent = const Text('B', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold));
+                } else if (isCanara) {
+                  iconBg = const Color(0xFF003B70);
+                  iconContent = const Text('CB', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold));
+                } else if (isSms) {
+                  iconBg = const Color(0xFF0284C7);
+                  iconContent = const Icon(Icons.sms_outlined, color: Colors.white, size: 18);
                 }
 
                 return Column(
@@ -673,6 +681,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 c = const Color(0xFF00796B);
               } else if (lower.contains('cred')) {
                 c = const Color(0xFF1B1B1B);
+              } else if (lower.contains('canara')) {
+                c = const Color(0xFF003B70);
+              } else if (lower.contains('sms') || lower.contains('message') || a.packageName.contains('messaging')) {
+                c = const Color(0xFF0284C7);
               }
               apps.add({'name': a.name, 'pkg': a.packageName, 'color': c});
             }
@@ -683,6 +695,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               {'name': 'Paytm', 'pkg': 'net.one97.paytm', 'color': const Color(0xFF002E6E)},
               {'name': 'BHIM UPI', 'pkg': 'in.org.npci.upiapp', 'color': const Color(0xFF00796B)},
               {'name': 'Cred', 'pkg': 'com.dreamplug.androidapp', 'color': const Color(0xFF1B1B1B)},
+              {'name': 'Canara ai1 (Canara Bank)', 'pkg': 'com.canarabank.mobility', 'color': const Color(0xFF003B70)},
+              {'name': 'SMS / Messages', 'pkg': 'com.google.android.apps.messaging', 'color': const Color(0xFF0284C7)},
             ]);
           }
 
@@ -968,7 +982,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       {'name': 'Google Pay', 'pkg': 'com.google.android.apps.nbu.paisa.user'},
       {'name': 'Paytm', 'pkg': 'net.one97.paytm'},
       {'name': 'BHIM UPI', 'pkg': 'in.org.npci.upiapp'},
+      {'name': 'Canara ai1 (Canara Bank)', 'pkg': 'com.canarabank.mobility'},
+      {'name': 'SMS / Messages', 'pkg': 'com.google.android.apps.messaging'},
       {'name': 'Cred', 'pkg': 'com.dreamplug.androidapp'},
+      {'name': 'SBI YONO / BHIM SBI', 'pkg': 'com.sbi.upi'},
       {'name': 'Amazon Pay', 'pkg': 'in.amazon.mShop.android.shopping'},
       {'name': 'WhatsApp Pay', 'pkg': 'com.whatsapp'},
       {'name': 'Navi UPI', 'pkg': 'com.navi.mutualfunds'},

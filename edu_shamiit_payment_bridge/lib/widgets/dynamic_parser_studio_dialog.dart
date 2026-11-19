@@ -211,7 +211,8 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog>
       {'name': 'Paytm', 'pkg': 'net.one97.paytm'},
       {'name': 'BHIM UPI', 'pkg': 'in.org.npci.upiapp'},
       {'name': 'Cred', 'pkg': 'com.dreamplug.androidapp'},
-      {'name': 'Canara Bank SMS', 'pkg': 'com.android.mms'},
+      {'name': 'Canara ai1 (Canara Bank)', 'pkg': 'com.canarabank.mobility'},
+      {'name': 'SMS / Messages', 'pkg': 'com.google.android.apps.messaging'},
     ];
 
     try {
@@ -383,10 +384,25 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog>
         _senderRegexCtrl.text = r'(?:from|by)\s+([A-Za-z0-9\s.*]+?)(?:\s+on|\s+to|\s+Ref|$)';
         _refRegexCtrl.text = r'(?:UTR:?|Ref(?:erence)?:?|Txn(?:Id)?:?)\s*([A-Za-z0-9/_-]+)';
         _bankRegexCtrl.text = r'(?:to|on)\s+([A-Za-z0-9\s-]+?)\s+account|(\*+\s*\d{3,4})';
-      } else if (appName.contains('Canara') || appName.contains('Bank SMS') || appName.contains('mms')) {
-        _packageCtrl.text = 'com.android.mms';
-        _titleCtrl.text = 'AX-CANBNK-S';
-        _descriptionCtrl.text = 'Dear Customer, your Canara Bank A/c ending XXXX2887 is credited by Rs 1,500.00 on 18-Nov-26 by Naresh King UPI Ref 432109876543.';
+      } else if (appName.contains('Canara')) {
+        _packageCtrl.text = 'com.canarabank.mobility';
+        _titleCtrl.text = 'Canara ai1';
+        _descriptionCtrl.text = 'UPI Payment of ₹2,500.00 received from NARESH KING. UPI Ref: 432109876543. Available Bal: ₹45,210.00';
+        _ruleAction = 'ACCEPT_AND_PARSE';
+        _queryClauses.addAll([
+          QueryConditionClause(logicalOp: 'AND', field: 'body', operator: 'CONTAINS', value: 'received'),
+          QueryConditionClause(logicalOp: 'AND', field: 'body', operator: 'NOT_CONTAINS', value: 'hold'),
+          QueryConditionClause(logicalOp: 'AND', field: 'body', operator: 'NOT_CONTAINS', value: 'offer'),
+          QueryConditionClause(logicalOp: 'AND', field: 'body', operator: 'NOT_CONTAINS', value: 'failed'),
+        ]);
+        _amountRegexCtrl.text = r'(?:₹|Rs\.?|INR)?\s*([0-9,]+(?:\.[0-9]{1,2})?)';
+        _senderRegexCtrl.text = r'(?:by|from)\s+([A-Za-z0-9\s.*]+?)(?:\s+UPI|\s+Ref|$)';
+        _refRegexCtrl.text = r'(?:Ref(?:erence)?|UTR|TxnId)\s*:?\s*([A-Za-z0-9/_-]+)';
+        _bankRegexCtrl.text = r'(?:A/c|Account)\s*([*A-Za-z0-9]+)';
+      } else if (appName.contains('SMS') || appName.contains('Messages') || appName.contains('mms') || appName.contains('messaging')) {
+        _packageCtrl.text = 'com.google.android.apps.messaging';
+        _titleCtrl.text = 'Bank SMS Alert';
+        _descriptionCtrl.text = 'Dear Customer, your A/c ending XXXX2887 is credited by Rs 2,500.00 on 18-Nov-26 by Naresh King UPI Ref 432109876543.';
         _ruleAction = 'ACCEPT_AND_PARSE';
         _queryClauses.addAll([
           QueryConditionClause(logicalOp: 'AND', field: 'body', operator: 'CONTAINS', value: 'credited'),
@@ -395,8 +411,8 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog>
           QueryConditionClause(logicalOp: 'AND', field: 'body', operator: 'NOT_CONTAINS', value: 'failed'),
         ]);
         _amountRegexCtrl.text = r'(?:credited by|credit of|cr by|credited with)\s+(?:Rs\.?|INR|₹|\u20B9)?\s*([0-9,]+(?:\.[0-9]{1,2})?)';
-        _senderRegexCtrl.text = r'(?:by|from)\s+([A-Za-z0-9\s.*]+?)(?:\s+UPI|$)';
-        _refRegexCtrl.text = r'(?:Ref(?:erence)?|UTR)\s*([A-Za-z0-9/_-]+)';
+        _senderRegexCtrl.text = r'(?:by|from)\s+([A-Za-z0-9\s.*]+?)(?:\s+UPI|\s+Ref|$)';
+        _refRegexCtrl.text = r'(?:Ref(?:erence)?|UTR)\s*:?\s*([A-Za-z0-9/_-]+)';
         _bankRegexCtrl.text = r'(?:A/c|Account)\s*([*A-Za-z0-9]+)';
       } else {
         _queryClauses.addAll([
@@ -1503,9 +1519,14 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog>
                   'Received ₹1,500.00 from Rahul Sharma via Google Pay UPI Ref: 438729106731',
                 ),
                 _buildScenarioChip(
-                  'Canara Bank SMS',
-                  'AX-CANBNK-S',
-                  'Dear Customer, your Canara Bank A/c ending XXXX2887 is credited by Rs 2,500.00 on 18-Nov-26 by Naresh King UPI Ref 432109876543.',
+                  'Canara ai1 App',
+                  'Canara ai1',
+                  'UPI Payment of ₹2,500.00 received from NARESH KING. UPI Ref: 432109876543. Available Bal: ₹45,210.00',
+                ),
+                _buildScenarioChip(
+                  'Bank SMS Alert',
+                  'Bank SMS Alert',
+                  'Dear Customer, your A/c ending XXXX2887 is credited by Rs 2,500.00 on 18-Nov-26 by Naresh King UPI Ref 432109876543.',
                 ),
                 _buildScenarioChip(
                   'On-Hold Alert (Should Reject)',
