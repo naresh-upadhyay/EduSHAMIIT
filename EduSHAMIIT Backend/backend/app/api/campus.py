@@ -128,6 +128,34 @@ class BuildingPayload(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
 
+class BuildingUpdatePayload(BaseModel):
+    id: Optional[str] = None
+    campus_id: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=150)
+    code: Optional[str] = Field(None, min_length=1, max_length=50)
+    building_type: Optional[str] = None
+    description: Optional[str] = None
+    purpose: Optional[str] = None
+    address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    total_floors: Optional[int] = Field(None, ge=1)
+    total_area: Optional[float] = Field(None, ge=0.0)
+    area_unit: Optional[str] = None
+    construction_year: Optional[int] = None
+    num_entrances: Optional[int] = Field(None, ge=1)
+    num_emergency_exits: Optional[int] = Field(None, ge=0)
+    manager_name: Optional[str] = None
+    manager_contact: Optional[str] = None
+    department: Optional[str] = None
+    image_url: Optional[str] = None
+    fire_safety_cert_expiry: Optional[str] = None
+    occupancy_cert_expiry: Optional[str] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+
 class FloorPayload(BaseModel):
     id: Optional[str] = None
     building_id: str
@@ -243,6 +271,7 @@ class CampusMaintenancePayload(BaseModel):
     building_id: str
     floor_id: Optional[str] = None
     room_id: Optional[str] = None
+    location_display: Optional[str] = None
     title: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = None
     request_type: Optional[str] = "Corrective"
@@ -398,15 +427,16 @@ async def create_building(
 
 
 @router.put("/buildings/{building_id}")
+@router.patch("/buildings/{building_id}")
 async def update_building(
     building_id: str,
-    payload: BuildingPayload,
+    payload: BuildingUpdatePayload,
     user: dict = Depends(get_current_user),
 ):
-    """Update an existing building."""
+    """Update an existing building (supports full or partial updates)."""
     school_id = _get_school_id(user)
     user_id = _get_user_id(user)
-    data = payload.model_dump()
+    data = payload.model_dump(exclude_unset=True)
     data["id"] = building_id
     try:
         sql = "SELECT public.fn_campus_upsert_building(%s::UUID, %s::JSONB, %s::UUID)"
@@ -419,6 +449,34 @@ async def update_building(
         raise
     except Exception as e:
         logger.error(f"Error updating building: {e}")
+        raise HTTPException(status_code=500, detail=f"Database write error: {str(e)}")
+
+
+@router.patch("/buildings/{building_id}/photo")
+@router.put("/buildings/{building_id}/photo")
+async def update_building_photo(
+    building_id: str,
+    payload: Dict[str, Any],
+    user: dict = Depends(get_current_user),
+):
+    """Update building photo specifically."""
+    school_id = _get_school_id(user)
+    user_id = _get_user_id(user)
+    image_url = payload.get("image_url") or payload.get("url")
+    if not image_url:
+        raise HTTPException(status_code=400, detail="image_url is required")
+    try:
+        data = {"id": building_id, "image_url": image_url}
+        sql = "SELECT public.fn_campus_upsert_building(%s::UUID, %s::JSONB, %s::UUID)"
+        rows = await exec_sql(sql, (school_id, json.dumps(data), user_id))
+        res = rows[0]["fn_campus_upsert_building"] if rows else {}
+        if not res.get("success"):
+            raise HTTPException(status_code=400, detail=res.get("message", "Failed to update building photo"))
+        return res
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating building photo: {e}")
         raise HTTPException(status_code=500, detail=f"Database write error: {str(e)}")
 
 
@@ -474,13 +532,19 @@ async def list_building_floors(
     building_id: str,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
+    sort_by: Optional[str] = Query(None),
+    sort_order: Optional[str] = Query("asc"),
     user: dict = Depends(get_current_user),
 ):
-    """List floors belonging to a building, ordered by floor_level (basements first)."""
+    """List floors belonging to a building, ordered by floor_level or sorted column."""
     school_id = _get_school_id(user)
+    filters = {}
+    if sort_by:
+        filters["sort_by"] = sort_by
+        filters["sort_order"] = sort_order or "asc"
     try:
-        sql = "SELECT public.fn_campus_list_floors(%s::UUID, %s::UUID, %s, %s)"
-        rows = await exec_sql(sql, (school_id, building_id, page, page_size))
+        sql = "SELECT public.fn_campus_list_floors(%s::UUID, %s::UUID, %s, %s, %s::JSONB)"
+        rows = await exec_sql(sql, (school_id, building_id, page, page_size, json.dumps(filters)))
         if rows and rows[0].get("fn_campus_list_floors"):
             return rows[0]["fn_campus_list_floors"]
         return {"success": True, "total_count": 0, "page": page, "page_size": page_size, "data": []}
@@ -576,9 +640,11 @@ async def list_rooms(
     assignment_status: Optional[str] = None,
     min_capacity: Optional[int] = None,
     max_capacity: Optional[int] = None,
+    sort_by: Optional[str] = Query(None),
+    sort_order: Optional[str] = Query("asc"),
     user: dict = Depends(get_current_user),
 ):
-    """List rooms with advanced search, filters, equipment summary, and server pagination."""
+    """List rooms with advanced search, filters, equipment summary, sorting, and server pagination."""
     school_id = _get_school_id(user)
     filters = {}
     if search: filters["search"] = search
@@ -589,6 +655,9 @@ async def list_rooms(
     if assignment_status: filters["assignment_status"] = assignment_status
     if min_capacity is not None: filters["min_capacity"] = min_capacity
     if max_capacity is not None: filters["max_capacity"] = max_capacity
+    if sort_by:
+        filters["sort_by"] = sort_by
+        filters["sort_order"] = sort_order or "asc"
 
     try:
         sql = "SELECT public.fn_campus_list_rooms(%s::UUID, %s::JSONB, %s, %s)"
@@ -1041,30 +1110,57 @@ async def export_campus_data(
 
 
 # ----------------------------------------------------------------------------
-# 11. Campus Image Upload & Serving
+# 11. Campus File & Image Upload & Serving
 # ----------------------------------------------------------------------------
 @router.post("/upload-image")
+@router.post("/upload-file")
+@router.post("/upload-document")
 async def upload_campus_image(
     file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
 ):
-    """Upload an image file (building, room, floor) and return an accessible URL."""
+    """Upload an image or compliance document file (building, room, floor, documents) and return an accessible URL."""
     try:
         content = await file.read()
         if len(content) == 0:
-            raise HTTPException(status_code=400, detail="Uploaded image is empty")
-        if len(content) > 15 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="Image size exceeds 15MB limit")
-
-        content_type = file.content_type or "image/jpeg"
-        if not content_type.startswith("image/"):
-            raise HTTPException(status_code=400, detail="File must be an image (JPEG, PNG, WebP)")
+            raise HTTPException(status_code=400, detail="Uploaded file is empty")
+        if len(content) > 25 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File size exceeds 25MB limit")
 
         file_ext = os.path.splitext(file.filename or "")[1].lower()
-        if not file_ext:
-            file_ext = ".jpg" if "jpeg" in content_type else ".png"
+        mime_map = {
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+            ".webp": "image/webp",
+            ".gif": "image/gif",
+            ".svg": "image/svg+xml",
+            ".pdf": "application/pdf",
+            ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".doc": "application/msword",
+            ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ".xls": "application/vnd.ms-excel",
+            ".csv": "text/csv",
+            ".txt": "text/plain",
+        }
 
-        safe_name = f"{uuid.uuid4().hex[:12]}_{os.path.basename(file.filename or 'campus_image' + file_ext)}"
+        content_type = file.content_type
+        if not content_type or content_type in ("application/octet-stream", "binary/octet-stream"):
+            content_type = mime_map.get(file_ext, "image/jpeg" if file_ext in (".jpg", ".jpeg", ".png", ".webp") else "application/pdf")
+
+        if not file_ext:
+            if "pdf" in content_type:
+                file_ext = ".pdf"
+            elif "png" in content_type:
+                file_ext = ".png"
+            elif "webp" in content_type:
+                file_ext = ".webp"
+            else:
+                file_ext = ".jpg"
+
+        raw_base = os.path.basename(file.filename or f"campus_file{file_ext}")
+        clean_base = re.sub(r'[^a-zA-Z0-9_\.-]', '_', raw_base)
+        safe_name = f"{uuid.uuid4().hex[:12]}_{clean_base}"
 
         # Save locally to assets/campus_images
         upload_dir = os.path.abspath(os.path.join(os.getcwd(), "assets", "campus_images"))
@@ -1090,7 +1186,7 @@ async def upload_campus_image(
             if public_url:
                 file_url = public_url
         except Exception as storage_err:
-            logger.info(f"[Campus Image Upload] Supabase Storage upload fallback: {storage_err}")
+            logger.info(f"[Campus File Upload] Supabase Storage upload fallback: {storage_err}")
 
         return {
             "success": True,
@@ -1099,6 +1195,7 @@ async def upload_campus_image(
                 "safe_name": safe_name,
                 "file_url": file_url,
                 "url": file_url,
+                "image_url": file_url,
                 "file_size": len(content),
                 "content_type": content_type
             }
@@ -1106,13 +1203,16 @@ async def upload_campus_image(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Campus image upload failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Image upload failed: {str(e)}")
+        logger.error(f"Campus file upload failed: {e}")
+        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
 
 
-@router.get("/images/{file_name}")
+@router.api_route("/images/{file_name:path}", methods=["GET", "HEAD"])
+@router.api_route("/documents/{file_name:path}", methods=["GET", "HEAD"])
 async def get_campus_image(file_name: str):
-    """Serve locally uploaded campus images with browser caching."""
+    """Serve locally uploaded campus images and compliance documents with browser caching."""
+    import urllib.parse
+    decoded_file_name = urllib.parse.unquote(file_name)
     media_dirs = [
         os.path.abspath(os.path.join(os.getcwd(), "assets", "campus_images")),
         os.path.abspath(os.path.join(os.getcwd(), "assets", "uploads")),
@@ -1120,13 +1220,16 @@ async def get_campus_image(file_name: str):
     ]
     target_path = None
     for d in media_dirs:
-        candidate = os.path.abspath(os.path.join(d, file_name))
-        if candidate.startswith(d) and os.path.exists(candidate) and os.path.isfile(candidate):
-            target_path = candidate
+        for name_to_try in (decoded_file_name, file_name):
+            candidate = os.path.abspath(os.path.join(d, name_to_try))
+            if candidate.startswith(d) and os.path.exists(candidate) and os.path.isfile(candidate):
+                target_path = candidate
+                break
+        if target_path:
             break
 
     if not target_path:
-        raise HTTPException(status_code=404, detail="Image not found")
+        raise HTTPException(status_code=404, detail="File not found")
 
     ext = os.path.splitext(file_name)[1].lower()
     media_types = {
@@ -1136,8 +1239,15 @@ async def get_campus_image(file_name: str):
         ".webp": "image/webp",
         ".gif": "image/gif",
         ".svg": "image/svg+xml",
+        ".pdf": "application/pdf",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".doc": "application/msword",
+        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ".xls": "application/vnd.ms-excel",
+        ".csv": "text/csv",
+        ".txt": "text/plain",
     }
-    content_type = media_types.get(ext, "image/jpeg")
+    content_type = media_types.get(ext, "application/octet-stream")
     return FileResponse(target_path, media_type=content_type)
 
 
@@ -1147,22 +1257,44 @@ async def get_campus_image(file_name: str):
 @router.get("/buildings/{building_id}/documents")
 async def list_building_documents(
     building_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    sort_by: Optional[str] = Query(None),
+    sort_order: Optional[str] = Query("desc"),
     user: dict = Depends(get_current_user),
 ):
-    """List all compliance, insurance, architectural, and safety documents for a building."""
+    """List all compliance, insurance, architectural, and safety documents for a building with sorting and pagination."""
     school_id = _get_school_id(user)
     try:
-        sql = """
+        sort_col = "created_at"
+        if sort_by in ["document_name", "document_type", "status", "issue_date", "expiry_date", "created_at"]:
+            sort_col = sort_by
+        order_dir = "ASC" if (sort_order or "").lower() == "asc" else "DESC"
+
+        count_sql = """
+            SELECT COUNT(*) AS total
+            FROM public.building_documents
+            WHERE building_id = %s::UUID AND school_id = %s::UUID AND deleted_at IS NULL
+        """
+        count_rows = await exec_sql(count_sql, (building_id, school_id))
+        total = count_rows[0]["total"] if count_rows else 0
+
+        offset = max(0, (page - 1) * page_size)
+        sql = f"""
             SELECT id, school_id, building_id, room_id, document_name, document_type,
                    file_url, file_size_bytes, mime_type, issue_date, expiry_date,
                    issuing_authority, status, created_at
             FROM public.building_documents
             WHERE building_id = %s::UUID AND school_id = %s::UUID AND deleted_at IS NULL
-            ORDER BY created_at DESC
+            ORDER BY {sort_col} {order_dir}
+            LIMIT %s OFFSET %s
         """
-        rows = await exec_sql(sql, (building_id, school_id))
+        rows = await exec_sql(sql, (building_id, school_id, page_size, offset))
         return {
             "success": True,
+            "total_count": total,
+            "page": page,
+            "page_size": page_size,
             "data": [_serialize_val(r) for r in rows]
         }
     except Exception as e:
@@ -1275,9 +1407,13 @@ async def delete_building_document(
 @router.get("/buildings/{building_id}/occupancy")
 async def get_building_occupancy(
     building_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    sort_by: Optional[str] = Query(None),
+    sort_order: Optional[str] = Query("desc"),
     user: dict = Depends(get_current_user),
 ):
-    """Get building occupancy summary metrics and room allocations."""
+    """Get building occupancy summary metrics and room allocations with sorting and pagination."""
     school_id = _get_school_id(user)
     try:
         stats_sql = """
@@ -1296,7 +1432,30 @@ async def get_building_occupancy(
         available_cap = max(0, total_cap - curr_occ)
         occ_rate = round((curr_occ / total_cap * 100.0), 1) if total_cap > 0 else 0.0
 
-        alloc_sql = """
+        count_sql = """
+            SELECT COUNT(*) AS total
+            FROM public.room_assignments ra
+            JOIN public.rooms r ON ra.room_id = r.id
+            WHERE r.building_id = %s::UUID AND ra.school_id = %s::UUID AND ra.deleted_at IS NULL
+        """
+        count_rows = await exec_sql(count_sql, (building_id, school_id))
+        total = count_rows[0]["total"] if count_rows else 0
+
+        sort_col = "ra.created_at"
+        if sort_by == "room_number": sort_col = "r.room_number"
+        elif sort_by == "room_name": sort_col = "r.name"
+        elif sort_by == "floor_name": sort_col = "f.name"
+        elif sort_by == "reference_name": sort_col = "ra.reference_name"
+        elif sort_by == "reference_module": sort_col = "ra.reference_module"
+        elif sort_by == "assigned_to_name": sort_col = "ra.assigned_to_name"
+        elif sort_by == "status": sort_col = "ra.status"
+        elif sort_by == "start_date": sort_col = "ra.start_date"
+        elif sort_by == "created_at": sort_col = "ra.created_at"
+
+        order_dir = "ASC" if (sort_order or "").lower() == "asc" else "DESC"
+        offset = max(0, (page - 1) * page_size)
+
+        alloc_sql = f"""
             SELECT ra.id, ra.room_id, r.room_number, r.name AS room_name, f.name AS floor_name,
                    ra.reference_module, ra.reference_name, ra.assignment_purpose,
                    ra.start_date, ra.end_date, ra.assigned_to_name, ra.status, ra.notes,
@@ -1305,9 +1464,10 @@ async def get_building_occupancy(
             JOIN public.rooms r ON ra.room_id = r.id
             JOIN public.building_floors f ON r.floor_id = f.id
             WHERE r.building_id = %s::UUID AND ra.school_id = %s::UUID AND ra.deleted_at IS NULL
-            ORDER BY ra.created_at DESC
+            ORDER BY {sort_col} {order_dir}
+            LIMIT %s OFFSET %s
         """
-        alloc_rows = await exec_sql(alloc_sql, (building_id, school_id))
+        alloc_rows = await exec_sql(alloc_sql, (building_id, school_id, page_size, offset))
 
         return {
             "success": True,
@@ -1319,6 +1479,9 @@ async def get_building_occupancy(
                 "total_rooms": stats["total_rooms"],
                 "occupied_rooms": stats["occupied_rooms"],
             },
+            "total_count": total,
+            "page": page,
+            "page_size": page_size,
             "data": [_serialize_val(r) for r in alloc_rows]
         }
     except Exception as e:
@@ -1458,15 +1621,44 @@ async def delete_building_occupancy(
 @router.get("/buildings/{building_id}/maintenance")
 async def list_building_maintenance(
     building_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    sort_by: Optional[str] = Query(None),
+    sort_order: Optional[str] = Query("desc"),
     user: dict = Depends(get_current_user),
 ):
-    """List maintenance requests and work orders for a building."""
+    """List maintenance requests and work orders for a building with sorting and pagination."""
     school_id = _get_school_id(user)
     try:
-        sql = """
+        count_sql = """
+            SELECT COUNT(*) AS total
+            FROM public.maintenance_requests mr
+            LEFT JOIN public.rooms r ON mr.room_id = r.id
+            WHERE (mr.building_id = %s::UUID OR r.building_id = %s::UUID)
+              AND mr.school_id = %s::UUID AND mr.deleted_at IS NULL
+        """
+        count_rows = await exec_sql(count_sql, (building_id, building_id, school_id))
+        total = count_rows[0]["total"] if count_rows else 0
+
+        sort_col = "mr.created_at"
+        if sort_by == "request_code": sort_col = "mr.request_code"
+        elif sort_by == "title": sort_col = "mr.title"
+        elif sort_by == "request_type": sort_col = "mr.request_type"
+        elif sort_by == "priority": sort_col = "mr.priority"
+        elif sort_by == "status": sort_col = "mr.status"
+        elif sort_by == "room_number": sort_col = "r.room_number"
+        elif sort_by == "assigned_to_name": sort_col = "mr.assigned_to_name"
+        elif sort_by == "scheduled_at": sort_col = "mr.scheduled_at"
+        elif sort_by == "estimated_cost": sort_col = "mr.estimated_cost"
+        elif sort_by == "created_at": sort_col = "mr.created_at"
+
+        order_dir = "ASC" if (sort_order or "").lower() == "asc" else "DESC"
+        offset = max(0, (page - 1) * page_size)
+
+        sql = f"""
             SELECT mr.id, mr.request_code, mr.title, mr.description, mr.request_type,
                    mr.priority, mr.status, mr.building_id, mr.floor_id, mr.room_id,
-                   r.room_number, f.name AS floor_name, mr.reported_by_name, mr.assigned_to_name,
+                   r.room_number, f.name AS floor_name, mr.location_display, mr.reported_by_name, mr.assigned_to_name,
                    mr.scheduled_at, mr.preferred_date, mr.estimated_cost, mr.actual_cost,
                    mr.resolution_notes, mr.created_at
             FROM public.maintenance_requests mr
@@ -1474,11 +1666,15 @@ async def list_building_maintenance(
             LEFT JOIN public.building_floors f ON mr.floor_id = f.id
             WHERE (mr.building_id = %s::UUID OR r.building_id = %s::UUID)
               AND mr.school_id = %s::UUID AND mr.deleted_at IS NULL
-            ORDER BY mr.created_at DESC
+            ORDER BY {sort_col} {order_dir}
+            LIMIT %s OFFSET %s
         """
-        rows = await exec_sql(sql, (building_id, building_id, school_id))
+        rows = await exec_sql(sql, (building_id, building_id, school_id, page_size, offset))
         return {
             "success": True,
+            "total_count": total,
+            "page": page,
+            "page_size": page_size,
             "data": [_serialize_val(r) for r in rows]
         }
     except Exception as e:
@@ -1497,16 +1693,35 @@ async def create_building_maintenance(
     user_id = _get_user_id(user)
     req_code = f"MT-{uuid.uuid4().hex[:6].upper()}"
     try:
+        # Resolve location_display
+        loc_display = (payload.location_display or "").strip()
+        if not loc_display:
+            parts = []
+            b_res = await exec_sql("SELECT name, code FROM public.buildings WHERE id = %s::UUID LIMIT 1;", (building_id,))
+            b_name = b_res[0]["code"] if b_res and b_res[0].get("code") else (b_res[0]["name"] if b_res else "Building")
+            parts.append(b_name)
+            if payload.floor_id:
+                f_res = await exec_sql("SELECT name, floor_number FROM public.building_floors WHERE id = %s::UUID LIMIT 1;", (payload.floor_id,))
+                if f_res:
+                    parts.append(f_res[0]["name"] or f"Floor {f_res[0]['floor_number']}")
+            if payload.room_id:
+                r_res = await exec_sql("SELECT room_number, name FROM public.rooms WHERE id = %s::UUID LIMIT 1;", (payload.room_id,))
+                if r_res:
+                    parts.append(r_res[0]["room_number"] or r_res[0]["name"] or "Room")
+            if len(parts) == 1:
+                parts.append("Entire Building / Common")
+            loc_display = " / ".join(parts)
+
         sql = """
             INSERT INTO public.maintenance_requests (
                 school_id, request_code, title, description, request_type,
-                priority, status, building_id, floor_id, room_id,
+                priority, status, building_id, floor_id, room_id, location_display,
                 reported_by_name, reported_by_user_id, assigned_to_name,
                 preferred_date, estimated_cost, actual_cost, resolution_notes,
                 created_by, created_at, updated_at
             ) VALUES (
                 %s::UUID, %s, %s, %s, %s,
-                %s, %s, %s::UUID, NULLIF(%s, '')::UUID, NULLIF(%s, '')::UUID,
+                %s, %s, %s::UUID, NULLIF(%s, '')::UUID, NULLIF(%s, '')::UUID, %s,
                 %s, %s::UUID, %s,
                 %s::DATE, %s, %s, %s,
                 %s::UUID, NOW(), NOW()
@@ -1514,7 +1729,7 @@ async def create_building_maintenance(
         """
         params = (
             school_id, req_code, payload.title, payload.description, payload.request_type or "Corrective",
-            payload.priority or "Medium", payload.status or "Pending", building_id, payload.floor_id, payload.room_id,
+            payload.priority or "Medium", payload.status or "Pending", building_id, payload.floor_id, payload.room_id, loc_display,
             payload.reported_by_name or user.get("full_name") or "Campus Administrator", user_id, payload.assigned_to_name,
             payload.preferred_date, payload.estimated_cost or 0.0, payload.actual_cost or 0.0, payload.resolution_notes,
             user_id
@@ -1546,6 +1761,7 @@ async def update_building_maintenance(
                 status = %s,
                 floor_id = NULLIF(%s, '')::UUID,
                 room_id = NULLIF(%s, '')::UUID,
+                location_display = COALESCE(NULLIF(%s, ''), location_display),
                 assigned_to_name = %s,
                 preferred_date = %s::DATE,
                 estimated_cost = %s,
@@ -1560,7 +1776,7 @@ async def update_building_maintenance(
         params = (
             payload.title, payload.description, payload.request_type or "Corrective",
             payload.priority or "Medium", payload.status or "Pending",
-            payload.floor_id, payload.room_id, payload.assigned_to_name,
+            payload.floor_id, payload.room_id, payload.location_display, payload.assigned_to_name,
             payload.preferred_date, payload.estimated_cost or 0.0, payload.actual_cost or 0.0,
             payload.resolution_notes, payload.status, user_id,
             request_id, school_id
@@ -1601,3 +1817,400 @@ async def delete_building_maintenance(
     except Exception as e:
         logger.error(f"Error deleting building maintenance: {e}")
         raise HTTPException(status_code=500, detail=f"Database execution error: {str(e)}")
+
+
+# ============================================================================
+# ENTERPRISE CAMPUS FACILITIES
+# ============================================================================
+
+class FacilityCreateUpdateSchema(BaseModel):
+    id: Optional[str] = None
+    name: str = Field(..., min_length=2, max_length=255)
+    code: str = Field(..., min_length=1, max_length=100)
+    category: Optional[str] = "Specialized Laboratory"
+    building_id: Optional[str] = None
+    floor_id: Optional[str] = None
+    capacity: Optional[int] = 50
+    area: Optional[float] = 0.0
+    manager_name: Optional[str] = None
+    manager_phone: Optional[str] = None
+    status: Optional[str] = "Operational"
+    equipment_count: Optional[int] = 0
+    description: Optional[str] = None
+
+
+@router.get("/facilities", summary="List Campus Facilities with Filtering and Pagination")
+async def list_campus_facilities(
+    search: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    building_id: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    user: dict = Depends(get_current_user),
+):
+    school_id = _get_school_id(user)
+    try:
+        search_term = f"%{search.strip().lower()}%" if search and search.strip() else None
+        cat = category if (category and category != 'All Categories') else None
+        stat = status if (status and status != 'All Statuses') else None
+        b_id = building_id if (building_id and building_id != 'all') else None
+
+        offset = (page - 1) * page_size
+        sql = """
+            SELECT 
+                f.id, f.name, f.code, f.category, f.building_id, f.floor_id,
+                f.capacity, f.area, f.manager_name, f.manager_phone, f.status,
+                f.equipment_count, f.description, f.created_at,
+                b.name AS building_name, b.code AS building_code,
+                fl.name AS floor_name
+            FROM public.campus_facilities f
+            LEFT JOIN public.buildings b ON f.building_id = b.id
+            LEFT JOIN public.building_floors fl ON f.floor_id = fl.id
+            WHERE f.school_id = %s::UUID AND f.deleted_at IS NULL
+              AND (%s::VARCHAR IS NULL OR LOWER(f.name) LIKE %s::VARCHAR OR LOWER(f.code) LIKE %s::VARCHAR OR LOWER(f.category) LIKE %s::VARCHAR)
+              AND (%s::VARCHAR IS NULL OR f.category = %s::VARCHAR)
+              AND (%s::VARCHAR IS NULL OR f.status = %s::VARCHAR)
+              AND (%s::UUID IS NULL OR f.building_id = %s::UUID)
+            ORDER BY f.created_at DESC
+            LIMIT %s OFFSET %s;
+        """
+        params = (
+            school_id,
+            search_term, search_term, search_term, search_term,
+            cat, cat,
+            stat, stat,
+            b_id, b_id,
+            page_size, offset
+        )
+        rows = await exec_sql(sql, params)
+
+        count_sql = """
+            SELECT COUNT(*) AS total
+            FROM public.campus_facilities f
+            WHERE f.school_id = %s::UUID AND f.deleted_at IS NULL
+              AND (%s::VARCHAR IS NULL OR LOWER(f.name) LIKE %s::VARCHAR OR LOWER(f.code) LIKE %s::VARCHAR OR LOWER(f.category) LIKE %s::VARCHAR)
+              AND (%s::VARCHAR IS NULL OR f.category = %s::VARCHAR)
+              AND (%s::VARCHAR IS NULL OR f.status = %s::VARCHAR)
+              AND (%s::UUID IS NULL OR f.building_id = %s::UUID);
+        """
+        count_rows = await exec_sql(count_sql, (school_id, search_term, search_term, search_term, search_term, cat, cat, stat, stat, b_id, b_id))
+        total_count = count_rows[0]["total"] if count_rows else 0
+
+        return {
+            "success": True,
+            "data": _serialize_val(rows),
+            "total_count": total_count,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": max(1, (total_count + page_size - 1) // page_size),
+        }
+    except Exception as e:
+        logger.error(f"Error listing facilities: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/facilities", summary="Create or Update Campus Facility")
+async def save_campus_facility(
+    payload: FacilityCreateUpdateSchema,
+    user: dict = Depends(get_current_user),
+):
+    school_id = _get_school_id(user)
+    user_id = _get_user_id(user)
+    try:
+        b_id = payload.building_id if (payload.building_id and payload.building_id != 'all') else None
+        f_id = payload.floor_id if (payload.floor_id and payload.floor_id != 'all') else None
+
+        if payload.id:
+            sql = """
+                UPDATE public.campus_facilities
+                SET name = %s, code = %s, category = %s,
+                    building_id = %s::UUID, floor_id = %s::UUID,
+                    capacity = %s, area = %s, manager_name = %s,
+                    manager_phone = %s, status = %s,
+                    description = %s, updated_by = %s::UUID, updated_at = NOW()
+                WHERE id = %s::UUID AND school_id = %s::UUID AND deleted_at IS NULL
+                RETURNING *;
+            """
+            params = (
+                payload.name, payload.code, payload.category or "Specialized Laboratory",
+                b_id, f_id, payload.capacity or 50, payload.area or 0.0,
+                payload.manager_name, payload.manager_phone, payload.status or "Operational",
+                payload.description, user_id, payload.id, school_id
+            )
+        else:
+            sql = """
+                INSERT INTO public.campus_facilities (
+                    school_id, name, code, category, building_id, floor_id,
+                    capacity, area, manager_name, manager_phone, status,
+                    description, created_by, updated_by
+                ) VALUES (
+                    %s::UUID, %s, %s, %s, %s::UUID, %s::UUID,
+                    %s, %s, %s, %s, %s, %s, %s::UUID, %s::UUID
+                )
+                RETURNING *;
+            """
+            params = (
+                school_id, payload.name, payload.code, payload.category or "Specialized Laboratory",
+                b_id, f_id, payload.capacity or 50, payload.area or 0.0,
+                payload.manager_name, payload.manager_phone, payload.status or "Operational",
+                payload.description, user_id, user_id
+            )
+
+        rows = await exec_sql(sql, params)
+        if not rows:
+            raise HTTPException(status_code=400, detail="Failed to save facility")
+        return {"success": True, "data": _serialize_val(rows[0])}
+    except Exception as e:
+        logger.error(f"Error saving facility: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/facilities/{facility_id}", summary="Delete Campus Facility")
+async def delete_campus_facility(
+    facility_id: str,
+    user: dict = Depends(get_current_user),
+):
+    school_id = _get_school_id(user)
+    user_id = _get_user_id(user)
+    try:
+        sql = """
+            UPDATE public.campus_facilities
+            SET deleted_at = NOW(), deleted_by = %s::UUID
+            WHERE id = %s::UUID AND school_id = %s::UUID AND deleted_at IS NULL
+            RETURNING id;
+        """
+        rows = await exec_sql(sql, (user_id, facility_id, school_id))
+        if not rows:
+            raise HTTPException(status_code=404, detail="Facility not found")
+        return {"success": True, "message": "Facility deleted successfully"}
+    except Exception as e:
+        logger.error(f"Error deleting facility: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# ENTERPRISE CAMPUS UTILITIES & SERVICES
+# ============================================================================
+
+class UtilityReadingCreateSchema(BaseModel):
+    utility_name: str = Field(..., min_length=2, max_length=150)
+    utility_type: str = Field(..., min_length=2, max_length=100)
+    reading_value: str = Field(..., min_length=1, max_length=100)
+    metric_units: Optional[str] = "kWh"
+    location: str = Field(..., min_length=1, max_length=255)
+    recorded_by: str = Field(..., min_length=1, max_length=150)
+    status: Optional[str] = "Normal"
+    notes: Optional[str] = None
+
+
+@router.get("/utilities/kpis", summary="Campus Utilities Aggregated KPI Summary")
+async def get_utilities_kpis(
+    user: dict = Depends(get_current_user),
+):
+    return {
+        "success": True,
+        "data": {
+            "grid_power_load": "245 kW",
+            "grid_power_mtd": "45,210 kWh",
+            "solar_generation": "84 kWp",
+            "solar_today": "320.4 kWh",
+            "solar_offset_pct": "42%",
+            "dg_fuel_level": "78% (1,560 L)",
+            "water_storage": "85% (85,000 L)",
+            "ro_purity": "TDS: 68 ppm",
+            "internet_uptime": "99.98% (1.0 Gbps)",
+        }
+    }
+
+
+@router.get("/utilities/readings", summary="List Utility Meter Readings")
+async def list_utility_readings(
+    utility_type: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    user: dict = Depends(get_current_user),
+):
+    school_id = _get_school_id(user)
+    try:
+        search_term = f"%{search.strip().lower()}%" if search and search.strip() else None
+        u_type = utility_type if (utility_type and utility_type != 'All') else None
+        offset = (page - 1) * page_size
+
+        sql = """
+            SELECT 
+                id, utility_name, utility_type, reading_value, metric_units,
+                location, recorded_by, status, notes,
+                TO_CHAR(recorded_at, 'DD Mon YYYY, HH12:MI AM') AS timestamp,
+                recorded_at
+            FROM public.campus_utility_readings
+            WHERE school_id = %s::UUID AND deleted_at IS NULL
+              AND (%s::VARCHAR IS NULL OR utility_type = %s::VARCHAR)
+              AND (%s::VARCHAR IS NULL OR LOWER(utility_name) LIKE %s::VARCHAR OR LOWER(location) LIKE %s::VARCHAR)
+            ORDER BY recorded_at DESC
+            LIMIT %s OFFSET %s;
+        """
+        rows = await exec_sql(sql, (school_id, u_type, u_type, search_term, search_term, search_term, page_size, offset))
+
+        count_sql = """
+            SELECT COUNT(*) AS total
+            FROM public.campus_utility_readings
+            WHERE school_id = %s::UUID AND deleted_at IS NULL
+              AND (%s::VARCHAR IS NULL OR utility_type = %s::VARCHAR)
+              AND (%s::VARCHAR IS NULL OR LOWER(utility_name) LIKE %s::VARCHAR OR LOWER(location) LIKE %s::VARCHAR);
+        """
+        count_rows = await exec_sql(count_sql, (school_id, u_type, u_type, search_term, search_term, search_term))
+        total_count = count_rows[0]["total"] if count_rows else 0
+
+        return {
+            "success": True,
+            "data": _serialize_val(rows),
+            "total_count": total_count,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": max(1, (total_count + page_size - 1) // page_size),
+        }
+    except Exception as e:
+        logger.error(f"Error listing utility readings: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/utilities/readings", summary="Log a New Utility Reading")
+async def log_utility_reading(
+    payload: UtilityReadingCreateSchema,
+    user: dict = Depends(get_current_user),
+):
+    school_id = _get_school_id(user)
+    try:
+        sql = """
+            INSERT INTO public.campus_utility_readings (
+                school_id, utility_name, utility_type, reading_value, metric_units,
+                location, recorded_by, status, notes
+            ) VALUES (
+                %s::UUID, %s, %s, %s, %s, %s, %s, %s, %s
+            ) RETURNING *, TO_CHAR(recorded_at, 'DD Mon YYYY, HH12:MI AM') AS timestamp;
+        """
+        params = (
+            school_id, payload.utility_name, payload.utility_type, payload.reading_value,
+            payload.metric_units or "kWh", payload.location, payload.recorded_by,
+            payload.status or "Normal", payload.notes
+        )
+        rows = await exec_sql(sql, params)
+        return {"success": True, "data": _serialize_val(rows[0])}
+    except Exception as e:
+        logger.error(f"Error logging utility reading: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# UNIFIED CAMPUS INSTITUTIONAL REPORTS
+# ============================================================================
+
+@router.get("/reports/export", summary="Export Campus Institutional Report as CSV")
+async def export_campus_report(
+    report_type: int = Query(0, description="0: Space, 1: Equipment, 2: Maintenance SLA, 3: Safety, 4: Energy"),
+    building_id: Optional[str] = Query(None),
+    time_range: Optional[str] = Query("Last 30 Days"),
+    user: dict = Depends(get_current_user),
+):
+    school_id = _get_school_id(user)
+    b_id = building_id if (building_id and building_id != "all") else None
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    if report_type == 0:
+        # Space & Room Utilization Audit
+        sql = """
+            SELECT 
+                b.name AS building_name, r.name AS room_name, r.room_number, r.room_type,
+                r.max_capacity, r.operational_status, r.is_bookable,
+                COALESCE(COUNT(sb.id), 0) AS total_bookings
+            FROM public.rooms r
+            JOIN public.buildings b ON r.building_id = b.id
+            LEFT JOIN public.space_bookings sb ON sb.room_id = r.id AND sb.deleted_at IS NULL
+            WHERE r.school_id = %s::UUID AND r.deleted_at IS NULL
+              AND (%s::UUID IS NULL OR r.building_id = %s::UUID)
+            GROUP BY b.name, r.name, r.room_number, r.room_type, r.max_capacity, r.operational_status, r.is_bookable
+            ORDER BY b.name, r.room_number;
+        """
+        rows = await exec_sql(sql, (school_id, b_id, b_id))
+        writer.writerow(["Building", "Room Name", "Room Number", "Room Type", "Max Capacity", "Status", "Bookable", "Bookings Count"])
+        for r in rows:
+            writer.writerow([r["building_name"], r["room_name"], r["room_number"], r["room_type"], r["max_capacity"], r["operational_status"], r["is_bookable"], r["total_bookings"]])
+        filename = f"space_utilization_report_{date.today().isoformat()}.csv"
+
+    elif report_type == 1:
+        # Asset & Equipment Health Audit
+        sql = """
+            SELECT 
+                re.equipment_name, re.category, re.model_number, re.serial_number,
+                re.condition, re.operational_status, r.name AS room_name, b.name AS building_name
+            FROM public.room_equipment re
+            JOIN public.rooms r ON re.room_id = r.id
+            JOIN public.buildings b ON r.building_id = b.id
+            WHERE re.school_id = %s::UUID AND re.deleted_at IS NULL
+              AND (%s::UUID IS NULL OR r.building_id = %s::UUID)
+            ORDER BY b.name, re.equipment_name;
+        """
+        rows = await exec_sql(sql, (school_id, b_id, b_id))
+        writer.writerow(["Equipment Name", "Category", "Model", "Serial No", "Condition", "Status", "Room", "Building"])
+        for r in rows:
+            writer.writerow([r["equipment_name"], r["category"], r["model_number"], r["serial_number"], r["condition"], r["operational_status"], r["room_name"], r["building_name"]])
+        filename = f"equipment_health_report_{date.today().isoformat()}.csv"
+
+    elif report_type == 2:
+        # Maintenance & SLA Performance Audit
+        sql = """
+            SELECT 
+                mr.request_code, mr.title, mr.request_type, mr.priority, mr.status,
+                mr.location_display, mr.reported_by_name, mr.assigned_to_name,
+                mr.estimated_cost, mr.actual_cost, mr.created_at, mr.resolved_at
+            FROM public.maintenance_requests mr
+            WHERE mr.school_id = %s::UUID AND mr.deleted_at IS NULL
+            ORDER BY mr.created_at DESC;
+        """
+        rows = await exec_sql(sql, (school_id,))
+        writer.writerow(["Request Code", "Title", "Type", "Priority", "Status", "Location", "Reported By", "Assigned To", "Est Cost", "Actual Cost", "Created At", "Resolved At"])
+        for r in rows:
+            writer.writerow([r["request_code"], r["title"], r["request_type"], r["priority"], r["status"], r["location_display"], r["reported_by_name"], r["assigned_to_name"], r["estimated_cost"], r["actual_cost"], r["created_at"], r["resolved_at"]])
+        filename = f"maintenance_sla_report_{date.today().isoformat()}.csv"
+
+    elif report_type == 3:
+        # Safety, Statutory NOCs & Drills Audit
+        sql = """
+            SELECT 
+                si.inspection_code, si.title, si.category, si.overall_score, si.overall_status,
+                si.inspector_name, si.inspection_date
+            FROM public.safety_inspections si
+            WHERE si.school_id = %s::UUID AND si.deleted_at IS NULL
+            ORDER BY si.inspection_date DESC;
+        """
+        rows = await exec_sql(sql, (school_id,))
+        writer.writerow(["Inspection Code", "Title", "Category", "Overall Score", "Status", "Inspector", "Date"])
+        for r in rows:
+            writer.writerow([r["inspection_code"], r["title"], r["category"], r["overall_score"], r["overall_status"], r["inspector_name"], r["inspection_date"]])
+        filename = f"safety_compliance_report_{date.today().isoformat()}.csv"
+
+    else:
+        # Energy & Utility Footprint
+        sql = """
+            SELECT 
+                utility_name, utility_type, reading_value, metric_units, location, recorded_by, status, recorded_at
+            FROM public.campus_utility_readings
+            WHERE school_id = %s::UUID AND deleted_at IS NULL
+            ORDER BY recorded_at DESC;
+        """
+        rows = await exec_sql(sql, (school_id,))
+        writer.writerow(["Utility Name", "Type", "Reading", "Units", "Location", "Recorded By", "Status", "Recorded At"])
+        for r in rows:
+            writer.writerow([r["utility_name"], r["utility_type"], r["reading_value"], r["metric_units"], r["location"], r["recorded_by"], r["status"], r["recorded_at"]])
+        filename = f"energy_utility_footprint_{date.today().isoformat()}.csv"
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

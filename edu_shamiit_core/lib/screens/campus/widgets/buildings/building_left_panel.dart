@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../config/app_config.dart';
 import '../../models/campus_models.dart';
 
 class BuildingLeftPanel extends StatelessWidget {
@@ -165,7 +166,8 @@ class BuildingLeftPanel extends StatelessWidget {
                                   color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                                   child: bld.imageUrl != null && bld.imageUrl!.isNotEmpty
                                       ? Image.network(
-                                          bld.imageUrl!,
+                                          AppConfig.resolveUrl(bld.imageUrl),
+                                          key: ValueKey('${bld.id}_${bld.imageUrl}'),
                                           fit: BoxFit.cover,
                                           errorBuilder: (_, __, ___) => const Icon(
                                             Icons.apartment_rounded,

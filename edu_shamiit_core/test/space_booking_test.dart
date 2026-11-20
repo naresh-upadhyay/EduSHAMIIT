@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
+import 'package:edu_shamiit_core/screens/campus/providers/space_booking_provider.dart';
 
 void main() {
   group('Space Booking Models & Serialization Tests', () {
@@ -142,6 +143,97 @@ void main() {
       expect(response.items.first.title, equals('CS Club Meeting'));
       expect(response.items.first.requestedByDisplay, equals('Rohan Verma (Student)'));
       expect(response.items.first.status, equals('Pending'));
+    });
+    test('SpaceBookingState supports Day, Week, Month and Purpose Filtering', () {
+      final initial = SpaceBookingState(
+        selectedDate: DateTime(2026, 3, 15),
+        timelineViewMode: 'Day',
+        displayMode: 'Timeline',
+        selectedPurpose: 'All',
+      );
+
+      expect(initial.timelineViewMode, equals('Day'));
+      expect(initial.selectedPurpose, equals('All'));
+
+      // Switch to Week view mode
+      final weekState = initial.copyWith(timelineViewMode: 'Week');
+      expect(weekState.timelineViewMode, equals('Week'));
+
+      // Switch to Month view mode
+      final monthState = initial.copyWith(timelineViewMode: 'Month');
+      expect(monthState.timelineViewMode, equals('Month'));
+
+      // Switch display mode to List
+      final listState = initial.copyWith(displayMode: 'List');
+      expect(listState.displayMode, equals('List'));
+
+      // Set purpose filter
+      final filteredState = initial.copyWith(selectedPurpose: 'Workshop');
+      expect(filteredState.selectedPurpose, equals('Workshop'));
+    });
+
+    test('Date stepping advances by day, week, or month based on view mode', () {
+      final baseDate = DateTime(2026, 3, 15);
+
+      // Day mode step: 1 day
+      final nextDay = baseDate.add(const Duration(days: 1));
+      expect(nextDay.day, equals(16));
+
+      // Week mode step: 7 days
+      final nextWeek = baseDate.add(const Duration(days: 7));
+      expect(nextWeek.day, equals(22));
+
+      // Month mode step: 1 month
+      final nextMonth = DateTime(baseDate.year, baseDate.month + 1, baseDate.day);
+      expect(nextMonth.month, equals(4));
+    });
+
+    test('SpaceBookingKpis math consistency (Confirmed 190 + Pending 20 + Rejected 7 = Total 217)', () {
+      final json = {
+        'total_bookings': 217,
+        'total_change_pct': 12.0,
+        'confirmed_bookings': 190,
+        'confirmed_pct': 87.6,
+        'pending_bookings': 20,
+        'pending_pct': 9.2,
+        'rejected_bookings': 7,
+        'rejected_pct': 3.2,
+        'current_usage_spaces': 34,
+        'utilization_rate': 72.8,
+        'utilization_change_pct': 4.6,
+      };
+
+      final kpis = SpaceBookingKpis.fromJson(json);
+
+      // Counts sum must strictly equal total bookings
+      expect(kpis.confirmedBookings + kpis.pendingBookings + kpis.rejectedBookings, equals(kpis.totalBookings));
+      expect(kpis.totalBookings, equals(217));
+      expect(kpis.confirmedBookings, equals(190));
+      expect(kpis.pendingBookings, equals(20));
+      expect(kpis.rejectedBookings, equals(7));
+
+      // Percentage sum must strictly equal 100.0%
+      final pctSum = double.parse((kpis.confirmedPct + kpis.pendingPct + kpis.rejectedPct).toStringAsFixed(1));
+      expect(pctSum, equals(100.0));
+      expect(kpis.currentUsageSpaces, equals(34));
+      expect(kpis.utilizationRate, equals(72.8));
+    });
+
+    test('SpaceBookingState dateRange defaults to null and copyWith supports clearDateRange', () {
+      final state = SpaceBookingState(selectedDate: DateTime(2026, 3, 15));
+      expect(state.dateRangeFrom, isNull);
+      expect(state.dateRangeTo, isNull);
+
+      final withRange = state.copyWith(
+        dateRangeFrom: DateTime(2026, 3, 15),
+        dateRangeTo: DateTime(2026, 3, 21),
+      );
+      expect(withRange.dateRangeFrom, equals(DateTime(2026, 3, 15)));
+      expect(withRange.dateRangeTo, equals(DateTime(2026, 3, 21)));
+
+      final cleared = withRange.copyWith(clearDateRange: true);
+      expect(cleared.dateRangeFrom, isNull);
+      expect(cleared.dateRangeTo, isNull);
     });
   });
 }

@@ -100,12 +100,15 @@ class _AddEditBuildingDocumentDialogState extends State<AddEditBuildingDocumentD
             }
           });
 
-          final uploadedUrl = await CampusApiService.instance.uploadImage(f.bytes!, f.name);
+          final uploadedUrl = await CampusApiService.instance.uploadDocument(f.bytes!, f.name);
           if (mounted) {
             setState(() {
               _isUploadingFile = false;
               if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
                 _urlCtrl.text = uploadedUrl;
+                _error = null;
+              } else {
+                _error = 'Upload failed: could not upload file to server. Please try again.';
               }
             });
           }
@@ -113,7 +116,10 @@ class _AddEditBuildingDocumentDialogState extends State<AddEditBuildingDocumentD
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isUploadingFile = false);
+        setState(() {
+          _isUploadingFile = false;
+          _error = 'Failed to pick or upload file: $e';
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to pick file: $e')),
         );
@@ -124,9 +130,26 @@ class _AddEditBuildingDocumentDialogState extends State<AddEditBuildingDocumentD
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_urlCtrl.text.trim().isEmpty && _fileBytes == null) {
-      setState(() => _error = 'Please upload a document file or specify a valid file URL.');
-      return;
+    if (_urlCtrl.text.trim().isEmpty) {
+      if (_fileBytes != null && _fileName != null) {
+        setState(() {
+          _isSaving = true;
+          _error = null;
+        });
+        final uploadedUrl = await CampusApiService.instance.uploadDocument(_fileBytes!, _fileName!);
+        if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+          _urlCtrl.text = uploadedUrl;
+        } else {
+          setState(() {
+            _isSaving = false;
+            _error = 'Failed to upload document file to server. Please try again or provide a direct URL.';
+          });
+          return;
+        }
+      } else {
+        setState(() => _error = 'Please upload a document file or specify a valid file URL.');
+        return;
+      }
     }
 
     setState(() {

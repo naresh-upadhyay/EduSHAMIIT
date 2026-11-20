@@ -1,5 +1,7 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../models/campus_models.dart';
+import '../common/campus_pagination_bar.dart';
 
 class MaintenanceSubtabView extends StatefulWidget {
   final BuildingModel building;
@@ -33,12 +35,23 @@ class _MaintenanceSubtabViewState extends State<MaintenanceSubtabView> {
   String _searchQuery = '';
   String? _selectedStatus;
   String? _selectedPriority;
+  int _page = 1;
+  int _pageSize = 10;
+  int? _sortColIndex = 0;
+  bool _sortAsc = false; // default newest first
+
+  void _handleSort(int colIndex, bool asc) {
+    setState(() {
+      _sortColIndex = colIndex;
+      _sortAsc = asc;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final filtered = widget.maintenanceList.where((m) {
+    var filtered = widget.maintenanceList.where((m) {
       if (_selectedStatus != null && _selectedStatus!.isNotEmpty && m.status != _selectedStatus) {
         return false;
       }
@@ -59,7 +72,48 @@ class _MaintenanceSubtabViewState extends State<MaintenanceSubtabView> {
       return true;
     }).toList();
 
-    final totalCount = widget.maintenanceList.length;
+    // Sorting
+    filtered.sort((a, b) {
+      int cmp = 0;
+      switch (_sortColIndex) {
+        case 0:
+          cmp = a.requestCode.compareTo(b.requestCode);
+          break;
+        case 1:
+          cmp = a.title.compareTo(b.title);
+          break;
+        case 2:
+          cmp = (a.roomNumber ?? '').compareTo(b.roomNumber ?? '');
+          break;
+        case 3:
+          cmp = a.requestType.compareTo(b.requestType);
+          break;
+        case 4:
+          cmp = a.priority.compareTo(b.priority);
+          break;
+        case 5:
+          cmp = a.status.compareTo(b.status);
+          break;
+        case 6:
+          cmp = (a.assignedToName ?? '').compareTo(b.assignedToName ?? '');
+          break;
+        case 7:
+          cmp = a.estimatedCost.compareTo(b.estimatedCost);
+          break;
+        default:
+          cmp = 0;
+      }
+      return _sortAsc ? cmp : -cmp;
+    });
+
+    final totalCount = filtered.length;
+    final totalPages = math.max(1, (totalCount / _pageSize).ceil());
+    if (_page > totalPages) _page = totalPages;
+
+    final startIndex = (totalCount == 0) ? 0 : (_page - 1) * _pageSize;
+    final endIndex = math.min(startIndex + _pageSize, totalCount);
+    final pagedItems = (startIndex < totalCount) ? filtered.sublist(startIndex, endIndex) : <BuildingMaintenanceModel>[];
+
     final pendingCount = widget.maintenanceList.where((m) => m.status == 'Pending' || m.status == 'In Progress').length;
     final completedCount = widget.maintenanceList.where((m) => m.status == 'Completed').length;
     final totalCost = widget.maintenanceList.fold<double>(0.0, (sum, m) => sum + (m.actualCost > 0 ? m.actualCost : m.estimatedCost));
@@ -75,146 +129,135 @@ class _MaintenanceSubtabViewState extends State<MaintenanceSubtabView> {
           runSpacing: 8,
           children: [
             Text(
-              'Maintenance & Repairs (${widget.building.code})',
+              'Maintenance & Work Orders (${widget.building.code})',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.w700,
                 color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
               ),
             ),
             ElevatedButton.icon(
               onPressed: widget.onAddMaintenance,
-              icon: const Icon(Icons.add, size: 15, color: Colors.white),
-              label: const Text('Log Maintenance Request', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+              icon: const Icon(Icons.build_rounded, size: 14, color: Colors.white),
+              label: const Text('Log Request', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Colors.white)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2563EB),
+                backgroundColor: const Color(0xFFF59E0B),
+                foregroundColor: Colors.white,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 8),
 
-        // 2. Mini KPI Cards
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final isCompact = constraints.maxWidth < 650;
-            return Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-              ),
-              child: isCompact
-                  ? Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(child: _buildMetricTile('Total Requests', '$totalCount', Icons.assignment_outlined, const Color(0xFF2563EB), isDark)),
-                            Container(width: 1, height: 32, color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                            Expanded(child: _buildMetricTile('Open / Active', '$pendingCount', Icons.pending_actions_outlined, const Color(0xFFD97706), isDark)),
-                          ],
-                        ),
-                        Divider(height: 16, color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                        Row(
-                          children: [
-                            Expanded(child: _buildMetricTile('Completed', '$completedCount', Icons.check_circle_outline, const Color(0xFF059669), isDark)),
-                            Container(width: 1, height: 32, color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                            Expanded(child: _buildMetricTile('Total Cost', '₹${totalCost.toStringAsFixed(0)}', Icons.currency_rupee, const Color(0xFF8B5CF6), isDark)),
-                          ],
-                        ),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(child: _buildMetricTile('Total Requests', '$totalCount', Icons.assignment_outlined, const Color(0xFF2563EB), isDark)),
-                        Container(width: 1, height: 36, color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                        Expanded(child: _buildMetricTile('Open / Active', '$pendingCount', Icons.pending_actions_outlined, const Color(0xFFD97706), isDark)),
-                        Container(width: 1, height: 36, color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                        Expanded(child: _buildMetricTile('Completed', '$completedCount', Icons.check_circle_outline, const Color(0xFF059669), isDark)),
-                        Container(width: 1, height: 36, color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                        Expanded(child: _buildMetricTile('Total Cost', '₹${totalCost.toStringAsFixed(0)}', Icons.currency_rupee, const Color(0xFF8B5CF6), isDark)),
-                      ],
-                    ),
-            );
-          },
-        ),
-        const SizedBox(height: 14),
-
-        // 3. Search & Filter Bar
+        // 2. Compact KPI Strip
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+          ),
+          child: Row(
+            children: [
+              Expanded(child: _buildMetricTile('Total Tickets', '${widget.maintenanceList.length}', Icons.confirmation_number_outlined, const Color(0xFF2563EB), isDark)),
+              Container(width: 1, height: 24, color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+              Expanded(child: _buildMetricTile('Pending', '$pendingCount', Icons.pending_actions_outlined, const Color(0xFFDC2626), isDark)),
+              Container(width: 1, height: 24, color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+              Expanded(child: _buildMetricTile('Completed', '$completedCount', Icons.task_alt_outlined, const Color(0xFF059669), isDark)),
+              Container(width: 1, height: 24, color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+              Expanded(child: _buildMetricTile('Est Cost', '₹${totalCost.toStringAsFixed(0)}', Icons.payments_outlined, const Color(0xFF8B5CF6), isDark)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // 3. Compact Search & Filter Row
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
           ),
           child: Row(
             children: [
               Expanded(
                 child: SizedBox(
-                  height: 38,
+                  height: 32,
                   child: TextField(
                     decoration: InputDecoration(
-                      hintText: 'Search issue, code, technician or room...',
-                      prefixIcon: const Icon(Icons.search, size: 18),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      hintText: 'Search title, code, staff...',
+                      hintStyle: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                      prefixIcon: const Icon(Icons.search, size: 15),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
                       isDense: true,
                     ),
-                    onChanged: (v) => setState(() => _searchQuery = v),
+                    style: const TextStyle(fontSize: 12),
+                    onChanged: (v) => setState(() {
+                      _searchQuery = v;
+                      _page = 1;
+                    }),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               SizedBox(
-                height: 38,
+                height: 32,
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String?>(
                     value: _selectedStatus,
-                    hint: const Text('All Statuses', style: TextStyle(fontSize: 12.5)),
+                    hint: const Text('All Statuses', style: TextStyle(fontSize: 11.5)),
                     items: const [
-                      DropdownMenuItem(value: null, child: Text('All Statuses', style: TextStyle(fontSize: 12.5))),
-                      DropdownMenuItem(value: 'Pending', child: Text('Pending', style: TextStyle(fontSize: 12.5))),
-                      DropdownMenuItem(value: 'In Progress', child: Text('In Progress', style: TextStyle(fontSize: 12.5))),
-                      DropdownMenuItem(value: 'Completed', child: Text('Completed', style: TextStyle(fontSize: 12.5))),
-                      DropdownMenuItem(value: 'Cancelled', child: Text('Cancelled', style: TextStyle(fontSize: 12.5))),
+                      DropdownMenuItem(value: null, child: Text('All Statuses', style: TextStyle(fontSize: 11.5))),
+                      DropdownMenuItem(value: 'Pending', child: Text('Pending', style: TextStyle(fontSize: 11.5))),
+                      DropdownMenuItem(value: 'In Progress', child: Text('In Progress', style: TextStyle(fontSize: 11.5))),
+                      DropdownMenuItem(value: 'Completed', child: Text('Completed', style: TextStyle(fontSize: 11.5))),
+                      DropdownMenuItem(value: 'Cancelled', child: Text('Cancelled', style: TextStyle(fontSize: 11.5))),
                     ],
-                    onChanged: (v) => setState(() => _selectedStatus = v),
+                    onChanged: (v) => setState(() {
+                      _selectedStatus = v;
+                      _page = 1;
+                    }),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               SizedBox(
-                height: 38,
+                height: 32,
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String?>(
                     value: _selectedPriority,
-                    hint: const Text('All Priorities', style: TextStyle(fontSize: 12.5)),
+                    hint: const Text('All Priorities', style: TextStyle(fontSize: 11.5)),
                     items: const [
-                      DropdownMenuItem(value: null, child: Text('All Priorities', style: TextStyle(fontSize: 12.5))),
-                      DropdownMenuItem(value: 'Critical', child: Text('Critical', style: TextStyle(fontSize: 12.5))),
-                      DropdownMenuItem(value: 'High', child: Text('High', style: TextStyle(fontSize: 12.5))),
-                      DropdownMenuItem(value: 'Medium', child: Text('Medium', style: TextStyle(fontSize: 12.5))),
-                      DropdownMenuItem(value: 'Low', child: Text('Low', style: TextStyle(fontSize: 12.5))),
+                      DropdownMenuItem(value: null, child: Text('All Priorities', style: TextStyle(fontSize: 11.5))),
+                      DropdownMenuItem(value: 'Critical', child: Text('Critical', style: TextStyle(fontSize: 11.5))),
+                      DropdownMenuItem(value: 'High', child: Text('High', style: TextStyle(fontSize: 11.5))),
+                      DropdownMenuItem(value: 'Medium', child: Text('Medium', style: TextStyle(fontSize: 11.5))),
+                      DropdownMenuItem(value: 'Low', child: Text('Low', style: TextStyle(fontSize: 11.5))),
                     ],
-                    onChanged: (v) => setState(() => _selectedPriority = v),
+                    onChanged: (v) => setState(() {
+                      _selectedPriority = v;
+                      _page = 1;
+                    }),
                   ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 8),
 
         // 4. Maintenance Data Table
         Container(
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
           ),
           child: widget.isLoading
@@ -225,16 +268,16 @@ class _MaintenanceSubtabViewState extends State<MaintenanceSubtabView> {
               : filtered.isEmpty
                   ? Center(
                       child: Padding(
-                        padding: const EdgeInsets.all(40),
+                        padding: const EdgeInsets.all(32),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.build_circle_outlined, size: 40, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
-                            const SizedBox(height: 10),
+                            Icon(Icons.build_circle_outlined, size: 36, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                            const SizedBox(height: 8),
                             Text(
-                              'No maintenance records found. Click "+ Log Maintenance Request" to report an issue.',
+                              'No maintenance records found. Click "+ Log Request" to report an issue.',
                               style: TextStyle(
-                                fontSize: 13,
+                                fontSize: 12.5,
                                 color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                               ),
                             ),
@@ -243,30 +286,58 @@ class _MaintenanceSubtabViewState extends State<MaintenanceSubtabView> {
                       ),
                     )
                   : ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                       child: SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: DataTable(
+                          sortColumnIndex: _sortColIndex,
+                          sortAscending: _sortAsc,
                           headingRowColor: WidgetStateProperty.all(
                             isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                           ),
-                          headingRowHeight: 44,
-                          dataRowMinHeight: 48,
-                          dataRowMaxHeight: 54,
-                          columnSpacing: 20,
-                          horizontalMargin: 16,
-                          columns: const [
-                            DataColumn(label: Text('Code', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Issue / Request', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Location', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Type', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Priority', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Status', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Assigned Staff', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Est / Act Cost', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Actions', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
+                          headingRowHeight: 34,
+                          dataRowMinHeight: 32,
+                          dataRowMaxHeight: 35,
+                          columnSpacing: 14,
+                          horizontalMargin: 12,
+                          columns: [
+                            DataColumn(
+                              label: const Text('Code', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                              onSort: (idx, asc) => _handleSort(idx, asc),
+                            ),
+                            DataColumn(
+                              label: const Text('Issue / Request', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                              onSort: (idx, asc) => _handleSort(idx, asc),
+                            ),
+                            DataColumn(
+                              label: const Text('Location', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                              onSort: (idx, asc) => _handleSort(idx, asc),
+                            ),
+                            DataColumn(
+                              label: const Text('Type', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                              onSort: (idx, asc) => _handleSort(idx, asc),
+                            ),
+                            DataColumn(
+                              label: const Text('Priority', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                              onSort: (idx, asc) => _handleSort(idx, asc),
+                            ),
+                            DataColumn(
+                              label: const Text('Status', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                              onSort: (idx, asc) => _handleSort(idx, asc),
+                            ),
+                            DataColumn(
+                              label: const Text('Assigned Staff', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                              onSort: (idx, asc) => _handleSort(idx, asc),
+                            ),
+                            DataColumn(
+                              label: const Text('Est / Act Cost', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                              onSort: (idx, asc) => _handleSort(idx, asc),
+                            ),
+                            const DataColumn(
+                              label: Text('Actions', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                            ),
                           ],
-                          rows: filtered.map((item) {
+                          rows: pagedItems.map((item) {
                             return DataRow(
                               cells: [
                                 DataCell(
@@ -276,33 +347,24 @@ class _MaintenanceSubtabViewState extends State<MaintenanceSubtabView> {
                                   ),
                                 ),
                                 DataCell(
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        item.title,
-                                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      if (item.description != null && item.description!.isNotEmpty)
-                                        Text(
-                                          item.description!,
-                                          style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                    ],
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 160),
+                                    child: Text(
+                                      item.title,
+                                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                 ),
                                 DataCell(
                                   Text(
                                     item.roomNumber != null ? 'Room ${item.roomNumber}' : (item.floorName ?? 'Building Common'),
-                                    style: const TextStyle(fontSize: 12),
+                                    style: const TextStyle(fontSize: 11.5),
                                   ),
                                 ),
                                 DataCell(
-                                  Text(item.requestType, style: const TextStyle(fontSize: 12)),
+                                  Text(item.requestType, style: const TextStyle(fontSize: 11.5)),
                                 ),
                                 DataCell(
                                   _buildPriorityChip(item.priority),
@@ -324,9 +386,9 @@ class _MaintenanceSubtabViewState extends State<MaintenanceSubtabView> {
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.engineering_outlined, size: 14, color: Color(0xFF64748B)),
+                                      const Icon(Icons.engineering_outlined, size: 13, color: Color(0xFF64748B)),
                                       const SizedBox(width: 4),
-                                      Text(item.assignedToName ?? 'Unassigned', style: const TextStyle(fontSize: 12)),
+                                      Text(item.assignedToName ?? 'Unassigned', style: const TextStyle(fontSize: 11.5)),
                                     ],
                                   ),
                                 ),
@@ -341,19 +403,19 @@ class _MaintenanceSubtabViewState extends State<MaintenanceSubtabView> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       IconButton(
-                                        icon: const Icon(Icons.edit_outlined, size: 16),
+                                        icon: const Icon(Icons.edit_outlined, size: 15),
                                         tooltip: 'Edit Request',
                                         onPressed: () => widget.onEditMaintenance(item),
                                         padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
+                                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                                       ),
-                                      const SizedBox(width: 8),
+                                      const SizedBox(width: 4),
                                       IconButton(
-                                        icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                                        icon: const Icon(Icons.delete_outline, size: 15, color: Colors.red),
                                         tooltip: 'Delete Request',
                                         onPressed: () => widget.onDeleteMaintenance(item),
                                         padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
+                                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                                       ),
                                     ],
                                   ),
@@ -365,6 +427,38 @@ class _MaintenanceSubtabViewState extends State<MaintenanceSubtabView> {
                       ),
                     ),
         ),
+        const SizedBox(height: 8),
+
+        // Pagination Bar
+        CampusPaginationBar(
+          currentPage: _page,
+          pageSize: _pageSize,
+          totalCount: totalCount,
+          itemLabel: 'requests',
+          onPageChanged: (p) => setState(() => _page = p),
+          onPageSizeChanged: (s) => setState(() {
+            _pageSize = s;
+            _page = 1;
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricTile(String label, String value, IconData icon, Color color, bool isDark) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, color: color, size: 16),
+        const SizedBox(width: 6),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+            Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+          ],
+        ),
       ],
     );
   }
@@ -373,26 +467,30 @@ class _MaintenanceSubtabViewState extends State<MaintenanceSubtabView> {
     Color color;
     switch (priority.toLowerCase()) {
       case 'critical':
-        color = const Color(0xFFDC2626);
+        color = const Color(0xFFEF4444);
         break;
       case 'high':
-        color = const Color(0xFFEA580C);
+        color = const Color(0xFFF97316);
         break;
       case 'medium':
-        color = const Color(0xFF2563EB);
+        color = const Color(0xFFF59E0B);
+        break;
+      case 'low':
+        color = const Color(0xFF10B981);
         break;
       default:
         color = const Color(0xFF64748B);
     }
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         priority,
-        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600),
+        style: TextStyle(color: color, fontSize: 10.5, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -401,7 +499,7 @@ class _MaintenanceSubtabViewState extends State<MaintenanceSubtabView> {
     Color color;
     switch (status.toLowerCase()) {
       case 'completed':
-        color = const Color(0xFF059669);
+        color = const Color(0xFF10B981);
         break;
       case 'in progress':
         color = const Color(0xFF2563EB);
@@ -409,45 +507,25 @@ class _MaintenanceSubtabViewState extends State<MaintenanceSubtabView> {
       case 'cancelled':
         color = const Color(0xFF64748B);
         break;
+      case 'pending':
       default:
-        color = const Color(0xFFD97706);
+        color = const Color(0xFFF59E0B);
     }
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            status,
-            style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600),
-          ),
+          Text(status, style: TextStyle(color: color, fontSize: 10.5, fontWeight: FontWeight.w600)),
           const SizedBox(width: 3),
           Icon(Icons.arrow_drop_down, size: 14, color: color),
         ],
       ),
-    );
-  }
-
-  Widget _buildMetricTile(String label, String value, IconData icon, Color color, bool isDark) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(width: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(label, style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
-            const SizedBox(height: 1),
-            Text(value, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A))),
-          ],
-        ),
-      ],
     );
   }
 }

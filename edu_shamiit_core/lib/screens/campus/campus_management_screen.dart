@@ -1,5 +1,8 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
 import 'models/campus_models.dart';
 import 'providers/campus_provider.dart';
 import 'services/campus_api_service.dart';
@@ -9,7 +12,6 @@ import 'widgets/campus_kpi_cards.dart';
 import 'widgets/buildings/building_left_panel.dart';
 import 'widgets/buildings/building_center_panel.dart';
 import 'widgets/buildings/building_right_details_panel.dart';
-import 'package:file_picker/file_picker.dart';
 import 'widgets/dialogs/add_edit_building_dialog.dart';
 import 'widgets/dialogs/add_edit_building_document_dialog.dart';
 import 'widgets/dialogs/add_edit_building_maintenance_dialog.dart';
@@ -28,6 +30,19 @@ import 'widgets/device_management/device_management_tab_view.dart';
 import 'widgets/facilities/facilities_tab_view.dart';
 import 'widgets/utilities/utilities_services_tab_view.dart';
 import 'widgets/reports/campus_reports_tab_view.dart';
+import 'services/space_booking_api_service.dart';
+import 'services/maintenance_api_service.dart';
+import 'services/safety_compliance_api_service.dart';
+import 'services/device_management_api_service.dart';
+import 'widgets/facilities/dialogs/add_edit_facility_dialog.dart';
+import 'widgets/space_booking/dialogs/create_edit_booking_dialog.dart';
+import 'widgets/space_booking/dialogs/recurring_booking_dialog.dart';
+import 'widgets/maintenance/dialogs/create_edit_maintenance_dialog.dart';
+import 'widgets/maintenance/dialogs/maintenance_plan_dialog.dart';
+import 'widgets/safety_compliance/dialogs/report_incident_dialog.dart';
+import 'widgets/safety_compliance/dialogs/schedule_drill_dialog.dart';
+import 'widgets/device_management/dialogs/add_device_wizard_dialog.dart';
+import 'widgets/utilities/dialogs/log_utility_reading_dialog.dart';
 import '../../utils/tab_url_sync.dart';
 
 class CampusManagementScreen extends ConsumerStatefulWidget {
@@ -43,6 +58,8 @@ class CampusManagementScreen extends ConsumerStatefulWidget {
 }
 
 class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen> {
+  bool _showKpis = false;
+
   @override
   void initState() {
     super.initState();
@@ -345,24 +362,70 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
     );
   }
 
+  Future<Uint8List?> _cropBuildingImage(String sourcePath) async {
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: sourcePath,
+      aspectRatio: const CropAspectRatio(ratioX: 16, ratioY: 9),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop Building Image',
+          toolbarColor: const Color(0xFF0F172A),
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.ratio16x9,
+          lockAspectRatio: false,
+        ),
+        IOSUiSettings(
+          title: 'Crop Building Image',
+          aspectRatioLockEnabled: false,
+        ),
+        WebUiSettings(
+          context: context,
+          presentStyle: WebPresentStyle.dialog,
+          size: const CropperSize(width: 520, height: 320),
+          zoomable: true,
+          rotatable: true,
+          scalable: true,
+        ),
+      ],
+    );
+    if (croppedFile != null) {
+      return await croppedFile.readAsBytes();
+    }
+    return null;
+  }
+
   void _updateBuildingPhoto(BuildingModel building) async {
     try {
-      final res = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
-        withData: true,
+      final picker = ImagePicker();
+      final XFile? picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        imageQuality: 90,
       );
-      if (res != null && res.files.isNotEmpty) {
-        final file = res.files.first;
-        if (file.bytes != null) {
-          _showSnackbar('Uploading building image...');
-          final uploadedUrl = await CampusApiService.instance.uploadImage(file.bytes!, file.name);
-          if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
-            await CampusApiService.instance.saveBuilding({'image_url': uploadedUrl}, buildingId: building.id);
-            ref.read(campusProvider.notifier).loadAll();
-            _showSnackbar('Building photo updated successfully!');
-          }
+      if (picked == null || !mounted) return;
+
+      final croppedBytes = await _cropBuildingImage(picked.path);
+      if (croppedBytes == null || !mounted) return;
+
+      String filename = picked.name;
+      if (!filename.contains('.')) {
+        filename += '.jpg';
+      }
+
+      _showSnackbar('Uploading cropped building image...');
+      final uploadedUrl = await CampusApiService.instance.uploadImage(croppedBytes, filename);
+      if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+        final saveRes = await CampusApiService.instance.updateBuildingPhoto(building.id, uploadedUrl);
+        if (saveRes['success'] == true || saveRes['status'] == 'success') {
+          ref.read(campusProvider.notifier).updateBuildingImage(building.id, uploadedUrl);
+          await ref.read(campusProvider.notifier).loadAll();
+          ref.read(campusProvider.notifier).updateBuildingImage(building.id, uploadedUrl);
+          _showSnackbar('Building photo updated successfully!');
+        } else {
+          _showSnackbar(saveRes['message'] ?? 'Failed to save building photo. Please try again.', isError: true);
         }
+      } else {
+        _showSnackbar('Failed to upload building image. Please try again.', isError: true);
       }
     } catch (e) {
       _showSnackbar('Failed to update image: $e', isError: true);
@@ -555,6 +618,121 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
     }
   }
 
+  // Multi-Tab Action Dialogs
+  void _openAddFacilityModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AddEditFacilityDialog(
+        onSaved: () => _showSnackbar('Facility registered successfully!'),
+      ),
+    );
+  }
+
+  void _openBookSpaceModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const CreateEditBookingDialog(),
+    );
+  }
+
+  void _openRecurringBookingModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const RecurringBookingDialog(),
+    );
+  }
+
+  void _openRaiseMaintenanceRequestModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const CreateEditMaintenanceDialog(),
+    );
+  }
+
+  void _openMaintenancePlanModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const MaintenancePlanDialog(),
+    );
+  }
+
+  void _openReportSafetyIncidentModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const ReportIncidentDialog(),
+    );
+  }
+
+  void _openScheduleDrillModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const ScheduleDrillDialog(),
+    );
+  }
+
+  void _openAddDeviceModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AddDeviceWizardDialog(
+        onSaved: () => _showSnackbar('Device registered successfully!'),
+      ),
+    );
+  }
+
+  void _openLogUtilityReadingModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => LogUtilityReadingDialog(
+        onSaved: () => _showSnackbar('Utility reading logged successfully!'),
+      ),
+    );
+  }
+
+  void _handleTabExport(int activeTab, BuildingModel? currentBuilding) {
+    switch (activeTab) {
+      case 1:
+        CampusApiService.instance.exportData('facilities');
+        _showSnackbar('Exporting campus facilities CSV...');
+        break;
+      case 2:
+        SpaceBookingApiService.instance.exportCsv(buildingId: currentBuilding?.id);
+        _showSnackbar('Exporting space bookings CSV...');
+        break;
+      case 3:
+        MaintenanceApiService.instance.exportCsv();
+        _showSnackbar('Exporting maintenance requests CSV...');
+        break;
+      case 4:
+        SafetyComplianceApiService.instance.exportCsv('inspections');
+        _showSnackbar('Exporting safety compliance inspections CSV...');
+        break;
+      case 5:
+        DeviceManagementApiService.instance.exportDevicesCsv();
+        _showSnackbar('Exporting smart campus devices CSV...');
+        break;
+      case 6:
+        CampusApiService.instance.exportCampusReport(reportType: 4);
+        _showSnackbar('Exporting campus energy & utilities CSV...');
+        break;
+      case 7:
+        CampusApiService.instance.exportCampusReport(reportType: 0, buildingId: currentBuilding?.id);
+        _showSnackbar('Exporting campus executive report CSV...');
+        break;
+      default:
+        CampusApiService.instance.exportData('rooms', buildingId: currentBuilding?.id);
+        _showSnackbar('Exporting campus rooms CSV...');
+    }
+  }
+
   void _showSnackbar(String msg, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -563,6 +741,78 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),
       ),
+    );
+  }
+
+  Widget _buildCenterPanel(BuildingModel bld, CampusState state, CampusNotifier notifier) {
+    return BuildingCenterPanel(
+      building: bld,
+      buildingDetails: state.selectedBuildingDetails,
+      activeSubTab: state.activeBuildingSubTab,
+      onSubTabChanged: notifier.setActiveBuildingSubTab,
+      onEditBuilding: () => _openEditBuildingDialog(bld),
+      onArchiveBuilding: () => _archiveBuilding(bld),
+      onDeleteBuilding: () => _deleteBuilding(bld),
+      floors: state.floors,
+      isFloorsLoading: state.isFloorsLoading,
+      onAddFloor: () => _openAddFloorDialog(bld),
+      onEditFloor: (f) => _openEditFloorDialog(bld, f),
+      onDeleteFloor: (f) => _deleteFloor(bld, f),
+      onViewRoomsOnFloor: (f) {
+        notifier.setFilterFloor(f.id);
+        notifier.setActiveBuildingSubTab(1);
+      },
+      totalFloorsCount: state.totalFloorsCount,
+      floorsPage: state.floorsPage,
+      floorsPageSize: state.floorsPageSize,
+      onFloorsPageChanged: notifier.setFloorsPage,
+      onFloorsPageSizeChanged: notifier.setFloorsPageSize,
+      floorsSortBy: state.floorsSortBy,
+      floorsSortOrder: state.floorsSortOrder,
+      onFloorsSortChanged: notifier.setFloorSort,
+      rooms: state.rooms,
+      isRoomsLoading: state.isRoomsLoading,
+      roomsViewMode: state.roomsViewMode,
+      onRoomsViewModeChanged: notifier.setRoomsViewMode,
+      roomSearchQuery: state.roomSearchQuery,
+      onRoomSearch: notifier.setRoomSearch,
+      filterFloorId: state.filterFloorId,
+      onFilterFloor: notifier.setFilterFloor,
+      filterRoomType: state.filterRoomType,
+      onFilterRoomType: notifier.setFilterRoomType,
+      filterStatus: state.filterRoomStatus,
+      onFilterStatus: notifier.setFilterRoomStatus,
+      onClearRoomFilters: notifier.clearFilters,
+      onAddRoom: () => _openAddRoomDialog(bld, state.floors),
+      onBulkCreateRooms: () => _openBulkCreateDialog(bld, state.floors),
+      onInspectRoom: notifier.inspectRoom,
+      onEditRoom: (r) => _openEditRoomDialog(bld, state.floors, r),
+      onManageEquipment: _openEquipmentDialog,
+      onDeleteRoom: (r) => _deleteRoom(bld, r),
+      totalRoomsCount: state.totalRoomsCount,
+      roomsPage: state.roomsPage,
+      roomsPageSize: state.roomsPageSize,
+      onRoomsPageChanged: notifier.setRoomsPage,
+      onRoomsPageSizeChanged: notifier.setRoomsPageSize,
+      roomsSortBy: state.roomsSortBy,
+      roomsSortOrder: state.roomsSortOrder,
+      onRoomsSortChanged: notifier.setRoomSort,
+      occupancyList: state.buildingOccupancy,
+      isOccupancyLoading: state.isOccupancyLoading,
+      onAddOccupancy: () => _openAddOccupancyDialog(bld, state.rooms),
+      onEditOccupancy: (occ) => _openEditOccupancyDialog(bld, state.rooms, occ),
+      onDeleteOccupancy: (occ) => _deleteOccupancy(bld, occ),
+      maintenanceList: state.buildingMaintenance,
+      isMaintenanceLoading: state.isMaintenanceLoading,
+      onAddMaintenance: () => _openAddMaintenanceDialog(bld, state.floors, state.rooms),
+      onEditMaintenance: (m) => _openEditMaintenanceDialog(bld, state.floors, state.rooms, m),
+      onDeleteMaintenance: (m) => _deleteMaintenance(bld, m),
+      onQuickUpdateMaintenanceStatus: (m, status) => _quickUpdateMaintenanceStatus(bld, m, status),
+      documentsList: state.buildingDocuments,
+      isDocumentsLoading: state.isDocumentsLoading,
+      onAddDocument: () => _openAddDocumentDialog(bld),
+      onEditDocument: (d) => _openEditDocumentDialog(bld, d),
+      onDeleteDocument: (d) => _deleteDocument(bld, d),
     );
   }
 
@@ -583,23 +833,42 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Top Campus Header Bar
+                  // Top Campus Header Bar (Dynamically adapts actions & title to active tab)
                   CampusHeaderBar(
+                    activeTab: state.activeCampusTab,
                     onAddBuilding: _openAddBuildingDialog,
                     onBulkImport: () => _openBulkImportDialog(state.selectedBuilding),
-                    onExport: () => CampusApiService.instance.exportData('rooms', buildingId: state.selectedBuilding?.id),
+                    onExport: () => _handleTabExport(state.activeCampusTab, state.selectedBuilding),
+                    onAddFacility: _openAddFacilityModal,
+                    onBookSpace: _openBookSpaceModal,
+                    onRecurringBooking: _openRecurringBookingModal,
+                    onRaiseMaintenanceRequest: _openRaiseMaintenanceRequestModal,
+                    onMaintenancePlan: _openMaintenancePlanModal,
+                    onReportSafetyIncident: _openReportSafetyIncidentModal,
+                    onScheduleDrill: _openScheduleDrillModal,
+                    onAddDevice: _openAddDeviceModal,
+                    onLogUtilityReading: _openLogUtilityReadingModal,
+                    onExportReport: () => _handleTabExport(7, state.selectedBuilding),
                   ),
                   const SizedBox(height: 12),
 
                   // Campus Navigation Tabs Header (Buildings & Rooms [ACTIVE], Facilities, Space Booking, etc.)
                   CampusTabsBar(
                     activeIndex: state.activeCampusTab,
+                    isKpisVisible: _showKpis,
+                    onToggleKpis: () => setState(() => _showKpis = !_showKpis),
                     onTabSelected: (idx) {
                       notifier.setActiveCampusTab(idx);
                       updateTabUrl('/admin/campus', idx);
                     },
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 8),
+
+                  // Collapsible Institutional KPI Cards Row (Visible across all tabs when Stats is toggled)
+                  if (_showKpis) ...[
+                    CampusKpiCards(kpis: state.kpis),
+                    const SizedBox(height: 8),
+                  ],
 
                   if (state.activeCampusTab == 1)
                     const Expanded(child: FacilitiesTabView())
@@ -616,10 +885,6 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
                   else if (state.activeCampusTab == 7)
                     const Expanded(child: CampusReportsTabView())
                   else ...[
-                    // Top KPI Summary Cards Row
-                    CampusKpiCards(kpis: state.kpis),
-                    const SizedBox(height: 16),
-
                     // Three-Column Split Dashboard Area
                     Expanded(
                       child: LayoutBuilder(
@@ -696,59 +961,7 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
 
                               // Center Active Building Area (Flex expanded)
                               Expanded(
-                                child: BuildingCenterPanel(
-                                  building: bld,
-                                  buildingDetails: state.selectedBuildingDetails,
-                                  activeSubTab: state.activeBuildingSubTab,
-                                  onSubTabChanged: notifier.setActiveBuildingSubTab,
-                                  onEditBuilding: () => _openEditBuildingDialog(bld),
-                                  onArchiveBuilding: () => _archiveBuilding(bld),
-                                  onDeleteBuilding: () => _deleteBuilding(bld),
-                                  floors: state.floors,
-                                  isFloorsLoading: state.isFloorsLoading,
-                                  onAddFloor: () => _openAddFloorDialog(bld),
-                                  onEditFloor: (f) => _openEditFloorDialog(bld, f),
-                                  onDeleteFloor: (f) => _deleteFloor(bld, f),
-                                  onViewRoomsOnFloor: (f) {
-                                    notifier.setFilterFloor(f.id);
-                                    notifier.setActiveBuildingSubTab(1); // Switch to rooms tab
-                                  },
-                                  rooms: state.rooms,
-                                  isRoomsLoading: state.isRoomsLoading,
-                                  roomsViewMode: state.roomsViewMode,
-                                  onRoomsViewModeChanged: notifier.setRoomsViewMode,
-                                  roomSearchQuery: state.roomSearchQuery,
-                                  onRoomSearch: notifier.setRoomSearch,
-                                  filterFloorId: state.filterFloorId,
-                                  onFilterFloor: notifier.setFilterFloor,
-                                  filterRoomType: state.filterRoomType,
-                                  onFilterRoomType: notifier.setFilterRoomType,
-                                  filterStatus: state.filterRoomStatus,
-                                  onFilterStatus: notifier.setFilterRoomStatus,
-                                  onClearRoomFilters: notifier.clearFilters,
-                                  onAddRoom: () => _openAddRoomDialog(bld, state.floors),
-                                  onBulkCreateRooms: () => _openBulkCreateDialog(bld, state.floors),
-                                  onInspectRoom: notifier.inspectRoom,
-                                  onEditRoom: (r) => _openEditRoomDialog(bld, state.floors, r),
-                                  onManageEquipment: _openEquipmentDialog,
-                                  onDeleteRoom: (r) => _deleteRoom(bld, r),
-                                  occupancyList: state.buildingOccupancy,
-                                  isOccupancyLoading: state.isOccupancyLoading,
-                                  onAddOccupancy: () => _openAddOccupancyDialog(bld, state.rooms),
-                                  onEditOccupancy: (occ) => _openEditOccupancyDialog(bld, state.rooms, occ),
-                                  onDeleteOccupancy: (occ) => _deleteOccupancy(bld, occ),
-                                  maintenanceList: state.buildingMaintenance,
-                                  isMaintenanceLoading: state.isMaintenanceLoading,
-                                  onAddMaintenance: () => _openAddMaintenanceDialog(bld, state.floors, state.rooms),
-                                  onEditMaintenance: (m) => _openEditMaintenanceDialog(bld, state.floors, state.rooms, m),
-                                  onDeleteMaintenance: (m) => _deleteMaintenance(bld, m),
-                                  onQuickUpdateMaintenanceStatus: (m, status) => _quickUpdateMaintenanceStatus(bld, m, status),
-                                  documentsList: state.buildingDocuments,
-                                  isDocumentsLoading: state.isDocumentsLoading,
-                                  onAddDocument: () => _openAddDocumentDialog(bld),
-                                  onEditDocument: (d) => _openEditDocumentDialog(bld, d),
-                                  onDeleteDocument: (d) => _deleteDocument(bld, d),
-                                ),
+                                child: _buildCenterPanel(bld, state, notifier),
                               ),
                               const SizedBox(width: 14),
 
@@ -792,59 +1005,7 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
                               ),
                               const SizedBox(width: 12),
                               Expanded(
-                                child: BuildingCenterPanel(
-                                  building: bld,
-                                  buildingDetails: state.selectedBuildingDetails,
-                                  activeSubTab: state.activeBuildingSubTab,
-                                  onSubTabChanged: notifier.setActiveBuildingSubTab,
-                                  onEditBuilding: () => _openEditBuildingDialog(bld),
-                                  onArchiveBuilding: () => _archiveBuilding(bld),
-                                  onDeleteBuilding: () => _deleteBuilding(bld),
-                                  floors: state.floors,
-                                  isFloorsLoading: state.isFloorsLoading,
-                                  onAddFloor: () => _openAddFloorDialog(bld),
-                                  onEditFloor: (f) => _openEditFloorDialog(bld, f),
-                                  onDeleteFloor: (f) => _deleteFloor(bld, f),
-                                  onViewRoomsOnFloor: (f) {
-                                    notifier.setFilterFloor(f.id);
-                                    notifier.setActiveBuildingSubTab(1);
-                                  },
-                                  rooms: state.rooms,
-                                  isRoomsLoading: state.isRoomsLoading,
-                                  roomsViewMode: state.roomsViewMode,
-                                  onRoomsViewModeChanged: notifier.setRoomsViewMode,
-                                  roomSearchQuery: state.roomSearchQuery,
-                                  onRoomSearch: notifier.setRoomSearch,
-                                  filterFloorId: state.filterFloorId,
-                                  onFilterFloor: notifier.setFilterFloor,
-                                  filterRoomType: state.filterRoomType,
-                                  onFilterRoomType: notifier.setFilterRoomType,
-                                  filterStatus: state.filterRoomStatus,
-                                  onFilterStatus: notifier.setFilterRoomStatus,
-                                  onClearRoomFilters: notifier.clearFilters,
-                                  onAddRoom: () => _openAddRoomDialog(bld, state.floors),
-                                  onBulkCreateRooms: () => _openBulkCreateDialog(bld, state.floors),
-                                  onInspectRoom: notifier.inspectRoom,
-                                  onEditRoom: (r) => _openEditRoomDialog(bld, state.floors, r),
-                                  onManageEquipment: _openEquipmentDialog,
-                                  onDeleteRoom: (r) => _deleteRoom(bld, r),
-                                  occupancyList: state.buildingOccupancy,
-                                  isOccupancyLoading: state.isOccupancyLoading,
-                                  onAddOccupancy: () => _openAddOccupancyDialog(bld, state.rooms),
-                                  onEditOccupancy: (occ) => _openEditOccupancyDialog(bld, state.rooms, occ),
-                                  onDeleteOccupancy: (occ) => _deleteOccupancy(bld, occ),
-                                  maintenanceList: state.buildingMaintenance,
-                                  isMaintenanceLoading: state.isMaintenanceLoading,
-                                  onAddMaintenance: () => _openAddMaintenanceDialog(bld, state.floors, state.rooms),
-                                  onEditMaintenance: (m) => _openEditMaintenanceDialog(bld, state.floors, state.rooms, m),
-                                  onDeleteMaintenance: (m) => _deleteMaintenance(bld, m),
-                                  onQuickUpdateMaintenanceStatus: (m, status) => _quickUpdateMaintenanceStatus(bld, m, status),
-                                  documentsList: state.buildingDocuments,
-                                  isDocumentsLoading: state.isDocumentsLoading,
-                                  onAddDocument: () => _openAddDocumentDialog(bld),
-                                  onEditDocument: (d) => _openEditDocumentDialog(bld, d),
-                                  onDeleteDocument: (d) => _deleteDocument(bld, d),
-                                ),
+                                child: _buildCenterPanel(bld, state, notifier),
                               ),
                             ],
                           );
@@ -907,59 +1068,7 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
                                   ),
                                 ),
                                 // Full-width BuildingCenterPanel
-                                BuildingCenterPanel(
-                                  building: bld,
-                                  buildingDetails: state.selectedBuildingDetails,
-                                  activeSubTab: state.activeBuildingSubTab,
-                                  onSubTabChanged: notifier.setActiveBuildingSubTab,
-                                  onEditBuilding: () => _openEditBuildingDialog(bld),
-                                  onArchiveBuilding: () => _archiveBuilding(bld),
-                                  onDeleteBuilding: () => _deleteBuilding(bld),
-                                  floors: state.floors,
-                                  isFloorsLoading: state.isFloorsLoading,
-                                  onAddFloor: () => _openAddFloorDialog(bld),
-                                  onEditFloor: (f) => _openEditFloorDialog(bld, f),
-                                  onDeleteFloor: (f) => _deleteFloor(bld, f),
-                                  onViewRoomsOnFloor: (f) {
-                                    notifier.setFilterFloor(f.id);
-                                    notifier.setActiveBuildingSubTab(1);
-                                  },
-                                  rooms: state.rooms,
-                                  isRoomsLoading: state.isRoomsLoading,
-                                  roomsViewMode: state.roomsViewMode,
-                                  onRoomsViewModeChanged: notifier.setRoomsViewMode,
-                                  roomSearchQuery: state.roomSearchQuery,
-                                  onRoomSearch: notifier.setRoomSearch,
-                                  filterFloorId: state.filterFloorId,
-                                  onFilterFloor: notifier.setFilterFloor,
-                                  filterRoomType: state.filterRoomType,
-                                  onFilterRoomType: notifier.setFilterRoomType,
-                                  filterStatus: state.filterRoomStatus,
-                                  onFilterStatus: notifier.setFilterRoomStatus,
-                                  onClearRoomFilters: notifier.clearFilters,
-                                  onAddRoom: () => _openAddRoomDialog(bld, state.floors),
-                                  onBulkCreateRooms: () => _openBulkCreateDialog(bld, state.floors),
-                                  onInspectRoom: notifier.inspectRoom,
-                                  onEditRoom: (r) => _openEditRoomDialog(bld, state.floors, r),
-                                  onManageEquipment: _openEquipmentDialog,
-                                  onDeleteRoom: (r) => _deleteRoom(bld, r),
-                                  occupancyList: state.buildingOccupancy,
-                                  isOccupancyLoading: state.isOccupancyLoading,
-                                  onAddOccupancy: () => _openAddOccupancyDialog(bld, state.rooms),
-                                  onEditOccupancy: (occ) => _openEditOccupancyDialog(bld, state.rooms, occ),
-                                  onDeleteOccupancy: (occ) => _deleteOccupancy(bld, occ),
-                                  maintenanceList: state.buildingMaintenance,
-                                  isMaintenanceLoading: state.isMaintenanceLoading,
-                                  onAddMaintenance: () => _openAddMaintenanceDialog(bld, state.floors, state.rooms),
-                                  onEditMaintenance: (m) => _openEditMaintenanceDialog(bld, state.floors, state.rooms, m),
-                                  onDeleteMaintenance: (m) => _deleteMaintenance(bld, m),
-                                  onQuickUpdateMaintenanceStatus: (m, status) => _quickUpdateMaintenanceStatus(bld, m, status),
-                                  documentsList: state.buildingDocuments,
-                                  isDocumentsLoading: state.isDocumentsLoading,
-                                  onAddDocument: () => _openAddDocumentDialog(bld),
-                                  onEditDocument: (d) => _openEditDocumentDialog(bld, d),
-                                  onDeleteDocument: (d) => _deleteDocument(bld, d),
-                                ),
+                                _buildCenterPanel(bld, state, notifier),
                               ],
                             ),
                           );

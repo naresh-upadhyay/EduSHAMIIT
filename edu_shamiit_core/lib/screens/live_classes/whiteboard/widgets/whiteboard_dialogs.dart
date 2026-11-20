@@ -40,6 +40,8 @@ class _RichTextEditorDialogState extends State<RichTextEditorDialog> {
   late bool _bold;
   late bool _italic;
   late bool _underline;
+  bool _strikethrough = false;
+  String _fontFamily = 'sans-serif';
   late Color _textColor;
   Color? _bgColor;
   String _align = 'left';
@@ -48,7 +50,7 @@ class _RichTextEditorDialogState extends State<RichTextEditorDialog> {
   void initState() {
     super.initState();
     _ctrl = TextEditingController(text: widget.initialText);
-    _fontSize = widget.initialFontSize;
+    _fontSize = (widget.initialFontSize <= 0 || widget.initialFontSize.isNaN) ? 14.0 : widget.initialFontSize;
     _bold = widget.initialBold;
     _italic = widget.initialItalic;
     _underline = widget.initialUnderline;
@@ -64,120 +66,284 @@ class _RichTextEditorDialogState extends State<RichTextEditorDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final dialogBg = isDark ? const Color(0xFF1E2235) : Colors.white;
+    final textPrimary = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final inputBg = isDark ? const Color(0xFF13182C) : const Color(0xFFF8FAFC);
+
+    final paletteColors = [
+      isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A),
+      const Color(0xFF2563EB),
+      const Color(0xFF0EA5E9),
+      const Color(0xFF10B981),
+      const Color(0xFF047857),
+      const Color(0xFFF59E0B),
+      const Color(0xFFEA580C),
+      const Color(0xFFDC2626),
+      const Color(0xFFE11D48),
+      const Color(0xFF8B5CF6),
+      const Color(0xFF4F46E5),
+      if (isDark) const Color(0xFF94A3B8) else const Color(0xFF64748B),
+    ];
+
+    final allSizes = <double>{
+      10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 18.0, 20.0, 22.0, 24.0, 28.0, 32.0, 36.0, 48.0,
+      _fontSize,
+    }.toList()..sort();
+
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(
-        widget.isStickyNote ? 'Edit Sticky Note' : 'Rich Text Annotation',
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      backgroundColor: dialogBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: borderColor, width: 1.2),
+      ),
+      title: Row(
+        children: [
+          Icon(
+            widget.isStickyNote ? Icons.sticky_note_2_rounded : Icons.text_fields_rounded,
+            color: const Color(0xFF2563EB),
+            size: 22,
+          ),
+          const SizedBox(width: 10),
+          Text(
+            widget.isStickyNote ? 'Edit Sticky Note' : 'Rich Text Annotation',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
+          ),
+        ],
       ),
       content: SizedBox(
-        width: 440,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                if (!widget.isStickyNote) ...[
-                  _fmtBtn(Icons.format_bold, _bold, () => setState(() => _bold = !_bold)),
-                  _fmtBtn(Icons.format_italic, _italic, () => setState(() => _italic = !_italic)),
-                  _fmtBtn(Icons.format_underline, _underline, () => setState(() => _underline = !_underline)),
-                  _fmtBtn(Icons.format_align_left, _align == 'left', () => setState(() => _align = 'left')),
-                  _fmtBtn(Icons.format_align_center, _align == 'center', () => setState(() => _align = 'center')),
-                  _fmtBtn(Icons.format_align_right, _align == 'right', () => setState(() => _align = 'right')),
-                ],
-                DropdownButton<double>(
-                  value: _fontSize,
-                  isDense: true,
-                  items: [14.0, 16.0, 18.0, 22.0, 28.0, 34.0]
-                      .map((s) => DropdownMenuItem(value: s, child: Text('${s.toInt()}pt', style: const TextStyle(fontSize: 12))))
-                      .toList(),
-                  onChanged: (v) {
-                    if (v != null) setState(() => _fontSize = v);
-                  },
+        width: 520,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Toolbar Row 1: Formatting Styles, Alignments, Font Family
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: inputBg,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: borderColor),
                 ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const Text('Color:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                const SizedBox(width: 8),
-                for (final c in [
-                  const Color(0xFF0F172A),
-                  const Color(0xFF1D4ED8),
-                  const Color(0xFFDC2626),
-                  const Color(0xFF16A34A),
-                  const Color(0xFF7C3AED),
-                ])
-                  GestureDetector(
-                    onTap: () => setState(() => _textColor = c),
-                    child: Container(
-                      width: 20,
-                      height: 20,
-                      margin: const EdgeInsets.only(right: 6),
-                      decoration: BoxDecoration(
-                        color: c,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: _textColor == c ? Colors.amber : Colors.transparent, width: 2),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (!widget.isStickyNote) ...[
+                      _fmtBtn(Icons.format_bold, _bold, isDark, () => setState(() => _bold = !_bold)),
+                      _fmtBtn(Icons.format_italic, _italic, isDark, () => setState(() => _italic = !_italic)),
+                      _fmtBtn(Icons.format_underline, _underline, isDark, () => setState(() => _underline = !_underline)),
+                      _fmtBtn(Icons.format_strikethrough, _strikethrough, isDark, () => setState(() => _strikethrough = !_strikethrough)),
+                      Container(width: 1, height: 18, color: borderColor),
+                      _fmtBtn(Icons.format_align_left, _align == 'left', isDark, () => setState(() => _align = 'left')),
+                      _fmtBtn(Icons.format_align_center, _align == 'center', isDark, () => setState(() => _align = 'center')),
+                      _fmtBtn(Icons.format_align_right, _align == 'right', isDark, () => setState(() => _align = 'right')),
+                      Container(width: 1, height: 18, color: borderColor),
+                    ],
+                    // Font Family Dropdown
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _fontFamily,
+                        dropdownColor: dialogBg,
+                        isDense: true,
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textPrimary),
+                        items: const [
+                          DropdownMenuItem(value: 'sans-serif', child: Text('Modern (Sans)')),
+                          DropdownMenuItem(value: 'serif', child: Text('Academic (Serif)')),
+                          DropdownMenuItem(value: 'monospace', child: Text('Code (Mono)')),
+                          DropdownMenuItem(value: 'cursive', child: Text('Handwritten')),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) setState(() => _fontFamily = v);
+                        },
                       ),
                     ),
+                    Container(width: 1, height: 18, color: borderColor),
+                    // Font Size Dropdown
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton<double>(
+                        value: _fontSize,
+                        dropdownColor: dialogBg,
+                        isDense: true,
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF2563EB)),
+                        items: allSizes
+                            .map((s) => DropdownMenuItem(
+                                  value: s,
+                                  child: Text('${s == s.roundToDouble() ? s.toInt() : s}pt', style: TextStyle(fontSize: 11, color: textPrimary)),
+                                ))
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) setState(() => _fontSize = v);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Color Palette Section
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text('Color:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: paletteColors.map((c) {
+                        final isSelected = _textColor == c;
+                        return GestureDetector(
+                          onTap: () => setState(() => _textColor = c),
+                          child: Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: c,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isSelected ? const Color(0xFF3B82F6) : borderColor,
+                                width: isSelected ? 2.5 : 1.0,
+                              ),
+                              boxShadow: isSelected
+                                  ? [BoxShadow(color: c.withValues(alpha: 0.5), blurRadius: 6, spreadRadius: 1)]
+                                  : null,
+                            ),
+                            child: isSelected
+                                ? const Icon(Icons.check, size: 12, color: Colors.white)
+                                : null,
+                          ),
+                        );
+                      }).toList(),
+                    ),
                   ),
-                const Spacer(),
-                if (widget.isStickyNote) ...[
-                  const Text('Note:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                  const SizedBox(width: 6),
-                  for (final bg in [
-                    const Color(0xFFFEF3C7),
-                    const Color(0xFFDBEAFE),
-                    const Color(0xFFDCFCE7),
-                    const Color(0xFFFCE7F3),
-                  ])
-                    GestureDetector(
-                      onTap: () => setState(() => _bgColor = bg),
-                      child: Container(
-                        width: 20,
-                        height: 20,
-                        margin: const EdgeInsets.only(left: 4),
-                        decoration: BoxDecoration(
-                          color: bg,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: _bgColor == bg ? const Color(0xFF2563EB) : const Color(0xFFCBD5E1)),
+                  if (widget.isStickyNote) ...[
+                    const SizedBox(width: 10),
+                    Text('Paper:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary)),
+                    const SizedBox(width: 6),
+                    for (final bg in [
+                      const Color(0xFFFEF3C7),
+                      const Color(0xFFDBEAFE),
+                      const Color(0xFFDCFCE7),
+                      const Color(0xFFFCE7F3),
+                      const Color(0xFFF3E8FF),
+                    ])
+                      GestureDetector(
+                        onTap: () => setState(() => _bgColor = bg),
+                        child: Container(
+                          width: 20,
+                          height: 20,
+                          margin: const EdgeInsets.only(left: 3),
+                          decoration: BoxDecoration(
+                            color: bg,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: _bgColor == bg ? const Color(0xFF2563EB) : borderColor,
+                              width: _bgColor == bg ? 2.0 : 1.0,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Text Input Box
+              TextField(
+                controller: _ctrl,
+                maxLines: 5,
+                autofocus: true,
+                onChanged: (_) => setState(() {}),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: _textColor,
+                  fontFamily: _fontFamily,
+                  fontWeight: _bold ? FontWeight.bold : FontWeight.normal,
+                  fontStyle: _italic ? FontStyle.italic : FontStyle.normal,
+                  decoration: TextDecoration.combine([
+                    if (_underline) TextDecoration.underline,
+                    if (_strikethrough) TextDecoration.lineThrough,
+                  ]),
+                ),
+                decoration: InputDecoration(
+                  hintText: widget.isStickyNote ? 'Enter note thoughts, checklist or summary...' : 'Type text annotation or concept name...',
+                  hintStyle: TextStyle(color: textSecondary.withValues(alpha: 0.6), fontSize: 13),
+                  filled: true,
+                  fillColor: _bgColor ?? inputBg,
+                  contentPadding: const EdgeInsets.all(12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: borderColor),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: borderColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+              // Live Render Preview Banner
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: inputBg,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: borderColor.withValues(alpha: 0.7)),
+                ),
+                child: Row(
+                  children: [
+                    Text('Preview: ', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textSecondary)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _ctrl.text.isEmpty ? 'Your styled text appears here' : _ctrl.text,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _textColor,
+                          fontFamily: _fontFamily,
+                          fontWeight: _bold ? FontWeight.bold : FontWeight.normal,
+                          fontStyle: _italic ? FontStyle.italic : FontStyle.normal,
+                          decoration: TextDecoration.combine([
+                            if (_underline) TextDecoration.underline,
+                            if (_strikethrough) TextDecoration.lineThrough,
+                          ]),
                         ),
                       ),
                     ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _ctrl,
-              maxLines: 5,
-              autofocus: true,
-              style: TextStyle(
-                fontSize: 15,
-                color: _textColor,
-                fontWeight: _bold ? FontWeight.bold : FontWeight.normal,
-                fontStyle: _italic ? FontStyle.italic : FontStyle.normal,
-                decoration: _underline ? TextDecoration.underline : TextDecoration.none,
+                  ],
+                ),
               ),
-              decoration: InputDecoration(
-                hintText: widget.isStickyNote ? 'Enter sticky note content...' : 'Enter board text...',
-                filled: _bgColor != null,
-                fillColor: _bgColor,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancel', style: TextStyle(color: textSecondary)),
+        ),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), foregroundColor: Colors.white),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF2563EB),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
           onPressed: () {
             final t = _ctrl.text.trim();
             if (t.isEmpty) return;
@@ -187,29 +353,36 @@ class _RichTextEditorDialogState extends State<RichTextEditorDialog> {
               'bold': _bold,
               'italic': _italic,
               'underline': _underline,
+              'strikethrough': _strikethrough,
+              'fontFamily': _fontFamily,
               'align': _align,
               'color': WhiteboardColorHelper.toHex(_textColor),
               if (_bgColor != null) 'bgColor': WhiteboardColorHelper.toHex(_bgColor!),
             });
           },
-          child: const Text('Apply'),
+          child: const Text('Apply Changes', style: TextStyle(fontWeight: FontWeight.bold)),
         ),
       ],
     );
   }
 
-  Widget _fmtBtn(IconData icon, bool active, VoidCallback onTap) {
+  Widget _fmtBtn(IconData icon, bool active, bool isDark, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(6),
       child: Container(
-        padding: const EdgeInsets.all(6),
+        padding: const EdgeInsets.all(5),
         decoration: BoxDecoration(
-          color: active ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC),
+          color: active
+              ? const Color(0xFF2563EB)
+              : (isDark ? const Color(0xFF2A314A) : const Color(0xFFE2E8F0)),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: active ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0)),
         ),
-        child: Icon(icon, size: 16, color: active ? const Color(0xFF2563EB) : const Color(0xFF475569)),
+        child: Icon(
+          icon,
+          size: 15,
+          color: active ? Colors.white : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155)),
+        ),
       ),
     );
   }
@@ -226,6 +399,7 @@ class _WhiteboardTemplatesDialogState extends ConsumerState<WhiteboardTemplatesD
   final TextEditingController _titleCtrl = TextEditingController(text: 'New Interactive Whiteboard');
   String _selectedTemplate = 'blank';
   bool _collabEnabled = true;
+  bool _isCreating = false;
 
   @override
   void dispose() {
@@ -235,16 +409,31 @@ class _WhiteboardTemplatesDialogState extends ConsumerState<WhiteboardTemplatesD
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final dialogBg = isDark ? const Color(0xFF1E2235) : Colors.white;
+    final textPrimary = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final inputBg = isDark ? const Color(0xFF13182C) : const Color(0xFFF8FAFC);
+
     final s = ref.watch(whiteboardProvider);
     final templates = s.templates;
 
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Row(
+      backgroundColor: dialogBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: borderColor, width: 1.2),
+      ),
+      title: Row(
         children: [
-          Icon(Icons.dashboard_customize_rounded, color: Color(0xFF2563EB)),
-          SizedBox(width: 8),
-          Text('Create New Board / Select Template', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const Icon(Icons.dashboard_customize_rounded, color: Color(0xFF2563EB)),
+          const SizedBox(width: 8),
+          Text(
+            'Create New Board / Select Template',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
+          ),
         ],
       ),
       content: SizedBox(
@@ -256,43 +445,84 @@ class _WhiteboardTemplatesDialogState extends ConsumerState<WhiteboardTemplatesD
             children: [
               TextField(
                 controller: _titleCtrl,
+                style: TextStyle(fontSize: 13, color: textPrimary),
                 decoration: InputDecoration(
                   labelText: 'Whiteboard Title',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  labelStyle: TextStyle(color: textSecondary, fontSize: 13),
+                  filled: true,
+                  fillColor: inputBg,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF2563EB))),
                 ),
               ),
               const SizedBox(height: 10),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Enable Real-time Student Collaboration', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                title: Text('Enable Real-time Student Collaboration', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textPrimary)),
                 value: _collabEnabled,
+                activeColor: const Color(0xFF2563EB),
                 onChanged: (v) => setState(() => _collabEnabled = v),
               ),
               const SizedBox(height: 8),
-              const Text('Subject & Layout Templates', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF475569))),
+              Text('Subject & Layout Templates', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textSecondary)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: templates.map((t) {
                   final sel = _selectedTemplate == t.id;
+                  final cardBg = sel
+                      ? (isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.35) : const Color(0xFFEFF6FF))
+                      : (isDark ? const Color(0xFF13182C) : const Color(0xFFF8FAFC));
                   return InkWell(
-                    onTap: () => setState(() => _selectedTemplate = t.id),
+                    onTap: _isCreating
+                        ? null
+                        : () {
+                            setState(() {
+                              _selectedTemplate = t.id;
+                              if (_titleCtrl.text.isEmpty ||
+                                  _titleCtrl.text == 'New Interactive Whiteboard' ||
+                                  templates.any((x) => _titleCtrl.text == x.name)) {
+                                _titleCtrl.text = t.id == 'blank' ? 'Class Whiteboard' : t.name;
+                              }
+                            });
+                          },
                     borderRadius: BorderRadius.circular(10),
                     child: Container(
                       width: 178,
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: sel ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC),
+                        color: cardBg,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: sel ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0), width: sel ? 1.8 : 1),
+                        border: Border.all(
+                          color: sel ? const Color(0xFF2563EB) : borderColor,
+                          width: sel ? 2.0 : 1.0,
+                        ),
+                        boxShadow: sel
+                            ? [BoxShadow(color: const Color(0xFF2563EB).withValues(alpha: 0.25), blurRadius: 8, spreadRadius: 1)]
+                            : null,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(t.name, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: sel ? const Color(0xFF1D4ED8) : const Color(0xFF0F172A)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          Text(
+                            t.name,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: sel ? const Color(0xFF38BDF8) : textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           const SizedBox(height: 3),
-                          Text(t.description, style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)), maxLines: 2, overflow: TextOverflow.ellipsis),
+                          Text(
+                            t.description,
+                            style: TextStyle(fontSize: 10, color: textSecondary),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ],
                       ),
                     ),
@@ -304,21 +534,51 @@ class _WhiteboardTemplatesDialogState extends ConsumerState<WhiteboardTemplatesD
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: _isCreating ? null : () => Navigator.pop(context),
+          child: Text('Cancel', style: TextStyle(color: textSecondary)),
+        ),
         ElevatedButton.icon(
-          icon: const Icon(Icons.add_rounded, size: 16),
-          label: const Text('Create Board'),
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), foregroundColor: Colors.white),
-          onPressed: () async {
-            final ok = await ref.read(whiteboardProvider.notifier).createNewBoard(
-                  title: _titleCtrl.text.trim().isEmpty ? 'Class Whiteboard' : _titleCtrl.text.trim(),
-                  templateType: _selectedTemplate,
-                  collaborationEnabled: _collabEnabled,
-                );
-            if (context.mounted) {
-              Navigator.pop(context, ok);
-            }
-          },
+          icon: _isCreating
+              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Icon(Icons.add_rounded, size: 16),
+          label: Text(_isCreating ? 'Creating...' : 'Create Board'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF2563EB),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          onPressed: _isCreating
+              ? null
+              : () async {
+                  setState(() => _isCreating = true);
+                  final titleText = _titleCtrl.text.trim().isEmpty ? 'Class Whiteboard' : _titleCtrl.text.trim();
+                  final ok = await ref.read(whiteboardProvider.notifier).createNewBoard(
+                        title: titleText,
+                        templateType: _selectedTemplate,
+                        collaborationEnabled: _collabEnabled,
+                      );
+                  if (context.mounted) {
+                    Navigator.pop(context, ok);
+                    if (ok) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Board "$titleText" created with interactive template objects!'),
+                          backgroundColor: const Color(0xFF16A34A),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Failed to create board. Please try again.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
         ),
       ],
     );

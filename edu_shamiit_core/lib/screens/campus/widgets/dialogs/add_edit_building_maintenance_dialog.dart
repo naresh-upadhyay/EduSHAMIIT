@@ -105,10 +105,29 @@ class _AddEditBuildingMaintenanceDialogState extends State<AddEditBuildingMainte
       _error = null;
     });
 
+    // Derive location_display for clear referencing
+    String locationDisplay = widget.building.name;
+    if (_selectedRoomId != null) {
+      final r = widget.rooms.firstWhere(
+        (x) => x.id == _selectedRoomId,
+        orElse: () => widget.rooms.first,
+      );
+      locationDisplay = '${widget.building.code} / ${r.roomNumber} (${r.name})';
+    } else if (_selectedFloorId != null) {
+      final f = widget.floors.firstWhere(
+        (x) => x.id == _selectedFloorId,
+        orElse: () => widget.floors.first,
+      );
+      locationDisplay = '${widget.building.code} / ${f.name}';
+    } else {
+      locationDisplay = '${widget.building.code} / Entire Building';
+    }
+
     final payload = {
       'building_id': widget.building.id,
       'floor_id': _selectedFloorId,
       'room_id': _selectedRoomId,
+      'location_display': locationDisplay,
       'title': _titleCtrl.text.trim(),
       'description': _descCtrl.text.trim().isNotEmpty ? _descCtrl.text.trim() : null,
       'request_type': _requestType,

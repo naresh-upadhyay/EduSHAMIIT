@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:edu_shamiit_core/config/app_config.dart';
 import '../../../models/device_management_models.dart';
+import '../../common/campus_pagination_bar.dart';
 
 /// Integrations & Gateways Management Subview
 /// Matches the canonical design of:
@@ -703,13 +704,13 @@ class _DeviceIntegrationsGatewaysSubviewState
 
           setState(() {
             if (buildings.isNotEmpty) {
-              _availableLocations = ['All Locations', ...buildings];
+              _availableLocations = ['All Locations', ...buildings.where((b) => b != 'All Locations')].toSet().toList();
             }
             if (protocols.isNotEmpty) {
-              _availableProtocols = ['All Protocols', ...protocols];
+              _availableProtocols = ['All Protocols', ...protocols.where((p) => p != 'All Protocols')].toSet().toList();
             }
             if (statuses.isNotEmpty) {
-              _availableStatuses = ['All Status', ...statuses];
+              _availableStatuses = ['All Status', ...statuses.where((s) => s != 'All Status')].toSet().toList();
             }
           });
         }
@@ -2737,7 +2738,13 @@ class _DeviceIntegrationsGatewaysSubviewState
     required ValueChanged<String?> onChanged,
     required bool isDark,
   }) {
-    final effectiveItems = items.contains(value) ? items : [value, ...items];
+    final uniqueItems = items.toSet().toList();
+    final effectiveValue = uniqueItems.contains(value)
+        ? value
+        : (uniqueItems.isNotEmpty ? uniqueItems.first : value);
+    final effectiveItems = uniqueItems.contains(effectiveValue)
+        ? uniqueItems
+        : [effectiveValue, ...uniqueItems];
 
     return Container(
       height: 36,
@@ -2751,7 +2758,7 @@ class _DeviceIntegrationsGatewaysSubviewState
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: value,
+          value: effectiveValue,
           isDense: true,
           icon: const Icon(Icons.arrow_drop_down_rounded, size: 18),
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2895,130 +2902,21 @@ class _DeviceIntegrationsGatewaysSubviewState
   }
 
   Widget _buildTablePagination(bool isDark, int totalItems) {
-    final totalPages = math.max(1, (totalItems / _rowsPerPage).ceil());
-    final startItem =
-        totalItems == 0 ? 0 : (_currentPage - 1) * _rowsPerPage + 1;
-    final endItem = math.min(_currentPage * _rowsPerPage, totalItems);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Wrap(
-        alignment: WrapAlignment.spaceBetween,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        runSpacing: 8,
-        children: [
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              Text(
-                'Rows per page: ',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                ),
-              ),
-              Container(
-                height: 30,
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: isDark
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFCBD5E1),
-                  ),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: _rowsPerPage,
-                    isDense: true,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    ),
-                    items: const [5, 10, 25, 50, 100].map((s) {
-                      return DropdownMenuItem<int>(
-                        value: s,
-                        child: Text('$s'),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() {
-                          _rowsPerPage = val;
-                          _currentPage = 1;
-                        });
-                      }
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Showing $startItem - $endItem of $totalItems gateways',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? Colors.white70 : const Color(0xFF475569),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.first_page_rounded, size: 18),
-                onPressed: _currentPage > 1
-                    ? () => setState(() => _currentPage = 1)
-                    : null,
-                tooltip: 'First Page',
-              ),
-              IconButton(
-                icon: const Icon(Icons.chevron_left_rounded, size: 18),
-                onPressed: _currentPage > 1
-                    ? () => setState(() => _currentPage--)
-                    : null,
-                tooltip: 'Previous Page',
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1677F2).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '$_currentPage / $totalPages',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1677F2),
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.chevron_right_rounded, size: 18),
-                onPressed: _currentPage < totalPages
-                    ? () => setState(() => _currentPage++)
-                    : null,
-                tooltip: 'Next Page',
-              ),
-              IconButton(
-                icon: const Icon(Icons.last_page_rounded, size: 18),
-                onPressed: _currentPage < totalPages
-                    ? () => setState(() => _currentPage = totalPages)
-                    : null,
-                tooltip: 'Last Page',
-              ),
-            ],
-          ),
-        ],
-      ),
+    return CampusPaginationBar(
+      currentPage: _currentPage,
+      pageSize: _rowsPerPage,
+      totalCount: totalItems,
+      itemLabel: 'gateways',
+      pageSizes: const [5, 10, 25, 50, 100],
+      onPageChanged: (page) {
+        setState(() => _currentPage = page);
+      },
+      onPageSizeChanged: (newSize) {
+        setState(() {
+          _rowsPerPage = newSize;
+          _currentPage = 1;
+        });
+      },
     );
   }
 

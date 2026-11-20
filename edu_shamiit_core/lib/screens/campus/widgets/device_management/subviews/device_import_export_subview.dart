@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:edu_shamiit_core/config/app_config.dart';
+import '../../common/campus_pagination_bar.dart';
 
 // ============================================================================
 // DATA MODELS FOR IMPORT / EXPORT OPERATIONS
@@ -201,7 +202,7 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
   // Filters & State
   String _selectedTypeFilter = 'All Operations';
   String _selectedStatusFilter = 'All Status';
-  String _selectedDateRange = 'Last 30 Days';
+  String _selectedDateRange = 'All Time';
   final TextEditingController _searchController = TextEditingController();
 
   // Selected row checkboxes for batch operations
@@ -1801,7 +1802,24 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
           const SizedBox(height: 14),
 
           // Table Pagination Footer
-          _buildTablePaginationFooter(isDark),
+          CampusPaginationBar(
+            currentPage: _currentPage,
+            pageSize: _rowsPerPage,
+            totalCount: _totalOperations,
+            itemLabel: 'operations',
+            pageSizes: const [5, 10, 25, 50, 100],
+            onPageChanged: (page) {
+              setState(() => _currentPage = page);
+              _fetchHistoryData();
+            },
+            onPageSizeChanged: (newSize) {
+              setState(() {
+                _rowsPerPage = newSize;
+                _currentPage = 1;
+              });
+              _fetchHistoryData();
+            },
+          ),
         ],
       ),
     );
@@ -1904,6 +1922,10 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
   }
 
   Widget _buildHistoryTableControls(bool isDark) {
+    final totalOps = _totalOperations;
+    final startIdx = totalOps == 0 ? 0 : (_currentPage - 1) * _rowsPerPage + 1;
+    final endIdx = (_currentPage * _rowsPerPage).clamp(0, totalOps);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 950;
@@ -1915,7 +1937,7 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
             const SizedBox(width: 8),
             Flexible(
               child: Text(
-                'Import / Export History (Showing 1 \u2013 10 of $_totalOperations)',
+                'Import / Export History (Showing $startIdx \u2013 $endIdx of $totalOps)',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -2018,6 +2040,9 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
     required ValueChanged<String?> onChanged,
     required bool isDark,
   }) {
+    final uniqueItems = items.toSet().toList();
+    final effectiveValue = uniqueItems.contains(value) ? value : (uniqueItems.isNotEmpty ? uniqueItems.first : value);
+
     return Container(
       height: 32,
       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -2028,12 +2053,12 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: value,
+          value: effectiveValue,
           icon: Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
           style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white : const Color(0xFF0F172A)),
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           onChanged: onChanged,
-          items: items.map((it) => DropdownMenuItem(value: it, child: Text(it))).toList(),
+          items: uniqueItems.map((it) => DropdownMenuItem(value: it, child: Text(it))).toList(),
         ),
       ),
     );
@@ -2044,6 +2069,51 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
       return const SizedBox(
         height: 200,
         child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_operations.isEmpty) {
+      return Container(
+        height: 220,
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.import_export_rounded, size: 48, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+            const SizedBox(height: 12),
+            Text(
+              'No import / export operations found',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : const Color(0xFF1E293B),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Try adjusting the date range, status, or search filters.',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _selectedTypeFilter = 'All Operations';
+                  _selectedStatusFilter = 'All Status';
+                  _selectedDateRange = 'All Time';
+                  _searchController.clear();
+                  _currentPage = 1;
+                });
+                _fetchHistoryData();
+              },
+              icon: const Icon(Icons.refresh_rounded, size: 14),
+              label: const Text('Reset All Filters', style: TextStyle(fontSize: 11.5)),
+            ),
+          ],
+        ),
       );
     }
 
@@ -2294,147 +2364,6 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
       fontSize: 11.5,
       fontWeight: bold ? FontWeight.bold : FontWeight.normal,
       color: isDark ? Colors.white : const Color(0xFF0F172A),
-    );
-  }
-
-  Widget _buildTablePaginationFooter(bool isDark) {
-    final totalOps = _totalOperations;
-    final totalPages = (totalOps / _rowsPerPage).ceil().clamp(1, 9999);
-    final currentPage = _currentPage.clamp(1, totalPages);
-    final startIdx = totalOps == 0 ? 0 : (currentPage - 1) * _rowsPerPage + 1;
-    final endIdx = (currentPage * _rowsPerPage).clamp(0, totalOps);
-
-    final infoText = Text(
-      'Showing $startIdx \u2013 $endIdx of $totalOps operations',
-      style: TextStyle(
-        fontSize: 11.5,
-        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-      ),
-    );
-
-    // Build visible page numbers window around currentPage
-    List<Widget> pagePillWidgets = [];
-    int startPage = (currentPage - 2).clamp(1, totalPages);
-    int endPage = (startPage + 4).clamp(1, totalPages);
-    if (endPage - startPage < 4) {
-      startPage = (endPage - 4).clamp(1, totalPages);
-    }
-
-    if (startPage > 1) {
-      pagePillWidgets.add(_buildPagePill(1, isActive: currentPage == 1, isDark: isDark, onTap: () {
-        setState(() => _currentPage = 1);
-        _fetchHistoryData();
-      }));
-      if (startPage > 2) {
-        pagePillWidgets.add(Text(' ... ', style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[600])));
-      }
-    }
-
-    for (int p = startPage; p <= endPage; p++) {
-      final pNum = p;
-      pagePillWidgets.add(
-        _buildPagePill(pNum, isActive: pNum == currentPage, isDark: isDark, onTap: () {
-          setState(() => _currentPage = pNum);
-          _fetchHistoryData();
-        }),
-      );
-    }
-
-    if (endPage < totalPages) {
-      if (endPage < totalPages - 1) {
-        pagePillWidgets.add(Text(' ... ', style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[600])));
-      }
-      pagePillWidgets.add(_buildPagePill(totalPages, isActive: currentPage == totalPages, isDark: isDark, onTap: () {
-        setState(() => _currentPage = totalPages);
-        _fetchHistoryData();
-      }));
-    }
-
-    final paginationRow = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'Rows per page: ',
-          style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-        ),
-        DropdownButtonHideUnderline(
-          child: DropdownButton<int>(
-            value: [5, 10, 25, 50, 100].contains(_rowsPerPage) ? _rowsPerPage : 10,
-            items: [5, 10, 25, 50, 100].map((count) => DropdownMenuItem(value: count, child: Text('$count', style: const TextStyle(fontSize: 11)))).toList(),
-            onChanged: (val) {
-              if (val != null) {
-                setState(() {
-                  _rowsPerPage = val;
-                  _currentPage = 1;
-                });
-                _fetchHistoryData();
-              }
-            },
-          ),
-        ),
-        const SizedBox(width: 12),
-        IconButton(
-          icon: const Icon(Icons.chevron_left_rounded, size: 18),
-          onPressed: _currentPage > 1 ? () {
-            setState(() => _currentPage--);
-            _fetchHistoryData();
-          } : null,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-        ),
-        const SizedBox(width: 4),
-        ...pagePillWidgets,
-        const SizedBox(width: 4),
-        IconButton(
-          icon: const Icon(Icons.chevron_right_rounded, size: 18),
-          onPressed: _currentPage < totalPages ? () {
-            setState(() => _currentPage++);
-            _fetchHistoryData();
-          } : null,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-        ),
-      ],
-    );
-
-    return Wrap(
-      alignment: WrapAlignment.spaceBetween,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 12,
-      runSpacing: 10,
-      children: [
-        infoText,
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: paginationRow,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPagePill(int pageNum, {bool isActive = false, required bool isDark, VoidCallback? onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(4),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF2563EB) : Colors.transparent,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(
-            color: isActive ? const Color(0xFF2563EB) : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-          ),
-        ),
-        child: Text(
-          '$pageNum',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-            color: isActive ? Colors.white : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-          ),
-        ),
-      ),
     );
   }
 

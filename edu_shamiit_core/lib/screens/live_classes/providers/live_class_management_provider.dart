@@ -856,99 +856,122 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
     }
   }
 
-  Future<bool> submitQuestion(String question, {bool isAnonymous = false}) async {
+  Future<bool> submitQuestion(
+    String question, {
+    String? authorName,
+    String? authorRole,
+    bool isAnonymous = false,
+  }) async {
     final sessId = state.currentConductSessionId ?? state.conductSessionData?.activeSession.id;
     if (sessId == null) return false;
-    final item = await _api.submitQuestion(sessId, question, isAnonymous: isAnonymous);
+    final item = await _api.submitQuestion(
+      sessId,
+      question,
+      authorName: authorName,
+      authorRole: authorRole,
+      isAnonymous: isAnonymous,
+    );
     if (item != null && state.conductSessionData != null) {
-      final updatedList = List<LiveClassQuestionItem>.from(state.conductSessionData!.questions)..insert(0, item);
-      final updatedData = ConductClassSessionData(
-        activeSession: state.conductSessionData!.activeSession,
-        stats: state.conductSessionData!.stats,
-        participants: state.conductSessionData!.participants,
-        upcomingClasses: state.conductSessionData!.upcomingClasses,
-        questions: updatedList,
-        activePoll: state.conductSessionData!.activePoll,
-        whiteboard: state.conductSessionData!.whiteboard,
-        breakoutRooms: state.conductSessionData!.breakoutRooms,
-        engagement: state.conductSessionData!.engagement,
-      );
+      final exists = state.conductSessionData!.questions.any((q) => q.id == item.id);
+      if (!exists) {
+        final updatedList = List<LiveClassQuestionItem>.from(state.conductSessionData!.questions)..insert(0, item);
+        final updatedData = state.conductSessionData!.copyWith(questions: updatedList);
+        state = state.copyWith(conductSessionData: updatedData);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> answerQuestion(
+    String questionId,
+    String answer, {
+    String? authorName,
+    String? authorRole,
+    String? authorEmail,
+    String? authorPhone,
+  }) async {
+    final sessId = state.currentConductSessionId ?? state.conductSessionData?.activeSession.id;
+    final res = await _api.answerQuestion(
+      questionId,
+      answer,
+      authorName: authorName,
+      authorRole: authorRole,
+      sessionId: sessId,
+    );
+    if (res != null && state.conductSessionData != null) {
+      final newReply = (res['reply'] is Map<String, dynamic>)
+          ? LiveClassQuestionReply.fromJson(res['reply'])
+          : LiveClassQuestionReply(
+              id: 'reply_${DateTime.now().millisecondsSinceEpoch}',
+              authorId: '',
+              authorName: authorName ?? 'Instructor',
+              authorRole: authorRole ?? 'Teacher',
+              authorEmail: authorEmail,
+              authorPhone: authorPhone,
+              answer: answer,
+              createdAt: DateTime.now().toIso8601String(),
+            );
+
+      final updatedList = state.conductSessionData!.questions.map((q) {
+        if (q.id == questionId) {
+          final updatedReplies = List<LiveClassQuestionReply>.from(q.answers)..add(newReply);
+          return q.copyWith(
+            status: 'ANSWERED',
+            answered: true,
+            answer: answer,
+            answers: updatedReplies,
+          );
+        }
+        return q;
+      }).toList();
+
+      final updatedData = state.conductSessionData!.copyWith(questions: updatedList);
       state = state.copyWith(conductSessionData: updatedData);
       return true;
     }
     return false;
   }
 
-  Future<bool> answerQuestion(String questionId, String answer) async {
-    final ok = await _api.answerQuestion(questionId, answer);
-    if (ok && state.conductSessionData != null) {
-      final updatedList = state.conductSessionData!.questions.map((q) {
-        if (q.id == questionId) {
-          return LiveClassQuestionItem(
-            id: q.id,
-            author: q.author,
-            authorRole: q.authorRole,
-            question: q.question,
-            upvotes: q.upvotes,
-            status: 'ANSWERED',
-            answered: true,
-            answer: answer,
-            isPinned: q.isPinned,
-            createdAt: q.createdAt,
-          );
-        }
-        return q;
-      }).toList();
-      final updatedData = ConductClassSessionData(
-        activeSession: state.conductSessionData!.activeSession,
-        stats: state.conductSessionData!.stats,
-        participants: state.conductSessionData!.participants,
-        upcomingClasses: state.conductSessionData!.upcomingClasses,
-        questions: updatedList,
-        activePoll: state.conductSessionData!.activePoll,
-        whiteboard: state.conductSessionData!.whiteboard,
-        breakoutRooms: state.conductSessionData!.breakoutRooms,
-        engagement: state.conductSessionData!.engagement,
-      );
-      state = state.copyWith(conductSessionData: updatedData);
-    }
-    return ok;
-  }
-
   Future<bool> upvoteQuestion(String questionId) async {
-    final ok = await _api.upvoteQuestion(questionId);
-    if (ok && state.conductSessionData != null) {
+    // 1. Optimistic toggle
+    if (state.conductSessionData != null) {
       final updatedList = state.conductSessionData!.questions.map((q) {
         if (q.id == questionId) {
-          return LiveClassQuestionItem(
-            id: q.id,
-            author: q.author,
-            authorRole: q.authorRole,
-            question: q.question,
-            upvotes: q.upvotes + 1,
-            status: q.status,
-            answered: q.answered,
-            answer: q.answer,
-            isPinned: q.isPinned,
-            createdAt: q.createdAt,
+          final nextUpvoted = !q.hasUpvoted;
+          final nextCount = nextUpvoted ? (q.upvotes + 1) : (q.upvotes > 0 ? q.upvotes - 1 : 0);
+          return q.copyWith(
+            hasUpvoted: nextUpvoted,
+            upvotes: nextCount,
           );
         }
         return q;
       }).toList();
-      final updatedData = ConductClassSessionData(
-        activeSession: state.conductSessionData!.activeSession,
-        stats: state.conductSessionData!.stats,
-        participants: state.conductSessionData!.participants,
-        upcomingClasses: state.conductSessionData!.upcomingClasses,
-        questions: updatedList,
-        activePoll: state.conductSessionData!.activePoll,
-        whiteboard: state.conductSessionData!.whiteboard,
-        breakoutRooms: state.conductSessionData!.breakoutRooms,
-        engagement: state.conductSessionData!.engagement,
+      state = state.copyWith(
+        conductSessionData: state.conductSessionData!.copyWith(questions: updatedList),
       );
-      state = state.copyWith(conductSessionData: updatedData);
     }
-    return ok;
+
+    // 2. Synchronize with server toggle response
+    final res = await _api.upvoteQuestion(questionId);
+    if (res != null && res['upvotes'] != null && state.conductSessionData != null) {
+      final serverUpvotes = res['upvotes'] as int;
+      final serverHasUpvoted = res['has_upvoted'] == true;
+      final syncedList = state.conductSessionData!.questions.map((q) {
+        if (q.id == questionId) {
+          return q.copyWith(
+            upvotes: serverUpvotes,
+            hasUpvoted: serverHasUpvoted,
+          );
+        }
+        return q;
+      }).toList();
+      state = state.copyWith(
+        conductSessionData: state.conductSessionData!.copyWith(questions: syncedList),
+      );
+      return true;
+    }
+    return res != null;
   }
 
   void setLocalActivePoll(LiveClassPollItem newPoll) {
@@ -966,6 +989,33 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
         pollHistory: currentHistory,
       );
       state = state.copyWith(conductSessionData: updatedData);
+    } else {
+      final sess = state.joinDashboard?.activeSession ??
+          ActiveLiveSession.fromJson({
+            'id': state.currentConductSessionId ?? 'c1000000-0000-0000-0000-000000000014',
+            'title': 'Class 10 - A : Mathematics',
+            'class_section': 'Class 10 - A',
+            'class_name': 'Class 10',
+            'section_name': 'A',
+            'subject': 'Mathematics',
+            'teacher_name': 'Teacher',
+            'status': 'LIVE',
+            'is_live': true,
+          });
+      state = state.copyWith(
+        conductSessionData: ConductClassSessionData(
+          activeSession: sess,
+          stats: JoinConductKPIs.fromJson({}),
+          participants: state.joinDashboard?.participants ?? [],
+          upcomingClasses: [],
+          questions: [],
+          activePoll: newPoll,
+          pollHistory: [newPoll],
+          breakoutRooms: [],
+          engagement: LiveClassEngagementMetrics.fromJson({}),
+          waitingRoom: [],
+        ),
+      );
     }
   }
 
@@ -1038,8 +1088,11 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
     return true;
   }
 
-  Future<bool> createPoll(Map<String, dynamic> pollData) async {
-    final sessId = state.currentConductSessionId ?? state.conductSessionData?.activeSession.id;
+  Future<bool> createPoll(Map<String, dynamic> pollData, [String? targetSessionId]) async {
+    final sessId = targetSessionId ??
+        state.currentConductSessionId ??
+        state.conductSessionData?.activeSession.id ??
+        state.joinDashboard?.activeSession?.id;
     final questionText = (pollData['question'] as String? ?? 'Live Poll').trim();
 
     // Multi-click & Concurrency Lock
@@ -1092,8 +1145,8 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
         final created = await _api.createPoll(sessId, pollData);
         if (created != null) {
           setLocalActivePoll(created);
-          await loadConductSession(sessId);
         }
+        await loadConductSession(sessId);
       }
       return true;
     } finally {
@@ -1121,6 +1174,20 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
   Future<bool> muteParticipant(String participantId, bool isMuted) async {
     final sessId = state.currentConductSessionId ?? state.conductSessionData?.activeSession.id;
     if (sessId == null) return false;
+
+    // Optimistic UI state update
+    if (state.conductSessionData != null) {
+      final updatedParts = state.conductSessionData!.participants.map((p) {
+        if (p.id == participantId || p.userId == participantId) {
+          return p.copyWith(micMuted: isMuted);
+        }
+        return p;
+      }).toList();
+      state = state.copyWith(
+        conductSessionData: state.conductSessionData!.copyWith(participants: updatedParts),
+      );
+    }
+
     final ok = await _api.muteParticipant(sessId, participantId, isMuted);
     if (ok) {
       await loadConductSession(sessId);
@@ -1131,7 +1198,39 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
   Future<bool> removeParticipant(String participantId) async {
     final sessId = state.currentConductSessionId ?? state.conductSessionData?.activeSession.id;
     if (sessId == null) return false;
+
+    // Optimistic UI state update
+    if (state.conductSessionData != null) {
+      final updatedParts = state.conductSessionData!.participants
+          .where((p) => p.id != participantId && p.userId != participantId)
+          .toList();
+      state = state.copyWith(
+        conductSessionData: state.conductSessionData!.copyWith(participants: updatedParts),
+      );
+    }
+
     final ok = await _api.removeParticipant(sessId, participantId);
+    if (ok) {
+      await loadConductSession(sessId);
+    }
+    return ok;
+  }
+
+  Future<bool> reviewGuestRequest(String requestId, String decision, {String? reason}) async {
+    final sessId = state.currentConductSessionId ?? state.conductSessionData?.activeSession.id;
+    if (sessId == null) return false;
+
+    // Optimistically remove from waitingRoom in state
+    if (state.conductSessionData != null) {
+      final updatedWaiting = state.conductSessionData!.waitingRoom
+          .where((g) => g.requestId != requestId)
+          .toList();
+      state = state.copyWith(
+        conductSessionData: state.conductSessionData!.copyWith(waitingRoom: updatedWaiting),
+      );
+    }
+
+    final ok = await _api.reviewGuestRequest(sessId, requestId, decision: decision, reason: reason);
     if (ok) {
       await loadConductSession(sessId);
     }
@@ -1159,8 +1258,29 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
     return await _api.closeBreakoutRoom(sessionId, roomId);
   }
 
+  Future<Map<String, dynamic>?> fetchSessionSettings(String sessionId) async {
+    return await _api.fetchSessionSettings(sessionId);
+  }
+
   Future<bool> updateSessionSettings(String sessionId, Map<String, dynamic> settings) async {
-    return await _api.updateSessionSettings(sessionId, settings);
+    final success = await _api.updateSessionSettings(sessionId, settings);
+    if (success && state.conductSessionData != null && state.conductSessionData!.activeSession.id == sessionId) {
+      final curActive = state.conductSessionData!.activeSession;
+      final updatedActive = curActive.copyWith(
+        allowStudentMic: settings['allow_mic'] ?? settings['allow_student_mic'] ?? curActive.allowStudentMic,
+        allowStudentCam: settings['allow_cam'] ?? settings['allow_student_cam'] ?? curActive.allowStudentCam,
+        allowStudentShare: settings['allow_screen_share'] ?? settings['allow_student_share'] ?? curActive.allowStudentShare,
+        allowChat: settings['allow_chat'] ?? curActive.allowChat,
+        allowReactions: settings['allow_reactions'] ?? curActive.allowReactions,
+        waitingRoomEnabled: settings['waiting_room_enabled'] ?? curActive.waitingRoomEnabled,
+        recordingEnabled: settings['auto_record'] ?? settings['recording_enabled'] ?? curActive.recordingEnabled,
+        maxParticipants: settings['max_participants'] ?? curActive.maxParticipants,
+      );
+      state = state.copyWith(
+        conductSessionData: state.conductSessionData!.copyWith(activeSession: updatedActive),
+      );
+    }
+    return success;
   }
 
   Future<bool> reassignHost(String sessionId, String targetUserId, {String role = 'host'}) async {

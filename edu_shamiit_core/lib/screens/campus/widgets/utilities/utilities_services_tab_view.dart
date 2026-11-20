@@ -1,5 +1,8 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../services/campus_api_service.dart';
+import '../common/campus_pagination_bar.dart';
 import 'dialogs/log_utility_reading_dialog.dart';
 
 class UtilitiesServicesTabView extends ConsumerStatefulWidget {
@@ -11,8 +14,14 @@ class UtilitiesServicesTabView extends ConsumerStatefulWidget {
 
 class _UtilitiesServicesTabViewState extends ConsumerState<UtilitiesServicesTabView> {
   int _activeCategory = 0; // 0: Electrical & Solar, 1: Water & RO, 2: Internet & Fiber, 3: Gas & HVAC
+  int _page = 1;
+  int _pageSize = 10;
+  int? _sortCol = 0;
+  bool _sortAsc = false;
+  bool _isLoading = true;
+  Map<String, dynamic> _kpis = {};
 
-  final List<Map<String, dynamic>> _readingLogs = [
+  List<Map<String, dynamic>> _readingLogs = [
     {
       'timestamp': '10 Jan 2026, 06:30 PM',
       'utility': 'State Power Grid & Substation',
@@ -69,23 +78,48 @@ class _UtilitiesServicesTabViewState extends ConsumerState<UtilitiesServicesTabV
     },
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      final kpis = await CampusApiService.instance.getUtilitiesKpis();
+      final res = await CampusApiService.instance.getUtilityReadings(page: _page, pageSize: _pageSize);
+      final list = (res['data'] as List<dynamic>?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? [];
+
+      if (mounted) {
+        setState(() {
+          _kpis = kpis;
+          if (list.isNotEmpty) {
+            _readingLogs = list.map((item) => {
+              'timestamp': item['timestamp'] ?? item['recorded_at'] ?? 'Just Now',
+              'utility': item['utility_name'] ?? item['utility_type'] ?? 'Utility',
+              'reading': item['reading_value'] ?? '',
+              'location': item['location'] ?? 'Campus Substation',
+              'recorded_by': item['recorded_by'] ?? 'Facility Officer',
+              'status': item['status'] ?? 'Normal',
+              'notes': item['notes'] ?? '-',
+            }).toList();
+          }
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   void _openLogReadingModal() {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => LogUtilityReadingDialog(
         onSaved: () {
-          setState(() {
-            _readingLogs.insert(0, {
-              'timestamp': 'Just Now',
-              'utility': 'State Power Grid & Substation',
-              'reading': '45,340 kWh',
-              'location': 'Main Substation',
-              'recorded_by': 'Campus Officer',
-              'status': 'Normal',
-              'notes': 'Manual utility log entry recorded successfully',
-            });
-          });
+          _loadData();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Utility meter reading successfully recorded!'), backgroundColor: Color(0xFF059669)),
           );
@@ -105,31 +139,46 @@ class _UtilitiesServicesTabViewState extends ConsumerState<UtilitiesServicesTabV
     final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
     final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // 1. Top Utilities KPI Cards
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_isLoading)
+              const LinearProgressIndicator(minHeight: 2),
+            // 1. Top Utilities KPI Cards
           LayoutBuilder(
             builder: (context, constraints) {
               final isCompact = constraints.maxWidth < 900;
+              final gridVal = _kpis['grid_power_load']?.toString() ?? '245 kW';
+              final gridSub = _kpis['grid_power_mtd']?.toString() ?? '45,210 kWh MTD';
+              final solarVal = _kpis['solar_generation']?.toString() ?? '84 kWp';
+              final solarSub = _kpis['solar_generation_today']?.toString() ?? '320 kWh Today';
+              final genVal = _kpis['generator_fuel']?.toString() ?? '78% Full';
+              final genSub = _kpis['generator_fuel_litres']?.toString() ?? '1,560 Litres Diesel';
+              final waterVal = _kpis['water_storage']?.toString() ?? '85% Capacity';
+              final waterSub = _kpis['water_storage_litres']?.toString() ?? '85,000 Litres Sump';
+              final fiberVal = _kpis['fiber_speed']?.toString() ?? '1.0 Gbps';
+              final fiberSub = _kpis['fiber_uptime']?.toString() ?? '99.98% Uptime';
+
               if (isCompact) {
                 return Column(
                   children: [
                     Row(
                       children: [
-                        Expanded(child: _buildKpiCard('Grid Power Load', '245 kW', '45,210 kWh MTD', Icons.electric_bolt_rounded, const Color(0xFFF59E0B), isDark)),
+                        Expanded(child: _buildKpiCard('Grid Power Load', gridVal, gridSub, Icons.electric_bolt_rounded, const Color(0xFFF59E0B), isDark)),
                         const SizedBox(width: 10),
-                        Expanded(child: _buildKpiCard('Solar Generation', '84 kWp', '320 kWh Today', Icons.solar_power_rounded, const Color(0xFF10B981), isDark)),
+                        Expanded(child: _buildKpiCard('Solar Generation', solarVal, solarSub, Icons.solar_power_rounded, const Color(0xFF10B981), isDark)),
                       ],
                     ),
                     const SizedBox(height: 10),
                     Row(
                       children: [
-                        Expanded(child: _buildKpiCard('Generator Fuel', '78% Full', '1,560 Litres Diesel', Icons.ev_station_rounded, const Color(0xFF6366F1), isDark)),
+                        Expanded(child: _buildKpiCard('Generator Fuel', genVal, genSub, Icons.ev_station_rounded, const Color(0xFF6366F1), isDark)),
                         const SizedBox(width: 10),
-                        Expanded(child: _buildKpiCard('Water Storage', '85% Capacity', '85,000 Litres Sump', Icons.water_drop_rounded, const Color(0xFF0284C7), isDark)),
+                        Expanded(child: _buildKpiCard('Water Storage', waterVal, waterSub, Icons.water_drop_rounded, const Color(0xFF0284C7), isDark)),
                       ],
                     ),
                   ],
@@ -138,15 +187,15 @@ class _UtilitiesServicesTabViewState extends ConsumerState<UtilitiesServicesTabV
 
               return Row(
                 children: [
-                  Expanded(child: _buildKpiCard('Grid Power Load', '245 kW', '45,210 kWh MTD', Icons.electric_bolt_rounded, const Color(0xFFF59E0B), isDark)),
+                  Expanded(child: _buildKpiCard('Grid Power Load', gridVal, gridSub, Icons.electric_bolt_rounded, const Color(0xFFF59E0B), isDark)),
                   const SizedBox(width: 12),
-                  Expanded(child: _buildKpiCard('Solar Generation', '84 kWp', '320 kWh Today', Icons.solar_power_rounded, const Color(0xFF10B981), isDark)),
+                  Expanded(child: _buildKpiCard('Solar Generation', solarVal, solarSub, Icons.solar_power_rounded, const Color(0xFF10B981), isDark)),
                   const SizedBox(width: 12),
-                  Expanded(child: _buildKpiCard('Generator Fuel', '78% Full', '1,560 Litres Diesel', Icons.ev_station_rounded, const Color(0xFF6366F1), isDark)),
+                  Expanded(child: _buildKpiCard('Generator Fuel', genVal, genSub, Icons.ev_station_rounded, const Color(0xFF6366F1), isDark)),
                   const SizedBox(width: 12),
-                  Expanded(child: _buildKpiCard('Water Storage', '85% Capacity', '85,000 Litres Sump', Icons.water_drop_rounded, const Color(0xFF0284C7), isDark)),
+                  Expanded(child: _buildKpiCard('Water Storage', waterVal, waterSub, Icons.water_drop_rounded, const Color(0xFF0284C7), isDark)),
                   const SizedBox(width: 12),
-                  Expanded(child: _buildKpiCard('Fiber Leased Line', '1.0 Gbps', '99.98% Uptime', Icons.wifi_rounded, primaryColor, isDark)),
+                  Expanded(child: _buildKpiCard('Fiber Leased Line', fiberVal, fiberSub, Icons.wifi_rounded, primaryColor, isDark)),
                 ],
               );
             },
@@ -180,6 +229,16 @@ class _UtilitiesServicesTabViewState extends ConsumerState<UtilitiesServicesTabV
                   ),
                 ),
                 const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  onPressed: () => CampusApiService.instance.exportCampusReport(reportType: 4),
+                  icon: const Icon(Icons.download_rounded, size: 16),
+                  label: const Text('Export Readings', style: TextStyle(fontSize: 12.5)),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 ElevatedButton.icon(
                   onPressed: _openLogReadingModal,
                   icon: const Icon(Icons.add, size: 16, color: Colors.white),
@@ -226,41 +285,111 @@ class _UtilitiesServicesTabViewState extends ConsumerState<UtilitiesServicesTabV
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: DataTable(
-                    columns: const [
-                      DataColumn(label: Text('Timestamp', style: TextStyle(fontWeight: FontWeight.w700))),
-                      DataColumn(label: Text('Utility Infrastructure', style: TextStyle(fontWeight: FontWeight.w700))),
-                      DataColumn(label: Text('Reading / Telemetry', style: TextStyle(fontWeight: FontWeight.w700))),
-                      DataColumn(label: Text('Substation / Location', style: TextStyle(fontWeight: FontWeight.w700))),
-                      DataColumn(label: Text('Officer', style: TextStyle(fontWeight: FontWeight.w700))),
-                      DataColumn(label: Text('Operational Health', style: TextStyle(fontWeight: FontWeight.w700))),
-                      DataColumn(label: Text('Remarks', style: TextStyle(fontWeight: FontWeight.w700))),
+                    headingRowHeight: 34,
+                    dataRowMinHeight: 32,
+                    dataRowMaxHeight: 35,
+                    sortColumnIndex: _sortCol,
+                    sortAscending: _sortAsc,
+                    columns: [
+                      DataColumn(
+                        label: const Text('Timestamp', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                        onSort: (col, asc) => setState(() { _sortCol = col; _sortAsc = asc; }),
+                      ),
+                      DataColumn(
+                        label: const Text('Utility Infrastructure', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                        onSort: (col, asc) => setState(() { _sortCol = col; _sortAsc = asc; }),
+                      ),
+                      DataColumn(
+                        label: const Text('Reading / Telemetry', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                        onSort: (col, asc) => setState(() { _sortCol = col; _sortAsc = asc; }),
+                      ),
+                      DataColumn(
+                        label: const Text('Substation / Location', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                        onSort: (col, asc) => setState(() { _sortCol = col; _sortAsc = asc; }),
+                      ),
+                      DataColumn(
+                        label: const Text('Officer', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                        onSort: (col, asc) => setState(() { _sortCol = col; _sortAsc = asc; }),
+                      ),
+                      DataColumn(
+                        label: const Text('Operational Health', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                        onSort: (col, asc) => setState(() { _sortCol = col; _sortAsc = asc; }),
+                      ),
+                      const DataColumn(label: Text('Remarks', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
                     ],
-                    rows: _readingLogs.map((log) {
-                      final isNormal = log['status'] == 'Normal' || log['status'] == 'Optimal' || log['status'] == 'Adequate' || log['status'] == 'Healthy' || log['status'] == 'Certified Pure' || log['status'] == 'Standby Ready';
-                      final statusColor = isNormal ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
+                    rows: (() {
+                      final list = List<Map<String, dynamic>>.from(_readingLogs);
+                      if (_sortCol != null) {
+                        list.sort((a, b) {
+                          int cmp = 0;
+                          switch (_sortCol) {
+                            case 0:
+                              cmp = (a['timestamp'] ?? '').toString().compareTo((b['timestamp'] ?? '').toString());
+                              break;
+                            case 1:
+                              cmp = (a['utility'] ?? '').toString().compareTo((b['utility'] ?? '').toString());
+                              break;
+                            case 2:
+                              cmp = (a['reading'] ?? '').toString().compareTo((b['reading'] ?? '').toString());
+                              break;
+                            case 3:
+                              cmp = (a['location'] ?? '').toString().compareTo((b['location'] ?? '').toString());
+                              break;
+                            case 4:
+                              cmp = (a['recorded_by'] ?? '').toString().compareTo((b['recorded_by'] ?? '').toString());
+                              break;
+                            case 5:
+                              cmp = (a['status'] ?? '').toString().compareTo((b['status'] ?? '').toString());
+                              break;
+                          }
+                          return _sortAsc ? cmp : -cmp;
+                        });
+                      }
+                      final start = math.min((_page - 1) * _pageSize, list.length);
+                      final end = math.min(start + _pageSize, list.length);
+                      final paged = (start < list.length) ? list.sublist(start, end) : <Map<String, dynamic>>[];
 
-                      return DataRow(
-                        cells: [
-                          DataCell(Text(log['timestamp'] ?? '', style: TextStyle(fontSize: 12, color: textSecondary))),
-                          DataCell(Text(log['utility'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
-                          DataCell(Text(log['reading'] ?? '', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: primaryColor))),
-                          DataCell(Text(log['location'] ?? '', style: const TextStyle(fontSize: 12))),
-                          DataCell(Text(log['recorded_by'] ?? '', style: const TextStyle(fontSize: 12))),
-                          DataCell(Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: statusColor.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              log['status'] ?? '',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: statusColor),
-                            ),
-                          )),
-                          DataCell(Text(log['notes'] ?? '', style: TextStyle(fontSize: 12, color: textSecondary))),
-                        ],
-                      );
-                    }).toList(),
+                      return paged.map((log) {
+                        final isNormal = log['status'] == 'Normal' || log['status'] == 'Optimal' || log['status'] == 'Adequate' || log['status'] == 'Healthy' || log['status'] == 'Certified Pure' || log['status'] == 'Standby Ready';
+                        final statusColor = isNormal ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
+
+                        return DataRow(
+                          cells: [
+                            DataCell(Text(log['timestamp'] ?? '', style: TextStyle(fontSize: 11.5, color: textSecondary))),
+                            DataCell(Text(log['utility'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
+                            DataCell(Text(log['reading'] ?? '', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: primaryColor))),
+                            DataCell(Text(log['location'] ?? '', style: const TextStyle(fontSize: 11.5))),
+                            DataCell(Text(log['recorded_by'] ?? '', style: const TextStyle(fontSize: 11.5))),
+                            DataCell(Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: statusColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                log['status'] ?? '',
+                                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: statusColor),
+                              ),
+                            )),
+                            DataCell(Text(log['notes'] ?? '', style: TextStyle(fontSize: 11.5, color: textSecondary))),
+                          ],
+                        );
+                      }).toList();
+                    })(),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  child: CampusPaginationBar(
+                    currentPage: _page,
+                    pageSize: _pageSize,
+                    totalItems: _readingLogs.length,
+                    onPageChanged: (newPage) => setState(() => _page = newPage),
+                    onPageSizeChanged: (newSize) => setState(() {
+                      _pageSize = newSize;
+                      _page = 1;
+                    }),
+                    itemLabel: 'logs',
                   ),
                 ),
               ],
@@ -268,7 +397,8 @@ class _UtilitiesServicesTabViewState extends ConsumerState<UtilitiesServicesTabV
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildSubTabButton(int index, String label, IconData icon, Color primaryColor, bool isDark) {

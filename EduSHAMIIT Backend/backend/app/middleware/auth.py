@@ -101,6 +101,7 @@ async def get_current_user(request: Request) -> dict:
             "role": cached.get("role"),
             "class": cached.get("class"),
             "email": cached.get("email"),
+            "full_name": cached.get("full_name") or cached.get("name") or cached.get("user_metadata", {}).get("full_name") if isinstance(cached.get("user_metadata"), dict) else (cached.get("full_name") or cached.get("name")),
         }
         if user["id"] and time.time() >= _SUPABASE_SESSION_DISABLED_UNTIL:
             try:
@@ -135,6 +136,7 @@ async def get_current_user(request: Request) -> dict:
             "role": payload.get("role"),
             "class": payload.get("class"),
             "email": payload.get("email"),
+            "full_name": payload.get("full_name") or payload.get("name") or (payload.get("user_metadata", {}).get("full_name") if isinstance(payload.get("user_metadata"), dict) else None),
         }
 
         if not user["id"]:

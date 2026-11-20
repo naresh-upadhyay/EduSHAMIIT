@@ -68,16 +68,14 @@ class WhiteboardWsService {
         cancelOnError: true,
       );
 
-      // Wait for socket to become ready, but do not crash if it fails
-      try {
-        await _channel!.ready.timeout(const Duration(seconds: 4));
+      // Listen for socket ready asynchronously without stalling UI
+      _channel!.ready.timeout(const Duration(milliseconds: 900)).then((_) {
         _isConnected = true;
         onConnectionChanged?.call(true);
         _reconnectAttempts = 0;
-      } catch (readyErr) {
+      }).catchError((readyErr) {
         debugPrint('[WhiteboardWS] Socket ready timeout/fail: $readyErr');
-        // Do not throw; listen onError/onDone will handle or next message will promote
-      }
+      });
 
       _heartbeatTimer?.cancel();
       _heartbeatTimer = Timer.periodic(const Duration(seconds: 20), (_) {

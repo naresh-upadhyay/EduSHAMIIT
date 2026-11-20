@@ -521,9 +521,11 @@ class InAppLiveRoomService extends ChangeNotifier {
     // Broadcast message to LiveKit Room
     await _broadcastData({'type': 'chat', 'message': message.toJson()});
 
-    _chatMessages.add(message);
-    _safeNotify();
-    _safeRoomUpdate();
+    if (!_chatMessages.any((m) => m.id == message.id)) {
+      _chatMessages.add(message);
+      _safeNotify();
+      _safeRoomUpdate();
+    }
   }
 
   /// Mute a specific student (Teacher Only)
@@ -594,9 +596,11 @@ class InAppLiveRoomService extends ChangeNotifier {
 
         if (type == 'chat') {
           final msg = LiveRoomChatMessage.fromJson(decoded['message']);
-          _chatMessages.add(msg);
-          _safeNotify();
-          _safeRoomUpdate();
+          if (!_chatMessages.any((m) => m.id == msg.id)) {
+            _chatMessages.add(msg);
+            _safeNotify();
+            _safeRoomUpdate();
+          }
         } else if (type == 'hand_raise') {
           final uId = decoded['userId'] as String;
           final isRaised = decoded['isRaised'] as bool;

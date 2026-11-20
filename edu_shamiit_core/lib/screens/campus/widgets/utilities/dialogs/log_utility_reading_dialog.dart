@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../services/campus_lookup_helper.dart';
+import '../../../services/campus_api_service.dart';
 import '../../../models/campus_models.dart';
 
 class LogUtilityReadingDialog extends StatefulWidget {
@@ -82,11 +83,49 @@ class _LogUtilityReadingDialogState extends State<LogUtilityReadingDialog> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
 
-    await Future.delayed(const Duration(milliseconds: 300));
+    String uCat = 'Electrical & Solar';
+    final lower = _utilityType.toLowerCase();
+    if (lower.contains('water') || lower.contains('ro') || lower.contains('sump')) {
+      uCat = 'Water & RO';
+    } else if (lower.contains('internet') || lower.contains('fiber') || lower.contains('telecom')) {
+      uCat = 'Internet & Telecom';
+    } else if (lower.contains('gas') || lower.contains('hvac')) {
+      uCat = 'Gas & HVAC';
+    }
+
+    final bldg = _buildings.firstWhere(
+      (b) => b.id == _selectedBuildingId,
+      orElse: () => _buildings.isNotEmpty
+          ? _buildings.first
+          : const BuildingModel(id: '', schoolId: '', name: 'Main Campus Substation', code: 'MAIN'),
+    );
+
+    final payload = <String, dynamic>{
+      'utility_name': _utilityType,
+      'utility_type': uCat,
+      'reading_value': '${_readingCtrl.text.trim()} ${_unitCtrl.text.trim()}',
+      'metric_units': _unitCtrl.text.trim(),
+      'location': '${bldg.name} (${bldg.code})',
+      'recorded_by': _recordedByCtrl.text.trim(),
+      'status': 'Normal',
+      'notes': _remarksCtrl.text.trim(),
+      'building_id': _selectedBuildingId,
+    };
+
+    final res = await CampusApiService.instance.logUtilityReading(payload);
     if (mounted) {
       setState(() => _isSaving = false);
-      Navigator.of(context).pop();
-      widget.onSaved();
+      if (res['success'] == true) {
+        Navigator.of(context).pop();
+        widget.onSaved();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(res['message']?.toString() ?? 'Failed to log utility reading'),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+      }
     }
   }
 

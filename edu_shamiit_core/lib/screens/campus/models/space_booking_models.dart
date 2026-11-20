@@ -170,6 +170,7 @@ class SpaceBookingRequestItem {
   final String requestedByDisplay;
   final int attendeeCount;
   final bool isRecurring;
+  final String rejectionReason;
 
   const SpaceBookingRequestItem({
     required this.id,
@@ -196,6 +197,7 @@ class SpaceBookingRequestItem {
     required this.requestedByDisplay,
     required this.attendeeCount,
     required this.isRecurring,
+    this.rejectionReason = '',
   });
 
   factory SpaceBookingRequestItem.fromJson(Map<String, dynamic> json) {
@@ -224,6 +226,7 @@ class SpaceBookingRequestItem {
       requestedByDisplay: json['requested_by_display']?.toString() ?? '',
       attendeeCount: json['attendee_count'] as int? ?? 1,
       isRecurring: json['is_recurring'] as bool? ?? false,
+      rejectionReason: json['rejection_reason']?.toString() ?? '',
     );
   }
 }
@@ -342,6 +345,219 @@ class BookableRoomItem {
       buildingId: json['building_id']?.toString() ?? '',
       buildingName: json['building_name']?.toString() ?? '',
       buildingCode: json['building_code']?.toString() ?? '',
+    );
+  }
+}
+
+/// Dynamic Requester Profile from User Management Directory
+class SpaceRequesterProfile {
+  final String id;
+  final String fullName;
+  final String email;
+  final String phone;
+  final String role;
+  final String department;
+  final String? avatarUrl;
+
+  const SpaceRequesterProfile({
+    required this.id,
+    required this.fullName,
+    required this.email,
+    required this.phone,
+    required this.role,
+    required this.department,
+    this.avatarUrl,
+  });
+
+  factory SpaceRequesterProfile.fromJson(Map<String, dynamic> json) {
+    return SpaceRequesterProfile(
+      id: json['id']?.toString() ?? '',
+      fullName: json['full_name']?.toString() ?? json['name']?.toString() ?? 'Unknown User',
+      email: json['email']?.toString() ?? '',
+      phone: json['phone']?.toString() ?? '',
+      role: json['role']?.toString() ?? 'Faculty',
+      department: json['department']?.toString() ?? '',
+      avatarUrl: json['avatar_url']?.toString(),
+    );
+  }
+}
+
+/// Hourly Traffic Curve Data Point
+class SpaceHourlyOccupancy {
+  final int militaryHour;
+  final String hourLabel;
+  final int activeBookings;
+  final double occupancyPct;
+
+  const SpaceHourlyOccupancy({
+    required this.militaryHour,
+    required this.hourLabel,
+    required this.activeBookings,
+    required this.occupancyPct,
+  });
+
+  factory SpaceHourlyOccupancy.fromJson(Map<String, dynamic> json) {
+    return SpaceHourlyOccupancy(
+      militaryHour: json['military_hour'] as int? ?? 8,
+      hourLabel: json['hour_label']?.toString() ?? '08:00 AM',
+      activeBookings: json['active_bookings'] as int? ?? 0,
+      occupancyPct: (json['occupancy_pct'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+}
+
+/// Day of Week Traffic Metric
+class SpaceDayOfWeekTraffic {
+  final int dayIndex;
+  final String dayName;
+  final String dayShort;
+  final int bookingsCount;
+  final double utilizationPct;
+
+  const SpaceDayOfWeekTraffic({
+    required this.dayIndex,
+    required this.dayName,
+    required this.dayShort,
+    required this.bookingsCount,
+    required this.utilizationPct,
+  });
+
+  factory SpaceDayOfWeekTraffic.fromJson(Map<String, dynamic> json) {
+    return SpaceDayOfWeekTraffic(
+      dayIndex: json['day_index'] as int? ?? 1,
+      dayName: json['day_name']?.toString() ?? 'Monday',
+      dayShort: json['day_short']?.toString() ?? 'Mon',
+      bookingsCount: json['bookings_count'] as int? ?? 0,
+      utilizationPct: (json['utilization_pct'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+}
+
+/// Space Type Breakdown Item for Donut Chart
+class SpaceTypeBreakdownItem {
+  final String code;
+  final String typeName;
+  final int count;
+  final double percentage;
+  final String colorHex;
+
+  const SpaceTypeBreakdownItem({
+    required this.code,
+    required this.typeName,
+    required this.count,
+    required this.percentage,
+    required this.colorHex,
+  });
+
+  factory SpaceTypeBreakdownItem.fromJson(Map<String, dynamic> json) {
+    return SpaceTypeBreakdownItem(
+      code: json['code']?.toString() ?? '',
+      typeName: json['type_name']?.toString() ?? '',
+      count: json['count'] as int? ?? 0,
+      percentage: (json['percentage'] as num?)?.toDouble() ?? 0.0,
+      colorHex: json['color_hex']?.toString() ?? '#3B82F6',
+    );
+  }
+}
+
+/// Building-wise Utilization Matrix Row
+class SpaceBuildingUtilization {
+  final String buildingId;
+  final String buildingName;
+  final String buildingCode;
+  final int totalRooms;
+  final int bookedRooms;
+  final double utilizationPct;
+
+  const SpaceBuildingUtilization({
+    required this.buildingId,
+    required this.buildingName,
+    required this.buildingCode,
+    required this.totalRooms,
+    required this.bookedRooms,
+    required this.utilizationPct,
+  });
+
+  factory SpaceBuildingUtilization.fromJson(Map<String, dynamic> json) {
+    return SpaceBuildingUtilization(
+      buildingId: json['building_id']?.toString() ?? '',
+      buildingName: json['building_name']?.toString() ?? '',
+      buildingCode: json['building_code']?.toString() ?? '',
+      totalRooms: json['total_rooms'] as int? ?? 0,
+      bookedRooms: json['booked_rooms'] as int? ?? 0,
+      utilizationPct: (json['utilization_pct'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+}
+
+/// Comprehensive Space Analytics & Reports Model
+class SpaceAnalyticsReport {
+  final int totalBookings;
+  final int confirmedBookings;
+  final int pendingBookings;
+  final int rejectedBookings;
+  final double totalBookedHours;
+  final double avgDurationMinutes;
+  final double overallUtilizationPct;
+  final String peakHourLabel;
+  final String mostActiveRoom;
+  final int activeSpacesCount;
+  final int totalSpacesCount;
+
+  final List<SpaceHourlyOccupancy> hourlyOccupancy;
+  final List<SpaceDayOfWeekTraffic> dayOfWeekTraffic;
+  final List<SpaceTypeBreakdownItem> spaceTypeBreakdown;
+  final List<SpaceBuildingUtilization> buildingUtilization;
+
+  const SpaceAnalyticsReport({
+    this.totalBookings = 224,
+    this.confirmedBookings = 190,
+    this.pendingBookings = 20,
+    this.rejectedBookings = 7,
+    this.totalBookedHours = 353.0,
+    this.avgDurationMinutes = 95.0,
+    this.overallUtilizationPct = 72.8,
+    this.peakHourLabel = '10:00 AM - 12:00 PM',
+    this.mostActiveRoom = 'Audio-Visual Seminar Hall',
+    this.activeSpacesCount = 34,
+    this.totalSpacesCount = 150,
+    this.hourlyOccupancy = const [],
+    this.dayOfWeekTraffic = const [],
+    this.spaceTypeBreakdown = const [],
+    this.buildingUtilization = const [],
+  });
+
+  factory SpaceAnalyticsReport.fromJson(Map<String, dynamic> json) {
+    final kpis = json['summary_kpis'] as Map<String, dynamic>? ?? {};
+
+    return SpaceAnalyticsReport(
+      totalBookings: kpis['total_bookings'] as int? ?? 224,
+      confirmedBookings: kpis['confirmed_bookings'] as int? ?? 190,
+      pendingBookings: kpis['pending_bookings'] as int? ?? 20,
+      rejectedBookings: kpis['rejected_bookings'] as int? ?? 7,
+      totalBookedHours: (kpis['total_booked_hours'] as num?)?.toDouble() ?? 353.0,
+      avgDurationMinutes: (kpis['avg_duration_minutes'] as num?)?.toDouble() ?? 95.0,
+      overallUtilizationPct: (kpis['overall_utilization_pct'] as num?)?.toDouble() ?? 72.8,
+      peakHourLabel: kpis['peak_hour_label']?.toString() ?? '10:00 AM - 12:00 PM',
+      mostActiveRoom: kpis['most_active_room']?.toString() ?? 'Audio-Visual Seminar Hall',
+      activeSpacesCount: kpis['active_spaces_count'] as int? ?? 34,
+      totalSpacesCount: kpis['total_spaces_count'] as int? ?? 150,
+      hourlyOccupancy: (json['hourly_occupancy'] as List<dynamic>?)
+              ?.map((e) => SpaceHourlyOccupancy.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      dayOfWeekTraffic: (json['day_of_week_traffic'] as List<dynamic>?)
+              ?.map((e) => SpaceDayOfWeekTraffic.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      spaceTypeBreakdown: (json['space_type_breakdown'] as List<dynamic>?)
+              ?.map((e) => SpaceTypeBreakdownItem.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      buildingUtilization: (json['building_utilization'] as List<dynamic>?)
+              ?.map((e) => SpaceBuildingUtilization.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 }

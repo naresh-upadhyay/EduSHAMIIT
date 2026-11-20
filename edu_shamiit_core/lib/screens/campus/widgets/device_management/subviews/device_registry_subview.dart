@@ -4,6 +4,7 @@ import '../../../models/device_management_models.dart';
 import '../../../services/device_management_api_service.dart';
 import '../dialogs/add_device_wizard_dialog.dart';
 import '../dialogs/device_details_drawer.dart';
+import '../../common/campus_pagination_bar.dart';
 
 /// Enterprise Device Registry Subview for EduSHAMIIT ERP
 /// Provides independent filtering, server-side sorting, pagination, multi-selection,
@@ -42,7 +43,6 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
   int _totalDevices = 0;
   int _currentPage = 1;
   int _pageSize = 10;
-  final List<int> _pageSizeOptions = [5, 10, 20, 50, 100];
 
   // Sorting State
   String _sortColumn = 'created_at';
@@ -1245,7 +1245,24 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
           ),
 
           // 7. Powerful & Premium Pagination Footer
-          _buildPaginationFooter(isDark),
+          CampusPaginationBar(
+            currentPage: _currentPage,
+            pageSize: _pageSize,
+            totalCount: _totalDevices,
+            itemLabel: 'devices',
+            pageSizes: const [10, 25, 50, 100],
+            onPageChanged: (page) {
+              setState(() => _currentPage = page);
+              _loadDevices();
+            },
+            onPageSizeChanged: (newSize) {
+              setState(() {
+                _pageSize = newSize;
+                _currentPage = 1;
+              });
+              _loadDevices();
+            },
+          ),
         ],
       ),
     );
@@ -1772,215 +1789,6 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
               ),
             ),
         ],
-      ),
-    );
-  }
-
-  // ============================================================================
-  // POWERFUL & PREMIUM PAGINATION FOOTER
-  // ============================================================================
-  Widget _buildPaginationFooter(bool isDark) {
-    final startIdx = _totalDevices == 0 ? 0 : (_currentPage - 1) * _pageSize + 1;
-    final endIdx = math.min(_currentPage * _pageSize, _totalDevices);
-    final totalPages = (_totalDevices / _pageSize).ceil();
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Showing X - Y of Z devices
-            Text(
-              'Showing $startIdx - $endIdx of $_totalDevices devices',
-              style: TextStyle(
-                fontSize: 12,
-                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-              ),
-            ),
-            const SizedBox(width: 24),
-
-            // Rows per page selector
-            Row(
-              children: [
-                Text(
-                  'Rows per page:',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  height: 30,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-                    ),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      value: _pageSize,
-                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      ),
-                      onChanged: (newSize) {
-                        if (newSize != null) {
-                          setState(() {
-                            _pageSize = newSize;
-                            _currentPage = 1;
-                          });
-                          _loadDevices();
-                        }
-                      },
-                      items: _pageSizeOptions.map((sz) {
-                        return DropdownMenuItem<int>(
-                          value: sz,
-                          child: Text('$sz'),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 24),
-
-            // Stepper Navigation
-            Row(
-              children: [
-                // First Page
-                IconButton(
-                  icon: const Icon(Icons.first_page_rounded, size: 18),
-                  tooltip: 'First Page',
-                  onPressed: _currentPage > 1
-                      ? () {
-                          setState(() => _currentPage = 1);
-                          _loadDevices();
-                        }
-                      : null,
-                ),
-                // Previous Page
-                IconButton(
-                  icon: const Icon(Icons.chevron_left_rounded, size: 20),
-                  tooltip: 'Previous Page',
-                  onPressed: _currentPage > 1
-                      ? () {
-                          setState(() => _currentPage -= 1);
-                          _loadDevices();
-                        }
-                      : null,
-                ),
-
-                // Numbered page indicator chips
-                ..._buildPageNumbers(totalPages, isDark),
-
-                // Next Page
-                IconButton(
-                  icon: const Icon(Icons.chevron_right_rounded, size: 20),
-                  tooltip: 'Next Page',
-                  onPressed: _currentPage < totalPages
-                      ? () {
-                          setState(() => _currentPage += 1);
-                          _loadDevices();
-                        }
-                      : null,
-                ),
-                // Last Page
-                IconButton(
-                  icon: const Icon(Icons.last_page_rounded, size: 18),
-                  tooltip: 'Last Page',
-                  onPressed: _currentPage < totalPages
-                      ? () {
-                          setState(() => _currentPage = totalPages);
-                          _loadDevices();
-                        }
-                      : null,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  List<Widget> _buildPageNumbers(int totalPages, bool isDark) {
-    if (totalPages <= 1) {
-      return [
-        _buildPageChip(1, true, isDark),
-      ];
-    }
-
-    final pages = <Widget>[];
-    final start = math.max(1, _currentPage - 1);
-    final end = math.min(totalPages, _currentPage + 1);
-
-    if (start > 1) {
-      pages.add(_buildPageChip(1, _currentPage == 1, isDark));
-      if (start > 2) {
-        pages.add(const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 2),
-          child: Text('...', style: TextStyle(fontSize: 12)),
-        ));
-      }
-    }
-
-    for (int p = start; p <= end; p++) {
-      pages.add(_buildPageChip(p, _currentPage == p, isDark));
-    }
-
-    if (end < totalPages) {
-      if (end < totalPages - 1) {
-        pages.add(const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 2),
-          child: Text('...', style: TextStyle(fontSize: 12)),
-        ));
-      }
-      pages.add(_buildPageChip(totalPages, _currentPage == totalPages, isDark));
-    }
-
-    return pages;
-  }
-
-  Widget _buildPageChip(int pageNum, bool isActive, bool isDark) {
-    return InkWell(
-      onTap: isActive
-          ? null
-          : () {
-              setState(() => _currentPage = pageNum);
-              _loadDevices();
-            },
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 3),
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF2563EB) : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: isActive
-                ? const Color(0xFF2563EB)
-                : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-          ),
-        ),
-        child: Text(
-          '$pageNum',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-            color: isActive
-                ? Colors.white
-                : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155)),
-          ),
-        ),
       ),
     );
   }

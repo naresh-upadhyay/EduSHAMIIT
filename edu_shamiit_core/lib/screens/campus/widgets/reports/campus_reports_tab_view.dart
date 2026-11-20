@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/campus_lookup_helper.dart';
 import '../../services/campus_api_service.dart';
 import '../../models/campus_models.dart';
+import '../common/campus_pagination_bar.dart';
 
 class CampusReportsTabView extends ConsumerStatefulWidget {
   const CampusReportsTabView({super.key});
@@ -23,6 +24,8 @@ class _CampusReportsTabViewState extends ConsumerState<CampusReportsTabView> {
   String? _selectedBuildingId;
   String _searchQuery = '';
   List<BuildingModel> _buildings = [];
+  int _page = 1;
+  int _pageSize = 10;
 
   final List<String> _timeRanges = [
     'Today',
@@ -54,9 +57,10 @@ class _CampusReportsTabViewState extends ConsumerState<CampusReportsTabView> {
       'energy_utility',
     ];
     final selectedName = reportNames[_selectedReportType];
-    CampusApiService.instance.exportData(
-      _selectedReportType == 1 ? 'equipment' : (_selectedReportType == 0 ? 'rooms' : 'buildings'),
+    CampusApiService.instance.exportCampusReport(
+      reportType: _selectedReportType,
       buildingId: _selectedBuildingId,
+      timeRange: _timeRange,
     );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -371,47 +375,70 @@ class _CampusReportsTabViewState extends ConsumerState<CampusReportsTabView> {
           ? allRows
           : allRows.where((r) => r.values.any((v) => v.toString().toLowerCase().contains(_searchQuery.toLowerCase()))).toList();
 
-      return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: const [
-            DataColumn(label: Text('Building', style: TextStyle(fontWeight: FontWeight.w700))),
-            DataColumn(label: Text('Space / Room', style: TextStyle(fontWeight: FontWeight.w700))),
-            DataColumn(label: Text('Type', style: TextStyle(fontWeight: FontWeight.w700))),
-            DataColumn(label: Text('Capacity', style: TextStyle(fontWeight: FontWeight.w700))),
-            DataColumn(label: Text('Utilization Rate', style: TextStyle(fontWeight: FontWeight.w700))),
-            DataColumn(label: Text('Booked Hours', style: TextStyle(fontWeight: FontWeight.w700))),
-            DataColumn(label: Text('Demand Tier', style: TextStyle(fontWeight: FontWeight.w700))),
-          ],
-          rows: rows.map((r) {
-            final isPeak = r['status'] == 'Peak Usage' || r['status'] == 'High Demand';
-            return DataRow(
-              cells: [
-                DataCell(Text(r['bld'] as String, style: const TextStyle(fontSize: 12.5))),
-                DataCell(Text(r['room'] as String, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
-                DataCell(Text(r['type'] as String, style: const TextStyle(fontSize: 12))),
-                DataCell(Text('${r['cap']} seats', style: const TextStyle(fontSize: 12))),
-                DataCell(Text(r['occ'] as String, style: TextStyle(fontWeight: FontWeight.w700, color: primaryColor, fontSize: 13))),
-                DataCell(Text(r['hours'] as String, style: const TextStyle(fontSize: 12))),
-                DataCell(Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: (isPeak ? const Color(0xFF10B981) : const Color(0xFF3B82F6)).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    r['status'] as String,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: isPeak ? const Color(0xFF10B981) : const Color(0xFF3B82F6),
-                    ),
-                  ),
-                )),
+      final pagedRows = rows;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              headingRowHeight: 34,
+              dataRowMinHeight: 32,
+              dataRowMaxHeight: 35,
+              columns: const [
+                DataColumn(label: Text('Building', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                DataColumn(label: Text('Space / Room', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                DataColumn(label: Text('Type', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                DataColumn(label: Text('Capacity', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                DataColumn(label: Text('Utilization Rate', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                DataColumn(label: Text('Booked Hours', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                DataColumn(label: Text('Demand Tier', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
               ],
-            );
-          }).toList(),
-        ),
+              rows: pagedRows.map((r) {
+                final isPeak = r['status'] == 'Peak Usage' || r['status'] == 'High Demand';
+                return DataRow(
+                  cells: [
+                    DataCell(Text(r['bld'] as String, style: const TextStyle(fontSize: 12))),
+                    DataCell(Text(r['room'] as String, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
+                    DataCell(Text(r['type'] as String, style: const TextStyle(fontSize: 11.5))),
+                    DataCell(Text('${r['cap']} seats', style: const TextStyle(fontSize: 12))),
+                    DataCell(Text(r['occ'] as String, style: TextStyle(fontWeight: FontWeight.w700, color: primaryColor, fontSize: 12))),
+                    DataCell(Text(r['hours'] as String, style: const TextStyle(fontSize: 11.5))),
+                    DataCell(Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: (isPeak ? const Color(0xFF10B981) : const Color(0xFF3B82F6)).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        r['status'] as String,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: isPeak ? const Color(0xFF10B981) : const Color(0xFF3B82F6),
+                        ),
+                      ),
+                    )),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: CampusPaginationBar(
+              currentPage: _page,
+              pageSize: _pageSize,
+              totalItems: rows.length,
+              onPageChanged: (newPage) => setState(() => _page = newPage),
+              onPageSizeChanged: (newSize) => setState(() {
+                _pageSize = newSize;
+                _page = 1;
+              }),
+              itemLabel: 'records',
+            ),
+          ),
+        ],
       );
     } else {
       // General Audit Records Table
@@ -423,40 +450,59 @@ class _CampusReportsTabViewState extends ConsumerState<CampusReportsTabView> {
         {'id': 'AUD-05', 'metric': 'Solar Inverter Efficiency & Clean Energy', 'scope': '150 kWp Rooftop', 'value': '320.4 kWh Daily Average', 'score': 'Optimal PR: 82%', 'date': '15 Dec 2025'},
       ];
 
-      return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: const [
-            DataColumn(label: Text('Audit ID', style: TextStyle(fontWeight: FontWeight.w700))),
-            DataColumn(label: Text('Infrastructure Audit Parameter', style: TextStyle(fontWeight: FontWeight.w700))),
-            DataColumn(label: Text('Campus Scope', style: TextStyle(fontWeight: FontWeight.w700))),
-            DataColumn(label: Text('Measured Metric / Value', style: TextStyle(fontWeight: FontWeight.w700))),
-            DataColumn(label: Text('Audit Result', style: TextStyle(fontWeight: FontWeight.w700))),
-            DataColumn(label: Text('Verified Date', style: TextStyle(fontWeight: FontWeight.w700))),
-          ],
-          rows: auditRows.map((r) {
-            return DataRow(
-              cells: [
-                DataCell(Text(r['id'] as String, style: TextStyle(fontSize: 12, color: textSecondary))),
-                DataCell(Text(r['metric'] as String, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
-                DataCell(Text(r['scope'] as String, style: const TextStyle(fontSize: 12))),
-                DataCell(Text(r['value'] as String, style: TextStyle(fontWeight: FontWeight.w600, color: primaryColor, fontSize: 12.5))),
-                DataCell(Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    r['score'] as String,
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF10B981)),
-                  ),
-                )),
-                DataCell(Text(r['date'] as String, style: TextStyle(fontSize: 12, color: textSecondary))),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              headingRowHeight: 34,
+              dataRowMinHeight: 32,
+              dataRowMaxHeight: 35,
+              columns: const [
+                DataColumn(label: Text('Audit ID', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                DataColumn(label: Text('Infrastructure Audit Parameter', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                DataColumn(label: Text('Campus Scope', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                DataColumn(label: Text('Measured Metric / Value', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                DataColumn(label: Text('Audit Result', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                DataColumn(label: Text('Verified Date', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
               ],
-            );
-          }).toList(),
-        ),
+              rows: auditRows.map((r) {
+                return DataRow(
+                  cells: [
+                    DataCell(Text(r['id'] as String, style: TextStyle(fontSize: 11.5, color: textSecondary))),
+                    DataCell(Text(r['metric'] as String, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
+                    DataCell(Text(r['scope'] as String, style: const TextStyle(fontSize: 11.5))),
+                    DataCell(Text(r['value'] as String, style: TextStyle(fontWeight: FontWeight.w600, color: primaryColor, fontSize: 12))),
+                    DataCell(Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        r['score'] as String,
+                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF10B981)),
+                      ),
+                    )),
+                    DataCell(Text(r['date'] as String, style: TextStyle(fontSize: 11.5, color: textSecondary))),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: CampusPaginationBar(
+              currentPage: 1,
+              pageSize: 10,
+              totalItems: auditRows.length,
+              onPageChanged: (_) {},
+              onPageSizeChanged: (_) {},
+              itemLabel: 'audits',
+            ),
+          ),
+        ],
       );
     }
   }

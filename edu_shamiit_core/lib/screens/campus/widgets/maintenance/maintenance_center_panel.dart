@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/maintenance_models.dart';
 import '../../providers/maintenance_provider.dart';
+import '../../providers/campus_provider.dart';
+import '../common/campus_pagination_bar.dart';
 
 class MaintenanceCenterPanel extends ConsumerStatefulWidget {
   final VoidCallback onOpenNewRequest;
@@ -39,12 +41,23 @@ class _MaintenanceCenterPanelState extends ConsumerState<MaintenanceCenterPanel>
   Widget build(BuildContext context) {
     final state = ref.watch(maintenanceProvider);
     final notifier = ref.read(maintenanceProvider.notifier);
+    final campusState = ref.watch(campusProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
     final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
+    final buildingList = ['All', ...campusState.buildings.map((b) => b.code.isNotEmpty ? b.code : b.name)];
+    final locationList = [
+      'All',
+      ...campusState.rooms.map((r) => r.roomNumber.isNotEmpty ? r.roomNumber : r.name),
+      if (campusState.rooms.isEmpty) ...['G-101', 'G-102', 'F1-202', 'GF-WR1', 'F2-305', 'Seminar Hall', 'Library', 'Lab-1'],
+    ];
+
+    final currentBuildingVal = buildingList.contains(_filterBuilding) ? _filterBuilding : 'All';
+    final currentLocationVal = locationList.contains(_filterLocation) ? _filterLocation : 'All';
 
     return SingleChildScrollView(
       child: Column(
@@ -163,8 +176,8 @@ class _MaintenanceCenterPanelState extends ConsumerState<MaintenanceCenterPanel>
                           children: [
                             _buildFilterPill(
                               label: 'Building',
-                              value: _filterBuilding,
-                              items: ['All', 'B1', 'B2', 'B3', 'B4'],
+                              value: currentBuildingVal,
+                              items: buildingList,
                               onChanged: (v) {
                                 setState(() => _filterBuilding = v);
                                 notifier.setBuildingFilter(v == 'All' ? 'all' : v.toLowerCase());
@@ -174,8 +187,8 @@ class _MaintenanceCenterPanelState extends ConsumerState<MaintenanceCenterPanel>
                             const SizedBox(width: 8),
                             _buildFilterPill(
                               label: 'Location',
-                              value: _filterLocation,
-                              items: ['All', 'G-101', 'G-102', 'F1-202', 'GF-WR1', 'F2-305', 'Seminar Hall', 'Library', 'Lab-1'],
+                              value: currentLocationVal,
+                              items: locationList,
                               onChanged: (v) {
                                 setState(() => _filterLocation = v);
                                 notifier.setLocationFilter(v);
@@ -233,9 +246,9 @@ class _MaintenanceCenterPanelState extends ConsumerState<MaintenanceCenterPanel>
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(minWidth: 850),
                           child: DataTable(
-                            headingRowHeight: 38,
-                            dataRowMinHeight: 44,
-                            dataRowMaxHeight: 46,
+                            headingRowHeight: 34,
+                            dataRowMinHeight: 32,
+                            dataRowMaxHeight: 35,
                             horizontalMargin: 12,
                             columnSpacing: 14,
                             headingRowColor: WidgetStateProperty.all(
@@ -243,13 +256,13 @@ class _MaintenanceCenterPanelState extends ConsumerState<MaintenanceCenterPanel>
                             ),
                             columns: [
                               _tableHeader('#'),
-                              _tableHeader('Request ID'),
-                              _tableHeader('Title / Issue'),
-                              _tableHeader('Location (Building / Room)'),
-                              _tableHeader('Type'),
-                              _tableHeader('Priority'),
-                              _tableHeader('Reported By'),
-                              _tableHeader('Status'),
+                              _tableHeader('Request ID', sortKey: 'request_code', notifier: notifier, state: state),
+                              _tableHeader('Title / Issue', sortKey: 'title', notifier: notifier, state: state),
+                              _tableHeader('Location', sortKey: 'location_display', notifier: notifier, state: state),
+                              _tableHeader('Type', sortKey: 'request_type', notifier: notifier, state: state),
+                              _tableHeader('Priority', sortKey: 'priority', notifier: notifier, state: state),
+                              _tableHeader('Reported By', sortKey: 'reported_by_name', notifier: notifier, state: state),
+                              _tableHeader('Status', sortKey: 'status', notifier: notifier, state: state),
                               _tableHeader('Actions'),
                             ],
                             rows: List.generate(state.requests.records.length, (idx) {
@@ -351,46 +364,14 @@ class _MaintenanceCenterPanelState extends ConsumerState<MaintenanceCenterPanel>
 
                 // Pagination Footer
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        // Safe range calculation
-                        Builder(builder: (context) {
-                          final total = state.requests.totalCount;
-                          final startIdx = total == 0 ? 0 : (state.currentPage - 1) * state.pageSize + 1;
-                          final endIdx = total == 0 ? 0 : math.min(state.currentPage * state.pageSize, total);
-                          return Text(
-                            'Showing $startIdx - $endIdx of $total requests',
-                            style: TextStyle(fontSize: 12, color: textMuted),
-                          );
-                        }),
-                        const SizedBox(width: 16),
-
-                        // Page Numbers
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildPagePill('«', isEnabled: state.currentPage > 1, onTap: () => notifier.setPage(state.currentPage - 1), isDark: isDark),
-                            _buildPagePill('1', isActive: state.currentPage == 1, onTap: () => notifier.setPage(1), isDark: isDark),
-                            _buildPagePill('2', isActive: state.currentPage == 2, onTap: () => notifier.setPage(2), isDark: isDark),
-                            _buildPagePill('3', isActive: state.currentPage == 3, onTap: () => notifier.setPage(3), isDark: isDark),
-                            _buildPagePill('4', isActive: state.currentPage == 4, onTap: () => notifier.setPage(4), isDark: isDark),
-                            _buildPagePill('5', isActive: state.currentPage == 5, onTap: () => notifier.setPage(5), isDark: isDark),
-                            const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 4),
-                              child: Text('...', style: TextStyle(color: Color(0xFF94A3B8))),
-                            ),
-                            _buildPagePill('32', isActive: state.currentPage == 32, onTap: () => notifier.setPage(32), isDark: isDark),
-                            _buildPagePill('»', isEnabled: state.currentPage < 32, onTap: () => notifier.setPage(state.currentPage + 1), isDark: isDark),
-                          ],
-                        ),
-                        const SizedBox(width: 14),
-
-                        Text('Rows per page: 10', style: TextStyle(fontSize: 11.5, color: textMuted)),
-                      ],
-                    ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  child: CampusPaginationBar(
+                    currentPage: state.currentPage,
+                    pageSize: state.pageSize,
+                    totalItems: state.requests.totalCount,
+                    onPageChanged: (newPage) => notifier.setPage(newPage),
+                    onPageSizeChanged: (newSize) => notifier.setPageSize(newSize),
+                    itemLabel: 'requests',
                   ),
                 ),
               ],
@@ -473,12 +454,37 @@ class _MaintenanceCenterPanelState extends ConsumerState<MaintenanceCenterPanel>
     );
   }
 
-  DataColumn _tableHeader(String title) {
+  DataColumn _tableHeader(String title, {String? sortKey, MaintenanceNotifier? notifier, MaintenanceState? state}) {
+    final isSorted = sortKey != null && state?.sortBy == sortKey;
+    final isAsc = state?.sortOrder == 'asc';
+
     return DataColumn(
-      label: Text(
-        title,
-        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: isSorted ? const Color(0xFF2563EB) : const Color(0xFF64748B),
+            ),
+          ),
+          if (sortKey != null) ...[
+            const SizedBox(width: 3),
+            Icon(
+              isSorted
+                  ? (isAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                  : Icons.unfold_more_rounded,
+              size: 13,
+              color: isSorted ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
+            ),
+          ],
+        ],
       ),
+      onSort: sortKey != null && notifier != null
+          ? (_, __) => notifier.setSort(sortKey)
+          : null,
     );
   }
 
@@ -618,29 +624,6 @@ class _MaintenanceCenterPanelState extends ConsumerState<MaintenanceCenterPanel>
             color: isDark ? Colors.white : const Color(0xFF0F172A),
           ),
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPagePill(String label, {bool isActive = false, bool isEnabled = true, VoidCallback? onTap, required bool isDark}) {
-    return InkWell(
-      onTap: isEnabled ? onTap : null,
-      borderRadius: BorderRadius.circular(4),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF2563EB) : Colors.transparent,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-            color: isActive ? Colors.white : (isEnabled ? (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)) : const Color(0xFF94A3B8)),
-          ),
         ),
       ),
     );

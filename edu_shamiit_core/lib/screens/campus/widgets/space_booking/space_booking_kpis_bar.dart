@@ -3,10 +3,12 @@ import '../../models/space_booking_models.dart';
 
 class SpaceBookingKpisBar extends StatelessWidget {
   final SpaceBookingKpis kpis;
+  final Function(String category)? onCardTap;
 
   const SpaceBookingKpisBar({
     super.key,
     required this.kpis,
+    this.onCardTap,
   });
 
   @override
@@ -23,6 +25,7 @@ class SpaceBookingKpisBar extends StatelessWidget {
         iconColor: const Color(0xFF0284C7),
         iconBgColor: isDark ? const Color(0xFF0284C7).withValues(alpha: 0.2) : const Color(0xFFE0F2FE),
         isDark: isDark,
+        onTap: () => onCardTap?.call('All'),
       ),
       _buildKpiCard(
         title: 'Confirmed',
@@ -33,6 +36,7 @@ class SpaceBookingKpisBar extends StatelessWidget {
         iconColor: const Color(0xFF16A34A),
         iconBgColor: isDark ? const Color(0xFF16A34A).withValues(alpha: 0.2) : const Color(0xFFDCFCE7),
         isDark: isDark,
+        onTap: () => onCardTap?.call('Confirmed'),
       ),
       _buildKpiCard(
         title: 'Pending',
@@ -43,6 +47,7 @@ class SpaceBookingKpisBar extends StatelessWidget {
         iconColor: const Color(0xFFD97706),
         iconBgColor: isDark ? const Color(0xFFD97706).withValues(alpha: 0.2) : const Color(0xFFFEF3C7),
         isDark: isDark,
+        onTap: () => onCardTap?.call('Pending'),
       ),
       _buildKpiCard(
         title: 'Rejected',
@@ -53,6 +58,7 @@ class SpaceBookingKpisBar extends StatelessWidget {
         iconColor: const Color(0xFFDC2626),
         iconBgColor: isDark ? const Color(0xFFDC2626).withValues(alpha: 0.2) : const Color(0xFFFEE2E2),
         isDark: isDark,
+        onTap: () => onCardTap?.call('Rejected'),
       ),
       _buildKpiCard(
         title: 'Current Usage',
@@ -63,6 +69,7 @@ class SpaceBookingKpisBar extends StatelessWidget {
         iconColor: const Color(0xFF7C3AED),
         iconBgColor: isDark ? const Color(0xFF7C3AED).withValues(alpha: 0.2) : const Color(0xFFEDE9FE),
         isDark: isDark,
+        onTap: () => onCardTap?.call('Usage'),
       ),
       _buildKpiCard(
         title: 'Utilization',
@@ -73,6 +80,7 @@ class SpaceBookingKpisBar extends StatelessWidget {
         iconColor: const Color(0xFF059669),
         iconBgColor: isDark ? const Color(0xFF059669).withValues(alpha: 0.2) : const Color(0xFFD1FAE5),
         isDark: isDark,
+        onTap: () => onCardTap?.call('Reports'),
       ),
     ];
 
@@ -116,24 +124,28 @@ class SpaceBookingKpisBar extends StatelessWidget {
     required Color iconColor,
     required Color iconBgColor,
     required bool isDark,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(12.0),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12.0),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: BorderRadius.circular(12.0),
+          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
           Container(
             width: 44,
             height: 44,
@@ -192,6 +204,7 @@ class SpaceBookingKpisBar extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 }

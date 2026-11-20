@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../models/campus_models.dart';
 import '../../services/campus_lookup_helper.dart';
+import '../common/campus_pagination_bar.dart';
 
-class RoomsSubtabView extends StatelessWidget {
+class RoomsSubtabView extends StatefulWidget {
   final BuildingModel building;
   final List<RoomModel> rooms;
   final List<BuildingFloorModel> floors;
@@ -24,6 +25,16 @@ class RoomsSubtabView extends StatelessWidget {
   final ValueChanged<RoomModel> onEditRoom;
   final ValueChanged<RoomModel> onManageEquipment;
   final ValueChanged<RoomModel> onDeleteRoom;
+
+  // Pagination & Sorting props
+  final int totalRoomsCount;
+  final int currentPage;
+  final int pageSize;
+  final ValueChanged<int> onPageChanged;
+  final ValueChanged<int> onPageSizeChanged;
+  final String? sortBy;
+  final String? sortOrder;
+  final void Function(String columnKey, bool ascending)? onSortChanged;
 
   const RoomsSubtabView({
     super.key,
@@ -48,7 +59,74 @@ class RoomsSubtabView extends StatelessWidget {
     required this.onEditRoom,
     required this.onManageEquipment,
     required this.onDeleteRoom,
+    this.totalRoomsCount = 0,
+    this.currentPage = 1,
+    this.pageSize = 10,
+    required this.onPageChanged,
+    required this.onPageSizeChanged,
+    this.sortBy,
+    this.sortOrder,
+    this.onSortChanged,
   });
+
+  @override
+  State<RoomsSubtabView> createState() => _RoomsSubtabViewState();
+}
+
+class _RoomsSubtabViewState extends State<RoomsSubtabView> {
+  int? _sortColIndex = 0;
+  bool _sortAsc = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncSortState();
+  }
+
+  @override
+  void didUpdateWidget(covariant RoomsSubtabView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sortBy != widget.sortBy || oldWidget.sortOrder != widget.sortOrder) {
+      _syncSortState();
+    }
+  }
+
+  void _syncSortState() {
+    _sortAsc = (widget.sortOrder ?? 'asc').toLowerCase() == 'asc';
+    switch (widget.sortBy) {
+      case 'room_number':
+        _sortColIndex = 0;
+        break;
+      case 'name':
+        _sortColIndex = 1;
+        break;
+      case 'room_type':
+        _sortColIndex = 2;
+        break;
+      case 'floor_name':
+        _sortColIndex = 3;
+        break;
+      case 'max_capacity':
+        _sortColIndex = 4;
+        break;
+      case 'assignment_status':
+        _sortColIndex = 6;
+        break;
+      case 'operational_status':
+        _sortColIndex = 7;
+        break;
+      default:
+        _sortColIndex = 0;
+    }
+  }
+
+  void _handleSort(int colIndex, String colKey, bool asc) {
+    setState(() {
+      _sortColIndex = colIndex;
+      _sortAsc = asc;
+    });
+    widget.onSortChanged?.call(colKey, asc);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,34 +140,35 @@ class RoomsSubtabView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Controls Row: Search, Dropdowns, View Switcher & Action Buttons
+        // Compact Controls Row: Search, Dropdowns, View Switcher & Action Buttons
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
             ),
           ),
           child: Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 8,
+            runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             alignment: WrapAlignment.spaceBetween,
             children: [
               // Search Input
               SizedBox(
-                width: 200,
+                width: 180,
+                height: 32,
                 child: TextField(
-                  onChanged: onSearch,
+                  onChanged: widget.onSearch,
                   decoration: InputDecoration(
                     hintText: 'Search room...',
-                    hintStyle: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
-                    prefixIcon: const Icon(Icons.search, size: 16, color: Color(0xFF94A3B8)),
+                    hintStyle: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                    prefixIcon: const Icon(Icons.search, size: 15, color: Color(0xFF94A3B8)),
                     filled: true,
                     fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 6),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
                     isDense: true,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
@@ -100,13 +179,14 @@ class RoomsSubtabView extends StatelessWidget {
                       borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                     ),
                   ),
-                  style: const TextStyle(fontSize: 12.5),
+                  style: const TextStyle(fontSize: 12),
                 ),
               ),
 
               // Floor Filter Dropdown
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+                height: 32,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(6),
@@ -114,21 +194,22 @@ class RoomsSubtabView extends StatelessWidget {
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String?>(
-                    value: filterFloorId,
-                    hint: const Text('All Floors', style: TextStyle(fontSize: 12)),
+                    value: widget.filterFloorId,
+                    hint: const Text('All Floors', style: TextStyle(fontSize: 11.5)),
                     isDense: true,
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('All Floors', style: TextStyle(fontSize: 12))),
-                      ...floors.map((f) => DropdownMenuItem(value: f.id, child: Text(f.name, style: const TextStyle(fontSize: 12)))),
+                      const DropdownMenuItem(value: null, child: Text('All Floors', style: TextStyle(fontSize: 11.5))),
+                      ...widget.floors.map((f) => DropdownMenuItem(value: f.id, child: Text(f.name, style: const TextStyle(fontSize: 11.5)))),
                     ],
-                    onChanged: onFilterFloor,
+                    onChanged: widget.onFilterFloor,
                   ),
                 ),
               ),
 
               // Room Type Filter Dropdown
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+                height: 32,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(6),
@@ -136,21 +217,22 @@ class RoomsSubtabView extends StatelessWidget {
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String?>(
-                    value: filterRoomType,
-                    hint: const Text('All Room Types', style: TextStyle(fontSize: 12)),
+                    value: widget.filterRoomType,
+                    hint: const Text('All Types', style: TextStyle(fontSize: 11.5)),
                     isDense: true,
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('All Types', style: TextStyle(fontSize: 12))),
-                      ...roomTypes.map((rt) => DropdownMenuItem(value: rt, child: Text(rt, style: const TextStyle(fontSize: 12)))),
+                      const DropdownMenuItem(value: null, child: Text('All Types', style: TextStyle(fontSize: 11.5))),
+                      ...roomTypes.map((rt) => DropdownMenuItem(value: rt, child: Text(rt, style: const TextStyle(fontSize: 11.5)))),
                     ],
-                    onChanged: onFilterRoomType,
+                    onChanged: widget.onFilterRoomType,
                   ),
                 ),
               ),
 
               // Status Filter
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+                height: 32,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(6),
@@ -158,14 +240,14 @@ class RoomsSubtabView extends StatelessWidget {
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String?>(
-                    value: filterStatus,
-                    hint: const Text('All Statuses', style: TextStyle(fontSize: 12)),
+                    value: widget.filterStatus,
+                    hint: const Text('All Statuses', style: TextStyle(fontSize: 11.5)),
                     isDense: true,
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('All Statuses', style: TextStyle(fontSize: 12))),
-                      ...roomStatuses.map((rs) => DropdownMenuItem(value: rs, child: Text(rs, style: const TextStyle(fontSize: 12)))),
+                      const DropdownMenuItem(value: null, child: Text('All Statuses', style: TextStyle(fontSize: 11.5))),
+                      ...roomStatuses.map((rs) => DropdownMenuItem(value: rs, child: Text(rs, style: const TextStyle(fontSize: 11.5)))),
                     ],
-                    onChanged: onFilterStatus,
+                    onChanged: widget.onFilterStatus,
                   ),
                 ),
               ),
@@ -175,14 +257,18 @@ class RoomsSubtabView extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    icon: Icon(Icons.table_rows_rounded, size: 18, color: viewMode == 0 ? primaryColor : const Color(0xFF94A3B8)),
+                    icon: Icon(Icons.table_rows_rounded, size: 17, color: widget.viewMode == 0 ? primaryColor : const Color(0xFF94A3B8)),
                     tooltip: 'Table View',
-                    onPressed: () => onViewModeChanged(0),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    onPressed: () => widget.onViewModeChanged(0),
                   ),
                   IconButton(
-                    icon: Icon(Icons.grid_view_rounded, size: 18, color: viewMode == 1 ? primaryColor : const Color(0xFF94A3B8)),
+                    icon: Icon(Icons.grid_view_rounded, size: 17, color: widget.viewMode == 1 ? primaryColor : const Color(0xFF94A3B8)),
                     tooltip: 'Grid View',
-                    onPressed: () => onViewModeChanged(1),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    onPressed: () => widget.onViewModeChanged(1),
                   ),
                 ],
               ),
@@ -192,27 +278,27 @@ class RoomsSubtabView extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   OutlinedButton.icon(
-                    onPressed: onBulkCreate,
-                    icon: const Icon(Icons.playlist_add_rounded, size: 15),
-                    label: const Text('Bulk Create', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+                    onPressed: widget.onBulkCreate,
+                    icon: const Icon(Icons.playlist_add_rounded, size: 14),
+                    label: const Text('Bulk Create', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: primaryColor,
                       side: BorderSide(color: primaryColor.withValues(alpha: 0.5)),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   ElevatedButton.icon(
-                    onPressed: onAddRoom,
-                    icon: const Icon(Icons.add, size: 15, color: Colors.white),
-                    label: const Text('Add Room', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Colors.white)),
+                    onPressed: widget.onAddRoom,
+                    icon: const Icon(Icons.add, size: 14, color: Colors.white),
+                    label: const Text('Add Room', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryColor,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
@@ -223,36 +309,47 @@ class RoomsSubtabView extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
 
         // Content
-        if (isLoading)
+        if (widget.isLoading)
           const Padding(
-            padding: EdgeInsets.all(50),
+            padding: EdgeInsets.all(40),
             child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)),
           )
-        else if (rooms.isEmpty)
+        else if (widget.rooms.isEmpty)
           Container(
-            padding: const EdgeInsets.all(40),
+            padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
             ),
             child: Column(
               children: [
-                const Icon(Icons.meeting_room_outlined, size: 40, color: Color(0xFF94A3B8)),
-                const SizedBox(height: 10),
-                const Text('No rooms found matching your filter criteria.', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                const Icon(Icons.meeting_room_outlined, size: 36, color: Color(0xFF94A3B8)),
                 const SizedBox(height: 8),
-                TextButton(onPressed: onClearFilters, child: const Text('Clear All Filters')),
+                const Text('No rooms found matching your filter criteria.', style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
+                const SizedBox(height: 8),
+                TextButton(onPressed: widget.onClearFilters, child: const Text('Clear All Filters')),
               ],
             ),
           )
-        else if (viewMode == 0)
+        else if (widget.viewMode == 0)
           _buildTableView(context)
         else
           _buildGridView(context),
+
+        // Pagination Bar
+        const SizedBox(height: 8),
+        CampusPaginationBar(
+          currentPage: widget.currentPage,
+          pageSize: widget.pageSize,
+          totalCount: widget.totalRoomsCount > 0 ? widget.totalRoomsCount : widget.rooms.length,
+          itemLabel: 'rooms',
+          onPageChanged: widget.onPageChanged,
+          onPageSizeChanged: widget.onPageSizeChanged,
+        ),
       ],
     );
   }
@@ -264,50 +361,77 @@ class RoomsSubtabView extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: DataTable(
+            sortColumnIndex: _sortColIndex,
+            sortAscending: _sortAsc,
             headingRowColor: WidgetStateProperty.all(isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
-            headingRowHeight: 44,
-            dataRowMinHeight: 48,
-            dataRowMaxHeight: 52,
-            columnSpacing: 20,
-            horizontalMargin: 16,
-            columns: const [
-              DataColumn(label: Text('Room #', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
-              DataColumn(label: Text('Room Name', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
-              DataColumn(label: Text('Type', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
-              DataColumn(label: Text('Floor', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
-              DataColumn(label: Text('Capacity', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
-              DataColumn(label: Text('Equipment', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
-              DataColumn(label: Text('Assignment', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
-              DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
-              DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+            headingRowHeight: 34,
+            dataRowMinHeight: 32,
+            dataRowMaxHeight: 35,
+            columnSpacing: 14,
+            horizontalMargin: 12,
+            columns: [
+              DataColumn(
+                label: const Text('Room #', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)),
+                onSort: (idx, asc) => _handleSort(idx, 'room_number', asc),
+              ),
+              DataColumn(
+                label: const Text('Room Name', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)),
+                onSort: (idx, asc) => _handleSort(idx, 'name', asc),
+              ),
+              DataColumn(
+                label: const Text('Type', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)),
+                onSort: (idx, asc) => _handleSort(idx, 'room_type', asc),
+              ),
+              DataColumn(
+                label: const Text('Floor', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)),
+                onSort: (idx, asc) => _handleSort(idx, 'floor_name', asc),
+              ),
+              DataColumn(
+                label: const Text('Capacity', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)),
+                onSort: (idx, asc) => _handleSort(idx, 'max_capacity', asc),
+              ),
+              const DataColumn(
+                label: Text('Equipment', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)),
+              ),
+              DataColumn(
+                label: const Text('Assignment', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)),
+                onSort: (idx, asc) => _handleSort(idx, 'assignment_status', asc),
+              ),
+              DataColumn(
+                label: const Text('Status', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)),
+                onSort: (idx, asc) => _handleSort(idx, 'operational_status', asc),
+              ),
+              const DataColumn(
+                label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)),
+              ),
             ],
-            rows: rooms.map((room) {
+            rows: widget.rooms.map((room) {
               return DataRow(
                 cells: [
                   DataCell(
                     Text(
                       room.roomNumber,
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: Color(0xFF2563EB)),
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF2563EB)),
                     ),
-                    onTap: () => onInspectRoom(room),
+                    onTap: () => widget.onInspectRoom(room),
                   ),
                   DataCell(
                     ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 160),
-                      child: Text(room.name, style: const TextStyle(fontSize: 12.5), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      constraints: const BoxConstraints(maxWidth: 150),
+                      child: Text(room.name, style: const TextStyle(fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ),
                   DataCell(
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                       decoration: BoxDecoration(
                         color: _getRoomTypeColor(room.roomType).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(4),
@@ -315,21 +439,21 @@ class RoomsSubtabView extends StatelessWidget {
                       child: Text(
                         room.roomType,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10.5,
                           fontWeight: FontWeight.w600,
                           color: _getRoomTypeColor(room.roomType),
                         ),
                       ),
                     ),
                   ),
-                  DataCell(Text(room.floorName ?? 'Floor', style: const TextStyle(fontSize: 12))),
-                  DataCell(Text('${room.currentOccupancy} / ${room.maxCapacity}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                  DataCell(Text(room.floorName ?? 'Floor', style: const TextStyle(fontSize: 11.5))),
+                  DataCell(Text('${room.currentOccupancy} / ${room.maxCapacity}', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600))),
                   DataCell(
                     ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 160),
+                      constraints: const BoxConstraints(maxWidth: 140),
                       child: Text(
                         room.equipmentSummary,
-                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -339,7 +463,7 @@ class RoomsSubtabView extends StatelessWidget {
                     Text(
                       room.assignmentStatus,
                       style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 11,
                         fontWeight: FontWeight.w500,
                         color: room.assignmentStatus == 'Assigned' ? const Color(0xFF0284C7) : const Color(0xFF64748B),
                       ),
@@ -347,7 +471,7 @@ class RoomsSubtabView extends StatelessWidget {
                   ),
                   DataCell(
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: _getStatusColor(room.operationalStatus).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(4),
@@ -355,7 +479,7 @@ class RoomsSubtabView extends StatelessWidget {
                       child: Text(
                         room.operationalStatus,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10.5,
                           fontWeight: FontWeight.w600,
                           color: _getStatusColor(room.operationalStatus),
                         ),
@@ -367,28 +491,36 @@ class RoomsSubtabView extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.visibility_outlined, size: 16),
+                          icon: const Icon(Icons.visibility_outlined, size: 15),
                           color: const Color(0xFF2563EB),
                           tooltip: 'Inspect Room',
-                          onPressed: () => onInspectRoom(room),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                          onPressed: () => widget.onInspectRoom(room),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.build_circle_outlined, size: 16),
+                          icon: const Icon(Icons.build_circle_outlined, size: 15),
                           color: const Color(0xFF8B5CF6),
                           tooltip: 'Manage Equipment',
-                          onPressed: () => onManageEquipment(room),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                          onPressed: () => widget.onManageEquipment(room),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.edit_outlined, size: 16),
+                          icon: const Icon(Icons.edit_outlined, size: 15),
                           color: const Color(0xFF64748B),
                           tooltip: 'Edit Room',
-                          onPressed: () => onEditRoom(room),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                          onPressed: () => widget.onEditRoom(room),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.delete_outline, size: 16),
+                          icon: const Icon(Icons.delete_outline, size: 15),
                           color: const Color(0xFFEF4444),
                           tooltip: 'Delete Room',
-                          onPressed: () => onDeleteRoom(room),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                          onPressed: () => widget.onDeleteRoom(room),
                         ),
                       ],
                     ),
@@ -410,21 +542,21 @@ class RoomsSubtabView extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 310,
-        mainAxisExtent: 200,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+        maxCrossAxisExtent: 300,
+        mainAxisExtent: 180,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
       ),
-      itemCount: rooms.length,
+      itemCount: widget.rooms.length,
       itemBuilder: (context, index) {
-        final room = rooms[index];
+        final room = widget.rooms[index];
         final occPct = room.maxCapacity > 0 ? (room.currentOccupancy / room.maxCapacity).clamp(0.0, 1.0) : 0.0;
 
         return Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
           ),
           child: Column(
@@ -435,90 +567,69 @@ class RoomsSubtabView extends StatelessWidget {
                 children: [
                   Text(
                     room.roomNumber,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF2563EB)),
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF2563EB)),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                     decoration: BoxDecoration(
                       color: _getStatusColor(room.operationalStatus).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       room.operationalStatus,
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: _getStatusColor(room.operationalStatus)),
+                      style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: _getStatusColor(room.operationalStatus)),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 2),
               Text(
                 room.name,
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A)),
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 2),
               Text(
-                '${room.roomType} • ${room.floorName ?? 'Floor'}',
-                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                '${room.roomType} â€¢ ${room.floorName ?? 'Floor'}',
+                style: TextStyle(fontSize: 10.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
               ),
-              const SizedBox(height: 10),
-
-              // Capacity Progress
+              const Spacer(),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Capacity', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                  Text('${room.currentOccupancy} / ${room.maxCapacity}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                  Text('Capacity', style: TextStyle(fontSize: 10.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                  Text('${room.currentOccupancy} / ${room.maxCapacity}', style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700)),
                 ],
               ),
               const SizedBox(height: 4),
               ClipRRect(
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(3),
                 child: LinearProgressIndicator(
                   value: occPct,
-                  backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                  color: occPct > 0.9 ? const Color(0xFFEF4444) : const Color(0xFF10B981),
                   minHeight: 5,
+                  backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    occPct > 0.9 ? const Color(0xFFEF4444) : (occPct > 0.6 ? const Color(0xFFF59E0B) : const Color(0xFF10B981)),
+                  ),
                 ),
               ),
-
-              const Spacer(),
-              const Divider(height: 1),
               const SizedBox(height: 6),
-
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Text(
-                    '${room.equipmentCount} Equipment',
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                  InkWell(
+                    onTap: () => widget.onInspectRoom(room),
+                    child: const Text('View', style: TextStyle(fontSize: 11, color: Color(0xFF2563EB), fontWeight: FontWeight.w600)),
                   ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.build_circle_outlined, size: 15),
-                        color: const Color(0xFF8B5CF6),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                        onPressed: () => onManageEquipment(room),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.visibility_outlined, size: 15),
-                        color: const Color(0xFF2563EB),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                        onPressed: () => onInspectRoom(room),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined, size: 15),
-                        color: const Color(0xFF64748B),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                        onPressed: () => onEditRoom(room),
-                      ),
-                    ],
+                  const SizedBox(width: 10),
+                  InkWell(
+                    onTap: () => widget.onManageEquipment(room),
+                    child: const Text('Equipment', style: TextStyle(fontSize: 11, color: Color(0xFF8B5CF6), fontWeight: FontWeight.w600)),
+                  ),
+                  const SizedBox(width: 10),
+                  InkWell(
+                    onTap: () => widget.onEditRoom(room),
+                    child: const Text('Edit', style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),
@@ -530,19 +641,35 @@ class RoomsSubtabView extends StatelessWidget {
   }
 
   Color _getRoomTypeColor(String type) {
-    if (type.contains('Lab')) return const Color(0xFF8B5CF6);
-    if (type.contains('Washroom') || type.contains('Toilet')) return const Color(0xFF06B6D4);
-    if (type.contains('Office') || type.contains('Principal')) return const Color(0xFFD97706);
-    if (type.contains('Library')) return const Color(0xFF0284C7);
-    if (type.contains('Hostel')) return const Color(0xFFEC4899);
-    return const Color(0xFF2563EB);
+    switch (type.toLowerCase()) {
+      case 'classroom':
+        return const Color(0xFF2563EB);
+      case 'laboratory':
+        return const Color(0xFF7C3AED);
+      case 'faculty office':
+      case 'staff room':
+        return const Color(0xFF0284C7);
+      case 'auditorium':
+        return const Color(0xFFD97706);
+      case 'seminar hall':
+        return const Color(0xFF059669);
+      default:
+        return const Color(0xFF475569);
+    }
   }
 
   Color _getStatusColor(String status) {
-    if (status == 'Available') return const Color(0xFF10B981);
-    if (status == 'Occupied') return const Color(0xFF2563EB);
-    if (status == 'Reserved') return const Color(0xFFF59E0B);
-    if (status == 'Under Maintenance') return const Color(0xFFEF4444);
-    return const Color(0xFF64748B);
+    switch (status.toLowerCase()) {
+      case 'available':
+        return const Color(0xFF059669);
+      case 'occupied':
+        return const Color(0xFF2563EB);
+      case 'under maintenance':
+        return const Color(0xFFDC2626);
+      case 'reserved':
+        return const Color(0xFFD97706);
+      default:
+        return const Color(0xFF64748B);
+    }
   }
 }

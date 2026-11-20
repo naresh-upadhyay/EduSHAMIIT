@@ -21,6 +21,8 @@ class MaintenanceState {
   final String searchQuery;
   final int currentPage;
   final int pageSize;
+  final String? sortBy;
+  final String sortOrder;
   final MaintenanceRequestItem? inspectedRequest;
 
   const MaintenanceState({
@@ -42,6 +44,8 @@ class MaintenanceState {
     this.searchQuery = '',
     this.currentPage = 1,
     this.pageSize = 10,
+    this.sortBy,
+    this.sortOrder = 'asc',
     this.inspectedRequest,
   });
 
@@ -64,6 +68,8 @@ class MaintenanceState {
     String? searchQuery,
     int? currentPage,
     int? pageSize,
+    String? sortBy,
+    String? sortOrder,
     MaintenanceRequestItem? Function()? inspectedRequest,
   }) {
     return MaintenanceState(
@@ -85,6 +91,8 @@ class MaintenanceState {
       searchQuery: searchQuery ?? this.searchQuery,
       currentPage: currentPage ?? this.currentPage,
       pageSize: pageSize ?? this.pageSize,
+      sortBy: sortBy ?? this.sortBy,
+      sortOrder: sortOrder ?? this.sortOrder,
       inspectedRequest: inspectedRequest != null ? inspectedRequest() : this.inspectedRequest,
     );
   }
@@ -131,6 +139,8 @@ class MaintenanceNotifier extends StateNotifier<MaintenanceState> {
       endDate: state.dateRangeEnd,
       page: state.currentPage,
       pageSize: state.pageSize,
+      sortBy: state.sortBy,
+      sortOrder: state.sortOrder,
     );
 
     // If inspectedRequest is not set, default to first item so right panel displays MT-0568
@@ -203,6 +213,20 @@ class MaintenanceNotifier extends StateNotifier<MaintenanceState> {
 
   void setPage(int page) {
     state = state.copyWith(currentPage: page);
+    loadRequests();
+  }
+
+  void setPageSize(int size) {
+    state = state.copyWith(pageSize: size, currentPage: 1);
+    loadRequests();
+  }
+
+  void setSort(String field) {
+    if (state.sortBy == field) {
+      state = state.copyWith(sortOrder: state.sortOrder == 'asc' ? 'desc' : 'asc');
+    } else {
+      state = state.copyWith(sortBy: field, sortOrder: 'asc');
+    }
     loadRequests();
   }
 

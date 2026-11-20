@@ -1,6 +1,6 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../models/device_management_models.dart';
+import '../common/campus_pagination_bar.dart';
 
 /// Lightweight, high-performance interactive level bar for table cells.
 /// Replaces Material Slider to completely eliminate gesture arena collisions,
@@ -430,7 +430,19 @@ class DeviceLiveControlTable extends StatelessWidget {
 
           // Pagination Footer with Page Size Selector & Full Navigation Controls
           const Divider(height: 1, color: Color(0xFFE2E8F0)),
-          _buildPaginationFooter(context, isDark),
+          CampusPaginationBar(
+            currentPage: currentPage,
+            pageSize: pageSize,
+            totalCount: totalCount,
+            itemLabel: 'devices',
+            pageSizes: const [5, 10, 20, 50, 100],
+            onPageChanged: onPageChanged,
+            onPageSizeChanged: (newSize) {
+              if (onPageSizeChanged != null) {
+                onPageSizeChanged!(newSize);
+              }
+            },
+          ),
         ],
       ),
     );
@@ -1360,163 +1372,5 @@ class DeviceLiveControlTable extends StatelessWidget {
         const PopupMenuItem(value: 'delete', child: Text('Delete Device', style: TextStyle(color: Colors.red))),
       ],
     );
-  }
-
-  // --- Premium Pagination Footer with Page Size & Full Steppers ---
-  Widget _buildPaginationFooter(BuildContext context, bool isDark) {
-    final totalPages = max(1, (totalCount / pageSize).ceil());
-    final startIdx = totalCount == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
-    final endIdx = min(currentPage * pageSize, totalCount);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      child: Wrap(
-        alignment: WrapAlignment.spaceBetween,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        runSpacing: 8,
-        children: [
-          // Left: Showing count & Rows per page
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Showing $startIdx - $endIdx of $totalCount devices',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Text(
-                  'Rows per page:',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Container(
-                  height: 28,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-                    ),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      value: [5, 10, 20, 50, 100].contains(pageSize) ? pageSize : 10,
-                      icon: const Icon(Icons.arrow_drop_down, size: 16),
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      ),
-                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                      onChanged: (newSize) {
-                        if (newSize != null && onPageSizeChanged != null) {
-                          onPageSizeChanged!(newSize);
-                        }
-                      },
-                      items: [5, 10, 20, 50, 100].map((s) {
-                        return DropdownMenuItem<int>(
-                          value: s,
-                          child: Text('$s'),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Right: First, Prev, Page Numbers, Next, Last
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // First Page
-                IconButton(
-                  icon: const Icon(Icons.first_page_rounded, size: 18),
-                  tooltip: 'First Page',
-                  onPressed: currentPage > 1 ? () => onPageChanged(1) : null,
-                  visualDensity: VisualDensity.compact,
-                ),
-
-                // Prev Page
-                IconButton(
-                  icon: const Icon(Icons.chevron_left_rounded, size: 18),
-                  tooltip: 'Previous Page',
-                  onPressed: currentPage > 1 ? () => onPageChanged(currentPage - 1) : null,
-                  visualDensity: VisualDensity.compact,
-                ),
-
-                // Numbered Page Buttons
-                ..._buildPageNumbers(currentPage, totalPages, isDark),
-
-                // Next Page
-                IconButton(
-                  icon: const Icon(Icons.chevron_right_rounded, size: 18),
-                  tooltip: 'Next Page',
-                  onPressed: currentPage < totalPages ? () => onPageChanged(currentPage + 1) : null,
-                  visualDensity: VisualDensity.compact,
-                ),
-
-                // Last Page
-                IconButton(
-                  icon: const Icon(Icons.last_page_rounded, size: 18),
-                  tooltip: 'Last Page',
-                  onPressed: currentPage < totalPages ? () => onPageChanged(totalPages) : null,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _buildPageNumbers(int current, int total, bool isDark) {
-    List<Widget> buttons = [];
-    final start = max(1, current - 2);
-    final end = min(total, current + 2);
-
-    for (int p = start; p <= end; p++) {
-      final isCur = p == current;
-      buttons.add(
-        InkWell(
-          onTap: isCur ? null : () => onPageChanged(p),
-          borderRadius: BorderRadius.circular(4),
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 2),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: isCur
-                  ? const Color(0xFF2563EB)
-                  : (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              '$p',
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: isCur ? FontWeight.w700 : FontWeight.w500,
-                color: isCur
-                    ? Colors.white
-                    : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155)),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-    return buttons;
   }
 }

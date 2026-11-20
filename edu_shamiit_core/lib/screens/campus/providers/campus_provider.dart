@@ -23,6 +23,8 @@ class CampusState {
   final int totalFloorsCount;
   final int floorsPage;
   final int floorsPageSize;
+  final String? floorsSortBy;
+  final String? floorsSortOrder;
 
   // Rooms
   final List<RoomModel> rooms;
@@ -35,6 +37,8 @@ class CampusState {
   final String? filterRoomType;
   final String? filterRoomStatus;
   final String? filterAssignmentStatus;
+  final String? roomsSortBy;
+  final String? roomsSortOrder;
 
   // Building Documents
   final List<BuildingDocumentModel> buildingDocuments;
@@ -70,10 +74,14 @@ class CampusState {
     this.totalFloorsCount = 0,
     this.floorsPage = 1,
     this.floorsPageSize = 10,
+    this.floorsSortBy,
+    this.floorsSortOrder = 'asc',
     this.rooms = const [],
     this.totalRoomsCount = 0,
     this.roomsPage = 1,
     this.roomsPageSize = 10,
+    this.roomsSortBy,
+    this.roomsSortOrder = 'asc',
     this.roomsViewMode = 0,
     this.roomSearchQuery = '',
     this.filterFloorId,
@@ -108,10 +116,14 @@ class CampusState {
     int? totalFloorsCount,
     int? floorsPage,
     int? floorsPageSize,
+    String? floorsSortBy,
+    String? floorsSortOrder,
     List<RoomModel>? rooms,
     int? totalRoomsCount,
     int? roomsPage,
     int? roomsPageSize,
+    String? roomsSortBy,
+    String? roomsSortOrder,
     int? roomsViewMode,
     String? roomSearchQuery,
     String? filterFloorId,
@@ -151,10 +163,14 @@ class CampusState {
       totalFloorsCount: totalFloorsCount ?? this.totalFloorsCount,
       floorsPage: floorsPage ?? this.floorsPage,
       floorsPageSize: floorsPageSize ?? this.floorsPageSize,
+      floorsSortBy: floorsSortBy ?? this.floorsSortBy,
+      floorsSortOrder: floorsSortOrder ?? this.floorsSortOrder,
       rooms: rooms ?? this.rooms,
       totalRoomsCount: totalRoomsCount ?? this.totalRoomsCount,
       roomsPage: roomsPage ?? this.roomsPage,
       roomsPageSize: roomsPageSize ?? this.roomsPageSize,
+      roomsSortBy: roomsSortBy ?? this.roomsSortBy,
+      roomsSortOrder: roomsSortOrder ?? this.roomsSortOrder,
       roomsViewMode: roomsViewMode ?? this.roomsViewMode,
       roomSearchQuery: roomSearchQuery ?? this.roomSearchQuery,
       filterFloorId: clearFloorFilter ? null : (filterFloorId ?? this.filterFloorId),
@@ -195,7 +211,12 @@ class CampusNotifier extends StateNotifier<CampusState> {
       final totalBuildings = (bldRes['total_count'] as int?) ?? buildings.length;
 
       BuildingModel? selected = state.selectedBuilding;
-      if (selected == null && buildings.isNotEmpty) {
+      if (selected != null) {
+        selected = buildings.firstWhere(
+          (b) => b.id == selected!.id,
+          orElse: () => buildings.isNotEmpty ? buildings.first : selected!,
+        );
+      } else if (buildings.isNotEmpty) {
         selected = buildings.first;
       }
 
@@ -219,17 +240,32 @@ class CampusNotifier extends StateNotifier<CampusState> {
   Future<void> loadBuildingDetails(String buildingId) async {
     state = state.copyWith(isFloorsLoading: true, isRoomsLoading: true);
     try {
-      final details = await _api.getBuildingDetails(buildingId);
-      final floors = await _api.getFloors(buildingId, page: state.floorsPage, pageSize: state.floorsPageSize);
-      final roomsRes = await _api.getRooms(
-        buildingId: buildingId,
-        page: state.roomsPage,
-        pageSize: state.roomsPageSize,
-        search: state.roomSearchQuery,
-        floorId: state.filterFloorId,
-        roomType: state.filterRoomType,
-        operationalStatus: state.filterRoomStatus,
-      );
+      final results = await Future.wait([
+        _api.getBuildingDetails(buildingId).catchError((_) => <String, dynamic>{}),
+        _api.getFloors(
+          buildingId,
+          page: state.floorsPage,
+          pageSize: state.floorsPageSize,
+          sortBy: state.floorsSortBy,
+          sortOrder: state.floorsSortOrder,
+        ).catchError((_) => <BuildingFloorModel>[]),
+        _api.getRooms(
+          buildingId: buildingId,
+          page: state.roomsPage,
+          pageSize: state.roomsPageSize,
+          search: state.roomSearchQuery,
+          floorId: state.filterFloorId,
+          roomType: state.filterRoomType,
+          operationalStatus: state.filterRoomStatus,
+          assignmentStatus: state.filterAssignmentStatus,
+          sortBy: state.roomsSortBy,
+          sortOrder: state.roomsSortOrder,
+        ).catchError((_) => <String, dynamic>{}),
+      ]);
+
+      final details = results[0] as Map<String, dynamic>;
+      final floors = results[1] as List<BuildingFloorModel>;
+      final roomsRes = results[2] as Map<String, dynamic>;
 
       final roomsList = (roomsRes['data'] as List<RoomModel>?) ?? [];
       final totalRooms = (roomsRes['total_count'] as int?) ?? roomsList.length;
@@ -237,7 +273,7 @@ class CampusNotifier extends StateNotifier<CampusState> {
       state = state.copyWith(
         isFloorsLoading: false,
         isRoomsLoading: false,
-        selectedBuildingDetails: details,
+        selectedBuildingDetails: details.isNotEmpty ? details : state.selectedBuildingDetails,
         floors: floors,
         totalFloorsCount: floors.length,
         rooms: roomsList,
@@ -253,7 +289,6 @@ class CampusNotifier extends StateNotifier<CampusState> {
   }
 
   void selectBuilding(BuildingModel building) {
-    if (state.selectedBuilding?.id == building.id) return;
     state = state.copyWith(
       selectedBuilding: building,
       roomsPage: 1,
@@ -278,6 +313,25 @@ class CampusNotifier extends StateNotifier<CampusState> {
     }
   }
 
+  void updateBuildingImage(String buildingId, String imageUrl) {
+    final updatedBuildings = state.buildings.map((b) {
+      if (b.id == buildingId) {
+        return b.copyWith(imageUrl: imageUrl);
+      }
+      return b;
+    }).toList();
+
+    BuildingModel? updatedSelected = state.selectedBuilding;
+    if (updatedSelected != null && updatedSelected.id == buildingId) {
+      updatedSelected = updatedSelected.copyWith(imageUrl: imageUrl);
+    }
+
+    state = state.copyWith(
+      buildings: updatedBuildings,
+      selectedBuilding: updatedSelected,
+    );
+  }
+
   void setActiveCampusTab(int tabIndex) {
     state = state.copyWith(activeCampusTab: tabIndex);
   }
@@ -285,7 +339,9 @@ class CampusNotifier extends StateNotifier<CampusState> {
   void setActiveBuildingSubTab(int subTabIndex) {
     state = state.copyWith(activeBuildingSubTab: subTabIndex);
     if (state.selectedBuilding != null) {
-      if (subTabIndex == 2) {
+      if (subTabIndex == 1 && state.rooms.isEmpty) {
+        reloadRooms(page: 1);
+      } else if (subTabIndex == 2) {
         loadBuildingOccupancy(state.selectedBuilding!.id);
       } else if (subTabIndex == 3) {
         loadBuildingMaintenance(state.selectedBuilding!.id);
@@ -305,15 +361,72 @@ class CampusNotifier extends StateNotifier<CampusState> {
     );
   }
 
-  // Floors pagination & reload
+  // Floors pagination, sorting & reload
   Future<void> setFloorsPage(int page) async {
     if (state.selectedBuilding == null) return;
     state = state.copyWith(floorsPage: page, isFloorsLoading: true);
-    final floors = await _api.getFloors(state.selectedBuilding!.id, page: page, pageSize: state.floorsPageSize);
+    final floors = await _api.getFloors(
+      state.selectedBuilding!.id,
+      page: page,
+      pageSize: state.floorsPageSize,
+      sortBy: state.floorsSortBy,
+      sortOrder: state.floorsSortOrder,
+    );
     state = state.copyWith(isFloorsLoading: false, floors: floors);
   }
 
+  Future<void> setFloorsPageSize(int pageSize) async {
+    if (state.selectedBuilding == null) return;
+    state = state.copyWith(floorsPageSize: pageSize, floorsPage: 1, isFloorsLoading: true);
+    final floors = await _api.getFloors(
+      state.selectedBuilding!.id,
+      page: 1,
+      pageSize: pageSize,
+      sortBy: state.floorsSortBy,
+      sortOrder: state.floorsSortOrder,
+    );
+    state = state.copyWith(isFloorsLoading: false, floors: floors, floorsPage: 1);
+  }
+
+  Future<void> setFloorSort(String columnKey, bool ascending) async {
+    if (state.selectedBuilding == null) return;
+    final sortOrder = ascending ? 'asc' : 'desc';
+    state = state.copyWith(
+      floorsSortBy: columnKey,
+      floorsSortOrder: sortOrder,
+      isFloorsLoading: true,
+      floorsPage: 1,
+    );
+    final floors = await _api.getFloors(
+      state.selectedBuilding!.id,
+      page: 1,
+      pageSize: state.floorsPageSize,
+      sortBy: columnKey,
+      sortOrder: sortOrder,
+    );
+    state = state.copyWith(isFloorsLoading: false, floors: floors, floorsPage: 1);
+  }
+
   // Rooms filtering, pagination & search
+  Future<void> setRoomsPage(int page) async {
+    await reloadRooms(page: page);
+  }
+
+  Future<void> setRoomsPageSize(int pageSize) async {
+    state = state.copyWith(roomsPageSize: pageSize, roomsPage: 1);
+    await reloadRooms(page: 1);
+  }
+
+  Future<void> setRoomSort(String columnKey, bool ascending) async {
+    final sortOrder = ascending ? 'asc' : 'desc';
+    state = state.copyWith(
+      roomsSortBy: columnKey,
+      roomsSortOrder: sortOrder,
+      roomsPage: 1,
+    );
+    await reloadRooms(page: 1);
+  }
+
   Future<void> reloadRooms({int? page}) async {
     if (state.selectedBuilding == null) return;
     final targetPage = page ?? state.roomsPage;
@@ -327,6 +440,8 @@ class CampusNotifier extends StateNotifier<CampusState> {
       roomType: state.filterRoomType,
       operationalStatus: state.filterRoomStatus,
       assignmentStatus: state.filterAssignmentStatus,
+      sortBy: state.roomsSortBy,
+      sortOrder: state.roomsSortOrder,
     );
     final roomsList = (roomsRes['data'] as List<RoomModel>?) ?? [];
     final totalRooms = (roomsRes['total_count'] as int?) ?? roomsList.length;

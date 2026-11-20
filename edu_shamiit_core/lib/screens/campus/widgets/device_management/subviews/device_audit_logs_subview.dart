@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:edu_shamiit_core/config/app_config.dart';
+import '../../common/campus_pagination_bar.dart';
 
 // ============================================================================
 // AUDIT LOG DATA MODELS
@@ -220,7 +221,6 @@ class _DeviceAuditLogsSubviewState extends State<DeviceAuditLogsSubview> {
   int _currentPage = 1;
   int _pageSize = 10;
   int _totalCount = 3482;
-  int _totalPages = 349;
   final Set<String> _selectedEntryIds = {};
   AuditLogEntry? _inspectedEntry;
 
@@ -722,7 +722,6 @@ class _DeviceAuditLogsSubviewState extends State<DeviceAuditLogsSubview> {
           setState(() {
             _auditLogs = list.isNotEmpty ? list : _canonicalSeedEntries();
             _totalCount = data['total'] ?? 3482;
-            _totalPages = data['total_pages'] ?? 349;
             if (_inspectedEntry == null && _auditLogs.isNotEmpty) {
               _inspectedEntry = _auditLogs.first;
             }
@@ -1571,6 +1570,8 @@ class _DeviceAuditLogsSubviewState extends State<DeviceAuditLogsSubview> {
 
   Widget _buildDropdownButton(String current, List<String> items, ValueChanged<String?> onChanged) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final uniqueItems = items.toSet().toList();
+    final effectiveValue = uniqueItems.contains(current) ? current : (uniqueItems.isNotEmpty ? uniqueItems.first : current);
     return Container(
       height: 34,
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1581,7 +1582,7 @@ class _DeviceAuditLogsSubviewState extends State<DeviceAuditLogsSubview> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: items.contains(current) ? current : items.first,
+          value: effectiveValue,
           isDense: true,
           isExpanded: true,
           icon: const Icon(Icons.keyboard_arrow_down, size: 16),
@@ -1590,7 +1591,7 @@ class _DeviceAuditLogsSubviewState extends State<DeviceAuditLogsSubview> {
             color: isDark ? Colors.white : const Color(0xFF0F172A),
           ),
           onChanged: onChanged,
-          items: items.map((it) => DropdownMenuItem(value: it, child: Text(it, overflow: TextOverflow.ellipsis))).toList(),
+          items: uniqueItems.map((it) => DropdownMenuItem(value: it, child: Text(it, overflow: TextOverflow.ellipsis))).toList(),
         ),
       ),
     );
@@ -1896,133 +1897,24 @@ class _DeviceAuditLogsSubviewState extends State<DeviceAuditLogsSubview> {
         ),
         const SizedBox(height: 12),
 
-        // Table Footer: Show Entries + Pagination (Wrapped to prevent overflow)
-        Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          alignment: WrapAlignment.spaceBetween,
-          spacing: 12,
-          runSpacing: 8,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Show',
-                  style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                ),
-                const SizedBox(width: 6),
-                Container(
-                  height: 28,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      value: _pageSize,
-                      isDense: true,
-                      style: TextStyle(fontSize: 11, color: isDark ? Colors.white : const Color(0xFF0F172A)),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _pageSize = val;
-                            _currentPage = 1;
-                          });
-                          _fetchLogs();
-                        }
-                      },
-                      items: [10, 25, 50, 100].map((v) => DropdownMenuItem(value: v, child: Text('$v'))).toList(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'entries',
-                  style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                ),
-              ],
-            ),
-
-            // Pagination Controls (1, 2, 3, 4, 5 ... 349)
-            Wrap(
-              spacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.chevron_left_rounded, size: 18),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                  onPressed: _currentPage > 1
-                      ? () {
-                          setState(() => _currentPage--);
-                          _fetchLogs();
-                        }
-                      : null,
-                ),
-                ...[1, 2, 3, 4, 5].map((page) {
-                  final isCurrent = _currentPage == page;
-                  return InkWell(
-                    onTap: () {
-                      setState(() => _currentPage = page);
-                      _fetchLogs();
-                    },
-                    borderRadius: BorderRadius.circular(4),
-                    child: Container(
-                      width: 26,
-                      height: 26,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: isCurrent ? const Color(0xFF2563EB) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '$page',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
-                          color: isCurrent
-                              ? Colors.white
-                              : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-                const Text('...', style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
-                InkWell(
-                  onTap: () {
-                    setState(() => _currentPage = _totalPages);
-                    _fetchLogs();
-                  },
-                  borderRadius: BorderRadius.circular(4),
-                  child: Container(
-                    width: 32,
-                    height: 26,
-                    alignment: Alignment.center,
-                    child: Text(
-                      '$_totalPages',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
-                      ),
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right_rounded, size: 18),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                  onPressed: _currentPage < _totalPages
-                      ? () {
-                          setState(() => _currentPage++);
-                          _fetchLogs();
-                        }
-                      : null,
-                ),
-              ],
-            ),
-          ],
+        // Table Footer: CampusPaginationBar
+        CampusPaginationBar(
+          currentPage: _currentPage,
+          pageSize: _pageSize,
+          totalCount: _totalCount,
+          itemLabel: 'logs',
+          pageSizes: const [10, 25, 50, 100],
+          onPageChanged: (page) {
+            setState(() => _currentPage = page);
+            _fetchLogs();
+          },
+          onPageSizeChanged: (newSize) {
+            setState(() {
+              _pageSize = newSize;
+              _currentPage = 1;
+            });
+            _fetchLogs();
+          },
         ),
       ],
     );

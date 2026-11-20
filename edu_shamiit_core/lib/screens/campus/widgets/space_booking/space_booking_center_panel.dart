@@ -1,15 +1,36 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../models/space_booking_models.dart';
+import '../../providers/campus_provider.dart';
 import '../../providers/space_booking_provider.dart';
+import '../common/campus_pagination_bar.dart';
+import 'widgets/space_booking_legend_bar.dart';
+import 'widgets/space_booking_week_view.dart';
+import 'widgets/space_booking_month_view.dart';
+import 'widgets/space_analytics_charts.dart';
+import 'dialogs/space_conflict_warning_dialog.dart';
 
 class SpaceBookingCenterPanel extends ConsumerStatefulWidget {
   final Function(SpaceBookingRequestItem item)? onInspectRequest;
+  final Function(SpaceBookingRequestItem item)? onEditRequest;
+  final Function(SpaceBookingRequestItem item)? onDeleteRequest;
+  final Function({
+    String? roomId,
+    String? roomName,
+    String? roomType,
+    DateTime? date,
+    String? startTime,
+    String? endTime,
+  })? onCreateBooking;
 
   const SpaceBookingCenterPanel({
     super.key,
     this.onInspectRequest,
+    this.onEditRequest,
+    this.onDeleteRequest,
+    this.onCreateBooking,
   });
 
   @override
@@ -17,9 +38,12 @@ class SpaceBookingCenterPanel extends ConsumerStatefulWidget {
 }
 
 class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPanel> {
-  String _timelineBuilding = 'b1';
+  String _timelineBuilding = 'all';
   String _timelineSpaceType = 'All';
   String _timelineStatus = 'All';
+  int? _sortCol = 4;
+  bool _sortAsc = false;
+  String _analyticsTimeframe = 'today';
 
   @override
   Widget build(BuildContext context) {
@@ -27,15 +51,164 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
     final notifier = ref.read(spaceBookingProvider.notifier);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Column(
-      children: [
-        // Upper Block: Space Availability & Booking
-        _buildAvailabilityBlock(state, notifier, isDark),
-        const SizedBox(height: 16),
+    final isBookingSpaces = state.selectedNav == 'Booking Spaces' ||
+        state.selectedNav == 'Booking Space' ||
+        state.selectedNav == 'Booking Calendar';
+    final isRequests = state.selectedNav == 'Booking Requests' ||
+        state.selectedNav == 'Pending Requests' ||
+        state.selectedNav == 'Approved Bookings' ||
+        state.selectedNav == 'Rejected Bookings' ||
+        state.selectedNav == 'My Bookings';
+    final isUsage = state.selectedNav == 'Usage & Reports';
 
-        // Lower Block: Booking Requests Table
-        _buildBookingRequestsBlock(state, notifier, isDark),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Top Center Navigation Tabs (Booking Spaces, Booking Requests, Usage & Reports)
+        _buildTopViewTabs(state, notifier, isDark),
+        const SizedBox(height: 14),
+
+        // Active View Body (No stacking = zero scrolling to find the grid or requests!)
+        if (isBookingSpaces)
+          _buildAvailabilityBlock(state, notifier, isDark)
+        else if (isRequests)
+          _buildBookingRequestsBlock(state, notifier, isDark)
+        else if (isUsage)
+          _buildUsageAndReportsScreen(state, notifier, isDark)
+        else
+          _buildAvailabilityBlock(state, notifier, isDark),
       ],
+    );
+  }
+
+  // ==========================================================================
+  // TOP NAVIGATION TABS (BOOKING SPACES | BOOKING REQUESTS | USAGE & REPORTS)
+  // ==========================================================================
+
+  Widget _buildTopViewTabs(SpaceBookingState state, SpaceBookingNotifier notifier, bool isDark) {
+    final cardBorder = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+
+    final isBookingSpaces = state.selectedNav == 'Booking Spaces' ||
+        state.selectedNav == 'Booking Space' ||
+        state.selectedNav == 'Booking Calendar';
+    final isRequests = state.selectedNav == 'Booking Requests' ||
+        state.selectedNav == 'Pending Requests' ||
+        state.selectedNav == 'Approved Bookings' ||
+        state.selectedNav == 'Rejected Bookings' ||
+        state.selectedNav == 'My Bookings';
+    final isUsage = state.selectedNav == 'Usage & Reports';
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cardBorder),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildTopTabItem(
+              icon: Icons.grid_view_rounded,
+              label: 'Booking Spaces',
+              isSelected: isBookingSpaces,
+              badgeCount: null,
+              isDark: isDark,
+              onTap: () => notifier.setSelectedNav('Booking Spaces'),
+            ),
+            const SizedBox(width: 4),
+            _buildTopTabItem(
+              icon: Icons.assignment_outlined,
+              label: 'Booking Requests',
+              isSelected: isRequests,
+              badgeCount: state.kpis.pendingBookings,
+              badgeColor: isDark ? const Color(0xFF312E81) : const Color(0xFFE0E7FF),
+              badgeTextColor: isDark ? const Color(0xFFA5B4FC) : const Color(0xFF4338CA),
+              isDark: isDark,
+              onTap: () => notifier.setSelectedNav('Booking Requests'),
+            ),
+            const SizedBox(width: 4),
+            _buildTopTabItem(
+              icon: Icons.bar_chart_outlined,
+              label: 'Usage & Reports',
+              isSelected: isUsage,
+              badgeCount: null,
+              isDark: isDark,
+              onTap: () => notifier.setSelectedNav('Usage & Reports'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopTabItem({
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    int? badgeCount,
+    Color? badgeColor,
+    Color? badgeTextColor,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF2563EB) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected
+                  ? Colors.white
+                  : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected
+                    ? Colors.white
+                    : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155)),
+              ),
+            ),
+            if (badgeCount != null && badgeCount > 0) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? Colors.white.withValues(alpha: 0.25)
+                      : (badgeColor ?? (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$badgeCount',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: isSelected ? Colors.white : (badgeTextColor ?? const Color(0xFF4338CA)),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -141,12 +314,32 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
                         }).toList(),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
+
+                    // Today Button
+                    OutlinedButton(
+                      onPressed: () => notifier.jumpToToday(),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                        minimumSize: const Size(0, 32),
+                        side: BorderSide(color: cardBorder),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: Text(
+                        'Today',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: textPrimary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
 
                     // Date Navigator: < Mon, 15 Mar 2026 >
                     Container(
                       height: 32,
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                       decoration: BoxDecoration(
                         color: isDark ? const Color(0xFF0F172A) : Colors.white,
                         border: Border.all(color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
@@ -158,27 +351,49 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
                             icon: Icon(Icons.chevron_left, size: 18, color: textSecondary),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(minWidth: 24),
-                            onPressed: () {
-                              notifier.changeDate(state.selectedDate.subtract(const Duration(days: 1)));
-                            },
+                            onPressed: () => notifier.previousDate(),
                           ),
-                          const Icon(Icons.calendar_month, size: 15, color: Color(0xFF3B82F6)),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Mon, 15 Mar 2026',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: textPrimary,
+                          InkWell(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: state.selectedDate,
+                                firstDate: DateTime(2025),
+                                lastDate: DateTime(2030),
+                              );
+                              if (picked != null) {
+                                notifier.changeDate(picked);
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(6),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.calendar_month, size: 15, color: Color(0xFF3B82F6)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    state.timelineViewMode == 'Month'
+                                        ? DateFormat('MMMM yyyy').format(state.selectedDate)
+                                        : (state.timelineViewMode == 'Week'
+                                            ? 'Week of ${DateFormat('d MMM').format(state.selectedDate.subtract(Duration(days: state.selectedDate.weekday - 1)))}'
+                                            : DateFormat('EEE, d MMM yyyy').format(state.selectedDate)),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: textPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                           IconButton(
                             icon: Icon(Icons.chevron_right, size: 18, color: textSecondary),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(minWidth: 24),
-                            onPressed: () {
-                              notifier.changeDate(state.selectedDate.add(const Duration(days: 1)));
-                            },
+                            onPressed: () => notifier.nextDate(),
                           ),
                         ],
                       ),
@@ -226,16 +441,23 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
                   runSpacing: 8,
                   children: [
                     _buildSmallDropdown(
-                      label: 'Building: B1 - Academic Block',
+                      label: 'Building: All Buildings',
                       value: _timelineBuilding,
                       isDark: isDark,
-                      items: const [
-                        DropdownMenuItem(value: 'b1', child: Text('Building: B1 - Academic Block')),
-                        DropdownMenuItem(value: 'all', child: Text('Building: All Buildings')),
-                        DropdownMenuItem(value: 'b2', child: Text('Building: B2 - Senior Block')),
+                      items: [
+                        const DropdownMenuItem(value: 'all', child: Text('Building: All Buildings')),
+                        ...ref.watch(campusProvider).buildings.map(
+                              (b) => DropdownMenuItem(
+                                value: b.id,
+                                child: Text('Building: ${b.code} - ${b.name}'),
+                              ),
+                            ),
                       ],
                       onChanged: (val) {
-                        if (val != null) setState(() => _timelineBuilding = val);
+                        if (val != null) {
+                          setState(() => _timelineBuilding = val);
+                          notifier.applyQuickFilters(buildingId: val);
+                        }
                       },
                     ),
                     _buildSmallDropdown(
@@ -250,7 +472,10 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
                         DropdownMenuItem(value: 'Lab', child: Text('Lab')),
                       ],
                       onChanged: (val) {
-                        if (val != null) setState(() => _timelineSpaceType = val);
+                        if (val != null) {
+                          setState(() => _timelineSpaceType = val);
+                          notifier.applyQuickFilters(spaceType: val);
+                        }
                       },
                     ),
                     _buildSmallDropdown(
@@ -263,7 +488,10 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
                         DropdownMenuItem(value: 'Pending', child: Text('Pending')),
                       ],
                       onChanged: (val) {
-                        if (val != null) setState(() => _timelineStatus = val);
+                        if (val != null) {
+                          setState(() => _timelineStatus = val);
+                          notifier.setStatusFilter(val);
+                        }
                       },
                     ),
                   ],
@@ -346,10 +574,225 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
           ),
           Divider(color: cardBorder, height: 1),
 
-          // Interactive Timeline Grid
-          _buildInteractiveGrid(state, isDark),
+          // Legend Filter Bar
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: SpaceBookingLegendBarWidget(),
+          ),
+          Divider(color: cardBorder, height: 1),
+
+          // Interactive Timeline Grid / Week View / Month View / List View
+          if (state.displayMode == 'List')
+            _buildScheduledBookingsListView(state, notifier, isDark)
+          else if (state.timelineViewMode == 'Week')
+            SpaceBookingWeekView(
+              selectedDate: state.selectedDate,
+              rooms: state.roomsTimeline,
+              selectedPurpose: state.selectedPurpose,
+              onInspectRequest: widget.onInspectRequest,
+              onSlotTap: (day, time) {
+                if (widget.onCreateBooking != null) {
+                  final parts = time.split(':');
+                  final h = int.tryParse(parts[0]) ?? 10;
+                  final startStr = h < 12
+                      ? '${h.toString().padLeft(2, '0')}:00 AM'
+                      : (h == 12 ? '12:00 PM' : '${(h - 12).toString().padLeft(2, '0')}:00 PM');
+                  final endH = h + 1;
+                  final endStr = endH < 12
+                      ? '${endH.toString().padLeft(2, '0')}:00 AM'
+                      : (endH == 12 ? '12:00 PM' : '${(endH - 12).toString().padLeft(2, '0')}:00 PM');
+                  widget.onCreateBooking!(
+                    date: day,
+                    startTime: startStr,
+                    endTime: endStr,
+                  );
+                }
+              },
+            )
+          else if (state.timelineViewMode == 'Month')
+            SpaceBookingMonthView(
+              selectedDate: state.selectedDate,
+              rooms: state.roomsTimeline,
+              selectedPurpose: state.selectedPurpose,
+              onInspectRequest: widget.onInspectRequest,
+              onDayTap: (day) {
+                notifier.changeDate(day);
+                notifier.setTimelineViewMode('Day');
+              },
+            )
+          else
+            _buildInteractiveGrid(state, isDark),
         ],
       ),
+    );
+  }
+
+  Widget _buildScheduledBookingsListView(SpaceBookingState state, SpaceBookingNotifier notifier, bool isDark) {
+    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
+    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final cardBorder = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
+    final List<Map<String, dynamic>> items = [];
+    for (final room in state.roomsTimeline) {
+      for (final b in room.bookings) {
+        if (state.selectedPurpose != 'All') {
+          final p = state.selectedPurpose.toLowerCase();
+          if (!b.purpose.toLowerCase().contains(p) && !b.title.toLowerCase().contains(p)) {
+            continue;
+          }
+        }
+        items.add({
+          'booking': b,
+          'room': room,
+        });
+      }
+    }
+
+    if (items.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 40.0),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.event_busy_outlined, size: 40, color: textSecondary),
+              const SizedBox(height: 8),
+              Text(
+                'No scheduled bookings found for this filter/date.',
+                style: TextStyle(fontSize: 13, color: textSecondary, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      itemCount: items.length,
+      separatorBuilder: (_, __) => Divider(color: cardBorder, height: 16),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        final SpaceTimelineBooking b = item['booking'];
+        final SpaceTimelineRoom room = item['room'];
+
+        return InkWell(
+          onTap: () {
+            if (widget.onInspectRequest != null) {
+              widget.onInspectRequest!(SpaceBookingRequestItem(
+                id: b.id,
+                bookingRef: b.bookingRef.isNotEmpty ? b.bookingRef : 'SB-${b.id.length > 8 ? b.id.substring(0, 8) : b.id}',
+                title: b.title,
+                purpose: b.purpose.isNotEmpty ? b.purpose : 'Academic Booking',
+                category: 'Academic',
+                priority: 'Normal',
+                status: b.status,
+                isApproved: b.status.toLowerCase() == 'confirmed' || b.status.toLowerCase() == 'approved',
+                bookingDate: DateFormat('d MMM yyyy').format(state.selectedDate),
+                startTime: b.startTime,
+                endTime: b.endTime,
+                formattedSchedule: '${b.startTime} - ${b.endTime}',
+                roomId: room.roomId,
+                roomName: room.roomName.isNotEmpty ? room.roomName : 'Room ${room.roomNumber}',
+                roomType: room.roomType.isNotEmpty ? room.roomType : 'Classroom',
+                spaceDisplay: '${room.roomNumber} - ${room.roomName}',
+                buildingId: room.buildingId,
+                buildingName: room.buildingName.isNotEmpty ? room.buildingName : 'Academic Block',
+                organizerName: b.organizerName.isNotEmpty ? b.organizerName : 'Faculty',
+                organizerRole: b.organizerRole.isNotEmpty ? b.organizerRole : 'Organizer',
+                requestedByDisplay: '${b.organizerName} (${b.organizerRole})',
+                attendeeCount: room.capacity > 0 ? room.capacity : 30,
+                isRecurring: false,
+              ));
+            }
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.3) : const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        b.startTime,
+                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF3B82F6)),
+                      ),
+                      Text(
+                        b.endTime,
+                        style: TextStyle(fontSize: 10, color: textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              b.title,
+                              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: textPrimary),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              room.roomName,
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: textPrimary),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Organizer: ${b.organizerName} • ${room.roomType} (Cap: ${room.capacity})',
+                        style: TextStyle(fontSize: 11.5, color: textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: b.status.toLowerCase() == 'confirmed'
+                        ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                        : const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    b.status,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: b.status.toLowerCase() == 'confirmed' ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(Icons.chevron_right, size: 18, color: textSecondary),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -392,7 +835,7 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
       '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'
     ];
 
-    final displayRooms = state.roomsTimeline.take(5).toList();
+    final displayRooms = state.roomsTimeline.isNotEmpty ? state.roomsTimeline : [];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -459,14 +902,14 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
                 child: Text('No rooms available for timeline on this date.', style: TextStyle(color: textSecondary, fontSize: 13)),
               )
             else
-              ...displayRooms.map((room) => _buildTimelineRoomRow(room, timeSlots, isDark, gridLineColor)),
+              ...displayRooms.map((room) => _buildTimelineRoomRow(room, timeSlots, isDark, gridLineColor, state.selectedPurpose)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTimelineRoomRow(SpaceTimelineRoom room, List<String> slots, bool isDark, Color gridLineColor) {
+  Widget _buildTimelineRoomRow(SpaceTimelineRoom room, List<String> slots, bool isDark, Color gridLineColor, String? selectedPurpose) {
     final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
     final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
     final textMuted = isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155);
@@ -519,21 +962,53 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
             height: 54,
             child: Stack(
               children: [
-                // Background grid vertical guide lines
+                // Background grid vertical interactive slots
                 Row(
-                  children: List.generate(
-                    10,
-                    (i) => Container(
-                      width: 62,
-                      decoration: BoxDecoration(
-                        border: Border(right: BorderSide(color: gridLineColor)),
+                  children: List.generate(10, (i) {
+                    final startH = 8 + i;
+                    final endH = startH + 1;
+                    final startStr = startH < 12
+                        ? '${startH.toString().padLeft(2, '0')}:00 AM'
+                        : (startH == 12 ? '12:00 PM' : '${(startH - 12).toString().padLeft(2, '0')}:00 PM');
+                    final endStr = endH < 12
+                        ? '${endH.toString().padLeft(2, '0')}:00 AM'
+                        : (endH == 12 ? '12:00 PM' : '${(endH - 12).toString().padLeft(2, '0')}:00 PM');
+
+                    return Tooltip(
+                      message: 'Click to schedule ${room.roomName} ($startStr - $endStr)',
+                      waitDuration: const Duration(milliseconds: 300),
+                      child: InkWell(
+                        onTap: () {
+                          if (widget.onCreateBooking != null) {
+                            widget.onCreateBooking!(
+                              roomId: room.roomId,
+                              roomName: room.roomName,
+                              roomType: room.roomType,
+                              date: ref.read(spaceBookingProvider).selectedDate,
+                              startTime: startStr,
+                              endTime: endStr,
+                            );
+                          }
+                        },
+                        hoverColor: const Color(0xFF3B82F6).withValues(alpha: 0.12),
+                        child: Container(
+                          width: 62,
+                          height: 54,
+                          decoration: BoxDecoration(
+                            border: Border(right: BorderSide(color: gridLineColor)),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  }),
                 ),
 
                 // Booking Event Chips
-                ...room.bookings.map((b) => _buildBookingChip(b, isDark)),
+                ...room.bookings.where((b) {
+                  if (selectedPurpose == null || selectedPurpose == 'All') return true;
+                  final p = selectedPurpose.toLowerCase();
+                  return b.purpose.toLowerCase().contains(p) || b.title.toLowerCase().contains(p);
+                }).map((b) => _buildBookingChip(b, room, isDark)),
               ],
             ),
           ),
@@ -542,35 +1017,32 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
     );
   }
 
-  Widget _buildBookingChip(SpaceTimelineBooking b, bool isDark) {
-    double left = 0;
-    double width = 80;
+  double _parseTimeToLeft(String timeStr) {
+    try {
+      final clean = timeStr.trim().toUpperCase();
+      final isPM = clean.contains('PM');
+      final isAM = clean.contains('AM');
+      final timePart = clean.replaceAll(RegExp(r'[^\d:]'), '');
+      final parts = timePart.split(':');
+      if (parts.isNotEmpty) {
+        int hour = int.parse(parts[0]);
+        int minute = parts.length > 1 ? int.parse(parts[1]) : 0;
+        if (isPM && hour < 12) hour += 12;
+        if (isAM && hour == 12) hour = 0;
 
-    final s = b.startTime.toUpperCase();
-    if (s.contains('08:00') || s.contains('8:00')) {
-      left = 0;
-    } else if (s.contains('09:00') || s.contains('9:00')) {
-      left = 62;
-    } else if (s.contains('10:00')) {
-      left = 124;
-    } else if (s.contains('11:00')) {
-      left = 186;
-    } else if (s.contains('12:00')) {
-      left = 248;
-    } else if (s.contains('01:00') || s.contains('1:00')) {
-      left = 310;
-    } else if (s.contains('02:00') || s.contains('2:00')) {
-      left = 372;
-    } else if (s.contains('02:30') || s.contains('2:30')) {
-      left = 403;
-    } else if (s.contains('03:00') || s.contains('3:00')) {
-      left = 434;
-    } else if (s.contains('04:00') || s.contains('4:00')) {
-      left = 496;
-    }
+        final totalMinutes = hour * 60 + minute;
+        const startOfDayMinutes = 8 * 60; // 08:00 AM
+        final offsetMinutes = totalMinutes - startOfDayMinutes;
+        final double left = (offsetMinutes / 60.0) * 62.0;
+        return left.clamp(0.0, 560.0);
+      }
+    } catch (_) {}
+    return 0.0;
+  }
 
-    width = (b.durationMinutes / 60.0) * 62.0 - 4;
-    if (width < 50) width = 50;
+  Widget _buildBookingChip(SpaceTimelineBooking b, SpaceTimelineRoom room, bool isDark) {
+    final double left = _parseTimeToLeft(b.startTime);
+    final double width = math.max(50.0, (b.durationMinutes / 60.0) * 62.0 - 4);
 
     // Theme adaptive colors
     Color bg = isDark ? const Color(0xFF0369A1).withValues(alpha: 0.35) : const Color(0xFFE0F2FE);
@@ -603,38 +1075,70 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
       width: width,
       child: Tooltip(
         message: '${b.title}\n${b.startTime} - ${b.endTime}\nOrganizer: ${b.organizerName}',
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                b.title,
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                  color: text,
+        child: InkWell(
+          onTap: () {
+            if (widget.onInspectRequest != null) {
+              widget.onInspectRequest!(SpaceBookingRequestItem(
+                id: b.id,
+                bookingRef: b.bookingRef.isNotEmpty ? b.bookingRef : 'SB-${b.id.length > 8 ? b.id.substring(0, 8) : b.id}',
+                title: b.title,
+                purpose: b.purpose.isNotEmpty ? b.purpose : 'Academic Booking',
+                category: 'Academic',
+                priority: 'Normal',
+                status: b.status,
+                isApproved: b.status.toLowerCase() == 'confirmed' || b.status.toLowerCase() == 'approved',
+                bookingDate: b.startDatetime != null ? DateFormat('d MMM yyyy').format(b.startDatetime!) : '20 Mar 2026',
+                startTime: b.startTime,
+                endTime: b.endTime,
+                formattedSchedule: '${b.startTime} - ${b.endTime}',
+                roomId: room.roomId,
+                roomName: room.roomName.isNotEmpty ? room.roomName : 'Room ${room.roomNumber}',
+                roomType: room.roomType.isNotEmpty ? room.roomType : 'Classroom',
+                spaceDisplay: '${room.roomNumber} - ${room.roomName}',
+                buildingId: room.buildingId,
+                buildingName: room.buildingName.isNotEmpty ? room.buildingName : 'Academic Block',
+                organizerName: b.organizerName.isNotEmpty ? b.organizerName : 'Faculty',
+                organizerRole: b.organizerRole.isNotEmpty ? b.organizerRole : 'Organizer',
+                requestedByDisplay: '${b.organizerName} (${b.organizerRole})',
+                attendeeCount: room.capacity > 0 ? room.capacity : 30,
+                isRecurring: false,
+              ));
+            }
+          },
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  b.title,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: text,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              Text(
-                '${b.startTime} - ${b.endTime}',
-                style: TextStyle(
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w500,
-                  color: text.withValues(alpha: 0.85),
+                Text(
+                  '${b.startTime} - ${b.endTime}',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w500,
+                    color: text.withValues(alpha: 0.85),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -644,6 +1148,18 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
   // ==========================================================================
   // LOWER BLOCK: BOOKING REQUESTS (28) TABLE
   // ==========================================================================
+
+  String _getBookingRequestsTitle(SpaceBookingState state) {
+    if (state.statusFilter == 'All') {
+      return 'All Bookings (${state.kpis.totalBookings})';
+    } else if (state.statusFilter == 'Approved') {
+      return 'Approved Bookings (${state.kpis.confirmedBookings})';
+    } else if (state.statusFilter == 'Rejected') {
+      return 'Rejected Bookings (${state.kpis.rejectedBookings})';
+    } else {
+      return 'Booking Requests (${state.kpis.pendingBookings})';
+    }
+  }
 
   Widget _buildBookingRequestsBlock(SpaceBookingState state, SpaceBookingNotifier notifier, bool isDark) {
     final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
@@ -683,7 +1199,7 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
                     const Icon(Icons.assignment_outlined, size: 20, color: Color(0xFF3B82F6)),
                     const SizedBox(width: 8),
                     Text(
-                      'Booking Requests (${state.kpis.pendingBookings})',
+                      _getBookingRequestsTitle(state),
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
@@ -699,10 +1215,11 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _buildStatusTab('All (${state.kpis.pendingBookings})', 'All', state, notifier, isDark),
+                      _buildStatusTab('All (${state.kpis.totalBookings})', 'All', state, notifier, isDark),
                       _buildStatusTab('Pending (${state.kpis.pendingBookings})', 'Pending', state, notifier, isDark),
                       _buildStatusTab('Approved (${state.kpis.confirmedBookings})', 'Approved', state, notifier, isDark),
                       _buildStatusTab('Rejected (${state.kpis.rejectedBookings})', 'Rejected', state, notifier, isDark),
+                      _buildStatusTab('Conflicts', 'Conflict', state, notifier, isDark),
                     ],
                   ),
                 ),
@@ -726,19 +1243,19 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
                     children: [
                       // Table Header
                       Container(
-                        height: 38,
+                        height: 34,
                         color: headerBg,
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         child: Row(
                           children: [
-                            SizedBox(width: 25, child: Text('#', style: _thStyle(textSecondary))),
-                            Expanded(flex: 3, child: Text('Request Title', style: _thStyle(textSecondary))),
-                            Expanded(flex: 3, child: Text('Space', style: _thStyle(textSecondary))),
-                            Expanded(flex: 3, child: Text('Requested By', style: _thStyle(textSecondary))),
-                            Expanded(flex: 4, child: Text('Date & Time', style: _thStyle(textSecondary))),
-                            Expanded(flex: 2, child: Text('Purpose', style: _thStyle(textSecondary))),
-                            Expanded(flex: 2, child: Text('Status', style: _thStyle(textSecondary))),
-                            SizedBox(width: 75, child: Text('Actions', style: _thStyle(textSecondary))),
+                            SizedBox(width: 28, child: Text('#', style: _thStyle(textSecondary))),
+                            _buildSortableHeader('Request Title', 1, 3, textSecondary),
+                            _buildSortableHeader('Space', 2, 3, textSecondary),
+                            _buildSortableHeader('Requested By', 3, 3, textSecondary),
+                            _buildSortableHeader('Date & Time', 4, 4, textSecondary),
+                            _buildSortableHeader('Purpose', 5, 2, textSecondary),
+                            _buildSortableHeader('Status', 6, 2, textSecondary),
+                            SizedBox(width: 120, child: Text('Actions', style: _thStyle(textSecondary))),
                           ],
                         ),
                       ),
@@ -756,11 +1273,40 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
                           child: Center(child: Text('No space booking requests found.', style: TextStyle(color: textSecondary))),
                         )
                       else
-                        ...state.bookingRequests.items.asMap().entries.map((entry) {
-                          final idx = (state.currentPage - 1) * state.pageSize + entry.key + 1;
-                          final item = entry.value;
-                          return _buildRequestRow(idx, item, notifier, isDark);
-                        }),
+                        ...(() {
+                          final sortedList = List<SpaceBookingRequestItem>.from(state.bookingRequests.items);
+                          if (_sortCol != null) {
+                            sortedList.sort((a, b) {
+                              int cmp = 0;
+                              switch (_sortCol) {
+                                case 1:
+                                  cmp = a.title.compareTo(b.title);
+                                  break;
+                                case 2:
+                                  cmp = a.spaceDisplay.compareTo(b.spaceDisplay);
+                                  break;
+                                case 3:
+                                  cmp = a.requestedByDisplay.compareTo(b.requestedByDisplay);
+                                  break;
+                                case 4:
+                                  cmp = a.bookingDate.compareTo(b.bookingDate);
+                                  break;
+                                case 5:
+                                  cmp = a.purpose.compareTo(b.purpose);
+                                  break;
+                                case 6:
+                                  cmp = a.status.compareTo(b.status);
+                                  break;
+                              }
+                              return _sortAsc ? cmp : -cmp;
+                            });
+                          }
+                          return sortedList.asMap().entries.map((entry) {
+                            final idx = (state.currentPage - 1) * state.pageSize + entry.key + 1;
+                            final item = entry.value;
+                            return _buildRequestRow(idx, item, notifier, isDark);
+                          });
+                        })(),
                     ],
                   ),
                 ),
@@ -782,6 +1328,39 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
     fontWeight: FontWeight.w700,
     color: color,
   );
+
+  Widget _buildSortableHeader(String title, int colIdx, int flex, Color color) {
+    final isCurrent = _sortCol == colIdx;
+    return Expanded(
+      flex: flex,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            if (_sortCol == colIdx) {
+              _sortAsc = !_sortAsc;
+            } else {
+              _sortCol = colIdx;
+              _sortAsc = true;
+            }
+          });
+        },
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(child: Text(title, style: _thStyle(color), overflow: TextOverflow.ellipsis)),
+            const SizedBox(width: 2),
+            Icon(
+              isCurrent
+                  ? (_sortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                  : Icons.unfold_more_rounded,
+              size: 13,
+              color: isCurrent ? const Color(0xFF2563EB) : color.withValues(alpha: 0.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildStatusTab(String label, String statusKey, SpaceBookingState state, SpaceBookingNotifier notifier, bool isDark) {
     final isSel = state.statusFilter == statusKey;
@@ -822,7 +1401,7 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
     final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     return Container(
-      height: 48,
+      height: 34,
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: rowBorder, width: 1)),
@@ -831,10 +1410,10 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
         children: [
           // Index #
           SizedBox(
-            width: 25,
+            width: 28,
             child: Text(
               '$idx',
-              style: TextStyle(fontSize: 12, color: textSecondary, fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: 11.5, color: textSecondary, fontWeight: FontWeight.w500),
             ),
           ),
 
@@ -843,7 +1422,7 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
             flex: 3,
             child: Text(
               item.title,
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textPrimary),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -854,7 +1433,7 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
             flex: 3,
             child: Text(
               item.spaceDisplay,
-              style: TextStyle(fontSize: 12.5, color: textMuted),
+              style: TextStyle(fontSize: 11.5, color: textMuted),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -865,7 +1444,7 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
             flex: 3,
             child: Text(
               item.requestedByDisplay,
-              style: TextStyle(fontSize: 12, color: textMuted),
+              style: TextStyle(fontSize: 11.5, color: textMuted),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -876,7 +1455,7 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
             flex: 4,
             child: Text(
               item.formattedSchedule,
-              style: TextStyle(fontSize: 12, color: textMuted, fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: 11.5, color: textMuted, fontWeight: FontWeight.w500),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -887,7 +1466,7 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
             flex: 2,
             child: Text(
               item.purpose,
-              style: TextStyle(fontSize: 12, color: textSecondary),
+              style: TextStyle(fontSize: 11.5, color: textSecondary),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -899,25 +1478,29 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
             child: Align(
               alignment: Alignment.centerLeft,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
                   color: item.status == 'Pending'
                       ? (isDark ? const Color(0xFF78350F).withValues(alpha: 0.5) : const Color(0xFFFEF3C7))
                       : item.status == 'Approved' || item.status == 'Confirmed'
                           ? (isDark ? const Color(0xFF065F46).withValues(alpha: 0.5) : const Color(0xFFDCFCE7))
-                          : (isDark ? const Color(0xFF991B1B).withValues(alpha: 0.5) : const Color(0xFFFEE2E2)),
-                  borderRadius: BorderRadius.circular(12),
+                          : item.status == 'Conflict'
+                              ? (isDark ? const Color(0xFF7F1D1D).withValues(alpha: 0.6) : const Color(0xFFFFE4E6))
+                              : (isDark ? const Color(0xFF991B1B).withValues(alpha: 0.5) : const Color(0xFFFEE2E2)),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   item.status,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                     color: item.status == 'Pending'
                         ? (isDark ? const Color(0xFFFCD34D) : const Color(0xFFB45309))
                         : item.status == 'Approved' || item.status == 'Confirmed'
                             ? (isDark ? const Color(0xFF86EFAC) : const Color(0xFF15803D))
-                            : (isDark ? const Color(0xFFFCA5A5) : const Color(0xFFB91C1C)),
+                            : item.status == 'Conflict'
+                                ? (isDark ? const Color(0xFFFDA4AF) : const Color(0xFFBE123C))
+                                : (isDark ? const Color(0xFFFCA5A5) : const Color(0xFFB91C1C)),
                   ),
                 ),
               ),
@@ -926,49 +1509,114 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
 
           // Actions
           SizedBox(
-            width: 75,
+            width: 120,
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                // Approve
-                InkWell(
-                  onTap: () async {
-                    final ok = await notifier.decideApproval(item.id, 'APPROVE');
-                    if (ok && mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Approved "${item.title}" successfully')),
-                      );
-                    }
-                  },
-                  child: const Padding(
-                    padding: EdgeInsets.all(4.0),
-                    child: Icon(Icons.check, size: 16, color: Color(0xFF3B82F6)),
+                if (item.status == 'Pending' || item.status == 'Submitted') ...[
+                  // Approve
+                  Tooltip(
+                    message: 'Approve Request',
+                    child: InkWell(
+                      onTap: () async {
+                        final res = await notifier.decideApprovalDetailed(item.id, 'APPROVE');
+                        if (!mounted) return;
+                        if (res['success'] == true) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Approved "${item.title}" successfully'),
+                              backgroundColor: const Color(0xFF059669),
+                            ),
+                          );
+                        } else if (res['conflict'] == true) {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => SpaceConflictWarningDialog(
+                              roomName: item.spaceDisplay,
+                              requestedTime: '${item.bookingDate} (${item.startTime} - ${item.endTime})',
+                              conflictMessage: res['message']?.toString() ?? 'Cannot approve: Space is already booked during this time slot.',
+                              onChangeTime: () => Navigator.pop(ctx),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(res['message']?.toString() ?? 'Failed to approve booking'),
+                              backgroundColor: const Color(0xFFEF4444),
+                            ),
+                          );
+                        }
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.all(3.0),
+                        child: Icon(Icons.check, size: 15, color: Color(0xFF16A34A)),
+                      ),
+                    ),
+                  ),
+                  // Reject
+                  Tooltip(
+                    message: 'Reject Request',
+                    child: InkWell(
+                      onTap: () async {
+                        final ok = await notifier.decideApproval(item.id, 'REJECT');
+                        if (ok && mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Rejected "${item.title}"')),
+                          );
+                        }
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.all(3.0),
+                        child: Icon(Icons.close, size: 15, color: Color(0xFFEF4444)),
+                      ),
+                    ),
+                  ),
+                ],
+                // Edit
+                Tooltip(
+                  message: 'Modify Schedule',
+                  child: InkWell(
+                    onTap: () {
+                      if (widget.onEditRequest != null) {
+                        widget.onEditRequest!(item);
+                      } else if (widget.onInspectRequest != null) {
+                        widget.onInspectRequest!(item);
+                      }
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.all(3.0),
+                      child: Icon(Icons.edit_outlined, size: 15, color: Color(0xFF3B82F6)),
+                    ),
                   ),
                 ),
-                // Reject
-                InkWell(
-                  onTap: () async {
-                    final ok = await notifier.decideApproval(item.id, 'REJECT');
-                    if (ok && mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Rejected "${item.title}"')),
-                      );
-                    }
-                  },
-                  child: const Padding(
-                    padding: EdgeInsets.all(4.0),
-                    child: Icon(Icons.close, size: 16, color: Color(0xFFEF4444)),
+                // Delete
+                Tooltip(
+                  message: 'Delete Schedule',
+                  child: InkWell(
+                    onTap: () {
+                      if (widget.onDeleteRequest != null) {
+                        widget.onDeleteRequest!(item);
+                      }
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.all(3.0),
+                      child: Icon(Icons.delete_outline_rounded, size: 15, color: Color(0xFFEF4444)),
+                    ),
                   ),
                 ),
                 // Inspect
-                InkWell(
-                  onTap: () {
-                    if (widget.onInspectRequest != null) {
-                      widget.onInspectRequest!(item);
-                    }
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(4.0),
-                    child: Icon(Icons.remove_red_eye_outlined, size: 16, color: textSecondary),
+                Tooltip(
+                  message: 'View Details',
+                  child: InkWell(
+                    onTap: () {
+                      if (widget.onInspectRequest != null) {
+                        widget.onInspectRequest!(item);
+                      }
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(3.0),
+                      child: Icon(Icons.remove_red_eye_outlined, size: 15, color: textSecondary),
+                    ),
                   ),
                 ),
               ],
@@ -980,100 +1628,466 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
   }
 
   Widget _buildPaginationBar(SpaceBookingState state, SpaceBookingNotifier notifier, bool isDark) {
-    final totalCount = state.bookingRequests.totalCount;
-    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    return CampusPaginationBar(
+      currentPage: state.currentPage,
+      pageSize: state.pageSize,
+      totalItems: state.bookingRequests.totalCount,
+      onPageChanged: (newPage) => notifier.setPage(newPage),
+      onPageSizeChanged: (newSize) => notifier.setPageSize(newSize),
+      itemLabel: 'requests',
+    );
+  }
+
+  // ==========================================================================
+  // VIEW 4: USAGE & REPORTS SCREEN (ADVANCED 10X GRAPH PRESENTATION)
+  // ==========================================================================
+
+  Widget _buildUsageAndReportsScreen(SpaceBookingState state, SpaceBookingNotifier notifier, bool isDark) {
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final cardBorder = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
+    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final rep = state.analyticsReport;
 
-    // Guaranteed safe bounds: min is never called with invalid lower/upper limit!
-    final startIdx = totalCount == 0 ? 0 : (state.currentPage - 1) * state.pageSize + 1;
-    final endIdx = totalCount == 0 ? 0 : math.min(state.currentPage * state.pageSize, totalCount);
-
-    final totalPages = state.bookingRequests.totalPages;
-    final numPagesToShow = totalPages > 0 ? math.min(totalPages, 6) : 1;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            Text(
-              'Showing $startIdx – $endIdx of $totalCount requests',
-              style: TextStyle(fontSize: 12, color: textSecondary),
-            ),
-            const SizedBox(width: 24),
-
-            // Page Buttons: « 1 2 3 4 5 6 »
-            Row(
-              children: [
-                IconButton(
-                  icon: Icon(Icons.first_page, size: 16, color: textSecondary),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 28),
-                  onPressed: state.currentPage > 1 ? () => notifier.setPage(1) : null,
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(14.0),
+        border: Border.all(color: cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Header with Title and Timeframe Filter Pills
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2563EB).withValues(alpha: isDark ? 0.2 : 0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                ...List.generate(numPagesToShow, (index) {
-                  final pageNum = index + 1;
-                  final isCur = pageNum == state.currentPage;
-                  return InkWell(
-                    onTap: () => notifier.setPage(pageNum),
-                    borderRadius: BorderRadius.circular(4),
-                    child: Container(
-                      width: 26,
-                      height: 26,
-                      margin: const EdgeInsets.symmetric(horizontal: 2),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: isCur ? const Color(0xFF2563EB) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '$pageNum',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: isCur ? FontWeight.w700 : FontWeight.w500,
-                          color: isCur ? Colors.white : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155)),
-                        ),
+                child: const Icon(Icons.analytics_outlined, size: 22, color: Color(0xFF3B82F6)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Space Utilization & Advanced Analytics',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: textPrimary,
                       ),
                     ),
-                  );
-                }),
-                IconButton(
-                  icon: Icon(Icons.last_page, size: 16, color: textSecondary),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 28),
-                  onPressed: (state.currentPage < totalPages && totalPages > 1)
-                      ? () => notifier.setPage(totalPages)
-                      : null,
+                    Text(
+                      'Live institutional facility occupancy, peak load traffic curves, and space distribution',
+                      style: TextStyle(fontSize: 11.5, color: textSecondary),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(width: 14),
+              ),
+              // Timeframe filter pills
+              Container(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.all(3),
+                child: Row(
+                  children: [
+                    _buildTimeframePill('today', 'Today', isDark),
+                    _buildTimeframePill('week', 'This Week', isDark),
+                    _buildTimeframePill('month', 'This Month', isDark),
+                    _buildTimeframePill('term', 'Term', isDark),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
 
-            // Rows per page dropdown
-            Row(
-              children: [
-                Text('Rows per page: ', style: TextStyle(fontSize: 12, color: textSecondary)),
-                DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: state.pageSize,
-                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    icon: Icon(Icons.keyboard_arrow_down, size: 16, color: textSecondary),
-                    style: TextStyle(fontSize: 12, color: textPrimary, fontWeight: FontWeight.w600),
-                    items: const [
-                      DropdownMenuItem(value: 5, child: Text('5')),
-                      DropdownMenuItem(value: 10, child: Text('10')),
-                      DropdownMenuItem(value: 20, child: Text('20')),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) notifier.setPageSize(val);
-                    },
+          // 2. Executive KPI Summary Cards
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 720;
+              final cards = [
+                _buildUsageStatBox(
+                  'Peak Occupancy Window',
+                  rep.peakHourLabel,
+                  'High congestion window',
+                  const Color(0xFF3B82F6),
+                  Icons.access_time_rounded,
+                  isDark,
+                ),
+                _buildUsageStatBox(
+                  'Total Booked Hours',
+                  '${rep.totalBookedHours.toStringAsFixed(rep.totalBookedHours % 1 == 0 ? 0 : 1)} Hours',
+                  '${rep.totalBookings} reservation${rep.totalBookings == 1 ? "" : "s"}',
+                  const Color(0xFF10B981),
+                  Icons.timelapse_rounded,
+                  isDark,
+                ),
+                _buildUsageStatBox(
+                  'Avg Session Duration',
+                  '${rep.avgDurationMinutes.toStringAsFixed(0)} Minutes',
+                  'Per confirmed reservation',
+                  const Color(0xFF8B5CF6),
+                  Icons.hourglass_bottom_rounded,
+                  isDark,
+                ),
+                _buildUsageStatBox(
+                  'Campus Space Utilization',
+                  '${rep.overallUtilizationPct.toStringAsFixed(1)}%',
+                  '${rep.activeSpacesCount} Active / ${rep.totalSpacesCount} Bookable Spaces',
+                  const Color(0xFF06B6D4),
+                  Icons.pie_chart_outline_rounded,
+                  isDark,
+                ),
+              ];
+
+              if (isWide) {
+                return Row(
+                  children: cards.map((c) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 5), child: c))).toList(),
+                );
+              } else {
+                return Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: cards.map((c) => SizedBox(width: (constraints.maxWidth - 10) / 2, child: c)).toList(),
+                );
+              }
+            },
+          ),
+          const SizedBox(height: 22),
+
+          // 3. Row 1 Charts: Hourly Occupancy Area Chart + Today's Space Utilization Donut
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 820;
+
+              final hourlyChartCard = _buildChartContainer(
+                title: 'Hourly Space Occupancy & Traffic Curve',
+                subtitle: 'Active concurrent session volume across campus (8:00 AM - 6:00 PM)',
+                icon: Icons.show_chart_rounded,
+                isDark: isDark,
+                child: HourlyOccupancyChart(
+                  data: rep.hourlyOccupancy,
+                  isDark: isDark,
+                ),
+              );
+
+              final todayUtilizationCard = _buildChartContainer(
+                title: "Today's Space Utilization",
+                subtitle: 'Live institutional facility status & occupancy breakdown',
+                icon: Icons.pie_chart_outline_rounded,
+                isDark: isDark,
+                child: TodaySpaceUtilizationDonutChart(
+                  stats: state.utilization,
+                  isDark: isDark,
+                ),
+              );
+
+              if (isWide) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 3, child: hourlyChartCard),
+                    const SizedBox(width: 14),
+                    Expanded(flex: 2, child: todayUtilizationCard),
+                  ],
+                );
+              } else {
+                return Column(
+                  children: [
+                    hourlyChartCard,
+                    const SizedBox(height: 14),
+                    todayUtilizationCard,
+                  ],
+                );
+              }
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // 4. Row 2 Charts: Space Type Breakdown + Day of Week Bar Chart
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 820;
+
+              final donutChartCard = _buildChartContainer(
+                title: 'Space Type Breakdown',
+                subtitle: 'Facility distribution by instructional category',
+                icon: Icons.donut_large_rounded,
+                isDark: isDark,
+                child: SpaceTypeDonutChart(
+                  items: rep.spaceTypeBreakdown,
+                  totalSpaces: rep.totalSpacesCount,
+                  isDark: isDark,
+                ),
+              );
+
+              final dayOfWeekCard = _buildChartContainer(
+                title: 'Day-of-Week Occupancy Load',
+                subtitle: 'Weekly campus facility utilization percentage (Monday to Saturday)',
+                icon: Icons.bar_chart_rounded,
+                isDark: isDark,
+                child: DayOfWeekBarChart(
+                  days: rep.dayOfWeekTraffic,
+                  isDark: isDark,
+                ),
+              );
+
+              if (isWide) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: donutChartCard),
+                    const SizedBox(width: 14),
+                    Expanded(child: dayOfWeekCard),
+                  ],
+                );
+              } else {
+                return Column(
+                  children: [
+                    donutChartCard,
+                    const SizedBox(height: 14),
+                    dayOfWeekCard,
+                  ],
+                );
+              }
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // 5. Row 3: Building-wise Utilization Matrix
+          _buildChartContainer(
+            title: 'Building-wise Utilization Matrix',
+            subtitle: 'Occupancy capacity ratios across institutional facilities',
+            icon: Icons.apartment_rounded,
+            isDark: isDark,
+            child: BuildingUtilizationList(
+              buildings: rep.buildingUtilization,
+              isDark: isDark,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // 5. Active Spaces Overview Feed
+          Row(
+            children: [
+              Text(
+                'Active Spaces Real-Time Roster',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: textPrimary),
+              ),
+              const Spacer(),
+              Text(
+                'Showing ${state.roomsTimeline.take(8).length} campus facilities',
+                style: TextStyle(fontSize: 11.5, color: textSecondary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: state.roomsTimeline.take(8).length,
+            separatorBuilder: (_, __) => Divider(color: cardBorder, height: 1),
+            itemBuilder: (context, index) {
+              final r = state.roomsTimeline[index];
+              final hasBookings = r.bookings.isNotEmpty;
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                leading: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: const Color(0xFF3B82F6).withValues(alpha: 0.12),
+                  child: const Icon(Icons.meeting_room_outlined, size: 18, color: Color(0xFF3B82F6)),
+                ),
+                title: Text(
+                  '${r.roomNumber} - ${r.roomName}',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: textPrimary),
+                ),
+                subtitle: Text(
+                  '${r.roomType} • Capacity: ${r.capacity} seats • ${r.buildingName}',
+                  style: TextStyle(fontSize: 11, color: textSecondary),
+                ),
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: hasBookings
+                        ? const Color(0xFF10B981).withValues(alpha: 0.12)
+                        : const Color(0xFF06B6D4).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    hasBookings
+                        ? '${r.bookings.length} ${r.bookings.length == 1 ? "Session" : "Sessions"} Active'
+                        : 'Available',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: hasBookings ? const Color(0xFF10B981) : const Color(0xFF06B6D4),
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeframePill(String code, String label, bool isDark) {
+    final isSel = _analyticsTimeframe == code;
+    return InkWell(
+      onTap: () {
+        setState(() => _analyticsTimeframe = code);
+        ref.read(spaceBookingProvider.notifier).loadAnalyticsReport(timeframe: code);
+      },
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSel ? const Color(0xFF2563EB) : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
         ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
+            color: isSel ? Colors.white : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChartContainer({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Widget child,
+    required bool isDark,
+  }) {
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final bg = isDark ? const Color(0xFF0F172A).withValues(alpha: 0.5) : const Color(0xFFF8FAFC);
+    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
+    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: const Color(0xFF3B82F6)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: textPrimary),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(fontSize: 10.5, color: textSecondary),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUsageStatBox(
+    String label,
+    String value,
+    String sub,
+    Color color,
+    IconData icon,
+    bool isDark,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(icon, size: 16, color: color),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            sub,
+            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: color),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }

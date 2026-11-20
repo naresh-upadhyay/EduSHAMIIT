@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import '../../../config/app_config.dart';
 import '../../../services/api_service.dart';
 import '../../../utils/download_helper.dart';
@@ -93,6 +94,18 @@ class CampusApiService {
     }
   }
 
+  Future<Map<String, dynamic>> updateBuildingPhoto(String buildingId, String imageUrl) async {
+    try {
+      return await _api.patch('/v1/campus/buildings/$buildingId/photo', {'image_url': imageUrl});
+    } catch (_) {
+      try {
+        return await _api.put('/v1/campus/buildings/$buildingId', {'image_url': imageUrl});
+      } catch (e) {
+        return {'success': false, 'message': e.toString()};
+      }
+    }
+  }
+
   // 6. Delete or Archive Building
   Future<Map<String, dynamic>> deleteBuilding(String buildingId) async {
     try {
@@ -111,12 +124,22 @@ class CampusApiService {
   }
 
   // 7. Floors
-  Future<List<BuildingFloorModel>> getFloors(String buildingId, {int page = 1, int pageSize = 50}) async {
+  Future<List<BuildingFloorModel>> getFloors(
+    String buildingId, {
+    int page = 1,
+    int pageSize = 50,
+    String? sortBy,
+    String? sortOrder,
+  }) async {
     try {
-      final res = await _api.get('/v1/campus/buildings/$buildingId/floors', query: {
+      final query = <String, dynamic>{
         'page': page,
         'page_size': pageSize,
-      }, useCache: false);
+      };
+      if (sortBy != null && sortBy.isNotEmpty) query['sort_by'] = sortBy;
+      if (sortOrder != null && sortOrder.isNotEmpty) query['sort_order'] = sortOrder;
+
+      final res = await _api.get('/v1/campus/buildings/$buildingId/floors', query: query, useCache: false);
       if (res['data'] is List) {
         return (res['data'] as List)
             .map((e) => BuildingFloorModel.fromJson(Map<String, dynamic>.from(e as Map)))
@@ -158,6 +181,8 @@ class CampusApiService {
     String? assignmentStatus,
     int? minCapacity,
     int? maxCapacity,
+    String? sortBy,
+    String? sortOrder,
   }) async {
     try {
       final query = <String, dynamic>{
@@ -176,6 +201,8 @@ class CampusApiService {
       }
       if (minCapacity != null) query['min_capacity'] = minCapacity;
       if (maxCapacity != null) query['max_capacity'] = maxCapacity;
+      if (sortBy != null && sortBy.isNotEmpty) query['sort_by'] = sortBy;
+      if (sortOrder != null && sortOrder.isNotEmpty) query['sort_order'] = sortOrder;
 
       final res = await _api.get('/v1/campus/rooms', query: query, useCache: false);
       if (res['data'] is List) {
@@ -293,7 +320,7 @@ class CampusApiService {
     );
   }
 
-  // 13. Image Upload
+  // 13. Image & Document File Upload
   Future<String?> uploadImage(Uint8List bytes, String filename) async {
     try {
       final res = await _api.multipartPostBytes(
@@ -305,14 +332,30 @@ class CampusApiService {
       if (res['success'] == true) {
         return (res['data']?['url'] ?? res['data']?['file_url'])?.toString();
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error in uploadImage: $e');
+    }
     return null;
   }
 
+  Future<String?> uploadDocument(Uint8List bytes, String filename) async {
+    return uploadImage(bytes, filename);
+  }
+
   // 14. Building Documents CRUD
-  Future<List<BuildingDocumentModel>> getBuildingDocuments(String buildingId) async {
+  Future<List<BuildingDocumentModel>> getBuildingDocuments(
+    String buildingId, {
+    int page = 1,
+    int pageSize = 50,
+    String? sortBy,
+    String? sortOrder,
+  }) async {
     try {
-      final res = await _api.get('/v1/campus/buildings/$buildingId/documents', useCache: false);
+      final query = <String, dynamic>{'page': page, 'page_size': pageSize};
+      if (sortBy != null && sortBy.isNotEmpty) query['sort_by'] = sortBy;
+      if (sortOrder != null && sortOrder.isNotEmpty) query['sort_order'] = sortOrder;
+
+      final res = await _api.get('/v1/campus/buildings/$buildingId/documents', query: query, useCache: false);
       if (res['data'] is List) {
         return (res['data'] as List)
             .map((e) => BuildingDocumentModel.fromJson(Map<String, dynamic>.from(e as Map)))
@@ -347,9 +390,19 @@ class CampusApiService {
   }
 
   // 15. Building Occupancy CRUD
-  Future<Map<String, dynamic>> getBuildingOccupancy(String buildingId) async {
+  Future<Map<String, dynamic>> getBuildingOccupancy(
+    String buildingId, {
+    int page = 1,
+    int pageSize = 50,
+    String? sortBy,
+    String? sortOrder,
+  }) async {
     try {
-      final res = await _api.get('/v1/campus/buildings/$buildingId/occupancy', useCache: false);
+      final query = <String, dynamic>{'page': page, 'page_size': pageSize};
+      if (sortBy != null && sortBy.isNotEmpty) query['sort_by'] = sortBy;
+      if (sortOrder != null && sortOrder.isNotEmpty) query['sort_order'] = sortOrder;
+
+      final res = await _api.get('/v1/campus/buildings/$buildingId/occupancy', query: query, useCache: false);
       final list = (res['data'] as List?)
               ?.map((e) => BuildingOccupancyModel.fromJson(Map<String, dynamic>.from(e as Map)))
               .toList() ??
@@ -357,11 +410,13 @@ class CampusApiService {
       final metrics = (res['metrics'] as Map<String, dynamic>?) ?? {};
       return {
         'metrics': metrics,
+        'total_count': res['total_count'] ?? list.length,
         'data': list,
       };
     } catch (_) {}
     return {
       'metrics': <String, dynamic>{},
+      'total_count': 0,
       'data': <BuildingOccupancyModel>[],
     };
   }
@@ -391,9 +446,19 @@ class CampusApiService {
   }
 
   // 16. Building Maintenance CRUD
-  Future<List<BuildingMaintenanceModel>> getBuildingMaintenance(String buildingId) async {
+  Future<List<BuildingMaintenanceModel>> getBuildingMaintenance(
+    String buildingId, {
+    int page = 1,
+    int pageSize = 50,
+    String? sortBy,
+    String? sortOrder,
+  }) async {
     try {
-      final res = await _api.get('/v1/campus/buildings/$buildingId/maintenance', useCache: false);
+      final query = <String, dynamic>{'page': page, 'page_size': pageSize};
+      if (sortBy != null && sortBy.isNotEmpty) query['sort_by'] = sortBy;
+      if (sortOrder != null && sortOrder.isNotEmpty) query['sort_order'] = sortOrder;
+
+      final res = await _api.get('/v1/campus/buildings/$buildingId/maintenance', query: query, useCache: false);
       if (res['data'] is List) {
         return (res['data'] as List)
             .map((e) => BuildingMaintenanceModel.fromJson(Map<String, dynamic>.from(e as Map)))
@@ -425,5 +490,131 @@ class CampusApiService {
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
+  }
+
+  // ==========================================
+  // Facilities API
+  // ==========================================
+  Future<Map<String, dynamic>> getFacilities({
+    int page = 1,
+    int pageSize = 20,
+    String? search,
+    String? category,
+    String? status,
+    String? buildingId,
+  }) async {
+    try {
+      final query = <String, dynamic>{
+        'page': page,
+        'page_size': pageSize,
+      };
+      if (search != null && search.trim().isNotEmpty) query['search'] = search.trim();
+      if (category != null && category.isNotEmpty && category != 'All Categories') query['category'] = category;
+      if (status != null && status.isNotEmpty && status != 'All Statuses') query['status'] = status;
+      if (buildingId != null && buildingId.isNotEmpty && buildingId != 'all') query['building_id'] = buildingId;
+
+      final res = await _api.get('/v1/campus/facilities', query: query, useCache: false);
+      if (res['data'] is List) {
+        return {
+          'data': List<Map<String, dynamic>>.from(res['data'] as List),
+          'total_count': res['total_count'] ?? 0,
+          'page': res['page'] ?? page,
+          'page_size': res['page_size'] ?? pageSize,
+          'total_pages': res['total_pages'] ?? 1,
+        };
+      }
+    } catch (_) {}
+    return {'data': <Map<String, dynamic>>[], 'total_count': 0, 'page': page, 'page_size': pageSize, 'total_pages': 1};
+  }
+
+  Future<Map<String, dynamic>> saveFacility(Map<String, dynamic> payload, {String? facilityId}) async {
+    try {
+      final body = Map<String, dynamic>.from(payload);
+      if (facilityId != null && facilityId.isNotEmpty) {
+        body['id'] = facilityId;
+      }
+      return await _api.post('/v1/campus/facilities', body);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteFacility(String facilityId) async {
+    try {
+      return await _api.delete('/v1/campus/facilities/$facilityId');
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ==========================================
+  // Utilities & Services API
+  // ==========================================
+  Future<Map<String, dynamic>> getUtilitiesKpis() async {
+    try {
+      final res = await _api.get('/v1/campus/utilities/kpis', useCache: false);
+      if (res['data'] is Map<String, dynamic>) {
+        return Map<String, dynamic>.from(res['data'] as Map);
+      }
+    } catch (_) {}
+    return {};
+  }
+
+  Future<Map<String, dynamic>> getUtilityReadings({
+    String? utilityType,
+    String? search,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    try {
+      final query = <String, dynamic>{'page': page, 'page_size': pageSize};
+      if (utilityType != null && utilityType.isNotEmpty && utilityType != 'All') {
+        query['utility_type'] = utilityType;
+      }
+      if (search != null && search.trim().isNotEmpty) {
+        query['search'] = search.trim();
+      }
+
+      final res = await _api.get('/v1/campus/utilities/readings', query: query, useCache: false);
+      if (res['data'] is List) {
+        return {
+          'data': List<Map<String, dynamic>>.from(res['data'] as List),
+          'total_count': res['total_count'] ?? 0,
+          'page': res['page'] ?? page,
+          'page_size': res['page_size'] ?? pageSize,
+          'total_pages': res['total_pages'] ?? 1,
+        };
+      }
+    } catch (_) {}
+    return {'data': <Map<String, dynamic>>[], 'total_count': 0, 'page': page, 'page_size': pageSize, 'total_pages': 1};
+  }
+
+  Future<Map<String, dynamic>> logUtilityReading(Map<String, dynamic> payload) async {
+    try {
+      return await _api.post('/v1/campus/utilities/readings', payload);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ==========================================
+  // Reports API
+  // ==========================================
+  void exportCampusReport({
+    required int reportType,
+    String? buildingId,
+    String? timeRange,
+  }) {
+    final query = <String, String>{
+      'report_type': reportType.toString(),
+    };
+    if (buildingId != null && buildingId.isNotEmpty && buildingId != 'all') {
+      query['building_id'] = buildingId;
+    }
+    if (timeRange != null && timeRange.isNotEmpty) {
+      query['time_range'] = timeRange;
+    }
+    final uri = Uri.parse('${AppConfig.apiBaseUrl}/v1/campus/reports/export').replace(queryParameters: query);
+    getDownloadHelper().downloadFile(uri.toString(), 'campus_report_${DateTime.now().millisecondsSinceEpoch}.csv');
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
 
@@ -316,7 +317,31 @@ class ApiService {
       if (fields != null) {
         request.fields.addAll(fields);
       }
-      request.files.add(http.MultipartFile.fromBytes(fieldName, bytes, filename: filename));
+      MediaType? mediaType;
+      final ext = filename.contains('.') ? filename.split('.').last.toLowerCase() : '';
+      if (ext == 'jpg' || ext == 'jpeg') {
+        mediaType = MediaType('image', 'jpeg');
+      } else if (ext == 'png') {
+        mediaType = MediaType('image', 'png');
+      } else if (ext == 'webp') {
+        mediaType = MediaType('image', 'webp');
+      } else if (ext == 'gif') {
+        mediaType = MediaType('image', 'gif');
+      } else if (ext == 'pdf') {
+        mediaType = MediaType('application', 'pdf');
+      } else if (ext == 'docx') {
+        mediaType = MediaType('application', 'vnd.openxmlformats-officedocument.wordprocessingml.document');
+      } else if (ext == 'xlsx') {
+        mediaType = MediaType('application', 'vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      } else if (ext == 'csv') {
+        mediaType = MediaType('text', 'csv');
+      }
+      request.files.add(http.MultipartFile.fromBytes(
+        fieldName,
+        bytes,
+        filename: filename,
+        contentType: mediaType,
+      ));
 
       final streamedResponse = await request.send().timeout(AppConfig.apiTimeout);
       final response = await http.Response.fromStream(streamedResponse);

@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any, Union
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 import io
 import csv
@@ -91,9 +91,50 @@ def get_user_id(current_user: Optional[Dict[str, Any]]) -> Optional[str]:
     return None
 
 
+def safe_uuid(val: Any) -> Optional[str]:
+    """Safely parse UUID string, returning None for invalid values like 'all', 'b1', etc."""
+    if not val or str(val).strip().lower() in ("all", "none", "", "undefined"):
+        return None
+    try:
+        return str(uuid.UUID(str(val).strip()))
+    except (ValueError, AttributeError):
+        return None
+
+
+def _parse_time_str(time_str: str) -> time:
+    """Parse time string like '14:00', '14:00:00', '02:00 PM', '2:00 PM'."""
+    clean = time_str.strip().upper()
+    try:
+        if "AM" in clean or "PM" in clean:
+            return datetime.strptime(clean, "%I:%M %p").time()
+    except Exception:
+        pass
+    try:
+        if len(clean) == 5:
+            return datetime.strptime(clean, "%H:%M").time()
+        elif len(clean) == 8:
+            return datetime.strptime(clean, "%H:%M:%S").time()
+    except Exception:
+        pass
+    return time(14, 0)
+
+
 # ============================================================================
 # PYDANTIC SCHEMAS
 # ============================================================================
+
+class RecurringBookingCreateSchema(BaseModel):
+    title: str = Field(..., min_length=2, max_length=250)
+    room_id: str
+    start_date: date
+    end_date: Optional[date] = None
+    days_of_week: Optional[List[int]] = [1, 3, 5]
+    start_time: str
+    end_time: str
+    purpose: Optional[str] = "Academic"
+    organizer_name: Optional[str] = "Faculty"
+    organizer_role: Optional[str] = "Faculty"
+    attendee_count: Optional[int] = 30
 
 class SpaceBookingCreateUpdateSchema(BaseModel):
     id: Optional[str] = None
@@ -117,10 +158,12 @@ class SpaceBookingCreateUpdateSchema(BaseModel):
     organizer_phone: Optional[str] = None
     organizer_role: Optional[str] = "Faculty"
     organizer_department: Optional[str] = None
+    requested_by: Optional[str] = None
     attendee_count: Optional[int] = 1
     special_instructions: Optional[str] = None
     amenities_required: Optional[List[str]] = []
     status: Optional[str] = "Pending"
+    recurrence: Optional[Dict[str, Any]] = None
 
 
 class ApprovalDecisionSchema(BaseModel):
@@ -144,7 +187,7 @@ async def get_booking_kpis(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
     school_id = get_school_id(current_user)
-    query_date = target_date or date(2026, 3, 15)
+    query_date = target_date or date.today()
     
     sql = "SELECT public.fn_space_booking_get_kpis(%s::UUID, %s::DATE) AS kpis;"
     rows = await exec_sql(sql, (school_id, query_date))
@@ -165,9 +208,9 @@ async def get_availability_timeline(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
     school_id = get_school_id(current_user)
-    query_date = target_date or date(2026, 3, 15)
+    query_date = target_date or date.today()
     
-    b_id = building_id if (building_id and str(building_id).strip().lower() not in ("all", "none", "")) else None
+    b_id = safe_uuid(building_id)
     r_type = room_type if (room_type and str(room_type).strip().lower() not in ("all", "none", "")) else None
 
     sql = "SELECT public.fn_space_booking_get_availability_timeline(%s::UUID, %s::UUID, %s::VARCHAR, %s::DATE) AS timeline;"
@@ -195,7 +238,7 @@ async def get_booking_requests(
 ):
     school_id = get_school_id(current_user)
     st = status if (status and str(status).strip().lower() not in ("all", "none", "")) else None
-    b_id = building_id if (building_id and str(building_id).strip().lower() not in ("all", "none", "")) else None
+    b_id = safe_uuid(building_id)
     r_type = room_type if (room_type and str(room_type).strip().lower() not in ("all", "none", "")) else None
     search_term = search.strip() if (search and isinstance(search, str) and search.strip()) else None
 
@@ -241,6 +284,83 @@ async def create_or_update_booking(
     data_dict["school_id"] = school_id
     data_dict["user_id"] = user_id
 
+    # If recurrence settings are specified and not 'none', generate recurring series
+    rec = data_dict.get("recurrence")
+    if rec and isinstance(rec, dict) and rec.get("frequency") and rec.get("frequency") != "none":
+        freq = str(rec.get("frequency", "weekly")).lower()
+        days = rec.get("days_of_week") or [1, 2, 3, 4, 5, 6, 7]
+        interval = max(int(rec.get("interval", 1)), 1)
+        end_type = str(rec.get("end_type", "never")).lower()
+        
+        start_d = payload.booking_date
+        end_d = start_d + timedelta(days=60)
+        max_occ = 30
+        if end_type == "date" and rec.get("until_date"):
+            try:
+                end_d = datetime.strptime(str(rec["until_date"])[:10], "%Y-%m-%d").date()
+            except Exception:
+                end_d = start_d + timedelta(days=60)
+        elif end_type == "count" and rec.get("count"):
+            count = max(int(rec["count"]), 1)
+            max_occ = count
+            if freq == "daily":
+                end_d = start_d + timedelta(days=count * interval + 5)
+            elif freq in ("weekly", "weekdays"):
+                end_d = start_d + timedelta(weeks=count * interval + 2)
+            elif freq == "monthly":
+                end_d = start_d + timedelta(days=count * 31 * interval + 10)
+        else:
+            end_d = start_d + timedelta(days=60)
+
+        st = data_dict["start_time"]
+        et = data_dict["end_time"]
+        if len(st) == 5:
+            st += ":00"
+        if len(et) == 5:
+            et += ":00"
+
+        rec_payload = {
+            "school_id": school_id,
+            "user_id": user_id,
+            "existing_booking_id": safe_uuid(data_dict.get("id")),
+            "title": payload.title,
+            "description": payload.description,
+            "room_id": payload.room_id,
+            "frequency": freq,
+            "start_date": str(start_d),
+            "end_date": str(end_d),
+            "days_of_week": days,
+            "start_time": st,
+            "end_time": et,
+            "setup_minutes": payload.setup_minutes or 0,
+            "cleanup_minutes": payload.cleanup_minutes or 0,
+            "purpose": payload.purpose,
+            "category": payload.category or "Academic",
+            "priority": payload.priority or "Normal",
+            "organizer_name": payload.organizer_name,
+            "organizer_role": payload.organizer_role,
+            "organizer_email": payload.organizer_email,
+            "organizer_phone": payload.organizer_phone,
+            "attendee_count": payload.attendee_count or 30,
+            "interval": interval,
+            "end_type": end_type,
+            "max_occurrences": max_occ
+        }
+        rec_json = json.dumps(rec_payload, default=str)
+        sql = "SELECT public.fn_space_booking_create_recurring(%s::JSONB) AS result;"
+        rows = await exec_sql(sql, (rec_json,))
+        result = rows[0]["result"] if rows else {"success": False, "message": "Failed to create recurring series"}
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT if "conflict" in result.get("message", "").lower() else status.HTTP_400_BAD_REQUEST,
+                detail=result.get("message", "Recurring booking creation failed")
+            )
+        return {
+            "success": True,
+            "data": _serialize_val(result)
+        }
+
+    # Single Booking Flow
     # Format time strings if provided without seconds
     if len(data_dict["start_time"]) == 5:
         data_dict["start_time"] += ":00"
@@ -255,12 +375,125 @@ async def create_or_update_booking(
     if not result.get("success"):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT if result.get("error") == "CONFLICT" else status.HTTP_400_BAD_REQUEST,
-            detail=result.get("message", "Booking could not be created.")
+            detail=result.get("message", "Booking could not be created or updated.")
         )
 
     return {
         "success": True,
         "data": _serialize_val(result)
+    }
+
+
+@router.put("/book/{booking_id}", summary="Update Existing Space Booking")
+async def update_existing_booking(
+    booking_id: str,
+    payload: SpaceBookingCreateUpdateSchema,
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    payload.id = booking_id
+    return await create_or_update_booking(payload, current_user)
+
+
+@router.delete("/{booking_id}", summary="Delete or Cancel Space Booking")
+async def delete_space_booking(
+    booking_id: str,
+    delete_series: bool = Query(False),
+    reason: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    school_id = get_school_id(current_user)
+    user_id = get_user_id(current_user)
+
+    sql = "SELECT public.fn_space_booking_delete(%s::UUID, %s::UUID, %s::UUID, %s::BOOLEAN, %s::TEXT) AS result;"
+    rows = await exec_sql(sql, (school_id, booking_id, user_id, delete_series, reason or "Deleted by user"))
+    result = rows[0]["result"] if rows else {"success": False, "message": "Failed to delete booking"}
+
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("message", "Deletion failed"))
+
+    return {
+        "success": True,
+        "message": result.get("message", "Booking deleted successfully"),
+        "data": _serialize_val(result)
+    }
+
+
+@router.post("/recurring", summary="Generate Recurring Space Booking Series")
+async def create_recurring_space_booking(
+    payload: RecurringBookingCreateSchema,
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    school_id = get_school_id(current_user)
+    user_id = get_user_id(current_user)
+
+    data_dict = payload.dict()
+    data_dict["school_id"] = school_id
+    data_dict["user_id"] = user_id
+
+    if len(data_dict["start_time"]) == 5:
+        data_dict["start_time"] += ":00"
+    if len(data_dict["end_time"]) == 5:
+        data_dict["end_time"] += ":00"
+
+    payload_json = json.dumps(data_dict, default=str)
+    sql = "SELECT public.fn_space_booking_create_recurring(%s::JSONB) AS result;"
+    rows = await exec_sql(sql, (payload_json,))
+    result = rows[0]["result"] if rows else {"success": False, "message": "Failed to create recurring series"}
+
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("message", "Recurring booking creation failed"))
+
+    return {
+        "success": True,
+        "data": _serialize_val(result)
+    }
+
+
+@router.get("/check-slot", summary="Real-time Space Availability & Conflict Check")
+async def check_space_slot_availability(
+    room_id: str = Query(...),
+    booking_date: date = Query(..., alias="date"),
+    start_time: str = Query(...),
+    end_time: str = Query(...),
+    setup_minutes: int = Query(0),
+    cleanup_minutes: int = Query(0),
+    exclude_booking_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    """Real-time conflict detection and free/busy query for space and time slot."""
+    school_id = get_school_id(current_user)
+    parsed_room_id = safe_uuid(room_id)
+    if not parsed_room_id:
+        return {"has_conflict": False, "status": "FREE", "message": "Room not selected"}
+
+    parsed_exclude = safe_uuid(exclude_booking_id)
+
+    # Parse start and end times
+    start_t = _parse_time_str(start_time)
+    end_t = _parse_time_str(end_time)
+    start_dt = datetime.combine(booking_date, start_t) - timedelta(minutes=setup_minutes)
+    end_dt = datetime.combine(booking_date, end_t) + timedelta(minutes=cleanup_minutes)
+
+    sql = """
+    SELECT * FROM public.fn_space_booking_check_conflict(
+        %s::UUID, %s::UUID, %s::TIMESTAMPTZ, %s::TIMESTAMPTZ, %s::UUID, TRUE
+    );
+    """
+    rows = await exec_sql(sql, (school_id, parsed_room_id, start_dt, end_dt, parsed_exclude))
+    if not rows:
+        return {"has_conflict": False, "status": "FREE", "message": "Slot is free and available"}
+
+    row = rows[0]
+    has_conflict = bool(row.get("has_conflict", False))
+    return {
+        "has_conflict": has_conflict,
+        "status": "BUSY" if has_conflict else "FREE",
+        "conflict_type": row.get("conflict_type"),
+        "conflicting_ref": row.get("conflicting_ref"),
+        "conflicting_title": row.get("conflicting_title"),
+        "conflicting_start": str(row.get("conflicting_start")) if row.get("conflicting_start") else None,
+        "conflicting_end": str(row.get("conflicting_end")) if row.get("conflicting_end") else None,
+        "message": f"Collides with {row.get('conflicting_title')}" if has_conflict else "Slot is free and available"
     }
 
 
@@ -278,6 +511,13 @@ async def decide_booking_approval(
     result = rows[0]["result"] if rows else {"success": False, "message": "Failed to decide approval"}
 
     if not result.get("success"):
+        if result.get("conflict"):
+            return {
+                "success": False,
+                "conflict": True,
+                "message": result.get("message", "Slot conflict detected with an approved booking"),
+                "data": _serialize_val(result)
+            }
         raise HTTPException(status_code=400, detail=result.get("message", "Action failed"))
 
     return {
@@ -314,7 +554,7 @@ async def get_space_utilization(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
     school_id = get_school_id(current_user)
-    query_date = target_date or date(2026, 3, 15)
+    query_date = target_date or date.today()
 
     sql = "SELECT public.fn_space_booking_get_utilization_stats(%s::UUID, %s::DATE) AS stats;"
     rows = await exec_sql(sql, (school_id, query_date))
@@ -349,7 +589,7 @@ async def get_bookable_rooms(
           AND (%s::VARCHAR IS NULL OR %s::VARCHAR = 'All' OR r.room_type ILIKE %s::VARCHAR)
         ORDER BY b.name ASC, r.room_number ASC, r.name ASC;
     """
-    b_id = building_id if (building_id and building_id != "all") else None
+    b_id = safe_uuid(building_id)
     r_type = room_type if (room_type and room_type != "All") else None
     rows = await exec_sql(sql, (school_id, b_id, b_id, r_type, r_type, r_type))
     return {
@@ -365,7 +605,7 @@ async def export_space_bookings_csv(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
     school_id = get_school_id(current_user)
-    b_id = building_id if (building_id and building_id != "all") else None
+    b_id = safe_uuid(building_id)
 
     sql = """
         SELECT 
@@ -407,3 +647,57 @@ async def export_space_bookings_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+
+@router.get("/requesters", summary="Search and List Space Booking Requesters from User Directory")
+async def get_booking_requesters(
+    search: Optional[str] = Query(None, description="Search by name, email, or role"),
+    role: Optional[str] = Query(None, description="Filter by role"),
+    limit: int = Query(50, ge=1, le=100),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    school_id = get_school_id(current_user)
+    sql = """
+        SELECT id, full_name, email, phone, role, department, avatar_url
+        FROM public.profiles
+        WHERE (school_id = %s::UUID OR school_id IS NULL)
+          AND full_name IS NOT NULL AND TRIM(full_name) != ''
+    """
+    params: List[Any] = [school_id]
+    if search and search.strip():
+        term = f"%{search.strip()}%"
+        sql += " AND (full_name ILIKE %s OR email ILIKE %s OR phone ILIKE %s OR role ILIKE %s)"
+        params.extend([term, term, term, term])
+    if role and role.strip() and role.lower() != 'all':
+        sql += " AND LOWER(role) = LOWER(%s)"
+        params.append(role.strip())
+    
+    sql += " ORDER BY full_name ASC LIMIT %s;"
+    params.append(limit)
+
+    rows = await exec_sql(sql, tuple(params))
+    return {
+        "success": True,
+        "data": _serialize_val(rows or [])
+    }
+
+
+@router.get("/analytics-report", summary="Comprehensive Space Booking Analytics & Usage Report")
+async def get_booking_analytics_report(
+    building_id: Optional[str] = Query(None),
+    timeframe: Optional[str] = Query("today"),
+    target_date: Optional[date] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    school_id = get_school_id(current_user)
+    b_id = safe_uuid(building_id)
+    tf = timeframe or "today"
+    q_date = target_date or date.today()
+
+    sql = "SELECT public.fn_space_booking_get_analytics_report(%s::UUID, %s::UUID, %s::TEXT, %s::DATE) AS report;"
+    rows = await exec_sql(sql, (school_id, b_id, tf, q_date))
+    report = rows[0]["report"] if rows else {"success": False}
+    return {
+        "success": True,
+        "data": _serialize_val(report)
+    }

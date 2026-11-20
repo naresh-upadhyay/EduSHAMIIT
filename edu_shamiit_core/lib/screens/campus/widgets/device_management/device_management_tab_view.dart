@@ -1000,9 +1000,9 @@ class _DeviceManagementTabViewState extends ConsumerState<DeviceManagementTabVie
           ),
           const SizedBox(height: 12),
 
-          // Center Row: Device Control Table (Live) + Location Explorer (Height ~380px)
+          // Center Row: Device Control Table (Live) + Location Explorer (Expanded to 740px to fit >=10 records without scroll)
           SizedBox(
-            height: 380,
+            height: 740,
             child: Row(
               children: [
                 // Device Live Control Table
@@ -1149,9 +1149,9 @@ class _DeviceManagementTabViewState extends ConsumerState<DeviceManagementTabVie
           ),
           const SizedBox(height: 14),
 
-          // Device Table
+          // Device Table (Expanded to 740px to fit >=10 records without scroll)
           SizedBox(
-            height: 380,
+            height: 740,
             child: _buildTable(state, notifier),
           ),
           const SizedBox(height: 14),
@@ -1284,9 +1284,9 @@ class _DeviceManagementTabViewState extends ConsumerState<DeviceManagementTabVie
           ),
           const SizedBox(height: 12),
 
-          // Table
+          // Table (Expanded to 740px to fit >=10 records without scroll)
           SizedBox(
-            height: 380,
+            height: 740,
             child: _buildTable(state, notifier),
           ),
           const SizedBox(height: 12),

@@ -1040,21 +1040,34 @@ async def submit_question(
 async def answer_question(
     question_id: str,
     payload: Dict[str, Any] = Body(...),
-    user=Depends(require_live_class_host),
+    user=Depends(get_current_user),
 ):
-    """Teacher answers a submitted question."""
+    """Teacher, host, or students answer / reply to a submitted question."""
     answer_text = payload.get("answer", "").strip()
     if not answer_text:
         raise HTTPException(status_code=400, detail="Answer text cannot be empty")
 
+    author_name = user.get("full_name") or payload.get("author_name")
+    author_role = user.get("role", "student")
+
     rows = await exec_sql(
-        "SELECT public.sp_answer_live_class_question(%s::UUID, %s::UUID, %s::TEXT) AS data;",
-        (question_id, user["id"], answer_text)
+        "SELECT public.sp_answer_live_class_question(%s::UUID, %s::UUID, %s::TEXT, %s::TEXT, %s::TEXT) AS data;",
+        (question_id, user["id"], answer_text, author_name, author_role)
     )
     if not rows or not rows[0].get("data"):
         raise HTTPException(status_code=400, detail="Failed to answer question")
 
-    return {"success": True, "data": rows[0]["data"]}
+    data = rows[0]["data"]
+    session_id = payload.get("session_id")
+    if session_id and session_id in _active_connections:
+        event = {"type": "question.answered", "question_id": question_id, "reply": data.get("reply")}
+        for peer in _active_connections[session_id]:
+            try:
+                await peer.send_json(event)
+            except Exception:
+                pass
+
+    return {"success": True, "data": data}
 
 
 @router.post("/live-classes/questions/{question_id}/upvote")
@@ -1173,14 +1186,30 @@ async def mute_participant(
     """Host mutes a participant remotely."""
     is_muted = payload.get("is_muted", True)
     await exec_sql(
-        "UPDATE public.live_class_participants SET is_mic_muted = %s, updated_at = NOW() WHERE live_class_id = %s AND user_id = %s;",
-        (is_muted, session_id, participant_id)
+        "UPDATE public.live_class_participants SET is_mic_muted = %s, updated_at = NOW() WHERE live_class_id = %s::UUID AND (user_id::TEXT = %s OR id::TEXT = %s);",
+        (is_muted, session_id, participant_id, participant_id)
+    )
+    # Also update guest participants if participant_id is a guest
+    await exec_sql(
+        "UPDATE public.live_class_guest_participants SET is_mic_muted = %s, updated_at = NOW() WHERE session_id = %s::UUID AND (id::TEXT = %s OR guest_reference = %s);",
+        (is_muted, session_id, participant_id, participant_id)
     )
     if session_id in _active_connections:
-        event = {"type": "participant.muted", "participant_id": participant_id, "is_muted": is_muted}
+        event = {
+            "type": "participant.muted",
+            "participant_id": participant_id,
+            "target_user_id": participant_id,
+            "is_muted": is_muted
+        }
+        event2 = {
+            "type": "participant_control",
+            "action": "mute" if is_muted else "unmute",
+            "targetUserId": participant_id
+        }
         for peer in _active_connections[session_id]:
             try:
                 await peer.send_json(event)
+                await peer.send_json(event2)
             except Exception:
                 pass
     return {"success": True, "message": f"Participant {'muted' if is_muted else 'unmuted'}"}
@@ -1194,14 +1223,29 @@ async def remove_participant(
 ):
     """Host removes an unruly participant from the live session."""
     await exec_sql(
-        "UPDATE public.live_class_participants SET leave_time = NOW(), updated_at = NOW() WHERE live_class_id = %s AND user_id = %s;",
-        (session_id, participant_id)
+        "UPDATE public.live_class_participants SET leave_time = NOW(), updated_at = NOW() WHERE live_class_id = %s::UUID AND (user_id::TEXT = %s OR id::TEXT = %s);",
+        (session_id, participant_id, participant_id)
+    )
+    # Also update guest participant if guest
+    await exec_sql(
+        "UPDATE public.live_class_guest_participants SET last_leave_at = NOW(), approval_status = 'REMOVED', updated_at = NOW() WHERE session_id = %s::UUID AND (id::TEXT = %s OR guest_reference = %s);",
+        (session_id, participant_id, participant_id)
     )
     if session_id in _active_connections:
-        event = {"type": "participant.removed", "participant_id": participant_id}
+        event = {
+            "type": "participant.removed",
+            "participant_id": participant_id,
+            "target_user_id": participant_id
+        }
+        event2 = {
+            "type": "participant_control",
+            "action": "remove_participant",
+            "targetUserId": participant_id
+        }
         for peer in _active_connections[session_id]:
             try:
                 await peer.send_json(event)
+                await peer.send_json(event2)
             except Exception:
                 pass
     return {"success": True, "message": "Participant removed from live class"}
@@ -1425,7 +1469,103 @@ async def review_guest_request(
     return {"success": True, "data": res}
 
 
+@router.get("/live-classes/guest/status/{request_id}")
+async def check_guest_admission_status(request_id: str):
+    """Check approval status of a guest waiting room request."""
+    rows = await exec_sql(
+        """
+        SELECT gr.id AS request_id, gr.session_id, gr.guest_id, gr.request_status,
+               gp.approval_status, gp.display_name, gp.guest_reference,
+               lc.title AS session_title, lc.room_code
+        FROM public.live_class_guest_requests gr
+        JOIN public.live_class_guest_participants gp ON gp.id = gr.guest_id
+        JOIN public.live_classes lc ON lc.id = gr.session_id
+        WHERE gr.id = %s::UUID;
+        """,
+        (request_id,)
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="Guest request not found")
+    row = rows[0]
+    return {
+        "success": True,
+        "data": {
+            "request_id": str(row["request_id"]),
+            "session_id": str(row["session_id"]),
+            "guest_id": str(row["guest_id"]),
+            "request_status": row["request_status"],
+            "approval_status": row["approval_status"],
+            "display_name": row["display_name"],
+            "guest_reference": row.get("guest_reference", ""),
+            "is_approved": (row["approval_status"] == "APPROVED" or row["request_status"] == "APPROVED"),
+            "is_rejected": (row["approval_status"] == "REJECTED" or row["request_status"] == "REJECTED"),
+            "session_title": row["session_title"],
+            "room_code": row["room_code"]
+        }
+    }
 
+
+@router.get("/livekit/guest-token")
+@router.post("/livekit/guest-token")
+async def generate_guest_livekit_token(
+    request: Request,
+    request_id: str = Query(..., description="Approved guest request ID"),
+):
+    """Issue LiveKit WebRTC access token for an approved external guest."""
+    rows = await exec_sql(
+        """
+        SELECT gr.id AS request_id, gr.session_id, gr.guest_id, gr.request_status,
+               gp.approval_status, gp.display_name, gp.guest_reference,
+               lc.title AS session_title, lc.room_code
+        FROM public.live_class_guest_requests gr
+        JOIN public.live_class_guest_participants gp ON gp.id = gr.guest_id
+        JOIN public.live_classes lc ON lc.id = gr.session_id
+        WHERE gr.id = %s::UUID;
+        """,
+        (request_id,)
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="Guest request not found")
+    row = rows[0]
+    if row["request_status"] != "APPROVED" and row["approval_status"] != "APPROVED":
+        raise HTTPException(status_code=403, detail="Guest has not been admitted yet by host")
+
+    api_key = os.environ.get("LIVEKIT_API_KEY", "devkey")
+    api_secret = os.environ.get("LIVEKIT_API_SECRET", "secretkey_edushamiit_livekit_2026_secure")
+    
+    identity = str(row["guest_id"])
+    name = row["display_name"]
+    room = str(row["session_id"])
+    now = int(time.time())
+    claims = {
+        "iss": api_key,
+        "sub": identity,
+        "name": f"{name} (Guest)",
+        "video": {
+            "roomJoin": True,
+            "room": room,
+            "canPublish": True,
+            "canSubscribe": True,
+            "canPublishData": True,
+            "canPublishSources": ["camera", "microphone"],
+            "canUpdateOwnMetadata": True,
+            "roomAdmin": False,
+            "roomCreate": False
+        },
+        "metadata": "guest",
+        "nbf": now - 10,
+        "exp": now + 4 * 3600
+    }
+    token = jwt.encode(claims, api_secret, algorithm="HS256")
+    livekit_ws_url = resolve_browser_livekit_url(request)
+    return {
+        "success": True,
+        "token": token,
+        "livekit_url": livekit_ws_url,
+        "room": room,
+        "identity": identity,
+        "name": name,
+    }
 
 
 # ============================================================================
@@ -1515,6 +1655,22 @@ async def close_breakout_room(
     return {"success": True, "message": "Breakout room closed successfully"}
 
 
+@router.get("/live-classes/sessions/{session_id}/settings")
+async def get_session_settings(
+    session_id: str,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Fetch active or scheduled session settings and permissions."""
+    rows = await exec_sql(
+        "SELECT public.sp_get_live_class_session_settings(%s::UUID, %s::UUID) AS data;",
+        (school_id, session_id)
+    )
+    if not rows or not rows[0].get("data"):
+        raise HTTPException(status_code=404, detail="Session settings not found")
+    return {"success": True, "data": rows[0]["data"]}
+
+
 @router.post("/live-classes/sessions/{session_id}/settings")
 async def update_session_settings(
     session_id: str,
@@ -1530,16 +1686,36 @@ async def update_session_settings(
     if not rows or not rows[0].get("data"):
         raise HTTPException(status_code=400, detail="Failed to update session settings")
     res = rows[0]["data"]
+    updated_settings = res.get("settings", payload)
 
+    # Real-time WebRTC and signaling broadcast
     if session_id in _active_connections:
-        event = {"type": "session.settings_updated", "settings": payload}
+        event = {"type": "session.settings_updated", "settings": updated_settings}
         for peer in _active_connections[session_id]:
             try:
                 await peer.send_json(event)
             except Exception:
                 pass
 
-    return {"success": True, "data": res}
+        # If microphone disabled, broadcast mute enforcement to all peers
+        if updated_settings.get("allow_student_mic") is False:
+            mute_event = {"type": "participant_control", "action": "mute", "targetUserId": "all"}
+            for peer in _active_connections[session_id]:
+                try:
+                    await peer.send_json(mute_event)
+                except Exception:
+                    pass
+
+        # If camera disabled, broadcast camera_off enforcement to all peers
+        if updated_settings.get("allow_student_cam") is False:
+            cam_event = {"type": "participant_control", "action": "camera_off", "targetUserId": "all"}
+            for peer in _active_connections[session_id]:
+                try:
+                    await peer.send_json(cam_event)
+                except Exception:
+                    pass
+
+    return {"success": True, "data": updated_settings, "message": "Session settings updated successfully"}
 
 
 @router.post("/live-classes/sessions/{session_id}/host")

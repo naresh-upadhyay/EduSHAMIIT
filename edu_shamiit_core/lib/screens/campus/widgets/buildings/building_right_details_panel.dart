@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../config/app_config.dart';
 import '../../models/campus_models.dart';
 
 class BuildingRightDetailsPanel extends StatelessWidget {
@@ -33,16 +34,11 @@ class BuildingRightDetailsPanel extends StatelessWidget {
         children: [
           // 1. Building Image Preview Card
           Container(
+            key: ValueKey('${building.id}_${building.imageUrl}'),
             height: 180,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-              image: building.imageUrl != null && building.imageUrl!.isNotEmpty
-                  ? DecorationImage(
-                      image: NetworkImage(building.imageUrl!),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
@@ -51,81 +47,149 @@ class BuildingRightDetailsPanel extends StatelessWidget {
                 ),
               ],
             ),
-            child: Stack(
-              children: [
-                if (building.imageUrl == null || building.imageUrl!.isEmpty)
-                  Center(
-                    child: InkWell(
-                      onTap: onUpdateImage,
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.6),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: const Color(0xFF2563EB).withValues(alpha: 0.4),
-                          ),
-                        ),
-                        child: const Column(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (building.imageUrl != null && building.imageUrl!.isNotEmpty)
+                    Image.network(
+                      AppConfig.resolveUrl(building.imageUrl),
+                      key: ValueKey('${building.id}_${building.imageUrl}'),
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      errorBuilder: (context, error, stackTrace) => Center(
+                        child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.add_a_photo_outlined, size: 28, color: Color(0xFF2563EB)),
-                            SizedBox(height: 6),
-                            Text(
-                              'Upload Building Photo',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF2563EB),
-                              ),
-                            ),
+                            Icon(Icons.broken_image_outlined, size: 36, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                            const SizedBox(height: 6),
+                            Text('Image unavailable', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                           ],
                         ),
                       ),
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        );
+                      },
                     ),
-                  ),
 
-                // Top-left camera / change button
-                if (onUpdateImage != null)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Tooltip(
-                      message: building.imageUrl != null && building.imageUrl!.isNotEmpty ? 'Change Photo' : 'Upload Photo',
+                  if (building.imageUrl == null || building.imageUrl!.isEmpty)
+                    Center(
                       child: InkWell(
                         onTap: onUpdateImage,
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(8),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.65),
-                            borderRadius: BorderRadius.circular(6),
+                            color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: const Color(0xFF2563EB).withValues(alpha: 0.4),
+                            ),
                           ),
-                          child: const Row(
+                          child: const Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.camera_alt_outlined, color: Colors.white, size: 15),
-                              SizedBox(width: 4),
-                              Text('Photo', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                              Icon(Icons.add_a_photo_outlined, size: 28, color: Color(0xFF2563EB)),
+                              SizedBox(height: 6),
+                              Text(
+                                'Upload Building Photo',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF2563EB),
+                                ),
+                              ),
                             ],
                           ),
                         ),
                       ),
                     ),
-                  ),
+
+                  // Top-left camera / change button
+                  if (onUpdateImage != null)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Tooltip(
+                        message: building.imageUrl != null && building.imageUrl!.isNotEmpty ? 'Change Photo' : 'Upload Photo',
+                        child: InkWell(
+                          onTap: onUpdateImage,
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.65),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.camera_alt_outlined, color: Colors.white, size: 15),
+                                SizedBox(width: 4),
+                                Text('Photo', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
 
                 // Top-right zoom icon
                 Positioned(
                   top: 8,
                   right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.55),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        if (building.imageUrl != null && building.imageUrl!.isNotEmpty) {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => Dialog(
+                              backgroundColor: Colors.transparent,
+                              insetPadding: const EdgeInsets.all(20),
+                              child: Stack(
+                                alignment: Alignment.topRight,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.network(
+                                      AppConfig.resolveUrl(building.imageUrl),
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 10,
+                                    right: 10,
+                                    child: IconButton(
+                                      style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                                      icon: const Icon(Icons.close, color: Colors.white),
+                                      onPressed: () => Navigator.pop(ctx),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        } else if (onUpdateImage != null) {
+                          onUpdateImage!();
+                        }
+                      },
                       borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.55),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(Icons.fullscreen, color: Colors.white, size: 18),
+                      ),
                     ),
-                    child: const Icon(Icons.fullscreen, color: Colors.white, size: 18),
                   ),
                 ),
                 // Bottom-left building code & name tag
@@ -151,6 +215,7 @@ class BuildingRightDetailsPanel extends StatelessWidget {
               ],
             ),
           ),
+        ),
           const SizedBox(height: 14),
 
           // 2. Building Details Info Card

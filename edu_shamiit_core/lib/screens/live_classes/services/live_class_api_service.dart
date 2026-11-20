@@ -687,6 +687,8 @@ class LiveClassApiService {
   Future<LiveClassQuestionItem?> submitQuestion(
     String sessionId,
     String question, {
+    String? authorName,
+    String? authorRole,
     bool isAnonymous = false,
   }) async {
     try {
@@ -694,6 +696,8 @@ class LiveClassApiService {
         '/live-classes/sessions/$sessionId/questions',
         {
           'question': question,
+          if (authorName != null) 'author_name': authorName,
+          if (authorRole != null) 'author_role': authorRole,
           'is_anonymous': isAnonymous,
         },
       );
@@ -707,29 +711,46 @@ class LiveClassApiService {
     return null;
   }
 
-  Future<bool> answerQuestion(String questionId, String answer) async {
+  Future<Map<String, dynamic>?> answerQuestion(
+    String questionId,
+    String answer, {
+    String? authorName,
+    String? authorRole,
+    String? sessionId,
+  }) async {
     try {
       final res = await _apiService.post(
         '/live-classes/questions/$questionId/answer',
-        {'answer': answer},
+        {
+          'answer': answer,
+          if (authorName != null) 'author_name': authorName,
+          if (authorRole != null) 'author_role': authorRole,
+          if (sessionId != null) 'session_id': sessionId,
+        },
       );
-      return res['success'] == true;
+      if (res['success'] == true && res['data'] != null) {
+        return res['data'] as Map<String, dynamic>;
+      }
+      return {'success': res['success'] == true};
     } catch (e) {
       debugPrint('[LiveClassApiService] Error answering question: $e');
-      return false;
+      return null;
     }
   }
 
-  Future<bool> upvoteQuestion(String questionId) async {
+  Future<Map<String, dynamic>?> upvoteQuestion(String questionId) async {
     try {
       final res = await _apiService.post(
         '/live-classes/questions/$questionId/upvote',
         {},
       );
-      return res['success'] == true;
+      if (res['success'] == true && res['data'] != null) {
+        return res['data'] as Map<String, dynamic>;
+      }
+      return {'success': res['success'] == true};
     } catch (e) {
       debugPrint('[LiveClassApiService] Error upvoting question: $e');
-      return false;
+      return null;
     }
   }
 
@@ -912,6 +933,19 @@ class LiveClassApiService {
     }
   }
 
+  Future<Map<String, dynamic>?> fetchSessionSettings(String sessionId) async {
+    try {
+      final res = await _apiService.get('/live-classes/sessions/$sessionId/settings');
+      final data = res['data'] ?? res;
+      if (data != null && data is Map<String, dynamic>) {
+        return Map<String, dynamic>.from(data);
+      }
+    } catch (e) {
+      debugPrint('[LiveClassApiService] Error fetching session settings: $e');
+    }
+    return null;
+  }
+
   Future<bool> updateSessionSettings(
     String sessionId,
     Map<String, dynamic> settings,
@@ -945,6 +979,50 @@ class LiveClassApiService {
     } catch (e) {
       debugPrint('[LiveClassApiService] Error reassigning host: $e');
       return false;
+    }
+  }
+
+  Future<bool> reviewGuestRequest(
+    String sessionId,
+    String requestId, {
+    required String decision,
+    String? reason,
+  }) async {
+    try {
+      final res = await _apiService.post(
+        '/live-classes/sessions/$sessionId/guests/$requestId/review',
+        {
+          'decision': decision,
+          'reason': reason,
+        },
+      );
+      return res['success'] == true;
+    } catch (e) {
+      debugPrint('[LiveClassApiService] Error reviewing guest request: $e');
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> checkGuestAdmissionStatus(String requestId) async {
+    try {
+      final res = await _apiService.get('/live-classes/guest/status/$requestId');
+      final data = res['data'] ?? res;
+      return Map<String, dynamic>.from(data);
+    } catch (e) {
+      debugPrint('[LiveClassApiService] Error checking guest status: $e');
+      return null;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchWaitingRoomGuests(String sessionId) async {
+    try {
+      final res = await _apiService.get('/live-classes/sessions/$sessionId/waiting-room');
+      final data = res['data'] ?? res;
+      final rawList = (data['guests'] as List?) ?? [];
+      return rawList.map((x) => Map<String, dynamic>.from(x as Map)).toList();
+    } catch (e) {
+      debugPrint('[LiveClassApiService] Error fetching waiting room: $e');
+      return [];
     }
   }
 }

@@ -163,19 +163,10 @@ class _AddEditFacilityDialogState extends State<AddEditFacilityDialog> {
 
     // Save facility through API
     try {
-      final res = await CampusApiService.instance.saveRoom({
-        'name': payload['name'],
-        'room_number': payload['code'],
-        'room_code': payload['code'],
-        'room_type': payload['category'],
-        'building_id': payload['building_id'],
-        'floor_id': payload['floor_id'],
-        'max_capacity': payload['capacity'],
-        'area': payload['area'],
-        'operational_status': payload['status'] == 'Operational' ? 'Available' : 'Under Maintenance',
-        'responsible_person_name': payload['manager_name'],
-        'description': payload['description'],
-      }, roomId: widget.facility?['id']?.toString());
+      final res = await CampusApiService.instance.saveFacility(
+        payload,
+        facilityId: widget.facility?['id']?.toString(),
+      );
 
       if (mounted) {
         setState(() => _isSaving = false);
@@ -183,9 +174,7 @@ class _AddEditFacilityDialogState extends State<AddEditFacilityDialog> {
           Navigator.of(context).pop();
           widget.onSaved();
         } else {
-          setState(() => _error = res['message'] ?? 'Facility saved successfully.');
-          Navigator.of(context).pop();
-          widget.onSaved();
+          setState(() => _error = res['message'] ?? 'Failed to save facility.');
         }
       }
     } catch (e) {

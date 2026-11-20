@@ -5,6 +5,7 @@ import '../../../providers/device_management_provider.dart';
 import '../dialogs/create_edit_device_group_dialog.dart';
 import '../dialogs/advanced_group_control_dialog.dart';
 import '../dialogs/group_members_management_dialog.dart';
+import '../../common/campus_pagination_bar.dart';
 
 class DeviceGroupsSubview extends ConsumerStatefulWidget {
   final List<Map<String, dynamic>>? groups;
@@ -1517,164 +1518,14 @@ class _DeviceGroupsSubviewState extends ConsumerState<DeviceGroupsSubview> {
   // ============================================================================
 
   Widget _buildPaginationBar(DeviceManagementState state, DeviceManagementNotifier notifier, bool isDark) {
-    final totalCount = state.totalGroupsCount;
-    final startItem = totalCount == 0 ? 0 : ((state.groupsPage - 1) * state.groupsPageSize) + 1;
-    final endItem = totalCount == 0
-        ? 0
-        : (state.groupsPage * state.groupsPageSize > totalCount
-            ? totalCount
-            : state.groupsPage * state.groupsPageSize);
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 950;
-
-        final infoText = Text(
-          'Showing $startItem – $endItem of ${state.totalGroupsCount} groups',
-          style: TextStyle(
-            fontSize: 12,
-            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-          ),
-        );
-
-        final rowsPerPage = Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Rows per page: ',
-              style: TextStyle(
-                fontSize: 12,
-                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<int>(
-                  value: [5, 10, 20, 50, 100].contains(state.groupsPageSize) ? state.groupsPageSize : 10,
-                  isDense: true,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : const Color(0xFF334155),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 5, child: Text('5')),
-                    DropdownMenuItem(value: 10, child: Text('10')),
-                    DropdownMenuItem(value: 20, child: Text('20')),
-                    DropdownMenuItem(value: 50, child: Text('50')),
-                    DropdownMenuItem(value: 100, child: Text('100')),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) {
-                      notifier.setGroupsPageSize(val);
-                    }
-                  },
-                ),
-              ),
-            ),
-          ],
-        );
-
-        // Page buttons 1..totalPages
-        final pageButtons = Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.chevron_left, size: 18),
-              onPressed: state.groupsPage > 1 ? () => notifier.setGroupsPage(state.groupsPage - 1) : null,
-            ),
-            ...[1, 2, 3, 4, 5].where((p) => p <= state.groupsTotalPages).map((p) {
-              final isCur = p == state.groupsPage;
-              return InkWell(
-                onTap: () => notifier.setGroupsPage(p),
-                borderRadius: BorderRadius.circular(6),
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: isCur ? const Color(0xFF2563EB) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    '$p',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isCur ? FontWeight.w800 : FontWeight.w500,
-                      color: isCur ? Colors.white : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155)),
-                    ),
-                  ),
-                ),
-              );
-            }),
-            if (state.groupsTotalPages > 5) ...[
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Text('...', style: TextStyle(fontSize: 12)),
-              ),
-              InkWell(
-                onTap: () => notifier.setGroupsPage(state.groupsTotalPages),
-                borderRadius: BorderRadius.circular(6),
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: state.groupsPage == state.groupsTotalPages ? const Color(0xFF2563EB) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    '${state.groupsTotalPages}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: state.groupsPage == state.groupsTotalPages ? FontWeight.w800 : FontWeight.w500,
-                      color: state.groupsPage == state.groupsTotalPages
-                          ? Colors.white
-                          : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155)),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-            IconButton(
-              icon: const Icon(Icons.chevron_right, size: 18),
-              onPressed: state.groupsPage < state.groupsTotalPages ? () => notifier.setGroupsPage(state.groupsPage + 1) : null,
-            ),
-          ],
-        );
-
-        if (isCompact) {
-          return Column(
-            children: [
-              infoText,
-              const SizedBox(height: 8),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    rowsPerPage,
-                    const SizedBox(width: 16),
-                    pageButtons,
-                  ],
-                ),
-              ),
-            ],
-          );
-        }
-
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            infoText,
-            rowsPerPage,
-            pageButtons,
-          ],
-        );
-      },
+    return CampusPaginationBar(
+      currentPage: state.groupsPage,
+      pageSize: state.groupsPageSize,
+      totalCount: state.totalGroupsCount,
+      itemLabel: 'groups',
+      pageSizes: const [5, 10, 20, 50, 100],
+      onPageChanged: notifier.setGroupsPage,
+      onPageSizeChanged: notifier.setGroupsPageSize,
     );
   }
 

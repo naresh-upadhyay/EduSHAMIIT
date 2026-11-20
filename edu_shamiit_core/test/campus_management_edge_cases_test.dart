@@ -17,6 +17,7 @@ import 'package:edu_shamiit_core/screens/campus/widgets/safety_compliance/dialog
 import 'package:edu_shamiit_core/screens/campus/widgets/safety_compliance/dialogs/schedule_drill_dialog.dart';
 import 'package:edu_shamiit_core/screens/campus/models/campus_models.dart';
 import 'package:edu_shamiit_core/screens/campus/models/maintenance_models.dart';
+import 'package:edu_shamiit_core/screens/campus/widgets/buildings/building_right_details_panel.dart';
 
 class CampusNotifierFake extends CampusNotifier {
   final CampusState customState;
@@ -407,6 +408,158 @@ void main() {
       await tester.pump();
       expect(tester.takeException(), isNull);
       expect(find.text('Schedule Emergency Evacuation Drill'), findsOneWidget);
+    });
+
+    testWidgets('Rooms subtab renders 52 rooms with pagination and table/grid view without error', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1366, 768));
+
+      final sampleRooms = List.generate(
+        10,
+        (i) => RoomModel(
+          id: 'room-$i',
+          schoolId: 'sch-001',
+          buildingId: sampleBuilding.id,
+          buildingName: sampleBuilding.name,
+          buildingCode: sampleBuilding.code,
+          floorId: sampleFloor.id,
+          floorName: sampleFloor.name,
+          name: 'Classroom ${i + 1}',
+          roomNumber: '${i + 101}',
+          roomCode: 'RM-${i + 101}',
+          roomType: 'Classroom',
+          maxCapacity: 50,
+          currentOccupancy: 45,
+          operationalStatus: 'Available',
+          assignmentStatus: 'Assigned',
+        ),
+      );
+
+      final stateWithRooms = CampusState(
+        isLoading: false,
+        kpis: sampleKpis,
+        buildings: const [sampleBuilding],
+        selectedBuilding: sampleBuilding,
+        floors: const [sampleFloor],
+        activeBuildingSubTab: 1, // Rooms subtab
+        rooms: sampleRooms,
+        totalRoomsCount: 52,
+        roomsPage: 1,
+        roomsPageSize: 10,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            campusProvider.overrideWith((ref) => CampusNotifierFake(stateWithRooms)),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: CampusManagementScreen(initialTab: 0),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Classroom 1'), findsOneWidget);
+      expect(find.text('101'), findsOneWidget);
+      expect(find.text('Showing 1 - 10 of 52 rooms'), findsOneWidget);
+    });
+
+    testWidgets('6. Building Photo Upload & State Synchronization - BuildingRightDetailsPanel renders updated image', (tester) async {
+      final buildingWithImage = BuildingModel(
+        id: 'bld-sports-1',
+        schoolId: '11111111-1111-1111-1111-111111111111',
+        name: 'Sports Complex',
+        code: 'B6',
+        buildingType: 'Sports',
+        status: 'Active',
+        totalFloors: 2,
+        totalRooms: 6,
+        totalCapacity: 345,
+        currentOccupancy: 279,
+        imageUrl: '/api/campus/images/0368858b172e_scaled_images (2).jpeg',
+      );
+
+      final buildingWithoutImage = BuildingModel(
+        id: 'bld-academic-1',
+        schoolId: '11111111-1111-1111-1111-111111111111',
+        name: 'Academic Block',
+        code: 'B1',
+        buildingType: 'Academic',
+        status: 'Active',
+        totalFloors: 3,
+        totalRooms: 20,
+        totalCapacity: 500,
+        currentOccupancy: 150,
+        imageUrl: null,
+      );
+
+      // Verify widget with image
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: BuildingRightDetailsPanel(
+              building: buildingWithImage,
+              onAddRoom: () {},
+              onAllocateRoom: () {},
+              onRoomSetup: () {},
+              onImportRooms: () {},
+              onExportList: () {},
+              onRoomReport: () {},
+              onUpdateImage: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(Image), findsOneWidget);
+      expect(find.text('B6 - Sports Complex'), findsOneWidget);
+
+      // Verify widget without image shows upload button
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: BuildingRightDetailsPanel(
+              building: buildingWithoutImage,
+              onAddRoom: () {},
+              onAllocateRoom: () {},
+              onRoomSetup: () {},
+              onImportRooms: () {},
+              onExportList: () {},
+              onRoomReport: () {},
+              onUpdateImage: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Upload Building Photo'), findsOneWidget);
+    });
+
+    test('6. CampusNotifier.updateBuildingImage updates buildings and selectedBuilding', () {
+      final initialBuilding = BuildingModel(
+        id: 'bld-sports-1',
+        schoolId: '11111111-1111-1111-1111-111111111111',
+        name: 'Sports Complex',
+        code: 'B6',
+        buildingType: 'Sports',
+        status: 'Active',
+        imageUrl: 'https://old.url/image.jpg',
+      );
+
+      final notifier = CampusNotifierFake(CampusState(
+        buildings: [initialBuilding],
+        selectedBuilding: initialBuilding,
+      ));
+
+      notifier.updateBuildingImage('bld-sports-1', '/api/campus/images/new_image.jpg');
+
+      expect(notifier.state.buildings.first.imageUrl, equals('/api/campus/images/new_image.jpg'));
+      expect(notifier.state.selectedBuilding?.imageUrl, equals('/api/campus/images/new_image.jpg'));
     });
   });
 }

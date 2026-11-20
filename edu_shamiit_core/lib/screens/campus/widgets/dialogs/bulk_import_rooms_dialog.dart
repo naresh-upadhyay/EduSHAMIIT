@@ -54,11 +54,35 @@ B1,F1,109,Language Practice Studio,Smart Classroom,40,Available''',
       return;
     }
 
-    final headers = lines.first.split(',').map((h) => h.trim().toLowerCase()).toList();
+    List<String> parseCsvLine(String line) {
+      final result = <String>[];
+      final sb = StringBuffer();
+      bool inQuotes = false;
+      for (int i = 0; i < line.length; i++) {
+        final c = line[i];
+        if (c == '"') {
+          if (inQuotes && i + 1 < line.length && line[i + 1] == '"') {
+            sb.write('"');
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (c == ',' && !inQuotes) {
+          result.add(sb.toString().trim());
+          sb.clear();
+        } else {
+          sb.write(c);
+        }
+      }
+      result.add(sb.toString().trim());
+      return result;
+    }
+
+    final headers = parseCsvLine(lines.first).map((h) => h.toLowerCase()).toList();
     final rows = <Map<String, dynamic>>[];
 
     for (int i = 1; i < lines.length; i++) {
-      final parts = lines[i].split(',').map((p) => p.trim()).toList();
+      final parts = parseCsvLine(lines[i]);
       if (parts.length != headers.length) continue;
 
       final row = <String, dynamic>{};

@@ -22,6 +22,14 @@ class BuildingCenterPanel extends StatelessWidget {
   final ValueChanged<BuildingFloorModel> onEditFloor;
   final ValueChanged<BuildingFloorModel> onDeleteFloor;
   final ValueChanged<BuildingFloorModel> onViewRoomsOnFloor;
+  final int totalFloorsCount;
+  final int floorsPage;
+  final int floorsPageSize;
+  final ValueChanged<int>? onFloorsPageChanged;
+  final ValueChanged<int>? onFloorsPageSizeChanged;
+  final String? floorsSortBy;
+  final String? floorsSortOrder;
+  final void Function(String, bool)? onFloorsSortChanged;
 
   // Rooms Props
   final List<RoomModel> rooms;
@@ -43,6 +51,14 @@ class BuildingCenterPanel extends StatelessWidget {
   final ValueChanged<RoomModel> onEditRoom;
   final ValueChanged<RoomModel> onManageEquipment;
   final ValueChanged<RoomModel> onDeleteRoom;
+  final int totalRoomsCount;
+  final int roomsPage;
+  final int roomsPageSize;
+  final ValueChanged<int>? onRoomsPageChanged;
+  final ValueChanged<int>? onRoomsPageSizeChanged;
+  final String? roomsSortBy;
+  final String? roomsSortOrder;
+  final void Function(String, bool)? onRoomsSortChanged;
 
   // Occupancy Props
   final List<BuildingOccupancyModel> occupancyList;
@@ -81,6 +97,14 @@ class BuildingCenterPanel extends StatelessWidget {
     required this.onEditFloor,
     required this.onDeleteFloor,
     required this.onViewRoomsOnFloor,
+    this.totalFloorsCount = 0,
+    this.floorsPage = 1,
+    this.floorsPageSize = 10,
+    this.onFloorsPageChanged,
+    this.onFloorsPageSizeChanged,
+    this.floorsSortBy,
+    this.floorsSortOrder,
+    this.onFloorsSortChanged,
     required this.rooms,
     this.isRoomsLoading = false,
     required this.roomsViewMode,
@@ -100,6 +124,14 @@ class BuildingCenterPanel extends StatelessWidget {
     required this.onEditRoom,
     required this.onManageEquipment,
     required this.onDeleteRoom,
+    this.totalRoomsCount = 0,
+    this.roomsPage = 1,
+    this.roomsPageSize = 10,
+    this.onRoomsPageChanged,
+    this.onRoomsPageSizeChanged,
+    this.roomsSortBy,
+    this.roomsSortOrder,
+    this.onRoomsSortChanged,
     this.occupancyList = const [],
     this.isOccupancyLoading = false,
     this.onAddOccupancy,
@@ -133,146 +165,63 @@ class BuildingCenterPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. Building Header Card
+          // 1. Sleek Compact Building Summary Header (Combined header + mini metrics)
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
                 ),
               ],
             ),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final isCompact = constraints.maxWidth < 520;
-
-                return Column(
-                  children: [
-                    // Title and Actions
-                    if (isCompact) ...[
+                if (isCompact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
                               color: const Color(0xFF2563EB).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(6),
                             ),
-                            child: const Icon(Icons.apartment_rounded, color: Color(0xFF2563EB), size: 22),
+                            child: const Icon(Icons.apartment_rounded, color: Color(0xFF2563EB), size: 18),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               '${building.code} - ${building.name}',
                               style: TextStyle(
-                                fontSize: 16,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w700,
                                 color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert, size: 20, color: Color(0xFF64748B)),
-                            onSelected: (val) {
-                              if (val == 'archive') onArchiveBuilding();
-                              if (val == 'delete') onDeleteBuilding();
-                            },
-                            itemBuilder: (context) => [
-                              const PopupMenuItem(value: 'archive', child: Text('Archive Building')),
-                              const PopupMenuItem(value: 'delete', child: Text('Delete Building', style: TextStyle(color: Colors.red))),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        building.description ?? 'Campus building and facility complex',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 10),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: ElevatedButton.icon(
-                          onPressed: onEditBuilding,
-                          icon: const Icon(Icons.edit, size: 14, color: Colors.white),
-                          label: const Text('Edit Building', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF2563EB),
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                          ),
-                        ),
-                      ),
-                    ] else ...[
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF2563EB).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Icon(
-                              Icons.apartment_rounded,
-                              color: Color(0xFF2563EB),
-                              size: 26,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${building.code} - ${building.name}',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                    color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  building.description ?? 'Campus building and facility complex',
-                                  style: TextStyle(
-                                    fontSize: 12.5,
-                                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton.icon(
+                          IconButton(
+                            icon: const Icon(Icons.edit, size: 16),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
                             onPressed: onEditBuilding,
-                            icon: const Icon(Icons.edit, size: 14, color: Colors.white),
-                            label: const Text('Edit Building', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF2563EB),
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
-                            ),
                           ),
                           const SizedBox(width: 4),
                           PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert, size: 20, color: Color(0xFF64748B)),
+                            icon: const Icon(Icons.more_vert, size: 17, color: Color(0xFF64748B)),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
                             onSelected: (val) {
                               if (val == 'archive') onArchiveBuilding();
                               if (val == 'delete') onDeleteBuilding();
@@ -284,172 +233,140 @@ class BuildingCenterPanel extends StatelessWidget {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              building.buildingType,
+                              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
+                            ),
+                          ),
+                          _buildMiniBadge(Icons.layers_rounded, const Color(0xFF8B5CF6), '$totalFloors Floors', isDark),
+                          _buildMiniBadge(Icons.meeting_room_rounded, const Color(0xFF7C3AED), '$totalRooms Rooms', isDark),
+                          _buildMiniBadge(Icons.group_rounded, const Color(0xFF10B981), '${_formatNumber(totalCapacity)} Cap', isDark),
+                          _buildMiniBadge(Icons.pie_chart_rounded, const Color(0xFF0284C7), '${_formatNumber(currentOccupancy)} ($occupancyRate%)', isDark),
+                        ],
+                      ),
                     ],
-                    const SizedBox(height: 16),
-
-                    // Mini KPI Stats Row for Selected Building
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                        ),
-                      ),
-                      child: LayoutBuilder(
-                        builder: (context, miniConstraints) {
-                          if (miniConstraints.maxWidth < 560) {
-                            // 2x2 grid for mobile
-                            return Column(
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _buildMiniStat(
-                                        icon: Icons.layers_rounded,
-                                        iconColor: const Color(0xFF8B5CF6),
-                                        label: 'Total Floors',
-                                        value: '$totalFloors',
-                                        isDark: isDark,
-                                      ),
-                                    ),
-                                    Container(width: 1, height: 32, color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                                    Expanded(
-                                      child: _buildMiniStat(
-                                        icon: Icons.meeting_room_rounded,
-                                        iconColor: const Color(0xFF7C3AED),
-                                        label: 'Total Rooms',
-                                        value: '$totalRooms',
-                                        isDark: isDark,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Divider(height: 18, color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _buildMiniStat(
-                                        icon: Icons.group_rounded,
-                                        iconColor: const Color(0xFF10B981),
-                                        label: 'Total Capacity',
-                                        value: _formatNumber(totalCapacity),
-                                        isDark: isDark,
-                                      ),
-                                    ),
-                                    Container(width: 1, height: 32, color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                                    Expanded(
-                                      child: _buildMiniStat(
-                                        icon: Icons.pie_chart_rounded,
-                                        iconColor: const Color(0xFF0284C7),
-                                        label: 'Occupancy',
-                                        value: '${_formatNumber(currentOccupancy)} ($occupancyRate%)',
-                                        isDark: isDark,
-                                        valueColor: const Color(0xFF059669),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            );
-                          }
-
-                          return Row(
-                            children: [
-                              Expanded(
-                                child: _buildMiniStat(
-                                  icon: Icons.layers_rounded,
-                                  iconColor: const Color(0xFF8B5CF6),
-                                  label: 'Total Floors',
-                                  value: '$totalFloors',
-                                  isDark: isDark,
-                                ),
-                              ),
-                              Container(width: 1, height: 34, color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                              Expanded(
-                                child: _buildMiniStat(
-                                  icon: Icons.meeting_room_rounded,
-                                  iconColor: const Color(0xFF7C3AED),
-                                  label: 'Total Rooms',
-                                  value: '$totalRooms',
-                                  isDark: isDark,
-                                ),
-                              ),
-                              Container(width: 1, height: 34, color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                              Expanded(
-                                child: _buildMiniStat(
-                                  icon: Icons.group_rounded,
-                                  iconColor: const Color(0xFF10B981),
-                                  label: 'Total Capacity',
-                                  value: _formatNumber(totalCapacity),
-                                  isDark: isDark,
-                                ),
-                              ),
-                              Container(width: 1, height: 34, color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                              Expanded(
-                                child: _buildMiniStat(
-                                  icon: Icons.pie_chart_rounded,
-                                  iconColor: const Color(0xFF0284C7),
-                                  label: 'Occupancy',
-                                  value: '${_formatNumber(currentOccupancy)} ($occupancyRate%)',
-                                  isDark: isDark,
-                                  valueColor: const Color(0xFF059669),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // 2. Sub-Tabs Bar: Floors | Rooms | Occupancy | Maintenance | Documents
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-              ),
-            ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth < 600) {
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildSubTabItemScrollable('Floors', Icons.layers_outlined, 0),
-                        _buildSubTabItemScrollable('Rooms', Icons.meeting_room_outlined, 1),
-                        _buildSubTabItemScrollable('Occupancy', Icons.pie_chart_outline, 2),
-                        _buildSubTabItemScrollable('Maintenance', Icons.build_outlined, 3),
-                        _buildSubTabItemScrollable('Documents', Icons.description_outlined, 4),
-                      ],
-                    ),
                   );
                 }
 
                 return Row(
                   children: [
-                    _buildSubTabItem('Floors', Icons.layers_outlined, 0),
-                    _buildSubTabItem('Rooms', Icons.meeting_room_outlined, 1),
-                    _buildSubTabItem('Occupancy', Icons.pie_chart_outline, 2),
-                    _buildSubTabItem('Maintenance', Icons.build_outlined, 3),
-                    _buildSubTabItem('Documents', Icons.description_outlined, 4),
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Icon(Icons.apartment_rounded, color: Color(0xFF2563EB), size: 18),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          Text(
+                            '${building.code} - ${building.name}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              building.buildingType,
+                              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
+                            ),
+                          ),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              _buildMiniBadge(Icons.layers_rounded, const Color(0xFF8B5CF6), '$totalFloors Floors', isDark),
+                              _buildMiniBadge(Icons.meeting_room_rounded, const Color(0xFF7C3AED), '$totalRooms Rooms', isDark),
+                              _buildMiniBadge(Icons.group_rounded, const Color(0xFF10B981), '${_formatNumber(totalCapacity)} Cap', isDark),
+                              _buildMiniBadge(Icons.pie_chart_rounded, const Color(0xFF0284C7), '${_formatNumber(currentOccupancy)} ($occupancyRate%)', isDark),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    OutlinedButton.icon(
+                      onPressed: onEditBuilding,
+                      icon: const Icon(Icons.edit, size: 12),
+                      label: const Text('Edit Building', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, size: 17, color: Color(0xFF64748B)),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onSelected: (val) {
+                        if (val == 'archive') onArchiveBuilding();
+                        if (val == 'delete') onDeleteBuilding();
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(value: 'archive', child: Text('Archive Building')),
+                        const PopupMenuItem(value: 'delete', child: Text('Delete Building', style: TextStyle(color: Colors.red))),
+                      ],
+                    ),
                   ],
                 );
               },
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
 
-          // 3. Tab Body
+          // 2. Sub-Tabs Bar: Floors | Rooms | Occupancy | Maintenance | Documents
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildSubTabItem('Floors', Icons.layers_outlined, 0),
+                  _buildSubTabItem('Rooms', Icons.meeting_room_outlined, 1),
+                  _buildSubTabItem('Occupancy', Icons.pie_chart_outline, 2),
+                  _buildSubTabItem('Maintenance', Icons.build_circle_outlined, 3),
+                  _buildSubTabItem('Documents', Icons.description_outlined, 4),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // 3. Active Subtab View Content
           if (activeSubTab == 0)
             FloorsSubtabView(
               building: building,
@@ -459,6 +376,14 @@ class BuildingCenterPanel extends StatelessWidget {
               onEditFloor: onEditFloor,
               onDeleteFloor: onDeleteFloor,
               onViewRooms: onViewRoomsOnFloor,
+              totalFloorsCount: totalFloorsCount > 0 ? totalFloorsCount : floors.length,
+              currentPage: floorsPage,
+              pageSize: floorsPageSize,
+              onPageChanged: onFloorsPageChanged ?? (_) {},
+              onPageSizeChanged: onFloorsPageSizeChanged ?? (_) {},
+              sortBy: floorsSortBy,
+              sortOrder: floorsSortOrder,
+              onSortChanged: onFloorsSortChanged,
             )
           else if (activeSubTab == 1)
             RoomsSubtabView(
@@ -483,6 +408,14 @@ class BuildingCenterPanel extends StatelessWidget {
               onEditRoom: onEditRoom,
               onManageEquipment: onManageEquipment,
               onDeleteRoom: onDeleteRoom,
+              totalRoomsCount: totalRoomsCount > 0 ? totalRoomsCount : rooms.length,
+              currentPage: roomsPage,
+              pageSize: roomsPageSize,
+              onPageChanged: onRoomsPageChanged ?? (_) {},
+              onPageSizeChanged: onRoomsPageSizeChanged ?? (_) {},
+              sortBy: roomsSortBy,
+              sortOrder: roomsSortOrder,
+              onSortChanged: onRoomsSortChanged,
             )
           else if (activeSubTab == 2)
             OccupancySubtabView(
@@ -520,94 +453,39 @@ class BuildingCenterPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildMiniStat({
-    required IconData icon,
-    required Color iconColor,
-    required String label,
-    required String value,
-    required bool isDark,
-    Color? valueColor,
-  }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, size: 20, color: iconColor),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: TextStyle(fontSize: 10.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 1),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                  color: valueColor ?? (isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A)),
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+  Widget _buildMiniBadge(IconData icon, Color color, String text, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 3),
+          Flexible(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: color),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildSubTabItem(String label, IconData icon, int index) {
     final isActive = activeSubTab == index;
 
-    return Expanded(
-      child: InkWell(
-        onTap: () => onSubTabChanged(index),
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: isActive ? const Color(0xFF2563EB) : Colors.transparent,
-                width: 2.5,
-              ),
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 16, color: isActive ? const Color(0xFF2563EB) : const Color(0xFF64748B)),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                    color: isActive ? const Color(0xFF2563EB) : const Color(0xFF64748B),
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSubTabItemScrollable(String label, IconData icon, int index) {
-    final isActive = activeSubTab == index;
-
     return InkWell(
       onTap: () => onSubTabChanged(index),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(6),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
@@ -617,14 +495,19 @@ class BuildingCenterPanel extends StatelessWidget {
           ),
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: isActive ? const Color(0xFF2563EB) : const Color(0xFF64748B)),
+            Icon(
+              icon,
+              size: 14,
+              color: isActive ? const Color(0xFF2563EB) : const Color(0xFF64748B),
+            ),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                 color: isActive ? const Color(0xFF2563EB) : const Color(0xFF64748B),
               ),
@@ -635,14 +518,10 @@ class BuildingCenterPanel extends StatelessWidget {
     );
   }
 
-
-
   String _formatNumber(int val) {
-    if (val >= 1000) {
-      final s = val.toString();
-      final len = s.length;
-      return '${s.substring(0, len - 3)},${s.substring(len - 3)}';
-    }
-    return val.toString();
+    return val.toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
   }
 }

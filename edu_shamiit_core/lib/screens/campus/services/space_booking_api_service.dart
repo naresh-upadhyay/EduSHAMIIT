@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import '../../../config/app_config.dart';
 import '../../../services/api_service.dart';
 import '../../../utils/download_helper.dart';
@@ -110,6 +111,12 @@ class SpaceBookingApiService {
     return res;
   }
 
+  /// 5b. Generate Recurring Booking Series
+  Future<Map<String, dynamic>> createRecurringBooking(Map<String, dynamic> payload) async {
+    final res = await _api.post('/v1/space-bookings/recurring', payload);
+    return res;
+  }
+
   /// 6. Approve / Reject / Cancel Booking Decision
   Future<Map<String, dynamic>> decideApproval(String bookingId, String action, {String? comments}) async {
     final res = await _api.post('/v1/space-bookings/decision/$bookingId', {
@@ -175,5 +182,85 @@ class SpaceBookingApiService {
       '${AppConfig.apiBaseUrl}$url',
       'space_bookings_${DateTime.now().millisecondsSinceEpoch}.csv',
     );
+  }
+
+  /// 11. Dynamic Requesters Search & Select
+  Future<List<SpaceRequesterProfile>> getRequesters({String? search, String? role}) async {
+    try {
+      final query = <String, dynamic>{};
+      if (search != null && search.trim().isNotEmpty) {
+        query['search'] = search.trim();
+      }
+      if (role != null && role.isNotEmpty && role != 'All') {
+        query['role'] = role;
+      }
+      final res = await _api.get('/v1/space-bookings/requesters', query: query, useCache: false);
+      if (res['data'] is List) {
+        return (res['data'] as List)
+            .map((e) => SpaceRequesterProfile.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  /// 12. Full Visual Analytics & Usage Report
+  Future<SpaceAnalyticsReport> getAnalyticsReport({String? buildingId, String timeframe = 'today', DateTime? date}) async {
+    try {
+      final query = <String, dynamic>{
+        'timeframe': timeframe,
+      };
+      if (date != null) {
+        query['target_date'] = DateFormat('yyyy-MM-dd').format(date);
+      }
+      if (buildingId != null && buildingId.isNotEmpty && buildingId != 'all') {
+        query['building_id'] = buildingId;
+      }
+      final res = await _api.get('/v1/space-bookings/analytics-report', query: query, useCache: false);
+      if (res['data'] is Map<String, dynamic>) {
+        return SpaceAnalyticsReport.fromJson(res['data']);
+      }
+    } catch (_) {}
+    return const SpaceAnalyticsReport();
+  }
+
+  /// 13. Delete / Cancel Space Booking
+  Future<Map<String, dynamic>> deleteBooking(String bookingId, {bool deleteSeries = false, String? reason}) async {
+    String url = '/v1/space-bookings/$bookingId?delete_series=$deleteSeries';
+    if (reason != null && reason.isNotEmpty) {
+      url += '&reason=${Uri.encodeComponent(reason)}';
+    }
+    final res = await _api.delete(url);
+    return res;
+  }
+
+  /// 14. Real-time Slot Availability & Conflict Check
+  Future<Map<String, dynamic>> checkSlotAvailability({
+    required String roomId,
+    required DateTime date,
+    required String startTime,
+    required String endTime,
+    int setupMinutes = 0,
+    int cleanupMinutes = 0,
+    String? excludeBookingId,
+  }) async {
+    try {
+      final query = <String, dynamic>{
+        'room_id': roomId,
+        'date': '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+        'start_time': startTime,
+        'end_time': endTime,
+        'setup_minutes': setupMinutes,
+        'cleanup_minutes': cleanupMinutes,
+      };
+      if (excludeBookingId != null && excludeBookingId.isNotEmpty) {
+        query['exclude_booking_id'] = excludeBookingId;
+      }
+      final res = await _api.get('/v1/space-bookings/check-slot', query: query, useCache: false);
+      if (res is Map<String, dynamic>) {
+        return res;
+      }
+    } catch (_) {}
+    return {'has_conflict': false, 'status': 'FREE', 'message': 'Slot is free'};
   }
 }

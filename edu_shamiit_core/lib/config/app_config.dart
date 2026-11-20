@@ -84,57 +84,64 @@ class AppConfig {
 
   /// Resolves media/document/image URLs dynamically depending on whether running in production or dev.
   static String resolveUrl(String? rawUrl) {
-    if (rawUrl == null || rawUrl.isEmpty) return '';
-    try {
-      final uri = Uri.parse(rawUrl);
-      if (!uri.hasScheme) return rawUrl;
-
-      if (_isProduction) {
-        final internalHosts = [
-          'kong',
-          'supabase-kong',
-          '127.0.0.1',
-          'localhost',
-          'eduapi.shamiit.com'
-        ];
-        if (internalHosts.contains(uri.host)) {
-          final prodUri = Uri.parse(_productionApiUrl);
-          return uri.replace(
-            scheme: prodUri.scheme,
-            host: prodUri.host,
-            port: prodUri.port == 80 || prodUri.port == 443 ? null : prodUri.port,
-          ).toString();
-        }
-        // Force HTTPS for production API calls
-        if (uri.host == 'eduapi.shamiit.com' && uri.scheme == 'http') {
-          return uri.replace(scheme: 'https').toString();
-        }
-        return rawUrl;
-      } else {
-        final internalHosts = [
-          'kong',
-          'supabase-kong',
-          '127.0.0.1',
-          'localhost'
-        ];
-        if (internalHosts.contains(uri.host)) {
-          int targetPort = 8082; // Default to local Nginx gateway
-          if (uri.path.contains('/storage/v1/')) {
-            targetPort = 8082; // Route storage requests through Nginx to prevent CORS issues
-          } else if (uri.port != 0 && uri.port != 80 && uri.port != 443) {
-            targetPort = uri.port;
+    if (rawUrl == null || rawUrl.trim().isEmpty) return '';
+    final trimmed = rawUrl.trim();
+    String result;
+    if (trimmed.startsWith('/')) {
+      result = '$baseUrl$trimmed';
+    } else {
+      try {
+        final uri = Uri.parse(trimmed);
+        if (!uri.hasScheme) {
+          result = '$baseUrl/$trimmed';
+        } else if (_isProduction) {
+          final internalHosts = [
+            'kong',
+            'supabase-kong',
+            '127.0.0.1',
+            'localhost',
+            'eduapi.shamiit.com'
+          ];
+          if (internalHosts.contains(uri.host)) {
+            final prodUri = Uri.parse(_productionApiUrl);
+            result = uri.replace(
+              scheme: prodUri.scheme,
+              host: prodUri.host,
+              port: prodUri.port == 80 || prodUri.port == 443 ? null : prodUri.port,
+            ).toString();
+          } else if (uri.host == 'eduapi.shamiit.com' && uri.scheme == 'http') {
+            result = uri.replace(scheme: 'https').toString();
+          } else {
+            result = rawUrl;
           }
-          return uri.replace(
-            scheme: 'http',
-            host: _host,
-            port: targetPort,
-          ).toString();
+        } else {
+          final internalHosts = [
+            'kong',
+            'supabase-kong',
+            '127.0.0.1',
+            'localhost'
+          ];
+          if (internalHosts.contains(uri.host)) {
+            int targetPort = 8082; // Default to local Nginx gateway
+            if (uri.path.contains('/storage/v1/')) {
+              targetPort = 8082; // Route storage requests through Nginx to prevent CORS issues
+            } else if (uri.port != 0 && uri.port != 80 && uri.port != 443) {
+              targetPort = uri.port;
+            }
+            result = uri.replace(
+              scheme: 'http',
+              host: _host,
+              port: targetPort,
+            ).toString();
+          } else {
+            result = rawUrl;
+          }
         }
-        return rawUrl;
+      } catch (e) {
+        result = rawUrl;
       }
-    } catch (e) {
-      return rawUrl;
     }
+    return Uri.encodeFull(result);
   }
 
   /// Supabase Anon Key — uses cloud key in production, local key in dev

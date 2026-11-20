@@ -1665,6 +1665,7 @@ async def get_user_stats(
 )
 async def list_users(
     q: Optional[str] = None,
+    search: Optional[str] = None,
     role: Optional[str] = None,
     school_id: Optional[str] = None,
     status: Optional[str] = None,
@@ -1690,9 +1691,9 @@ async def list_users(
         if role and role != "All":
             query = query.eq("role", role)
             
-        if q and q.strip():
-            search_str = q.strip()
-            query = query.or_(f"full_name.ilike.%{search_str}%,email.ilike.%{search_str}%,user_id.ilike.%{search_str}%")
+        search_term = (q or search or "").strip()
+        if search_term:
+            query = query.or_(f"full_name.ilike.%{search_term}%,email.ilike.%{search_term}%,user_id.ilike.%{search_term}%")
             
         res = await query.order("created_at", ascending=False).aexecute()
         users = res.data or []

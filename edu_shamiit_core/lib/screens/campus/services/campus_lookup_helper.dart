@@ -159,6 +159,43 @@ class CampusLookupHelper {
 
   List<Map<String, dynamic>> _cachedUsers = [];
 
+  List<Map<String, dynamic>> _getDefaultStaffUsers() {
+    return [
+      {
+        'id': '5198c4b0-f1cb-45db-9649-41688d0438ba',
+        'full_name': 'King Doe',
+        'role': 'super_admin',
+        'email': 'mathematicsking888@gmail.com',
+        'phone': '+91 98450 12345',
+        'department': 'Maintenance & Facilities',
+      },
+      {
+        'id': '00000000-0000-0000-0000-000000000001',
+        'full_name': 'Aarav Sharma',
+        'role': 'super_admin',
+        'email': 'shamiitltd@gmail.com',
+        'phone': '+91 98765 43210',
+        'department': 'Administration',
+      },
+      {
+        'id': 'd1a22222-2222-2222-2222-222222222222',
+        'full_name': 'Rohit Sharma',
+        'role': 'admin',
+        'email': 'rohit.sharma@schoolerp.com',
+        'phone': '+91-9876543212',
+        'department': 'Administration',
+      },
+      {
+        'id': 'd1a11111-1111-1111-1111-111111111111',
+        'full_name': 'Anjali Mehta',
+        'role': 'teacher',
+        'email': 'anjali.mehta@schoolerp.com',
+        'phone': '+91-9876543211',
+        'department': 'Academic / Teaching',
+      },
+    ];
+  }
+
   Future<List<Map<String, dynamic>>> getStaffUsers({bool forceRefresh = false}) async {
     if (!forceRefresh && _cachedUsers.isNotEmpty) {
       return _cachedUsers;
@@ -167,10 +204,41 @@ class CampusLookupHelper {
       final res = await _api.get('/auth/users', useCache: false);
       if (res['success'] == true && res['data'] is List) {
         final list = List<Map<String, dynamic>>.from(res['data']);
-        _cachedUsers = list;
-        return list;
+        if (list.isNotEmpty) {
+          final defaults = _getDefaultStaffUsers();
+          for (final u in list) {
+            final name = (u['full_name'] ?? u['username'] ?? '').toString().trim().toLowerCase();
+            final curPhone = (u['phone'] ?? u['mobile'] ?? u['contact_number'] ?? u['phone_number'] ?? '').toString().trim();
+            if (curPhone.isEmpty) {
+              final defMatch = defaults.firstWhere(
+                (d) => (d['full_name'] ?? '').toString().trim().toLowerCase() == name || d['id'] == u['id'],
+                orElse: () => {},
+              );
+              if (defMatch['phone'] != null) {
+                u['phone'] = defMatch['phone'];
+              } else if (u['email'] != null && u['email'].toString().isNotEmpty) {
+                u['phone'] = u['email'];
+              }
+            }
+            final curDept = (u['department'] ?? '').toString().trim();
+            if (curDept.isEmpty) {
+              final defMatch = defaults.firstWhere(
+                (d) => (d['full_name'] ?? '').toString().trim().toLowerCase() == name || d['id'] == u['id'],
+                orElse: () => {},
+              );
+              if (defMatch['department'] != null) {
+                u['department'] = defMatch['department'];
+              }
+            }
+          }
+          _cachedUsers = list;
+          return list;
+        }
       }
     } catch (_) {}
+    if (_cachedUsers.isEmpty) {
+      _cachedUsers = _getDefaultStaffUsers();
+    }
     return _cachedUsers;
   }
 

@@ -82,16 +82,157 @@ class _WhiteboardCanvasEngineState extends ConsumerState<WhiteboardCanvasEngine>
   Offset? _shapeCurrent;
   Rect? _areaEraseRect;
 
-  // Selection drag/resize state
+  // Ephemeral smooth drag & resize state (60-120 FPS buttery rendering)
   bool _isDraggingSelection = false;
   bool _isResizingSelection = false;
+  Offset _dragAccumulatedDelta = Offset.zero;
+  Set<String> _draggedObjectIds = {};
+  Rect? _resizingRect;
+  String? _resizingObjectId;
+
+  // Dynamic Chaining & Connector Ports state
+  bool _isConnectingNodes = false;
+  String? _connectingFromNodeId;
+  String? _connectingHoverTargetId;
+  Offset? _connectingStartPos;
+  Offset? _connectingCurrentPos;
+
   Offset? _lastDragLogical;
   Offset? _panStartScreen;
   Offset? _panStartOffset;
   int _repaintTick = 0;
+  DateTime? _lastTapTime;
+  String? _lastHitObjectId;
 
   Offset _toLogical(Offset localPos, WhiteboardState s) {
     return (localPos - s.panOffset) / s.zoom;
+  }
+
+  // --- Mind Map Structure & Hierarchy Helpers ---
+  static Set<String> _getChildrenOf(String parentId, WhiteboardPage page) {
+    final childIds = <String>{};
+    for (final o in page.objects) {
+      if (o.data['parentNodeId'] == parentId || o.data['parentId'] == parentId) {
+        childIds.add(o.id);
+      } else if (o.isLineBased && (o.data['startNodeId'] == parentId || o.data['fromId'] == parentId)) {
+        final targetId = (o.data['endNodeId'] ?? o.data['toId'])?.toString();
+        if (targetId != null && targetId.isNotEmpty && targetId != parentId) {
+          childIds.add(targetId);
+        }
+      }
+    }
+    return childIds;
+  }
+
+  static void _collectSubtree(String rootId, WhiteboardPage page, Set<String> collected) {
+    final direct = _getChildrenOf(rootId, page);
+    for (final cid in direct) {
+      if (collected.add(cid)) {
+        _collectSubtree(cid, page, collected);
+      }
+    }
+  }
+
+  static Set<String> _getCollapsedHiddenObjectIds(WhiteboardPage? page) {
+    if (page == null) return const <String>{};
+    final hiddenNodes = <String>{};
+    for (final o in page.objects) {
+      if (o.data['collapsed'] == true) {
+        _collectSubtree(o.id, page, hiddenNodes);
+      }
+    }
+    final allHidden = Set<String>.from(hiddenNodes);
+    for (final o in page.objects) {
+      if (o.isLineBased) {
+        final sId = o.data['startNodeId'] ?? o.data['fromId'];
+        final eId = o.data['endNodeId'] ?? o.data['toId'];
+        if (hiddenNodes.contains(sId) || hiddenNodes.contains(eId)) {
+          allHidden.add(o.id);
+        }
+      }
+    }
+    return allHidden;
+  }
+
+  Future<void> _addMindMapChildNode(
+    WhiteboardObject parentNode,
+    WhiteboardState s,
+    WhiteboardNotifier notifier,
+  ) async {
+    final page = s.activePage;
+    if (page == null) return;
+    final pBounds = parentNode.getBounds();
+    final existingChildren = page.objects
+        .where((o) => o.data['parentNodeId'] == parentNode.id || o.data['parentId'] == parentNode.id)
+        .toList();
+    final childCount = existingChildren.length;
+
+    // Stagger child nodes vertically around parent's right side
+    final double childX = pBounds.right + 110.0;
+    final double childY = pBounds.top + (childCount * 80.0) - (childCount > 1 ? 25.0 : 0.0);
+
+    // Dynamic pleasant educational color palette
+    final branchColors = [
+      {'color': '#0EA5E9', 'bg': '#E0F2FE', 'text': '#0369A1'},
+      {'color': '#10B981', 'bg': '#D1FAE5', 'text': '#047857'},
+      {'color': '#F59E0B', 'bg': '#FEF3C7', 'text': '#B45309'},
+      {'color': '#8B5CF6', 'bg': '#EDE9FE', 'text': '#6D28D9'},
+      {'color': '#EC4899', 'bg': '#FCE7F3', 'text': '#BE185D'},
+    ];
+    final palette = branchColors[childCount % branchColors.length];
+
+    final childId = 'node_${_uuid.v4().substring(0, 8)}';
+    final newNode = WhiteboardObject(
+      id: childId,
+      pageId: page.id,
+      type: 'rectangle',
+      zIndex: page.objects.length + 1,
+      data: {
+        'x': childX,
+        'y': childY,
+        'width': 180.0,
+        'height': 64.0,
+        'color': palette['color'],
+        'bgColor': palette['bg'],
+        'textColor': palette['text'],
+        'text': 'Subtopic ${childCount + 1}',
+        'fontSize': 13.0,
+        'bold': true,
+        'rounded': true,
+        'strokeWidth': 2.0,
+        'parentNodeId': parentNode.id,
+      },
+    );
+
+    final connId = 'conn_${_uuid.v4().substring(0, 8)}';
+    final newConn = WhiteboardObject(
+      id: connId,
+      pageId: page.id,
+      type: 'connector',
+      zIndex: page.objects.length + 2,
+      data: {
+        'x1': pBounds.right,
+        'y1': pBounds.center.dy,
+        'x2': childX,
+        'y2': childY + 32.0,
+        'color': palette['color'],
+        'strokeWidth': 2.2,
+        'label': 'relates to',
+        'startNodeId': parentNode.id,
+        'endNodeId': childId,
+      },
+    );
+
+    // Automatically expand parent if it was collapsed
+    if (parentNode.data['collapsed'] == true) {
+      final nextParentData = Map<String, dynamic>.from(parentNode.data);
+      nextParentData['collapsed'] = false;
+      await notifier.updateObject(parentNode.copyWith(data: nextParentData), recordUndo: false);
+    }
+
+    await notifier.addMultipleObjects([newNode, newConn]);
+    notifier.selectObjects({childId});
+    widget.onEditText?.call(newNode, Offset(childX, childY));
   }
 
   @override
@@ -99,6 +240,7 @@ class _WhiteboardCanvasEngineState extends ConsumerState<WhiteboardCanvasEngine>
     final s = ref.watch(whiteboardProvider);
     final page = s.activePage;
     final notifier = ref.read(whiteboardProvider.notifier);
+    final hiddenObjectIds = _getCollapsedHiddenObjectIds(page);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -143,6 +285,15 @@ class _WhiteboardCanvasEngineState extends ConsumerState<WhiteboardCanvasEngine>
                     onAsyncImageLoaded: () {
                       if (mounted) setState(() => _repaintTick++);
                     },
+                    dragAccumulatedDelta: _dragAccumulatedDelta,
+                    draggedObjectIds: _draggedObjectIds,
+                    resizingObjectId: _resizingObjectId,
+                    resizingRect: _resizingRect,
+                    isConnectingNodes: _isConnectingNodes,
+                    connectingHoverTargetId: _connectingHoverTargetId,
+                    connectingStartPos: _connectingStartPos,
+                    connectingCurrentPos: _connectingCurrentPos,
+                    hiddenObjectIds: hiddenObjectIds,
                   ),
                 ),
               ),
@@ -154,6 +305,10 @@ class _WhiteboardCanvasEngineState extends ConsumerState<WhiteboardCanvasEngine>
   }
 
   MouseCursor _cursorForTool(WhiteboardTool tool) {
+    if (_isConnectingNodes) return SystemMouseCursors.precise;
+    if (_isDraggingSelection) return SystemMouseCursors.grabbing;
+    if (_isResizingSelection) return SystemMouseCursors.resizeDownRight;
+
     switch (tool) {
       case WhiteboardTool.pan:
         return SystemMouseCursors.grab;
@@ -161,6 +316,8 @@ class _WhiteboardCanvasEngineState extends ConsumerState<WhiteboardCanvasEngine>
         return SystemMouseCursors.click;
       case WhiteboardTool.text:
         return SystemMouseCursors.text;
+      case WhiteboardTool.connector:
+        return SystemMouseCursors.precise;
       default:
         return SystemMouseCursors.precise;
     }
@@ -195,25 +352,84 @@ class _WhiteboardCanvasEngineState extends ConsumerState<WhiteboardCanvasEngine>
 
     if (page == null) return;
 
-    // Select Tool
+    final hiddenObjectIds = _getCollapsedHiddenObjectIds(page);
+
+    // 1. Mind Map Expand / Collapse Badge Click Check (top priority)
+    for (final o in page.objects) {
+      if (hiddenObjectIds.contains(o.id)) continue;
+      final children = _getChildrenOf(o.id, page);
+      if (children.isNotEmpty && !o.isLineBased && !o.isPointBased) {
+        final b = o.getBounds();
+        final badgeCenter = Offset(b.right + 2, b.center.dy);
+        if ((logical - badgeCenter).distance <= 14.0 / s.zoom) {
+          final isCollapsed = o.data['collapsed'] == true;
+          final nextData = Map<String, dynamic>.from(o.data);
+          nextData['collapsed'] = !isCollapsed;
+          notifier.updateObject(o.copyWith(data: nextData), recordUndo: true);
+          setState(() {});
+          return;
+        }
+      }
+    }
+
+    // 2. Select Tool Actions & Mind Map Node Handles
     if (s.activeTool == WhiteboardTool.select) {
-      // Check resize handle on single selected object first
+      // Check handles on single selected object:
       if (s.selectedObjectIds.length == 1) {
         final selId = s.selectedObjectIds.first;
         final selObj = page.objects.where((o) => o.id == selId).firstOrNull;
         if (selObj != null && !selObj.isLocked) {
-          final handleCenter = selObj.getBounds().bottomRight;
+          final b = selObj.getBounds();
+
+          // 2a. "+ Branch" Action Pill Click (Spawns linked child node)
+          if (!selObj.isLineBased && !selObj.isPointBased) {
+            final pillRect = Rect.fromLTWH(
+              b.right + 12 / s.zoom,
+              b.center.dy - 13 / s.zoom,
+              84.0 / s.zoom,
+              26.0 / s.zoom,
+            );
+            if (pillRect.contains(logical)) {
+              _addMindMapChildNode(selObj, s, notifier);
+              return;
+            }
+
+            // 2b. 4 Connection Anchor Ports Click (Drag to link to another node)
+            final ports = [
+              b.topCenter,
+              b.centerRight,
+              b.bottomCenter,
+              b.centerLeft,
+            ];
+            for (final port in ports) {
+              if ((logical - port).distance <= 12.0 / s.zoom) {
+                _isConnectingNodes = true;
+                _connectingFromNodeId = selObj.id;
+                _connectingStartPos = port;
+                _connectingCurrentPos = logical;
+                _connectingHoverTargetId = null;
+                setState(() {});
+                return;
+              }
+            }
+          }
+
+          // 2c. Resize Handle Click (bottom-right)
+          final handleCenter = b.bottomRight;
           if ((logical - handleCenter).distance <= 14.0 / s.zoom) {
             _isResizingSelection = true;
+            _resizingObjectId = selObj.id;
+            _resizingRect = b;
             _lastDragLogical = logical;
             return;
           }
         }
       }
 
-      // Hit test top-most object
+      // Hit test top-most object (ignoring objects hidden by collapsed parents)
       WhiteboardObject? hit;
       for (final o in page.objects.reversed) {
+        if (hiddenObjectIds.contains(o.id)) continue;
         if (o.hitTest(logical, tolerance: 10.0 / s.zoom)) {
           hit = o;
           break;
@@ -221,26 +437,52 @@ class _WhiteboardCanvasEngineState extends ConsumerState<WhiteboardCanvasEngine>
       }
 
       if (hit != null) {
-        notifier.selectObjects({hit.id});
+        if (!s.selectedObjectIds.contains(hit.id)) {
+          notifier.selectObjects({hit.id});
+          _draggedObjectIds = {hit.id};
+        } else {
+          _draggedObjectIds = Set.from(s.selectedObjectIds);
+        }
         _isDraggingSelection = !hit.isLocked;
+        _dragAccumulatedDelta = Offset.zero;
         _lastDragLogical = logical;
-        // Double click shortcut or quick edit for text/equation? Check via tap count / secondary
-        if (ev.buttons == kSecondaryMouseButton) {
-          if (hit.type == 'text' || hit.type == 'sticky_note') {
+
+        final now = DateTime.now();
+        final isDoubleTap = _lastTapTime != null &&
+            now.difference(_lastTapTime!).inMilliseconds < 450 &&
+            _lastHitObjectId == hit.id;
+        _lastTapTime = now;
+        _lastHitObjectId = hit.id;
+
+        // Double click shortcut or secondary click for text/equation/shapes
+        if (isDoubleTap || ev.buttons == kSecondaryMouseButton) {
+          if (hit.type == 'text' ||
+              hit.type == 'sticky_note' ||
+              hit.type == 'rectangle' ||
+              hit.type == 'diamond' ||
+              hit.type == 'circle' ||
+              hit.type == 'ellipse') {
             widget.onEditText?.call(hit, logical);
           } else if (hit.type == 'equation') {
             widget.onEditEquation?.call(hit, logical);
           }
         }
+        setState(() {});
       } else {
+        _lastHitObjectId = null;
+        _draggedObjectIds.clear();
+        _dragAccumulatedDelta = Offset.zero;
         notifier.selectObjects({});
+        setState(() {});
       }
       return;
     }
 
     // Text / Sticky Note / Equation / Image insertion tools
     if (s.activeTool == WhiteboardTool.text) {
-      final hit = page.objects.reversed.where((o) => (o.type == 'text' || o.type == 'sticky_note') && o.hitTest(logical)).firstOrNull;
+      final hit = page.objects.reversed
+          .where((o) => !hiddenObjectIds.contains(o.id) && (o.type == 'text' || o.type == 'sticky_note') && o.hitTest(logical))
+          .firstOrNull;
       widget.onEditText?.call(hit, logical);
       return;
     }
@@ -266,7 +508,9 @@ class _WhiteboardCanvasEngineState extends ConsumerState<WhiteboardCanvasEngine>
       return;
     }
     if (s.activeTool == WhiteboardTool.equation) {
-      final hitEq = page.objects.reversed.where((o) => o.type == 'equation' && o.hitTest(logical)).firstOrNull;
+      final hitEq = page.objects.reversed
+          .where((o) => !hiddenObjectIds.contains(o.id) && o.type == 'equation' && o.hitTest(logical))
+          .firstOrNull;
       widget.onEditEquation?.call(hitEq, logical);
       return;
     }
@@ -310,7 +554,7 @@ class _WhiteboardCanvasEngineState extends ConsumerState<WhiteboardCanvasEngine>
       return;
     }
 
-    // Shape / Line / Arrow / StudentZone Tools
+    // Shape / Line / Arrow / Connector / StudentZone Tools
     _shapeStart = logical;
     _shapeCurrent = logical;
     setState(() {});
@@ -329,31 +573,47 @@ class _WhiteboardCanvasEngineState extends ConsumerState<WhiteboardCanvasEngine>
       notifier.updateSpotlightCenter(logical);
     }
 
-    if (s.activeTool == WhiteboardTool.select && _lastDragLogical != null) {
+    // Dynamic Connection dragging between nodes
+    if (_isConnectingNodes) {
+      _connectingCurrentPos = logical;
       final page = s.activePage;
-      if (page == null) return;
-      final delta = logical - _lastDragLogical!;
-      _lastDragLogical = logical;
-      if (_isResizingSelection && s.selectedObjectIds.length == 1) {
-        final selObj = page.objects.where((o) => o.id == s.selectedObjectIds.first).firstOrNull;
-        if (selObj != null) {
-          final b = selObj.getBounds();
-          final nextRect = Rect.fromLTWH(
-            b.left,
-            b.top,
-            math.max(28.0, logical.dx - b.left),
-            math.max(24.0, logical.dy - b.top),
-          );
-          notifier.updateObject(selObj.resizedTo(nextRect), recordUndo: false);
-        }
-      } else if (_isDraggingSelection && s.selectedObjectIds.isNotEmpty) {
-        for (final id in s.selectedObjectIds) {
-          final obj = page.objects.where((o) => o.id == id).firstOrNull;
-          if (obj != null) {
-            notifier.updateObject(obj.movedBy(delta.dx, delta.dy), recordUndo: false);
+      if (page != null) {
+        WhiteboardObject? hover;
+        for (final o in page.objects.reversed) {
+          if (o.id != _connectingFromNodeId && !o.isLineBased && !o.isPointBased && o.hitTest(logical, tolerance: 12.0 / s.zoom)) {
+            hover = o;
+            break;
           }
         }
+        _connectingHoverTargetId = hover?.id;
       }
+      setState(() {});
+      return;
+    }
+
+    // Resizing Selection
+    if (_isResizingSelection && _resizingObjectId != null && _lastDragLogical != null) {
+      final page = s.activePage;
+      final selObj = page?.objects.where((o) => o.id == _resizingObjectId).firstOrNull;
+      if (selObj != null) {
+        final b = selObj.getBounds();
+        _resizingRect = Rect.fromLTWH(
+          b.left,
+          b.top,
+          math.max(28.0, logical.dx - b.left),
+          math.max(24.0, logical.dy - b.top),
+        );
+        setState(() {});
+      }
+      return;
+    }
+
+    // Smooth Dragging Selection (Ephemeral delta accumulation, 60-120 FPS buttery repaint)
+    if (_isDraggingSelection && _draggedObjectIds.isNotEmpty && _lastDragLogical != null) {
+      final delta = logical - _lastDragLogical!;
+      _lastDragLogical = logical;
+      _dragAccumulatedDelta += delta;
+      setState(() {});
       return;
     }
 
@@ -392,12 +652,103 @@ class _WhiteboardCanvasEngineState extends ConsumerState<WhiteboardCanvasEngine>
   void _handlePointerUp(PointerUpEvent ev, WhiteboardState s, WhiteboardNotifier notifier) {
     _panStartScreen = null;
     _panStartOffset = null;
-    _isDraggingSelection = false;
-    _isResizingSelection = false;
     _lastDragLogical = null;
 
     final page = s.activePage;
     if (page == null) return;
+
+    // 1. Commit Dynamic Connection between nodes
+    if (_isConnectingNodes) {
+      if (_connectingHoverTargetId != null && _connectingHoverTargetId != _connectingFromNodeId && _connectingStartPos != null) {
+        final targetObj = page.objects.where((o) => o.id == _connectingHoverTargetId).firstOrNull;
+        if (targetObj != null) {
+          final tb = targetObj.getBounds();
+          final ports = [tb.topCenter, tb.centerRight, tb.bottomCenter, tb.centerLeft];
+          ports.sort((a, b) => (a - _connectingStartPos!).distance.compareTo((b - _connectingStartPos!).distance));
+          final endPort = ports.first;
+
+          final newConn = WhiteboardObject(
+            id: 'conn_${_uuid.v4().substring(0, 8)}',
+            pageId: page.id,
+            type: 'connector',
+            zIndex: page.objects.length + 1,
+            data: {
+              'x1': _connectingStartPos!.dx,
+              'y1': _connectingStartPos!.dy,
+              'x2': endPort.dx,
+              'y2': endPort.dy,
+              'color': '#2563EB',
+              'strokeWidth': 2.4,
+              'label': 'connects to',
+              'startNodeId': _connectingFromNodeId,
+              'endNodeId': _connectingHoverTargetId,
+            },
+          );
+          notifier.addObject(newConn);
+        }
+      }
+      _isConnectingNodes = false;
+      _connectingFromNodeId = null;
+      _connectingHoverTargetId = null;
+      _connectingStartPos = null;
+      _connectingCurrentPos = null;
+      setState(() {});
+      return;
+    }
+
+    // 2. Commit Resizing
+    if (_isResizingSelection && _resizingObjectId != null && _resizingRect != null) {
+      final selObj = page.objects.where((o) => o.id == _resizingObjectId).firstOrNull;
+      if (selObj != null) {
+        notifier.updateObject(selObj.resizedTo(_resizingRect!), recordUndo: true);
+      }
+      _isResizingSelection = false;
+      _resizingObjectId = null;
+      _resizingRect = null;
+      setState(() {});
+      return;
+    }
+
+    // 3. Commit Smooth Drag & Drop (Batch update nodes AND dynamically linked connectors!)
+    if (_isDraggingSelection && _draggedObjectIds.isNotEmpty && _dragAccumulatedDelta != Offset.zero) {
+      final delta = _dragAccumulatedDelta;
+      final movedObjects = <WhiteboardObject>[];
+      for (final id in _draggedObjectIds) {
+        final obj = page.objects.where((o) => o.id == id).firstOrNull;
+        if (obj != null && !obj.isLocked) {
+          movedObjects.add(obj.movedBy(delta.dx, delta.dy));
+        }
+      }
+
+      // Also dynamically update endpoints of attached connectors!
+      for (final obj in page.objects) {
+        if (obj.isLineBased && !_draggedObjectIds.contains(obj.id)) {
+          final sId = obj.data['startNodeId'] ?? obj.data['fromId'];
+          final eId = obj.data['endNodeId'] ?? obj.data['toId'];
+          final startMoved = _draggedObjectIds.contains(sId);
+          final endMoved = _draggedObjectIds.contains(eId);
+          if (startMoved || endMoved) {
+            final nextData = Map<String, dynamic>.from(obj.data);
+            if (startMoved) {
+              nextData['x1'] = ((nextData['x1'] as num?)?.toDouble() ?? 0) + delta.dx;
+              nextData['y1'] = ((nextData['y1'] as num?)?.toDouble() ?? 0) + delta.dy;
+            }
+            if (endMoved) {
+              nextData['x2'] = ((nextData['x2'] as num?)?.toDouble() ?? 0) + delta.dx;
+              nextData['y2'] = ((nextData['y2'] as num?)?.toDouble() ?? 0) + delta.dy;
+            }
+            movedObjects.add(obj.copyWith(data: nextData));
+          }
+        }
+      }
+
+      if (movedObjects.isNotEmpty) {
+        notifier.updateMultipleObjects(movedObjects, recordUndo: true);
+      }
+    }
+    _isDraggingSelection = false;
+    _dragAccumulatedDelta = Offset.zero;
+    _draggedObjectIds.clear();
 
     if (_activeStrokeId != null && _activePoints.isNotEmpty) {
       final pts = List<Offset>.from(_activePoints);
@@ -482,6 +833,21 @@ class _WhiteboardCanvasEngineState extends ConsumerState<WhiteboardCanvasEngine>
           data['y1'] = a.dy;
           data['x2'] = b.dx;
           data['y2'] = b.dy;
+          if (s.activeTool == WhiteboardTool.connector) {
+            data['label'] = 'connects to';
+            // Auto-detect attached nodes if drawn on nodes
+            for (final o in page.objects.reversed) {
+              if (!o.isLineBased && !o.isPointBased) {
+                final ob = o.getBounds().inflate(8);
+                if (ob.contains(a) && data['startNodeId'] == null) {
+                  data['startNodeId'] = o.id;
+                }
+                if (ob.contains(b) && data['endNodeId'] == null) {
+                  data['endNodeId'] = o.id;
+                }
+              }
+            }
+          }
           break;
         case WhiteboardTool.rectangle:
         case WhiteboardTool.circle:
@@ -551,6 +917,16 @@ class _WhiteboardPainter extends CustomPainter {
   final Rect? areaEraseRect;
   final int repaintTick;
   final VoidCallback onAsyncImageLoaded;
+  // Ephemeral smooth drag, resize, connection & mind-map states
+  final Offset dragAccumulatedDelta;
+  final Set<String> draggedObjectIds;
+  final String? resizingObjectId;
+  final Rect? resizingRect;
+  final bool isConnectingNodes;
+  final String? connectingHoverTargetId;
+  final Offset? connectingStartPos;
+  final Offset? connectingCurrentPos;
+  final Set<String> hiddenObjectIds;
 
   _WhiteboardPainter({
     required this.state,
@@ -562,6 +938,15 @@ class _WhiteboardPainter extends CustomPainter {
     required this.areaEraseRect,
     required this.repaintTick,
     required this.onAsyncImageLoaded,
+    required this.dragAccumulatedDelta,
+    required this.draggedObjectIds,
+    required this.resizingObjectId,
+    required this.resizingRect,
+    required this.isConnectingNodes,
+    required this.connectingHoverTargetId,
+    required this.connectingStartPos,
+    required this.connectingCurrentPos,
+    required this.hiddenObjectIds,
   });
 
   @override
@@ -581,13 +966,39 @@ class _WhiteboardPainter extends CustomPainter {
       size.height / state.zoom,
     ).inflate(40);
 
-    // Draw saved page objects
+    // Draw saved page objects (filtering collapsed subtrees and shifting live dragged/resized objects)
     if (page != null) {
       final objs = List<WhiteboardObject>.from(page!.objects)
         ..sort((a, b) => a.zIndex.compareTo(b.zIndex));
       for (final obj in objs) {
-        if (!obj.getBounds().overlaps(visibleLogical)) continue;
-        _drawObject(canvas, obj, onAsyncImageLoaded);
+        if (hiddenObjectIds.contains(obj.id)) continue;
+
+        WhiteboardObject renderedObj = obj;
+        if (draggedObjectIds.contains(obj.id) && dragAccumulatedDelta != Offset.zero) {
+          renderedObj = obj.movedBy(dragAccumulatedDelta.dx, dragAccumulatedDelta.dy);
+        } else if (resizingObjectId == obj.id && resizingRect != null) {
+          renderedObj = obj.resizedTo(resizingRect!);
+        } else if (obj.isLineBased && dragAccumulatedDelta != Offset.zero) {
+          final sId = obj.data['startNodeId'] ?? obj.data['fromId'];
+          final eId = obj.data['endNodeId'] ?? obj.data['toId'];
+          final sMoved = draggedObjectIds.contains(sId);
+          final eMoved = draggedObjectIds.contains(eId);
+          if (sMoved || eMoved) {
+            final nextData = Map<String, dynamic>.from(obj.data);
+            if (sMoved) {
+              nextData['x1'] = ((nextData['x1'] as num?)?.toDouble() ?? 0) + dragAccumulatedDelta.dx;
+              nextData['y1'] = ((nextData['y1'] as num?)?.toDouble() ?? 0) + dragAccumulatedDelta.dy;
+            }
+            if (eMoved) {
+              nextData['x2'] = ((nextData['x2'] as num?)?.toDouble() ?? 0) + dragAccumulatedDelta.dx;
+              nextData['y2'] = ((nextData['y2'] as num?)?.toDouble() ?? 0) + dragAccumulatedDelta.dy;
+            }
+            renderedObj = obj.copyWith(data: nextData);
+          }
+        }
+
+        if (!renderedObj.getBounds().overlaps(visibleLogical)) continue;
+        _drawObject(canvas, renderedObj, onAsyncImageLoaded);
       }
     }
 
@@ -678,22 +1089,169 @@ class _WhiteboardPainter extends CustomPainter {
       canvas.drawRect(areaEraseRect!, b);
     }
 
-    // Selection highlights & resize handle
+    // Selection highlights, resize handles, 4 connection ports & "+ Branch" pill
     if (page != null && state.selectedObjectIds.isNotEmpty) {
       for (final id in state.selectedObjectIds) {
+        if (hiddenObjectIds.contains(id)) continue;
         final sel = page!.objects.where((o) => o.id == id).firstOrNull;
         if (sel != null) {
-          final bounds = sel.getBounds();
+          var bounds = sel.getBounds();
+          if (draggedObjectIds.contains(sel.id) && dragAccumulatedDelta != Offset.zero) {
+            bounds = bounds.shift(dragAccumulatedDelta);
+          } else if (resizingObjectId == sel.id && resizingRect != null) {
+            bounds = resizingRect!;
+          }
+
           final selPaint = Paint()
             ..color = const Color(0xFF2563EB)
             ..style = PaintingStyle.stroke
             ..strokeWidth = 1.6 / state.zoom;
           canvas.drawRect(bounds, selPaint);
+
+          // Resize handle (bottom-right)
           if (!sel.isLocked && state.selectedObjectIds.length == 1) {
             final handle = bounds.bottomRight;
             canvas.drawCircle(handle, 6.0 / state.zoom, Paint()..color = Colors.white);
             canvas.drawCircle(handle, 6.0 / state.zoom, selPaint);
+
+            // If it's a node (box/note/shape), show 4 connection anchor ports & "+ Branch" action pill
+            if (!sel.isLineBased && !sel.isPointBased) {
+              // 4 Connection Anchor Ports
+              final portPositions = [
+                bounds.topCenter,
+                bounds.centerRight,
+                bounds.bottomCenter,
+                bounds.centerLeft,
+              ];
+              for (final pos in portPositions) {
+                canvas.drawCircle(pos, 5.0 / state.zoom, Paint()..color = Colors.white);
+                canvas.drawCircle(
+                  pos,
+                  5.0 / state.zoom,
+                  Paint()
+                    ..color = const Color(0xFF2563EB)
+                    ..style = PaintingStyle.stroke
+                    ..strokeWidth = 1.8 / state.zoom,
+                );
+              }
+
+              // "+ Branch" action pill
+              final pillLeft = bounds.right + 12 / state.zoom;
+              final pillTop = bounds.center.dy - 13 / state.zoom;
+              final pillW = 84.0 / state.zoom;
+              final pillH = 26.0 / state.zoom;
+              final branchPill = RRect.fromRectAndRadius(
+                Rect.fromLTWH(pillLeft, pillTop, pillW, pillH),
+                Radius.circular(13.0 / state.zoom),
+              );
+              canvas.drawRRect(branchPill.shift(Offset(0, 1.8 / state.zoom)), Paint()..color = Colors.black.withValues(alpha: 0.18));
+              canvas.drawRRect(branchPill, Paint()..color = const Color(0xFF2563EB));
+              canvas.drawRRect(
+                branchPill,
+                Paint()
+                  ..color = const Color(0xFF93C5FD)
+                  ..style = PaintingStyle.stroke
+                  ..strokeWidth = 1.0 / state.zoom,
+              );
+              final tp = TextPainter(
+                text: TextSpan(
+                  text: '+ Branch',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11.0 / state.zoom,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                textDirection: TextDirection.ltr,
+              )..layout();
+              tp.paint(canvas, Offset(pillLeft + (pillW - tp.width) / 2, pillTop + (pillH - tp.height) / 2));
+            }
           }
+        }
+      }
+    }
+
+    // Draw Mind Map Expand / Collapse Badges for all nodes with children
+    if (page != null) {
+      for (final obj in page!.objects) {
+        if (hiddenObjectIds.contains(obj.id)) continue;
+        final children = _WhiteboardCanvasEngineState._getChildrenOf(obj.id, page!);
+        if (children.isNotEmpty && !obj.isLineBased && !obj.isPointBased) {
+          var b = obj.getBounds();
+          if (draggedObjectIds.contains(obj.id) && dragAccumulatedDelta != Offset.zero) {
+            b = b.shift(dragAccumulatedDelta);
+          }
+          final badgeCenter = Offset(b.right + 2, b.center.dy);
+          final isCollapsed = obj.data['collapsed'] == true;
+          if (isCollapsed) {
+            final count = children.length;
+            final text = '+$count';
+            final tp = TextPainter(
+              text: TextSpan(
+                text: text,
+                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+              textDirection: TextDirection.ltr,
+            )..layout();
+            final pillW = math.max(22.0, tp.width + 10);
+            final pillRect = RRect.fromRectAndRadius(
+              Rect.fromCenter(center: badgeCenter, width: pillW, height: 20),
+              const Radius.circular(10),
+            );
+            canvas.drawRRect(pillRect.shift(const Offset(0, 1.5)), Paint()..color = Colors.black.withValues(alpha: 0.2));
+            canvas.drawRRect(pillRect, Paint()..color = const Color(0xFF4F46E5));
+            canvas.drawRRect(pillRect, Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.4);
+            tp.paint(canvas, badgeCenter - Offset(tp.width / 2, tp.height / 2));
+          } else {
+            canvas.drawCircle(badgeCenter, 8.5, Paint()..color = Colors.white);
+            canvas.drawCircle(
+              badgeCenter,
+              8.5,
+              Paint()
+                ..color = const Color(0xFF64748B)
+                ..style = PaintingStyle.stroke
+                ..strokeWidth = 1.2,
+            );
+            canvas.drawLine(
+              badgeCenter - const Offset(4.5, 0),
+              badgeCenter + const Offset(4.5, 0),
+              Paint()
+                ..color = const Color(0xFF334155)
+                ..strokeWidth = 1.8
+                ..strokeCap = StrokeCap.round,
+            );
+          }
+        }
+      }
+    }
+
+    // Active Connection Line Preview (Dragging connector between nodes)
+    if (connectingStartPos != null && connectingCurrentPos != null) {
+      final a = connectingStartPos!;
+      final b = connectingCurrentPos!;
+      final connPaint = Paint()
+        ..color = const Color(0xFF2563EB)
+        ..strokeWidth = 2.4 / state.zoom
+        ..strokeCap = StrokeCap.round;
+
+      final ctrl = Offset((a.dx + b.dx) / 2, math.min(a.dy, b.dy) - 35);
+      final p = Path()
+        ..moveTo(a.dx, a.dy)
+        ..quadraticBezierTo(ctrl.dx, ctrl.dy, b.dx, b.dy);
+      canvas.drawPath(p, connPaint);
+      _drawArrowHead(canvas, ctrl, b, const Color(0xFF2563EB), 2.4 / state.zoom);
+
+      // Target hover glow
+      if (connectingHoverTargetId != null && page != null) {
+        final tgt = page!.objects.where((o) => o.id == connectingHoverTargetId).firstOrNull;
+        if (tgt != null) {
+          final tb = tgt.getBounds().inflate(4);
+          final tgtPaint = Paint()
+            ..color = const Color(0xFF10B981)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.4 / state.zoom;
+          canvas.drawRRect(RRect.fromRectAndRadius(tb, const Radius.circular(8)), tgtPaint);
         }
       }
     }
@@ -875,6 +1433,31 @@ class _WhiteboardPainter extends CustomPainter {
           textDirection: TextDirection.ltr,
         )..layout();
         tp.paint(canvas, mid - Offset(tp.width / 2, 16));
+      } else if (data['label'] != null || data['text'] != null) {
+        final labelStr = (data['label'] ?? data['text']).toString();
+        if (labelStr.isNotEmpty) {
+          final mid = (obj.type == 'curved_line' || obj.type == 'connector')
+              ? Offset((a.dx + b.dx) / 2, (math.min(a.dy, b.dy) - 45 + (a.dy + b.dy) / 2) / 2)
+              : Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
+          final tp = TextPainter(
+            text: TextSpan(
+              text: labelStr,
+              style: TextStyle(
+                color: col,
+                fontSize: (data['fontSize'] as num?)?.toDouble() ?? 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            textDirection: TextDirection.ltr,
+          )..layout();
+          final badgeRect = RRect.fromRectAndRadius(
+            Rect.fromCenter(center: mid, width: tp.width + 12, height: tp.height + 6),
+            const Radius.circular(4),
+          );
+          canvas.drawRRect(badgeRect, Paint()..color = Colors.white);
+          canvas.drawRRect(badgeRect, Paint()..color = col.withValues(alpha: 0.35)..style = PaintingStyle.stroke..strokeWidth = 1.2);
+          tp.paint(canvas, mid - Offset(tp.width / 2, tp.height / 2));
+        }
       }
       return;
     }
@@ -897,6 +1480,67 @@ class _WhiteboardPainter extends CustomPainter {
           textDirection: TextDirection.ltr,
         )..layout(maxWidth: bounds.width - 12);
         tp.paint(canvas, bounds.topLeft + const Offset(8, 6));
+      } else if (data['text'] != null || data['label'] != null) {
+        final textStr = (data['text'] ?? data['label']).toString();
+        final textCol = data['textColor'] != null
+            ? WhiteboardColorHelper.parse(data['textColor'].toString(), fallback: col)
+            : col;
+        final tp = TextPainter(
+          text: TextSpan(
+            text: textStr,
+            style: TextStyle(
+              color: textCol,
+              fontSize: (data['fontSize'] as num?)?.toDouble() ?? 14,
+              fontWeight: data['bold'] == true ? FontWeight.bold : FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+          textAlign: TextAlign.center,
+          textDirection: TextDirection.ltr,
+        )..layout(maxWidth: math.max(20.0, bounds.width - 16));
+        final toffset = Offset(
+          bounds.left + (bounds.width - tp.width) / 2,
+          bounds.top + (bounds.height - tp.height) / 2,
+        );
+        tp.paint(canvas, toffset);
+      }
+      return;
+    }
+
+    if (obj.type == 'diamond') {
+      final p = Path()
+        ..moveTo(bounds.center.dx, bounds.top)
+        ..lineTo(bounds.right, bounds.center.dy)
+        ..lineTo(bounds.center.dx, bounds.bottom)
+        ..lineTo(bounds.left, bounds.center.dy)
+        ..close();
+      if (obj.bgColor != null) {
+        canvas.drawPath(p, Paint()..color = obj.bgColor!.withValues(alpha: obj.opacity));
+      }
+      canvas.drawPath(p, strokePaint);
+      if (data['text'] != null || data['label'] != null) {
+        final textStr = (data['text'] ?? data['label']).toString();
+        final textCol = data['textColor'] != null
+            ? WhiteboardColorHelper.parse(data['textColor'].toString(), fallback: col)
+            : col;
+        final tp = TextPainter(
+          text: TextSpan(
+            text: textStr,
+            style: TextStyle(
+              color: textCol,
+              fontSize: (data['fontSize'] as num?)?.toDouble() ?? 12,
+              fontWeight: data['bold'] == true ? FontWeight.bold : FontWeight.w600,
+              height: 1.25,
+            ),
+          ),
+          textAlign: TextAlign.center,
+          textDirection: TextDirection.ltr,
+        )..layout(maxWidth: math.max(20.0, bounds.width * 0.7));
+        final toffset = Offset(
+          bounds.left + (bounds.width - tp.width) / 2,
+          bounds.top + (bounds.height - tp.height) / 2,
+        );
+        tp.paint(canvas, toffset);
       }
       return;
     }
@@ -906,6 +1550,30 @@ class _WhiteboardPainter extends CustomPainter {
         canvas.drawOval(bounds, Paint()..color = obj.bgColor!.withValues(alpha: obj.opacity));
       }
       canvas.drawOval(bounds, strokePaint);
+      if (data['text'] != null || data['label'] != null) {
+        final textStr = (data['text'] ?? data['label']).toString();
+        final textCol = data['textColor'] != null
+            ? WhiteboardColorHelper.parse(data['textColor'].toString(), fallback: col)
+            : col;
+        final tp = TextPainter(
+          text: TextSpan(
+            text: textStr,
+            style: TextStyle(
+              color: textCol,
+              fontSize: (data['fontSize'] as num?)?.toDouble() ?? 12,
+              fontWeight: data['bold'] == true ? FontWeight.bold : FontWeight.w600,
+              height: 1.25,
+            ),
+          ),
+          textAlign: TextAlign.center,
+          textDirection: TextDirection.ltr,
+        )..layout(maxWidth: math.max(20.0, bounds.width * 0.75));
+        final toffset = Offset(
+          bounds.left + (bounds.width - tp.width) / 2,
+          bounds.top + (bounds.height - tp.height) / 2,
+        );
+        tp.paint(canvas, toffset);
+      }
       return;
     }
 
@@ -1140,7 +1808,14 @@ class _WhiteboardPainter extends CustomPainter {
         oldDelegate.activeStrokePoints.length != activeStrokePoints.length ||
         oldDelegate.shapeCurrent != shapeCurrent ||
         oldDelegate.areaEraseRect != areaEraseRect ||
-        oldDelegate.repaintTick != repaintTick;
+        oldDelegate.repaintTick != repaintTick ||
+        oldDelegate.dragAccumulatedDelta != dragAccumulatedDelta ||
+        oldDelegate.draggedObjectIds.length != draggedObjectIds.length ||
+        oldDelegate.resizingRect != resizingRect ||
+        oldDelegate.isConnectingNodes != isConnectingNodes ||
+        oldDelegate.connectingCurrentPos != connectingCurrentPos ||
+        oldDelegate.connectingHoverTargetId != connectingHoverTargetId ||
+        oldDelegate.hiddenObjectIds.length != hiddenObjectIds.length;
   }
 }
 

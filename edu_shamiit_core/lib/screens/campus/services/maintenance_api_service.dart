@@ -35,6 +35,8 @@ class MaintenanceApiService {
     DateTime? endDate,
     int page = 1,
     int pageSize = 10,
+    String? sortBy,
+    String? sortOrder,
   }) async {
     try {
       final query = <String, dynamic>{
@@ -42,6 +44,12 @@ class MaintenanceApiService {
         'page': page,
         'page_size': pageSize,
       };
+      if (sortBy != null && sortBy.isNotEmpty) {
+        query['sort_by'] = sortBy;
+      }
+      if (sortOrder != null && sortOrder.isNotEmpty) {
+        query['sort_order'] = sortOrder;
+      }
       if (buildingId != null && buildingId.isNotEmpty && buildingId != 'all') {
         query['building_id'] = buildingId;
       }

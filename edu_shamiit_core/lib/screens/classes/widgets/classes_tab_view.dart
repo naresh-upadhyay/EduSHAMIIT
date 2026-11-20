@@ -743,10 +743,11 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
+              LayoutBuilder(
+                builder: (context, headerConstraints) {
+                  final isNarrowHeader = headerConstraints.maxWidth < 640;
+
+                  final classInfoWidget = Row(
                     children: [
                       // Big Grade Badge
                       Container(
@@ -767,119 +768,149 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                         ),
                       ),
                       const SizedBox(width: 14),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                cls.name,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: isDark
-                                      ? Colors.white
-                                      : const Color(0xFF0F172A),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    cls.name,
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: clsStatusColor.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(6),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        clsStatusColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    displayClsStatus,
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: clsStatusColor),
+                                  ),
                                 ),
-                                child: Text(
-                                  displayClsStatus,
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: clsStatusColor),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${cls.stage}  •  Class Code: ${cls.code}  •  Academic Year: ${cls.academicYear}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark
-                                  ? const Color(0xFF94A3B8)
-                                  : const Color(0xFF64748B),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-
-                  // Actions
-                  if (!isTeacher)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: () => _showEditClassDialog(
-                              context, cls, state, notifier),
-                          icon: const Icon(Icons.edit_outlined, size: 14),
-                          label: const Text('Edit Class'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 8),
-                            side: BorderSide(
+                            const SizedBox(height: 2),
+                            Text(
+                              '${cls.stage}  •  Class Code: ${cls.code}  •  AY: ${cls.academicYear}',
+                              style: TextStyle(
+                                fontSize: 12,
                                 color: isDark
-                                    ? const Color(0xFF334155)
-                                    : const Color(0xFFCBD5E1)),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        PopupMenuButton<String>(
-                          icon: const Icon(Icons.more_vert, size: 18),
-                          onSelected: (val) {
-                            if (val == 'archive') {
-                              _showArchiveClassDialog(context, cls, notifier);
-                            } else if (val == 'restore') {
-                              notifier.restoreClass(cls.id);
-                            }
-                          },
-                          itemBuilder: (ctx) => [
-                            if (isClsArchived)
-                              const PopupMenuItem(
-                                value: 'restore',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.restore,
-                                        size: 16, color: Color(0xFF10B981)),
-                                    SizedBox(width: 8),
-                                    Text('Restore Class',
-                                        style: TextStyle(
-                                            color: Color(0xFF10B981))),
-                                  ],
-                                ),
-                              )
-                            else
-                              const PopupMenuItem(
-                                value: 'archive',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.archive_outlined,
-                                        size: 16, color: Color(0xFFEF4444)),
-                                    SizedBox(width: 8),
-                                    Text('Archive Class',
-                                        style: TextStyle(
-                                            color: Color(0xFFEF4444))),
-                                  ],
-                                ),
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF64748B),
                               ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ],
                         ),
+                      ),
+                    ],
+                  );
+
+                  final actionsWidget = !isTeacher
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: () => _showEditClassDialog(
+                                  context, cls, state, notifier),
+                              icon: const Icon(Icons.edit_outlined, size: 14),
+                              label: const Text('Edit Class'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 8),
+                                side: BorderSide(
+                                    color: isDark
+                                        ? const Color(0xFF334155)
+                                        : const Color(0xFFCBD5E1)),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert, size: 18),
+                              onSelected: (val) {
+                                if (val == 'archive') {
+                                  _showArchiveClassDialog(
+                                      context, cls, notifier);
+                                } else if (val == 'restore') {
+                                  notifier.restoreClass(cls.id);
+                                }
+                              },
+                              itemBuilder: (ctx) => [
+                                if (isClsArchived)
+                                  const PopupMenuItem(
+                                    value: 'restore',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.restore,
+                                            size: 16, color: Color(0xFF10B981)),
+                                        SizedBox(width: 8),
+                                        Text('Restore Class',
+                                            style: TextStyle(
+                                                color: Color(0xFF10B981))),
+                                      ],
+                                    ),
+                                  )
+                                else
+                                  const PopupMenuItem(
+                                    value: 'archive',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.archive_outlined,
+                                            size: 16, color: Color(0xFFEF4444)),
+                                        SizedBox(width: 8),
+                                        Text('Archive Class',
+                                            style: TextStyle(
+                                                color: Color(0xFFEF4444))),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        )
+                      : const SizedBox.shrink();
+
+                  if (isNarrowHeader) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        classInfoWidget,
+                        if (!isTeacher) ...[
+                          const SizedBox(height: 12),
+                          actionsWidget,
+                        ],
                       ],
-                    ),
-                ],
+                    );
+                  }
+
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(child: classInfoWidget),
+                      const SizedBox(width: 16),
+                      actionsWidget,
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 18),
 
@@ -919,12 +950,15 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                   ];
 
                   if (boxConstraints.maxWidth < 750) {
+                    final isSmall = boxConstraints.maxWidth < 450;
                     return Wrap(
                       spacing: 12,
                       runSpacing: 12,
                       children: kpiCards
                           .map((c) => SizedBox(
-                              width: (boxConstraints.maxWidth - 24) / 2,
+                              width: isSmall
+                                  ? boxConstraints.maxWidth
+                                  : (boxConstraints.maxWidth - 24) / 2,
                               child: c))
                           .toList(),
                     );
@@ -1125,14 +1159,16 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Sections in this Class',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                Expanded(
+                  child: Text(
+                    'Sections in this Class',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -1411,7 +1447,10 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
           // Header
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Row(
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 8,
               children: [
                 Text(
                   'Subjects of ${cls.name}',
@@ -1421,13 +1460,10 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                     color: isDark ? Colors.white : const Color(0xFF0F172A),
                   ),
                 ),
-                const SizedBox(width: 14),
                 _buildLegendDot(
                     'Core: $coreCount', const Color(0xFF10B981), isDark),
-                const SizedBox(width: 10),
                 _buildLegendDot(
                     'Optional: $optCount', const Color(0xFFF59E0B), isDark),
-                const SizedBox(width: 10),
                 _buildLegendDot(
                     'Total: $totalCount', const Color(0xFF4F46E5), isDark),
               ],

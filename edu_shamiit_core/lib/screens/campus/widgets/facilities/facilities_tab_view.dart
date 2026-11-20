@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:math' as math;
 import '../../providers/campus_provider.dart';
 import '../../services/campus_api_service.dart';
 import '../../services/campus_lookup_helper.dart';
 import '../../models/campus_models.dart';
+import '../common/campus_pagination_bar.dart';
 import 'dialogs/add_edit_facility_dialog.dart';
 
 class FacilitiesTabView extends ConsumerStatefulWidget {
@@ -19,6 +21,10 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
   String _selectedStatus = 'All Statuses';
   int _viewMode = 0; // 0: Grid cards, 1: Table
   bool _isLoading = true;
+  int _page = 1;
+  int _pageSize = 10;
+  int? _sortColIndex = 0;
+  bool _sortAsc = true;
 
   List<Map<String, dynamic>> _facilities = [];
   List<String> _categories = ['All Categories'];
@@ -60,48 +66,55 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
       ],
     );
 
-    // Fetch rooms that act as institutional facilities
-    final roomsRes = await CampusApiService.instance.getRooms(page: 1, pageSize: 50);
-    final roomsList = (roomsRes['data'] as List<RoomModel>?) ?? [];
+    // Fetch facilities from database via dedicated Campus API
+    final facRes = await CampusApiService.instance.getFacilities(page: 1, pageSize: 100);
+    final facList = (facRes['data'] as List<dynamic>?) ?? [];
 
-    // Synthesize / map facilities from campus infrastructure rooms
     List<Map<String, dynamic>> facs = [];
-    if (roomsList.isNotEmpty) {
-      facs = roomsList.map((r) {
-        String cat = 'Specialized Laboratory';
-        if (r.roomType.toLowerCase().contains('lab')) {
-          cat = 'Specialized Laboratory';
-        } else if (r.roomType.toLowerCase().contains('auditorium') || r.roomType.toLowerCase().contains('hall')) {
-          cat = 'Auditorium & Amphitheater';
-        } else if (r.roomType.toLowerCase().contains('library')) {
-          cat = 'Library & Learning Commons';
-        } else if (r.roomType.toLowerCase().contains('sports') || r.roomType.toLowerCase().contains('gym')) {
-          cat = 'Sports Complex / Ground';
-        } else if (r.roomType.toLowerCase().contains('canteen') || r.roomType.toLowerCase().contains('dining')) {
-          cat = 'Dining & Cafeteria Hub';
-        } else if (r.roomType.toLowerCase().contains('medical') || r.roomType.toLowerCase().contains('clinic')) {
-          cat = 'Health Center & Clinic';
-        } else {
-          cat = 'Student Activity Center';
-        }
+    if (facList.isNotEmpty) {
+      facs = facList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } else {
+      // Fallback: Fetch rooms that act as institutional facilities
+      final roomsRes = await CampusApiService.instance.getRooms(page: 1, pageSize: 50);
+      final roomsList = (roomsRes['data'] as List<RoomModel>?) ?? [];
 
-        return {
-          'id': r.id,
-          'name': r.name.isNotEmpty ? r.name : 'Room ${r.roomNumber}',
-          'code': r.roomCode.isNotEmpty ? r.roomCode : r.roomNumber,
-          'category': cat,
-          'status': r.operationalStatus == 'Available' ? 'Operational' : (r.operationalStatus == 'Under Maintenance' ? 'Under Maintenance' : 'Reserved / In-Use'),
-          'building_id': r.buildingId,
-          'building_name': r.buildingName ?? 'Academic Complex',
-          'floor_name': r.floorName ?? 'Floor ${r.floorLevel ?? 1}',
-          'capacity': r.maxCapacity,
-          'area': r.area > 0 ? r.area : 1200.0,
-          'manager_name': r.responsiblePersonName ?? 'Campus Facility Officer',
-          'manager_phone': '+91 98765 43210',
-          'equipment_count': r.equipmentCount,
-          'description': r.description ?? 'Institutional infrastructure facility for student and academic use.',
-        };
-      }).toList();
+      if (roomsList.isNotEmpty) {
+        facs = roomsList.map((r) {
+          String cat = 'Specialized Laboratory';
+          if (r.roomType.toLowerCase().contains('lab')) {
+            cat = 'Specialized Laboratory';
+          } else if (r.roomType.toLowerCase().contains('auditorium') || r.roomType.toLowerCase().contains('hall')) {
+            cat = 'Auditorium & Amphitheater';
+          } else if (r.roomType.toLowerCase().contains('library')) {
+            cat = 'Library & Learning Commons';
+          } else if (r.roomType.toLowerCase().contains('sports') || r.roomType.toLowerCase().contains('gym')) {
+            cat = 'Sports Complex / Ground';
+          } else if (r.roomType.toLowerCase().contains('canteen') || r.roomType.toLowerCase().contains('dining')) {
+            cat = 'Dining & Cafeteria Hub';
+          } else if (r.roomType.toLowerCase().contains('medical') || r.roomType.toLowerCase().contains('clinic')) {
+            cat = 'Health Center & Clinic';
+          } else {
+            cat = 'Student Activity Center';
+          }
+
+          return {
+            'id': r.id,
+            'name': r.name.isNotEmpty ? r.name : 'Room ${r.roomNumber}',
+            'code': r.roomCode.isNotEmpty ? r.roomCode : r.roomNumber,
+            'category': cat,
+            'status': r.operationalStatus == 'Available' ? 'Operational' : (r.operationalStatus == 'Under Maintenance' ? 'Under Maintenance' : 'Reserved / In-Use'),
+            'building_id': r.buildingId,
+            'building_name': r.buildingName ?? 'Academic Complex',
+            'floor_name': r.floorName ?? 'Floor ${r.floorLevel ?? 1}',
+            'capacity': r.maxCapacity,
+            'area': r.area > 0 ? r.area : 1200.0,
+            'manager_name': r.responsiblePersonName ?? 'Campus Facility Officer',
+            'manager_phone': '+91 98765 43210',
+            'equipment_count': r.equipmentCount,
+            'description': r.description ?? 'Institutional infrastructure facility for student and academic use.',
+          };
+        }).toList();
+      }
     }
 
     // Include standard institutional campus facilities if list is small
@@ -199,6 +212,52 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
     );
   }
 
+  Future<void> _deleteFacility(Map<String, dynamic> f) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Facility'),
+        content: Text('Are you sure you want to delete "${f['name']}"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() => _isLoading = true);
+      final res = await CampusApiService.instance.deleteFacility(f['id'].toString());
+      if (res['success'] == true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Facility deleted successfully!'),
+              backgroundColor: Color(0xFF059669),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(res['message']?.toString() ?? 'Failed to delete facility'),
+              backgroundColor: const Color(0xFFEF4444),
+            ),
+          );
+        }
+      }
+      _loadData();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -223,6 +282,42 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
       }
       return true;
     }).toList();
+
+    // Sorting
+    filtered.sort((a, b) {
+      int cmp = 0;
+      switch (_sortColIndex) {
+        case 0:
+          cmp = (a['name'] ?? '').toString().compareTo((b['name'] ?? '').toString());
+          break;
+        case 1:
+          cmp = (a['category'] ?? '').toString().compareTo((b['category'] ?? '').toString());
+          break;
+        case 2:
+          cmp = (a['building_name'] ?? '').toString().compareTo((b['building_name'] ?? '').toString());
+          break;
+        case 3:
+          cmp = ((a['capacity'] as num?) ?? 0).compareTo((b['capacity'] as num?) ?? 0);
+          break;
+        case 4:
+          cmp = (a['manager_name'] ?? '').toString().compareTo((b['manager_name'] ?? '').toString());
+          break;
+        case 5:
+          cmp = (a['status'] ?? '').toString().compareTo((b['status'] ?? '').toString());
+          break;
+        default:
+          cmp = 0;
+      }
+      return _sortAsc ? cmp : -cmp;
+    });
+
+    final totalFiltered = filtered.length;
+    final totalPages = math.max(1, (totalFiltered / _pageSize).ceil());
+    if (_page > totalPages) _page = totalPages;
+
+    final startIndex = (totalFiltered == 0) ? 0 : (_page - 1) * _pageSize;
+    final endIndex = math.min(startIndex + _pageSize, totalFiltered);
+    final pagedItems = (startIndex < totalFiltered) ? filtered.sublist(startIndex, endIndex) : <Map<String, dynamic>>[];
 
     final totalCount = _facilities.length;
     final operationalCount = _facilities.where((f) => f['status'] == 'Operational').length;
@@ -426,7 +521,7 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
                   return GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: filtered.length,
+                    itemCount: pagedItems.length,
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: crossAxisCount,
                       crossAxisSpacing: 14,
@@ -434,7 +529,7 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
                       mainAxisExtent: 260,
                     ),
                     itemBuilder: (context, idx) {
-                      final item = filtered[idx];
+                      final item = pagedItems[idx];
                       return _buildFacilityCard(item, primaryColor, bgCard, borderColor, textPrimary, textSecondary, isDark);
                     },
                   );
@@ -450,70 +545,122 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
                 ),
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    columns: const [
-                      DataColumn(label: Text('Code / Name', style: TextStyle(fontWeight: FontWeight.w700))),
-                      DataColumn(label: Text('Category', style: TextStyle(fontWeight: FontWeight.w700))),
-                      DataColumn(label: Text('Location', style: TextStyle(fontWeight: FontWeight.w700))),
-                      DataColumn(label: Text('Capacity', style: TextStyle(fontWeight: FontWeight.w700))),
-                      DataColumn(label: Text('Supervisor', style: TextStyle(fontWeight: FontWeight.w700))),
-                      DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w700))),
-                      DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700))),
-                    ],
-                    rows: filtered.map((f) {
-                      final isOp = f['status'] == 'Operational';
-                      return DataRow(
-                        cells: [
-                          DataCell(Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(f['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                              Text(f['code'] ?? '', style: TextStyle(fontSize: 11, color: textSecondary)),
-                            ],
-                          )),
-                          DataCell(Text(f['category'] ?? '', style: const TextStyle(fontSize: 12.5))),
-                          DataCell(Text('${f['building_name']} • ${f['floor_name']}', style: const TextStyle(fontSize: 12))),
-                          DataCell(Text('${f['capacity']} Seats', style: const TextStyle(fontSize: 12.5))),
-                          DataCell(Text(f['manager_name'] ?? '', style: const TextStyle(fontSize: 12))),
-                          DataCell(Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: (isOp ? const Color(0xFF10B981) : const Color(0xFFF59E0B)).withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              f['status'] ?? '',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: isOp ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 800),
+                    child: DataTable(
+                      headingRowHeight: 34,
+                      dataRowMinHeight: 32,
+                      dataRowMaxHeight: 35,
+                      horizontalMargin: 12,
+                      columnSpacing: 16,
+                      sortColumnIndex: _sortColIndex,
+                      sortAscending: _sortAsc,
+                      columns: [
+                        DataColumn(
+                          label: const Text('Code / Name', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                          onSort: (col, asc) => setState(() { _sortColIndex = col; _sortAsc = asc; }),
+                        ),
+                        DataColumn(
+                          label: const Text('Category', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                          onSort: (col, asc) => setState(() { _sortColIndex = col; _sortAsc = asc; }),
+                        ),
+                        DataColumn(
+                          label: const Text('Location', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                          onSort: (col, asc) => setState(() { _sortColIndex = col; _sortAsc = asc; }),
+                        ),
+                        DataColumn(
+                          label: const Text('Capacity', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                          numeric: true,
+                          onSort: (col, asc) => setState(() { _sortColIndex = col; _sortAsc = asc; }),
+                        ),
+                        DataColumn(
+                          label: const Text('Supervisor', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                          onSort: (col, asc) => setState(() { _sortColIndex = col; _sortAsc = asc; }),
+                        ),
+                        DataColumn(
+                          label: const Text('Status', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                          onSort: (col, asc) => setState(() { _sortColIndex = col; _sortAsc = asc; }),
+                        ),
+                        const DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                      ],
+                      rows: pagedItems.map((f) {
+                        final isOp = f['status'] == 'Operational';
+                        return DataRow(
+                          cells: [
+                            DataCell(Text(
+                              '${f['code']} - ${f['name']}',
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                            )),
+                            DataCell(Text(f['category'] ?? '', style: const TextStyle(fontSize: 12))),
+                            DataCell(Text('${f['building_name']} - ${f['floor_name']}', style: const TextStyle(fontSize: 11.5))),
+                            DataCell(Text('${f['capacity'] ?? 0} seats', style: const TextStyle(fontSize: 12))),
+                            DataCell(Text(f['manager_name'] ?? '-', style: const TextStyle(fontSize: 12))),
+                            DataCell(Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: (isOp ? const Color(0xFF10B981) : const Color(0xFFF59E0B)).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(4),
                               ),
-                            ),
-                          )),
-                          DataCell(Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit, size: 16),
-                                tooltip: 'Edit Facility',
-                                onPressed: () => _openAddFacilityModal(f),
+                              child: Text(
+                                f['status'] ?? '',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: isOp ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                                ),
                               ),
-                              IconButton(
-                                icon: Icon(Icons.event_seat_rounded, size: 16, color: primaryColor),
-                                tooltip: 'Book in Space Booking',
-                                onPressed: () {
-                                  ref.read(campusProvider.notifier).setActiveCampusTab(2); // Jump to Space Booking
-                                },
-                              ),
-                            ],
-                          )),
-                        ],
-                      );
-                    }).toList(),
+                            )),
+                            DataCell(Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit, size: 15),
+                                  tooltip: 'Edit Facility',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                  onPressed: () => _openAddFacilityModal(f),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, size: 15, color: Color(0xFFEF4444)),
+                                  tooltip: 'Delete Facility',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                  onPressed: () => _deleteFacility(f),
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.event_seat_rounded, size: 15, color: primaryColor),
+                                  tooltip: 'Book in Space Booking',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                  onPressed: () {
+                                    ref.read(campusProvider.notifier).setActiveCampusTab(2); // Jump to Space Booking
+                                  },
+                                ),
+                              ],
+                            )),
+                          ],
+                        );
+                      }).toList(),
+                    ),
                   ),
                 ),
               ),
+
+            // 4. Pagination Bar
+            if (filtered.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              CampusPaginationBar(
+                currentPage: _page,
+                pageSize: _pageSize,
+                totalItems: totalFiltered,
+                onPageChanged: (newPage) => setState(() => _page = newPage),
+                onPageSizeChanged: (newSize) => setState(() {
+                  _pageSize = newSize;
+                  _page = 1;
+                }),
+                itemLabel: 'facilities',
+              ),
+            ],
           ],
         ),
       ),
@@ -686,14 +833,26 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              TextButton.icon(
-                onPressed: () => _openAddFacilityModal(f),
-                icon: const Icon(Icons.edit, size: 13),
-                label: const Text('Edit', style: TextStyle(fontSize: 11.5)),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  visualDensity: VisualDensity.compact,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => _openAddFacilityModal(f),
+                    icon: const Icon(Icons.edit, size: 13),
+                    label: const Text('Edit', style: TextStyle(fontSize: 11.5)),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _deleteFacility(f),
+                    icon: const Icon(Icons.delete_outline, size: 15, color: Color(0xFFEF4444)),
+                    tooltip: 'Delete Facility',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                  ),
+                ],
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,

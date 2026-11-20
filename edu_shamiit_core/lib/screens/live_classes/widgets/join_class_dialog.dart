@@ -31,7 +31,7 @@ class _JoinClassDialogState extends ConsumerState<JoinClassDialog> {
         ? (user!['full_name'] as String).trim()
         : ((user?['name'] as String?)?.trim().isNotEmpty == true
             ? (user!['name'] as String).trim()
-            : (authState.role == UserRole.superAdmin ? 'King Doe' : 'User'));
+            : (authState.role == UserRole.superAdmin ? 'Aarav Sharma' : 'User'));
     _nameCtrl.text = userName;
   }
 

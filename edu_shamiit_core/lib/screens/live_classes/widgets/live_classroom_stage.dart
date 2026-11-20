@@ -11,6 +11,8 @@ import '../../../providers/role_provider.dart';
 import '../../../utils/browser_fullscreen.dart';
 import '../utils/live_class_theme.dart';
 import '../whiteboard/widgets/whiteboard_workspace.dart';
+import 'share_meeting_dialog.dart';
+import 'device_audio_test_dialog.dart';
 
 enum StageMode {
   teacherPresentation,
@@ -113,7 +115,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
           ? (authUser!['full_name'] as String).trim()
           : ((authUser?['name'] as String?)?.trim().isNotEmpty == true
               ? (authUser!['name'] as String).trim()
-              : (authState.role == UserRole.superAdmin ? 'King Doe' : 'Teacher'));
+              : (authState.role == UserRole.superAdmin ? 'Aarav Sharma' : 'Teacher'));
       final currentUserRole = (authUser?['role'] as String?)?.trim().isNotEmpty == true
           ? (authUser!['role'] as String).trim()
           : (authState.role == UserRole.superAdmin ? 'super_admin' : 'teacher');
@@ -517,6 +519,19 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
             ),
           ),
           actions: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.headphones_outlined, size: 14),
+              label: const Text('Test Hardware & Audio'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF60A5FA),
+                side: const BorderSide(color: Color(0xFF3B82F6)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                Navigator.pop(ctx);
+                DeviceAudioTestDialog.show(context);
+              },
+            ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2563EB),
@@ -535,6 +550,11 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
         ),
       ),
     );
+  }
+
+  bool get _isStudentParticipant {
+    final role = ref.read(liveRoomServiceProvider).currentUserRole.toLowerCase();
+    return role != 'teacher' && role != 'host' && role != 'co-host' && role != 'super_admin' && role != 'admin';
   }
 
   void _showPollDialog(BuildContext context) {
@@ -831,20 +851,27 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                             setDialogState(() => isLaunchingPoll = true);
 
                             try {
-                              final success = await notifier.createPoll({
+                              final currentConduct = ref.read(liveClassManagementProvider).conductSessionData;
+                              final targetSessId = currentConduct?.activeSession.id ?? widget.session?.id ?? '';
+                              final pollPayload = {
                                 'title': question,
                                 'question': question,
                                 'options': options.asMap().entries.map((e) => {
                                   'id': 'opt_${e.key + 1}',
                                   'text': e.value,
+                                  'votes': 0,
                                 }).toList(),
-                              });
+                              };
+
+                              final success = await notifier.createPoll(pollPayload, targetSessId);
 
                               if (success) {
                                 try {
                                   await roomService.broadcastData({
                                     'type': 'poll_launched',
+                                    'poll': pollPayload,
                                     'question': question,
+                                    'session_id': targetSessId,
                                   });
                                 } catch (_) {}
 
@@ -1026,7 +1053,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
             ? (authUser!['name'] as String).trim()
             : (roomService.currentUserName.isNotEmpty
                 ? roomService.currentUserName
-                : (authState.role == UserRole.superAdmin ? 'King Doe' : 'Teacher')));
+                : (authState.role == UserRole.superAdmin ? 'Aarav Sharma' : 'Teacher')));
     final tracks = roomService.participantTracks;
     final participantCount = roomService.isConnected
         ? tracks.where((t) => !t.isScreenShare).length
@@ -1216,6 +1243,41 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                 ),
                 const SizedBox(width: 4),
 
+                // Share / Invite Button
+                InkWell(
+                  onTap: () {
+                    final sess = widget.session ?? conductData?.activeSession;
+                    if (sess != null) {
+                      ShareMeetingDialog.show(context, sess);
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFF3B82F6), width: 0.8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.person_add_alt_1_rounded, color: Color(0xFF60A5FA), size: 12),
+                        SizedBox(width: 4),
+                        Text(
+                          'Invite',
+                          style: TextStyle(
+                            color: Color(0xFF93C5FD),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+
                 // Quality Signal Icon
                 IconButton(
                   tooltip: 'Network & Stream Health (1080p 60fps)',
@@ -1254,6 +1316,72 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
           },
         ),
       ),
+
+      // Waiting Room Knocking Banner for Host / Teacher
+      if (conductData != null && conductData.waitingRoom.isNotEmpty)
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 4, offset: const Offset(0, 2)),
+            ],
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '🔔 Guest Knocking: ${conductData.waitingRoom.first.displayName} (${conductData.waitingRoom.first.organization}) is in the Waiting Room',
+                  style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () async {
+                  await ref.read(liveClassManagementProvider.notifier).reviewGuestRequest(
+                    conductData.waitingRoom.first.requestId,
+                    'ADMIT',
+                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('${conductData.waitingRoom.first.displayName} admitted to live classroom!')),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('Admit', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 6),
+              OutlinedButton(
+                onPressed: () async {
+                  await ref.read(liveClassManagementProvider.notifier).reviewGuestRequest(
+                    conductData.waitingRoom.first.requestId,
+                    'REJECT',
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.white70),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('Deny', style: TextStyle(fontSize: 11)),
+              ),
+            ],
+          ),
+        ),
 
           // 2. MAIN STAGE CONTENT (Dynamic based on selected mode)
           Expanded(
@@ -1416,6 +1544,16 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                               inactiveColor: Colors.redAccent.withValues(alpha: 0.3),
                               textColor: _isMicMuted ? Colors.redAccent : Colors.white,
                               onTap: () async {
+                                if (_isStudentParticipant && !roomService.allowStudentMic && _isMicMuted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('The host has disabled microphone unmuting for students.'),
+                                      backgroundColor: Color(0xFFDC2626),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                  return;
+                                }
                                 try {
                                   await roomService.toggleMic();
                                   if (mounted) {
@@ -1452,6 +1590,16 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                               inactiveColor: Colors.redAccent.withValues(alpha: 0.3),
                               textColor: _isVideoOff ? Colors.redAccent : Colors.white,
                               onTap: () async {
+                                if (_isStudentParticipant && !roomService.allowStudentCam && _isVideoOff) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('The host has disabled camera video for students.'),
+                                      backgroundColor: Color(0xFFDC2626),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                  return;
+                                }
                                 try {
                                   await roomService.toggleCamera();
                                   if (mounted) {
@@ -1486,6 +1634,16 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                               isIconOnly: isNarrow,
                               activeColor: const Color(0xFF2563EB),
                               onTap: () async {
+                                if (_isStudentParticipant && !roomService.allowStudentShare) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Screen sharing is restricted to host/teacher only.'),
+                                      backgroundColor: Color(0xFFDC2626),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                  return;
+                                }
                                 try {
                                   await roomService.toggleScreenShare();
                                   if (mounted) {
@@ -3154,13 +3312,30 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
           _showPollDialog(context);
         } else if (value == 'settings') {
           _showClassroomSettingsDialog(context);
+        } else if (value == 'device_test') {
+          DeviceAudioTestDialog.show(context);
         } else if (value == 'network') {
           _showNetworkHealthDialog(context);
         } else if (value == 'full_whiteboard') {
           widget.onOpenWhiteboard?.call();
+        } else if (value == 'share_meeting') {
+          final activeSess = widget.session ?? ref.read(liveClassManagementProvider).conductSessionData?.activeSession;
+          if (activeSess != null) {
+            ShareMeetingDialog.show(context, activeSess);
+          }
         }
       },
       itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: 'share_meeting',
+          child: Row(
+            children: [
+              Icon(Icons.share_rounded, size: 16, color: Color(0xFF38BDF8)),
+              SizedBox(width: 8),
+              Text('Share Meeting & Invite', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 12, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
         PopupMenuItem(
           value: 'participants',
           child: Row(
@@ -3199,6 +3374,16 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
               Icon(Icons.signal_cellular_alt_rounded, size: 16, color: Color(0xFF10B981)),
               SizedBox(width: 8),
               Text('Network Health (1080p)', style: TextStyle(color: Colors.white, fontSize: 12)),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'device_test',
+          child: Row(
+            children: [
+              Icon(Icons.headphones_outlined, size: 16, color: Color(0xFF60A5FA)),
+              SizedBox(width: 8),
+              Text('Device & Audio Test', style: TextStyle(color: Colors.white, fontSize: 12)),
             ],
           ),
         ),

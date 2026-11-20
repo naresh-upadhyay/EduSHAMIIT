@@ -239,198 +239,163 @@ class RoomsTabView extends ConsumerWidget {
     final floors = ['ALL', ...activeFloors.map((f) => f.label)];
     final roomTypes = ['ALL', ...activeTypes.map((t) => t.label)];
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        border: Border(
-          bottom: BorderSide(
-              color:
-                  isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-        ),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWrap = constraints.maxWidth < 950;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 650;
+        final isTablet =
+            constraints.maxWidth >= 650 && constraints.maxWidth < 1220;
+        final hPadding = isMobile ? 14.0 : 24.0;
+        final vPadding = isMobile ? 10.0 : 12.0;
 
-          final searchWidget = Container(
-            height: 38,
-            constraints: const BoxConstraints(minWidth: 200, maxWidth: 300),
-            child: TextField(
-              onChanged: notifier.setRoomSearchQuery,
-              decoration: InputDecoration(
-                hintText: 'Search rooms, codes, buildings...',
-                hintStyle: TextStyle(
-                  fontSize: 12.5,
-                  color: isDark
-                      ? const Color(0xFF64748B)
-                      : const Color(0xFF94A3B8),
-                ),
-                prefixIcon: const Icon(Icons.search, size: 18),
-                isDense: true,
-                filled: true,
-                fillColor:
-                    isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(
-                      color: isDark
-                          ? const Color(0xFF334155)
-                          : const Color(0xFFCBD5E1)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(
-                      color: isDark
-                          ? const Color(0xFF334155)
-                          : const Color(0xFFCBD5E1)),
-                ),
+        final searchWidget = SizedBox(
+          height: 38,
+          child: TextField(
+            onChanged: notifier.setRoomSearchQuery,
+            decoration: InputDecoration(
+              hintText: 'Search rooms, codes, buildings...',
+              hintStyle: TextStyle(
+                fontSize: 12.5,
+                color: isDark
+                    ? const Color(0xFF64748B)
+                    : const Color(0xFF94A3B8),
+              ),
+              prefixIcon: const Icon(Icons.search, size: 18),
+              isDense: true,
+              filled: true,
+              fillColor:
+                  isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFCBD5E1)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFCBD5E1)),
               ),
             ),
-          );
+          ),
+        );
 
-          final typeDropdown = _buildSmallDropdown(
-            value: roomTypes.contains(state.roomTypeFilter)
-                ? state.roomTypeFilter
-                : 'ALL',
-            items: roomTypes,
-            labelPrefix: 'Type: ',
-            isDark: isDark,
-            onChanged: (v) {
-              if (v != null) notifier.setRoomTypeFilter(v);
-            },
-          );
+        final typeDropdown = _buildSmallDropdown(
+          value: roomTypes.contains(state.roomTypeFilter)
+              ? state.roomTypeFilter
+              : 'ALL',
+          items: roomTypes,
+          labelPrefix: 'Type: ',
+          isDark: isDark,
+          onChanged: (v) {
+            if (v != null) notifier.setRoomTypeFilter(v);
+          },
+        );
 
-          final buildingDropdown = _buildSmallDropdown(
-            value: buildings.contains(state.roomBuildingFilter)
-                ? state.roomBuildingFilter
-                : 'ALL',
-            items: buildings,
-            labelPrefix: 'Building: ',
-            isDark: isDark,
-            onChanged: (v) {
-              if (v != null) notifier.setRoomBuildingFilter(v);
-            },
-          );
+        final buildingDropdown = _buildSmallDropdown(
+          value: buildings.contains(state.roomBuildingFilter)
+              ? state.roomBuildingFilter
+              : 'ALL',
+          items: buildings,
+          labelPrefix: 'Building: ',
+          isDark: isDark,
+          onChanged: (v) {
+            if (v != null) notifier.setRoomBuildingFilter(v);
+          },
+        );
 
-          final floorDropdown = _buildSmallDropdown(
-            value: floors.contains(state.roomFloorFilter)
-                ? state.roomFloorFilter
-                : 'ALL',
-            items: floors,
-            labelPrefix: 'Floor: ',
-            isDark: isDark,
-            onChanged: (v) {
-              if (v != null) notifier.setRoomFloorFilter(v);
-            },
-          );
+        final floorDropdown = _buildSmallDropdown(
+          value: floors.contains(state.roomFloorFilter)
+              ? state.roomFloorFilter
+              : 'ALL',
+          items: floors,
+          labelPrefix: 'Floor: ',
+          isDark: isDark,
+          onChanged: (v) {
+            if (v != null) notifier.setRoomFloorFilter(v);
+          },
+        );
 
-          final statusItems = ['ALL', ...activeStatuses.map((s) => s.code)];
-          final statusDropdown = Container(
-            height: 38,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                  color: isDark
-                      ? const Color(0xFF334155)
-                      : const Color(0xFFCBD5E1)),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: statusItems.contains(state.roomStatusFilter)
-                    ? state.roomStatusFilter
-                    : 'ALL',
-                dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-                items: [
-                  const DropdownMenuItem(
-                      value: 'ALL', child: Text('Status: All')),
-                  ...activeStatuses.map((s) => DropdownMenuItem(
-                        value: s.code,
-                        child: Text('Status: ${s.label}'),
-                      )),
-                ],
-                onChanged: (v) {
-                  if (v != null) notifier.setRoomStatusFilter(v);
-                },
+        final statusItems = ['ALL', ...activeStatuses.map((s) => s.code)];
+        final statusDropdown = Container(
+          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+                color: isDark
+                    ? const Color(0xFF334155)
+                    : const Color(0xFFCBD5E1)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: statusItems.contains(state.roomStatusFilter)
+                  ? state.roomStatusFilter
+                  : 'ALL',
+              dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
               ),
-            ),
-          );
-
-          final viewToggle = Container(
-            height: 38,
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                  color: isDark
-                      ? const Color(0xFF334155)
-                      : const Color(0xFFCBD5E1)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildViewModeButton(
-                  icon: Icons.table_rows_rounded,
-                  label: 'Table',
-                  isSelected: state.roomViewMode == 'TABLE',
-                  onTap: () => notifier.setRoomViewMode('TABLE'),
-                  isDark: isDark,
-                ),
-                _buildViewModeButton(
-                  icon: Icons.grid_view_rounded,
-                  label: 'Floor Map',
-                  isSelected: state.roomViewMode == 'FLOOR',
-                  onTap: () => notifier.setRoomViewMode('FLOOR'),
-                  isDark: isDark,
-                ),
+              items: [
+                const DropdownMenuItem(
+                    value: 'ALL', child: Text('Status: All')),
+                ...activeStatuses.map((s) => DropdownMenuItem(
+                      value: s.code,
+                      child: Text('Status: ${s.label}'),
+                    )),
               ],
+              onChanged: (v) {
+                if (v != null) notifier.setRoomStatusFilter(v);
+              },
             ),
-          );
+          ),
+        );
 
-          if (isWrap) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(child: searchWidget),
-                    const SizedBox(width: 10),
-                    viewToggle,
-                  ],
-                ),
-                const SizedBox(height: 10),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      typeDropdown,
-                      const SizedBox(width: 8),
-                      buildingDropdown,
-                      const SizedBox(width: 8),
-                      floorDropdown,
-                      const SizedBox(width: 8),
-                      statusDropdown,
-                    ],
-                  ),
-                ),
-              ],
-            );
-          }
-
-          return Row(
+        final viewToggle = Container(
+          height: 38,
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+                color: isDark
+                    ? const Color(0xFF334155)
+                    : const Color(0xFFCBD5E1)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              searchWidget,
-              const SizedBox(width: 12),
+              _buildViewModeButton(
+                icon: Icons.table_rows_rounded,
+                label: 'Table',
+                isSelected: state.roomViewMode == 'TABLE',
+                onTap: () => notifier.setRoomViewMode('TABLE'),
+                isDark: isDark,
+              ),
+              _buildViewModeButton(
+                icon: Icons.grid_view_rounded,
+                label: 'Floor Map',
+                isSelected: state.roomViewMode == 'FLOOR',
+                onTap: () => notifier.setRoomViewMode('FLOOR'),
+                isDark: isDark,
+              ),
+            ],
+          ),
+        );
+
+        final dropdownsRow = SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
               typeDropdown,
               const SizedBox(width: 8),
               buildingDropdown,
@@ -438,12 +403,85 @@ class RoomsTabView extends ConsumerWidget {
               floorDropdown,
               const SizedBox(width: 8),
               statusDropdown,
-              const Spacer(),
+            ],
+          ),
+        );
+
+        Widget bodyContent;
+        if (isMobile) {
+          bodyContent = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              searchWidget,
+              const SizedBox(height: 8),
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  Text(
+                    'Filters & View',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
+                    ),
+                  ),
+                  viewToggle,
+                ],
+              ),
+              const SizedBox(height: 8),
+              dropdownsRow,
+            ],
+          );
+        } else if (isTablet) {
+          bodyContent = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: searchWidget),
+                  const SizedBox(width: 12),
+                  viewToggle,
+                ],
+              ),
+              const SizedBox(height: 10),
+              dropdownsRow,
+            ],
+          );
+        } else {
+          bodyContent = Row(
+            children: [
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 240),
+                child: searchWidget,
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: dropdownsRow),
+              const SizedBox(width: 12),
               viewToggle,
             ],
           );
-        },
-      ),
+        }
+
+        return Container(
+          padding:
+              EdgeInsets.symmetric(horizontal: hPadding, vertical: vPadding),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            border: Border(
+              bottom: BorderSide(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0)),
+            ),
+          ),
+          child: bodyContent,
+        );
+      },
     );
   }
 
@@ -1990,10 +2028,13 @@ class RoomsTabView extends ConsumerWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isNarrow = constraints.maxWidth < 650;
+          final isNarrow = constraints.maxWidth < 950;
 
-          final recordsInfo = Row(
-            mainAxisSize: MainAxisSize.min,
+          final recordsInfo = Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            alignment: WrapAlignment.center,
+            spacing: 16,
+            runSpacing: 6,
             children: [
               Text(
                 'Showing $startItem - $endItem of ${state.totalCount} rooms',
@@ -2005,7 +2046,6 @@ class RoomsTabView extends ConsumerWidget {
                       : const Color(0xFF64748B),
                 ),
               ),
-              const SizedBox(width: 16),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -2060,9 +2100,11 @@ class RoomsTabView extends ConsumerWidget {
             ],
           );
 
-          final pageNav = Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+          final pageNav = SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               IconButton(
                 onPressed: state.page > 1 ? () => notifier.setPage(1) : null,
                 icon: const Icon(Icons.first_page, size: 18),
@@ -2113,7 +2155,8 @@ class RoomsTabView extends ConsumerWidget {
                 splashRadius: 16,
               ),
             ],
-          );
+          ),
+        );
 
           if (isNarrow) {
             return Column(

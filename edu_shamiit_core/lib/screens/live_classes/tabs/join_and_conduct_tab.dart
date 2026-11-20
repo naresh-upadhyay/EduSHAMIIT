@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/live_class_models.dart';
 import '../providers/live_class_management_provider.dart';
 import '../services/in_app_live_room_service.dart';
+import '../services/live_class_api_service.dart';
 import '../widgets/create_instant_class_dialog.dart';
+import '../widgets/device_audio_test_dialog.dart';
 import '../widgets/edit_live_class_dialog.dart';
 import '../../calendar/widgets/dialogs/create_edit_schedule_dialog.dart';
 import '../../calendar/providers/calendar_provider.dart';
@@ -38,7 +41,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
         ? (user!['full_name'] as String).trim()
         : ((user?['name'] as String?)?.trim().isNotEmpty == true
             ? (user!['name'] as String).trim()
-            : (authState.role == UserRole.superAdmin ? 'King Doe' : 'Teacher'));
+            : (authState.role == UserRole.superAdmin ? 'Aarav Sharma' : 'Teacher'));
     final role = (user?['role'] as String?)?.trim().isNotEmpty == true
         ? (user!['role'] as String).trim()
         : (authState.role == UserRole.superAdmin ? 'super_admin' : 'teacher');
@@ -71,6 +74,32 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
   bool _settingAutoRecord = true;
   int _settingMaxCapacity = 45;
   String? _settingSelectedSessionId;
+  bool _isLoadingSettings = false;
+  bool _isSavingSettings = false;
+  String? _loadedSessionIdForSettings;
+
+  Future<void> _fetchAndApplySessionSettings(String sessionId) async {
+    if (_isLoadingSettings) return;
+    setState(() => _isLoadingSettings = true);
+    try {
+      final settings = await ref.read(liveClassManagementProvider.notifier).fetchSessionSettings(sessionId);
+      if (settings != null && mounted) {
+        setState(() {
+          _settingAllowMic = settings['allow_student_mic'] == true;
+          _settingAllowCam = settings['allow_student_cam'] == true;
+          _settingAllowScreenShare = settings['allow_student_share'] == true;
+          _settingAllowChat = settings['allow_chat'] == true;
+          _settingAllowReactions = settings['allow_reactions'] == true;
+          _settingWaitingRoom = settings['waiting_room_enabled'] == true;
+          _settingAutoRecord = settings['recording_enabled'] == true;
+          _settingMaxCapacity = (settings['max_participants'] as num?)?.toInt() ?? 45;
+          _loadedSessionIdForSettings = sessionId;
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingSettings = false);
+    }
+  }
 
   // Theme-adaptive helpers matching ERP design system
   bool get isDark => Theme.of(context).brightness == Brightness.dark;
@@ -208,77 +237,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
   }
 
   void _showDeviceTestDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.headphones_outlined, color: Color(0xFF2563EB)),
-            SizedBox(width: 10),
-            Text('Device & Audio Test', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: SizedBox(
-          width: 440,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Test your microphone, camera, and speakers before conducting or joining a session.',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
-              const SizedBox(height: 16),
-              const ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(
-                  backgroundColor: Color(0xFFEFF6FF),
-                  child: Icon(Icons.mic, color: Color(0xFF2563EB), size: 20),
-                ),
-                title: Text('Microphone (Realtek High Definition)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                subtitle: Text('Input Level: Normal (48 dB)', style: TextStyle(fontSize: 12, color: Color(0xFF10B981))),
-                trailing: Icon(Icons.check_circle, color: Color(0xFF10B981), size: 20),
-              ),
-              const Divider(height: 1),
-              const ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(
-                  backgroundColor: Color(0xFFEFF6FF),
-                  child: Icon(Icons.videocam, color: Color(0xFF2563EB), size: 20),
-                ),
-                title: Text('HD Webcam (1080p 60fps)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                subtitle: Text('Video Feed: Operational', style: TextStyle(fontSize: 12, color: Color(0xFF10B981))),
-                trailing: Icon(Icons.check_circle, color: Color(0xFF10B981), size: 20),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFEFF6FF),
-                  child: Icon(Icons.volume_up, color: Color(0xFF2563EB), size: 20),
-                ),
-                title: const Text('Speakers / Headphones', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                subtitle: const Text('Output Test: Ready', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                trailing: OutlinedButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Playing audio chime test...')),
-                    );
-                  },
-                  child: const Text('Play Sound', style: TextStyle(fontSize: 11)),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
-            child: const Text('Done & Ready'),
-          ),
-        ],
-      ),
-    );
+    DeviceAudioTestDialog.show(context);
   }
 
   void _showLivePollsDialog() {
@@ -584,11 +543,40 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                                 }).toList(),
                               });
 
-                              if (success) {
+                              final localPoll = LiveClassPollItem(
+                                id: 'poll_${DateTime.now().millisecondsSinceEpoch}',
+                                title: question,
+                                question: question,
+                                pollType: 'single_choice',
+                                status: 'ACTIVE',
+                                options: options.asMap().entries.map((e) => LiveClassPollOption(
+                                  id: 'opt_${e.key + 1}',
+                                  text: e.value,
+                                  votes: 0,
+                                  percentage: 0.0,
+                                )).toList(),
+                                totalVotes: 0,
+                              );
+                              ref.read(liveClassManagementProvider.notifier).setLocalActivePoll(localPoll);
+                              _chatPanelKey.currentState?.addLocalPoll(localPoll);
+                              _chatPanelKey.currentState?.selectTab(2);
+
+                              if (success || true) {
+
                                 try {
                                   await roomService.broadcastData({
                                     'type': 'poll_launched',
                                     'question': question,
+                                    'poll': {
+                                      'id': localPoll.id,
+                                      'title': question,
+                                      'question': question,
+                                      'options': localPoll.options.map((o) => {
+                                        'id': o.id,
+                                        'text': o.text,
+                                        'votes': 0,
+                                      }).toList(),
+                                    },
                                   });
                                 } catch (_) {}
 
@@ -723,7 +711,21 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                             if (text.isNotEmpty) {
                               final sessId = state.currentConductSessionId ?? state.conductSessionData?.activeSession.id;
                               if (sessId != null) {
-                                await ref.read(liveClassManagementProvider.notifier).submitQuestion(text);
+                                final authState = ref.read(authProvider);
+                                final user = authState.userData;
+                                final authorName = (user?['full_name'] as String?)?.trim().isNotEmpty == true
+                                    ? (user!['full_name'] as String).trim()
+                                    : ((user?['name'] as String?)?.trim().isNotEmpty == true
+                                        ? (user!['name'] as String).trim()
+                                        : (authState.role == UserRole.superAdmin ? 'Aarav Sharma' : 'You'));
+                                final authorRole = authState.role == UserRole.superAdmin
+                                    ? 'super_admin'
+                                    : (authState.role == UserRole.teacher ? 'teacher' : 'student');
+                                await ref.read(liveClassManagementProvider.notifier).submitQuestion(
+                                  text,
+                                  authorName: authorName,
+                                  authorRole: authorRole,
+                                );
                               }
                               qCtrl.clear();
                               setDialogState(() {});
@@ -1021,6 +1023,29 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
               ),
             ),
             const SizedBox(width: 8),
+            Builder(
+              builder: (context) {
+                final activeSession = ref.watch(liveClassManagementProvider).conductSessionData?.activeSession ??
+                    ref.watch(liveClassManagementProvider).joinDashboard?.activeSession;
+                if (activeSession == null) return const SizedBox.shrink();
+                final isStageActive = _selectedSubnav == 'Conduct Class';
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ActionChip(
+                    avatar: const Icon(Icons.fiber_manual_record, color: Color(0xFF10B981), size: 12),
+                    label: Text(
+                      isStageActive ? 'Live Class Active' : 'Return to Live Stage',
+                      style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 11.5),
+                    ),
+                    backgroundColor: isStageActive
+                        ? const Color(0xFF10B981).withValues(alpha: 0.18)
+                        : const Color(0xFF10B981).withValues(alpha: 0.08),
+                    side: const BorderSide(color: Color(0xFF10B981)),
+                    onPressed: () => setState(() => _selectedSubnav = 'Conduct Class'),
+                  ),
+                );
+              },
+            ),
             for (final item in navItems) ...[
               _buildSubnavItem(item.$1, item.$2),
               const SizedBox(width: 6),
@@ -1081,6 +1106,60 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
 
           if (_selectedSubnav == 'Conduct Class' || _selectedSubnav == 'My Classes (Today)')
             const SizedBox(height: 16),
+
+          // Persistent Live Class in progress top banner (when host navigates to other subnav tabs)
+          if ((state.conductSessionData?.activeSession ?? state.joinDashboard?.activeSession) != null && _selectedSubnav != 'Conduct Class') ...[
+            Builder(
+              builder: (context) {
+                final activeS = state.conductSessionData?.activeSession ?? state.joinDashboard?.activeSession;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F172A),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF10B981), width: 1.2),
+                    boxShadow: [
+                      BoxShadow(color: const Color(0xFF10B981).withValues(alpha: 0.2), blurRadius: 10, spreadRadius: 1),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(color: Color(0xFF10B981), shape: BoxShape.circle),
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'LIVE CLASS IN PROGRESS: ',
+                        style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                      Expanded(
+                        child: Text(
+                          activeS != null ? '${activeS.className} – ${activeS.subject}' : 'Class Session Active',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () => setState(() => _selectedSubnav = 'Conduct Class'),
+                        icon: const Icon(Icons.videocam_rounded, size: 14),
+                        label: const Text('Return to Classroom Stage', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          minimumSize: const Size(0, 32),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
 
           // 2. MAIN WORKSPACE (Subnav + Center View + Right View)
           LayoutBuilder(
@@ -1516,30 +1595,48 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
           Divider(height: 1, color: cardDivider),
           const SizedBox(height: 8),
 
-          // Navigation Links
-          if (_selectedSubnav == 'Conduct Class') ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withValues(alpha: 0.15),
+          // Live Class Active Indicator / Quick Switcher
+          Builder(
+            builder: (context) {
+              final activeSession = ref.watch(liveClassManagementProvider).conductSessionData?.activeSession ??
+                  ref.watch(liveClassManagementProvider).joinDashboard?.activeSession;
+              if (activeSession == null) return const SizedBox.shrink();
+
+              final isStageActive = _selectedSubnav == 'Conduct Class';
+              return InkWell(
+                onTap: () => setState(() => _selectedSubnav = 'Conduct Class'),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFF10B981), width: 1),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.fiber_manual_record, color: Color(0xFF10B981), size: 12),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Live Class Active',
-                      style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 11.5),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: isStageActive
+                        ? const Color(0xFF10B981).withValues(alpha: 0.18)
+                        : const Color(0xFF10B981).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFF10B981),
+                      width: isStageActive ? 1.5 : 1,
                     ),
                   ),
-                ],
-              ),
-            ),
-          ],
+                  child: Row(
+                    children: [
+                      const Icon(Icons.fiber_manual_record, color: Color(0xFF10B981), size: 12),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          isStageActive ? 'Live Class Active' : 'Return to Live Class',
+                          style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 11.5),
+                        ),
+                      ),
+                      if (!isStageActive)
+                        const Icon(Icons.arrow_forward_rounded, color: Color(0xFF10B981), size: 14),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
           _buildSubnavItem(Icons.calendar_month_outlined, 'My Classes (Today)'),
           _buildSubnavItem(Icons.code_rounded, 'Join via Code'),
           _buildSubnavItem(Icons.person_add_alt_1_rounded, 'Guest Join'),
@@ -1909,7 +2006,27 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
     if (!mounted) return;
 
     if (response.success) {
-      _showGuestWaitingRoomDialog(response);
+      if (response.approvalStatus == 'APPROVED' || !response.requiresWaitingRoom) {
+        // Direct entry if already approved or open
+        final roomService = ref.read(liveRoomServiceProvider);
+        roomService.initRoomConfig(
+          liveClassId: response.sessionId.isNotEmpty ? response.sessionId : code,
+          currentUserId: response.guestId.isNotEmpty ? response.guestId : response.guestReference,
+          currentUserName: response.displayName.isNotEmpty ? response.displayName : 'Guest Attendee',
+          currentUserRole: 'guest',
+        );
+        await roomService.initializeRoom();
+        if (!mounted) return;
+        setState(() => _selectedSubnav = 'Conduct Class');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Joined live class as Guest!'),
+            backgroundColor: Color(0xFF10B981),
+          ),
+        );
+      } else {
+        _showGuestWaitingRoomDialog(response);
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1924,140 +2041,37 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.hourglass_top_rounded, color: Color(0xFFD97706), size: 22),
+      builder: (ctx) => _WaitingRoomPollingDialog(
+        res: res,
+        onAdmitted: () async {
+          try {
+            final roomService = ref.read(liveRoomServiceProvider);
+            roomService.initRoomConfig(
+              liveClassId: res.sessionId.isNotEmpty ? res.sessionId : _guestCodeCtrl.text.trim(),
+              currentUserId: res.guestId.isNotEmpty ? res.guestId : res.guestReference,
+              currentUserName: res.displayName.isNotEmpty ? res.displayName : 'Guest Attendee',
+              currentUserRole: 'guest',
+            );
+            await roomService.initializeRoom();
+          } catch (_) {}
+          if (!mounted) return;
+          setState(() => _selectedSubnav = 'Conduct Class');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('The host has admitted you to the live class! Welcome!'),
+              backgroundColor: Color(0xFF10B981),
             ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                'Waiting Room: Host Approval',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-              ),
+          );
+        },
+        onRejected: () {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('The host has declined your request to join this session.'),
+              backgroundColor: Color(0xFFEF4444),
             ),
-          ],
-        ),
-        content: SizedBox(
-          width: 440,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFBFDBFE)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.badge_outlined, color: Color(0xFF2563EB), size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Guest Reference ID', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                          Text(
-                            res.guestReference.isNotEmpty ? res.guestReference : 'GST-2026-LIVE',
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.copy_rounded, size: 16, color: Color(0xFF2563EB)),
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: res.guestReference));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Guest Reference copied to clipboard')),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2563EB)),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Hello ${res.displayName}, the class host has been notified of your join request. You will be automatically admitted once approved.',
-                      style: const TextStyle(fontSize: 13, color: Color(0xFF334155)),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Security & Access Rules:',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF475569))),
-                    SizedBox(height: 4),
-                    Text('• Limited guest identity with no access to ERP records',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                    Text('• Host teacher has full moderation control and can revoke access',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel Request', style: TextStyle(color: Color(0xFFDC2626))),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              try {
-                final roomService = ref.read(liveRoomServiceProvider);
-                roomService.initRoomConfig(
-                  liveClassId: res.sessionId.isNotEmpty ? res.sessionId : _guestCodeCtrl.text.trim(),
-                  currentUserId: res.guestReference.isNotEmpty ? res.guestReference : 'guest_${DateTime.now().millisecondsSinceEpoch}',
-                  currentUserName: res.displayName.isNotEmpty ? res.displayName : 'Guest Attendee',
-                  currentUserRole: 'guest',
-                );
-                await roomService.initializeRoom();
-              } catch (_) {}
-              if (!mounted) return;
-              setState(() => _selectedSubnav = 'Conduct Class');
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Admitted as Guest into Live Classroom!'),
-                  backgroundColor: Color(0xFF10B981),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1D4ED8)),
-            child: const Text('Enter (Bypass / Demo)'),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -2206,6 +2220,14 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
     final selectedId = _settingSelectedSessionId ?? activeSess?.id ?? availableSessions.firstOrNull?.id ?? 'sess-active';
     final targetItem = availableSessions.where((s) => s.id == selectedId).firstOrNull;
 
+    if (_loadedSessionIdForSettings != selectedId && !_isLoadingSettings) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _loadedSessionIdForSettings != selectedId) {
+          _fetchAndApplySessionSettings(selectedId);
+        }
+      });
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -2231,6 +2253,13 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (_isLoadingSettings) ...[
+                const ClipRRect(
+                  borderRadius: BorderRadius.all(Radius.circular(2)),
+                  child: LinearProgressIndicator(minHeight: 2),
+                ),
+                const SizedBox(height: 12),
+              ],
               // Target Session Selector Card
               Row(
                 children: [
@@ -2285,6 +2314,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                             onChanged: (val) {
                               if (val != null) {
                                 setState(() => _settingSelectedSessionId = val);
+                                _fetchAndApplySessionSettings(val);
                               }
                             },
                           ),
@@ -2374,7 +2404,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                             value: _settingMaxCapacity,
                             dropdownColor: cardBg,
                             style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textPrimary),
-                            items: const [30, 45, 60, 100].map((c) => DropdownMenuItem(value: c, child: Text('$c Students'))).toList(),
+                            items: (<int>{30, 45, 60, 100, _settingMaxCapacity}.toList()..sort()).map((c) => DropdownMenuItem(value: c, child: Text('$c Students'))).toList(),
                             onChanged: (v) {
                               if (v != null) setState(() => _settingMaxCapacity = v);
                             },
@@ -2406,28 +2436,51 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
-                    label: const Text('Save & Apply Settings', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    onPressed: () async {
-                      await ref.read(liveClassManagementProvider.notifier).updateSessionSettings(
-                        selectedId,
-                        {
-                          'allow_mic': _settingAllowMic,
-                          'allow_cam': _settingAllowCam,
-                          'allow_screen_share': _settingAllowScreenShare,
-                          'allow_chat': _settingAllowChat,
-                          'allow_reactions': _settingAllowReactions,
-                          'waiting_room_enabled': _settingWaitingRoom,
-                          'auto_record': _settingAutoRecord,
-                          'max_participants': _settingMaxCapacity,
-                        },
-                      );
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Class session settings updated & synchronized successfully!')),
-                        );
-                      }
-                    },
+                    icon: _isSavingSettings
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.check_circle_outline_rounded, size: 16),
+                    label: Text(
+                      _isSavingSettings ? 'Applying...' : 'Save & Apply Settings',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: _isSavingSettings
+                        ? null
+                        : () async {
+                            setState(() => _isSavingSettings = true);
+                            try {
+                              final success = await ref.read(liveClassManagementProvider.notifier).updateSessionSettings(
+                                selectedId,
+                                {
+                                  'allow_student_mic': _settingAllowMic,
+                                  'allow_student_cam': _settingAllowCam,
+                                  'allow_student_share': _settingAllowScreenShare,
+                                  'allow_chat': _settingAllowChat,
+                                  'allow_reactions': _settingAllowReactions,
+                                  'waiting_room_enabled': _settingWaitingRoom,
+                                  'recording_enabled': _settingAutoRecord,
+                                  'max_participants': _settingMaxCapacity,
+                                },
+                              );
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      success
+                                          ? 'Class session settings updated & synchronized successfully!'
+                                          : 'Failed to update session settings. Please check permissions.',
+                                    ),
+                                    backgroundColor: success ? const Color(0xFF10B981) : Colors.redAccent,
+                                  ),
+                                );
+                              }
+                            } finally {
+                              if (mounted) setState(() => _isSavingSettings = false);
+                            }
+                          },
                   ),
                 ],
               ),
@@ -4528,7 +4581,9 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                       // Rows per page
                       Text('Rows per page: ', style: TextStyle(fontSize: 11, color: textSecondary)),
                       DropdownButton<int>(
-                        value: state.myClassesPageSize,
+                        value: const [5, 10, 20, 50, 100].contains(state.myClassesPageSize)
+                            ? state.myClassesPageSize
+                            : 10,
                         underline: const SizedBox(),
                         dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                         style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textPrimary),
@@ -6147,4 +6202,211 @@ class _DonutProgressPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _DonutProgressPainter oldDelegate) => true;
+}
+
+class _WaitingRoomPollingDialog extends StatefulWidget {
+  final GuestJoinResponse res;
+  final VoidCallback onAdmitted;
+  final VoidCallback onRejected;
+
+  const _WaitingRoomPollingDialog({
+    required this.res,
+    required this.onAdmitted,
+    required this.onRejected,
+  });
+
+  @override
+  State<_WaitingRoomPollingDialog> createState() => _WaitingRoomPollingDialogState();
+}
+
+class _WaitingRoomPollingDialogState extends State<_WaitingRoomPollingDialog> {
+  Timer? _pollTimer;
+  Timer? _ticker;
+  int _secondsWaiting = 0;
+  bool _isFinished = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _secondsWaiting++);
+    });
+    _startPolling();
+  }
+
+  void _startPolling() {
+    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      if (_isFinished) return;
+      final api = LiveClassApiService();
+      final status = await api.checkGuestAdmissionStatus(widget.res.requestId);
+      if (!mounted || _isFinished) return;
+      if (status != null) {
+        if (status['is_approved'] == true) {
+          _isFinished = true;
+          _cleanup();
+          Navigator.of(context).pop();
+          widget.onAdmitted();
+        } else if (status['is_rejected'] == true) {
+          _isFinished = true;
+          _cleanup();
+          Navigator.of(context).pop();
+          widget.onRejected();
+        }
+      }
+    });
+  }
+
+  void _cleanup() {
+    _ticker?.cancel();
+    _pollTimer?.cancel();
+  }
+
+  @override
+  void dispose() {
+    _cleanup();
+    super.dispose();
+  }
+
+  String _formatWaitTime(int sec) {
+    final m = (sec ~/ 60).toString().padLeft(2, '0');
+    final s = (sec % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF1E222D) : Colors.white;
+    final textPrimary = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
+    return AlertDialog(
+      backgroundColor: bg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.hourglass_top_rounded, color: Color(0xFFD97706), size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Waiting Room: Host Approval',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 440,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.badge_outlined, color: Color(0xFF2563EB), size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Guest Reference ID', style: TextStyle(fontSize: 11, color: textSecondary)),
+                        Text(
+                          widget.res.guestReference.isNotEmpty ? widget.res.guestReference : 'GST-2026-LIVE',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.copy_rounded, size: 16, color: Color(0xFF2563EB)),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: widget.res.guestReference));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Guest Reference copied to clipboard')),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2563EB)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Hello ${widget.res.displayName}, the class host has been notified. You will be automatically admitted once approved.',
+                    style: TextStyle(fontSize: 13, color: textPrimary),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Waiting Time: ${_formatWaitTime(_secondsWaiting)}',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Security & Access Rules:',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textPrimary)),
+                  const SizedBox(height: 4),
+                  Text('• External guests require Host approval before accessing the meeting',
+                      style: TextStyle(fontSize: 11, color: textSecondary)),
+                  Text('• Host teacher has full moderation control and can mute or revoke access',
+                      style: TextStyle(fontSize: 11, color: textSecondary)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            _cleanup();
+            Navigator.pop(context);
+          },
+          child: const Text('Cancel Request', style: TextStyle(color: Color(0xFFDC2626))),
+        ),
+      ],
+    );
+  }
 }

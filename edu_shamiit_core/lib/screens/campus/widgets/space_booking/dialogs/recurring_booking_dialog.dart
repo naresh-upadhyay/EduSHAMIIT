@@ -15,8 +15,8 @@ class _RecurringBookingDialogState extends ConsumerState<RecurringBookingDialog>
   final TextEditingController _seriesTitleCtrl = TextEditingController(text: 'Weekly Science Lab Demonstrations');
 
   String _recurrenceType = 'WEEKLY';
-  DateTime _startDate = DateTime(2026, 3, 23);
-  DateTime _endDate = DateTime(2026, 6, 15);
+  DateTime _startDate = DateTime.now();
+  DateTime _endDate = DateTime.now().add(const Duration(days: 90));
   final Set<int> _selectedDays = {1, 3, 5}; // Mon, Wed, Fri
   String? _selectedRoomId;
   TimeOfDay _startTime = const TimeOfDay(hour: 10, minute: 0);
@@ -428,7 +428,9 @@ class _RecurringBookingDialogState extends ConsumerState<RecurringBookingDialog>
                       final payload = {
                         'title': _seriesTitleCtrl.text.trim(),
                         'room_id': _selectedRoomId,
-                        'booking_date': '${_startDate.year}-${_startDate.month.toString().padLeft(2, '0')}-${_startDate.day.toString().padLeft(2, '0')}',
+                        'start_date': '${_startDate.year}-${_startDate.month.toString().padLeft(2, '0')}-${_startDate.day.toString().padLeft(2, '0')}',
+                        'end_date': '${_endDate.year}-${_endDate.month.toString().padLeft(2, '0')}-${_endDate.day.toString().padLeft(2, '0')}',
+                        'days_of_week': _selectedDays.toList(),
                         'start_time': startFormatted,
                         'end_time': endFormatted,
                         'purpose': 'Academic',
@@ -437,11 +439,25 @@ class _RecurringBookingDialogState extends ConsumerState<RecurringBookingDialog>
                         'attendee_count': 35,
                       };
 
-                      final ok = await notifier.submitBooking(payload);
-                      if (ok && mounted) {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Recurring space booking series established successfully!')),
+                      final nav = Navigator.of(context);
+                      final scf = ScaffoldMessenger.of(context);
+                      final res = await notifier.submitRecurringBooking(payload);
+                      if (!mounted) return;
+                      if (res['success'] == true) {
+                        nav.pop();
+                        final msg = res['data']?['message'] ?? 'Recurring space booking series established successfully!';
+                        scf.showSnackBar(
+                          SnackBar(
+                            content: Text(msg),
+                            backgroundColor: const Color(0xFF059669),
+                          ),
+                        );
+                      } else {
+                        scf.showSnackBar(
+                          SnackBar(
+                            content: Text(res['message'] ?? 'Failed to generate recurring series.'),
+                            backgroundColor: Colors.red,
+                          ),
                         );
                       }
                     },

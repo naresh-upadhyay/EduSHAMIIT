@@ -80,6 +80,12 @@ class ActiveLiveSession {
   final String meetingLink;
   final int viewerCount;
   final int maxParticipants;
+  final bool allowStudentMic;
+  final bool allowStudentCam;
+  final bool allowStudentShare;
+  final bool allowChat;
+  final bool allowReactions;
+  final bool waitingRoomEnabled;
   final String dateStr;
   final String timeStr;
   final String recordingElapsedStr;
@@ -105,10 +111,80 @@ class ActiveLiveSession {
     required this.meetingLink,
     required this.viewerCount,
     required this.maxParticipants,
+    this.allowStudentMic = true,
+    this.allowStudentCam = true,
+    this.allowStudentShare = false,
+    this.allowChat = true,
+    this.allowReactions = true,
+    this.waitingRoomEnabled = false,
     required this.dateStr,
     required this.timeStr,
     required this.recordingElapsedStr,
   });
+
+  ActiveLiveSession copyWith({
+    String? id,
+    String? title,
+    String? description,
+    String? subject,
+    String? subjectIcon,
+    String? className,
+    String? sectionName,
+    String? classSection,
+    String? teacherId,
+    String? teacherName,
+    String? teacherRole,
+    int? durationMinutes,
+    String? status,
+    bool? isLive,
+    String? recordingStatus,
+    bool? recordingEnabled,
+    String? roomCode,
+    String? meetingLink,
+    int? viewerCount,
+    int? maxParticipants,
+    bool? allowStudentMic,
+    bool? allowStudentCam,
+    bool? allowStudentShare,
+    bool? allowChat,
+    bool? allowReactions,
+    bool? waitingRoomEnabled,
+    String? dateStr,
+    String? timeStr,
+    String? recordingElapsedStr,
+  }) {
+    return ActiveLiveSession(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      subject: subject ?? this.subject,
+      subjectIcon: subjectIcon ?? this.subjectIcon,
+      className: className ?? this.className,
+      sectionName: sectionName ?? this.sectionName,
+      classSection: classSection ?? this.classSection,
+      teacherId: teacherId ?? this.teacherId,
+      teacherName: teacherName ?? this.teacherName,
+      teacherRole: teacherRole ?? this.teacherRole,
+      durationMinutes: durationMinutes ?? this.durationMinutes,
+      status: status ?? this.status,
+      isLive: isLive ?? this.isLive,
+      recordingStatus: recordingStatus ?? this.recordingStatus,
+      recordingEnabled: recordingEnabled ?? this.recordingEnabled,
+      roomCode: roomCode ?? this.roomCode,
+      meetingLink: meetingLink ?? this.meetingLink,
+      viewerCount: viewerCount ?? this.viewerCount,
+      maxParticipants: maxParticipants ?? this.maxParticipants,
+      allowStudentMic: allowStudentMic ?? this.allowStudentMic,
+      allowStudentCam: allowStudentCam ?? this.allowStudentCam,
+      allowStudentShare: allowStudentShare ?? this.allowStudentShare,
+      allowChat: allowChat ?? this.allowChat,
+      allowReactions: allowReactions ?? this.allowReactions,
+      waitingRoomEnabled: waitingRoomEnabled ?? this.waitingRoomEnabled,
+      dateStr: dateStr ?? this.dateStr,
+      timeStr: timeStr ?? this.timeStr,
+      recordingElapsedStr: recordingElapsedStr ?? this.recordingElapsedStr,
+    );
+  }
 
   factory ActiveLiveSession.fromJson(Map<String, dynamic> json) {
     return ActiveLiveSession(
@@ -132,6 +208,12 @@ class ActiveLiveSession {
       meetingLink: json['meeting_link'] ?? 'https://meet.edushamiit.com/cls/10A-math',
       viewerCount: json['viewer_count'] ?? 42,
       maxParticipants: json['max_participants'] ?? 45,
+      allowStudentMic: json['allow_student_mic'] ?? true,
+      allowStudentCam: json['allow_student_cam'] ?? true,
+      allowStudentShare: json['allow_student_share'] ?? false,
+      allowChat: json['allow_chat'] ?? true,
+      allowReactions: json['allow_reactions'] ?? true,
+      waitingRoomEnabled: json['waiting_room_enabled'] ?? false,
       dateStr: json['date_str'] ?? 'Tue, 21 Jan 2025',
       timeStr: json['time_str'] ?? '08:00 AM - 08:45 AM (45 min)',
       recordingElapsedStr: json['recording_elapsed_str'] ?? '00:18:24',
@@ -141,6 +223,7 @@ class ActiveLiveSession {
 
 class LiveParticipant {
   final String id;
+  final String userId;
   final String name;
   final String role;
   final String initials;
@@ -151,6 +234,7 @@ class LiveParticipant {
 
   LiveParticipant({
     required this.id,
+    this.userId = '',
     required this.name,
     required this.role,
     required this.initials,
@@ -160,9 +244,34 @@ class LiveParticipant {
     required this.color,
   });
 
+  LiveParticipant copyWith({
+    String? id,
+    String? userId,
+    String? name,
+    String? role,
+    String? initials,
+    bool? micMuted,
+    bool? camOff,
+    bool? isSpeaking,
+    String? color,
+  }) {
+    return LiveParticipant(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      name: name ?? this.name,
+      role: role ?? this.role,
+      initials: initials ?? this.initials,
+      micMuted: micMuted ?? this.micMuted,
+      camOff: camOff ?? this.camOff,
+      isSpeaking: isSpeaking ?? this.isSpeaking,
+      color: color ?? this.color,
+    );
+  }
+
   factory LiveParticipant.fromJson(Map<String, dynamic> json) {
     return LiveParticipant(
       id: json['id'] ?? '',
+      userId: json['user_id'] ?? json['id'] ?? '',
       name: json['name'] ?? '',
       role: json['role'] ?? 'Student',
       initials: json['initials'] ?? (json['name'] != null && json['name'].isNotEmpty ? json['name'].substring(0, 1) : 'U'),
@@ -565,6 +674,50 @@ class JoinConductKPIs {
   }
 }
 
+class LiveClassWaitingGuest {
+  final String requestId;
+  final String guestId;
+  final String guestReference;
+  final String displayName;
+  final String email;
+  final String organization;
+  final String purpose;
+  final String requestStatus;
+  final String requestedAtStr;
+  final bool isMicMuted;
+  final bool isCamOff;
+
+  LiveClassWaitingGuest({
+    required this.requestId,
+    required this.guestId,
+    required this.guestReference,
+    required this.displayName,
+    this.email = '',
+    this.organization = 'External Guest',
+    this.purpose = 'Guest Speaker',
+    this.requestStatus = 'PENDING',
+    this.requestedAtStr = '',
+    this.isMicMuted = true,
+    this.isCamOff = false,
+  });
+
+  factory LiveClassWaitingGuest.fromJson(Map<String, dynamic> json) {
+    return LiveClassWaitingGuest(
+      requestId: json['request_id'] ?? json['id'] ?? '',
+      guestId: json['guest_id'] ?? '',
+      guestReference: json['guest_reference'] ?? '',
+      displayName: json['display_name'] ?? 'Guest',
+      email: json['email'] ?? '',
+      organization: json['organization'] ?? 'External Guest',
+      purpose: json['purpose'] ?? 'Guest Speaker',
+      requestStatus: json['request_status'] ?? 'PENDING',
+      requestedAtStr: json['requested_at_str'] ?? '',
+      isMicMuted: json['is_mic_muted'] ?? true,
+      isCamOff: json['is_cam_off'] ?? false,
+    );
+  }
+}
+
 class ConductClassSessionData {
   final ActiveLiveSession activeSession;
   final JoinConductKPIs stats;
@@ -576,6 +729,7 @@ class ConductClassSessionData {
   final LiveClassWhiteboardData? whiteboard;
   final List<LiveClassBreakoutRoomItem> breakoutRooms;
   final LiveClassEngagementMetrics engagement;
+  final List<LiveClassWaitingGuest> waitingRoom;
 
   ConductClassSessionData({
     required this.activeSession,
@@ -588,6 +742,7 @@ class ConductClassSessionData {
     this.whiteboard,
     required this.breakoutRooms,
     required this.engagement,
+    this.waitingRoom = const [],
   });
 
   ConductClassSessionData copyWith({
@@ -601,6 +756,7 @@ class ConductClassSessionData {
     LiveClassWhiteboardData? whiteboard,
     List<LiveClassBreakoutRoomItem>? breakoutRooms,
     LiveClassEngagementMetrics? engagement,
+    List<LiveClassWaitingGuest>? waitingRoom,
   }) {
     return ConductClassSessionData(
       activeSession: activeSession ?? this.activeSession,
@@ -613,6 +769,7 @@ class ConductClassSessionData {
       whiteboard: whiteboard ?? this.whiteboard,
       breakoutRooms: breakoutRooms ?? this.breakoutRooms,
       engagement: engagement ?? this.engagement,
+      waitingRoom: waitingRoom ?? this.waitingRoom,
     );
   }
 
@@ -642,6 +799,9 @@ class ConductClassSessionData {
           .map((r) => LiveClassBreakoutRoomItem.fromJson(r))
           .toList(),
       engagement: LiveClassEngagementMetrics.fromJson(json['engagement'] ?? {}),
+      waitingRoom: (json['waiting_room'] as List? ?? [])
+          .map((w) => LiveClassWaitingGuest.fromJson(w))
+          .toList(),
     );
   }
 }
@@ -678,43 +838,160 @@ class ConductUpcomingClassItem {
   }
 }
 
+class LiveClassQuestionReply {
+  final String id;
+  final String authorId;
+  final String authorName;
+  final String authorRole;
+  final String? authorEmail;
+  final String? authorPhone;
+  final String answer;
+  final String createdAt;
+
+  LiveClassQuestionReply({
+    required this.id,
+    required this.authorId,
+    required this.authorName,
+    required this.authorRole,
+    this.authorEmail,
+    this.authorPhone,
+    required this.answer,
+    required this.createdAt,
+  });
+
+  factory LiveClassQuestionReply.fromJson(Map<String, dynamic> json) {
+    return LiveClassQuestionReply(
+      id: json['id']?.toString() ?? '',
+      authorId: json['author_id']?.toString() ?? '',
+      authorName: json['author_name'] ?? 'Instructor',
+      authorRole: json['author_role'] ?? 'Teacher',
+      authorEmail: json['author_email'],
+      authorPhone: json['author_phone'],
+      answer: json['answer'] ?? '',
+      createdAt: json['created_at']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'author_id': authorId,
+    'author_name': authorName,
+    'author_role': authorRole,
+    'author_email': authorEmail,
+    'author_phone': authorPhone,
+    'answer': answer,
+    'created_at': createdAt,
+  };
+}
+
 class LiveClassQuestionItem {
   final String id;
+  final String authorId;
   final String author;
   final String authorRole;
+  final String? authorEmail;
+  final String? authorPhone;
   final String question;
   final int upvotes;
+  final bool hasUpvoted;
   final String status;
   final bool answered;
   final String? answer;
+  final List<LiveClassQuestionReply> answers;
   final bool isPinned;
   final String createdAt;
 
   LiveClassQuestionItem({
     required this.id,
+    this.authorId = '',
     required this.author,
     required this.authorRole,
+    this.authorEmail,
+    this.authorPhone,
     required this.question,
     required this.upvotes,
+    this.hasUpvoted = false,
     required this.status,
     required this.answered,
     this.answer,
+    this.answers = const [],
     required this.isPinned,
     required this.createdAt,
   });
 
+  LiveClassQuestionItem copyWith({
+    String? id,
+    String? authorId,
+    String? author,
+    String? authorRole,
+    String? authorEmail,
+    String? authorPhone,
+    String? question,
+    int? upvotes,
+    bool? hasUpvoted,
+    String? status,
+    bool? answered,
+    String? answer,
+    List<LiveClassQuestionReply>? answers,
+    bool? isPinned,
+    String? createdAt,
+  }) {
+    return LiveClassQuestionItem(
+      id: id ?? this.id,
+      authorId: authorId ?? this.authorId,
+      author: author ?? this.author,
+      authorRole: authorRole ?? this.authorRole,
+      authorEmail: authorEmail ?? this.authorEmail,
+      authorPhone: authorPhone ?? this.authorPhone,
+      question: question ?? this.question,
+      upvotes: upvotes ?? this.upvotes,
+      hasUpvoted: hasUpvoted ?? this.hasUpvoted,
+      status: status ?? this.status,
+      answered: answered ?? this.answered,
+      answer: answer ?? this.answer,
+      answers: answers ?? this.answers,
+      isPinned: isPinned ?? this.isPinned,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
   factory LiveClassQuestionItem.fromJson(Map<String, dynamic> json) {
+    List<LiveClassQuestionReply> replies = [];
+    if (json['answers'] is List) {
+      replies = (json['answers'] as List)
+          .map((a) => LiveClassQuestionReply.fromJson(a as Map<String, dynamic>))
+          .toList();
+    } else if (json['answer'] != null && json['answer'].toString().isNotEmpty) {
+      replies = [
+        LiveClassQuestionReply(
+          id: 'legacy_${json['id']}',
+          authorId: json['author_id']?.toString() ?? '',
+          authorName: json['author_name'] ?? 'Instructor',
+          authorRole: json['author_role'] ?? 'Teacher',
+          authorEmail: json['author_email'],
+          authorPhone: json['author_phone'],
+          answer: json['answer'].toString(),
+          createdAt: json['answered_at']?.toString() ?? '',
+        )
+      ];
+    }
+
     return LiveClassQuestionItem(
       id: json['id'] ?? '',
-      author: json['author'] ?? 'Student',
+      authorId: json['author_id']?.toString() ?? '',
+      author: json['author'] ?? json['author_name'] ?? 'Student',
       authorRole: json['author_role'] ?? 'Student',
+      authorEmail: json['author_email'],
+      authorPhone: json['author_phone'],
       question: json['question'] ?? '',
       upvotes: json['upvotes'] ?? 0,
+      hasUpvoted: json['has_upvoted'] == true,
       status: json['status'] ?? 'NEW',
-      answered: json['answered'] ?? false,
-      answer: json['answer'],
+      answered: json['answered'] == true || replies.isNotEmpty,
+      answer: json['answer'] ?? (replies.isNotEmpty ? replies.last.answer : null),
+      answers: replies,
       isPinned: json['is_pinned'] ?? false,
-      createdAt: json['created_at'] ?? '',
+      createdAt: json['created_at']?.toString() ?? '',
     );
   }
 }

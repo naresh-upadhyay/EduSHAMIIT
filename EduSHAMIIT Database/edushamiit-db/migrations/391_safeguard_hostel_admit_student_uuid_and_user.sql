@@ -3,7 +3,7 @@
 
 -- 1. Ensure King Doe profile exists in public.profiles with valid status
 INSERT INTO public.profiles (
-    id, school_id, user_id, full_name, role, email, status, created_at, updated_at
+    id, school_id, user_id, full_name, role, email, phone, department, status, created_at, updated_at
 ) VALUES (
     '5198c4b0-f1cb-45db-9649-41688d0438ba',
     '11111111-1111-1111-1111-111111111111',
@@ -11,10 +11,14 @@ INSERT INTO public.profiles (
     'King Doe',
     'super_admin',
     'mathematicsking888@gmail.com',
+    '+91 98450 12345',
+    'Maintenance & Facilities',
     'Active',
     NOW(),
     NOW()
-) ON CONFLICT DO NOTHING;
+) ON CONFLICT (id) DO UPDATE SET
+    phone = EXCLUDED.phone,
+    department = EXCLUDED.department;
 
 -- 2. Ensure deleted_at column exists on hostel_student_activities
 ALTER TABLE public.hostel_student_activities ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;

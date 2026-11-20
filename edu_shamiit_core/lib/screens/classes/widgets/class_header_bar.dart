@@ -66,7 +66,7 @@ class _ClassHeaderBarState extends ConsumerState<ClassHeaderBar> {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isMobile = constraints.maxWidth < 750;
+          final isMobile = constraints.maxWidth < 820;
 
           String titleText = 'Academic Management';
           String subtitleText =

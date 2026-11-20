@@ -86,12 +86,15 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
     if (page == null) return;
     final isSticky = existing?.type == 'sticky_note' || s.activeTool == WhiteboardTool.stickyNote;
 
+    final initialText = existing?.data['text']?.toString() ?? existing?.data['label']?.toString() ?? '';
+    final initialFs = (existing?.data['fontSize'] as num?)?.toDouble() ?? (isSticky ? 14.0 : s.fontSize);
+
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (_) => RichTextEditorDialog(
-        initialText: existing?.data['text']?.toString() ?? '',
+        initialText: initialText,
         isStickyNote: isSticky,
-        initialFontSize: (existing?.data['fontSize'] as num?)?.toDouble() ?? s.fontSize,
+        initialFontSize: initialFs > 0 ? initialFs : 14.0,
         initialBold: existing?.data['bold'] == true || s.isBold,
         initialItalic: existing?.data['italic'] == true || s.isItalic,
         initialUnderline: existing?.data['underline'] == true || s.isUnderline,
@@ -104,9 +107,15 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
     final notifier = ref.read(whiteboardProvider.notifier);
     if (existing != null) {
       final merged = Map<String, dynamic>.from(existing.data)..addAll(result);
+      if (existing.type == 'connector' || existing.type == 'line' || existing.type == 'arrow') {
+        merged['label'] = result['text'];
+      }
+      if (result['color'] != null) {
+        merged['textColor'] = result['color'];
+      }
       await notifier.updateObject(existing.copyWith(data: merged));
     } else {
-      await notifier.addObject(WhiteboardObject(
+      final newObj = WhiteboardObject(
         id: 'txt_${_uuid.v4().substring(0, 8)}',
         pageId: page.id,
         type: isSticky ? 'sticky_note' : 'text',
@@ -118,7 +127,10 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
           'height': isSticky ? 140.0 : 68.0,
           ...result,
         },
-      ));
+      );
+      await notifier.addObject(newObj);
+      notifier.selectObjects({newObj.id});
+      notifier.setTool(WhiteboardTool.select);
     }
   }
 
@@ -238,6 +250,19 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
       if (ref.read(whiteboardProvider).selectedObjectIds.isNotEmpty) {
         notifier.deleteSelectedObjects();
         return KeyEventResult.handled;
+      }
+    }
+    if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.f2) {
+      final s = ref.read(whiteboardProvider);
+      if (s.selectedObjectIds.length == 1 && s.activePage != null) {
+        final selId = s.selectedObjectIds.first;
+        final obj = s.activePage!.objects.where((o) => o.id == selId).firstOrNull;
+        if (obj != null && (obj.type == 'text' || obj.type == 'sticky_note' || obj.type == 'rectangle' || obj.type == 'diamond' || obj.type == 'circle' || obj.type == 'ellipse' || obj.type == 'connector')) {
+          final x = (obj.data['x'] as num?)?.toDouble() ?? 100.0;
+          final y = (obj.data['y'] as num?)?.toDouble() ?? 100.0;
+          _handleEditText(obj, Offset(x, y));
+          return KeyEventResult.handled;
+        }
       }
     }
     if (event.logicalKey == LogicalKeyboardKey.escape) {

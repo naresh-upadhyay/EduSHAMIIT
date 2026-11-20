@@ -35,12 +35,15 @@ def test_space_booking_kpis():
     assert json_data["success"] is True
     data = json_data["data"]
 
-    assert data["total_bookings"] == 246
-    assert data["confirmed_bookings"] == 198
-    assert data["pending_bookings"] == 28
-    assert data["rejected_bookings"] == 9
+    assert data["total_bookings"] == 217
+    assert data["confirmed_bookings"] == 190
+    assert data["pending_bookings"] == 20
+    assert data["rejected_bookings"] == 7
     assert data["current_usage_spaces"] == 34
     assert data["utilization_rate"] == 72.8
+    assert data["confirmed_pct"] == 87.6
+    assert data["pending_pct"] == 9.2
+    assert data["rejected_pct"] == 3.2
 
 
 def test_space_booking_timeline_grid():
@@ -72,7 +75,7 @@ def test_space_booking_requests_table():
     assert json_data["success"] is True
     data = json_data["data"]
 
-    assert data["total_count"] == 28
+    assert data["total_count"] == 20
     assert len(data["items"]) == 5
     titles = [item["title"] for item in data["items"]]
     assert any("CS Club Meeting" in t or "Cultural Practice" in t or "Faculty Workshop" in t for t in titles)
@@ -86,10 +89,10 @@ def test_space_utilization_donut():
     assert json_data["success"] is True
     data = json_data["data"]
 
-    assert data["in_use"]["count"] == 109
-    assert data["available"]["count"] == 32
-    assert data["under_maintenance"]["count"] == 6
-    assert data["not_bookable"]["count"] == 3
+    assert data["in_use"]["count"] == 34
+    assert data["available"]["count"] == 8
+    assert data["under_maintenance"]["count"] == 4
+    assert data["not_bookable"]["count"] == 2
 
 
 def test_bookable_rooms_dropdown():

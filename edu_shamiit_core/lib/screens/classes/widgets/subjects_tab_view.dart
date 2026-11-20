@@ -404,7 +404,7 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isNarrow = constraints.maxWidth < 900;
+          final isNarrow = constraints.maxWidth < 1120;
 
           final searchInput = TextField(
             controller: _searchController,
@@ -569,8 +569,10 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
             ),
           );
 
-          final actionButtons = Row(
-            mainAxisSize: MainAxisSize.min,
+          final actionButtons = Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               OutlinedButton(
                 onPressed: () {
@@ -597,7 +599,6 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                         color:
                             isDark ? Colors.white70 : const Color(0xFF475569))),
               ),
-              const SizedBox(width: 10),
               ElevatedButton.icon(
                 onPressed: () {
                   notifier.applySubjectFilters(
@@ -629,16 +630,22 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
               children: [
                 searchInput,
                 const SizedBox(height: 10),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    typeDropdown,
-                    classDropdown,
-                    statusDropdown,
-                    actionButtons,
-                  ],
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      typeDropdown,
+                      const SizedBox(width: 8),
+                      classDropdown,
+                      const SizedBox(width: 8),
+                      statusDropdown,
+                    ],
+                  ),
                 ),
+                const SizedBox(height: 10),
+                actionButtons,
               ],
             );
           }
@@ -687,10 +694,14 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
           // Card Header
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 10,
+              runSpacing: 8,
               children: [
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       'Subjects List',
@@ -1994,21 +2005,29 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            Container(
-                width: 8,
-                height: 8,
-                decoration:
-                    BoxDecoration(color: color, shape: BoxShape.circle)),
-            const SizedBox(width: 6),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white70 : const Color(0xFF475569))),
-          ],
+        Expanded(
+          child: Row(
+            children: [
+              Container(
+                  width: 8,
+                  height: 8,
+                  decoration:
+                      BoxDecoration(color: color, shape: BoxShape.circle)),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white70 : const Color(0xFF475569)),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ),
+        const SizedBox(width: 6),
         Text(value,
             style: TextStyle(
                 fontSize: 11.5,
@@ -2171,12 +2190,15 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
               const Icon(Icons.info_rounded,
                   color: Color(0xFF4F46E5), size: 18),
               const SizedBox(width: 8),
-              Text(
-                'About Optional Subjects',
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+              Expanded(
+                child: Text(
+                  'About Optional Subjects',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -2258,10 +2280,13 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isNarrow = constraints.maxWidth < 650;
+          final isNarrow = constraints.maxWidth < 950;
 
-          final recordsInfo = Row(
-            mainAxisSize: MainAxisSize.min,
+          final recordsInfo = Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            alignment: WrapAlignment.center,
+            spacing: 16,
+            runSpacing: 6,
             children: [
               Text(
                 'Showing $startItem - $endItem of ${state.totalCount} subjects',
@@ -2328,59 +2353,66 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
             ],
           );
 
-          final pageNav = Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                onPressed: state.page > 1 ? () => notifier.setPage(1) : null,
-                icon: const Icon(Icons.first_page, size: 18),
-                tooltip: 'First Page',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                splashRadius: 16,
-              ),
-              IconButton(
-                onPressed: state.page > 1
-                    ? () => notifier.setPage(state.page - 1)
-                    : null,
-                icon: const Icon(Icons.chevron_left, size: 20),
-                tooltip: 'Previous Page',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                splashRadius: 16,
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text(
-                  'Page ${state.page} of ${state.totalPages > 0 ? state.totalPages : 1}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+          final pageNav = SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  onPressed: state.page > 1 ? () => notifier.setPage(1) : null,
+                  icon: const Icon(Icons.first_page, size: 18),
+                  tooltip: 'First Page',
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 28, minHeight: 28),
+                  splashRadius: 16,
+                ),
+                IconButton(
+                  onPressed: state.page > 1
+                      ? () => notifier.setPage(state.page - 1)
+                      : null,
+                  icon: const Icon(Icons.chevron_left, size: 20),
+                  tooltip: 'Previous Page',
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 28, minHeight: 28),
+                  splashRadius: 16,
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    'Page ${state.page} of ${state.totalPages > 0 ? state.totalPages : 1}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
                   ),
                 ),
-              ),
-              IconButton(
-                onPressed: state.page < state.totalPages
-                    ? () => notifier.setPage(state.page + 1)
-                    : null,
-                icon: const Icon(Icons.chevron_right, size: 20),
-                tooltip: 'Next Page',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                splashRadius: 16,
-              ),
-              IconButton(
-                onPressed: state.page < state.totalPages
-                    ? () => notifier.setPage(state.totalPages)
-                    : null,
-                icon: const Icon(Icons.last_page, size: 18),
-                tooltip: 'Last Page',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                splashRadius: 16,
-              ),
-            ],
+                IconButton(
+                  onPressed: state.page < state.totalPages
+                      ? () => notifier.setPage(state.page + 1)
+                      : null,
+                  icon: const Icon(Icons.chevron_right, size: 20),
+                  tooltip: 'Next Page',
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 28, minHeight: 28),
+                  splashRadius: 16,
+                ),
+                IconButton(
+                  onPressed: state.page < state.totalPages
+                      ? () => notifier.setPage(state.totalPages)
+                      : null,
+                  icon: const Icon(Icons.last_page, size: 18),
+                  tooltip: 'Last Page',
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 28, minHeight: 28),
+                  splashRadius: 16,
+                ),
+              ],
+            ),
           );
 
           if (isNarrow) {

@@ -89,6 +89,67 @@ class InAppLiveRoomService extends ChangeNotifier {
   bool _isCamOff = true;
   bool _isRecording = false;
 
+  bool _allowStudentMic = true;
+  bool _allowStudentCam = true;
+  bool _allowStudentShare = false;
+  bool _allowChat = true;
+  bool _allowReactions = true;
+
+  bool get allowStudentMic => _allowStudentMic;
+  bool get allowStudentCam => _allowStudentCam;
+  bool get allowStudentShare => _allowStudentShare;
+  bool get allowChat => _allowChat;
+  bool get allowReactions => _allowReactions;
+
+  final StreamController<Map<String, dynamic>> _pollStreamController = StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get pollStream => _pollStreamController.stream;
+
+  void updatePermissions({
+    bool? allowStudentMic,
+    bool? allowStudentCam,
+    bool? allowStudentShare,
+    bool? allowChat,
+    bool? allowReactions,
+  }) {
+    if (allowStudentMic != null) _allowStudentMic = allowStudentMic;
+    if (allowStudentCam != null) _allowStudentCam = allowStudentCam;
+    if (allowStudentShare != null) _allowStudentShare = allowStudentShare;
+    if (allowChat != null) _allowChat = allowChat;
+    if (allowReactions != null) _allowReactions = allowReactions;
+
+    final isStudent = currentUserRole.toLowerCase() != 'teacher' &&
+        currentUserRole.toLowerCase() != 'host' &&
+        currentUserRole.toLowerCase() != 'co-host' &&
+        currentUserRole.toLowerCase() != 'super_admin' &&
+        currentUserRole.toLowerCase() != 'admin';
+
+    if (isStudent) {
+      if (!_allowStudentMic && !_isMicMuted) {
+        _isMicMuted = true;
+        try {
+          _room?.localParticipant?.setMicrophoneEnabled(false);
+        } catch (_) {}
+        _addSystemMessage("Host has disabled microphone for students.");
+      }
+      if (!_allowStudentCam && !_isCamOff) {
+        _isCamOff = true;
+        try {
+          _room?.localParticipant?.setCameraEnabled(false);
+        } catch (_) {}
+        _addSystemMessage("Host has disabled camera video for students.");
+      }
+      if (!_allowStudentShare && _isScreenSharing) {
+        _isScreenSharing = false;
+        try {
+          _room?.localParticipant?.setScreenShareEnabled(false);
+        } catch (_) {}
+        _addSystemMessage("Screen sharing is restricted to host only.");
+      }
+    }
+    _safeNotify();
+    _safeRoomUpdate();
+  }
+
   ConnectionQuality? _lastConnectionQuality;
   DateTime? _lastCongestionAlertTime;
 
@@ -96,6 +157,61 @@ class InAppLiveRoomService extends ChangeNotifier {
   final Set<String> _raisedHands = {};
   final Map<String, String> _customRoles = {};
   Map<String, String> get customRoles => _customRoles;
+
+  String? _spotlightUserId;
+  String? get spotlightUserId => _spotlightUserId;
+
+  Future<void> muteRemoteParticipant(String targetUserId, {bool isMuted = true}) async {
+    await _broadcastData({
+      'type': 'participant_control',
+      'action': isMuted ? 'mute' : 'unmute',
+      'targetUserId': targetUserId,
+    });
+    // If local user is target
+    if (targetUserId == currentUserId || targetUserId == 'all') {
+      if (isMuted && !_isMicMuted) {
+        await toggleMic();
+      } else if (!isMuted && _isMicMuted) {
+        await toggleMic();
+      }
+    }
+  }
+
+  Future<void> cameraRemoteParticipant(String targetUserId, {bool turnOff = true}) async {
+    await _broadcastData({
+      'type': 'participant_control',
+      'action': turnOff ? 'camera_off' : 'camera_on',
+      'targetUserId': targetUserId,
+    });
+    // If local user is target
+    if (targetUserId == currentUserId || targetUserId == 'all') {
+      if (turnOff && !_isCamOff) {
+        await toggleCamera();
+      } else if (!turnOff && _isCamOff) {
+        await toggleCamera();
+      }
+    }
+  }
+
+  Future<void> setSpotlight(String? targetUserId) async {
+    _spotlightUserId = (_spotlightUserId == targetUserId) ? null : targetUserId;
+    await _broadcastData({
+      'type': 'participant_control',
+      'action': 'spotlight',
+      'targetUserId': _spotlightUserId,
+    });
+    _addSystemMessage(_spotlightUserId != null ? "Spotlight set on participant" : "Spotlight removed");
+    _safeNotify();
+    _safeRoomUpdate();
+  }
+
+  Future<void> removeRemoteParticipant(String targetUserId) async {
+    await _broadcastData({
+      'type': 'participant_control',
+      'action': 'remove_participant',
+      'targetUserId': targetUserId,
+    });
+  }
 
   Future<void> assignRole(String userId, String newRole) async {
     _customRoles[userId] = newRole;
@@ -197,8 +313,10 @@ class InAppLiveRoomService extends ChangeNotifier {
     // 2. Add Remote Participants
     _room?.remoteParticipants.forEach((peerId, remotePart) {
       final assignedRole = _customRoles[peerId];
-      final role = assignedRole ?? remotePart.metadata ?? 'student';
-      final name = remotePart.name;
+      final role = assignedRole ?? (remotePart.metadata?.trim().isNotEmpty == true ? remotePart.metadata!.trim() : 'Student');
+      final name = remotePart.name.trim().isNotEmpty
+          ? remotePart.name.trim()
+          : (remotePart.identity.trim().isNotEmpty ? remotePart.identity.trim() : 'Participant');
 
       final camPub = remotePart.videoTrackPublications
           .where((p) => p.source == TrackSource.camera)
@@ -242,6 +360,14 @@ class InAppLiveRoomService extends ChangeNotifier {
       }
     });
 
+    if (_spotlightUserId != null) {
+      tracks.sort((a, b) {
+        if (a.userId == _spotlightUserId) return -1;
+        if (b.userId == _spotlightUserId) return 1;
+        return 0;
+      });
+    }
+
     return tracks;
   }
 
@@ -272,9 +398,22 @@ class InAppLiveRoomService extends ChangeNotifier {
       });
 
       // 3. Fetch Token from Backend
-      final tokenResponse = await apiService.get(
-        '/livekit/token?room=$liveClassId&identity=$currentUserId&name=${Uri.encodeComponent(currentUserName)}'
-      );
+      Map<String, dynamic> tokenResponse;
+      if (currentUserRole == 'guest') {
+        try {
+          tokenResponse = await apiService.get(
+            '/livekit/guest-token?request_id=${Uri.encodeComponent(liveClassId)}'
+          );
+        } catch (_) {
+          tokenResponse = await apiService.get(
+            '/livekit/token?room=$liveClassId&identity=$currentUserId&name=${Uri.encodeComponent(currentUserName)}'
+          );
+        }
+      } else {
+        tokenResponse = await apiService.get(
+          '/livekit/token?room=$liveClassId&identity=$currentUserId&name=${Uri.encodeComponent(currentUserName)}'
+        );
+      }
       final String token = tokenResponse['token'] ?? '';
       _isRecording = tokenResponse['is_recording'] ?? false;
       String sfuUrl = tokenResponse['livekit_url'] ?? 'ws://localhost:8082';
@@ -561,9 +700,11 @@ class InAppLiveRoomService extends ChangeNotifier {
     } catch (_) {}
 
     await _broadcastData({'type': 'chat', 'message': msg.toJson()});
-    _chatMessages.add(msg);
-    _safeNotify();
-    _safeRoomUpdate();
+    if (!_chatMessages.any((m) => m.id == msg.id)) {
+      _chatMessages.add(msg);
+      _safeNotify();
+      _safeRoomUpdate();
+    }
   }
 
   Future<void> _broadcastData(Map<String, dynamic> data) async {
@@ -579,7 +720,7 @@ class InAppLiveRoomService extends ChangeNotifier {
     }
   }
 
-  void _handleRoomEvent(RoomEvent event) {
+  void _handleRoomEvent(RoomEvent event) async {
     if (_isDisposed) return;
     if (event is TrackSubscribedEvent ||
         event is TrackUnsubscribedEvent ||
@@ -614,9 +755,11 @@ class InAppLiveRoomService extends ChangeNotifier {
         final type = decoded['type'] as String?;
         if (type == 'chat') {
           final msg = LiveRoomChatMessage.fromJson(decoded['message']);
-          _chatMessages.add(msg);
-          _safeNotify();
-          _safeRoomUpdate();
+          if (!_chatMessages.any((m) => m.id == msg.id)) {
+            _chatMessages.add(msg);
+            _safeNotify();
+            _safeRoomUpdate();
+          }
         } else if (type == 'hand_raise') {
           final uId = decoded['userId'] as String;
           final isRaised = decoded['isRaised'] as bool;
@@ -642,6 +785,105 @@ class InAppLiveRoomService extends ChangeNotifier {
             _addSystemMessage("Participant role updated: $newRole");
             _safeNotify();
             _safeRoomUpdate();
+          }
+        } else if (type == 'session.settings_updated') {
+          final settings = decoded['settings'];
+          if (settings is Map) {
+            updatePermissions(
+              allowStudentMic: settings['allow_student_mic'] as bool?,
+              allowStudentCam: settings['allow_student_cam'] as bool?,
+              allowStudentShare: settings['allow_student_share'] as bool?,
+              allowChat: settings['allow_chat'] as bool?,
+              allowReactions: settings['allow_reactions'] as bool?,
+            );
+          }
+        } else if (type == 'poll_launched' || type == 'poll.launched') {
+          if (!_pollStreamController.isClosed) {
+            _pollStreamController.add(Map<String, dynamic>.from(decoded));
+          }
+          _safeNotify();
+        } else if (type == 'poll_vote' || type == 'poll.vote') {
+          if (!_pollStreamController.isClosed) {
+            _pollStreamController.add(Map<String, dynamic>.from(decoded));
+          }
+          _safeNotify();
+        } else if (type == 'participant_control') {
+          final action = decoded['action'] as String?;
+          final targetUserId = decoded['targetUserId'] as String?;
+          if (action == 'camera_off') {
+            if (targetUserId == currentUserId || targetUserId == 'all') {
+              if (!_isCamOff) {
+                _isCamOff = true;
+                try {
+                  await _room?.localParticipant?.setCameraEnabled(false);
+                } catch (_) {}
+                _addSystemMessage("The host has turned off camera video.");
+                if (!_controlStreamController.isClosed) {
+                  _controlStreamController.add({
+                    'action': 'camera_disabled_by_host',
+                    'message': 'The host has turned off your camera video.'
+                  });
+                }
+                _safeNotify();
+                _safeRoomUpdate();
+              }
+            }
+          } else if (action == 'camera_on') {
+            if (targetUserId == currentUserId || targetUserId == 'all') {
+              if (!_controlStreamController.isClosed) {
+                _controlStreamController.add({
+                  'action': 'camera_requested',
+                  'message': 'The host requested you to turn on your camera.'
+                });
+              }
+              _addSystemMessage("The host requested you to turn on your camera.");
+              _safeNotify();
+            }
+          } else if (action == 'mute') {
+            if (targetUserId == currentUserId || targetUserId == null || targetUserId == 'all') {
+              if (!_isMicMuted) {
+                _isMicMuted = true;
+                try {
+                  await _room?.localParticipant?.setMicrophoneEnabled(false);
+                } catch (_) {}
+                _addSystemMessage("The host has muted your microphone.");
+                if (!_controlStreamController.isClosed) {
+                  _controlStreamController.add({
+                    'action': 'muted_by_host',
+                    'message': 'The host has muted your microphone.'
+                  });
+                }
+                _safeNotify();
+                _safeRoomUpdate();
+              }
+            }
+          } else if (action == 'unmute') {
+            if (targetUserId == currentUserId) {
+              if (!_controlStreamController.isClosed) {
+                _controlStreamController.add({
+                  'action': 'unmute_requested',
+                  'message': 'The host asked you to unmute your microphone.'
+                });
+              }
+              _addSystemMessage("The host requested you to unmute your microphone.");
+              _safeNotify();
+            }
+          } else if (action == 'spotlight') {
+            _spotlightUserId = targetUserId;
+            _addSystemMessage(targetUserId != null ? "Spotlight updated" : "Spotlight cleared");
+            _safeNotify();
+            _safeRoomUpdate();
+          } else if (action == 'remove_participant') {
+            if (targetUserId == currentUserId) {
+              if (!_controlStreamController.isClosed) {
+                _controlStreamController.add({
+                  'action': 'removed_from_class',
+                  'message': 'You have been removed from the live session by the host.'
+                });
+              }
+              _addSystemMessage("You have been removed from the session by the host.");
+              leaveRoom();
+            }
           }
         }
       } catch (_) {}
@@ -734,6 +976,7 @@ class InAppLiveRoomService extends ChangeNotifier {
     if (!_reactionStreamController.isClosed) _reactionStreamController.close();
     if (!_controlStreamController.isClosed) _controlStreamController.close();
     if (!_roomUpdateController.isClosed) _roomUpdateController.close();
+    if (!_pollStreamController.isClosed) _pollStreamController.close();
     super.dispose();
   }
 }

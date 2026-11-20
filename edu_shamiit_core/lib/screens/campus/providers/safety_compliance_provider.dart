@@ -183,6 +183,11 @@ class SafetyComplianceNotifier extends StateNotifier<SafetyComplianceState> {
     refreshActiveSubTab();
   }
 
+  void setPageSize(int size) {
+    state = state.copyWith(pageSize: size, currentPage: 1);
+    refreshActiveSubTab();
+  }
+
   void selectItem(dynamic item) {
     state = state.copyWith(selectedItem: item);
   }

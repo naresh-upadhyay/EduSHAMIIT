@@ -1522,6 +1522,9 @@ class _DeviceAutomationsSubviewState extends State<DeviceAutomationsSubview> {
     required ValueChanged<String?> onChanged,
     required bool isDark,
   }) {
+    final uniqueItems = items.toSet().toList();
+    final effectiveValue = uniqueItems.contains(value) ? value : (uniqueItems.isNotEmpty ? uniqueItems.first : value);
+
     return Container(
       height: 28,
       padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -1532,11 +1535,11 @@ class _DeviceAutomationsSubviewState extends State<DeviceAutomationsSubview> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: items.contains(value) ? value : items.first,
+          value: effectiveValue,
           isDense: true,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A)),
-          items: items.map((i) => DropdownMenuItem(value: i, child: Text(i, style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white : const Color(0xFF0F172A))))).toList(),
+          items: uniqueItems.map((i) => DropdownMenuItem(value: i, child: Text(i, style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white : const Color(0xFF0F172A))))).toList(),
           onChanged: onChanged,
         ),
       ),

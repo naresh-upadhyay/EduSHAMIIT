@@ -1540,7 +1540,7 @@ async def list_automations(
     sort_dir: Optional[str] = Query("DESC"),
     page: Optional[int] = Query(1),
     page_size: Optional[int] = Query(10),
-    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     """List automation rules using stored procedure with database pagination & sorting."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
@@ -1569,7 +1569,7 @@ async def list_automations(
 @router.get("/automations/kpis")
 async def get_automation_kpis(
     school_id: Optional[str] = Query(None),
-    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     """Get live automation rules KPIs computed dynamically from PostgreSQL."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
@@ -1587,7 +1587,7 @@ async def get_automation_cascading_options(
     building_id: Optional[str] = Query(None),
     floor_id: Optional[str] = Query(None),
     school_id: Optional[str] = Query(None),
-    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     """Cascading options: Building -> Floor -> Room, Device Types, Groups, Devices, Scenes."""
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"

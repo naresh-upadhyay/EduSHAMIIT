@@ -1,7 +1,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../models/campus_models.dart';
 import '../../services/campus_api_service.dart';
 import '../../services/campus_lookup_helper.dart';
@@ -77,6 +78,8 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
     _deptCtrl = TextEditingController(text: b?.department ?? '');
     _imageCtrl = TextEditingController(text: b?.imageUrl ?? '');
 
+    _managerNameCtrl.addListener(_onManagerNameChanged);
+
     if (b != null) {
       if (_buildingTypes.contains(b.buildingType)) _buildingType = b.buildingType;
       if (_statuses.contains(b.status)) _status = b.status;
@@ -84,11 +87,53 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
     }
   }
 
+  void _onManagerNameChanged() {
+    final text = _managerNameCtrl.text.trim().toLowerCase();
+    if (text.isEmpty) return;
+    final matched = _staffUsers.cast<Map<String, dynamic>?>().firstWhere(
+      (u) {
+        if (u == null) return false;
+        final name = (u['full_name'] ?? u['username'] ?? '').toString().trim().toLowerCase();
+        return name == text;
+      },
+      orElse: () => null,
+    );
+    if (matched != null) {
+      final phone = (matched['phone'] ?? matched['mobile'] ?? matched['contact_number'] ?? matched['phone_number'] ?? '').toString().trim();
+      final email = (matched['email'] ?? '').toString().trim();
+      final contact = phone.isNotEmpty ? phone : (email.isNotEmpty ? email : '+91 98450 12345');
+      if (contact.isNotEmpty) {
+        _managerPhoneCtrl.text = contact;
+      }
+      final dept = (matched['department'] ?? '').toString().trim();
+      if (dept.isNotEmpty) {
+        _deptCtrl.text = dept;
+      }
+      if (mounted) setState(() {});
+    }
+  }
+
+  void _applySelectedManager(Map<String, dynamic> u) {
+    final name = (u['full_name'] ?? u['username'] ?? '').toString().trim();
+    _managerNameCtrl.text = name;
+    final phone = (u['phone'] ?? u['mobile'] ?? u['contact_number'] ?? u['phone_number'] ?? '').toString().trim();
+    final email = (u['email'] ?? '').toString().trim();
+    final contact = phone.isNotEmpty ? phone : (email.isNotEmpty ? email : '+91 98450 12345');
+    if (contact.isNotEmpty) {
+      _managerPhoneCtrl.text = contact;
+    }
+    final dept = (u['department'] ?? '').toString().trim();
+    if (dept.isNotEmpty) {
+      _deptCtrl.text = dept;
+    }
+    if (mounted) setState(() {});
+  }
+
   Future<void> _loadAsyncLookups() async {
     final bTypes = await CampusLookupHelper.instance.getLookupLabels('BUILDING_TYPE');
     final stats = await CampusLookupHelper.instance.getLookupLabels('BUILDING_STATUS');
     final depts = await CampusLookupHelper.instance.getDepartments();
-    final staff = await CampusLookupHelper.instance.getStaffUsers();
+    final staff = await CampusLookupHelper.instance.getStaffUsers(forceRefresh: true);
     if (mounted) {
       setState(() {
         _buildingTypes = bTypes;
@@ -102,40 +147,82 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
           _status = _statuses.first;
         }
       });
+      if (_managerNameCtrl.text.trim().isNotEmpty && _managerPhoneCtrl.text.trim().isEmpty) {
+        _onManagerNameChanged();
+      }
     }
+  }
+
+  Future<Uint8List?> _cropImage(String sourcePath) async {
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: sourcePath,
+      aspectRatio: const CropAspectRatio(ratioX: 16, ratioY: 9),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop Building Image',
+          toolbarColor: const Color(0xFF0F172A),
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.ratio16x9,
+          lockAspectRatio: false,
+        ),
+        IOSUiSettings(
+          title: 'Crop Building Image',
+          aspectRatioLockEnabled: false,
+        ),
+        WebUiSettings(
+          context: context,
+          presentStyle: WebPresentStyle.dialog,
+          size: const CropperSize(width: 520, height: 320),
+          zoomable: true,
+          rotatable: true,
+          scalable: true,
+        ),
+      ],
+    );
+    if (croppedFile != null) {
+      return await croppedFile.readAsBytes();
+    }
+    return null;
   }
 
   Future<void> _pickImage() async {
     try {
-      final res = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
-        withData: true,
+      final picker = ImagePicker();
+      final XFile? picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        imageQuality: 90,
       );
-      if (res != null && res.files.isNotEmpty) {
-        final file = res.files.first;
-        if (file.bytes != null) {
-          setState(() {
-            _pickedImageBytes = file.bytes;
-            _pickedImageName = file.name;
-            _isUploadingImage = true;
-          });
-          final uploadedUrl = await CampusApiService.instance.uploadImage(file.bytes!, file.name);
-          if (mounted) {
-            setState(() {
-              _isUploadingImage = false;
-              if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
-                _imageCtrl.text = uploadedUrl;
-              }
-            });
+      if (picked == null || !mounted) return;
+
+      final croppedBytes = await _cropImage(picked.path);
+      if (croppedBytes == null || !mounted) return; // User cancelled crop
+
+      String filename = picked.name;
+      if (!filename.contains('.')) {
+        filename += '.jpg';
+      }
+
+      setState(() {
+        _pickedImageBytes = croppedBytes;
+        _pickedImageName = filename;
+        _isUploadingImage = true;
+      });
+
+      final uploadedUrl = await CampusApiService.instance.uploadImage(croppedBytes, filename);
+      if (mounted) {
+        setState(() {
+          _isUploadingImage = false;
+          if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+            _imageCtrl.text = uploadedUrl;
           }
-        }
+        });
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isUploadingImage = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick or upload image: $e')),
+          SnackBar(content: Text('Failed to pick or crop image: $e')),
         );
       }
     }
@@ -143,6 +230,7 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
 
   @override
   void dispose() {
+    _managerNameCtrl.removeListener(_onManagerNameChanged);
     _nameCtrl.dispose();
     _codeCtrl.dispose();
     _descCtrl.dispose();
@@ -486,18 +574,7 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
                             displayStringForOption: (u) => (u['full_name'] ?? u['username'] ?? '').toString(),
                             focusNode: _managerFocusNode,
                             textEditingController: _managerNameCtrl,
-                            onSelected: (u) {
-                              final name = (u['full_name'] ?? u['username'] ?? '').toString();
-                              _managerNameCtrl.text = name;
-                              final phone = (u['phone'] ?? u['contact_number'] ?? '').toString();
-                              if (phone.isNotEmpty) {
-                                _managerPhoneCtrl.text = phone;
-                              }
-                              final dept = (u['department'] ?? '').toString();
-                              if (dept.isNotEmpty && _deptCtrl.text.trim().isEmpty) {
-                                _deptCtrl.text = dept;
-                              }
-                            },
+                            onSelected: (u) => _applySelectedManager(u),
                             fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
                               return TextFormField(
                                 controller: controller,
@@ -506,7 +583,16 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
                                   labelText: 'Building Manager',
                                   hintText: 'Select or search user from User Management',
                                   prefixIcon: const Icon(Icons.person_outline, size: 18),
-                                  suffixIcon: _staffUsers.isNotEmpty ? const Icon(Icons.arrow_drop_down, size: 20) : null,
+                                  suffixIcon: _staffUsers.isNotEmpty
+                                      ? IconButton(
+                                          icon: const Icon(Icons.arrow_drop_down, size: 20),
+                                          onPressed: () {
+                                            if (!focusNode.hasFocus) {
+                                              focusNode.requestFocus();
+                                            }
+                                          },
+                                        )
+                                      : null,
                                 ),
                               );
                             },

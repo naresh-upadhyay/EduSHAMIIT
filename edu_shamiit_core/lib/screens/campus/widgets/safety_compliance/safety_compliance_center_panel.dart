@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/safety_compliance_provider.dart';
+import '../common/campus_pagination_bar.dart';
 
 class SafetyComplianceCenterPanel extends ConsumerStatefulWidget {
   final VoidCallback onOpenLogInspection;
@@ -333,8 +334,9 @@ class _SafetyComplianceCenterPanelState extends ConsumerState<SafetyComplianceCe
       child: DataTable(
         border: TableBorder(horizontalInside: BorderSide(color: borderColor, width: 0.8)),
         headingRowColor: WidgetStateProperty.all(headerBg),
-        dataRowMinHeight: 48,
-        dataRowMaxHeight: 56,
+        headingRowHeight: 34,
+        dataRowMinHeight: 32,
+        dataRowMaxHeight: 35,
         columnSpacing: 18,
         columns: [
           DataColumn(label: Text('# Code', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textMuted))),
@@ -439,8 +441,9 @@ class _SafetyComplianceCenterPanelState extends ConsumerState<SafetyComplianceCe
       child: DataTable(
         border: TableBorder(horizontalInside: BorderSide(color: borderColor, width: 0.8)),
         headingRowColor: WidgetStateProperty.all(headerBg),
-        dataRowMinHeight: 48,
-        dataRowMaxHeight: 56,
+        headingRowHeight: 34,
+        dataRowMinHeight: 32,
+        dataRowMaxHeight: 35,
         columnSpacing: 18,
         columns: [
           DataColumn(label: Text('# Code', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textMuted))),
@@ -548,8 +551,9 @@ class _SafetyComplianceCenterPanelState extends ConsumerState<SafetyComplianceCe
       child: DataTable(
         border: TableBorder(horizontalInside: BorderSide(color: borderColor, width: 0.8)),
         headingRowColor: WidgetStateProperty.all(headerBg),
-        dataRowMinHeight: 48,
-        dataRowMaxHeight: 56,
+        headingRowHeight: 34,
+        dataRowMinHeight: 32,
+        dataRowMaxHeight: 35,
         columnSpacing: 18,
         columns: [
           DataColumn(label: Text('# Code', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textMuted))),
@@ -649,8 +653,9 @@ class _SafetyComplianceCenterPanelState extends ConsumerState<SafetyComplianceCe
       child: DataTable(
         border: TableBorder(horizontalInside: BorderSide(color: borderColor, width: 0.8)),
         headingRowColor: WidgetStateProperty.all(headerBg),
-        dataRowMinHeight: 48,
-        dataRowMaxHeight: 56,
+        headingRowHeight: 34,
+        dataRowMinHeight: 32,
+        dataRowMaxHeight: 35,
         columnSpacing: 18,
         columns: [
           DataColumn(label: Text('# Code', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textMuted))),
@@ -752,56 +757,31 @@ class _SafetyComplianceCenterPanelState extends ConsumerState<SafetyComplianceCe
   }
 
   Widget _buildPaginationFooter(SafetyComplianceState state, SafetyComplianceNotifier notifier, bool isDark) {
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
     int totalCount = 0;
-    int totalPages = 1;
+    String label = 'inspections';
     if (state.activeSubTab == 0) {
       totalCount = state.inspections.totalCount;
-      totalPages = state.inspections.totalPages;
+      label = 'inspections';
     } else if (state.activeSubTab == 1) {
       totalCount = state.incidents.totalCount;
-      totalPages = state.incidents.totalPages;
+      label = 'incidents';
     } else if (state.activeSubTab == 2) {
       totalCount = state.certificates.totalCount;
-      totalPages = state.certificates.totalPages;
+      label = 'certificates';
     } else {
       totalCount = state.drills.totalCount;
-      totalPages = state.drills.totalPages;
+      label = 'drills';
     }
 
-    final start = totalCount == 0 ? 0 : (state.currentPage - 1) * state.pageSize + 1;
-    final end = (start + state.pageSize - 1) > totalCount ? totalCount : (start + state.pageSize - 1);
-
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Wrap(
-        alignment: WrapAlignment.spaceBetween,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        runSpacing: 8,
-        children: [
-          Text(
-            'Showing $start - $end of $totalCount items',
-            style: TextStyle(fontSize: 12, color: textMuted),
-          ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left, size: 18),
-                onPressed: state.currentPage > 1 ? () => notifier.setPage(state.currentPage - 1) : null,
-              ),
-              Text(
-                'Page ${state.currentPage} of ${totalPages < 1 ? 1 : totalPages}',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textMuted),
-              ),
-              IconButton(
-                icon: const Icon(Icons.chevron_right, size: 18),
-                onPressed: state.currentPage < totalPages ? () => notifier.setPage(state.currentPage + 1) : null,
-              ),
-            ],
-          ),
-        ],
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: CampusPaginationBar(
+        currentPage: state.currentPage,
+        pageSize: state.pageSize,
+        totalItems: totalCount,
+        onPageChanged: (newPage) => notifier.setPage(newPage),
+        onPageSizeChanged: (newSize) => notifier.setPageSize(newSize),
+        itemLabel: label,
       ),
     );
   }

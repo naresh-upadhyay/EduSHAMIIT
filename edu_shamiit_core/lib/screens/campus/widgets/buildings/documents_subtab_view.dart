@@ -1,5 +1,7 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../models/campus_models.dart';
+import '../common/campus_pagination_bar.dart';
 
 class DocumentsSubtabView extends StatefulWidget {
   final BuildingModel building;
@@ -26,38 +28,79 @@ class DocumentsSubtabView extends StatefulWidget {
 class _DocumentsSubtabViewState extends State<DocumentsSubtabView> {
   String _searchQuery = '';
   String? _selectedType;
+  int _page = 1;
+  int _pageSize = 10;
+  int? _sortColIndex = 0;
+  bool _sortAsc = true;
+
+  void _handleSort(int colIndex, bool asc) {
+    setState(() {
+      _sortColIndex = colIndex;
+      _sortAsc = asc;
+    });
+  }
+
+  bool _checkExpired(BuildingDocumentModel doc) {
+    if (doc.expiryDate == null) return false;
+    final exp = DateTime.tryParse(doc.expiryDate!);
+    if (exp == null) return false;
+    return exp.isBefore(DateTime.now());
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final filtered = widget.documents.where((d) {
+    var filtered = widget.documents.where((d) {
       if (_selectedType != null && _selectedType!.isNotEmpty && d.documentType != _selectedType) {
         return false;
       }
       if (_searchQuery.trim().isNotEmpty) {
         final q = _searchQuery.toLowerCase();
         final name = d.documentName.toLowerCase();
-        final type = d.documentType.toLowerCase();
         final auth = (d.issuingAuthority ?? '').toLowerCase();
-        if (!name.contains(q) && !type.contains(q) && !auth.contains(q)) {
+        if (!name.contains(q) && !auth.contains(q)) {
           return false;
         }
       }
       return true;
     }).toList();
 
-    final totalCount = widget.documents.length;
-    final now = DateTime.now();
-    final validCount = widget.documents.where((d) {
-      if (d.status.toLowerCase() == 'expired') return false;
-      if (d.expiryDate != null) {
-        final exp = DateTime.tryParse(d.expiryDate!);
-        if (exp != null && exp.isBefore(now)) return false;
+    // Sorting
+    filtered.sort((a, b) {
+      int cmp = 0;
+      switch (_sortColIndex) {
+        case 0:
+          cmp = a.documentName.compareTo(b.documentName);
+          break;
+        case 1:
+          cmp = a.documentType.compareTo(b.documentType);
+          break;
+        case 2:
+          cmp = (a.issuingAuthority ?? '').compareTo(b.issuingAuthority ?? '');
+          break;
+        case 3:
+          cmp = (a.issueDate ?? '').compareTo(b.issueDate ?? '');
+          break;
+        case 4:
+          cmp = (a.expiryDate ?? '').compareTo(b.expiryDate ?? '');
+          break;
+        case 5:
+          cmp = a.status.compareTo(b.status);
+          break;
+        default:
+          cmp = 0;
       }
-      return true;
-    }).length;
-    final expiredCount = totalCount - validCount;
+      return _sortAsc ? cmp : -cmp;
+    });
+
+    final totalCount = filtered.length;
+    final totalPages = math.max(1, (totalCount / _pageSize).ceil());
+    if (_page > totalPages) _page = totalPages;
+
+    final startIndex = (totalCount == 0) ? 0 : (_page - 1) * _pageSize;
+    final endIndex = math.min(startIndex + _pageSize, totalCount);
+    final pagedItems = (startIndex < totalCount) ? filtered.sublist(startIndex, endIndex) : <BuildingDocumentModel>[];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -70,103 +113,93 @@ class _DocumentsSubtabViewState extends State<DocumentsSubtabView> {
           runSpacing: 8,
           children: [
             Text(
-              'Compliance, Permits & Documents (${widget.building.code})',
+              'Compliance & Documents (${widget.building.code})',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.w700,
                 color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
               ),
             ),
             ElevatedButton.icon(
               onPressed: widget.onAddDocument,
-              icon: const Icon(Icons.upload_file, size: 15, color: Colors.white),
-              label: const Text('Upload Document', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+              icon: const Icon(Icons.upload_file_rounded, size: 14, color: Colors.white),
+              label: const Text('Upload Document', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Colors.white)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2563EB),
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 8),
 
-        // 2. Mini KPI Cards
+        // 2. Compact Search & Filter Row
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-          ),
-          child: Row(
-            children: [
-              Expanded(child: _buildMetricTile('Total Documents', '$totalCount', Icons.folder_open_outlined, const Color(0xFF2563EB), isDark)),
-              Container(width: 1, height: 36, color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-              Expanded(child: _buildMetricTile('Active & Valid', '$validCount', Icons.verified_outlined, const Color(0xFF059669), isDark)),
-              Container(width: 1, height: 36, color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-              Expanded(child: _buildMetricTile('Expired / Needs Renewal', '$expiredCount', Icons.warning_amber_outlined, const Color(0xFFDC2626), isDark)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-
-        // 3. Search & Filter Bar
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
           ),
           child: Row(
             children: [
               Expanded(
                 child: SizedBox(
-                  height: 38,
+                  height: 32,
                   child: TextField(
                     decoration: InputDecoration(
-                      hintText: 'Search document title or issuing authority...',
-                      prefixIcon: const Icon(Icons.search, size: 18),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      hintText: 'Search title or authority...',
+                      hintStyle: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                      prefixIcon: const Icon(Icons.search, size: 15),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
                       isDense: true,
                     ),
-                    onChanged: (v) => setState(() => _searchQuery = v),
+                    style: const TextStyle(fontSize: 12),
+                    onChanged: (v) => setState(() {
+                      _searchQuery = v;
+                      _page = 1;
+                    }),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               SizedBox(
-                height: 38,
+                height: 32,
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String?>(
                     value: _selectedType,
-                    hint: const Text('All Categories', style: TextStyle(fontSize: 12.5)),
+                    hint: const Text('All Categories', style: TextStyle(fontSize: 11.5)),
                     items: const [
-                      DropdownMenuItem(value: null, child: Text('All Categories', style: TextStyle(fontSize: 12.5))),
-                      DropdownMenuItem(value: 'Occupancy Certificate', child: Text('Occupancy Certificate', style: TextStyle(fontSize: 12.5))),
-                      DropdownMenuItem(value: 'Fire Safety NOC', child: Text('Fire Safety NOC', style: TextStyle(fontSize: 12.5))),
-                      DropdownMenuItem(value: 'Structural Fitness', child: Text('Structural Fitness', style: TextStyle(fontSize: 12.5))),
-                      DropdownMenuItem(value: 'Environmental Clearance', child: Text('Environmental Clearance', style: TextStyle(fontSize: 12.5))),
-                      DropdownMenuItem(value: 'Building Sanction Plan', child: Text('Building Sanction Plan', style: TextStyle(fontSize: 12.5))),
-                      DropdownMenuItem(value: 'Insurance Policy', child: Text('Insurance Policy', style: TextStyle(fontSize: 12.5))),
+                      DropdownMenuItem(value: null, child: Text('All Categories', style: TextStyle(fontSize: 11.5))),
+                      DropdownMenuItem(value: 'Occupancy Certificate', child: Text('Occupancy Certificate', style: TextStyle(fontSize: 11.5))),
+                      DropdownMenuItem(value: 'Fire Safety NOC', child: Text('Fire Safety NOC', style: TextStyle(fontSize: 11.5))),
+                      DropdownMenuItem(value: 'Structural Fitness', child: Text('Structural Fitness', style: TextStyle(fontSize: 11.5))),
+                      DropdownMenuItem(value: 'Environmental Clearance', child: Text('Environmental Clearance', style: TextStyle(fontSize: 11.5))),
+                      DropdownMenuItem(value: 'Building Sanction Plan', child: Text('Building Sanction Plan', style: TextStyle(fontSize: 11.5))),
+                      DropdownMenuItem(value: 'Insurance Policy', child: Text('Insurance Policy', style: TextStyle(fontSize: 11.5))),
                     ],
-                    onChanged: (v) => setState(() => _selectedType = v),
+                    onChanged: (v) => setState(() {
+                      _selectedType = v;
+                      _page = 1;
+                    }),
                   ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 8),
 
-        // 4. Documents Data Table
+        // 3. Documents Data Table
         Container(
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
           ),
           child: widget.isLoading
@@ -177,16 +210,16 @@ class _DocumentsSubtabViewState extends State<DocumentsSubtabView> {
               : filtered.isEmpty
                   ? Center(
                       child: Padding(
-                        padding: const EdgeInsets.all(40),
+                        padding: const EdgeInsets.all(32),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.description_outlined, size: 40, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
-                            const SizedBox(height: 10),
+                            Icon(Icons.description_outlined, size: 36, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                            const SizedBox(height: 8),
                             Text(
-                              'No documents attached yet. Click "+ Upload Document" to attach permits, certificates or blueprints.',
+                              'No documents attached yet. Click "+ Upload Document" to attach permits or blueprints.',
                               style: TextStyle(
-                                fontSize: 13,
+                                fontSize: 12.5,
                                 color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                               ),
                             ),
@@ -195,28 +228,50 @@ class _DocumentsSubtabViewState extends State<DocumentsSubtabView> {
                       ),
                     )
                   : ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                       child: SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: DataTable(
+                          sortColumnIndex: _sortColIndex,
+                          sortAscending: _sortAsc,
                           headingRowColor: WidgetStateProperty.all(
                             isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                           ),
-                          headingRowHeight: 44,
-                          dataRowMinHeight: 48,
-                          dataRowMaxHeight: 52,
-                          columnSpacing: 22,
-                          horizontalMargin: 16,
-                          columns: const [
-                            DataColumn(label: Text('Document Title', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Category', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Issuing Authority', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Issue Date', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Expiry Date', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Status', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Actions', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
+                          headingRowHeight: 34,
+                          dataRowMinHeight: 32,
+                          dataRowMaxHeight: 35,
+                          columnSpacing: 16,
+                          horizontalMargin: 12,
+                          columns: [
+                            DataColumn(
+                              label: const Text('Document Title', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                              onSort: (idx, asc) => _handleSort(idx, asc),
+                            ),
+                            DataColumn(
+                              label: const Text('Category', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                              onSort: (idx, asc) => _handleSort(idx, asc),
+                            ),
+                            DataColumn(
+                              label: const Text('Issuing Authority', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                              onSort: (idx, asc) => _handleSort(idx, asc),
+                            ),
+                            DataColumn(
+                              label: const Text('Issue Date', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                              onSort: (idx, asc) => _handleSort(idx, asc),
+                            ),
+                            DataColumn(
+                              label: const Text('Expiry Date', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                              onSort: (idx, asc) => _handleSort(idx, asc),
+                            ),
+                            DataColumn(
+                              label: const Text('Status', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                              onSort: (idx, asc) => _handleSort(idx, asc),
+                            ),
+                            const DataColumn(
+                              label: Text('Actions', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                            ),
                           ],
-                          rows: filtered.map((item) {
+                          rows: pagedItems.map((item) {
                             final isExpired = _checkExpired(item);
                             return DataRow(
                               cells: [
@@ -224,49 +279,49 @@ class _DocumentsSubtabViewState extends State<DocumentsSubtabView> {
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.picture_as_pdf, color: Colors.red, size: 18),
-                                      const SizedBox(width: 8),
+                                      const Icon(Icons.picture_as_pdf, color: Colors.red, size: 16),
+                                      const SizedBox(width: 6),
                                       Text(
                                         item.documentName,
-                                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
+                                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
                                       ),
                                     ],
                                   ),
                                 ),
                                 DataCell(
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFF2563EB).withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
                                       item.documentType,
-                                      style: const TextStyle(color: Color(0xFF2563EB), fontSize: 11, fontWeight: FontWeight.w600),
+                                      style: const TextStyle(color: Color(0xFF2563EB), fontSize: 10.5, fontWeight: FontWeight.w600),
                                     ),
                                   ),
                                 ),
                                 DataCell(
-                                  Text(item.issuingAuthority ?? '—', style: const TextStyle(fontSize: 12)),
+                                  Text(item.issuingAuthority ?? '—', style: const TextStyle(fontSize: 11.5)),
                                 ),
                                 DataCell(
-                                  Text(item.issueDate?.substring(0, 10) ?? '—', style: const TextStyle(fontSize: 11.5)),
+                                  Text(item.issueDate?.substring(0, 10) ?? '—', style: const TextStyle(fontSize: 11)),
                                 ),
                                 DataCell(
-                                  Text(item.expiryDate?.substring(0, 10) ?? 'Permanent', style: const TextStyle(fontSize: 11.5)),
+                                  Text(item.expiryDate?.substring(0, 10) ?? 'Permanent', style: const TextStyle(fontSize: 11)),
                                 ),
                                 DataCell(
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: (isExpired ? Colors.red : const Color(0xFF059669)).withValues(alpha: 0.1),
+                                      color: (isExpired ? Colors.red : const Color(0xFF059669)).withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
-                                      isExpired ? 'Expired' : 'Valid',
+                                      isExpired ? 'Expired' : item.status,
                                       style: TextStyle(
                                         color: isExpired ? Colors.red : const Color(0xFF059669),
-                                        fontSize: 11,
+                                        fontSize: 10.5,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -276,33 +331,20 @@ class _DocumentsSubtabViewState extends State<DocumentsSubtabView> {
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      if (item.fileUrl.isNotEmpty)
-                                        IconButton(
-                                          icon: const Icon(Icons.open_in_new, size: 16, color: Color(0xFF2563EB)),
-                                          tooltip: 'View Document File',
-                                          onPressed: () {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(content: Text('File URL: ${item.fileUrl}')),
-                                            );
-                                          },
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                        ),
-                                      const SizedBox(width: 8),
                                       IconButton(
-                                        icon: const Icon(Icons.edit_outlined, size: 16),
+                                        icon: const Icon(Icons.edit_outlined, size: 15),
                                         tooltip: 'Edit Document',
                                         onPressed: () => widget.onEditDocument(item),
                                         padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
+                                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                                       ),
-                                      const SizedBox(width: 8),
+                                      const SizedBox(width: 4),
                                       IconButton(
-                                        icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                                        icon: const Icon(Icons.delete_outline, size: 15, color: Colors.red),
                                         tooltip: 'Delete Document',
                                         onPressed: () => widget.onDeleteDocument(item),
                                         padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
+                                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                                       ),
                                     ],
                                   ),
@@ -314,33 +356,19 @@ class _DocumentsSubtabViewState extends State<DocumentsSubtabView> {
                       ),
                     ),
         ),
-      ],
-    );
-  }
+        const SizedBox(height: 8),
 
-  bool _checkExpired(BuildingDocumentModel doc) {
-    if (doc.status.toLowerCase() == 'expired') return true;
-    if (doc.expiryDate != null) {
-      final exp = DateTime.tryParse(doc.expiryDate!);
-      if (exp != null && exp.isBefore(DateTime.now())) return true;
-    }
-    return false;
-  }
-
-  Widget _buildMetricTile(String label, String value, IconData icon, Color color, bool isDark) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(width: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(label, style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
-            const SizedBox(height: 1),
-            Text(value, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A))),
-          ],
+        // Pagination Bar
+        CampusPaginationBar(
+          currentPage: _page,
+          pageSize: _pageSize,
+          totalCount: totalCount,
+          itemLabel: 'documents',
+          onPageChanged: (p) => setState(() => _page = p),
+          onPageSizeChanged: (s) => setState(() {
+            _pageSize = s;
+            _page = 1;
+          }),
         ),
       ],
     );
