@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../core/theme.dart';
 import '../models/transaction_model.dart';
 import '../services/api_service.dart';
 import '../widgets/app_header.dart';
 import '../widgets/filter_chips.dart';
-import '../widgets/metric_card.dart';
 import '../widgets/status_badge.dart';
+import '../widgets/phonepe_filter_dialog.dart';
 import 'transaction_details_screen.dart';
 
 class TransactionsScreen extends StatefulWidget {
@@ -19,12 +20,11 @@ class TransactionsScreen extends StatefulWidget {
 
 class _TransactionsScreenState extends State<TransactionsScreen> {
   String _selectedFilter = 'All';
-  String? _searchQuery;
-  bool _isSearchOpen = false;
+  String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  PhonePeFilterState _filterState = const PhonePeFilterState();
 
   late Future<List<TransactionItem>> _transactionsFuture;
-  late Future<Map<String, int>> _summaryFuture;
 
   @override
   void initState() {
@@ -32,14 +32,95 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     _fetch();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   void _fetch() {
     setState(() {
       _transactionsFuture = ApiService().getTransactions(
         status: _selectedFilter,
-        search: _searchQuery,
+        search: _searchQuery.isNotEmpty ? _searchQuery : null,
       );
-      _summaryFuture = ApiService().getTransactionsSummary();
     });
+  }
+
+  Future<void> _openPhonePeFilters() async {
+    final result = await showDialog<PhonePeFilterState>(
+      context: context,
+      builder: (_) => PhonePeFilterDialog(
+        initialState: _filterState,
+        isForAlerts: false,
+      ),
+    );
+    if (result != null) {
+      setState(() {
+        _filterState = result;
+      });
+    }
+  }
+
+  List<TransactionItem> _applyAllFilters(List<TransactionItem> raw) {
+    return raw.where((tx) {
+      // 1. Text Search
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery.toLowerCase();
+        final matchesQuery = (tx.transactionReference?.toLowerCase().contains(q) ?? false) ||
+            tx.formattedAmount.toLowerCase().contains(q) ||
+            (tx.studentName?.toLowerCase().contains(q) ?? false) ||
+            (tx.invoiceNumber?.toLowerCase().contains(q) ?? false) ||
+            (tx.intentReference?.toLowerCase().contains(q) ?? false) ||
+            (tx.upiApp?.toLowerCase().contains(q) ?? false);
+        if (!matchesQuery) return false;
+      }
+
+      // 2. Month Filter
+      if (_filterState.selectedMonths.isNotEmpty) {
+        final dt = tx.receivedDateTime;
+        final monthStr = DateFormat('MMM yyyy').format(dt).toLowerCase();
+        final matchesMonth = _filterState.selectedMonths.any((m) =>
+            m.toLowerCase().contains(monthStr) || monthStr.contains(m.toLowerCase().split(' ').first));
+        if (!matchesMonth) return false;
+      }
+
+      // 3. Instrument / App Filter
+      if (_filterState.selectedInstruments.isNotEmpty) {
+        final matchesApp = _filterState.selectedInstruments.any((inst) {
+          final instLower = inst.toLowerCase();
+          final appLower = (tx.upiApp ?? '').toLowerCase();
+          return appLower.contains(instLower) || instLower.contains(appLower);
+        });
+        if (!matchesApp) return false;
+      }
+
+      // 4. Status Filter
+      if (_filterState.selectedStatuses.isNotEmpty) {
+        final st = tx.paymentStatus.toUpperCase();
+        bool matchesStatus = false;
+        for (final s in _filterState.selectedStatuses) {
+          final sUpper = s.toUpperCase();
+          if (sUpper.contains('SUCCESS') && (st.contains('SUCCESS') || st.contains('VERIF'))) matchesStatus = true;
+          if (sUpper.contains('PENDING') && (st.contains('PENDING') || st.contains('AWAITING'))) matchesStatus = true;
+          if (sUpper.contains('UNMATCHED') && st.contains('UNMATCHED')) matchesStatus = true;
+          if (sUpper.contains('REFUND') && st.contains('REFUND')) matchesStatus = true;
+          if (sUpper.contains('REVIEW') && st.contains('REVIEW')) matchesStatus = true;
+        }
+        if (!matchesStatus) return false;
+      }
+
+      // 5. Payment Types Filter
+      if (_filterState.selectedPaymentTypes.isNotEmpty) {
+        final isCredit = !tx.paymentStatus.toUpperCase().contains('REFUND');
+        final wantsCredit = _filterState.selectedPaymentTypes.any((t) => t.toLowerCase().contains('credit') || t.toLowerCase().contains('received'));
+        final wantsDebit = _filterState.selectedPaymentTypes.any((t) => t.toLowerCase().contains('debit') || t.toLowerCase().contains('sent'));
+        if (isCredit && !wantsCredit && wantsDebit) return false;
+        if (!isCredit && !wantsDebit && wantsCredit) return false;
+      }
+
+      return true;
+    }).toList();
   }
 
   @override
@@ -54,60 +135,135 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             onBackPressed: widget.onBack,
             actions: [
               IconButton(
-                icon: Icon(_isSearchOpen ? Icons.close : Icons.search,
-                    color: Colors.white),
-                onPressed: () {
-                  setState(() {
-                    _isSearchOpen = !_isSearchOpen;
-                    if (!_isSearchOpen) {
-                      _searchQuery = null;
-                      _searchController.clear();
-                      _fetch();
-                    }
-                  });
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.filter_list, color: Colors.white),
-                onPressed: () => _showFilterDialog(),
+                icon: const Icon(Icons.refresh, color: Colors.white),
+                tooltip: 'Refresh Ledger',
+                onPressed: _fetch,
               ),
             ],
           ),
-          if (_isSearchOpen)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+
+          // PhonePe-Style Search & Filters Bar
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
               color: Colors.white,
-              child: TextField(
-                controller: _searchController,
-                autofocus: true,
-                decoration: InputDecoration(
-                  hintText: 'Search student, invoice, or UTR...',
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 18),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() => _searchQuery = null);
-                            _fetch();
-                          },
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: AppColors.background,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.search, size: 20, color: AppColors.textMuted),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      hintText: 'Search student, invoice, or UTR...',
+                      hintStyle: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    onChanged: (val) {
+                      setState(() => _searchQuery = val.trim());
+                    },
                   ),
                 ),
-                onSubmitted: (val) {
-                  setState(() => _searchQuery = val.trim());
-                  _fetch();
-                },
+                if (_searchController.text.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.clear, size: 18, color: AppColors.textMuted),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() => _searchQuery = '');
+                    },
+                  ),
+                Container(
+                  height: 20,
+                  width: 1,
+                  color: AppColors.border,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                ),
+                IconButton(
+                  icon: Stack(
+                    children: [
+                      const Icon(Icons.tune_rounded, size: 20, color: AppColors.primaryNavy),
+                      if (!_filterState.isEmpty)
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF5F259F),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  tooltip: 'PhonePe-Style Filters',
+                  onPressed: _openPhonePeFilters,
+                ),
+              ],
+            ),
+          ),
+
+          // Active Filters Pills Bar
+          if (!_filterState.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    ..._filterState.selectedMonths.map((m) => _buildActiveFilterChip(m, () {
+                          setState(() {
+                            _filterState = _filterState.copyWith(
+                              selectedMonths: Set.from(_filterState.selectedMonths)..remove(m),
+                            );
+                          });
+                        })),
+                    ..._filterState.selectedInstruments.map((inst) => _buildActiveFilterChip(inst, () {
+                          setState(() {
+                            _filterState = _filterState.copyWith(
+                              selectedInstruments: Set.from(_filterState.selectedInstruments)..remove(inst),
+                            );
+                          });
+                        })),
+                    ..._filterState.selectedStatuses.map((st) => _buildActiveFilterChip(st, () {
+                          setState(() {
+                            _filterState = _filterState.copyWith(
+                              selectedStatuses: Set.from(_filterState.selectedStatuses)..remove(st),
+                            );
+                          });
+                        })),
+                    InkWell(
+                      onTap: () {
+                        setState(() => _filterState = const PhonePeFilterState());
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: Text(
+                          'Clear all',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.errorRed),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          // Horizontal Filter Chips
+
+          // Horizontal Quick Filter Chips Bar
           FilterChipsBar(
             options: const [
               'All',
@@ -122,153 +278,178 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               _fetch();
             },
           ),
+
+          // Transactions List Grouped by Month
           Expanded(
             child: RefreshIndicator(
               onRefresh: () async => _fetch(),
-              child: Builder(
-                builder: (ctx) {
-                  final bottomSafePadding = MediaQuery.of(ctx).padding.bottom;
-                  return SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.fromLTRB(
-                      16,
-                      6,
-                      16,
-                      bottomSafePadding > 0 ? bottomSafePadding + 32 : 36,
-                    ),
-                    child: Column(
-                  children: [
-                    // Top 4 Metric Summary Boxes (matching screenshot)
-                    FutureBuilder<Map<String, int>>(
-                      future: _summaryFuture,
-                      builder: (context, snapshot) {
-                        final s = snapshot.data ??
-                            {'successful': 0, 'pending': 0, 'unmatched': 0, 'refunds': 0};
-                        return Row(
-                          children: [
-                            Expanded(
-                              child: TransactionSummaryBox(
-                                count: '${s['successful']}',
-                                label: 'Successful',
-                                icon: Icons.check,
-                                color: AppColors.successGreen,
-                                bgColor: AppColors.successGreenBg,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TransactionSummaryBox(
-                                count: '${s['pending']}',
-                                label: 'Pending',
-                                icon: Icons.schedule,
-                                color: AppColors.pendingBlue,
-                                bgColor: AppColors.pendingBlueBg,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TransactionSummaryBox(
-                                count: '${s['unmatched']}',
-                                label: 'Unmatched',
-                                icon: Icons.priority_high,
-                                color: AppColors.warningOrange,
-                                bgColor: AppColors.warningOrangeBg,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TransactionSummaryBox(
-                                count: '${s['refunds']}',
-                                label: 'Refunds',
-                                icon: Icons.refresh,
-                                color: AppColors.refundPurple,
-                                bgColor: AppColors.refundPurpleBg,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 12),
+              child: FutureBuilder<List<TransactionItem>>(
+                future: _transactionsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return const Center(
+                      child: Text('Offline: Could not connect to server', style: TextStyle(color: AppColors.errorRed)),
+                    );
+                  }
 
-                    // Transaction Cards List
-                    FutureBuilder<List<TransactionItem>>(
-                      future: _transactionsFuture,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 40),
-                            child: CircularProgressIndicator(),
-                          );
-                        }
-                        if (snapshot.hasError) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 40),
-                    child: Text('Offline: Could not connect to server', style: TextStyle(color: AppColors.errorRed)),
-                  );
-                }
-                final items = snapshot.data ?? [];
-                        if (items.isEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 40),
-                            child: Text(
-                              'No transactions found',
-                              style: TextStyle(
-                                  color: AppColors.textSecondary, fontSize: 14),
+                  final rawItems = snapshot.data ?? [];
+                  final filteredItems = _applyAllFilters(rawItems);
+
+                  if (filteredItems.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.receipt_long_outlined, size: 48, color: AppColors.textMuted),
+                          const SizedBox(height: 12),
+                          Text(
+                            _searchQuery.isNotEmpty || !_filterState.isEmpty
+                                ? 'No transactions match your filters'
+                                : 'No transactions found',
+                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  // Group by Month (matching PhonePe screenshot: e.g. "November 2026")
+                  final grouped = <String, List<TransactionItem>>{};
+                  for (final item in filteredItems) {
+                    final dt = item.receivedDateTime;
+                    final monthKey = DateFormat('MMMM yyyy').format(dt);
+                    grouped.putIfAbsent(monthKey, () => []).add(item);
+                  }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    itemCount: grouped.keys.length,
+                    itemBuilder: (context, idx) {
+                      final monthKey = grouped.keys.elementAt(idx);
+                      final monthItems = grouped[monthKey]!;
+                      final monthTotal = monthItems.fold<double>(0.0, (acc, item) => acc + item.amountDouble);
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Month Header with Total Volume (matching Screenshot 2: "November 2026   ₹52,797.25 >")
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    monthKey,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      '₹${monthTotal.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(Icons.chevron_right, size: 16, color: AppColors.textMuted),
+                                  ],
+                                ),
+                              ],
                             ),
-                          );
-                        }
-                        return Column(
-                          children: items
-                              .map((tx) => _buildTransactionCard(tx))
-                              .toList(),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              );
-            },
+                          ),
+
+                          // Month's Transactions
+                          ...monthItems.map((tx) => _buildPhonePeTransactionCard(tx)),
+                          const SizedBox(height: 8),
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
           ),
-        ),
-      ),
         ],
       ),
     );
   }
 
-  Widget _buildTransactionCard(TransactionItem tx) {
-    Color iconBg;
-    Color iconFg;
-    IconData icon;
+  Widget _buildActiveFilterChip(String label, VoidCallback onRemove) {
+    return Container(
+      margin: const EdgeInsets.only(right: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFF5F259F).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF5F259F).withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF5F259F))),
+          const SizedBox(width: 4),
+          InkWell(
+            onTap: onRemove,
+            child: const Icon(Icons.close, size: 12, color: Color(0xFF5F259F)),
+          ),
+        ],
+      ),
+    );
+  }
 
-    final st = tx.paymentStatus.toUpperCase();
-    if (st == 'VERIFIED_SUCCESS') {
-      icon = Icons.check;
-      iconBg = AppColors.successGreenBg;
-      iconFg = AppColors.successGreen;
-    } else if (st == 'PENDING') {
-      icon = Icons.schedule;
-      iconBg = AppColors.pendingBlueBg;
-      iconFg = AppColors.pendingBlue;
-    } else if (st == 'UNMATCHED') {
-      icon = Icons.priority_high;
-      iconBg = AppColors.warningOrangeBg;
-      iconFg = AppColors.warningOrange;
-    } else if (st.contains('REFUND')) {
-      icon = Icons.sync;
-      iconBg = AppColors.refundPurpleBg;
-      iconFg = AppColors.refundPurple;
-    } else {
-      icon = Icons.help_outline;
-      iconBg = AppColors.ignoredGreyBg;
-      iconFg = AppColors.ignoredGrey;
+  Widget _buildPhonePeTransactionCard(TransactionItem tx) {
+    Color iconBg = const Color(0xFF2563EB);
+    Widget iconContent = const Icon(Icons.payment, color: Colors.white, size: 18);
+
+    final appLower = (tx.upiApp ?? '').toLowerCase();
+    if (appLower.contains('phonepe')) {
+      iconBg = const Color(0xFF5F259F);
+      iconContent = const Text('पे', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold));
+    } else if (appLower.contains('google') || appLower.contains('gpay')) {
+      iconBg = const Color(0xFF4285F4);
+      iconContent = const Text('G', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold));
+    } else if (appLower.contains('paytm')) {
+      iconBg = const Color(0xFF002E6E);
+      iconContent = const Text('P', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold));
+    } else if (appLower.contains('bhim')) {
+      iconBg = const Color(0xFF00796B);
+      iconContent = const Text('B', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold));
+    } else if (appLower.contains('canara')) {
+      iconBg = const Color(0xFF003B70);
+      iconContent = const Text('CB', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold));
+    } else if (appLower.contains('sms')) {
+      iconBg = const Color(0xFF0284C7);
+      iconContent = const Icon(Icons.sms_outlined, color: Colors.white, size: 16);
     }
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+    final isRefund = tx.paymentStatus.toUpperCase().contains('REFUND');
+    final amountSign = isRefund ? '- ' : '+ ';
+    final amountColor = isRefund ? AppColors.textSecondary : AppColors.successGreen;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
       child: InkWell(
+        borderRadius: BorderRadius.circular(14),
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -276,175 +457,102 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ),
           );
         },
-        borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // 1. Payment Mode / UPI App Icon
               Container(
-                padding: const EdgeInsets.all(6),
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   color: iconBg,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: iconFg, size: 16),
+                child: Center(child: iconContent),
               ),
               const SizedBox(width: 12),
+
+              // 2. Center Transaction Details
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Student / Payer Name
+                    Text(
+                      tx.studentName != null && tx.studentName!.isNotEmpty
+                          ? tx.studentName!
+                          : (tx.maskedSender != null ? 'Payer ${tx.maskedSender}' : 'Direct UPI Deposit'),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+
+                    // Invoice Number & Time
+                    Text(
+                      tx.invoiceNumber != null && tx.invoiceNumber!.isNotEmpty
+                          ? '${tx.invoiceNumber} • ${tx.formattedTime}'
+                          : tx.formattedTime,
+                      style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 5),
+
+                    // Status Badge & Reference
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          tx.formattedAmount,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
                         StatusBadge(
                           status: tx.paymentStatus,
-                          customLabel: tx.paymentStatus == 'VERIFIED_SUCCESS'
-                              ? 'Successful'
-                              : (tx.paymentStatus == 'REFUNDED'
-                                  ? 'Refunded'
-                                  : null),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    if (tx.studentName != null)
-                      Text(
-                        '${tx.studentName} • ${tx.invoiceNumber ?? ""}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      )
-                    else
-                      const Text(
-                        'No matching payment request',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 8,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(
-                          tx.formattedReceivedAt,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                        if (tx.upiApp != null)
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                tx.upiApp == 'Google Pay'
-                                    ? Icons.payment
-                                    : Icons.account_balance_wallet_outlined,
-                                size: 13,
-                                color: AppColors.textSecondary,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                tx.upiApp!,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        if (tx.transactionReference != null &&
-                            tx.paymentStatus == 'REFUNDED')
-                          Text(
-                            'Ref: ${tx.transactionReference}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textMuted,
+                        if (tx.transactionReference != null && tx.transactionReference!.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Ref: ${tx.transactionReference}',
+                              style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                        ],
                       ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 4),
-              const Icon(Icons.chevron_right, size: 18, color: AppColors.textMuted),
+              const SizedBox(width: 8),
+
+              // 3. Right: Amount, Credited/Debited Status & Chevron
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '$amountSign${tx.formattedAmount}',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: amountColor),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.chevron_right, size: 16, color: AppColors.textMuted),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    isRefund ? 'Debited' : 'Credited to UPI',
+                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
       ),
-    );
-  }
-
-  void _showFilterDialog() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom +
-                (MediaQuery.of(ctx).padding.bottom > 0
-                    ? MediaQuery.of(ctx).padding.bottom + 16
-                    : 24),
-          ),
-          child: SafeArea(
-            top: false,
-            bottom: true,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Filter Transactions',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  ...['All', 'Successful', 'Pending', 'Unmatched', 'Refunds'].map((f) {
-                    return ListTile(
-                      title: Text(f),
-                      trailing: _selectedFilter == f
-                          ? const Icon(Icons.check, color: AppColors.primaryBlue)
-                          : null,
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        setState(() => _selectedFilter = f);
-                        _fetch();
-                      },
-                    );
-                  }),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 }

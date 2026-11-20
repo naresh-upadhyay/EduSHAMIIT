@@ -9,6 +9,7 @@ class AppColors {
 
   // Backgrounds
   static const Color background = Color(0xFFF4F7FC);
+  static const Color backgroundLight = Color(0xFFF4F7FC);
   static const Color cardBackground = Colors.white;
 
   // Primary Accent

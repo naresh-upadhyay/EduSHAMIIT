@@ -183,30 +183,40 @@ class _LoginScreenState extends State<LoginScreen> {
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF1E3A8A).withOpacity(0.25),
+                                color: const Color(0xFF1E3A8A).withValues(alpha: 0.25),
                                 blurRadius: 16,
                                 offset: const Offset(0, 6),
                               ),
                             ],
                           ),
-                          child: const Icon(
-                            Icons.qr_code_2_rounded,
-                            color: Colors.white,
-                            size: 36,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: Image.asset(
+                              'assets/images/shamiit_logo.png',
+                              width: 64,
+                              height: 64,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => const Icon(
+                                Icons.account_balance_wallet_rounded,
+                                color: Colors.white,
+                                size: 36,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'EduSHAMIIT',
+                          'SHAMIIT',
                           style: GoogleFonts.outfit(
-                            fontSize: 24,
+                            fontSize: 26,
                             fontWeight: FontWeight.bold,
                             color: const Color(0xFF0F172A),
+                            letterSpacing: 0.5,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Payment Bridge • Institution Terminal',
+                          'Payment Bridge • Enterprise Terminal',
                           style: GoogleFonts.dmSans(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
@@ -226,7 +236,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
+                          color: Colors.black.withValues(alpha: 0.04),
                           blurRadius: 24,
                           offset: const Offset(0, 8),
                         ),

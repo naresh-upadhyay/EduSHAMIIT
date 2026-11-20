@@ -40,6 +40,7 @@ class AppHeader extends StatelessWidget {
   final bool showRunningBadge;
   final List<Widget>? actions;
   final VoidCallback? onBackPressed;
+  final VoidCallback? onMenuPressed;
 
   const AppHeader({
     super.key,
@@ -48,6 +49,7 @@ class AppHeader extends StatelessWidget {
     this.showRunningBadge = false,
     this.actions,
     this.onBackPressed,
+    this.onMenuPressed,
   });
 
   @override
@@ -83,17 +85,31 @@ class AppHeader extends StatelessWidget {
                 constraints: const BoxConstraints(),
               )
             else
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.qr_code_scanner,
-                  color: Colors.white,
-                  size: 22,
+              Builder(
+                builder: (headerCtx) => GestureDetector(
+                  onTap: onMenuPressed ?? () => Scaffold.of(headerCtx).openDrawer(),
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.asset(
+                        'assets/images/shamiit_logo.png',
+                        width: 38,
+                        height: 38,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => const Icon(
+                          Icons.menu,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             const SizedBox(width: 12),
@@ -104,12 +120,12 @@ class AppHeader extends StatelessWidget {
                 children: [
                   if (!showBackButton)
                     const Text(
-                      'EduSHAMIIT',
+                      'SHAMIIT',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        letterSpacing: 0.3,
+                        letterSpacing: 0.5,
                       ),
                     ),
                   Text(

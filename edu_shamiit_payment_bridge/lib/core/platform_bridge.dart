@@ -52,6 +52,15 @@ class PlatformBridge {
   }
 
   static Future<bool> isServiceRunning() => isListenerRunning();
+  static Future<bool> isListenerServiceRunning() => isListenerRunning();
+
+  static Future<bool> setListenerActive(bool active) async {
+    if (active) {
+      return await startListenerService();
+    } else {
+      return await stopListenerService();
+    }
+  }
 
   static Future<bool> startListenerService() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {

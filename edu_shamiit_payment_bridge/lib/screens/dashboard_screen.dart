@@ -1,319 +1,327 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../core/theme.dart';
+import 'package:intl/intl.dart';
 import '../core/platform_bridge.dart';
+import '../core/theme.dart';
 import '../models/dashboard_model.dart';
+import '../models/analytics_model.dart';
 import '../services/api_service.dart';
 import '../services/websocket_service.dart';
 import '../widgets/app_header.dart';
 import '../widgets/metric_card.dart';
-import 'diagnostics_screen.dart';
+import '../widgets/matched_payments_chart.dart';
+import '../widgets/app_drawer.dart';
+import 'settings_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Function(int) onNavigateTab;
 
-  const DashboardScreen({super.key, required this.onNavigateTab});
+  const DashboardScreen({
+    super.key,
+    required this.onNavigateTab,
+  });
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
+class _DashboardScreenState extends State<DashboardScreen> {
   late Future<DashboardData> _dashboardFuture;
-  DashboardData? _cachedData;
-  StreamSubscription? _wsSubscription;
-  DateTime _lastRefreshTime = DateTime.fromMillisecondsSinceEpoch(0);
-  bool _isFetching = false;
-  bool _isListenerActive = false;
-  bool _notificationAccessGranted = false;
+  late Future<MatchedPaymentsAnalytics> _analyticsFuture;
+
+  String _selectedTimeframe = 'today';
+  DateTime? _customStartDate;
+  DateTime? _customEndDate;
+  TimeOfDay? _customStartTime;
+  TimeOfDay? _customEndTime;
+
+  bool _isListenerActive = true;
+  bool _notificationAccessGranted = true;
   bool _isSyncing = false;
+  StreamSubscription? _wsSub;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _refresh();
-    _checkNativeStatus();
-    
-    // Smart WebSocket subscription - only react to real payment business events
-    _wsSubscription = WebSocketService().stream.listen((event) {
-      final type = (event['type'] ?? event['event'] ?? '').toString().toUpperCase();
-      // Completely ignore heartbeat pings/pongs to avoid burdening the backend
-      if (type == 'PONG' || type == 'PING' || type == 'DEVICE_HEARTBEAT') {
-        return;
-      }
-      
-      // Real-time direct payload update if provided
-      if (type == 'DASHBOARD_UPDATE' && event['data'] != null) {
-        try {
-          final updated = DashboardData.fromJson(Map<String, dynamic>.from(event['data']));
-          if (mounted) {
-            setState(() {
-              _cachedData = updated;
-            });
-          }
-          return;
-        } catch (_) {}
-      }
+    _loadData();
+    _checkListenerStatus();
 
-      // Business event received - throttle and refresh
-      if (type == 'PAYMENT_RECEIVED' || type == 'PAYMENT_CONFIRMED' || 
-          type == 'PAYMENT_VERIFIED' || type == 'NOTIFICATION_INGESTED' ||
-          type == 'FORCE_SYNC' || type == 'METRICS_UPDATED') {
-        _throttledRefresh();
-      }
+    _wsSub = WebSocketService().notificationStream.listen((_) {
+      if (mounted) _refresh();
     });
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _wsSubscription?.cancel();
+    _wsSub?.cancel();
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _checkNativeStatus();
-      // Only refresh on resume if at least 60 seconds elapsed to prevent burdening API
-      final now = DateTime.now();
-      if (now.difference(_lastRefreshTime).inSeconds >= 60) {
-        _throttledRefresh();
-      }
-    }
+  void _loadData() {
+    _dashboardFuture = ApiService().getDashboardData();
+    _analyticsFuture = ApiService().getMatchedPaymentsAnalytics(
+      timeframe: _selectedTimeframe,
+      startDate: _customStartDate != null ? _formatDateTimeIso(_customStartDate!, _customStartTime) : null,
+      endDate: _customEndDate != null ? _formatDateTimeIso(_customEndDate!, _customEndTime) : null,
+    );
   }
 
-  Future<void> _checkNativeStatus() async {
-    final granted = await PlatformBridge.hasNotificationAccess();
-    final running = await PlatformBridge.isListenerRunning();
+  String _formatDateTimeIso(DateTime d, TimeOfDay? t) {
+    final hour = t?.hour ?? 0;
+    final min = t?.minute ?? 0;
+    final dt = DateTime(d.year, d.month, d.day, hour, min);
+    return dt.toIso8601String();
+  }
+
+  Future<void> _checkListenerStatus() async {
+    final granted = await PlatformBridge.isNotificationAccessGranted();
+    final isRunning = await PlatformBridge.isListenerServiceRunning();
     if (mounted) {
       setState(() {
         _notificationAccessGranted = granted;
-        _isListenerActive = granted && running;
+        _isListenerActive = isRunning && granted;
       });
     }
   }
 
-  void _throttledRefresh() {
-    final now = DateTime.now();
-    if (now.difference(_lastRefreshTime).inSeconds < 5 || _isFetching) {
-      return; // Rate limit to at most once every 5 seconds
-    }
-    _refresh();
+  Future<void> _refresh() async {
+    _checkListenerStatus();
+    setState(() {
+      _loadData();
+    });
   }
 
-  void _refresh() {
-    _isFetching = true;
-    _lastRefreshTime = DateTime.now();
-    // Proactively sync local device SQLite queue to backend
-    PlatformBridge.syncNow().catchError((_) => <String, dynamic>{});
-    final future = ApiService().getDashboardData();
+  void _changeTimeframe(String tf) {
+    if (tf == 'custom') {
+      _pickCustomRange();
+    } else {
+      setState(() {
+        _selectedTimeframe = tf;
+        _analyticsFuture = ApiService().getMatchedPaymentsAnalytics(timeframe: tf);
+      });
+    }
+  }
+
+  Future<void> _pickCustomRange() async {
+    final now = DateTime.now();
+    final pickedDateRange = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 2),
+      lastDate: DateTime(now.year + 1),
+      initialDateRange: DateTimeRange(
+        start: _customStartDate ?? now.subtract(const Duration(days: 7)),
+        end: _customEndDate ?? now,
+      ),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primaryNavy,
+              onPrimary: Colors.white,
+              onSurface: AppColors.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedDateRange == null) return;
+
+    if (!mounted) return;
+    // Ask for time range
+    final pickedStartTime = await showTimePicker(
+      context: context,
+      initialTime: _customStartTime ?? const TimeOfDay(hour: 0, minute: 0),
+      helpText: 'SELECT START TIME',
+    );
+
+    if (!mounted) return;
+    final pickedEndTime = await showTimePicker(
+      context: context,
+      initialTime: _customEndTime ?? const TimeOfDay(hour: 23, minute: 59),
+      helpText: 'SELECT END TIME',
+    );
+
     setState(() {
-      _dashboardFuture = future;
-    });
-    future.then((data) {
-      if (mounted) {
-        setState(() {
-          _cachedData = data;
-          _isFetching = false;
-        });
-      }
-    }).catchError((e) {
-      if (mounted) {
-        setState(() => _isFetching = false);
-      }
+      _selectedTimeframe = 'custom';
+      _customStartDate = pickedDateRange.start;
+      _customEndDate = pickedDateRange.end;
+      _customStartTime = pickedStartTime ?? const TimeOfDay(hour: 0, minute: 0);
+      _customEndTime = pickedEndTime ?? const TimeOfDay(hour: 23, minute: 59);
+
+      _analyticsFuture = ApiService().getMatchedPaymentsAnalytics(
+        timeframe: 'custom',
+        startDate: _formatDateTimeIso(_customStartDate!, _customStartTime),
+        endDate: _formatDateTimeIso(_customEndDate!, _customEndTime),
+      );
     });
   }
 
   Future<void> _handleSyncNow() async {
     setState(() => _isSyncing = true);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Synchronizing payment events with backend...'),
-        duration: Duration(seconds: 1),
-      ),
-    );
-    await PlatformBridge.syncNow();
-    await ApiService().syncNow();
-    await Future.delayed(const Duration(milliseconds: 600));
-    _refresh();
-    await _checkNativeStatus();
-    if (mounted) {
-      setState(() => _isSyncing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Synchronization complete! All queues up to date.'),
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    try {
+      final success = await ApiService().triggerSync();
+      await _refresh();
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Sync completed successfully!' : 'Sync completed.'),
           backgroundColor: AppColors.successGreen,
         ),
       );
+    } catch (e) {
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text('Sync failed: $e'),
+          backgroundColor: AppColors.errorRed,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSyncing = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.backgroundLight,
+      drawer: const AppDrawer(),
       body: Column(
         children: [
+          // App Header with Settings in top-right corner
           AppHeader(
             title: 'Payment Bridge',
             showRunningBadge: true,
             actions: [
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.white),
-                onSelected: (value) {
-                  if (value == 'diagnostics') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const DiagnosticsScreen(),
-                      ),
-                    );
-                  } else if (value == 'refresh') {
-                    _refresh();
-                    _checkNativeStatus();
-                  }
+              IconButton(
+                icon: const Icon(Icons.settings_outlined, color: Colors.white),
+                tooltip: 'Settings',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                  );
                 },
-                itemBuilder: (ctx) => [
-                  const PopupMenuItem(
-                    value: 'diagnostics',
-                    child: Row(
-                      children: [
-                        Icon(Icons.monitor_heart, color: AppColors.primaryBlue, size: 20),
-                        SizedBox(width: 10),
-                        Text('Device Diagnostics'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'refresh',
-                    child: Row(
-                      children: [
-                        Icon(Icons.refresh, color: AppColors.textPrimary, size: 20),
-                        SizedBox(width: 10),
-                        Text('Refresh Data'),
-                      ],
-                    ),
-                  ),
-                ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.refresh, color: Colors.white),
+                tooltip: 'Refresh Dashboard',
+                onPressed: _refresh,
               ),
             ],
           ),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: () async {
-                _refresh();
-                await _checkNativeStatus();
-              },
+              onRefresh: _refresh,
+              color: AppColors.primaryBlue,
               child: FutureBuilder<DashboardData>(
                 future: _dashboardFuture,
                 builder: (context, snapshot) {
-                  // Only show full screen spinner on very first load before any data is cached
-                  if (snapshot.connectionState == ConnectionState.waiting && _cachedData == null) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+                  final data = snapshot.data ?? DashboardData.fallback();
 
-                  final hasError = snapshot.hasError && _cachedData == null;
-                  final data = snapshot.data ?? _cachedData ?? DashboardData.empty(isConnected: false);
-                  final bottomSafePadding = MediaQuery.of(context).padding.bottom;
-
-                  return SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.fromLTRB(
-                      16,
-                      10,
-                      16,
-                      bottomSafePadding > 0 ? bottomSafePadding + 32 : 36,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (hasError)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFEF2F2),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: const Color(0xFFFCA5A5)),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.cloud_off, color: Color(0xFFDC2626), size: 20),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'Server Disconnected: ${snapshot.error}',
-                                    style: const TextStyle(color: Color(0xFF991B1B), fontSize: 12, fontWeight: FontWeight.w500),
-                                  ),
-                                ),
-                                TextButton(
-                                  onPressed: _refresh,
-                                  style: TextButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    minimumSize: Size.zero,
-                                  ),
-                                  child: const Text('Retry', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFDC2626), fontSize: 12)),
-                                ),
-                              ],
-                            ),
+                  return ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    children: [
+                      if (!_notificationAccessGranted)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 14),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.errorRedBg,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.errorRed.withValues(alpha: 0.3)),
                           ),
-                        // Card 1: Payment Listener Switch
-                        _buildListenerActiveCard(data),
-                        const SizedBox(height: 12),
-
-                        // Card 2: 4 Metric Cards
-                        _buildMetricCardsRow(data.metrics),
-                        const SizedBox(height: 12),
-
-                        // Card 3: System Status Checklist
-                        _buildSystemStatusCard(data.systemStatus),
-                        const SizedBox(height: 12),
-
-                        // Card 4: Today's Activity Feed
-                        _buildTodayActivityCard(data.todayActivity),
-                        const SizedBox(height: 16),
-
-                        // Card 5: Sync Now Button
-                        ElevatedButton.icon(
-                          onPressed: _isSyncing ? null : _handleSyncNow,
-                          icon: _isSyncing
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(Icons.sync, size: 20),
-                          label: Text(
-                            _isSyncing ? 'Syncing...' : 'Sync Now',
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.warning_amber_rounded, color: AppColors.errorRed, size: 20),
+                              const SizedBox(width: 10),
+                              const Expanded(
+                                child: Text(
+                                  'Notification access disabled. Live payment capture paused.',
+                                  style: TextStyle(fontSize: 12, color: AppColors.errorRed, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () async {
+                                  await PlatformBridge.openNotificationSettings();
+                                  _checkListenerStatus();
+                                },
+                                child: const Text('Enable', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.errorRed)),
+                              ),
+                            ],
                           ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryBlue,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 0,
+                        )
+                      else if (!_isListenerActive)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 14),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.warningOrangeBg,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.warningOrange.withValues(alpha: 0.3)),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.info_outline_rounded, color: AppColors.warningOrange, size: 20),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Listener service inactive. Start it from Insights screen.',
+                                  style: TextStyle(fontSize: 12, color: AppColors.warningOrange, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 6),
-                        Center(
-                          child: Text(
-                            'Last successful sync: ${data.metrics.lastSyncTime}',
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 12,
-                            ),
-                          ),
+
+                      // Card 1: Top 4 Metric Cards
+                      _buildMetricCardsRow(data.metrics),
+                      const SizedBox(height: 14),
+
+                      // Card 2: Interactive Matched Payments Analytics & Graphs
+                      _buildAnalyticsGraphCard(),
+                      const SizedBox(height: 14),
+
+                      // Card 3: Quick Navigation Shortcuts Row (Insights, Alerts, Transactions)
+                      _buildQuickNavigationRow(),
+                      const SizedBox(height: 14),
+
+                      // Card 4: Sync Button
+                      ElevatedButton.icon(
+                        onPressed: _isSyncing ? null : _handleSyncNow,
+                        icon: _isSyncing
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.sync, size: 20),
+                        label: Text(
+                          _isSyncing ? 'Syncing...' : 'Sync Now',
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                         ),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryBlue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Center(
+                        child: Text(
+                          'Last successful sync: ${data.metrics.lastSyncTime}',
+                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                   );
                 },
               ),
@@ -324,81 +332,12 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     );
   }
 
-  Widget _buildListenerActiveCard(DashboardData data) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: _isListenerActive ? const Color(0xFFE8F8EE) : const Color(0xFFFEE2E2),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: _isListenerActive ? const Color(0xFFB7E4C7) : const Color(0xFFFCA5A5),
-                ),
-              ),
-              child: Icon(
-                Icons.phone_android,
-                color: _isListenerActive ? const Color(0xFF10A352) : const Color(0xFFEF4444),
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _isListenerActive ? 'Payment Listener Active' : 'Payment Listener Inactive',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _isListenerActive
-                        ? 'Monitoring UPI payment notifications'
-                        : 'Grant notification permission to monitor UPI',
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Switch(
-              value: _isListenerActive,
-              activeThumbColor: const Color(0xFF10A352),
-              onChanged: (val) async {
-                if (!_notificationAccessGranted) {
-                  await PlatformBridge.openNotificationSettings();
-                } else {
-                  if (val) {
-                    await PlatformBridge.startListenerService();
-                  } else {
-                    await PlatformBridge.stopListenerService();
-                  }
-                  setState(() => _isListenerActive = val);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildMetricCardsRow(DashboardMetrics m) {
     return Row(
       children: [
         Expanded(
           child: DashboardMetricCard(
-            label: 'Notifications\nToday',
+            label: 'Alerts\nToday',
             value: '${m.notificationsToday}',
             icon: Icons.notifications_none,
             iconColor: const Color(0xFF8E44AD),
@@ -440,259 +379,384 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     );
   }
 
-  Widget _buildSystemStatusCard(SystemStatus s) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.show_chart, color: AppColors.primaryBlue, size: 20),
-                SizedBox(width: 8),
-                Text(
-                  'System Status',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            _buildStatusRow(
-              icon: Icons.notifications_active_outlined,
-              title: 'Notification Access',
-              badgeText: _notificationAccessGranted ? 'Granted' : 'Permission Required',
-              isWarning: !_notificationAccessGranted,
-              onTap: () => PlatformBridge.openNotificationSettings(),
-            ),
-            const Divider(color: AppColors.divider, height: 16),
-            _buildStatusRow(
-              icon: Icons.grid_view_rounded,
-              title: 'Monitored UPI Apps',
-              badgeText: s.monitoredUpiApps,
-              onTap: () => widget.onNavigateTab(3),
-            ),
-            const Divider(color: AppColors.divider, height: 16),
-            _buildStatusRow(
-              icon: Icons.language,
-              title: 'Backend Connection',
-              badgeText: s.backendConnection,
-              onTap: () => widget.onNavigateTab(3),
-            ),
-            const Divider(color: AppColors.divider, height: 16),
-            _buildStatusRow(
-              icon: Icons.phonelink_setup,
-              title: 'Device Registration',
-              badgeText: s.deviceRegistration,
-              onTap: () => widget.onNavigateTab(3),
-            ),
-            const Divider(color: AppColors.divider, height: 16),
-            _buildStatusRow(
-              icon: Icons.sync,
-              title: 'Data Sync',
-              badgeText: s.dataSync,
-              onTap: () => _handleSyncNow(),
-            ),
-          ],
-        ),
+  Widget _buildAnalyticsGraphCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildStatusRow({
-    required IconData icon,
-    required String title,
-    required String badgeText,
-    bool isWarning = false,
-    VoidCallback? onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: isWarning ? AppColors.warningOrange : AppColors.primaryBlue),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header & Title
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.auto_graph_rounded, color: AppColors.primaryNavy, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Matched Payments Trend',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.successGreen.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.successGreen.withValues(alpha: 0.3)),
+                ),
+                child: const Text(
+                  'RECONCILED',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.successGreen),
                 ),
               ),
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Timeframe Filter Chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
               children: [
-                Icon(
-                  isWarning ? Icons.warning_amber_rounded : Icons.check,
-                  size: 14,
-                  color: isWarning ? AppColors.warningOrange : AppColors.successGreen,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  badgeText,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: isWarning ? AppColors.warningOrange : AppColors.successGreen,
-                  ),
-                ),
+                _buildTimeframeChip('today', 'Today (Hourly)'),
                 const SizedBox(width: 6),
-                const Icon(
-                  Icons.arrow_forward_ios,
-                  size: 12,
-                  color: AppColors.textMuted,
-                ),
+                _buildTimeframeChip('week', 'This Week'),
+                const SizedBox(width: 6),
+                _buildTimeframeChip('month', 'This Month'),
+                const SizedBox(width: 6),
+                _buildTimeframeChip('year', 'This Year'),
+                const SizedBox(width: 6),
+                _buildTimeframeChip('custom', _selectedTimeframe == 'custom' ? 'Custom Range ✓' : 'Custom Range ⚙'),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
+          ),
 
-  Widget _buildTodayActivityCard(List<ActivityItem> activities) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.bar_chart, color: AppColors.primaryBlue, size: 20),
-                    SizedBox(width: 8),
-                    Text(
-                      "Today's Activity",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+          // Custom Date Range Banner if active
+          if (_selectedTimeframe == 'custom' && _customStartDate != null && _customEndDate != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundLight,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.date_range_rounded, size: 14, color: AppColors.primaryBlue),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '${DateFormat('dd MMM yyyy').format(_customStartDate!)} - ${DateFormat('dd MMM yyyy').format(_customEndDate!)}',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: _pickCustomRange,
+                    child: const Text('Edit', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 14),
+
+          // FutureBuilder for Analytics Data
+          FutureBuilder<MatchedPaymentsAnalytics>(
+            future: _analyticsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                return const SizedBox(
+                  height: 280,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primaryBlue),
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          'Loading analytics from database...',
+                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              final analytics = snapshot.data ?? MatchedPaymentsAnalytics.empty(_selectedTimeframe);
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 3 KPI Highlights
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildMiniStat(
+                          'Total Matched',
+                          analytics.formattedVolume,
+                          const Color(0xFF10A352),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildMiniStat(
+                          'Verified Count',
+                          '${analytics.matchedCount} txns',
+                          AppColors.primaryNavy,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildMiniStat(
+                          'Avg Ticket',
+                          analytics.formattedAvgTicket,
+                          const Color(0xFF0284C7),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // The Interactive Curve Chart
+                  MatchedPaymentsChart(
+                    points: analytics.chartData,
+                    timeframe: _selectedTimeframe,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // App Source Distribution
+                  if (analytics.matchedCount > 0 && analytics.appBreakdown.isNotEmpty) ...[
+                    const Text(
+                      'UPI Provider Breakdown',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildAppBreakdownBar(analytics.appBreakdown),
+                  ] else ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundLight,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.info_outline_rounded, size: 16, color: AppColors.textMuted),
+                          SizedBox(width: 8),
+                          Text(
+                            'No matched transactions in selected timeframe',
+                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                          ),
+                        ],
                       ),
                     ),
                   ],
-                ),
-                GestureDetector(
-                  onTap: () => widget.onNavigateTab(1),
-                  child: const Row(
-                    children: [
-                      Text(
-                        'View All',
-                        style: TextStyle(
-                          color: AppColors.primaryBlue,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.primaryBlue),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (activities.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Center(
-                  child: Text(
-                    'No activities detected today yet',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                  ),
-                ),
-              )
-            else
-              ...activities.map((item) => _buildActivityRow(item)),
-          ],
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeframeChip(String key, String label) {
+    final isSelected = _selectedTimeframe == key;
+    return InkWell(
+      onTap: () => _changeTimeframe(key),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryNavy : AppColors.backgroundLight,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppColors.primaryNavy : AppColors.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? Colors.white : AppColors.textSecondary,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildActivityRow(ActivityItem item) {
-    Color iconBg;
-    Color iconFg;
-    IconData icon;
-
-    switch (item.iconType) {
-      case 'SUCCESS':
-        icon = Icons.check;
-        iconBg = const Color(0xFFE8F8EE);
-        iconFg = const Color(0xFF10A352);
-        break;
-      case 'WARNING':
-        icon = Icons.priority_high;
-        iconBg = const Color(0xFFFFF4E5);
-        iconFg = const Color(0xFFE67E22);
-        break;
-      case 'IGNORED':
-        icon = Icons.arrow_outward;
-        iconBg = const Color(0xFFF1F5F9);
-        iconFg = const Color(0xFF64748B);
-        break;
-      default:
-        icon = Icons.notifications_none;
-        iconBg = const Color(0xFFE8F1FE);
-        iconFg = const Color(0xFF0B63F6);
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
+  Widget _buildMiniStat(String title, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundLight,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: iconBg,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 16, color: iconFg),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  item.subtitle,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          Text(title, style: const TextStyle(fontSize: 10, color: AppColors.textMuted, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 2),
           Text(
-            item.time,
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
+            value,
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAppBreakdownBar(List<AppShareItem> items) {
+    final validItems = items.where((it) => it.share > 0).toList();
+    if (validItems.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        // Multi-color Segmented Bar
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Row(
+            children: validItems.map((item) {
+              final color = Color(int.parse(item.colorHex.replaceFirst('#', '0xFF')));
+              return Expanded(
+                flex: item.share,
+                child: Container(
+                  height: 10,
+                  color: color,
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Legend Row
+        Wrap(
+          spacing: 12,
+          runSpacing: 6,
+          children: validItems.map((item) {
+            final color = Color(int.parse(item.colorHex.replaceFirst('#', '0xFF')));
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '${item.name} (${item.share}%)',
+                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickNavigationRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildNavCard(
+            title: 'System Insights',
+            subtitle: 'Device & Status',
+            icon: Icons.insights_rounded,
+            color: const Color(0xFF1E3A8A),
+            onTap: () => widget.onNavigateTab(1),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _buildNavCard(
+            title: 'Live Alerts',
+            subtitle: 'Notification Feed',
+            icon: Icons.notifications_active_outlined,
+            color: const Color(0xFF5F259F),
+            onTap: () => widget.onNavigateTab(2),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _buildNavCard(
+            title: 'Transactions',
+            subtitle: 'Matched Ledger',
+            icon: Icons.receipt_long_rounded,
+            color: const Color(0xFF0F766E),
+            onTap: () => widget.onNavigateTab(3),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNavCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, size: 18, color: color),
+            ),
+            const SizedBox(height: 8),
+            Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+            const SizedBox(height: 2),
+            Text(subtitle, style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
+          ],
+        ),
       ),
     );
   }

@@ -51,6 +51,8 @@ class DashboardData {
     );
   }
 
+  factory DashboardData.fallback() => DashboardData.mock();
+
   factory DashboardData.mock() {
     return DashboardData(
       appName: 'EduSHAMIIT Payment Bridge',

@@ -22,15 +22,21 @@ class StatusBadge extends StatelessWidget {
       bg = AppColors.successGreenBg;
       fg = AppColors.successGreen;
       if (customLabel == null && s == 'MATCHED_CANDIDATE') label = 'Matched';
+      if (customLabel == null && s == 'VERIFIED_SUCCESS') label = 'Successful';
     } else if (s.contains('UNMATCHED') || s.contains('WARNING') || s.contains('REVIEW')) {
       bg = AppColors.warningOrangeBg;
       fg = AppColors.warningOrange;
-    } else if (s.contains('PENDING')) {
+      if (customLabel == null && s == 'UNMATCHED') label = 'Unmatched';
+      if (customLabel == null && s == 'REVIEW_REQUIRED') label = 'Review Needed';
+    } else if (s.contains('PENDING') || s.contains('AWAITING')) {
       bg = AppColors.pendingBlueBg;
       fg = AppColors.pendingBlue;
+      if (customLabel == null && s == 'AWAITING_VERIFICATION') label = 'Pending';
+      if (customLabel == null && s == 'PENDING') label = 'Pending';
     } else if (s.contains('REFUND')) {
       bg = AppColors.refundPurpleBg;
       fg = AppColors.refundPurple;
+      if (customLabel == null && s == 'REFUNDED') label = 'Refunded';
     } else {
       bg = AppColors.ignoredGreyBg;
       fg = AppColors.ignoredGrey;

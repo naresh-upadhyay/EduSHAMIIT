@@ -84,12 +84,18 @@ class PaymentNotificationListenerService : NotificationListenerService() {
         fun forceRebind(context: Context) {
             try {
                 val componentName = ComponentName(context, PaymentNotificationListenerService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    try {
+                        NotificationListenerService.requestRebind(componentName)
+                        Log.i(TAG, "requestRebind completed successfully")
+                        return
+                    } catch (e: Exception) {
+                        Log.w(TAG, "requestRebind failed: ${e.message}, falling back to PM toggle")
+                    }
+                }
                 val pm = context.packageManager
                 pm.setComponentEnabledSetting(componentName, PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP)
                 pm.setComponentEnabledSetting(componentName, PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    NotificationListenerService.requestRebind(componentName)
-                }
                 Log.i(TAG, "forceRebind completed successfully")
             } catch (e: Exception) {
                 Log.e(TAG, "forceRebind error: ${e.message}")
@@ -102,6 +108,10 @@ class PaymentNotificationListenerService : NotificationListenerService() {
     private lateinit var syncManager: SyncManager
     private val backgroundExecutor = Executors.newSingleThreadExecutor()
     private var heartbeatScheduler: ScheduledExecutorService? = null
+
+    override fun onStartCommand(intent: android.content.Intent?, flags: Int, startId: Int): Int {
+        return android.app.Service.START_STICKY
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -150,10 +160,10 @@ class PaymentNotificationListenerService : NotificationListenerService() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val channel = NotificationChannel(
                     CHANNEL_ID,
-                    "EduSHAMIIT Payment Listener",
+                    "SHAMIIT Payment Bridge",
                     NotificationManager.IMPORTANCE_LOW
                 ).apply {
-                    description = "Monitors incoming UPI payment notifications in real-time"
+                    description = "Monitors incoming UPI and banking payment notifications in real-time"
                     setShowBadge(false)
                 }
                 val manager = getSystemService(NotificationManager::class.java)
@@ -169,8 +179,8 @@ class PaymentNotificationListenerService : NotificationListenerService() {
             } else null
 
             val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("EduSHAMIIT Payment Bridge Active")
-                .setContentText("Listening for UPI payment notifications in background")
+                .setContentTitle("SHAMIIT Payment Bridge Active")
+                .setContentText("Listening for verified payment notifications in real-time")
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setOngoing(true)
                 .setPriority(NotificationCompat.PRIORITY_LOW)

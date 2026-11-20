@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../core/theme.dart';
 import '../services/websocket_service.dart';
+import '../widgets/app_drawer.dart';
 import 'dashboard_screen.dart';
+import 'insights_screen.dart';
 import 'notifications_screen.dart';
-import 'settings_screen.dart';
 import 'transactions_screen.dart';
 
 class MainNavigationShell extends StatefulWidget {
@@ -17,6 +18,7 @@ class MainNavigationShell extends StatefulWidget {
 
 class _MainNavigationShellState extends State<MainNavigationShell> {
   late int _currentIndex;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -44,18 +46,20 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       DashboardScreen(
         onNavigateTab: _onTabSelected,
       ),
+      InsightsScreen(
+        onNavigateTab: _onTabSelected,
+      ),
       NotificationsScreen(
         onBack: () => _onTabSelected(0),
       ),
       TransactionsScreen(
         onBack: () => _onTabSelected(0),
       ),
-      SettingsScreen(
-        onBack: () => _onTabSelected(0),
-      ),
     ];
 
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: AppDrawer(onSelectTab: _onTabSelected),
       body: IndexedStack(
         index: _currentIndex,
         children: screens,
@@ -88,19 +92,19 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                 label: 'Dashboard',
               ),
               BottomNavigationBarItem(
+                icon: Icon(Icons.insights_outlined),
+                activeIcon: Icon(Icons.insights_rounded),
+                label: 'Insights',
+              ),
+              BottomNavigationBarItem(
                 icon: Icon(Icons.notifications_none_outlined),
                 activeIcon: Icon(Icons.notifications),
-                label: 'Notifications',
+                label: 'Alerts',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.receipt_long_outlined),
                 activeIcon: Icon(Icons.receipt_long),
                 label: 'Transactions',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.settings_outlined),
-                activeIcon: Icon(Icons.settings),
-                label: 'Settings',
               ),
             ],
           ),

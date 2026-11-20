@@ -15,6 +15,7 @@ class WebSocketService {
   final _eventController = StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<Map<String, dynamic>> get stream => _eventController.stream;
+  Stream<Map<String, dynamic>> get notificationStream => _eventController.stream;
 
   void connect() {
     disconnect();

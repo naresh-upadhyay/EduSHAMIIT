@@ -52,6 +52,14 @@ class PaymentNotificationItem {
   bool get isMatched => candidateMatchStatus == 'MATCHED_CANDIDATE';
   bool get isUnmatched => candidateMatchStatus == 'UNMATCHED';
   bool get isIgnored => candidateMatchStatus == 'IGNORED';
+  bool get isReviewRequired => candidateMatchStatus == 'REVIEW_REQUIRED';
+  bool get isDuplicate => candidateMatchStatus == 'DUPLICATE';
+
+  String get title => rawTitle ?? (sourceApp.isNotEmpty ? sourceApp : 'Payment Notification');
+  DateTime get parsedDateTime => notificationTimestamp;
+  String? get maskedSender => maskedSenderIdentifier;
+  String? get reference => transactionReference;
+  String get matchStatus => candidateMatchStatus;
 
   String get formattedTime {
     return DateFormat('hh:mm a').format(notificationTimestamp.toLocal());

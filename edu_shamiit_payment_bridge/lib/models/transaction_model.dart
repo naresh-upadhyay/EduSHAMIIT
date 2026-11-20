@@ -41,6 +41,10 @@ class TransactionItem {
     this.auditHistory,
   });
 
+  DateTime get receivedDateTime => receivedAt;
+  double get amountDouble => amountPaise / 100.0;
+  String get formattedTime => DateFormat('hh:mm a').format(receivedAt.toLocal());
+
   String get formattedAmount {
     final double rupees = amountPaise / 100.0;
     return NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 2)

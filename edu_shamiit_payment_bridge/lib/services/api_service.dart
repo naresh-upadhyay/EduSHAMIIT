@@ -8,6 +8,7 @@ import '../models/dashboard_model.dart';
 import '../models/notification_model.dart';
 import '../models/transaction_model.dart';
 import '../models/settings_model.dart';
+import '../models/analytics_model.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -424,6 +425,7 @@ class ApiService {
     final userEmail = (user['email'] ?? '').toString();
     final userName = (user['full_name'] ?? 'Authorized User').toString();
     final userRole = (user['role'] ?? 'admin').toString();
+    final userPhoto = (user['avatar_url'] ?? user['photo_url'] ?? user['profile_photo'] ?? '').toString();
 
     // Cache token and school ID first so subsequent requests are authenticated
     _authToken = token;
@@ -445,6 +447,7 @@ class ApiService {
     await prefs.setString(AppConstants.prefsUserEmailKey, userEmail);
     await prefs.setString(AppConstants.prefsUserNameKey, userName);
     await prefs.setString(AppConstants.prefsUserRoleKey, userRole);
+    await prefs.setString(AppConstants.prefsUserPhotoKey, userPhoto);
     await prefs.setBool(AppConstants.prefsIsLoggedInKey, true);
 
     // Register this device automatically with the authenticated school
@@ -506,6 +509,7 @@ class ApiService {
     await prefs.remove(AppConstants.prefsUserEmailKey);
     await prefs.remove(AppConstants.prefsUserNameKey);
     await prefs.remove(AppConstants.prefsUserRoleKey);
+    await prefs.remove(AppConstants.prefsUserPhotoKey);
     await prefs.setBool(AppConstants.prefsIsLoggedInKey, false);
   }
 
@@ -532,6 +536,78 @@ class ApiService {
     } catch (e) {
       debugPrint('[ApiService] getDashboardData network error: $e');
       throw Exception('Network error: Could not reach the server.');
+    }
+  }
+
+  Future<Map<String, String>> getUserProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    var photo = prefs.getString(AppConstants.prefsUserPhotoKey) ?? '';
+    var email = prefs.getString(AppConstants.prefsUserEmailKey) ?? '';
+    var name = prefs.getString(AppConstants.prefsUserNameKey) ?? 'Naresh King';
+    var role = prefs.getString(AppConstants.prefsUserRoleKey) ?? 'Enterprise Admin';
+    var institution = prefs.getString(AppConstants.prefsInstitutionKey) ?? 'SHAMIIT Technologies';
+
+    // If photo is empty, or email is empty, query the /user-profile endpoint
+    if (photo.isEmpty || email.isEmpty) {
+      try {
+        final res = await _getWithFallback('/user-profile', timeout: const Duration(seconds: 3));
+        if (res.statusCode == 200) {
+          final data = json.decode(res.body);
+          if (data['photo_url'] != null && data['photo_url'].toString().isNotEmpty) {
+            photo = data['photo_url'].toString();
+            await prefs.setString(AppConstants.prefsUserPhotoKey, photo);
+          }
+          if (data['email'] != null && data['email'].toString().isNotEmpty && email.isEmpty) {
+            email = data['email'].toString();
+            await prefs.setString(AppConstants.prefsUserEmailKey, email);
+          }
+          if (data['name'] != null && data['name'].toString().isNotEmpty) {
+            name = data['name'].toString();
+            await prefs.setString(AppConstants.prefsUserNameKey, name);
+          }
+          if (data['role'] != null && data['role'].toString().isNotEmpty) {
+            role = data['role'].toString();
+            await prefs.setString(AppConstants.prefsUserRoleKey, role);
+          }
+          if (data['institution'] != null && data['institution'].toString().isNotEmpty) {
+            institution = data['institution'].toString();
+            await prefs.setString(AppConstants.prefsInstitutionKey, institution);
+          }
+        }
+      } catch (_) {}
+    }
+
+    return {
+      'name': name,
+      'email': email.isNotEmpty ? email : 'admin@shamiit.com',
+      'role': role,
+      'institution': institution,
+      'photo_url': photo,
+    };
+  }
+
+  Future<MatchedPaymentsAnalytics> getMatchedPaymentsAnalytics({
+    String timeframe = 'today',
+    String? startDate,
+    String? endDate,
+  }) async {
+    try {
+      String path = '/analytics/matched-payments?timeframe=$timeframe';
+      if (startDate != null && startDate.isNotEmpty) {
+        path += '&start_date=$startDate';
+      }
+      if (endDate != null && endDate.isNotEmpty) {
+        path += '&end_date=$endDate';
+      }
+      final res = await _getWithFallback(path);
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        return MatchedPaymentsAnalytics.fromJson(data);
+      }
+      return MatchedPaymentsAnalytics.empty(timeframe);
+    } catch (e) {
+      debugPrint('[ApiService] getMatchedPaymentsAnalytics error: $e');
+      return MatchedPaymentsAnalytics.empty(timeframe);
     }
   }
 

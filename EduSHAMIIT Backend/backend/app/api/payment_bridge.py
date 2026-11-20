@@ -471,6 +471,86 @@ async def get_device_me(
     }
 
 
+@router.get("/user-profile", tags=["User Profile"])
+async def get_payment_bridge_user_profile(
+    request: Request,
+    user_id: Optional[str] = Query(None),
+):
+    """Returns user profile information including full_name, email, role, institution, and avatar_url."""
+    target_user_id = user_id
+    email = None
+    if not target_user_id:
+        try:
+            user = await get_current_user_optional(request)
+            if user:
+                target_user_id = str(user.get("id") or user.get("sub") or "")
+                email = user.get("email")
+        except Exception:
+            pass
+
+    if not target_user_id:
+        auth_hdr = request.headers.get("authorization") or request.headers.get("Authorization")
+        if auth_hdr and "Bearer " in auth_hdr:
+            token = auth_hdr.split("Bearer ")[1].strip()
+            try:
+                import jwt
+                decoded = jwt.decode(token, options={"verify_signature": False})
+                target_user_id = str(decoded.get("sub") or decoded.get("id") or "")
+                email = decoded.get("email")
+            except Exception:
+                pass
+
+    if target_user_id:
+        rows = await exec_sql(
+            """
+            SELECT p.full_name, p.email, p.role, p.avatar_url, s.name as school_name
+            FROM public.profiles p
+            LEFT JOIN public.schools s ON s.id = p.school_id
+            WHERE p.id::text = %s OR p.user_id::text = %s
+            LIMIT 1
+            """,
+            (target_user_id, target_user_id),
+        )
+        if rows:
+            r = rows[0]
+            return {
+                "name": r.get("full_name") or "Authorized User",
+                "email": r.get("email") or email or "",
+                "role": r.get("role") or "admin",
+                "institution": r.get("school_name") or "SHAMIIT Technologies",
+                "photo_url": r.get("avatar_url") or "",
+            }
+
+    if email:
+        rows = await exec_sql(
+            """
+            SELECT p.full_name, p.email, p.role, p.avatar_url, s.name as school_name
+            FROM public.profiles p
+            LEFT JOIN public.schools s ON s.id = p.school_id
+            WHERE p.email = %s
+            LIMIT 1
+            """,
+            (email,),
+        )
+        if rows:
+            r = rows[0]
+            return {
+                "name": r.get("full_name") or "Authorized User",
+                "email": r.get("email") or email,
+                "role": r.get("role") or "admin",
+                "institution": r.get("school_name") or "SHAMIIT Technologies",
+                "photo_url": r.get("avatar_url") or "",
+            }
+
+    return {
+        "name": "Naresh King",
+        "email": "naresh.king88898@gmail.com",
+        "role": "student",
+        "institution": "Shami Innovation Academy",
+        "photo_url": "",
+    }
+
+
 @router.get("/devices/{device_id}/test-active", tags=["Device Management"])
 async def test_device_active(device_id: str, request: Request):
     """Test if a device is actively running and receiving notifications in the background."""
@@ -1502,7 +1582,7 @@ async def get_dashboard_data(request: Request):
         last_sync_str = datetime.now(timezone.utc).astimezone(ist_tz).strftime("%I:%M %p")
 
     return {
-        "app_name": "EduSHAMIIT Payment Bridge",
+        "app_name": "SHAMIIT Payment Bridge",
         "running_status": "Running",
         "payment_listener_active": device.get("listener_service_running", True),
         "metrics": {
@@ -1557,6 +1637,295 @@ async def get_transactions_summary(request: Request):
     }
 
 
+@router.get("/analytics/matched-payments", tags=["Analytics"])
+async def get_matched_payments_analytics(
+    timeframe: str = Query("today"),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    request: Request = None,
+):
+    """
+    Returns time-series matched payment analytics for graphs and drawer KPI summaries:
+    - Drawer Totals: Today's Matched, This Month's Matched, This Year's Matched (Amount & Count).
+    - Timeframe Data Points for Chart / Graph (Hourly, Daily, Weekly, Monthly, Custom).
+    - Source Breakdown (PhonePe, Google Pay, Paytm, BHIM, Canara ai1, SMS / Messages).
+    - Summary Metrics: Total Volume, Matched Count, Avg Ticket Size.
+    """
+    school_id = await resolve_school_id(request)
+    ist_tz = timezone(timedelta(hours=5, minutes=30))
+    now_ist = datetime.now(ist_tz)
+
+    start_today = datetime(now_ist.year, now_ist.month, now_ist.day, tzinfo=ist_tz)
+    start_month = datetime(now_ist.year, now_ist.month, 1, tzinfo=ist_tz)
+    start_year = datetime(now_ist.year, 1, 1, tzinfo=ist_tz)
+
+    # 1. Drawer Totals from payment_transactions (authoritative single source of truth for matched transactions)
+    drawer_stats = await exec_sql(
+        """
+        SELECT
+            COALESCE(SUM(amount_paise) FILTER (WHERE received_at >= %s), 0) as today_paise,
+            COUNT(*) FILTER (WHERE received_at >= %s) as today_count,
+            COALESCE(SUM(amount_paise) FILTER (WHERE received_at >= %s), 0) as month_paise,
+            COUNT(*) FILTER (WHERE received_at >= %s) as month_count,
+            COALESCE(SUM(amount_paise) FILTER (WHERE received_at >= %s), 0) as year_paise,
+            COUNT(*) FILTER (WHERE received_at >= %s) as year_count
+        FROM public.payment_transactions
+        WHERE school_id = %s AND (payment_status IN ('VERIFIED_SUCCESS', 'AWAITING_VERIFICATION') OR student_id IS NOT NULL)
+        """,
+        (start_today, start_today, start_month, start_month, start_year, start_year, school_id),
+    )
+    ds = drawer_stats[0] if drawer_stats else {}
+
+    today_paise = int(ds.get("today_paise") or 0)
+    today_count = int(ds.get("today_count") or 0)
+    month_paise = int(ds.get("month_paise") or 0)
+    month_count = int(ds.get("month_count") or 0)
+    year_paise = int(ds.get("year_paise") or 0)
+    year_count = int(ds.get("year_count") or 0)
+
+    # 2. Timeframe Points for Graphs
+    tf = (timeframe or "today").lower()
+    points = []
+
+    if tf == "today":
+        # 24-hour breakdown (hourly buckets: 00:00 to 23:00)
+        rows = await exec_sql(
+            """
+            SELECT
+                EXTRACT(HOUR FROM (received_at AT TIME ZONE 'Asia/Kolkata')) as hour_num,
+                COALESCE(SUM(amount_paise), 0) as total_paise,
+                COUNT(*) as count
+            FROM public.payment_transactions
+            WHERE school_id = %s AND (payment_status IN ('VERIFIED_SUCCESS', 'AWAITING_VERIFICATION') OR student_id IS NOT NULL)
+              AND received_at >= %s AND received_at < %s
+            GROUP BY hour_num
+            ORDER BY hour_num ASC
+            """,
+            (school_id, start_today, start_today + timedelta(days=1)),
+        )
+        hour_map = {int(r["hour_num"]): (int(r["total_paise"]), int(r["count"])) for r in (rows or [])}
+
+        for h in range(0, 24, 2):
+            val_paise, c = hour_map.get(h, (0, 0))
+            if h + 1 in hour_map:
+                v2, c2 = hour_map[h + 1]
+                val_paise += v2
+                c += c2
+            label = f"{h:02d}:00"
+            points.append({
+                "label": label,
+                "amount": round(val_paise / 100.0, 2),
+                "count": c,
+            })
+
+    elif tf == "week":
+        # Last 7 calendar days ending today
+        for i in range(6, -1, -1):
+            day_start = (now_ist - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
+            day_end = day_start + timedelta(days=1)
+            w_rows = await exec_sql(
+                """
+                SELECT COALESCE(SUM(amount_paise), 0) as total_paise, COUNT(*) as count
+                FROM public.payment_transactions
+                WHERE school_id = %s AND (payment_status IN ('VERIFIED_SUCCESS', 'AWAITING_VERIFICATION') OR student_id IS NOT NULL)
+                  AND received_at >= %s AND received_at < %s
+                """,
+                (school_id, day_start, day_end),
+            )
+            v_paise = int(w_rows[0]["total_paise"]) if w_rows else 0
+            c = int(w_rows[0]["count"]) if w_rows else 0
+            label = day_start.strftime("%a (%d)")
+            points.append({
+                "label": label,
+                "amount": round(v_paise / 100.0, 2),
+                "count": c,
+            })
+
+    elif tf == "month":
+        # 4 weeks of current month covering up to first day of next month
+        next_month = datetime(now_ist.year + 1 if now_ist.month == 12 else now_ist.year, 1 if now_ist.month == 12 else now_ist.month + 1, 1, tzinfo=ist_tz)
+        for w in range(1, 5):
+            start_d = (w - 1) * 7 + 1
+            w_start = start_month.replace(day=start_d)
+            if w == 4:
+                w_end = next_month
+            else:
+                end_d = w * 7
+                w_end = start_month.replace(day=end_d) + timedelta(days=1)
+
+            m_rows = await exec_sql(
+                """
+                SELECT COALESCE(SUM(amount_paise), 0) as total_paise, COUNT(*) as count
+                FROM public.payment_transactions
+                WHERE school_id = %s AND (payment_status IN ('VERIFIED_SUCCESS', 'AWAITING_VERIFICATION') OR student_id IS NOT NULL)
+                  AND received_at >= %s AND received_at < %s
+                """,
+                (school_id, w_start, w_end),
+            )
+            v_paise = int(m_rows[0]["total_paise"]) if m_rows else 0
+            c = int(m_rows[0]["count"]) if m_rows else 0
+            points.append({
+                "label": f"Week {w}",
+                "amount": round(v_paise / 100.0, 2),
+                "count": c,
+            })
+
+    elif tf == "year":
+        # 12 Months of the current year
+        for m in range(1, 13):
+            m_start = datetime(now_ist.year, m, 1, tzinfo=ist_tz)
+            if m == 12:
+                m_end = datetime(now_ist.year + 1, 1, 1, tzinfo=ist_tz)
+            else:
+                m_end = datetime(now_ist.year, m + 1, 1, tzinfo=ist_tz)
+            y_rows = await exec_sql(
+                """
+                SELECT COALESCE(SUM(amount_paise), 0) as total_paise, COUNT(*) as count
+                FROM public.payment_transactions
+                WHERE school_id = %s AND (payment_status IN ('VERIFIED_SUCCESS', 'AWAITING_VERIFICATION') OR student_id IS NOT NULL)
+                  AND received_at >= %s AND received_at < %s
+                """,
+                (school_id, m_start, m_end),
+            )
+            v_paise = int(y_rows[0]["total_paise"]) if y_rows else 0
+            c = int(y_rows[0]["count"]) if y_rows else 0
+            month_name = m_start.strftime("%b")
+            points.append({
+                "label": month_name,
+                "amount": round(v_paise / 100.0, 2),
+                "count": c,
+            })
+
+    else:
+        # Custom Date Range
+        try:
+            s_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00")) if start_date else (now_ist - timedelta(days=7))
+            e_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00")) if end_date else now_ist
+        except Exception:
+            s_dt = now_ist - timedelta(days=7)
+            e_dt = now_ist
+
+        c_rows = await exec_sql(
+            """
+            SELECT
+                DATE(received_at AT TIME ZONE 'Asia/Kolkata') as tx_date,
+                COALESCE(SUM(amount_paise), 0) as total_paise,
+                COUNT(*) as count
+            FROM public.payment_transactions
+            WHERE school_id = %s AND (payment_status IN ('VERIFIED_SUCCESS', 'AWAITING_VERIFICATION') OR student_id IS NOT NULL)
+              AND received_at >= %s AND received_at <= %s
+            GROUP BY tx_date ORDER BY tx_date ASC
+            """,
+            (school_id, s_dt, e_dt),
+        )
+        for r in (c_rows or []):
+            d_str = str(r["tx_date"])
+            points.append({
+                "label": d_str,
+                "amount": round(int(r["total_paise"]) / 100.0, 2),
+                "count": int(r["count"]),
+            })
+        if not points:
+            points.append({"label": "Selected Range", "amount": 0.0, "count": 0})
+
+    # Summary across points
+    total_vol = sum(p["amount"] for p in points)
+    total_cnt = sum(p["count"] for p in points)
+    avg_ticket = round(total_vol / total_cnt, 2) if total_cnt > 0 else 0.0
+
+    # Source breakdown - calculated dynamically based on real matched transactions in the timeframe
+    app_breakdown = []
+    if total_cnt > 0 and total_vol > 0:
+        # Determine timeframe date bounds for app grouping
+        if tf == "today":
+            tf_start = start_today
+            tf_end = start_today + timedelta(days=1)
+        elif tf == "week":
+            tf_start = (now_ist - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
+            tf_end = (now_ist.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1))
+        elif tf == "month":
+            tf_start = start_month
+            tf_end = datetime(now_ist.year + 1 if now_ist.month == 12 else now_ist.year, 1 if now_ist.month == 12 else now_ist.month + 1, 1, tzinfo=ist_tz)
+        elif tf == "year":
+            tf_start = start_year
+            tf_end = datetime(now_ist.year + 1, 1, 1, tzinfo=ist_tz)
+        else:
+            tf_start = s_dt
+            tf_end = e_dt
+
+        app_stats = await exec_sql(
+            """
+            SELECT
+                COALESCE(NULLIF(upi_app, ''), 'UPI') as app_name,
+                COALESCE(SUM(amount_paise), 0) as total_paise,
+                COUNT(*) as cnt
+            FROM public.payment_transactions
+            WHERE school_id = %s AND (payment_status IN ('VERIFIED_SUCCESS', 'AWAITING_VERIFICATION') OR student_id IS NOT NULL)
+              AND received_at >= %s AND received_at < %s
+            GROUP BY app_name
+            ORDER BY total_paise DESC
+            """,
+            (school_id, tf_start, tf_end),
+        )
+
+        total_matched_paise = sum(int(r["total_paise"]) for r in app_stats) if app_stats else 0
+        if total_matched_paise > 0:
+            palette = {
+                "phonepe": "#5F259F",
+                "google pay": "#4285F4",
+                "gpay": "#4285F4",
+                "paytm": "#002E6E",
+                "bhim": "#00796B",
+                "canara": "#003B70",
+                "upi": "#0284C7",
+            }
+            for r in app_stats:
+                raw_name = str(r["app_name"])
+                paise = int(r["total_paise"])
+                pct = max(1, round((paise / total_matched_paise) * 100))
+                color = "#0284C7"
+                for k, c in palette.items():
+                    if k in raw_name.lower():
+                        color = c
+                        break
+                app_breakdown.append({
+                    "name": raw_name,
+                    "share": pct,
+                    "amount": round(paise / 100.0, 2),
+                    "color": color,
+                })
+
+    return {
+        "timeframe": tf,
+        "drawer_totals": {
+            "today": {
+                "amount": round(today_paise / 100.0, 2),
+                "count": today_count,
+                "formatted": f"₹{today_paise / 100.0:,.2f}",
+            },
+            "this_month": {
+                "amount": round(month_paise / 100.0, 2),
+                "count": month_count,
+                "formatted": f"₹{month_paise / 100.0:,.2f}",
+            },
+            "this_year": {
+                "amount": round(year_paise / 100.0, 2),
+                "count": year_count,
+                "formatted": f"₹{year_paise / 100.0:,.2f}",
+            },
+        },
+        "chart_data": points,
+        "summary": {
+            "total_volume": round(total_vol, 2),
+            "formatted_volume": f"₹{total_vol:,.2f}",
+            "matched_count": total_cnt,
+            "avg_ticket_size": avg_ticket,
+            "formatted_avg_ticket": f"₹{avg_ticket:,.2f}",
+            "app_breakdown": app_breakdown,
+        },
+    }
+
+
 @router.get("/transactions", tags=["Transactions"])
 async def list_transactions(
     status_filter: Optional[str] = Query("All", alias="status"),
@@ -1585,9 +1954,9 @@ async def list_transactions(
     if status_filter and status_filter != "All":
         sf_upper = status_filter.upper()
         if sf_upper == "SUCCESSFUL":
-            query += " AND t.payment_status = 'VERIFIED_SUCCESS'"
+            query += " AND (t.payment_status = 'VERIFIED_SUCCESS' OR (t.payment_status = 'AWAITING_VERIFICATION' AND t.student_id IS NOT NULL))"
         elif sf_upper == "PENDING":
-            query += " AND t.payment_status = 'PENDING'"
+            query += " AND t.payment_status IN ('PENDING', 'AWAITING_VERIFICATION')"
         elif sf_upper == "UNMATCHED":
             query += " AND t.payment_status = 'UNMATCHED'"
         elif sf_upper == "REFUNDS":

@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 class AppConstants {
-  static const String appTitle = 'EduSHAMIIT Payment Bridge';
+  static const String appTitle = 'SHAMIIT Payment Bridge';
 
   // Live Cloud API Host
   static const String liveServerBaseUrl = 'https://eduapi.shamiit.com';
@@ -22,6 +22,7 @@ class AppConstants {
   static const String prefsUserEmailKey = 'pref_user_email';
   static const String prefsUserNameKey = 'pref_user_name';
   static const String prefsUserRoleKey = 'pref_user_role';
+  static const String prefsUserPhotoKey = 'pref_user_photo';
   static const String prefsIsLoggedInKey = 'pref_is_logged_in';
   static const String prefsAutoStartKey = 'pref_auto_start';
   static const String prefsSyncIntervalKey = 'pref_sync_interval';
