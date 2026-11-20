@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/theme.dart';
 import 'screens/splash_screen.dart';
+import 'services/archive_service.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await ArchiveService().init();
 
   // Set system UI overlay style matching SHAMIIT Deep Navy theme
   SystemChrome.setSystemUIOverlayStyle(

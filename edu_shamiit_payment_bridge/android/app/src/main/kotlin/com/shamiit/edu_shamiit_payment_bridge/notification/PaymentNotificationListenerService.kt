@@ -240,18 +240,26 @@ class PaymentNotificationListenerService : NotificationListenerService() {
         val notification = sbn.notification ?: return
         val extras = notification.extras ?: return
 
-        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
-        val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
-        val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
-        val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()
-        val infoText = extras.getCharSequence(Notification.EXTRA_INFO_TEXT)?.toString()
+        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim()
+        val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.trim()
+        val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()?.trim()
+        val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()?.trim()
+        val infoText = extras.getCharSequence(Notification.EXTRA_INFO_TEXT)?.toString()?.trim()
+        val summaryText = extras.getCharSequence(Notification.EXTRA_SUMMARY_TEXT)?.toString()?.trim()
+        val ticker = notification.tickerText?.toString()?.trim()
 
-        val primaryText = if (!bigText.isNullOrBlank()) bigText else text
+        val primaryText = when {
+            !bigText.isNullOrBlank() -> bigText
+            !text.isNullOrBlank() -> text
+            !summaryText.isNullOrBlank() -> summaryText
+            !ticker.isNullOrBlank() -> ticker
+            else -> null
+        }
         val additionalDetails = listOfNotNull(subText, infoText).filter { it.isNotBlank() && it != primaryText }
         val effectiveText = if (additionalDetails.isNotEmpty() && !primaryText.isNullOrBlank()) {
             "$primaryText ${additionalDetails.joinToString(" ")}"
         } else {
-            primaryText ?: additionalDetails.firstOrNull()
+            primaryText ?: additionalDetails.firstOrNull() ?: ticker ?: ""
         }
 
         if (title.isNullOrBlank() && effectiveText.isNullOrBlank()) {

@@ -20,6 +20,11 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   late int _currentIndex;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  final GlobalKey<DashboardScreenState> _dashboardKey = GlobalKey<DashboardScreenState>();
+  final GlobalKey<InsightsScreenState> _insightsKey = GlobalKey<InsightsScreenState>();
+  final GlobalKey<NotificationsScreenState> _notificationsKey = GlobalKey<NotificationsScreenState>();
+  final GlobalKey<TransactionsScreenState> _transactionsKey = GlobalKey<TransactionsScreenState>();
+
   @override
   void initState() {
     super.initState();
@@ -35,8 +40,27 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   }
 
   void _onTabSelected(int index) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     setState(() {
       _currentIndex = index;
+    });
+
+    // Auto-refresh the selected screen immediately upon click/tap
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      switch (index) {
+        case 0:
+          _dashboardKey.currentState?.refresh();
+          break;
+        case 1:
+          _insightsKey.currentState?.refresh();
+          break;
+        case 2:
+          _notificationsKey.currentState?.refresh();
+          break;
+        case 3:
+          _transactionsKey.currentState?.refresh();
+          break;
+      }
     });
   }
 
@@ -44,15 +68,19 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   Widget build(BuildContext context) {
     final screens = [
       DashboardScreen(
+        key: _dashboardKey,
         onNavigateTab: _onTabSelected,
       ),
       InsightsScreen(
+        key: _insightsKey,
         onNavigateTab: _onTabSelected,
       ),
       NotificationsScreen(
+        key: _notificationsKey,
         onBack: () => _onTabSelected(0),
       ),
       TransactionsScreen(
+        key: _transactionsKey,
         onBack: () => _onTabSelected(0),
       ),
     ];

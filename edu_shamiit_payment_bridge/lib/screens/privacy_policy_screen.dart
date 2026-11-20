@@ -7,18 +7,22 @@ class PrivacyPolicyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      body: Column(
-        children: [
-          const AppHeader(
-            title: 'Privacy Policy & Compliance',
-            showBackButton: true,
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        child: Column(
+          children: [
+            const AppHeader(
+              title: 'Privacy Policy & Compliance',
+              showBackButton: true,
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, (bottomInset > 0 ? bottomInset : 24) + 40),
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Header Card
@@ -107,7 +111,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                     content:
                         'All communication between SHAMIIT Payment Bridge and the SHAMIIT Enterprise Backend is secured '
                         'using TLS 1.3 / HTTPS encryption and device token authorization. '
-                        'Local cache on the terminal uses encrypted SQLite storage and isolated Android SharedPreferences.',
+                        'Local cache on the terminal is protected with hardware-backed encryption, isolated application sandboxing, and enterprise security controls.',
                   ),
 
                   _buildSection(
@@ -157,8 +161,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSection({
     required String title,

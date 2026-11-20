@@ -205,6 +205,21 @@ class PaymentBridgeChannel(private val context: Context) : MethodChannel.MethodC
                 result.success(true)
             }
 
+            "setServerUrl" -> {
+                val url = call.argument<String>("url")
+                if (!url.isNullOrEmpty()) {
+                    val cleanUrl = url.trim().trimEnd('/')
+                    val prefs = context.getSharedPreferences("payment_bridge_prefs", Context.MODE_PRIVATE)
+                    prefs.edit().putString(SyncManager.KEY_SERVER_URL, cleanUrl).apply()
+                    val flutterPrefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                    flutterPrefs.edit()
+                        .putString("flutter.pref_server_url", cleanUrl)
+                        .putString("flutter.server_url", cleanUrl)
+                        .apply()
+                }
+                result.success(true)
+            }
+
             "getLocalNotifications" -> {
                 CoroutineScope(Dispatchers.IO).launch {
                     val events = dbHelper.getAllEvents(limit = 100)
@@ -225,7 +240,7 @@ class PaymentBridgeChannel(private val context: Context) : MethodChannel.MethodC
                             "parser_version" to ev.parserVersion,
                             "confidence_score" to ev.confidenceScore,
                             "parsing_status" to ev.parsingStatus,
-                            "candidate_match_status" to if (ev.isSynced) "MATCHED_CANDIDATE" else "UNMATCHED",
+                            "candidate_match_status" to "UNMATCHED",
                             "sync_status" to if (ev.isSynced) "SYNCED" else "PENDING"
                         )
                     }

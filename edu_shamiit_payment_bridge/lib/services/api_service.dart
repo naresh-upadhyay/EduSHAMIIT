@@ -9,6 +9,7 @@ import '../models/notification_model.dart';
 import '../models/transaction_model.dart';
 import '../models/settings_model.dart';
 import '../models/analytics_model.dart';
+import 'websocket_service.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -31,7 +32,9 @@ class ApiService {
 
     // Retrieve or auto-generate unique hardware-based device ID
     var storedDeviceId = prefs.getString(AppConstants.prefsDeviceIdKey);
-    if (storedDeviceId == null || storedDeviceId.isEmpty || storedDeviceId == 'PB-AND-001') {
+    if (storedDeviceId == null ||
+        storedDeviceId.isEmpty ||
+        storedDeviceId == 'PB-AND-001') {
       storedDeviceId = await PlatformBridge.getUniqueDeviceId();
       await prefs.setString(AppConstants.prefsDeviceIdKey, storedDeviceId);
     }
@@ -42,34 +45,32 @@ class ApiService {
     _institutionName = prefs.getString(AppConstants.prefsInstitutionKey) ?? '';
     _authToken = prefs.getString(AppConstants.prefsUserTokenKey) ?? '';
 
-    // Smart Server URL resolution
-    // If on web or local emulator, connect to local Docker backend (port 8082)
-    // If on real mobile device, default to live cloud API: https://eduapi.shamiit.com
-    var savedUrl = prefs.getString(AppConstants.prefsServerUrlKey);
-    if (kIsWeb) {
-      final host = Uri.base.host.isNotEmpty ? Uri.base.host : 'localhost';
-      savedUrl = 'http://$host:8082/api/v1/payment-bridge';
-      await prefs.setString(AppConstants.prefsServerUrlKey, savedUrl);
-    } else if (_isEmulator) {
-      if (savedUrl == null || savedUrl.isEmpty || savedUrl.contains('eduapi.shamiit.com')) {
-        savedUrl = 'http://10.0.2.2:8082/api/v1/payment-bridge';
-        await prefs.setString(AppConstants.prefsServerUrlKey, savedUrl);
-      }
+    // Strict Persistent Server URL resolution:
+    // If user has saved a URL in preferences, RESPECT IT 100% and NEVER overwrite it!
+    final savedUrl = prefs.getString(AppConstants.prefsServerUrlKey);
+    if (savedUrl != null && savedUrl.trim().isNotEmpty) {
+      _baseUrl = savedUrl.trim().replaceAll(RegExp(r'/+$'), '');
     } else {
-      if (savedUrl == null || savedUrl.isEmpty || savedUrl.contains('10.0.2.2') || savedUrl.contains('127.0.0.1') || savedUrl.contains('localhost')) {
-        savedUrl = AppConstants.livePaymentBridgeUrl;
-        await prefs.setString(AppConstants.prefsServerUrlKey, savedUrl);
+      // Only set initial default if no URL has ever been stored
+      String defaultUrl;
+      if (kIsWeb) {
+        final host = Uri.base.host.isNotEmpty ? Uri.base.host : 'localhost';
+        defaultUrl = 'http://$host:8082/api/v1/payment-bridge';
+      } else if (_isEmulator) {
+        defaultUrl = 'http://10.0.2.2:8082/api/v1/payment-bridge';
+      } else {
+        defaultUrl = AppConstants.livePaymentBridgeUrl;
       }
+      _baseUrl = defaultUrl;
+      await prefs.setString(AppConstants.prefsServerUrlKey, defaultUrl);
     }
 
-    _baseUrl = savedUrl.isNotEmpty ? savedUrl : AppConstants.getDefaultPaymentBridgeUrl();
-
     // Sanitize any stale Greenwood High School or unassigned school ID in storage
-    if (_institutionName.isEmpty || _institutionName == 'Greenwood High School' || _institutionName.contains('Greenwood')) {
+    if (_institutionName.isEmpty) {
       _institutionName = 'Shami Innovation Academy';
       await prefs.setString(AppConstants.prefsInstitutionKey, _institutionName);
     }
-    if (_schoolId.isEmpty || _schoolId == '22222222-2222-2222-2222-222222222222') {
+    if (_schoolId.isEmpty) {
       _schoolId = '11111111-1111-1111-1111-111111111111';
       await prefs.setString(AppConstants.prefsSchoolIdKey, _schoolId);
     }
@@ -77,10 +78,22 @@ class ApiService {
     // If already logged in, automatically ensure device is registered with backend
     if (_authToken.isNotEmpty && _schoolId.isNotEmpty) {
       registerDeviceWithBackend().catchError((e) {
-        debugPrint('[ApiService] Auto device registration failed on startup: $e');
+        debugPrint(
+            '[ApiService] Auto device registration failed on startup: $e');
         return false;
       });
     }
+  }
+
+  Future<void> setServerUrl(String newUrl) async {
+    final clean = newUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    if (clean.isEmpty) return;
+    _baseUrl = clean;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(AppConstants.prefsServerUrlKey, _baseUrl);
+    await PlatformBridge.setServerUrl(_baseUrl);
+    WebSocketService().connect();
+    debugPrint('[ApiService] Authoritative Server URL updated to: $_baseUrl');
   }
 
   void updateConfig({
@@ -90,7 +103,9 @@ class ApiService {
     String? deviceId,
     String? authToken,
   }) {
-    if (baseUrl != null) _baseUrl = baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    if (baseUrl != null && baseUrl.trim().isNotEmpty) {
+      setServerUrl(baseUrl);
+    }
     if (schoolId != null) _schoolId = schoolId;
     if (institutionName != null) _institutionName = institutionName;
     if (deviceId != null) _deviceId = deviceId;
@@ -98,7 +113,8 @@ class ApiService {
   }
 
   String get baseUrl => _baseUrl;
-  String get schoolId => _schoolId.isNotEmpty ? _schoolId : '11111111-1111-1111-1111-111111111111';
+  String get schoolId =>
+      _schoolId.isNotEmpty ? _schoolId : '11111111-1111-1111-1111-111111111111';
   String get institutionName => _institutionName;
   String get deviceId => _deviceId;
   String get authToken => _authToken;
@@ -107,66 +123,56 @@ class ApiService {
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'X-School-ID': _schoolId.isNotEmpty ? _schoolId : '11111111-1111-1111-1111-111111111111',
+        'X-School-ID': _schoolId.isNotEmpty
+            ? _schoolId
+            : '11111111-1111-1111-1111-111111111111',
         if (_deviceId.isNotEmpty) 'X-Device-ID': _deviceId,
         if (_authToken.isNotEmpty) 'Authorization': 'Bearer $_authToken',
       };
 
   List<String> _getCandidateUrls(String pathAndQuery) {
-    final cleanPath = pathAndQuery.startsWith('/') ? pathAndQuery : '/$pathAndQuery';
-    final list = <String>[];
+    final cleanPath =
+        pathAndQuery.startsWith('/') ? pathAndQuery : '/$pathAndQuery';
 
+    // Authoritative: User's explicitly configured URL must be used directly!
+    // No silent fallback to other environments.
+    if (_baseUrl.isNotEmpty) {
+      return ['$_baseUrl$cleanPath'];
+    }
+
+    final list = <String>[];
     if (kIsWeb) {
       final host = Uri.base.host.isNotEmpty ? Uri.base.host : 'localhost';
-      list.add('http://$host:8082/api/v1/payment-bridge$cleanPath');
-      if (host != 'localhost') list.add('http://localhost:8082/api/v1/payment-bridge$cleanPath');
-      if (host != '127.0.0.1') list.add('http://127.0.0.1:8082/api/v1/payment-bridge$cleanPath');
+      final u1 = 'http://$host:8082/api/v1/payment-bridge$cleanPath';
+      final u2 = 'http://localhost:8082/api/v1/payment-bridge$cleanPath';
+      final u3 = 'http://127.0.0.1:8082/api/v1/payment-bridge$cleanPath';
+      list.addAll([u1, u2, u3]);
     } else if (_isEmulator) {
-      list.add('http://10.0.2.2:8082/api/v1/payment-bridge$cleanPath');
-      list.add('http://127.0.0.1:8082/api/v1/payment-bridge$cleanPath');
+      final u1 = 'http://10.0.2.2:8082/api/v1/payment-bridge$cleanPath';
+      final u2 = 'http://127.0.0.1:8082/api/v1/payment-bridge$cleanPath';
+      final u3 = '${AppConstants.livePaymentBridgeUrl}$cleanPath';
+      list.addAll([u1, u2, u3]);
     } else {
-      // Physical mobile device: prioritize live cloud API so mobile data / 5G works seamlessly
-      final savedIsLive = _baseUrl.contains('eduapi.shamiit.com');
-      if (savedIsLive) {
-        list.add('${AppConstants.livePaymentBridgeUrl}$cleanPath');
-        list.add('http://192.168.1.8:8082/api/v1/payment-bridge$cleanPath');
-      } else {
-        list.add('$_baseUrl$cleanPath');
-        list.add('${AppConstants.livePaymentBridgeUrl}$cleanPath');
-        list.add('http://192.168.1.8:8082/api/v1/payment-bridge$cleanPath');
-      }
-      list.add('http://10.0.2.2:8082/api/v1/payment-bridge$cleanPath');
-      list.add('http://127.0.0.1:8082/api/v1/payment-bridge$cleanPath');
+      final liveUrl = '${AppConstants.livePaymentBridgeUrl}$cleanPath';
+      list.add(liveUrl);
     }
-    final primary = '$_baseUrl$cleanPath';
-    if (!list.contains(primary)) {
-      list.insert(0, primary);
-    }
+
     return list.toSet().toList();
   }
 
   void _onSuccessUrl(String usedUrl) {
-    try {
-      final uri = Uri.parse(usedUrl);
-      final segments = uri.path.split('/');
-      if (segments.length >= 4) {
-        final newBase = '${uri.scheme}://${uri.host}:${uri.port}${segments.sublist(0, 4).join('/')}';
-        if (newBase.contains('/api/v1/payment-bridge') && newBase != _baseUrl) {
-          debugPrint('[ApiService] Switching active baseUrl to: $newBase');
-          _baseUrl = newBase;
-          SharedPreferences.getInstance().then((p) => p.setString(AppConstants.prefsServerUrlKey, newBase)).catchError((_) => false);
-        }
-      }
-    } catch (_) {}
+    debugPrint('[ApiService] Request succeeded via: $usedUrl');
   }
 
-  Future<http.Response> _getWithFallback(String pathAndQuery, {Duration timeout = const Duration(seconds: 4)}) async {
+  Future<http.Response> _getWithFallback(String pathAndQuery,
+      {Duration timeout = const Duration(seconds: 4)}) async {
     final candidates = _getCandidateUrls(pathAndQuery);
     dynamic lastError;
     http.Response? lastResponse;
     for (final url in candidates) {
       try {
-        final res = await http.get(Uri.parse(url), headers: _headers).timeout(timeout);
+        final res =
+            await http.get(Uri.parse(url), headers: _headers).timeout(timeout);
         if (res.statusCode >= 200 && res.statusCode < 400) {
           _onSuccessUrl(url);
           return res;
@@ -180,13 +186,16 @@ class ApiService {
     throw lastError ?? Exception('Network connection failed');
   }
 
-  Future<http.Response> _postWithFallback(String pathAndQuery, {Object? body, Duration timeout = const Duration(seconds: 4)}) async {
+  Future<http.Response> _postWithFallback(String pathAndQuery,
+      {Object? body, Duration timeout = const Duration(seconds: 4)}) async {
     final candidates = _getCandidateUrls(pathAndQuery);
     dynamic lastError;
     http.Response? lastResponse;
     for (final url in candidates) {
       try {
-        final res = await http.post(Uri.parse(url), headers: _headers, body: body).timeout(timeout);
+        final res = await http
+            .post(Uri.parse(url), headers: _headers, body: body)
+            .timeout(timeout);
         if (res.statusCode >= 200 && res.statusCode < 400) {
           _onSuccessUrl(url);
           return res;
@@ -200,13 +209,16 @@ class ApiService {
     throw lastError ?? Exception('Network connection failed');
   }
 
-  Future<http.Response> _putWithFallback(String pathAndQuery, {Object? body, Duration timeout = const Duration(seconds: 4)}) async {
+  Future<http.Response> _putWithFallback(String pathAndQuery,
+      {Object? body, Duration timeout = const Duration(seconds: 4)}) async {
     final candidates = _getCandidateUrls(pathAndQuery);
     dynamic lastError;
     http.Response? lastResponse;
     for (final url in candidates) {
       try {
-        final res = await http.put(Uri.parse(url), headers: _headers, body: body).timeout(timeout);
+        final res = await http
+            .put(Uri.parse(url), headers: _headers, body: body)
+            .timeout(timeout);
         if (res.statusCode >= 200 && res.statusCode < 400) {
           _onSuccessUrl(url);
           return res;
@@ -220,13 +232,16 @@ class ApiService {
     throw lastError ?? Exception('Network connection failed');
   }
 
-  Future<http.Response> _deleteWithFallback(String pathAndQuery, {Duration timeout = const Duration(seconds: 4)}) async {
+  Future<http.Response> _deleteWithFallback(String pathAndQuery,
+      {Duration timeout = const Duration(seconds: 4)}) async {
     final candidates = _getCandidateUrls(pathAndQuery);
     dynamic lastError;
     http.Response? lastResponse;
     for (final url in candidates) {
       try {
-        final res = await http.delete(Uri.parse(url), headers: _headers).timeout(timeout);
+        final res = await http
+            .delete(Uri.parse(url), headers: _headers)
+            .timeout(timeout);
         if (res.statusCode >= 200 && res.statusCode < 400) {
           _onSuccessUrl(url);
           return res;
@@ -247,21 +262,37 @@ class ApiService {
   List<String> _getAuthCandidateUrls(String path) {
     final cleanPath = path.startsWith('/') ? path : '/$path';
     final list = <String>[];
+
+    // Derive primary auth endpoint directly from the configured _baseUrl
+    try {
+      final uri = Uri.parse(_baseUrl);
+      final hostBase =
+          '${uri.scheme}://${uri.host}${uri.hasPort ? ':${uri.port}' : ''}';
+      list.add('$hostBase/api$cleanPath');
+    } catch (_) {}
+
     if (kIsWeb) {
       final host = Uri.base.host.isNotEmpty ? Uri.base.host : 'localhost';
-      list.add('http://$host:8082/api$cleanPath');
-      if (host != 'localhost') list.add('http://localhost:8082/api$cleanPath');
-      if (host != '127.0.0.1') list.add('http://127.0.0.1:8082/api$cleanPath');
+      final u1 = 'http://$host:8082/api$cleanPath';
+      final u2 = 'http://localhost:8082/api$cleanPath';
+      final u3 = 'http://127.0.0.1:8082/api$cleanPath';
+      if (!list.contains(u1)) list.add(u1);
+      if (!list.contains(u2)) list.add(u2);
+      if (!list.contains(u3)) list.add(u3);
     } else if (_isEmulator || AppConstants.isEmulator) {
-      list.add('http://10.0.2.2:8082/api$cleanPath');
-      list.add('http://127.0.0.1:8082/api$cleanPath');
+      final u1 = 'http://10.0.2.2:8082/api$cleanPath';
+      final u2 = 'http://127.0.0.1:8082/api$cleanPath';
+      final u3 = '${AppConstants.liveServerBaseUrl}/api$cleanPath';
+      if (!list.contains(u1)) list.add(u1);
+      if (!list.contains(u2)) list.add(u2);
+      if (!list.contains(u3)) list.add(u3);
     } else {
-      list.add('http://192.168.1.8:8082/api$cleanPath');
-      list.add('${AppConstants.liveServerBaseUrl}/api$cleanPath');
-      list.add('http://10.0.2.2:8082/api$cleanPath');
-      list.add('http://127.0.0.1:8082/api$cleanPath');
+      final live = '${AppConstants.liveServerBaseUrl}/api$cleanPath';
+      if (!list.contains(live)) list.add(live);
+      final lan = 'http://192.168.1.8:8082/api$cleanPath';
+      if (!list.contains(lan)) list.add(lan);
     }
-    return list;
+    return list.toSet().toList();
   }
 
   /// Executes Password-based login against FastAPI /api/auth/login
@@ -274,14 +305,19 @@ class ApiService {
     dynamic lastError;
     for (final url in urlCandidates) {
       try {
-        final res = await http.post(
-          Uri.parse(url),
-          headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-          body: json.encode({
-            'email': email.trim(),
-            'password': password,
-          }),
-        ).timeout(const Duration(seconds: 6));
+        final res = await http
+            .post(
+              Uri.parse(url),
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              body: json.encode({
+                'email': email.trim(),
+                'password': password,
+              }),
+            )
+            .timeout(const Duration(seconds: 6));
 
         final data = json.decode(res.body);
         if (res.statusCode == 200 && data['success'] == true) {
@@ -297,7 +333,10 @@ class ApiService {
         lastError = e;
       }
     }
-    return {'success': false, 'detail': 'Connection error: ${lastError ?? 'Server unreachable'}'};
+    return {
+      'success': false,
+      'detail': 'Connection error: ${lastError ?? 'Server unreachable'}'
+    };
   }
 
   /// Sends one-time passcode to email
@@ -306,16 +345,21 @@ class ApiService {
     dynamic lastError;
     for (final url in urlCandidates) {
       try {
-        final res = await http.post(
-          Uri.parse(url),
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({'identifier': email.trim()}),
-        ).timeout(const Duration(seconds: 6));
+        final res = await http
+            .post(
+              Uri.parse(url),
+              headers: {'Content-Type': 'application/json'},
+              body: json.encode({'identifier': email.trim()}),
+            )
+            .timeout(const Duration(seconds: 6));
 
         final data = json.decode(res.body);
         return {
           'success': res.statusCode == 200 && data['success'] == true,
-          'detail': data['detail'] ?? (data['success'] == true ? 'OTP sent successfully' : 'Failed to send OTP'),
+          'detail': data['detail'] ??
+              (data['success'] == true
+                  ? 'OTP sent successfully'
+                  : 'Failed to send OTP'),
         };
       } catch (e) {
         lastError = e;
@@ -333,14 +377,16 @@ class ApiService {
     dynamic lastError;
     for (final url in urlCandidates) {
       try {
-        final res = await http.post(
-          Uri.parse(url),
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({
-            'email': email.trim(),
-            'otp': otp.trim(),
-          }),
-        ).timeout(const Duration(seconds: 6));
+        final res = await http
+            .post(
+              Uri.parse(url),
+              headers: {'Content-Type': 'application/json'},
+              body: json.encode({
+                'email': email.trim(),
+                'otp': otp.trim(),
+              }),
+            )
+            .timeout(const Duration(seconds: 6));
 
         final data = json.decode(res.body);
         if (res.statusCode == 200 && data['success'] == true) {
@@ -365,11 +411,13 @@ class ApiService {
     dynamic lastError;
     for (final url in urlCandidates) {
       try {
-        final res = await http.post(
-          Uri.parse(url),
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({'identifier': email.trim()}),
-        ).timeout(const Duration(seconds: 6));
+        final res = await http
+            .post(
+              Uri.parse(url),
+              headers: {'Content-Type': 'application/json'},
+              body: json.encode({'identifier': email.trim()}),
+            )
+            .timeout(const Duration(seconds: 6));
 
         final data = json.decode(res.body);
         return {
@@ -393,15 +441,17 @@ class ApiService {
     dynamic lastError;
     for (final url in urlCandidates) {
       try {
-        final res = await http.post(
-          Uri.parse(url),
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({
-            'email': email.trim(),
-            'otp': otp.trim(),
-            'new_password': newPassword,
-          }),
-        ).timeout(const Duration(seconds: 6));
+        final res = await http
+            .post(
+              Uri.parse(url),
+              headers: {'Content-Type': 'application/json'},
+              body: json.encode({
+                'email': email.trim(),
+                'otp': otp.trim(),
+                'new_password': newPassword,
+              }),
+            )
+            .timeout(const Duration(seconds: 6));
 
         final data = json.decode(res.body);
         return {
@@ -421,20 +471,28 @@ class ApiService {
     final token = data['token'] as String;
     final user = data['user'] as Map<String, dynamic>;
 
-    final schoolId = (user['school_id'] ?? responseData['school_id'] ?? '').toString();
+    final schoolId =
+        (user['school_id'] ?? responseData['school_id'] ?? '').toString();
     final userEmail = (user['email'] ?? '').toString();
     final userName = (user['full_name'] ?? 'Authorized User').toString();
     final userRole = (user['role'] ?? 'admin').toString();
-    final userPhoto = (user['avatar_url'] ?? user['photo_url'] ?? user['profile_photo'] ?? '').toString();
+    final userPhoto =
+        (user['avatar_url'] ?? user['photo_url'] ?? user['profile_photo'] ?? '')
+            .toString();
 
     // Cache token and school ID first so subsequent requests are authenticated
     _authToken = token;
     _schoolId = schoolId;
 
     // Direct extraction of verified institution name from login response
-    var institutionName = (user['school_name'] ?? responseData['school_name'] ?? data['school_name'] ?? '').toString();
+    var institutionName = (user['school_name'] ??
+            responseData['school_name'] ??
+            data['school_name'] ??
+            '')
+        .toString();
     if (institutionName.isEmpty && schoolId.isNotEmpty) {
-      institutionName = await _fetchSchoolName(schoolId) ?? 'Shami Innovation Academy';
+      institutionName =
+          await _fetchSchoolName(schoolId) ?? 'Shami Innovation Academy';
     } else if (institutionName.isEmpty) {
       institutionName = 'Shami Innovation Academy';
     }
@@ -459,7 +517,8 @@ class ApiService {
       final sRes = await _getWithFallback('/school-info?school_id=$schoolId');
       if (sRes.statusCode == 200) {
         final d = json.decode(sRes.body);
-        if (d['school_name'] != null && d['school_name'].toString().isNotEmpty) {
+        if (d['school_name'] != null &&
+            d['school_name'].toString().isNotEmpty) {
           final name = d['school_name'] as String;
           if (!name.contains('Greenwood')) {
             return name;
@@ -544,20 +603,26 @@ class ApiService {
     var photo = prefs.getString(AppConstants.prefsUserPhotoKey) ?? '';
     var email = prefs.getString(AppConstants.prefsUserEmailKey) ?? '';
     var name = prefs.getString(AppConstants.prefsUserNameKey) ?? 'Naresh King';
-    var role = prefs.getString(AppConstants.prefsUserRoleKey) ?? 'Enterprise Admin';
-    var institution = prefs.getString(AppConstants.prefsInstitutionKey) ?? 'SHAMIIT Technologies';
+    var role =
+        prefs.getString(AppConstants.prefsUserRoleKey) ?? 'Enterprise Admin';
+    var institution = prefs.getString(AppConstants.prefsInstitutionKey) ??
+        'SHAMIIT Technologies';
 
     // If photo is empty, or email is empty, query the /user-profile endpoint
     if (photo.isEmpty || email.isEmpty) {
       try {
-        final res = await _getWithFallback('/user-profile', timeout: const Duration(seconds: 3));
+        final res = await _getWithFallback('/user-profile',
+            timeout: const Duration(seconds: 3));
         if (res.statusCode == 200) {
           final data = json.decode(res.body);
-          if (data['photo_url'] != null && data['photo_url'].toString().isNotEmpty) {
+          if (data['photo_url'] != null &&
+              data['photo_url'].toString().isNotEmpty) {
             photo = data['photo_url'].toString();
             await prefs.setString(AppConstants.prefsUserPhotoKey, photo);
           }
-          if (data['email'] != null && data['email'].toString().isNotEmpty && email.isEmpty) {
+          if (data['email'] != null &&
+              data['email'].toString().isNotEmpty &&
+              email.isEmpty) {
             email = data['email'].toString();
             await prefs.setString(AppConstants.prefsUserEmailKey, email);
           }
@@ -569,9 +634,11 @@ class ApiService {
             role = data['role'].toString();
             await prefs.setString(AppConstants.prefsUserRoleKey, role);
           }
-          if (data['institution'] != null && data['institution'].toString().isNotEmpty) {
+          if (data['institution'] != null &&
+              data['institution'].toString().isNotEmpty) {
             institution = data['institution'].toString();
-            await prefs.setString(AppConstants.prefsInstitutionKey, institution);
+            await prefs.setString(
+                AppConstants.prefsInstitutionKey, institution);
           }
         }
       } catch (_) {}
@@ -611,52 +678,41 @@ class ApiService {
     }
   }
 
-  Future<NotificationsResult> getNotificationsWithSummary({String status = 'All'}) async {
+  Future<NotificationsResult> getNotificationsWithSummary(
+      {String status = 'All'}) async {
     try {
       final cleanStatus = status.split(' ').first;
-      final res = await _getWithFallback('/notifications?status=$cleanStatus&limit=100');
+      final res = await _getWithFallback(
+          '/notifications?status=$cleanStatus&limit=100');
       if (res.statusCode == 200) {
         final data = json.decode(res.body);
         final List<dynamic> items = data['items'] ?? [];
-        final parsedItems = items.map((e) => PaymentNotificationItem.fromJson(e)).toList();
+        final parsedItems =
+            items.map((e) => PaymentNotificationItem.fromJson(e)).toList();
         final summary = data['summary'] as Map<String, dynamic>? ?? {};
         return NotificationsResult(
           items: parsedItems,
           allCount: (summary['all'] as num?)?.toInt() ?? parsedItems.length,
-          matchedCount: (summary['matched'] as num?)?.toInt() ?? parsedItems.where((i) => i.isMatched).length,
-          unmatchedCount: (summary['unmatched'] as num?)?.toInt() ?? parsedItems.where((i) => i.isUnmatched).length,
-          ignoredCount: (summary['ignored'] as num?)?.toInt() ?? parsedItems.where((i) => i.isIgnored).length,
+          matchedCount: (summary['matched'] as num?)?.toInt() ??
+              parsedItems.where((i) => i.isMatched).length,
+          unmatchedCount: (summary['unmatched'] as num?)?.toInt() ??
+              parsedItems.where((i) => i.isUnmatched).length,
+          ignoredCount: (summary['ignored'] as num?)?.toInt() ??
+              parsedItems.where((i) => i.isIgnored).length,
         );
       } else {
         throw Exception('Failed to load notifications: ${res.statusCode}');
       }
     } catch (e) {
       debugPrint('[ApiService] getNotifications network error: $e');
-      // Offline fallback: load from device SQLite DB if available
-      try {
-        final localList = await PlatformBridge.getLocalNotifications();
-        if (localList.isNotEmpty) {
-          final parsedItems = localList.map((e) => PaymentNotificationItem.fromJson(e)).toList();
-          final cleanStatus = status.split(' ').first;
-          final filtered = (cleanStatus == 'All' || cleanStatus.isEmpty)
-              ? parsedItems
-              : parsedItems.where((i) => i.candidateMatchStatus.toUpperCase().contains(cleanStatus.toUpperCase())).toList();
-          return NotificationsResult(
-            items: filtered,
-            allCount: parsedItems.length,
-            matchedCount: parsedItems.where((i) => i.isMatched).length,
-            unmatchedCount: parsedItems.where((i) => i.isUnmatched).length,
-            ignoredCount: parsedItems.where((i) => i.isIgnored).length,
-          );
-        }
-      } catch (localErr) {
-        debugPrint('[ApiService] Local SQLite notification fallback failed: $localErr');
-      }
-      throw Exception('Network error: Could not reach the server.');
+      // If server is unreachable or wrong URL configured, rethrow so the UI can display
+      // the unreachable state honestly rather than showing stale/mismatched data.
+      throw Exception('Could not reach configured server: $e');
     }
   }
 
-  Future<List<PaymentNotificationItem>> getNotifications({String status = 'All'}) async {
+  Future<List<PaymentNotificationItem>> getNotifications(
+      {String status = 'All'}) async {
     final res = await getNotificationsWithSummary(status: status);
     return res.items;
   }
@@ -673,7 +729,8 @@ class ApiService {
           'refunds': data['refunds'] ?? 0,
         };
       } else {
-        throw Exception('Failed to load transaction summary: ${res.statusCode}');
+        throw Exception(
+            'Failed to load transaction summary: ${res.statusCode}');
       }
     } catch (e) {
       debugPrint('[ApiService] getTransactionsSummary network error: $e');
@@ -681,7 +738,8 @@ class ApiService {
     }
   }
 
-  Future<List<TransactionItem>> getTransactions({String status = 'All', String? search}) async {
+  Future<List<TransactionItem>> getTransactions(
+      {String status = 'All', String? search}) async {
     try {
       var path = '/transactions?status=$status&limit=100';
       if (search != null && search.isNotEmpty) {
@@ -707,7 +765,8 @@ class ApiService {
       if (res.statusCode == 200) {
         return TransactionItem.fromJson(json.decode(res.body));
       } else {
-        throw Exception('Failed to load transaction details: ${res.statusCode}');
+        throw Exception(
+            'Failed to load transaction details: ${res.statusCode}');
       }
     } catch (e) {
       debugPrint('[ApiService] getTransactionDetails network error: $e');
@@ -753,14 +812,31 @@ class ApiService {
       debugPrint('[ApiService] getMonitoredApps network fallback: $e');
     }
     return [
-      MonitoredAppItem(id: '1', name: 'PhonePe', packageName: 'com.phonepe.app', isEnabled: true),
-      MonitoredAppItem(id: '2', name: 'Google Pay', packageName: 'com.google.android.apps.nbu.paisa.user', isEnabled: true),
-      MonitoredAppItem(id: '3', name: 'Paytm', packageName: 'net.one97.paytm', isEnabled: true),
-      MonitoredAppItem(id: '4', name: 'BHIM UPI', packageName: 'in.org.npci.upiapp', isEnabled: true),
+      MonitoredAppItem(
+          id: '1',
+          name: 'PhonePe',
+          packageName: 'com.phonepe.app',
+          isEnabled: true),
+      MonitoredAppItem(
+          id: '2',
+          name: 'Google Pay',
+          packageName: 'com.google.android.apps.nbu.paisa.user',
+          isEnabled: true),
+      MonitoredAppItem(
+          id: '3',
+          name: 'Paytm',
+          packageName: 'net.one97.paytm',
+          isEnabled: true),
+      MonitoredAppItem(
+          id: '4',
+          name: 'BHIM UPI',
+          packageName: 'in.org.npci.upiapp',
+          isEnabled: true),
     ];
   }
 
-  Future<bool> addMonitoredApp(String name, String packageName, {String? iconName}) async {
+  Future<bool> addMonitoredApp(String name, String packageName,
+      {String? iconName}) async {
     try {
       final body = json.encode({
         'app_name': name.trim(),
@@ -793,7 +869,8 @@ class ApiService {
       final body = json.encode({
         'device_id': _deviceId,
         'listener_active': diag['listener_service_running'] ?? true,
-        'notification_access_granted': diag['notification_access_granted'] ?? true,
+        'notification_access_granted':
+            diag['notification_access_granted'] ?? true,
         'battery_level': diag['battery_level'] ?? 100,
         'pending_queue_count': diag['pending_queue_count'] ?? 0,
         'memory_usage_mb': 64,
@@ -808,7 +885,8 @@ class ApiService {
 
   Future<bool> toggleMonitoredApp(String appId, bool isEnabled) async {
     try {
-      final res = await _putWithFallback('/monitored-apps/$appId?is_enabled=$isEnabled');
+      final res = await _putWithFallback(
+          '/monitored-apps/$appId?is_enabled=$isEnabled');
       return res.statusCode == 200;
     } catch (e) {
       debugPrint('[ApiService] toggleMonitoredApp error: $e');
@@ -816,12 +894,25 @@ class ApiService {
     }
   }
 
-  Future<bool> testConnection() async {
+  Future<bool> testConnection({String? targetUrl}) async {
+    final target = (targetUrl != null && targetUrl.trim().isNotEmpty)
+        ? targetUrl.trim().replaceAll(RegExp(r'/+$'), '')
+        : _baseUrl;
+    if (target.isEmpty) return false;
+
+    final cleanTarget = target.replaceAll(RegExp(r'/+$'), '');
+    final url = cleanTarget.endsWith('/sync/test')
+        ? cleanTarget
+        : '$cleanTarget/sync/test';
+
     try {
-      final res = await _postWithFallback('/sync/test');
-      return res.statusCode == 200;
+      final res = await http.post(
+        Uri.parse(url),
+        headers: _headers,
+      ).timeout(const Duration(seconds: 4));
+      return res.statusCode >= 200 && res.statusCode < 400;
     } catch (e) {
-      debugPrint('[ApiService] testConnection error: $e');
+      debugPrint('[ApiService] testConnection directly failed for $url: $e');
       return false;
     }
   }

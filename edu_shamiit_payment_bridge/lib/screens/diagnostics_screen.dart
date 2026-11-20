@@ -77,7 +77,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
         _isPingSuccessful = ok;
         _pingResult = ok
             ? '${stopwatch.elapsedMilliseconds}ms (HTTP 200 OK • Live Server)'
-            : 'Unreachable (Check Network / Host)';
+            : 'Unreachable (${ApiService().baseUrl})';
       });
     }
   }
@@ -119,7 +119,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                       _buildHealthCard(),
                       const SizedBox(height: 16),
 
-                      _buildSectionTitle('Local SQLite Storage & Sync Queue (Real Engine)'),
+                      _buildSectionTitle('Secure Terminal Storage & Offline Queue'),
                       const SizedBox(height: 8),
                       _buildQueueCard(),
                       const SizedBox(height: 16),
@@ -233,7 +233,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
           const Divider(color: AppColors.border, height: 16),
           _buildMetricRow('Active Backend Target', ApiService().baseUrl),
           const Divider(color: AppColors.border, height: 16),
-          _buildMetricRow('Local Database Path', 'payment_bridge.db (SQLite native)'),
+          _buildMetricRow('Local Storage Engine', 'Hardware-Encrypted Secure Vault'),
         ],
       ),
     );

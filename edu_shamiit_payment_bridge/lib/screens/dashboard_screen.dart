@@ -10,6 +10,7 @@ import '../services/websocket_service.dart';
 import '../widgets/app_header.dart';
 import '../widgets/metric_card.dart';
 import '../widgets/matched_payments_chart.dart';
+import '../widgets/custom_date_range_dialog.dart';
 import '../widgets/app_drawer.dart';
 import 'settings_screen.dart';
 
@@ -22,10 +23,10 @@ class DashboardScreen extends StatefulWidget {
   });
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  State<DashboardScreen> createState() => DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class DashboardScreenState extends State<DashboardScreen> {
   late Future<DashboardData> _dashboardFuture;
   late Future<MatchedPaymentsAnalytics> _analyticsFuture;
 
@@ -84,12 +85,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Future<void> _refresh() async {
+  Future<void> refresh() async {
     _checkListenerStatus();
     setState(() {
       _loadData();
     });
   }
+
+  Future<void> _refresh() => refresh();
 
   void _changeTimeframe(String tf) {
     if (tf == 'custom') {
@@ -103,52 +106,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _pickCustomRange() async {
-    final now = DateTime.now();
-    final pickedDateRange = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(now.year - 2),
-      lastDate: DateTime(now.year + 1),
-      initialDateRange: DateTimeRange(
-        start: _customStartDate ?? now.subtract(const Duration(days: 7)),
-        end: _customEndDate ?? now,
-      ),
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.light().copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.primaryNavy,
-              onPrimary: Colors.white,
-              onSurface: AppColors.textPrimary,
-            ),
-          ),
-          child: child!,
-        );
-      },
+    final result = await CustomDateRangeDialog.show(
+      context,
+      initialStartDate: _customStartDate,
+      initialEndDate: _customEndDate,
+      initialStartTime: _customStartTime,
+      initialEndTime: _customEndTime,
     );
 
-    if (pickedDateRange == null) return;
-
+    if (result == null) return;
     if (!mounted) return;
-    // Ask for time range
-    final pickedStartTime = await showTimePicker(
-      context: context,
-      initialTime: _customStartTime ?? const TimeOfDay(hour: 0, minute: 0),
-      helpText: 'SELECT START TIME',
-    );
-
-    if (!mounted) return;
-    final pickedEndTime = await showTimePicker(
-      context: context,
-      initialTime: _customEndTime ?? const TimeOfDay(hour: 23, minute: 59),
-      helpText: 'SELECT END TIME',
-    );
 
     setState(() {
       _selectedTimeframe = 'custom';
-      _customStartDate = pickedDateRange.start;
-      _customEndDate = pickedDateRange.end;
-      _customStartTime = pickedStartTime ?? const TimeOfDay(hour: 0, minute: 0);
-      _customEndTime = pickedEndTime ?? const TimeOfDay(hour: 23, minute: 59);
+      _customStartDate = result.startDateTime;
+      _customEndDate = result.endDateTime;
+      _customStartTime = TimeOfDay(hour: result.startDateTime.hour, minute: result.startDateTime.minute);
+      _customEndTime = TimeOfDay(hour: result.endDateTime.hour, minute: result.endDateTime.minute);
 
       _analyticsFuture = ApiService().getMatchedPaymentsAnalytics(
         timeframe: 'custom',
@@ -165,20 +139,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final success = await ApiService().triggerSync();
       await _refresh();
       if (!mounted) return;
+      scaffoldMessenger.clearSnackBars();
       scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text(success ? 'Sync completed successfully!' : 'Sync completed.'),
           backgroundColor: AppColors.successGreen,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
         ),
       );
+      Future.delayed(const Duration(milliseconds: 5200), () {
+        if (mounted) scaffoldMessenger.hideCurrentSnackBar();
+      });
     } catch (e) {
       if (!mounted) return;
+      scaffoldMessenger.clearSnackBars();
       scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text('Sync failed: $e'),
           backgroundColor: AppColors.errorRed,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
         ),
       );
+      Future.delayed(const Duration(milliseconds: 5200), () {
+        if (mounted) scaffoldMessenger.hideCurrentSnackBar();
+      });
     } finally {
       if (mounted) {
         setState(() => _isSyncing = false);
@@ -222,11 +208,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: FutureBuilder<DashboardData>(
                 future: _dashboardFuture,
                 builder: (context, snapshot) {
-                  final data = snapshot.data ?? DashboardData.fallback();
+                  final isOffline = snapshot.hasError;
+                  final data = snapshot.hasData
+                      ? snapshot.data!
+                      : DashboardData.empty(status: isOffline ? 'Offline' : 'Connecting...', isConnected: false);
 
                   return ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     children: [
+                      if (isOffline)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 14),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.errorRedBg,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.errorRed.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.cloud_off, color: AppColors.errorRed, size: 20),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Backend server unreachable',
+                                      style: TextStyle(fontSize: 12, color: AppColors.errorRed, fontWeight: FontWeight.bold),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      ApiService().baseUrl,
+                                      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: _refresh,
+                                child: const Text('Retry', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.errorRed)),
+                              ),
+                            ],
+                          ),
+                        ),
                       if (!_notificationAccessGranted)
                         Container(
                           margin: const EdgeInsets.only(bottom: 14),
@@ -498,7 +525,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         SizedBox(height: 12),
                         Text(
-                          'Loading analytics from database...',
+                          'Loading live payment analytics...',
                           style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
                         ),
                       ],

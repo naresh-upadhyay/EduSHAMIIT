@@ -241,6 +241,21 @@ class PlatformBridge {
     }
   }
 
+  static Future<bool> setServerUrl(String url) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
+    try {
+      final bool? res = await _channel.invokeMethod<bool>('setServerUrl', {
+        'url': url,
+      });
+      return res ?? false;
+    } catch (e) {
+      debugPrint('setServerUrl error: $e');
+      return false;
+    }
+  }
+
   static Future<bool> simulateNotification({
     required String package,
     required String title,

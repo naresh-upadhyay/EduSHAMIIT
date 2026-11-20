@@ -18,10 +18,10 @@ class InsightsScreen extends StatefulWidget {
   });
 
   @override
-  State<InsightsScreen> createState() => _InsightsScreenState();
+  State<InsightsScreen> createState() => InsightsScreenState();
 }
 
-class _InsightsScreenState extends State<InsightsScreen> {
+class InsightsScreenState extends State<InsightsScreen> {
   late Future<DashboardData> _dashboardFuture;
   bool _isListenerActive = true;
   bool _notificationAccessGranted = true;
@@ -60,12 +60,14 @@ class _InsightsScreenState extends State<InsightsScreen> {
     }
   }
 
-  Future<void> _refresh() async {
+  Future<void> refresh() async {
     _checkListenerStatus();
     setState(() {
       _loadData();
     });
   }
+
+  Future<void> _refresh() => refresh();
 
   Future<void> _handleSyncNow() async {
     setState(() => _isSyncing = true);
@@ -74,20 +76,32 @@ class _InsightsScreenState extends State<InsightsScreen> {
       final success = await ApiService().triggerSync();
       await _refresh();
       if (!mounted) return;
+      scaffoldMessenger.clearSnackBars();
       scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text(success ? 'Sync completed successfully!' : 'Sync completed.'),
           backgroundColor: AppColors.successGreen,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
         ),
       );
+      Future.delayed(const Duration(milliseconds: 5200), () {
+        if (mounted) scaffoldMessenger.hideCurrentSnackBar();
+      });
     } catch (e) {
       if (!mounted) return;
+      scaffoldMessenger.clearSnackBars();
       scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text('Sync failed: $e'),
           backgroundColor: AppColors.errorRed,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
         ),
       );
+      Future.delayed(const Duration(milliseconds: 5200), () {
+        if (mounted) scaffoldMessenger.hideCurrentSnackBar();
+      });
     } finally {
       if (mounted) {
         setState(() => _isSyncing = false);
@@ -130,11 +144,52 @@ class _InsightsScreenState extends State<InsightsScreen> {
               child: FutureBuilder<DashboardData>(
                 future: _dashboardFuture,
                 builder: (context, snapshot) {
-                  final data = snapshot.data ?? DashboardData.fallback();
+                  final isOffline = snapshot.hasError;
+                  final data = snapshot.hasData
+                      ? snapshot.data!
+                      : DashboardData.empty(status: isOffline ? 'Offline' : 'Connecting...', isConnected: false);
 
                   return ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     children: [
+                      if (isOffline)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 14),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.errorRedBg,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.errorRed.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.cloud_off, color: AppColors.errorRed, size: 20),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Backend server unreachable',
+                                      style: TextStyle(fontSize: 12, color: AppColors.errorRed, fontWeight: FontWeight.bold),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      ApiService().baseUrl,
+                                      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: _refresh,
+                                child: const Text('Retry', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.errorRed)),
+                              ),
+                            ],
+                          ),
+                        ),
                       // Card 1: Listener Active Toggle
                       _buildListenerActiveCard(),
                       const SizedBox(height: 12),

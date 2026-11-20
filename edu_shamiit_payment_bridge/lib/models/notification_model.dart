@@ -49,11 +49,17 @@ class PaymentNotificationItem {
 
   bool get isIncoming => eventType == 'PAYMENT_RECEIVED';
   bool get isPaymentReceived => isIncoming;
-  bool get isMatched => candidateMatchStatus == 'MATCHED_CANDIDATE';
-  bool get isUnmatched => candidateMatchStatus == 'UNMATCHED';
+  // A notification is strictly MATCHED only when confirmed by EduSHAMIIT ERP
+  // (linked to student name or invoice number). Regex parsing alone is UNMATCHED.
+  bool get isMatched =>
+      (candidateMatchStatus == 'MATCHED_CANDIDATE' || candidateMatchStatus == 'MATCHED') &&
+      ((matchedStudentName != null && matchedStudentName!.isNotEmpty) ||
+          (matchedInvoiceNumber != null && matchedInvoiceNumber!.isNotEmpty));
+  bool get isUnmatched => !isMatched && !isIgnored && !isReviewRequired && !isDuplicate;
   bool get isIgnored => candidateMatchStatus == 'IGNORED';
   bool get isReviewRequired => candidateMatchStatus == 'REVIEW_REQUIRED';
   bool get isDuplicate => candidateMatchStatus == 'DUPLICATE';
+  bool get canArchive => !isMatched;
 
   String get title => rawTitle ?? (sourceApp.isNotEmpty ? sourceApp : 'Payment Notification');
   DateTime get parsedDateTime => notificationTimestamp;

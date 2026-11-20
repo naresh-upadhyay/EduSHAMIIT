@@ -143,14 +143,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _showSnackBar(String message, Color backgroundColor) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
       SnackBar(
         content: Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
         backgroundColor: backgroundColor,
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
+    Future.delayed(const Duration(milliseconds: 5200), () {
+      if (mounted) messenger.hideCurrentSnackBar();
+    });
   }
 
   @override

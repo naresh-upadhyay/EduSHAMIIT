@@ -59,20 +59,32 @@ class _AppDrawerState extends State<AppDrawer> {
       final success = await ApiService().triggerSync();
       await _loadDrawerData();
       if (!mounted) return;
+      scaffoldMessenger.clearSnackBars();
       scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text(success ? 'Sync completed successfully!' : 'Sync finished.'),
           backgroundColor: AppColors.successGreen,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
         ),
       );
+      Future.delayed(const Duration(milliseconds: 5200), () {
+        if (mounted) scaffoldMessenger.hideCurrentSnackBar();
+      });
     } catch (e) {
       if (!mounted) return;
+      scaffoldMessenger.clearSnackBars();
       scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text('Sync error: $e'),
           backgroundColor: AppColors.errorRed,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
         ),
       );
+      Future.delayed(const Duration(milliseconds: 5200), () {
+        if (mounted) scaffoldMessenger.hideCurrentSnackBar();
+      });
     } finally {
       if (mounted) {
         setState(() => _isSyncing = false);

@@ -72,6 +72,20 @@ class TransactionItem {
     return DateFormat('d MMM yyyy, hh:mm a').format(matchedAt!.toLocal());
   }
 
+  bool get isMatchedOrSuccessful {
+    final s = paymentStatus.toUpperCase();
+    if (s.contains('UNMATCH')) return false;
+    return s.contains('VERIF') ||
+        s.contains('SUCCESS') ||
+        s.contains('MATCHED') ||
+        s.contains('PAID') ||
+        s.contains('COMPLET') ||
+        matchedAt != null ||
+        (studentName != null && studentName!.trim().isNotEmpty);
+  }
+
+  bool get canArchive => !isMatchedOrSuccessful;
+
   factory TransactionItem.fromJson(Map<String, dynamic> json) {
     DateTime rAt;
     try {

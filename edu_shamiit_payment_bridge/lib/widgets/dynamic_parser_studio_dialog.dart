@@ -127,11 +127,16 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog>
 
     _packageCtrl = TextEditingController(text: widget.initialPackage);
     _titleCtrl = TextEditingController(
-      text: widget.initialTitle ?? 'Money received',
+      text: (widget.initialTitle != null && widget.initialTitle!.trim().isNotEmpty)
+          ? widget.initialTitle!.trim()
+          : 'Money received',
     );
     _descriptionCtrl = TextEditingController(
-      text: widget.initialDescription ??
-          'KM NEHA GOSWAMI has sent ₹2 to your bank account State Bank of India-1686',
+      text: (widget.initialDescription != null && widget.initialDescription!.trim().isNotEmpty)
+          ? widget.initialDescription!.trim()
+          : (widget.initialTitle != null && widget.initialTitle!.trim().isNotEmpty
+              ? ''
+              : 'KM NEHA GOSWAMI has sent ₹2 to your bank account State Bank of India-1686'),
     );
 
     // Initial smart quality rules
@@ -173,6 +178,10 @@ class _DynamicParserStudioDialogState extends State<DynamicParserStudioDialog>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadDynamicApps();
       _loadExistingFormatsForPackage(widget.initialPackage);
+      if (widget.initialTitle != null || widget.initialDescription != null) {
+        _tabController.animateTo(2);
+        _runParserTest();
+      }
     });
   }
 

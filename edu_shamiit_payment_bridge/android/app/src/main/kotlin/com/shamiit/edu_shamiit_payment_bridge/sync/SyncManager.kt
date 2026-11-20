@@ -42,11 +42,11 @@ class SyncManager(private val context: Context) {
         val flutterUrl = flutterPrefs.getString("flutter.pref_server_url", null)
             ?: flutterPrefs.getString("flutter.server_url", null)
         if (!flutterUrl.isNullOrEmpty()) {
-            return flutterUrl.replace(":8000", ":8082")
+            return flutterUrl.trim().trimEnd('/')
         }
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val raw = prefs.getString(KEY_SERVER_URL, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
-        return raw.replace(":8000", ":8082")
+        return raw.trim().trimEnd('/')
     }
 
     fun getDeviceId(): String {

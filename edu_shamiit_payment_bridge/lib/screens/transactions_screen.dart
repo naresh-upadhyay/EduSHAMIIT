@@ -7,6 +7,8 @@ import '../widgets/app_header.dart';
 import '../widgets/filter_chips.dart';
 import '../widgets/status_badge.dart';
 import '../widgets/phonepe_filter_dialog.dart';
+import '../services/archive_service.dart';
+import 'archived_transactions_screen.dart';
 import 'transaction_details_screen.dart';
 
 class TransactionsScreen extends StatefulWidget {
@@ -15,10 +17,10 @@ class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key, this.onBack});
 
   @override
-  State<TransactionsScreen> createState() => _TransactionsScreenState();
+  State<TransactionsScreen> createState() => TransactionsScreenState();
 }
 
-class _TransactionsScreenState extends State<TransactionsScreen> {
+class TransactionsScreenState extends State<TransactionsScreen> {
   String _selectedFilter = 'All';
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
@@ -36,6 +38,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void refresh() {
+    _fetch();
   }
 
   void _fetch() {
@@ -64,6 +70,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   List<TransactionItem> _applyAllFilters(List<TransactionItem> raw) {
     return raw.where((tx) {
+      // 0. Exclude archived transactions
+      if (ArchiveService().isTransactionArchived(tx.id)) return false;
+
       // 1. Text Search
       if (_searchQuery.isNotEmpty) {
         final q = _searchQuery.toLowerCase();
@@ -134,6 +143,20 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             showBackButton: true,
             onBackPressed: widget.onBack,
             actions: [
+              IconButton(
+                icon: const Icon(Icons.archive_outlined, color: Colors.white),
+                tooltip: 'Archived Transactions',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ArchivedTransactionsScreen(
+                        onTransactionsChanged: _fetch,
+                      ),
+                    ),
+                  );
+                },
+              ),
               IconButton(
                 icon: const Icon(Icons.refresh, color: Colors.white),
                 tooltip: 'Refresh Ledger',
@@ -290,8 +313,33 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (snapshot.hasError) {
-                    return const Center(
-                      child: Text('Offline: Could not connect to server', style: TextStyle(color: AppColors.errorRed)),
+                    return RefreshIndicator(
+                      onRefresh: () async => _fetch(),
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Container(
+                          height: MediaQuery.of(context).size.height * 0.5,
+                          alignment: Alignment.center,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.cloud_off, size: 48, color: AppColors.errorRed),
+                              const SizedBox(height: 12),
+                              const Text('Offline: Could not connect to server', style: TextStyle(color: AppColors.errorRed)),
+                              const SizedBox(height: 12),
+                              ElevatedButton.icon(
+                                onPressed: _fetch,
+                                icon: const Icon(Icons.refresh, size: 16),
+                                label: const Text('Retry'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primaryBlue,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     );
                   }
 
@@ -299,19 +347,27 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   final filteredItems = _applyAllFilters(rawItems);
 
                   if (filteredItems.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.receipt_long_outlined, size: 48, color: AppColors.textMuted),
-                          const SizedBox(height: 12),
-                          Text(
-                            _searchQuery.isNotEmpty || !_filterState.isEmpty
-                                ? 'No transactions match your filters'
-                                : 'No transactions found',
-                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                    return RefreshIndicator(
+                      onRefresh: () async => _fetch(),
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Container(
+                          height: MediaQuery.of(context).size.height * 0.5,
+                          alignment: Alignment.center,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.receipt_long_outlined, size: 48, color: AppColors.textMuted),
+                              const SizedBox(height: 12),
+                              Text(
+                                _searchQuery.isNotEmpty || !_filterState.isEmpty
+                                    ? 'No transactions match your filters'
+                                    : 'No transactions found',
+                                style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     );
                   }
@@ -325,6 +381,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   }
 
                   return ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     itemCount: grouped.keys.length,
                     itemBuilder: (context, idx) {
@@ -441,7 +498,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     final amountSign = isRefund ? '- ' : '+ ';
     final amountColor = isRefund ? AppColors.textSecondary : AppColors.successGreen;
 
-    return Container(
+    final cardWidget = Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -552,6 +609,100 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ],
           ),
         ),
+      ),
+    );
+
+    return Dismissible(
+      key: Key('tx_${tx.id}'),
+      direction: DismissDirection.horizontal,
+      confirmDismiss: (direction) async {
+        if (!tx.canArchive) {
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.clearSnackBars();
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.lock_rounded, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Matched & successful transactions are immutable financial records and cannot be archived.',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: AppColors.errorRed,
+              duration: Duration(seconds: 5),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          Future.delayed(const Duration(milliseconds: 5200), () {
+            if (mounted) messenger.hideCurrentSnackBar();
+          });
+          return false;
+        }
+        return true;
+      },
+      onDismissed: (direction) async {
+        await ArchiveService().archiveTransaction(tx.id);
+        _fetch();
+        if (mounted) {
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.clearSnackBars();
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('Archived ${tx.formattedAmount} transaction'),
+              backgroundColor: AppColors.primaryNavy,
+              duration: const Duration(seconds: 5),
+              behavior: SnackBarBehavior.floating,
+              action: SnackBarAction(
+                label: 'UNDO',
+                textColor: AppColors.primaryBlueLight,
+                onPressed: () async {
+                  await ArchiveService().unarchiveTransaction(tx.id);
+                  _fetch();
+                },
+              ),
+            ),
+          );
+          Future.delayed(const Duration(milliseconds: 5200), () {
+            if (mounted) {
+              messenger.hideCurrentSnackBar();
+            }
+          });
+        }
+      },
+      background: _buildArchiveSwipeBackground(Alignment.centerLeft),
+      secondaryBackground: _buildArchiveSwipeBackground(Alignment.centerRight),
+      child: cardWidget,
+    );
+  }
+
+  Widget _buildArchiveSwipeBackground(Alignment alignment) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      alignment: alignment,
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.archive_outlined, color: Colors.white, size: 20),
+          SizedBox(width: 6),
+          Text(
+            'Archive',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ],
       ),
     );
   }

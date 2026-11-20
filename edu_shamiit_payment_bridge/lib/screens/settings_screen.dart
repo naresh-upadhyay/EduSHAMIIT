@@ -947,8 +947,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _testResult = null;
     });
 
+    final targetUrl = _serverUrl.isNotEmpty ? _serverUrl : ApiService().baseUrl;
     final stopwatch = Stopwatch()..start();
-    final success = await ApiService().testConnection();
+    final success = await ApiService().testConnection(targetUrl: targetUrl);
     stopwatch.stop();
 
     if (mounted) {
@@ -956,19 +957,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _isTestingConnection = false;
         _testResult = success
             ? 'Connected • Latency ${stopwatch.elapsedMilliseconds}ms'
-            : 'Connection failed';
+            : 'Connection failed (${stopwatch.elapsedMilliseconds}ms)';
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.clearSnackBars();
+      messenger.showSnackBar(
         SnackBar(
           content: Text(
             success
-                ? 'Backend API reachable! Ping succeeded.'
-                : 'Connection failed: Server could not be reached.',
+                ? 'Backend API reachable ($targetUrl)! Ping succeeded.'
+                : 'Connection failed: Target server unreachable ($targetUrl).',
           ),
           backgroundColor: success ? AppColors.successGreen : AppColors.errorRed,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
         ),
       );
+      Future.delayed(const Duration(milliseconds: 5200), () {
+        if (mounted) messenger.hideCurrentSnackBar();
+      });
     }
   }
 
@@ -1081,9 +1089,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(ok
-                                ? 'Saved $name to database & monitoring!'
+                                ? 'Saved $name to monitoring!'
                                 : 'Added $name locally (server offline)'),
                             backgroundColor: ok ? AppColors.successGreen : Colors.orange,
+                            duration: const Duration(seconds: 3),
+                            behavior: SnackBarBehavior.floating,
                           ),
                         );
                       }
@@ -1092,7 +1102,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 backgroundColor: AppColors.primaryBlue,
                 foregroundColor: Colors.white,
               ),
-              child: Text(isSaving ? 'Saving...' : 'Add & Save to DB'),
+              child: Text(isSaving ? 'Saving...' : 'Add to Monitoring'),
             ),
           ],
         ),
@@ -1160,21 +1170,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              final newUrl = urlCtrl.text.trim();
+              final newUrl = urlCtrl.text.trim().replaceAll(RegExp(r'/+$'), '');
               if (newUrl.isNotEmpty) {
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.setString(AppConstants.prefsServerUrlKey, newUrl);
-                ApiService().updateConfig(baseUrl: newUrl);
+                await ApiService().setServerUrl(newUrl);
                 if (mounted) {
                   setState(() => _serverUrl = newUrl);
                   Navigator.pop(ctx);
                   _fetch();
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  final messenger = ScaffoldMessenger.of(context);
+                  messenger.clearSnackBars();
+                  messenger.showSnackBar(
                     SnackBar(
-                      content: Text('Server URL updated to $newUrl'),
+                      content: Text('Server URL successfully saved: $newUrl'),
                       backgroundColor: AppColors.successGreen,
+                      duration: const Duration(seconds: 5),
+                      behavior: SnackBarBehavior.floating,
                     ),
                   );
+                  Future.delayed(const Duration(milliseconds: 5200), () {
+                    if (mounted) messenger.hideCurrentSnackBar();
+                  });
                 }
               }
             },

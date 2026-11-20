@@ -353,18 +353,34 @@ class PaymentDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABA
             )
             while (cursor.moveToNext()) {
                 val map = mutableMapOf<String, Any?>()
-                map["id"] = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_ID))
-                map["package_name"] = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_PKG))
-                map["app_name"] = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_APP_NAME))
-                map["title"] = cursor.getString(cursor.getColumnIndexOrThrow(COL_NOTIF_TITLE))
-                map["content"] = cursor.getString(cursor.getColumnIndexOrThrow(COL_NOTIF_CONTENT))
-                map["post_time"] = cursor.getLong(cursor.getColumnIndexOrThrow(COL_RAW_POST_TIME))
-                map["parsed_status"] = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_PARSED_STATUS))
-                map["amount_paise"] = cursor.getLong(cursor.getColumnIndexOrThrow(COL_RAW_AMOUNT_PAISE))
-                map["sender_name"] = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_SENDER))
-                map["reference"] = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_REF))
-                map["bank_name"] = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_BANK))
-                map["created_at"] = cursor.getLong(cursor.getColumnIndexOrThrow(COL_RAW_CREATED_AT))
+                val id = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_ID))
+                val pkg = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_PKG))
+                val app = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_APP_NAME))
+                val notifTitle = cursor.getString(cursor.getColumnIndexOrThrow(COL_NOTIF_TITLE)) ?: ""
+                val notifContent = cursor.getString(cursor.getColumnIndexOrThrow(COL_NOTIF_CONTENT)) ?: ""
+                val postTime = cursor.getLong(cursor.getColumnIndexOrThrow(COL_RAW_POST_TIME))
+                val parsedStatus = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_PARSED_STATUS))
+                val amountPaise = cursor.getLong(cursor.getColumnIndexOrThrow(COL_RAW_AMOUNT_PAISE))
+                val senderName = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_SENDER))
+                val ref = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_REF))
+                val bank = cursor.getString(cursor.getColumnIndexOrThrow(COL_RAW_BANK))
+                val createdAt = cursor.getLong(cursor.getColumnIndexOrThrow(COL_RAW_CREATED_AT))
+
+                map["id"] = id
+                map["package_name"] = pkg
+                map["app_name"] = app
+                map["title"] = notifTitle
+                map["content"] = notifContent
+                map["text"] = notifContent
+                map["body"] = notifContent
+                map["raw_text"] = notifContent
+                map["post_time"] = postTime
+                map["parsed_status"] = parsedStatus
+                map["amount_paise"] = amountPaise
+                map["sender_name"] = senderName
+                map["reference"] = ref
+                map["bank_name"] = bank
+                map["created_at"] = createdAt
                 list.add(map)
             }
             cursor.close()

@@ -51,52 +51,10 @@ class DashboardData {
     );
   }
 
-  factory DashboardData.fallback() => DashboardData.mock();
+  // When offline or fallback, never return fake business numbers (42, 38, 2, Seema, Mohan)
+  factory DashboardData.fallback() => DashboardData.empty(status: 'Offline', isConnected: false);
 
-  factory DashboardData.mock() {
-    return DashboardData(
-      appName: 'EduSHAMIIT Payment Bridge',
-      runningStatus: 'Running',
-      isListenerActive: true,
-      metrics: DashboardMetrics(
-        notificationsToday: 42,
-        matchedPayments: 38,
-        unmatchedPayments: 2,
-        lastSync: '10:24 AM\n(Just now)',
-        lastSyncTime: '10:24 AM',
-      ),
-      systemStatus: SystemStatus(
-        notificationAccess: 'Granted',
-        monitoredUpiApps: '2 Apps',
-        backendConnection: 'Connected',
-        deviceRegistration: 'Registered',
-        dataSync: 'Up to Date',
-      ),
-      todayActivity: [
-        ActivityItem(
-          id: '1',
-          title: 'Payment Detected & Matched',
-          subtitle: '₹2,000.34 • Seema (INV-1042)',
-          time: '10:18 AM',
-          iconType: 'SUCCESS',
-        ),
-        ActivityItem(
-          id: '2',
-          title: 'Payment Detected & Matched',
-          subtitle: '₹2,000.05 • Mohan (INV-1041)',
-          time: '10:07 AM',
-          iconType: 'SUCCESS',
-        ),
-        ActivityItem(
-          id: '3',
-          title: 'Payment Detected (Unmatched)',
-          subtitle: '₹1,500.00 • No active request',
-          time: '09:52 AM',
-          iconType: 'WARNING',
-        ),
-      ],
-    );
-  }
+  factory DashboardData.mock() => DashboardData.empty(status: 'Offline', isConnected: false);
 }
 
 class DashboardMetrics {
@@ -116,11 +74,11 @@ class DashboardMetrics {
 
   factory DashboardMetrics.fromJson(Map<String, dynamic> json) {
     return DashboardMetrics(
-      notificationsToday: json['notifications_today'] ?? 42,
-      matchedPayments: json['matched_payments'] ?? 38,
-      unmatchedPayments: json['unmatched_payments'] ?? 2,
-      lastSync: json['last_sync'] ?? '10:24 AM\n(Just now)',
-      lastSyncTime: json['last_sync_time'] ?? '10:24 AM',
+      notificationsToday: (json['notifications_today'] as num?)?.toInt() ?? 0,
+      matchedPayments: (json['matched_payments'] as num?)?.toInt() ?? 0,
+      unmatchedPayments: (json['unmatched_payments'] as num?)?.toInt() ?? 0,
+      lastSync: json['last_sync'] ?? 'Offline',
+      lastSyncTime: json['last_sync_time'] ?? 'Never',
     );
   }
 }
@@ -143,10 +101,10 @@ class SystemStatus {
   factory SystemStatus.fromJson(Map<String, dynamic> json) {
     return SystemStatus(
       notificationAccess: json['notification_access'] ?? 'Granted',
-      monitoredUpiApps: json['monitored_upi_apps'] ?? '2 Apps',
-      backendConnection: json['backend_connection'] ?? 'Connected',
+      monitoredUpiApps: json['monitored_upi_apps'] ?? '0 Apps',
+      backendConnection: json['backend_connection'] ?? 'Offline',
       deviceRegistration: json['device_registration'] ?? 'Registered',
-      dataSync: json['data_sync'] ?? 'Up to Date',
+      dataSync: json['data_sync'] ?? 'Offline',
     );
   }
 }
