@@ -11,119 +11,203 @@
 
 BEGIN;
 
--- 1. Close all past live sessions that were left in 'live' state
+-- 1. Drop overly restrictive foreign keys on class_id, section_id, and subject_id
+-- so that live classes can cleanly reference either academic_classes or legacy/mock classes
+ALTER TABLE public.live_classes DROP CONSTRAINT IF EXISTS live_classes_class_id_fkey;
+ALTER TABLE public.live_classes DROP CONSTRAINT IF EXISTS live_classes_section_id_fkey;
+ALTER TABLE public.live_classes DROP CONSTRAINT IF EXISTS live_classes_subject_id_fkey;
+CREATE INDEX IF NOT EXISTS idx_live_classes_class_id ON public.live_classes(class_id);
+CREATE INDEX IF NOT EXISTS idx_live_classes_section_id ON public.live_classes(section_id);
+CREATE INDEX IF NOT EXISTS idx_live_classes_subject_id ON public.live_classes(subject_id);
+
+-- 2. Close all past live sessions that were left in 'live' state
 UPDATE public.live_classes
 SET status = 'completed', is_live = FALSE, ended_at = COALESCE(ended_at, scheduled_at + (COALESCE(duration_minutes, 45) || ' minutes')::INTERVAL)
 WHERE (status = 'live' OR is_live = TRUE)
   AND scheduled_at::DATE < CURRENT_DATE;
 
--- 2. Ensure active ongoing class for Today
-UPDATE public.live_classes
-SET status = 'live',
-    is_live = TRUE,
-    scheduled_at = CURRENT_DATE + TIME '08:00:00',
-    viewer_count = 43,
-    max_participants = 45,
-    duration_minutes = 45
-WHERE id = 'c1000000-0000-0000-0000-000000000014';
+-- 3. Dynamically resolve valid IDs and seed mathematically consistent classes for Today
+DO $$
+DECLARE
+    v_school_id UUID;
+    v_teacher_id UUID;
+    v_class_10 UUID;
+    v_sec_10 UUID;
+    v_class_11 UUID;
+    v_sec_11 UUID;
+    v_class_9 UUID;
+    v_sec_9 UUID;
+    v_sub_math UUID;
+    v_sub_phys UUID;
+    v_sub_eng UUID;
+BEGIN
+    SELECT id INTO v_school_id FROM public.schools LIMIT 1;
+    IF v_school_id IS NULL THEN v_school_id := '11111111-1111-1111-1111-111111111111'; END IF;
 
--- 3. Ensure Upcoming Class 1 for Today
-INSERT INTO public.live_classes (
-    id, school_id, title, description, class_id, section_id, subject_id, teacher_id,
-    scheduled_at, duration_minutes, status, is_live, room_code, meeting_link,
-    viewer_count, max_participants, recording_enabled, recording_status
-) VALUES (
-    'c1000000-0000-0000-0000-000000000021',
-    '11111111-1111-1111-1111-111111111111',
-    'Quadratic Equations & Parabolas',
-    'Algebraic analysis, vertex form, and discriminant applications',
-    '0a33ffca-031c-4eee-94ab-38b72dc09da0',
-    '3e8379e6-106c-4f27-92f5-5d027ea9e105',
-    'cc000001-0000-0000-0000-000000000001',
-    '00000000-0000-0000-0000-000000000001',
-    CURRENT_DATE + TIME '11:00:00',
-    45,
-    'scheduled',
-    FALSE,
-    '10A-MATH',
-    'https://meet.edushamiit.com/cls/10a-math',
-    0,
-    45,
-    TRUE,
-    'RECORDING'
-)
-ON CONFLICT (id) DO UPDATE SET
-    scheduled_at = CURRENT_DATE + TIME '11:00:00',
-    status = 'scheduled',
-    is_live = FALSE,
-    viewer_count = 0,
-    max_participants = 45;
+    SELECT id INTO v_teacher_id FROM public.profiles WHERE role IN ('teacher', 'super_admin', 'admin') LIMIT 1;
+    IF v_teacher_id IS NULL THEN SELECT id INTO v_teacher_id FROM public.profiles LIMIT 1; END IF;
 
--- 4. Ensure Upcoming Class 2 for Today
-INSERT INTO public.live_classes (
-    id, school_id, title, description, class_id, section_id, subject_id, teacher_id,
-    scheduled_at, duration_minutes, status, is_live, room_code, meeting_link,
-    viewer_count, max_participants, recording_enabled, recording_status
-) VALUES (
-    'c1000000-0000-0000-0000-000000000022',
-    '11111111-1111-1111-1111-111111111111',
-    'Electromagnetic Induction & Faraday''s Laws',
-    'Magnetic flux changes, Lenz law, and induced electromotive force',
-    '80ac20da-c86f-4599-9be4-f4651ec879b2',
-    NULL,
-    'cc000004-0000-0000-0000-000000000004',
-    '00000000-0000-0000-0000-000000000001',
-    CURRENT_DATE + TIME '14:00:00',
-    45,
-    'scheduled',
-    FALSE,
-    '11A-PHYS',
-    'https://meet.edushamiit.com/cls/11a-phys',
-    0,
-    40,
-    TRUE,
-    'RECORDING'
-)
-ON CONFLICT (id) DO UPDATE SET
-    scheduled_at = CURRENT_DATE + TIME '14:00:00',
-    status = 'scheduled',
-    is_live = FALSE,
-    viewer_count = 0,
-    max_participants = 40;
+    -- Dynamic Class Lookup
+    BEGIN
+        SELECT id INTO v_class_10 FROM public.academic_classes WHERE name ILIKE '%10%' LIMIT 1;
+    EXCEPTION WHEN OTHERS THEN v_class_10 := NULL;
+    END;
+    IF v_class_10 IS NULL THEN
+        BEGIN SELECT id INTO v_class_10 FROM public.classes WHERE name ILIKE '%10%' LIMIT 1; EXCEPTION WHEN OTHERS THEN v_class_10 := NULL; END;
+    END IF;
 
--- 5. Ensure Completed Class for Today
-INSERT INTO public.live_classes (
-    id, school_id, title, description, class_id, section_id, subject_id, teacher_id,
-    scheduled_at, ended_at, duration_minutes, status, is_live, room_code, meeting_link,
-    viewer_count, max_participants, recording_enabled, recording_status
-) VALUES (
-    'c1000000-0000-0000-0000-000000000023',
-    '11111111-1111-1111-1111-111111111111',
-    'Reading Comprehension & Critical Analysis',
-    'Literary appreciation, poetic devices, and analytical essays',
-    'a05b1d95-c9d0-4dad-b8b6-87ce4ab827f3',
-    NULL,
-    '5f45ac94-a452-42c4-bfa1-1538c2b0b1cb',
-    '00000000-0000-0000-0000-000000000001',
-    CURRENT_DATE + TIME '06:30:00',
-    CURRENT_DATE + TIME '07:15:00',
-    45,
-    'completed',
-    FALSE,
-    '9A-ENG',
-    'https://meet.edushamiit.com/cls/9a-eng',
-    38,
-    40,
-    TRUE,
-    'RECORDING'
-)
-ON CONFLICT (id) DO UPDATE SET
-    scheduled_at = CURRENT_DATE + TIME '06:30:00',
-    ended_at = CURRENT_DATE + TIME '07:15:00',
-    status = 'completed',
-    is_live = FALSE,
-    viewer_count = 38,
-    max_participants = 40;
+    BEGIN
+        SELECT id INTO v_class_11 FROM public.academic_classes WHERE name ILIKE '%11%' LIMIT 1;
+    EXCEPTION WHEN OTHERS THEN v_class_11 := NULL;
+    END;
+    IF v_class_11 IS NULL THEN
+        BEGIN SELECT id INTO v_class_11 FROM public.classes WHERE name ILIKE '%11%' LIMIT 1; EXCEPTION WHEN OTHERS THEN v_class_11 := NULL; END;
+    END IF;
+
+    BEGIN
+        SELECT id INTO v_class_9 FROM public.academic_classes WHERE name ILIKE '%9%' LIMIT 1;
+    EXCEPTION WHEN OTHERS THEN v_class_9 := NULL;
+    END;
+    IF v_class_9 IS NULL THEN
+        BEGIN SELECT id INTO v_class_9 FROM public.classes WHERE name ILIKE '%9%' LIMIT 1; EXCEPTION WHEN OTHERS THEN v_class_9 := NULL; END;
+    END IF;
+
+    -- Dynamic Section Lookup
+    BEGIN SELECT id INTO v_sec_10 FROM public.academic_sections WHERE class_id = v_class_10 LIMIT 1; EXCEPTION WHEN OTHERS THEN v_sec_10 := NULL; END;
+    BEGIN SELECT id INTO v_sec_11 FROM public.academic_sections WHERE class_id = v_class_11 LIMIT 1; EXCEPTION WHEN OTHERS THEN v_sec_11 := NULL; END;
+    BEGIN SELECT id INTO v_sec_9 FROM public.academic_sections WHERE class_id = v_class_9 LIMIT 1; EXCEPTION WHEN OTHERS THEN v_sec_9 := NULL; END;
+
+    -- Dynamic Subject Lookup
+    BEGIN SELECT id INTO v_sub_math FROM public.subjects WHERE name ILIKE '%Math%' LIMIT 1; EXCEPTION WHEN OTHERS THEN v_sub_math := NULL; END;
+    BEGIN SELECT id INTO v_sub_phys FROM public.subjects WHERE name ILIKE '%Phys%' LIMIT 1; EXCEPTION WHEN OTHERS THEN v_sub_phys := NULL; END;
+    BEGIN SELECT id INTO v_sub_eng FROM public.subjects WHERE name ILIKE '%Eng%' LIMIT 1; EXCEPTION WHEN OTHERS THEN v_sub_eng := NULL; END;
+
+    -- 3a. Ensure active ongoing class for Today
+    UPDATE public.live_classes
+    SET status = 'live',
+        is_live = TRUE,
+        scheduled_at = CURRENT_DATE + TIME '08:00:00',
+        viewer_count = 43,
+        max_participants = 45,
+        duration_minutes = 45
+    WHERE id = 'c1000000-0000-0000-0000-000000000014';
+
+    -- 3b. Ensure Upcoming Class 1 for Today
+    INSERT INTO public.live_classes (
+        id, school_id, title, description, class_id, section_id, subject_id, teacher_id,
+        target_class, scheduled_at, duration_minutes, status, is_live, room_code, meeting_link,
+        viewer_count, max_participants, recording_enabled, recording_status
+    ) VALUES (
+        'c1000000-0000-0000-0000-000000000021',
+        v_school_id,
+        'Quadratic Equations & Parabolas',
+        'Algebraic analysis, vertex form, and discriminant applications',
+        v_class_10,
+        v_sec_10,
+        v_sub_math,
+        v_teacher_id,
+        'Class 10 - A',
+        CURRENT_DATE + TIME '11:00:00',
+        45,
+        'scheduled',
+        FALSE,
+        '10A-MATH',
+        'https://meet.edushamiit.com/cls/10a-math',
+        0,
+        45,
+        TRUE,
+        'RECORDING'
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        class_id = EXCLUDED.class_id,
+        section_id = EXCLUDED.section_id,
+        subject_id = EXCLUDED.subject_id,
+        teacher_id = EXCLUDED.teacher_id,
+        target_class = EXCLUDED.target_class,
+        scheduled_at = CURRENT_DATE + TIME '11:00:00',
+        status = 'scheduled',
+        is_live = FALSE,
+        viewer_count = 0,
+        max_participants = 45;
+
+    -- 3c. Ensure Upcoming Class 2 for Today
+    INSERT INTO public.live_classes (
+        id, school_id, title, description, class_id, section_id, subject_id, teacher_id,
+        target_class, scheduled_at, duration_minutes, status, is_live, room_code, meeting_link,
+        viewer_count, max_participants, recording_enabled, recording_status
+    ) VALUES (
+        'c1000000-0000-0000-0000-000000000022',
+        v_school_id,
+        'Electromagnetic Induction & Faraday''s Laws',
+        'Magnetic flux changes, Lenz law, and induced electromotive force',
+        v_class_11,
+        v_sec_11,
+        v_sub_phys,
+        v_teacher_id,
+        'Class 11 - A',
+        CURRENT_DATE + TIME '14:00:00',
+        45,
+        'scheduled',
+        FALSE,
+        '11A-PHYS',
+        'https://meet.edushamiit.com/cls/11a-phys',
+        0,
+        40,
+        TRUE,
+        'RECORDING'
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        class_id = EXCLUDED.class_id,
+        section_id = EXCLUDED.section_id,
+        subject_id = EXCLUDED.subject_id,
+        teacher_id = EXCLUDED.teacher_id,
+        target_class = EXCLUDED.target_class,
+        scheduled_at = CURRENT_DATE + TIME '14:00:00',
+        status = 'scheduled',
+        is_live = FALSE,
+        viewer_count = 0,
+        max_participants = 40;
+
+    -- 3d. Ensure Completed Class for Today
+    INSERT INTO public.live_classes (
+        id, school_id, title, description, class_id, section_id, subject_id, teacher_id,
+        target_class, scheduled_at, ended_at, duration_minutes, status, is_live, room_code, meeting_link,
+        viewer_count, max_participants, recording_enabled, recording_status
+    ) VALUES (
+        'c1000000-0000-0000-0000-000000000023',
+        v_school_id,
+        'Reading Comprehension & Critical Analysis',
+        'Literary appreciation, poetic devices, and analytical essays',
+        v_class_9,
+        v_sec_9,
+        v_sub_eng,
+        v_teacher_id,
+        'Class 9 - A',
+        CURRENT_DATE + TIME '06:30:00',
+        CURRENT_DATE + TIME '07:15:00',
+        45,
+        'completed',
+        FALSE,
+        '9A-ENG',
+        'https://meet.edushamiit.com/cls/9a-eng',
+        38,
+        40,
+        TRUE,
+        'RECORDING'
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        class_id = EXCLUDED.class_id,
+        section_id = EXCLUDED.section_id,
+        subject_id = EXCLUDED.subject_id,
+        teacher_id = EXCLUDED.teacher_id,
+        target_class = EXCLUDED.target_class,
+        scheduled_at = CURRENT_DATE + TIME '06:30:00',
+        ended_at = CURRENT_DATE + TIME '07:15:00',
+        status = 'completed',
+        is_live = FALSE,
+        viewer_count = 38,
+        max_participants = 40;
+END $$;
 
 -- 6. Replace sp_get_live_class_my_classes_dashboard with mathematically consistent logic
 CREATE OR REPLACE FUNCTION public.sp_get_live_class_my_classes_dashboard(
