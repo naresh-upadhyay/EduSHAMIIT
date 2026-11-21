@@ -74,11 +74,11 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
               const SizedBox(height: 16),
 
               // 2. Section Header & Add Device Type button
-              _buildSectionHeader(context, notifier, state),
+              _buildSectionHeader(context, notifier, state, isDark),
               const SizedBox(height: 14),
 
               // 3. Sub-Tabs Bar (Dynamic Counts)
-              _buildSubTabsBar(state.typesActiveSubTab, notifier, state),
+              _buildSubTabsBar(state.typesActiveSubTab, notifier, state, isDark),
               const SizedBox(height: 14),
 
               // 4. Filters & Search Row
@@ -116,6 +116,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
               iconColor: const Color(0xFF0284C7),
               bgColor: const Color(0xFFF0F9FF),
               width: cardWidth,
+              isDark: isDark,
             ),
             _buildKpiCard(
               title: 'Active Profiles',
@@ -124,6 +125,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
               iconColor: const Color(0xFF7C3AED),
               bgColor: const Color(0xFFF5F3FF),
               width: cardWidth,
+              isDark: isDark,
             ),
             _buildKpiCard(
               title: 'Default Profiles',
@@ -132,6 +134,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
               iconColor: const Color(0xFF2563EB),
               bgColor: const Color(0xFFEFF6FF),
               width: cardWidth,
+              isDark: isDark,
             ),
             _buildKpiCard(
               title: 'Custom Profiles',
@@ -140,6 +143,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
               iconColor: const Color(0xFF4F46E5),
               bgColor: const Color(0xFFEEF2FF),
               width: cardWidth,
+              isDark: isDark,
             ),
             _buildKpiCard(
               title: 'Mapped Devices',
@@ -148,6 +152,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
               iconColor: const Color(0xFF0891B2),
               bgColor: const Color(0xFFECFEFF),
               width: cardWidth,
+              isDark: isDark,
             ),
             _buildKpiCard(
               title: 'Compliance',
@@ -156,6 +161,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
               iconColor: const Color(0xFF059669),
               bgColor: const Color(0xFFECFDF5),
               width: cardWidth,
+              isDark: isDark,
             ),
           ],
         );
@@ -170,19 +176,20 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
     required Color iconColor,
     required Color bgColor,
     required double width,
+    required bool isDark,
   }) {
     return Container(
       width: width,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x05000000),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
             blurRadius: 4,
-            offset: Offset(0, 1),
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -191,7 +198,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: bgColor,
+              color: isDark ? iconColor.withValues(alpha: 0.18) : bgColor,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: iconColor, size: 18),
@@ -207,10 +214,10 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                   alignment: Alignment.centerLeft,
                   child: Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF64748B),
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                     ),
                   ),
                 ),
@@ -220,10 +227,10 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                   alignment: Alignment.centerLeft,
                   child: Text(
                     value,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                       letterSpacing: -0.2,
                     ),
                   ),
@@ -240,20 +247,20 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
   // 2. SECTION HEADER
   // ============================================================================
 
-  Widget _buildSectionHeader(BuildContext context, DeviceManagementNotifier notifier, DeviceManagementState state) {
+  Widget _buildSectionHeader(BuildContext context, DeviceManagementNotifier notifier, DeviceManagementState state, bool isDark) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFFEFF6FF),
+            color: isDark ? const Color(0xFF2563EB).withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
             borderRadius: BorderRadius.circular(8),
           ),
           child: const Icon(Icons.layers_rounded, color: Color(0xFF2563EB), size: 22),
         ),
         const SizedBox(width: 12),
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -262,15 +269,15 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                 style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
                 ),
               ),
-              SizedBox(height: 2),
+              const SizedBox(height: 2),
               Text(
                 'Define device categories, capabilities and control profiles (default and custom) for all campus devices.',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Color(0xFF64748B),
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                 ),
               ),
             ],
@@ -306,7 +313,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
   // 3. SUB-TABS BAR
   // ============================================================================
 
-  Widget _buildSubTabsBar(String activeSubTab, DeviceManagementNotifier notifier, DeviceManagementState state) {
+  Widget _buildSubTabsBar(String activeSubTab, DeviceManagementNotifier notifier, DeviceManagementState state, bool isDark) {
     final typeCount = state.totalDeviceTypes > 0 ? state.totalDeviceTypes : 24;
     final profileCount = state.typesProfilesKpis.activeProfiles > 0 ? state.typesProfilesKpis.activeProfiles : 76;
     final tabs = [
@@ -331,10 +338,14 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF2563EB) : Colors.white,
+                  color: isSelected
+                      ? const Color(0xFF2563EB)
+                      : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: isSelected ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
+                    color: isSelected
+                        ? const Color(0xFF2563EB)
+                        : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                   ),
                   boxShadow: isSelected
                       ? [
@@ -351,7 +362,9 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? Colors.white : const Color(0xFF475569),
+                    color: isSelected
+                        ? Colors.white
+                        : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
                   ),
                 ),
               ),
@@ -374,15 +387,15 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
         return isCompact
             ? Column(
                 children: [
-                  _buildSearchBox(state, notifier),
+                  _buildSearchBox(state, notifier, isDark),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Expanded(child: _buildCategoryDropdown(state, notifier)),
+                      Expanded(child: _buildCategoryDropdown(state, notifier, isDark)),
                       const SizedBox(width: 8),
-                      Expanded(child: _buildStatusDropdown(state, notifier)),
+                      Expanded(child: _buildStatusDropdown(state, notifier, isDark)),
                       const SizedBox(width: 8),
-                      _buildViewToggles(state, notifier),
+                      _buildViewToggles(state, notifier, isDark),
                     ],
                   ),
                 ],
@@ -391,42 +404,42 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                 children: [
                   Expanded(
                     flex: 3,
-                    child: _buildSearchBox(state, notifier),
+                    child: _buildSearchBox(state, notifier, isDark),
                   ),
                   const SizedBox(width: 12),
                   SizedBox(
                     width: 180,
-                    child: _buildCategoryDropdown(state, notifier),
+                    child: _buildCategoryDropdown(state, notifier, isDark),
                   ),
                   const SizedBox(width: 12),
                   SizedBox(
                     width: 140,
-                    child: _buildStatusDropdown(state, notifier),
+                    child: _buildStatusDropdown(state, notifier, isDark),
                   ),
                   const SizedBox(width: 12),
-                  _buildViewToggles(state, notifier),
+                  _buildViewToggles(state, notifier, isDark),
                 ],
               );
       },
     );
   }
 
-  Widget _buildSearchBox(DeviceManagementState state, DeviceManagementNotifier notifier) {
+  Widget _buildSearchBox(DeviceManagementState state, DeviceManagementNotifier notifier, bool isDark) {
     return Container(
       height: 38,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFCBD5E1)),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: TextField(
         controller: _searchController,
-        style: const TextStyle(fontSize: 13),
+        style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
         decoration: InputDecoration(
-          prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF94A3B8)),
+          prefixIcon: Icon(Icons.search_rounded, size: 18, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.clear_rounded, size: 16, color: Color(0xFF94A3B8)),
+                  icon: Icon(Icons.clear_rounded, size: 16, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
                   onPressed: () {
                     _searchController.clear();
                     notifier.setTypesSearchQuery('');
@@ -434,7 +447,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                 )
               : null,
           hintText: 'Search device types (e.g., CCTV, AC, Lighting...)',
-          hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+          hintStyle: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         ),
@@ -443,7 +456,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
     );
   }
 
-  Widget _buildCategoryDropdown(DeviceManagementState state, DeviceManagementNotifier notifier) {
+  Widget _buildCategoryDropdown(DeviceManagementState state, DeviceManagementNotifier notifier, bool isDark) {
     final categories = state.typesCategories.isNotEmpty ? state.typesCategories : _categoriesFilter;
     final selectedCat = categories.contains(state.typesFilterCategory)
         ? state.typesFilterCategory
@@ -453,16 +466,17 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
       height: 38,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFCBD5E1)),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: selectedCat,
           isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
-          style: const TextStyle(fontSize: 12, color: Color(0xFF0F172A), fontWeight: FontWeight.w500),
+          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          icon: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+          style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.w500),
           items: categories.map((cat) {
             return DropdownMenuItem<String>(
               value: cat,
@@ -477,21 +491,22 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
     );
   }
 
-  Widget _buildStatusDropdown(DeviceManagementState state, DeviceManagementNotifier notifier) {
+  Widget _buildStatusDropdown(DeviceManagementState state, DeviceManagementNotifier notifier, bool isDark) {
     return Container(
       height: 38,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFCBD5E1)),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: state.typesFilterStatus,
+          value: _statusFilter.contains(state.typesFilterStatus) ? state.typesFilterStatus : _statusFilter.first,
           isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
-          style: const TextStyle(fontSize: 12, color: Color(0xFF0F172A), fontWeight: FontWeight.w500),
+          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          icon: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+          style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.w500),
           items: _statusFilter.map((st) {
             return DropdownMenuItem<String>(
               value: st,
@@ -506,13 +521,13 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
     );
   }
 
-  Widget _buildViewToggles(DeviceManagementState state, DeviceManagementNotifier notifier) {
+  Widget _buildViewToggles(DeviceManagementState state, DeviceManagementNotifier notifier, bool isDark) {
     return Container(
       height: 38,
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFCBD5E1)),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -521,18 +536,18 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
             icon: Icon(
               Icons.grid_view_rounded,
               size: 16,
-              color: state.typesIsGridView ? const Color(0xFF2563EB) : const Color(0xFF64748B),
+              color: state.typesIsGridView ? const Color(0xFF2563EB) : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
             ),
             splashRadius: 18,
             tooltip: 'Grid View',
             onPressed: () => notifier.toggleTypesGridView(true),
           ),
-          Container(width: 1, height: 20, color: const Color(0xFFCBD5E1)),
+          Container(width: 1, height: 20, color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
           IconButton(
             icon: Icon(
               Icons.view_list_rounded,
               size: 18,
-              color: !state.typesIsGridView ? const Color(0xFF2563EB) : const Color(0xFF64748B),
+              color: !state.typesIsGridView ? const Color(0xFF2563EB) : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
             ),
             splashRadius: 18,
             tooltip: 'Table / List View',
@@ -1067,7 +1082,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
               width: 130,
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: _buildCategoryBadge(dt.categoryName),
+                child: _buildCategoryBadge(dt.categoryName, isDark),
               ),
             ),
             const SizedBox(width: 8),
@@ -1105,7 +1120,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
               width: 90,
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: _buildActiveStatusPill(dt.status),
+                child: _buildActiveStatusPill(dt.status, isDark),
               ),
             ),
             const SizedBox(width: 8),
@@ -1115,7 +1130,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
               width: 125,
               child: Text(
                 dt.updatedAt ?? 'Just now',
-                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -1146,7 +1161,8 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                     },
                   ),
                   PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert_rounded, size: 16, color: Color(0xFF64748B)),
+                    icon: Icon(Icons.more_vert_rounded, size: 16, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
                     splashRadius: 16,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
@@ -1232,42 +1248,42 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
     );
   }
 
-  Widget _buildCategoryBadge(String categoryName) {
-    Color bg = const Color(0xFFEFF6FF);
-    Color border = const Color(0xFFBFDBFE);
-    Color text = const Color(0xFF1D4ED8);
+  Widget _buildCategoryBadge(String categoryName, bool isDark) {
+    Color bg = isDark ? const Color(0xFF2563EB).withValues(alpha: 0.2) : const Color(0xFFEFF6FF);
+    Color border = isDark ? const Color(0xFF2563EB).withValues(alpha: 0.35) : const Color(0xFFBFDBFE);
+    Color text = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1D4ED8);
     IconData icon = Icons.circle_outlined;
 
     final lower = categoryName.toLowerCase();
     if (lower.contains('security')) {
-      bg = const Color(0xFFFEF2F2);
-      border = const Color(0xFFFCA5A5);
-      text = const Color(0xFFDC2626);
+      bg = isDark ? const Color(0xFFDC2626).withValues(alpha: 0.2) : const Color(0xFFFEF2F2);
+      border = isDark ? const Color(0xFFDC2626).withValues(alpha: 0.35) : const Color(0xFFFCA5A5);
+      text = isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626);
       icon = Icons.shield_outlined;
     } else if (lower.contains('av') || lower.contains('display')) {
-      bg = const Color(0xFFFAF5FF);
-      border = const Color(0xFFE9D5FF);
-      text = const Color(0xFF9333EA);
+      bg = isDark ? const Color(0xFF9333EA).withValues(alpha: 0.2) : const Color(0xFFFAF5FF);
+      border = isDark ? const Color(0xFF9333EA).withValues(alpha: 0.35) : const Color(0xFFE9D5FF);
+      text = isDark ? const Color(0xFFC084FC) : const Color(0xFF9333EA);
       icon = Icons.play_circle_outline_rounded;
     } else if (lower.contains('network')) {
-      bg = const Color(0xFFEFF6FF);
-      border = const Color(0xFFBFDBFE);
-      text = const Color(0xFF2563EB);
+      bg = isDark ? const Color(0xFF2563EB).withValues(alpha: 0.2) : const Color(0xFFEFF6FF);
+      border = isDark ? const Color(0xFF2563EB).withValues(alpha: 0.35) : const Color(0xFFBFDBFE);
+      text = isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB);
       icon = Icons.wifi_rounded;
     } else if (lower.contains('power') || lower.contains('energy')) {
-      bg = const Color(0xFFFFFBEB);
-      border = const Color(0xFFFDE68A);
-      text = const Color(0xFFD97706);
+      bg = isDark ? const Color(0xFFD97706).withValues(alpha: 0.2) : const Color(0xFFFFFBEB);
+      border = isDark ? const Color(0xFFD97706).withValues(alpha: 0.35) : const Color(0xFFFDE68A);
+      text = isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706);
       icon = Icons.bolt_rounded;
     } else if (lower.contains('building') || lower.contains('automation')) {
-      bg = const Color(0xFFF0F9FF);
-      border = const Color(0xFFBAE6FD);
-      text = const Color(0xFF0284C7);
+      bg = isDark ? const Color(0xFF0284C7).withValues(alpha: 0.2) : const Color(0xFFF0F9FF);
+      border = isDark ? const Color(0xFF0284C7).withValues(alpha: 0.35) : const Color(0xFFBAE6FD);
+      text = isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7);
       icon = Icons.corporate_fare_rounded;
     } else if (lower.contains('environment')) {
-      bg = const Color(0xFFECFDF5);
-      border = const Color(0xFFA7F3D0);
-      text = const Color(0xFF059669);
+      bg = isDark ? const Color(0xFF059669).withValues(alpha: 0.2) : const Color(0xFFECFDF5);
+      border = isDark ? const Color(0xFF059669).withValues(alpha: 0.35) : const Color(0xFFA7F3D0);
+      text = isDark ? const Color(0xFF34D399) : const Color(0xFF059669);
       icon = Icons.eco_outlined;
     }
 
@@ -1300,13 +1316,23 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
     );
   }
 
-  Widget _buildActiveStatusPill(String status) {
+  Widget _buildActiveStatusPill(String status, bool isDark) {
     final isActive = status.toLowerCase() == 'active';
+
+    final bg = isActive
+        ? (isDark ? const Color(0xFF16A34A).withValues(alpha: 0.2) : const Color(0xFFDCFCE7))
+        : (isDark ? const Color(0xFF334155).withValues(alpha: 0.4) : const Color(0xFFF1F5F9));
+    final dotColor = isActive
+        ? (isDark ? const Color(0xFF4ADE80) : const Color(0xFF16A34A))
+        : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8));
+    final textColor = isActive
+        ? (isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D))
+        : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B));
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: isActive ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+        color: bg,
         borderRadius: BorderRadius.circular(12),
       ),
       child: FittedBox(
@@ -1319,7 +1345,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
               height: 6,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isActive ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
+                color: dotColor,
               ),
             ),
             const SizedBox(width: 4),
@@ -1328,7 +1354,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: isActive ? const Color(0xFF15803D) : const Color(0xFF64748B),
+                color: textColor,
               ),
             ),
           ],
@@ -1480,12 +1506,15 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
       return Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
         ),
-        child: const Center(
-          child: Text('Select a device type from the table to view specs and profiles.'),
+        child: Center(
+          child: Text(
+            'Select a device type from the table to view specs and profiles.',
+            style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+          ),
         ),
       );
     }
@@ -1494,14 +1523,14 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x05000000),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
             blurRadius: 4,
-            offset: Offset(0, 1),
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -1511,20 +1540,20 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
           // Inspector Header
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
             ),
             child: Row(
               children: [
                 const Icon(Icons.dvr_rounded, size: 18, color: Color(0xFF2563EB)),
                 const SizedBox(width: 8),
-                const Text(
+                Text(
                   'Device Type Details',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                 ),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.open_in_new_rounded, size: 16, color: Color(0xFF64748B)),
+                  icon: Icon(Icons.open_in_new_rounded, size: 16, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                   splashRadius: 16,
                   tooltip: 'Full Details',
                   onPressed: () {},
@@ -1546,9 +1575,9 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                       width: 54,
                       height: 54,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
+                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                       ),
                       child: Icon(
                         _resolveTypeIcon(type.icon),
@@ -1563,25 +1592,28 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                         children: [
                           Row(
                             children: [
-                              Text(
-                                type.name,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF0F172A),
+                              Flexible(
+                                child: Text(
+                                  type.name,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              _buildCategoryBadge(type.categoryName),
+                              _buildCategoryBadge(type.categoryName, isDark),
                             ],
                           ),
                           const SizedBox(height: 3),
                           Text(
                             type.description.isNotEmpty ? type.description : 'IP/Network surveillance cameras',
-                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                            style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                           ),
                           const SizedBox(height: 4),
-                          _buildActiveStatusPill(type.status),
+                          _buildActiveStatusPill(type.status, isDark),
                         ],
                       ),
                     ),
@@ -1593,28 +1625,28 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                   ),
                   child: Column(
                     children: [
-                      _buildSpecRow('System Category', type.systemCategory),
+                      _buildSpecRow('System Category', type.systemCategory, isDark),
                       const SizedBox(height: 8),
-                      _buildSpecRow('Total Mapped Devices', _formatNumber(type.mappedDevicesCount)),
+                      _buildSpecRow('Total Mapped Devices', _formatNumber(type.mappedDevicesCount), isDark),
                       const SizedBox(height: 8),
-                      _buildSpecRow('Control Profiles', '${type.profilesCount} (2 Default, 4 Custom)'),
+                      _buildSpecRow('Control Profiles', '${type.profilesCount} (2 Default, 4 Custom)', isDark),
                       const SizedBox(height: 8),
-                      _buildSpecRow('Supported Protocols', type.supportedProtocols.join(', ')),
+                      _buildSpecRow('Supported Protocols', type.supportedProtocols.join(', '), isDark),
                     ],
                   ),
                 ),
                 const SizedBox(height: 12),
 
                 // Capabilities wrap
-                const Text(
+                Text(
                   'Capabilities',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
                 ),
                 const SizedBox(height: 6),
                 Wrap(
@@ -1627,20 +1659,24 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
+                        color: isDark ? const Color(0xFF2563EB).withValues(alpha: 0.15) : const Color(0xFFEFF6FF),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFFBFDBFE)),
+                        border: Border.all(color: isDark ? const Color(0xFF2563EB).withValues(alpha: 0.3) : const Color(0xFFBFDBFE)),
                       ),
                       child: Text(
                         cap,
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
+                        ),
                       ),
                     );
                   }).toList(),
                 ),
 
                 const SizedBox(height: 18),
-                const Divider(color: Color(0xFFE2E8F0)),
+                Divider(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                 const SizedBox(height: 10),
 
                 // Control Profiles Header with + Add Profile button
@@ -1655,7 +1691,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                           Flexible(
                             child: Text(
                               'Control Profiles (${profiles.length})',
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -1667,9 +1703,9 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                       icon: const Icon(Icons.add_rounded, size: 14),
                       label: const Text('Add Profile'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF2563EB),
+                        foregroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        side: const BorderSide(color: Color(0xFFBFDBFE)),
+                        side: BorderSide(color: isDark ? const Color(0xFF2563EB).withValues(alpha: 0.5) : const Color(0xFFBFDBFE)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                         textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                       ),
@@ -1690,7 +1726,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                 const SizedBox(height: 10),
 
                 // Control Profiles Mini Table matching screenshot
-                _buildControlProfilesMiniTable(profiles, type, notifier, context),
+                _buildControlProfilesMiniTable(profiles, type, notifier, context, isDark),
 
                 const SizedBox(height: 14),
 
@@ -1701,7 +1737,8 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                   title: 'Capability Configuration',
                   isExpanded: _isCapConfigExpanded,
                   onToggle: () => setState(() => _isCapConfigExpanded = !_isCapConfigExpanded),
-                  content: _buildCapConfigContent(type),
+                  content: _buildCapConfigContent(type, isDark),
+                  isDark: isDark,
                 ),
                 const SizedBox(height: 8),
 
@@ -1711,7 +1748,8 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                   title: 'Default Settings',
                   isExpanded: _isDefaultSettingsExpanded,
                   onToggle: () => setState(() => _isDefaultSettingsExpanded = !_isDefaultSettingsExpanded),
-                  content: _buildDefaultSettingsContent(type),
+                  content: _buildDefaultSettingsContent(type, isDark),
+                  isDark: isDark,
                 ),
                 const SizedBox(height: 8),
 
@@ -1721,7 +1759,8 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                   title: 'Assigned Devices (${_formatNumber(type.mappedDevicesCount)})',
                   isExpanded: _isAssignedDevicesExpanded,
                   onToggle: () => setState(() => _isAssignedDevicesExpanded = !_isAssignedDevicesExpanded),
-                  content: _buildAssignedDevicesContent(type),
+                  content: _buildAssignedDevicesContent(type, isDark),
+                  isDark: isDark,
                 ),
               ],
             ),
@@ -1731,16 +1770,16 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
     );
   }
 
-  Widget _buildSpecRow(String label, String value) {
+  Widget _buildSpecRow(String label, String value, bool isDark) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+        Text(label, style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
         const SizedBox(width: 8),
         Flexible(
           child: Text(
             value,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A)),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.right,
@@ -1755,23 +1794,25 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
     DeviceTypeDetailItem type,
     DeviceManagementNotifier notifier,
     BuildContext context,
+    bool isDark,
   ) {
     if (profiles.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
+          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
         ),
-        child: const Center(
-          child: Text('No control profiles configured.', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+        child: Center(
+          child: Text('No control profiles configured.', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
         ),
       );
     }
 
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -1779,14 +1820,17 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
           // Header
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            color: const Color(0xFFF8FAFC),
-            child: const Row(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              borderRadius: const BorderRadius.only(topLeft: Radius.circular(7), topRight: Radius.circular(7)),
+            ),
+            child: Row(
               children: [
-                Expanded(flex: 4, child: Text('Profile Name', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF475569)))),
-                Expanded(flex: 2, child: Text('Type', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF475569)))),
-                Expanded(flex: 2, child: Text('Usage', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF475569)))),
-                Expanded(flex: 2, child: Text('Status', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF475569)))),
-                SizedBox(width: 24),
+                Expanded(flex: 4, child: Text('Profile Name', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)))),
+                Expanded(flex: 2, child: Text('Type', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)))),
+                Expanded(flex: 2, child: Text('Usage', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)))),
+                Expanded(flex: 2, child: Text('Status', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)))),
+                const SizedBox(width: 24),
               ],
             ),
           ),
@@ -1795,8 +1839,8 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
           for (final p in profiles.take(6)) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9))),
               ),
               child: Row(
                 children: [
@@ -1804,7 +1848,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                     flex: 4,
                     child: Text(
                       p.name,
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1814,7 +1858,9 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: p.isDefault ? const Color(0xFFEFF6FF) : const Color(0xFFF3E8FF),
+                        color: p.isDefault
+                            ? (isDark ? const Color(0xFF2563EB).withValues(alpha: 0.2) : const Color(0xFFEFF6FF))
+                            : (isDark ? const Color(0xFF7C3AED).withValues(alpha: 0.2) : const Color(0xFFF3E8FF)),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -1822,7 +1868,9 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.w600,
-                          color: p.isDefault ? const Color(0xFF2563EB) : const Color(0xFF9333EA),
+                          color: p.isDefault
+                              ? (isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB))
+                              : (isDark ? const Color(0xFFA78BFA) : const Color(0xFF9333EA)),
                         ),
                       ),
                     ),
@@ -1831,7 +1879,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                     flex: 2,
                     child: Text(
                       '${p.usageCount}',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                     ),
                   ),
                   Expanded(
@@ -1839,11 +1887,12 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
-                      child: _buildActiveStatusPill(p.status),
+                      child: _buildActiveStatusPill(p.status, isDark),
                     ),
                   ),
                   PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert_rounded, size: 14, color: Color(0xFF94A3B8)),
+                    icon: Icon(Icons.more_vert_rounded, size: 14, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF94A3B8)),
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
                     padding: EdgeInsets.zero,
                     splashRadius: 14,
                     onSelected: (action) {
@@ -1896,12 +1945,13 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
     required bool isExpanded,
     required VoidCallback onToggle,
     required Widget content,
+    required bool isDark,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         children: [
@@ -1917,13 +1967,13 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                   Expanded(
                     child: Text(
                       title,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                     ),
                   ),
                   Icon(
                     isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
                     size: 18,
-                    color: const Color(0xFF64748B),
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                   ),
                 ],
               ),
@@ -1939,20 +1989,21 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
     );
   }
 
-  Widget _buildCapConfigContent(DeviceTypeDetailItem type) {
+  Widget _buildCapConfigContent(DeviceTypeDetailItem type, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Telemetry Topics & Payload Mapping:',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
         ),
         const SizedBox(height: 6),
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFF0F172A),
+            color: isDark ? const Color(0xFF020617) : const Color(0xFF0F172A),
             borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: isDark ? const Color(0xFF1E293B) : Colors.transparent),
           ),
           child: Text(
             'Topic: campus/telemetry/${type.code}/+\nState: campus/state/${type.code}/+\nCommand: campus/cmd/${type.code}/+',
@@ -1963,26 +2014,26 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
     );
   }
 
-  Widget _buildDefaultSettingsContent(DeviceTypeDetailItem type) {
+  Widget _buildDefaultSettingsContent(DeviceTypeDetailItem type, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSpecRow('Default Power State', 'Offline / Low Power'),
+        _buildSpecRow('Default Power State', 'Offline / Low Power', isDark),
         const SizedBox(height: 6),
-        _buildSpecRow('Heartbeat Frequency', 'Every 30 seconds'),
+        _buildSpecRow('Heartbeat Frequency', 'Every 30 seconds', isDark),
         const SizedBox(height: 6),
-        _buildSpecRow('Max Telemetry Buffer', '500 packets'),
+        _buildSpecRow('Max Telemetry Buffer', '500 packets', isDark),
       ],
     );
   }
 
-  Widget _buildAssignedDevicesContent(DeviceTypeDetailItem type) {
+  Widget _buildAssignedDevicesContent(DeviceTypeDetailItem type, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Sample Devices Mapped to ${type.name}:',
-          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
         ),
         const SizedBox(height: 6),
         for (int i = 1; i <= 3; i++) ...[
@@ -1994,7 +2045,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                 const SizedBox(width: 6),
                 Text(
                   '${type.code.toUpperCase()}-B1-F1-10$i (Room 10$i)',
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF0F172A), fontWeight: FontWeight.w500),
+                  style: TextStyle(fontSize: 11, color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -2014,9 +2065,16 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2026,7 +2084,11 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
             children: [
               Text(
                 'All Control Profiles (${profiles.length})',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
               ),
               ElevatedButton.icon(
                 icon: const Icon(Icons.add_rounded, size: 16),
@@ -2055,29 +2117,39 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
-              columns: const [
-                DataColumn(label: Text('Profile Name')),
-                DataColumn(label: Text('Device Type')),
-                DataColumn(label: Text('Profile Type')),
-                DataColumn(label: Text('Version')),
-                DataColumn(label: Text('Mapped Usage')),
-                DataColumn(label: Text('Status')),
-                DataColumn(label: Text('Actions')),
+              dividerThickness: 1,
+              headingRowColor: WidgetStateProperty.all(isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
+              dataRowColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.hovered)) {
+                  return isDark ? const Color(0xFF334155).withValues(alpha: 0.3) : const Color(0xFFF1F5F9);
+                }
+                return isDark ? const Color(0xFF1E293B) : Colors.white;
+              }),
+              columns: [
+                DataColumn(label: Text('Profile Name', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)))),
+                DataColumn(label: Text('Device Type', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)))),
+                DataColumn(label: Text('Profile Type', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)))),
+                DataColumn(label: Text('Version', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)))),
+                DataColumn(label: Text('Mapped Usage', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)))),
+                DataColumn(label: Text('Status', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)))),
+                DataColumn(label: Text('Actions', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)))),
               ],
               rows: profiles.map((p) {
                 return DataRow(
                   cells: [
                     DataCell(
-                      Text(p.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                      Text(p.name, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
                     ),
                     DataCell(
-                      Text(p.deviceTypeName ?? 'General', style: const TextStyle(fontSize: 12, color: Color(0xFF475569))),
+                      Text(p.deviceTypeName ?? 'General', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569))),
                     ),
                     DataCell(
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: p.isDefault ? const Color(0xFFEFF6FF) : const Color(0xFFF3E8FF),
+                          color: p.isDefault
+                              ? (isDark ? const Color(0xFF2563EB).withValues(alpha: 0.2) : const Color(0xFFEFF6FF))
+                              : (isDark ? const Color(0xFF7C3AED).withValues(alpha: 0.2) : const Color(0xFFF3E8FF)),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -2085,22 +2157,24 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
-                            color: p.isDefault ? const Color(0xFF2563EB) : const Color(0xFF9333EA),
+                            color: p.isDefault
+                                ? (isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB))
+                                : (isDark ? const Color(0xFFA78BFA) : const Color(0xFF9333EA)),
                           ),
                         ),
                       ),
                     ),
-                    DataCell(Text(p.version, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)))),
-                    DataCell(Text('${p.usageCount} devices', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                    DataCell(_buildActiveStatusPill(p.status)),
+                    DataCell(Text(p.version, style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)))),
+                    DataCell(Text('${p.usageCount} devices', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A)))),
+                    DataCell(_buildActiveStatusPill(p.status, isDark)),
                     DataCell(
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFEFF6FF),
-                              foregroundColor: const Color(0xFF2563EB),
+                              backgroundColor: isDark ? const Color(0xFF2563EB).withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
+                              foregroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
                               elevation: 0,
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             ),
@@ -2155,23 +2229,37 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'Capability Templates Catalog',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
               ),
               Text(
                 'Standard UI Controls & Schema Library',
-                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                ),
               ),
             ],
           ),
@@ -2192,9 +2280,9 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
               return Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2204,7 +2292,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEFF6FF),
+                            color: isDark ? const Color(0xFF2563EB).withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Icon(_resolveTypeIcon(cap.icon), size: 18, color: const Color(0xFF2563EB)),
@@ -2216,13 +2304,20 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                             children: [
                               Text(
                                 cap.name,
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
                                 cap.category,
-                                style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                ),
                               ),
                             ],
                           ),
@@ -2230,12 +2325,16 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFE2E8F0),
+                            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             cap.type.toUpperCase(),
-                            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                            ),
                           ),
                         ),
                       ],
@@ -2243,7 +2342,10 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                     const SizedBox(height: 8),
                     Text(
                       cap.description,
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -2267,16 +2369,27 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             'Configured Presets & Operational Scenes',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
           ),
           const SizedBox(height: 14),
 
@@ -2295,16 +2408,16 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
               return Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                 ),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
+                        color: isDark ? const Color(0xFF2563EB).withValues(alpha: 0.2) : const Color(0xFFEFF6FF),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(Icons.palette_rounded, size: 22, color: Color(0xFF2563EB)),
@@ -2317,12 +2430,19 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                         children: [
                           Text(
                             scene.name,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             scene.description,
-                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -2344,15 +2464,24 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
   // ============================================================================
 
   void _confirmDeleteType(BuildContext context, DeviceTypeDetailItem dt, DeviceManagementNotifier notifier) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Delete / Deactivate ${dt.name}?'),
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        title: Text(
+          'Delete / Deactivate ${dt.name}?',
+          style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)),
+        ),
         content: Text(
           'Are you sure you want to delete or deactivate "${dt.name}"? If devices are mapped, it will be marked as inactive.',
+          style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Cancel', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () async {
@@ -2367,13 +2496,24 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
   }
 
   void _confirmDeleteProfile(BuildContext context, DeviceProfileItem p, DeviceManagementNotifier notifier) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Archive Profile ${p.name}?'),
-        content: Text('Are you sure you want to archive profile "${p.name}"?'),
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        title: Text(
+          'Archive Profile ${p.name}?',
+          style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)),
+        ),
+        content: Text(
+          'Are you sure you want to archive profile "${p.name}"?',
+          style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Cancel', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () async {

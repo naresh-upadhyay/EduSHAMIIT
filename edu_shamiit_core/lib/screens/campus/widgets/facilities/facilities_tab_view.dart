@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math' as math;
 import '../../providers/campus_provider.dart';
-import '../../services/campus_api_service.dart';
-import '../../services/campus_lookup_helper.dart';
-import '../../models/campus_models.dart';
+import '../../providers/facilities_provider.dart';
 import '../common/campus_pagination_bar.dart';
 import 'dialogs/add_edit_facility_dialog.dart';
+import '../space_booking/dialogs/create_edit_booking_dialog.dart';
 
 class FacilitiesTabView extends ConsumerStatefulWidget {
   const FacilitiesTabView({super.key});
@@ -16,181 +15,19 @@ class FacilitiesTabView extends ConsumerStatefulWidget {
 }
 
 class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
-  String _searchQuery = '';
-  String _selectedCategory = 'All Categories';
-  String _selectedStatus = 'All Statuses';
-  int _viewMode = 0; // 0: Grid cards, 1: Table
-  bool _isLoading = true;
-  int _page = 1;
-  int _pageSize = 10;
-  int? _sortColIndex = 0;
-  bool _sortAsc = true;
-
-  List<Map<String, dynamic>> _facilities = [];
-  List<String> _categories = ['All Categories'];
-  List<String> _statuses = ['All Statuses'];
+  late TextEditingController _searchController;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    final facState = ref.read(facilitiesProvider);
+    _searchController = TextEditingController(text: facState.searchQuery);
   }
 
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-
-    // Fetch dynamic lookup categories
-    final catLookups = await CampusLookupHelper.instance.getLookupLabels(
-      'FACILITY_TYPE',
-      defaultLabels: [
-        'Sports Complex / Ground',
-        'Specialized Laboratory',
-        'Auditorium & Amphitheater',
-        'Library & Learning Commons',
-        'Dining & Cafeteria Hub',
-        'Health Center & Clinic',
-        'Transport Hub & Bus Bay',
-        'Robotics & Fabrication Lab',
-        'Indoor Gymnasium & Yoga Studio',
-        'Student Activity Center',
-      ],
-    );
-
-    final statLookups = await CampusLookupHelper.instance.getLookupLabels(
-      'FACILITY_STATUS',
-      defaultLabels: [
-        'Operational',
-        'Under Maintenance',
-        'Reserved / In-Use',
-        'Temporarily Closed',
-      ],
-    );
-
-    // Fetch facilities from database via dedicated Campus API
-    final facRes = await CampusApiService.instance.getFacilities(page: 1, pageSize: 100);
-    final facList = (facRes['data'] as List<dynamic>?) ?? [];
-
-    List<Map<String, dynamic>> facs = [];
-    if (facList.isNotEmpty) {
-      facs = facList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-    } else {
-      // Fallback: Fetch rooms that act as institutional facilities
-      final roomsRes = await CampusApiService.instance.getRooms(page: 1, pageSize: 50);
-      final roomsList = (roomsRes['data'] as List<RoomModel>?) ?? [];
-
-      if (roomsList.isNotEmpty) {
-        facs = roomsList.map((r) {
-          String cat = 'Specialized Laboratory';
-          if (r.roomType.toLowerCase().contains('lab')) {
-            cat = 'Specialized Laboratory';
-          } else if (r.roomType.toLowerCase().contains('auditorium') || r.roomType.toLowerCase().contains('hall')) {
-            cat = 'Auditorium & Amphitheater';
-          } else if (r.roomType.toLowerCase().contains('library')) {
-            cat = 'Library & Learning Commons';
-          } else if (r.roomType.toLowerCase().contains('sports') || r.roomType.toLowerCase().contains('gym')) {
-            cat = 'Sports Complex / Ground';
-          } else if (r.roomType.toLowerCase().contains('canteen') || r.roomType.toLowerCase().contains('dining')) {
-            cat = 'Dining & Cafeteria Hub';
-          } else if (r.roomType.toLowerCase().contains('medical') || r.roomType.toLowerCase().contains('clinic')) {
-            cat = 'Health Center & Clinic';
-          } else {
-            cat = 'Student Activity Center';
-          }
-
-          return {
-            'id': r.id,
-            'name': r.name.isNotEmpty ? r.name : 'Room ${r.roomNumber}',
-            'code': r.roomCode.isNotEmpty ? r.roomCode : r.roomNumber,
-            'category': cat,
-            'status': r.operationalStatus == 'Available' ? 'Operational' : (r.operationalStatus == 'Under Maintenance' ? 'Under Maintenance' : 'Reserved / In-Use'),
-            'building_id': r.buildingId,
-            'building_name': r.buildingName ?? 'Academic Complex',
-            'floor_name': r.floorName ?? 'Floor ${r.floorLevel ?? 1}',
-            'capacity': r.maxCapacity,
-            'area': r.area > 0 ? r.area : 1200.0,
-            'manager_name': r.responsiblePersonName ?? 'Campus Facility Officer',
-            'manager_phone': '+91 98765 43210',
-            'equipment_count': r.equipmentCount,
-            'description': r.description ?? 'Institutional infrastructure facility for student and academic use.',
-          };
-        }).toList();
-      }
-    }
-
-    // Include standard institutional campus facilities if list is small
-    if (facs.length < 4) {
-      facs.addAll([
-        {
-          'id': 'fac-1',
-          'name': 'Main Athletic Complex & Football Ground',
-          'code': 'SPT-FLD-01',
-          'category': 'Sports Complex / Ground',
-          'status': 'Operational',
-          'building_name': 'Outdoor Campus Sports Ground',
-          'floor_name': 'Ground Level',
-          'capacity': 1200,
-          'area': 65000.0,
-          'manager_name': 'Coach R. K. Singh',
-          'manager_phone': '+91 98450 11223',
-          'equipment_count': 24,
-          'description': 'FIFA regulation grass turf field with 400m synthetic running track and floodlighting.',
-        },
-        {
-          'id': 'fac-2',
-          'name': 'Dr. APJ Abdul Kalam Central Auditorium',
-          'code': 'AUD-01',
-          'category': 'Auditorium & Amphitheater',
-          'status': 'Operational',
-          'building_name': 'B4 - Auditorium Block',
-          'floor_name': 'Ground & Mezzanine',
-          'capacity': 850,
-          'area': 9500.0,
-          'manager_name': 'Deepak Malhotra',
-          'manager_phone': '+91 98220 44556',
-          'equipment_count': 42,
-          'description': 'State-of-the-art acoustic auditorium with 4K laser projection and line array audio system.',
-        },
-        {
-          'id': 'fac-3',
-          'name': 'Central Robotics & IoT Innovation FabLab',
-          'code': 'LAB-ROB-01',
-          'category': 'Robotics & Fabrication Lab',
-          'status': 'Operational',
-          'building_name': 'B1 - Academic Block (A)',
-          'floor_name': 'Third Floor',
-          'capacity': 60,
-          'area': 2400.0,
-          'manager_name': 'Dr. S. Mukherjee',
-          'manager_phone': '+91 98771 99881',
-          'equipment_count': 68,
-          'description': 'Advanced prototyping lab with 3D printers, laser cutters, oscilloscope stations, and robotic arms.',
-        },
-        {
-          'id': 'fac-4',
-          'name': 'Central Food Court & Dining Hall',
-          'code': 'CAN-01',
-          'category': 'Dining & Cafeteria Hub',
-          'status': 'Operational',
-          'building_name': 'Student Amenities Block',
-          'floor_name': 'Ground Floor',
-          'capacity': 500,
-          'area': 7200.0,
-          'manager_name': 'Vikram Rathore',
-          'manager_phone': '+91 98110 33445',
-          'equipment_count': 18,
-          'description': 'Hygienic institutional kitchen and dining hall serving students and faculty.',
-        },
-      ]);
-    }
-
-    if (mounted) {
-      setState(() {
-        _categories = ['All Categories', ...catLookups];
-        _statuses = ['All Statuses', ...statLookups];
-        _facilities = facs;
-        _isLoading = false;
-      });
-    }
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _openAddFacilityModal([Map<String, dynamic>? facility]) {
@@ -200,7 +37,7 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
       builder: (_) => AddEditFacilityDialog(
         facility: facility,
         onSaved: () {
-          _loadData();
+          ref.read(facilitiesProvider.notifier).loadData();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(facility == null ? 'Facility registered successfully!' : 'Facility updated successfully!'),
@@ -233,29 +70,28 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
     );
 
     if (confirmed == true) {
-      setState(() => _isLoading = true);
-      final res = await CampusApiService.instance.deleteFacility(f['id'].toString());
-      if (res['success'] == true) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Facility deleted successfully!'),
-              backgroundColor: Color(0xFF059669),
-            ),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(res['message']?.toString() ?? 'Failed to delete facility'),
-              backgroundColor: const Color(0xFFEF4444),
-            ),
-          );
-        }
+      final success = await ref.read(facilitiesProvider.notifier).deleteFacility(f['id'].toString());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success ? 'Facility deleted successfully!' : 'Failed to delete facility'),
+            backgroundColor: success ? const Color(0xFF059669) : const Color(0xFFEF4444),
+          ),
+        );
       }
-      _loadData();
     }
+  }
+
+  void _bookFacility(Map<String, dynamic> f) {
+    ref.read(campusProvider.notifier).setActiveCampusTab(2); // Jump to Space Booking tab
+    final roomId = f['room_id'] ?? f['id'];
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => CreateEditBookingDialog(
+        preselectedRoomId: roomId?.toString(),
+      ),
+    );
   }
 
   @override
@@ -269,11 +105,25 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
     final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
     final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
-    final filtered = _facilities.where((f) {
-      if (_selectedCategory != 'All Categories' && f['category'] != _selectedCategory) return false;
-      if (_selectedStatus != 'All Statuses' && f['status'] != _selectedStatus) return false;
-      if (_searchQuery.trim().isNotEmpty) {
-        final q = _searchQuery.toLowerCase();
+    final facState = ref.watch(facilitiesProvider);
+    final facNotifier = ref.read(facilitiesProvider.notifier);
+
+    final facilities = facState.facilities;
+    final selectedCategory = facState.selectedCategory;
+    final selectedStatus = facState.selectedStatus;
+    final searchQuery = facState.searchQuery;
+    final sortColIndex = facState.sortColIndex;
+    final sortAsc = facState.sortAsc;
+    final viewMode = facState.viewMode;
+    final page = facState.currentPage;
+    final pageSize = facState.pageSize;
+    final isLoading = facState.isLoading;
+
+    final filtered = facilities.where((f) {
+      if (selectedCategory != 'All Categories' && f['category'] != selectedCategory) return false;
+      if (selectedStatus != 'All Statuses' && f['status'] != selectedStatus) return false;
+      if (searchQuery.trim().isNotEmpty) {
+        final q = searchQuery.toLowerCase();
         final name = (f['name'] ?? '').toString().toLowerCase();
         final code = (f['code'] ?? '').toString().toLowerCase();
         final cat = (f['category'] ?? '').toString().toLowerCase();
@@ -286,7 +136,7 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
     // Sorting
     filtered.sort((a, b) {
       int cmp = 0;
-      switch (_sortColIndex) {
+      switch (sortColIndex) {
         case 0:
           cmp = (a['name'] ?? '').toString().compareTo((b['name'] ?? '').toString());
           break;
@@ -308,24 +158,24 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
         default:
           cmp = 0;
       }
-      return _sortAsc ? cmp : -cmp;
+      return sortAsc ? cmp : -cmp;
     });
 
     final totalFiltered = filtered.length;
-    final totalPages = math.max(1, (totalFiltered / _pageSize).ceil());
-    if (_page > totalPages) _page = totalPages;
+    final totalPages = math.max(1, (totalFiltered / pageSize).ceil());
+    final effectivePage = page > totalPages ? totalPages : page;
 
-    final startIndex = (totalFiltered == 0) ? 0 : (_page - 1) * _pageSize;
-    final endIndex = math.min(startIndex + _pageSize, totalFiltered);
+    final startIndex = (totalFiltered == 0) ? 0 : (effectivePage - 1) * pageSize;
+    final endIndex = math.min(startIndex + pageSize, totalFiltered);
     final pagedItems = (startIndex < totalFiltered) ? filtered.sublist(startIndex, endIndex) : <Map<String, dynamic>>[];
 
-    final totalCount = _facilities.length;
-    final operationalCount = _facilities.where((f) => f['status'] == 'Operational').length;
-    final bookedCount = _facilities.where((f) => f['status'] == 'Reserved / In-Use').length;
-    final maintenanceCount = _facilities.where((f) => f['status'] == 'Under Maintenance').length;
+    final totalCount = facilities.length;
+    final operationalCount = facilities.where((f) => f['status'] == 'Operational').length;
+    final bookedCount = facilities.where((f) => f['status'] == 'Reserved / In-Use').length;
+    final maintenanceCount = facilities.where((f) => f['status'] == 'Under Maintenance').length;
 
     return RefreshIndicator(
-      onRefresh: _loadData,
+      onRefresh: () => facNotifier.loadData(),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
@@ -391,7 +241,8 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
                   SizedBox(
                     width: 220,
                     child: TextField(
-                      onChanged: (v) => setState(() => _searchQuery = v),
+                      controller: _searchController,
+                      onChanged: (v) => facNotifier.setSearchQuery(v),
                       decoration: InputDecoration(
                         hintText: 'Search facilities...',
                         hintStyle: TextStyle(fontSize: 12, color: textSecondary),
@@ -417,11 +268,11 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
-                        value: _selectedCategory,
+                        value: facState.categories.contains(selectedCategory) ? selectedCategory : (facState.categories.isNotEmpty ? facState.categories.first : 'All Categories'),
                         isDense: true,
                         dropdownColor: bgCard,
-                        items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c, style: TextStyle(fontSize: 12, color: textPrimary)))).toList(),
-                        onChanged: (val) => setState(() => _selectedCategory = val ?? 'All Categories'),
+                        items: facState.categories.map((c) => DropdownMenuItem(value: c, child: Text(c, style: TextStyle(fontSize: 12, color: textPrimary)))).toList(),
+                        onChanged: (val) => facNotifier.setCategory(val ?? 'All Categories'),
                       ),
                     ),
                   ),
@@ -436,11 +287,11 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
-                        value: _selectedStatus,
+                        value: facState.statuses.contains(selectedStatus) ? selectedStatus : (facState.statuses.isNotEmpty ? facState.statuses.first : 'All Statuses'),
                         isDense: true,
                         dropdownColor: bgCard,
-                        items: _statuses.map((s) => DropdownMenuItem(value: s, child: Text(s, style: TextStyle(fontSize: 12, color: textPrimary)))).toList(),
-                        onChanged: (val) => setState(() => _selectedStatus = val ?? 'All Statuses'),
+                        items: facState.statuses.map((s) => DropdownMenuItem(value: s, child: Text(s, style: TextStyle(fontSize: 12, color: textPrimary)))).toList(),
+                        onChanged: (val) => facNotifier.setStatus(val ?? 'All Statuses'),
                       ),
                     ),
                   ),
@@ -450,14 +301,14 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: Icon(Icons.grid_view_rounded, size: 18, color: _viewMode == 0 ? primaryColor : textSecondary),
+                        icon: Icon(Icons.grid_view_rounded, size: 18, color: viewMode == 0 ? primaryColor : textSecondary),
                         tooltip: 'Card Grid View',
-                        onPressed: () => setState(() => _viewMode = 0),
+                        onPressed: () => facNotifier.setViewMode(0),
                       ),
                       IconButton(
-                        icon: Icon(Icons.table_rows_rounded, size: 18, color: _viewMode == 1 ? primaryColor : textSecondary),
+                        icon: Icon(Icons.table_rows_rounded, size: 18, color: viewMode == 1 ? primaryColor : textSecondary),
                         tooltip: 'Table View',
-                        onPressed: () => setState(() => _viewMode = 1),
+                        onPressed: () => facNotifier.setViewMode(1),
                       ),
                       const SizedBox(width: 6),
                       ElevatedButton.icon(
@@ -478,7 +329,7 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
             const SizedBox(height: 16),
 
             // 3. Main Facilities Grid / Table
-            if (_isLoading)
+            if (isLoading)
               const SizedBox(
                 height: 250,
                 child: Center(child: CircularProgressIndicator()),
@@ -498,17 +349,18 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
                     Text('No campus facilities match the selected filters.', style: TextStyle(fontSize: 14, color: textSecondary)),
                     const SizedBox(height: 14),
                     OutlinedButton(
-                      onPressed: () => setState(() {
-                        _searchQuery = '';
-                        _selectedCategory = 'All Categories';
-                        _selectedStatus = 'All Statuses';
-                      }),
+                      onPressed: () {
+                        _searchController.clear();
+                        facNotifier.setSearchQuery('');
+                        facNotifier.setCategory('All Categories');
+                        facNotifier.setStatus('All Statuses');
+                      },
                       child: const Text('Reset Filters'),
                     ),
                   ],
                 ),
               )
-            else if (_viewMode == 0)
+            else if (viewMode == 0)
               LayoutBuilder(
                 builder: (context, constraints) {
                   int crossAxisCount = 3;
@@ -553,33 +405,33 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
                       dataRowMaxHeight: 35,
                       horizontalMargin: 12,
                       columnSpacing: 16,
-                      sortColumnIndex: _sortColIndex,
-                      sortAscending: _sortAsc,
+                      sortColumnIndex: sortColIndex,
+                      sortAscending: sortAsc,
                       columns: [
                         DataColumn(
                           label: const Text('Code / Name', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                          onSort: (col, asc) => setState(() { _sortColIndex = col; _sortAsc = asc; }),
+                          onSort: (col, asc) => facNotifier.setSorting(col, asc),
                         ),
                         DataColumn(
                           label: const Text('Category', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                          onSort: (col, asc) => setState(() { _sortColIndex = col; _sortAsc = asc; }),
+                          onSort: (col, asc) => facNotifier.setSorting(col, asc),
                         ),
                         DataColumn(
                           label: const Text('Location', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                          onSort: (col, asc) => setState(() { _sortColIndex = col; _sortAsc = asc; }),
+                          onSort: (col, asc) => facNotifier.setSorting(col, asc),
                         ),
                         DataColumn(
                           label: const Text('Capacity', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
                           numeric: true,
-                          onSort: (col, asc) => setState(() { _sortColIndex = col; _sortAsc = asc; }),
+                          onSort: (col, asc) => facNotifier.setSorting(col, asc),
                         ),
                         DataColumn(
                           label: const Text('Supervisor', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                          onSort: (col, asc) => setState(() { _sortColIndex = col; _sortAsc = asc; }),
+                          onSort: (col, asc) => facNotifier.setSorting(col, asc),
                         ),
                         DataColumn(
                           label: const Text('Status', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                          onSort: (col, asc) => setState(() { _sortColIndex = col; _sortAsc = asc; }),
+                          onSort: (col, asc) => facNotifier.setSorting(col, asc),
                         ),
                         const DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
                       ],
@@ -602,19 +454,15 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                f['status'] ?? '',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: isOp ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
-                                ),
+                                f['status'] ?? 'Operational',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isOp ? const Color(0xFF10B981) : const Color(0xFFF59E0B)),
                               ),
                             )),
                             DataCell(Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  icon: const Icon(Icons.edit, size: 15),
+                                  icon: const Icon(Icons.edit_outlined, size: 15),
                                   tooltip: 'Edit Facility',
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
@@ -632,9 +480,7 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
                                   tooltip: 'Book in Space Booking',
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                                  onPressed: () {
-                                    ref.read(campusProvider.notifier).setActiveCampusTab(2); // Jump to Space Booking
-                                  },
+                                  onPressed: () => _bookFacility(f),
                                 ),
                               ],
                             )),
@@ -650,14 +496,11 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
             if (filtered.isNotEmpty) ...[
               const SizedBox(height: 8),
               CampusPaginationBar(
-                currentPage: _page,
-                pageSize: _pageSize,
+                currentPage: effectivePage,
+                pageSize: pageSize,
                 totalItems: totalFiltered,
-                onPageChanged: (newPage) => setState(() => _page = newPage),
-                onPageSizeChanged: (newSize) => setState(() {
-                  _pageSize = newSize;
-                  _page = 1;
-                }),
+                onPageChanged: (newPage) => facNotifier.setPage(newPage),
+                onPageSizeChanged: (newSize) => facNotifier.setPageSize(newSize),
                 itemLabel: 'facilities',
               ),
             ],
@@ -758,7 +601,6 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
                 child: Text(
                   f['category'] ?? 'Facility',
                   style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: primaryColor),
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               const Spacer(),
@@ -771,10 +613,10 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircleAvatar(radius: 3, backgroundColor: statusColor),
+                    Container(width: 5, height: 5, decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle)),
                     const SizedBox(width: 4),
                     Text(
-                      f['status'] ?? '',
+                      f['status'] ?? 'Operational',
                       style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: statusColor),
                     ),
                   ],
@@ -782,9 +624,9 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
 
-          // Name & Code
+          // Title & Code
           Text(
             f['name'] ?? '',
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: textPrimary),
@@ -793,8 +635,8 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
           ),
           const SizedBox(height: 2),
           Text(
-            '${f['code']} • ${f['building_name']}',
-            style: TextStyle(fontSize: 11.5, color: textSecondary),
+            'Code: ${f['code']} • ${f['building_name']} (${f['floor_name']})',
+            style: TextStyle(fontSize: 11, color: textSecondary),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -870,9 +712,7 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
                   ),
                   const SizedBox(width: 6),
                   ElevatedButton.icon(
-                    onPressed: () {
-                      ref.read(campusProvider.notifier).setActiveCampusTab(2); // Jump to Space Booking
-                    },
+                    onPressed: () => _bookFacility(f),
                     icon: const Icon(Icons.calendar_month, size: 12, color: Colors.white),
                     label: const Text('Book Space', style: TextStyle(fontSize: 11, color: Colors.white)),
                     style: ElevatedButton.styleFrom(

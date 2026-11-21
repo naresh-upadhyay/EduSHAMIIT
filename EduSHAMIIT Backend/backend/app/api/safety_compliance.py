@@ -354,6 +354,20 @@ async def delete_safety_incident(
     return rows[0]["result"] if rows else {"success": True}
 
 
+@router.post("/incidents/{incident_id}/trigger-emergency-override", summary="Trigger Life Safety IoT Emergency Override for Incident")
+async def trigger_emergency_safety_interlock(
+    incident_id: str,
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    school_id = get_school_id(current_user)
+    user_name = get_user_name(current_user)
+    sql = "SELECT public.sp_trigger_emergency_safety_interlock(%s::UUID, %s::UUID, %s) AS result;"
+    row = await exec_sql(sql, (school_id, incident_id, user_name), fetch_one=True)
+    if not row or not row.get("result"):
+        raise HTTPException(status_code=500, detail="Failed to trigger emergency safety interlock")
+    return row.get("result")
+
+
 # ============================================================================
 # 4. STATUTORY CERTIFICATES ENDPOINTS
 # ============================================================================

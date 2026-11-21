@@ -15,10 +15,10 @@ class LiveClassApiService {
       debugPrint('[LiveClassApiService] Error fetching join-conduct dashboard: $e');
     }
     return JoinConductDashboardData(
-      liveNow: 6,
-      todaysClasses: 24,
-      totalParticipantsLive: 248,
-      recordingInProgress: 3,
+      liveNow: 1,
+      todaysClasses: 1,
+      totalParticipantsLive: 43,
+      recordingInProgress: 1,
       avgClassDurationMin: 45,
       classQuality: 'Excellent (98%)',
       systemStatus: 'Online',
@@ -248,6 +248,14 @@ class LiveClassApiService {
     await _apiService.post('/live-classes/$sessionId/end', {});
   }
 
+  Future<void> leaveLiveClass(String sessionId) async {
+    try {
+      await _apiService.post('/live-classes/$sessionId/leave', {});
+    } catch (e) {
+      debugPrint('[LiveClassApiService] Error leaving live class: $e');
+    }
+  }
+
   Future<void> overrideAttendance(String attendanceId, String newStatus, String reason) async {
     await _apiService.post('/live-classes/attendance/$attendanceId/override', {
       'new_status': newStatus,
@@ -287,8 +295,8 @@ class LiveClassApiService {
       ongoingLive: 1,
       upcoming: 2,
       completed: 1,
-      totalStudents: 248,
-      teachingDurationToday: '2 h 15 min',
+      totalStudents: 170,
+      teachingDurationToday: '3 h 0 min',
       todayProgress: TodayClassProgress(
         totalClasses: 4,
         liveCount: 1,
@@ -300,8 +308,8 @@ class LiveClassApiService {
       ),
       teachingSummary: TeachingSummary(
         totalClasses: 4,
-        totalDuration: '2 h 15 min',
-        totalStudents: 161,
+        totalDuration: '3 h 0 min',
+        totalStudents: 170,
         avgParticipationPct: 92.7,
       ),
       weeklyTrend: [

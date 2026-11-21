@@ -44,12 +44,16 @@ class _DeployDeviceProfileDialogState extends State<DeployDeviceProfileDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.colorScheme.primary;
+
     final typeName = widget.deviceType?.name ?? widget.profile.deviceTypeName ?? 'Selected Device Type';
     final mappedCount = widget.deviceType?.mappedDevicesCount ?? widget.profile.usageCount;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 580),
@@ -60,37 +64,37 @@ class _DeployDeviceProfileDialogState extends State<DeployDeviceProfileDialog> {
             // Header
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
               ),
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
+                      color: primaryColor.withValues(alpha: isDark ? 0.2 : 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.send_to_mobile_rounded, color: Color(0xFF2563EB), size: 22),
+                    child: Icon(Icons.send_to_mobile_rounded, color: primaryColor, size: 22),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Deploy Control Profile',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                         ),
                         Text(
                           'Push profile configuration to campus devices in real time.',
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                    icon: Icon(Icons.close_rounded, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -107,13 +111,13 @@ class _DeployDeviceProfileDialogState extends State<DeployDeviceProfileDialog> {
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.tune_rounded, color: Color(0xFF2563EB), size: 24),
+                          Icon(Icons.tune_rounded, color: primaryColor, size: 24),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -121,11 +125,11 @@ class _DeployDeviceProfileDialogState extends State<DeployDeviceProfileDialog> {
                               children: [
                                 Text(
                                   widget.profile.name,
-                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                                 ),
                                 Text(
                                   'Target: $typeName • Version: ${widget.profile.version} • Status: ${widget.profile.status}',
-                                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                  style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                                 ),
                               ],
                             ),
@@ -135,7 +139,7 @@ class _DeployDeviceProfileDialogState extends State<DeployDeviceProfileDialog> {
                     ),
                     const SizedBox(height: 18),
 
-                    const Text('Deployment Scope', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                    Text('Deployment Scope', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))),
                     const SizedBox(height: 8),
 
                     RadioListTile<String>(
@@ -145,11 +149,11 @@ class _DeployDeviceProfileDialogState extends State<DeployDeviceProfileDialog> {
                       contentPadding: EdgeInsets.zero,
                       title: Text(
                         'All Active Devices ($mappedCount devices)',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                       ),
-                      subtitle: const Text(
+                      subtitle: Text(
                         'Immediately reconfigures all online devices mapped to this hardware type.',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                       ),
                       onChanged: (v) => setState(() => _targetType = v!),
                     ),
@@ -159,25 +163,30 @@ class _DeployDeviceProfileDialogState extends State<DeployDeviceProfileDialog> {
                       groupValue: _targetType,
                       activeColor: const Color(0xFF2563EB),
                       contentPadding: EdgeInsets.zero,
-                      title: const Text(
+                      title: Text(
                         'New & Unassigned Devices Only',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                       ),
-                      subtitle: const Text(
+                      subtitle: Text(
                         'Applies only to newly provisioned devices that have not yet had a custom profile applied.',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                       ),
                       onChanged: (v) => setState(() => _targetType = v!),
                     ),
 
                     const SizedBox(height: 14),
-                    const Text('Audit Notes', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                    Text('Audit Notes', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))),
                     const SizedBox(height: 6),
                     TextField(
                       controller: _notesController,
+                      style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                       decoration: InputDecoration(
                         hintText: 'e.g. Upgrading camera PTZ control parameters for Term 1',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                        hintStyle: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                        filled: true,
+                        fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1))),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1))),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       ),
                     ),
@@ -186,18 +195,18 @@ class _DeployDeviceProfileDialogState extends State<DeployDeviceProfileDialog> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
-                        border: Border.all(color: const Color(0xFFBFDBFE)),
+                        color: isDark ? const Color(0xFF2563EB).withValues(alpha: 0.15) : const Color(0xFFEFF6FF),
+                        border: Border.all(color: isDark ? const Color(0xFF2563EB).withValues(alpha: 0.3) : const Color(0xFFBFDBFE)),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          Icon(Icons.sync_rounded, color: Color(0xFF2563EB), size: 18),
-                          SizedBox(width: 10),
+                          const Icon(Icons.sync_rounded, color: Color(0xFF2563EB), size: 18),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               'Configuration updates will be broadcast to the Mosquitto MQTT broker and applied to connected IoT gateways automatically.',
-                              style: TextStyle(fontSize: 11, color: Color(0xFF1E40AF)),
+                              style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1E40AF)),
                             ),
                           ),
                         ],
@@ -211,16 +220,16 @@ class _DeployDeviceProfileDialogState extends State<DeployDeviceProfileDialog> {
             // Footer
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
-                color: Color(0xFFF8FAFC),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
               ),
               child: Row(
                 children: [
                   const Spacer(),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+                    child: Text('Cancel', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton.icon(

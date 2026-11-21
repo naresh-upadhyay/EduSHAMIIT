@@ -155,19 +155,25 @@ class _SafetyComplianceCenterPanelState extends ConsumerState<SafetyComplianceCe
                           border: Border.all(color: borderColor),
                         ),
                         child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: state.selectedStatus,
-                            isDense: true,
-                            dropdownColor: cardBg,
-                            icon: Icon(Icons.keyboard_arrow_down, size: 16, color: textMuted),
-                            items: _getStatusDropdownOptions(state.activeSubTab)
-                                .map((s) => DropdownMenuItem(
-                                      value: s,
-                                      child: Text(s, style: TextStyle(fontSize: 12, color: textPrimary)),
-                                    ))
-                                .toList(),
-                            onChanged: (v) {
-                              if (v != null) notifier.setStatus(v);
+                          child: Builder(
+                            builder: (context) {
+                              final options = _getStatusDropdownOptions(state.activeSubTab);
+                              final currentVal = options.contains(state.selectedStatus) ? state.selectedStatus : options.first;
+                              return DropdownButton<String>(
+                                value: currentVal,
+                                isDense: true,
+                                dropdownColor: cardBg,
+                                icon: Icon(Icons.keyboard_arrow_down, size: 16, color: textMuted),
+                                items: options
+                                    .map((s) => DropdownMenuItem(
+                                          value: s,
+                                          child: Text(s, style: TextStyle(fontSize: 12, color: textPrimary)),
+                                        ))
+                                    .toList(),
+                                onChanged: (v) {
+                                  if (v != null) notifier.setStatus(v);
+                                },
+                              );
                             },
                           ),
                         ),
@@ -521,6 +527,39 @@ class _SafetyComplianceCenterPanelState extends ConsumerState<SafetyComplianceCe
                       tooltip: 'Edit / Resolve',
                       onPressed: () => widget.onEditItem?.call(item),
                     ),
+                    if (item.severity == 'Critical')
+                      IconButton(
+                        icon: const Icon(Icons.emergency_share_rounded, size: 16, color: Color(0xFFEF4444)),
+                        tooltip: 'Dispatch Life Safety IoT Interlock (Unlock Doors, Trip HVAC, Sound Sirens)',
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Trigger Emergency Life Safety Interlock'),
+                              content: Text('Are you sure you want to trigger emergency evacuation override for incident ${item.incidentCode}? This will immediately unlock all magnetic doors, stop ventilation to prevent smoke propagation, and activate campus alarm beacons.'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('DISPATCH EMERGENCY OVERRIDE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            final res = await ref.read(safetyComplianceProvider.notifier).triggerEmergencyOverride(item.id);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(res['message']?.toString() ?? 'Emergency override dispatched!'),
+                                  backgroundColor: const Color(0xFFDC2626),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                      ),
                     IconButton(
                       icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)),
                       tooltip: 'Delete',

@@ -163,6 +163,7 @@ class SpaceBookingCreateUpdateSchema(BaseModel):
     special_instructions: Optional[str] = None
     amenities_required: Optional[List[str]] = []
     status: Optional[str] = "Pending"
+    is_recurring: Optional[bool] = False
     recurrence: Optional[Dict[str, Any]] = None
 
 
@@ -203,23 +204,28 @@ async def get_booking_kpis(
 @router.get("/timeline", summary="Space Availability & Booking Interactive Timeline Grid")
 async def get_availability_timeline(
     target_date: Optional[date] = Query(None),
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
     building_id: Optional[str] = Query(None),
     room_type: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
     school_id = get_school_id(current_user)
-    query_date = target_date or date.today()
+    s_date = start_date or target_date or date.today()
+    e_date = end_date or s_date
     
     b_id = safe_uuid(building_id)
     r_type = room_type if (room_type and str(room_type).strip().lower() not in ("all", "none", "")) else None
 
-    sql = "SELECT public.fn_space_booking_get_availability_timeline(%s::UUID, %s::UUID, %s::VARCHAR, %s::DATE) AS timeline;"
-    rows = await exec_sql(sql, (school_id, b_id, r_type, query_date))
+    sql = "SELECT public.fn_space_booking_get_availability_timeline(%s::UUID, %s::DATE, %s::DATE, %s::UUID, %s::VARCHAR) AS timeline;"
+    rows = await exec_sql(sql, (school_id, s_date, e_date, b_id, r_type))
     timeline = rows[0]["timeline"] if rows else []
     return {
         "success": True,
         "school_id": school_id,
-        "date": query_date.isoformat(),
+        "start_date": s_date.isoformat(),
+        "end_date": e_date.isoformat(),
+        "date": s_date.isoformat(),
         "rooms": _serialize_val(timeline)
     }
 

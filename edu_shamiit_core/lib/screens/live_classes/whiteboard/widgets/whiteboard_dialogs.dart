@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../config/app_config.dart';
 import '../models/whiteboard_models.dart';
 import '../providers/whiteboard_provider.dart';
+import '../../providers/live_class_management_provider.dart';
 
 class RichTextEditorDialog extends StatefulWidget {
   final String initialText;
@@ -703,8 +704,17 @@ class WhiteboardShareDialog extends ConsumerStatefulWidget {
 class _WhiteboardShareDialogState extends ConsumerState<WhiteboardShareDialog> {
   String _shareType = 'class';
   String _accessLevel = 'VIEW';
-  final TextEditingController _targetCtrl = TextEditingController(text: 'Class 10 - A');
+  late final TextEditingController _targetCtrl;
   WhiteboardShareItem? _createdShare;
+
+  @override
+  void initState() {
+    super.initState();
+    final activeSess = ref.read(liveClassManagementProvider).conductSessionData?.activeSession;
+    final sel = ref.read(liveClassManagementProvider).selectedMyClass;
+    final cls = activeSess?.classSection ?? sel?.classSection ?? 'Class 12 - A';
+    _targetCtrl = TextEditingController(text: cls);
+  }
 
   @override
   void dispose() {
@@ -1045,30 +1055,103 @@ class WhiteboardAssetDialog extends ConsumerStatefulWidget {
   ConsumerState<WhiteboardAssetDialog> createState() => _WhiteboardAssetDialogState();
 }
 
-class _WhiteboardAssetDialogState extends ConsumerState<WhiteboardAssetDialog> {
+class _WhiteboardAssetDialogState extends ConsumerState<WhiteboardAssetDialog> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   bool _importPdfPages = true;
   bool _uploading = false;
   String? _status;
 
-  Future<void> _pickAndUpload() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'pdf', 'ppt', 'pptx'],
-      withData: true,
-    );
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.first;
-    final bytes = file.bytes;
-    if (bytes == null) return;
+  PlatformFile? _selectedFile;
+  Uint8List? _fileBytes;
+
+  final TextEditingController _urlCtrl = TextEditingController();
+  final TextEditingController _titleCtrl = TextEditingController();
+
+  static const _diagramPresets = <Map<String, String>>[
+    {
+      'title': 'Benzene Ring & Orbitals',
+      'category': 'Organic Chemistry',
+      'icon': '⚛️',
+      'url': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Benzene_representations.svg/500px-Benzene_representations.svg.png',
+    },
+    {
+      'title': 'Animal Cell Organelles',
+      'category': 'Biology & Cytology',
+      'icon': '🧬',
+      'url': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Animal_cell_structure_en.svg/500px-Animal_cell_structure_en.svg.png',
+    },
+    {
+      'title': 'Electric Circuit Diagram',
+      'category': 'Physics & Electromagnetism',
+      'icon': '⚡',
+      'url': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Circuit_diagram_example.svg/500px-Circuit_diagram_example.svg.png',
+    },
+    {
+      'title': 'Trig Unit Circle (Radians & Deg)',
+      'category': 'Mathematics',
+      'icon': '📐',
+      'url': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Unit_circle_angles_color.svg/500px-Unit_circle_angles_color.svg.png',
+    },
+    {
+      'title': 'World Map & Climate Zones',
+      'category': 'Geography',
+      'icon': '🌐',
+      'url': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/World_map_-_low_resolution.svg/500px-World_map_-_low_resolution.svg.png',
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _urlCtrl.dispose();
+    _titleCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg', 'pdf', 'ppt', 'pptx'],
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.first;
+      final bytes = file.bytes;
+      if (bytes == null) {
+        setState(() => _status = 'Could not read file data. Please try another file.');
+        return;
+      }
+      setState(() {
+        _selectedFile = file;
+        _fileBytes = bytes;
+        _status = null;
+      });
+    } catch (e) {
+      setState(() => _status = 'File selection error: $e');
+    }
+  }
+
+  Future<void> _uploadAndInsert() async {
+    if (_selectedFile == null || _fileBytes == null) {
+      await _pickFile();
+      if (_selectedFile == null || _fileBytes == null) return;
+    }
 
     setState(() {
       _uploading = true;
-      _status = 'Uploading ${file.name}...';
+      _status = 'Uploading ${_selectedFile!.name}...';
     });
 
     final res = await ref.read(whiteboardProvider.notifier).uploadAndInsertAsset(
-          filename: file.name,
-          bytes: bytes,
+          filename: _selectedFile!.name,
+          bytes: _fileBytes!,
           importPdfPages: _importPdfPages,
         );
 
@@ -1077,60 +1160,462 @@ class _WhiteboardAssetDialogState extends ConsumerState<WhiteboardAssetDialog> {
       if (res != null) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Inserted ${file.name} onto whiteboard!')),
+          SnackBar(
+            content: Text('Inserted ${_selectedFile!.name} onto whiteboard!'),
+            backgroundColor: const Color(0xFF10B981),
+          ),
         );
       } else {
-        setState(() => _status = 'Upload failed. Please verify file type/size.');
+        setState(() => _status = 'Upload failed. Please check network/file type.');
       }
     }
   }
 
+  Future<void> _insertFromUrl() async {
+    final rawUrl = _urlCtrl.text.trim();
+    if (rawUrl.isEmpty) {
+      setState(() => _status = 'Please enter a valid image URL.');
+      return;
+    }
+
+    final title = _titleCtrl.text.trim().isNotEmpty ? _titleCtrl.text.trim() : 'Web Image';
+    await ref.read(whiteboardProvider.notifier).insertImageUrl(url: rawUrl, title: title);
+
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Inserted "$title" onto whiteboard!'),
+          backgroundColor: const Color(0xFF10B981),
+        ),
+      );
+    }
+  }
+
+  Future<void> _insertPreset(Map<String, String> preset) async {
+    await ref.read(whiteboardProvider.notifier).insertImageUrl(
+          url: preset['url']!,
+          title: preset['title'],
+        );
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Inserted ${preset['title']} onto whiteboard!'),
+          backgroundColor: const Color(0xFF10B981),
+        ),
+      );
+    }
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Row(
-        children: [
-          Icon(Icons.add_photo_alternate_outlined, color: Color(0xFF2563EB)),
-          SizedBox(width: 8),
-          Text('Insert Image, PDF or Slides', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        ],
-      ),
-      content: SizedBox(
-        width: 420,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Supported formats: PNG, JPG, JPEG, WebP, PDF, PPT/PPTX (Max 25 MB). Files are stored securely in ERP Object Storage.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-            ),
-            const SizedBox(height: 12),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Import multi-page PDF as separate board pages', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-              value: _importPdfPages,
-              onChanged: (v) => setState(() => _importPdfPages = v),
-            ),
-            if (_status != null) ...[
-              const SizedBox(height: 8),
-              Text(_status!, style: const TextStyle(fontSize: 12, color: Color(0xFF2563EB))),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? const Color(0xFF0F172A) : Colors.white;
+    final cardBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final textPrimary = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    const accentBlue = Color(0xFF2563EB);
+
+    final isImg = _selectedFile != null &&
+        ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'].contains(_selectedFile!.extension?.toLowerCase());
+
+    return Dialog(
+      backgroundColor: dialogBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: borderColor)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 540, maxHeight: 600),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: accentBlue.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.add_photo_alternate_rounded, color: accentBlue, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Insert Image, PDF or Slides',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
+                        ),
+                        Text(
+                          'Supported: PNG, JPG, WebP, PDF, PPTX (Max 25 MB)',
+                          style: TextStyle(fontSize: 11, color: textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close_rounded, size: 18, color: textSecondary),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Tab Bar
+              Container(
+                height: 36,
+                decoration: BoxDecoration(
+                  color: cardBg,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: borderColor),
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  indicator: BoxDecoration(
+                    color: accentBlue,
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  labelColor: Colors.white,
+                  unselectedLabelColor: textSecondary,
+                  labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  tabs: const [
+                    Tab(text: '📁 Upload File'),
+                    Tab(text: '🌐 Web URL'),
+                    Tab(text: '📚 STEM Diagrams'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Tab Views
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // Tab 1: Upload File
+                    SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (_selectedFile == null)
+                            InkWell(
+                              onTap: _uploading ? null : _pickFile,
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+                                decoration: BoxDecoration(
+                                  color: cardBg,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: accentBlue.withValues(alpha: 0.4), width: 1.5),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: accentBlue.withValues(alpha: 0.12),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.cloud_upload_outlined, color: accentBlue, size: 28),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      'Click to browse or choose an image / document',
+                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textPrimary),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'PNG, JPG, WebP, GIF, SVG, PDF, PowerPoint up to 25 MB',
+                                      style: TextStyle(fontSize: 11, color: textSecondary),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          else
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: cardBg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: borderColor),
+                              ),
+                              child: Column(
+                                children: [
+                                  if (isImg && _fileBytes != null)
+                                    Container(
+                                      height: 140,
+                                      width: double.infinity,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(8),
+                                        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.memory(_fileBytes!, fit: BoxFit.contain),
+                                      ),
+                                    )
+                                  else
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            _selectedFile!.extension?.toLowerCase() == 'pdf'
+                                                ? Icons.picture_as_pdf_rounded
+                                                : Icons.description_rounded,
+                                            size: 36,
+                                            color: Colors.redAccent,
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                _selectedFile!.name,
+                                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textPrimary),
+                                              ),
+                                              Text(
+                                                _formatFileSize(_selectedFile!.size),
+                                                style: TextStyle(fontSize: 11, color: textSecondary),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          '${_selectedFile!.name} (${_formatFileSize(_selectedFile!.size)})',
+                                          style: TextStyle(fontSize: 11, color: textSecondary),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      TextButton.icon(
+                                        icon: const Icon(Icons.refresh_rounded, size: 14),
+                                        label: const Text('Change', style: TextStyle(fontSize: 11)),
+                                        onPressed: _uploading ? null : _pickFile,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          const SizedBox(height: 10),
+                          if (_selectedFile?.extension?.toLowerCase() == 'pdf')
+                            SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                'Import multi-page PDF as separate board pages',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary),
+                              ),
+                              value: _importPdfPages,
+                              activeThumbColor: accentBlue,
+                              onChanged: (v) => setState(() => _importPdfPages = v),
+                            ),
+                          if (_uploading) ...[
+                            const SizedBox(height: 10),
+                            const LinearProgressIndicator(color: accentBlue, minHeight: 4),
+                          ],
+                          if (_status != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              _status!,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: _status!.contains('failed') || _status!.contains('error')
+                                    ? Colors.redAccent
+                                    : accentBlue,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    // Tab 2: Web URL
+                    SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Direct Image Web URL:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textSecondary)),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: _urlCtrl,
+                            style: TextStyle(fontSize: 12, color: textPrimary),
+                            decoration: InputDecoration(
+                              hintText: 'https://example.com/diagram.png',
+                              hintStyle: TextStyle(fontSize: 12, color: textSecondary.withValues(alpha: 0.6)),
+                              prefixIcon: const Icon(Icons.link_rounded, size: 16),
+                              filled: true,
+                              fillColor: cardBg,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+                            ),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                          const SizedBox(height: 10),
+                          Text('Optional Label / Title:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textSecondary)),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: _titleCtrl,
+                            style: TextStyle(fontSize: 12, color: textPrimary),
+                            decoration: InputDecoration(
+                              hintText: 'e.g. Physics Formula Diagram',
+                              hintStyle: TextStyle(fontSize: 12, color: textSecondary.withValues(alpha: 0.6)),
+                              prefixIcon: const Icon(Icons.title_rounded, size: 16),
+                              filled: true,
+                              fillColor: cardBg,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+                            ),
+                          ),
+                          if (_urlCtrl.text.trim().startsWith('http')) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              height: 120,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                color: cardBg,
+                                border: Border.all(color: borderColor),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  _urlCtrl.text.trim(),
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, __, ___) => Center(
+                                    child: Text(
+                                      'Could not load preview from URL',
+                                      style: TextStyle(fontSize: 11, color: textSecondary),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    // Tab 3: STEM Diagram Presets
+                    ListView.separated(
+                      itemCount: _diagramPresets.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (ctx, i) {
+                        final p = _diagramPresets[i];
+                        return InkWell(
+                          onTap: () => _insertPreset(p),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: borderColor),
+                            ),
+                            child: Row(
+                              children: [
+                                Text(p['icon']!, style: const TextStyle(fontSize: 22)),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        p['title']!,
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textPrimary),
+                                      ),
+                                      Text(
+                                        p['category']!,
+                                        style: TextStyle(fontSize: 10, color: textSecondary),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                FilledButton.tonal(
+                                  style: FilledButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  onPressed: () => _insertPreset(p),
+                                  child: const Text('Insert', style: TextStyle(fontSize: 11)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Bottom Actions
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Cancel', style: TextStyle(color: textSecondary)),
+                  ),
+                  const SizedBox(width: 8),
+                  if (_tabController.index == 0)
+                    ElevatedButton.icon(
+                      icon: _uploading
+                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.upload_file_rounded, size: 16),
+                      label: Text(_uploading ? 'Uploading...' : (_selectedFile == null ? 'Select & Upload' : 'Insert onto Board')),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accentBlue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: _uploading ? null : _uploadAndInsert,
+                    )
+                  else if (_tabController.index == 1)
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.check_rounded, size: 16),
+                      label: const Text('Insert from URL'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accentBlue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: _insertFromUrl,
+                    ),
+                ],
+              ),
             ],
-          ],
+          ),
         ),
       ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        ElevatedButton.icon(
-          icon: _uploading
-              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Icon(Icons.upload_file_rounded, size: 16),
-          label: Text(_uploading ? 'Uploading...' : 'Select File & Upload'),
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), foregroundColor: Colors.white),
-          onPressed: _uploading ? null : _pickAndUpload,
-        ),
-      ],
     );
   }
 }

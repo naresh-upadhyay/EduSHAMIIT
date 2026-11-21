@@ -25,14 +25,24 @@ class SpaceBookingApiService {
     return const SpaceBookingKpis();
   }
 
-  /// 2. Availability Timeline Grid
+  /// 2. Availability Timeline Grid (Supports Date Range: Day, Week, Month)
   Future<List<SpaceTimelineRoom>> getTimeline({
     DateTime? date,
+    DateTime? startDate,
+    DateTime? endDate,
     String? buildingId,
     String? roomType,
   }) async {
     try {
       final query = <String, dynamic>{};
+      final sDate = startDate ?? date;
+      final eDate = endDate ?? sDate;
+      if (sDate != null) {
+        query['start_date'] = '${sDate.year}-${sDate.month.toString().padLeft(2, '0')}-${sDate.day.toString().padLeft(2, '0')}';
+      }
+      if (eDate != null) {
+        query['end_date'] = '${eDate.year}-${eDate.month.toString().padLeft(2, '0')}-${eDate.day.toString().padLeft(2, '0')}';
+      }
       if (date != null) {
         query['target_date'] = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
       }

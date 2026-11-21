@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../providers/maintenance_provider.dart';
 
 class MaintenanceLeftPanel extends ConsumerStatefulWidget {
@@ -151,6 +152,30 @@ class _MaintenanceLeftPanelState extends ConsumerState<MaintenanceLeftPanel> {
                   },
                   isDark: isDark,
                 ),
+                const Divider(height: 1, thickness: 1),
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final res = await notifier.generateDuePreventivePlans();
+                      final count = res['generated_count'] ?? 0;
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(count > 0 ? '$count due preventive work order(s) generated!' : 'All preventive maintenance plans are up to date!'),
+                            backgroundColor: const Color(0xFF059669),
+                          ),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.autorenew_rounded, size: 15),
+                    label: const Text('Generate Due Work Orders', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -254,7 +279,20 @@ class _MaintenanceLeftPanelState extends ConsumerState<MaintenanceLeftPanel> {
                 const SizedBox(height: 10),
 
                 // Date Range Display & Selector
-                Text('Date Range', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: textMuted)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Date Range', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: textMuted)),
+                    if (state.dateRangeStart != null)
+                      InkWell(
+                        onTap: () => notifier.clearDateRange(),
+                        child: Text(
+                          'Clear',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF2563EB)),
+                        ),
+                      ),
+                  ],
+                ),
                 const SizedBox(height: 4),
                 InkWell(
                   onTap: () async {
@@ -262,10 +300,12 @@ class _MaintenanceLeftPanelState extends ConsumerState<MaintenanceLeftPanel> {
                       context: context,
                       firstDate: DateTime(2025),
                       lastDate: DateTime(2027),
-                      initialDateRange: DateTimeRange(
-                        start: state.dateRangeStart ?? DateTime(2026, 3, 15),
-                        end: state.dateRangeEnd ?? DateTime(2026, 3, 21),
-                      ),
+                      initialDateRange: (state.dateRangeStart != null && state.dateRangeEnd != null)
+                          ? DateTimeRange(start: state.dateRangeStart!, end: state.dateRangeEnd!)
+                          : DateTimeRange(
+                              start: DateTime.now().subtract(const Duration(days: 7)),
+                              end: DateTime.now(),
+                            ),
                     );
                     if (picked != null) {
                       notifier.setDateRange(picked.start, picked.end);
@@ -285,11 +325,18 @@ class _MaintenanceLeftPanelState extends ConsumerState<MaintenanceLeftPanel> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            '15 Mar 2026 - 21 Mar 2026',
+                            (state.dateRangeStart != null && state.dateRangeEnd != null)
+                                ? '${DateFormat('dd MMM yyyy').format(state.dateRangeStart!)} - ${DateFormat('dd MMM yyyy').format(state.dateRangeEnd!)}'
+                                : 'All Dates (No filter)',
                             style: TextStyle(fontSize: 11.5, color: textPrimary, fontWeight: FontWeight.w500),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        if (state.dateRangeStart != null)
+                          GestureDetector(
+                            onTap: () => notifier.clearDateRange(),
+                            child: Icon(Icons.close, size: 14, color: textMuted),
+                          ),
                       ],
                     ),
                   ),

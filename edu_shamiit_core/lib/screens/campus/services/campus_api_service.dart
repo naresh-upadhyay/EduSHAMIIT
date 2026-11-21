@@ -597,6 +597,18 @@ class CampusApiService {
     }
   }
 
+  Future<Map<String, dynamic>> getUtilityAnomalies({String? readingId}) async {
+    try {
+      final query = <String, dynamic>{};
+      if (readingId != null && readingId.isNotEmpty) {
+        query['reading_id'] = readingId;
+      }
+      return await _api.get('/v1/campus/utilities/anomalies', query: query, useCache: false);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   // ==========================================
   // Reports API
   // ==========================================

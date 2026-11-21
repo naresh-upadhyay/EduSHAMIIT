@@ -329,6 +329,10 @@ class ApiService {
         mediaType = MediaType('image', 'gif');
       } else if (ext == 'pdf') {
         mediaType = MediaType('application', 'pdf');
+      } else if (ext == 'ppt') {
+        mediaType = MediaType('application', 'vnd.ms-powerpoint');
+      } else if (ext == 'pptx') {
+        mediaType = MediaType('application', 'vnd.openxmlformats-officedocument.presentationml.presentation');
       } else if (ext == 'docx') {
         mediaType = MediaType('application', 'vnd.openxmlformats-officedocument.wordprocessingml.document');
       } else if (ext == 'xlsx') {

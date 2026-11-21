@@ -1,6 +1,7 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/campus_provider.dart';
+import '../../providers/utilities_provider.dart';
 import '../../services/campus_api_service.dart';
 import '../common/campus_pagination_bar.dart';
 import 'dialogs/log_utility_reading_dialog.dart';
@@ -13,113 +14,13 @@ class UtilitiesServicesTabView extends ConsumerStatefulWidget {
 }
 
 class _UtilitiesServicesTabViewState extends ConsumerState<UtilitiesServicesTabView> {
-  int _activeCategory = 0; // 0: Electrical & Solar, 1: Water & RO, 2: Internet & Fiber, 3: Gas & HVAC
-  int _page = 1;
-  int _pageSize = 10;
-  int? _sortCol = 0;
-  bool _sortAsc = false;
-  bool _isLoading = true;
-  Map<String, dynamic> _kpis = {};
-
-  List<Map<String, dynamic>> _readingLogs = [
-    {
-      'timestamp': '10 Jan 2026, 06:30 PM',
-      'utility': 'State Power Grid & Substation',
-      'reading': '45,210 kWh',
-      'location': 'Main Substation (33kV)',
-      'recorded_by': 'Suresh Sharma',
-      'status': 'Normal',
-      'notes': 'Peak evening demand stable at 245 kW',
-    },
-    {
-      'timestamp': '10 Jan 2026, 04:00 PM',
-      'utility': 'Rooftop Solar PV Generation',
-      'reading': '320.4 kWh (Today)',
-      'location': 'Academic Block A & B Roof',
-      'recorded_by': 'System Inverter Monitor',
-      'status': 'Optimal',
-      'notes': 'Sunny conditions, 42% campus load offset achieved',
-    },
-    {
-      'timestamp': '10 Jan 2026, 02:15 PM',
-      'utility': 'Backup Diesel Generator Sets (DG)',
-      'reading': 'DG-01: 78% Fuel (1,560 L)',
-      'location': 'Power House Yard',
-      'recorded_by': 'Ramesh Kumar',
-      'status': 'Standby Ready',
-      'notes': 'Weekly 15-minute test run completed without issues',
-    },
-    {
-      'timestamp': '10 Jan 2026, 11:00 AM',
-      'utility': 'Municipal Water & Deep Borewells',
-      'reading': '85,000 Litres (85%)',
-      'location': 'Central Underground Sump',
-      'recorded_by': 'Sunil Rao',
-      'status': 'Adequate',
-      'notes': 'Overhead tanks replenished for hostel and labs',
-    },
-    {
-      'timestamp': '10 Jan 2026, 09:30 AM',
-      'utility': 'Central RO Water Purification Plant',
-      'reading': 'TDS: 68 ppm • Flow: 2,500 LPH',
-      'location': 'Amenities Block RO Plant',
-      'recorded_by': 'Sunil Rao',
-      'status': 'Certified Pure',
-      'notes': 'UV & Osmosis filters verified clean',
-    },
-    {
-      'timestamp': '10 Jan 2026, 08:00 AM',
-      'utility': 'High-Speed Internet / Optical Fiber Leased Line',
-      'reading': 'Primary: 1.0 Gbps (99.98% Uptime)',
-      'location': 'Server Room Core Rack',
-      'recorded_by': 'Kiran Verma',
-      'status': 'Healthy',
-      'notes': 'Secondary backup wireless line on hot standby',
-    },
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-    try {
-      final kpis = await CampusApiService.instance.getUtilitiesKpis();
-      final res = await CampusApiService.instance.getUtilityReadings(page: _page, pageSize: _pageSize);
-      final list = (res['data'] as List<dynamic>?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? [];
-
-      if (mounted) {
-        setState(() {
-          _kpis = kpis;
-          if (list.isNotEmpty) {
-            _readingLogs = list.map((item) => {
-              'timestamp': item['timestamp'] ?? item['recorded_at'] ?? 'Just Now',
-              'utility': item['utility_name'] ?? item['utility_type'] ?? 'Utility',
-              'reading': item['reading_value'] ?? '',
-              'location': item['location'] ?? 'Campus Substation',
-              'recorded_by': item['recorded_by'] ?? 'Facility Officer',
-              'status': item['status'] ?? 'Normal',
-              'notes': item['notes'] ?? '-',
-            }).toList();
-          }
-          _isLoading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
   void _openLogReadingModal() {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => LogUtilityReadingDialog(
         onSaved: () {
-          _loadData();
+          ref.read(utilitiesProvider.notifier).loadData();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Utility meter reading successfully recorded!'), backgroundColor: Color(0xFF059669)),
           );
@@ -139,272 +40,347 @@ class _UtilitiesServicesTabViewState extends ConsumerState<UtilitiesServicesTabV
     final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
     final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
+    final utilState = ref.watch(utilitiesProvider);
+    final utilNotifier = ref.read(utilitiesProvider.notifier);
+
+    final kpis = utilState.kpis;
+    final readingLogs = utilState.readingLogs;
+    final activeCategory = utilState.activeCategory;
+    final currentPage = utilState.currentPage;
+    final pageSize = utilState.pageSize;
+    final totalCount = utilState.totalCount;
+    final sortCol = utilState.sortCol;
+    final sortAsc = utilState.sortAsc;
+    final isLoading = utilState.isLoading;
+    final anomaly = utilState.latestAnomaly;
+
     return RefreshIndicator(
-      onRefresh: _loadData,
+      onRefresh: () => utilNotifier.loadData(),
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (_isLoading)
+            if (isLoading)
               const LinearProgressIndicator(minHeight: 2),
-            // 1. Top Utilities KPI Cards
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isCompact = constraints.maxWidth < 900;
-              final gridVal = _kpis['grid_power_load']?.toString() ?? '245 kW';
-              final gridSub = _kpis['grid_power_mtd']?.toString() ?? '45,210 kWh MTD';
-              final solarVal = _kpis['solar_generation']?.toString() ?? '84 kWp';
-              final solarSub = _kpis['solar_generation_today']?.toString() ?? '320 kWh Today';
-              final genVal = _kpis['generator_fuel']?.toString() ?? '78% Full';
-              final genSub = _kpis['generator_fuel_litres']?.toString() ?? '1,560 Litres Diesel';
-              final waterVal = _kpis['water_storage']?.toString() ?? '85% Capacity';
-              final waterSub = _kpis['water_storage_litres']?.toString() ?? '85,000 Litres Sump';
-              final fiberVal = _kpis['fiber_speed']?.toString() ?? '1.0 Gbps';
-              final fiberSub = _kpis['fiber_uptime']?.toString() ?? '99.98% Uptime';
 
-              if (isCompact) {
-                return Column(
+            // Anomaly Alert Banner (if consumption spike detected)
+            if (anomaly != null) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFEF4444)),
+                ),
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(child: _buildKpiCard('Grid Power Load', gridVal, gridSub, Icons.electric_bolt_rounded, const Color(0xFFF59E0B), isDark)),
-                        const SizedBox(width: 10),
-                        Expanded(child: _buildKpiCard('Solar Generation', solarVal, solarSub, Icons.solar_power_rounded, const Color(0xFF10B981), isDark)),
-                      ],
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEF4444),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
                     ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(child: _buildKpiCard('Generator Fuel', genVal, genSub, Icons.ev_station_rounded, const Color(0xFF6366F1), isDark)),
-                        const SizedBox(width: 10),
-                        Expanded(child: _buildKpiCard('Water Storage', waterVal, waterSub, Icons.water_drop_rounded, const Color(0xFF0284C7), isDark)),
-                      ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Automated Utility Surge Detected (>1.5x Baseline)',
+                            style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFFEF4444), fontSize: 13.5),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'A high-priority maintenance ticket (${anomaly['ticket_code'] ?? 'Work Order'}) was automatically generated in Tab 3.',
+                            style: TextStyle(color: textSecondary, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        ref.read(campusProvider.notifier).setActiveCampusTab(3); // Jump to Maintenance
+                      },
+                      icon: const Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.white),
+                      label: const Text('View Work Order', style: TextStyle(fontSize: 12, color: Colors.white)),
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
                     ),
                   ],
+                ),
+              ),
+            ],
+
+            // 1. Top Utilities KPI Cards
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 900;
+                final gridVal = kpis['grid_power_load']?.toString() ?? '245 kW';
+                final gridSub = kpis['grid_power_mtd']?.toString() ?? '45,210 kWh MTD';
+                final solarVal = kpis['solar_generation']?.toString() ?? '84 kWp';
+                final solarSub = kpis['solar_today']?.toString() ?? '320.4 kWh Today';
+                final genVal = kpis['dg_fuel_level']?.toString() ?? '78% (1,560 L)';
+                const genSub = 'Diesel Standby Ready';
+                final waterVal = kpis['water_storage']?.toString() ?? '85% (85,000 L)';
+                final waterSub = kpis['ro_purity']?.toString() ?? 'TDS: 68 ppm';
+                const fiberVal = '1.0 Gbps';
+                final fiberSub = kpis['internet_uptime']?.toString() ?? '99.98% Uptime';
+
+                if (isCompact) {
+                  return Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: _buildKpiCard('Grid Power Load', gridVal, gridSub, Icons.electric_bolt_rounded, const Color(0xFFF59E0B), isDark)),
+                          const SizedBox(width: 10),
+                          Expanded(child: _buildKpiCard('Solar Generation', solarVal, solarSub, Icons.solar_power_rounded, const Color(0xFF10B981), isDark)),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(child: _buildKpiCard('Generator Fuel', genVal, genSub, Icons.ev_station_rounded, const Color(0xFF6366F1), isDark)),
+                          const SizedBox(width: 10),
+                          Expanded(child: _buildKpiCard('Water Storage', waterVal, waterSub, Icons.water_drop_rounded, const Color(0xFF0284C7), isDark)),
+                        ],
+                      ),
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(child: _buildKpiCard('Grid Power Load', gridVal, gridSub, Icons.electric_bolt_rounded, const Color(0xFFF59E0B), isDark)),
+                    const SizedBox(width: 12),
+                    Expanded(child: _buildKpiCard('Solar Generation', solarVal, solarSub, Icons.solar_power_rounded, const Color(0xFF10B981), isDark)),
+                    const SizedBox(width: 12),
+                    Expanded(child: _buildKpiCard('Generator Fuel', genVal, genSub, Icons.ev_station_rounded, const Color(0xFF6366F1), isDark)),
+                    const SizedBox(width: 12),
+                    Expanded(child: _buildKpiCard('Water Storage', waterVal, waterSub, Icons.water_drop_rounded, const Color(0xFF0284C7), isDark)),
+                    const SizedBox(width: 12),
+                    Expanded(child: _buildKpiCard('Fiber Leased Line', fiberVal, fiberSub, Icons.wifi_rounded, primaryColor, isDark)),
+                  ],
                 );
-              }
-
-              return Row(
-                children: [
-                  Expanded(child: _buildKpiCard('Grid Power Load', gridVal, gridSub, Icons.electric_bolt_rounded, const Color(0xFFF59E0B), isDark)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildKpiCard('Solar Generation', solarVal, solarSub, Icons.solar_power_rounded, const Color(0xFF10B981), isDark)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildKpiCard('Generator Fuel', genVal, genSub, Icons.ev_station_rounded, const Color(0xFF6366F1), isDark)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildKpiCard('Water Storage', waterVal, waterSub, Icons.water_drop_rounded, const Color(0xFF0284C7), isDark)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildKpiCard('Fiber Leased Line', fiberVal, fiberSub, Icons.wifi_rounded, primaryColor, isDark)),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-
-          // 2. Sub-Category Tabs & Actions Bar
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: bgCard,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: borderColor),
+              },
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
+            const SizedBox(height: 16),
+
+            // 2. Sub-Category Tabs & Actions Bar
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: bgCard,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: borderColor),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildSubTabButton(0, 'Electrical & Solar Power', Icons.electric_meter_rounded, primaryColor, isDark, activeCategory, utilNotifier),
+                          const SizedBox(width: 8),
+                          _buildSubTabButton(1, 'Water, Sump & RO Plant', Icons.water_drop_outlined, primaryColor, isDark, activeCategory, utilNotifier),
+                          const SizedBox(width: 8),
+                          _buildSubTabButton(2, 'Internet, Fiber & Telecom', Icons.router_rounded, primaryColor, isDark, activeCategory, utilNotifier),
+                          const SizedBox(width: 8),
+                          _buildSubTabButton(3, 'Gas Supply & HVAC Central', Icons.hvac_rounded, primaryColor, isDark, activeCategory, utilNotifier),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  OutlinedButton.icon(
+                    onPressed: () => CampusApiService.instance.exportCampusReport(reportType: 4),
+                    icon: const Icon(Icons.download_rounded, size: 16),
+                    label: const Text('Export Readings', style: TextStyle(fontSize: 12.5)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: _openLogReadingModal,
+                    icon: const Icon(Icons.add, size: 16, color: Colors.white),
+                    label: const Text('Log Reading', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // 3. Category Overview Card & Tariff/Cost Projections
+            _buildCategoryOverviewCard(activeCategory, utilState, primaryColor, bgCard, borderColor, textPrimary, textSecondary, isDark),
+            const SizedBox(height: 16),
+
+            // 4. Utility Readings & Operational Audit History
+            Container(
+              decoration: BoxDecoration(
+                color: bgCard,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: borderColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
-                        _buildSubTabButton(0, 'Electrical & Solar Power', Icons.electric_meter_rounded, primaryColor, isDark),
+                        Icon(Icons.history_rounded, size: 18, color: primaryColor),
                         const SizedBox(width: 8),
-                        _buildSubTabButton(1, 'Water, Sump & RO Plant', Icons.water_drop_outlined, primaryColor, isDark),
-                        const SizedBox(width: 8),
-                        _buildSubTabButton(2, 'Internet, Fiber & Telecom', Icons.router_rounded, primaryColor, isDark),
-                        const SizedBox(width: 8),
-                        _buildSubTabButton(3, 'Gas Supply & HVAC Central', Icons.hvac_rounded, primaryColor, isDark),
+                        Text(
+                          'Recent Utility Meter Readings & Telemetry Audits',
+                          style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: textPrimary),
+                        ),
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                OutlinedButton.icon(
-                  onPressed: () => CampusApiService.instance.exportCampusReport(reportType: 4),
-                  icon: const Icon(Icons.download_rounded, size: 16),
-                  label: const Text('Export Readings', style: TextStyle(fontSize: 12.5)),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                  const Divider(height: 1),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: DataTable(
+                      headingRowHeight: 34,
+                      dataRowMinHeight: 32,
+                      dataRowMaxHeight: 35,
+                      sortColumnIndex: sortCol,
+                      sortAscending: sortAsc,
+                      columns: [
+                        DataColumn(
+                          label: const Text('Timestamp', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                          onSort: (col, asc) => utilNotifier.setSorting(col, asc),
+                        ),
+                        DataColumn(
+                          label: const Text('Utility Infrastructure', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                          onSort: (col, asc) => utilNotifier.setSorting(col, asc),
+                        ),
+                        DataColumn(
+                          label: const Text('Reading / Telemetry', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                          onSort: (col, asc) => utilNotifier.setSorting(col, asc),
+                        ),
+                        DataColumn(
+                          label: const Text('Substation / Location', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                          onSort: (col, asc) => utilNotifier.setSorting(col, asc),
+                        ),
+                        DataColumn(
+                          label: const Text('Officer', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                          onSort: (col, asc) => utilNotifier.setSorting(col, asc),
+                        ),
+                        DataColumn(
+                          label: const Text('Operational Health', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                          onSort: (col, asc) => utilNotifier.setSorting(col, asc),
+                        ),
+                        const DataColumn(label: Text('Remarks', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                      ],
+                      rows: (() {
+                        final list = List<Map<String, dynamic>>.from(readingLogs);
+                        if (sortCol != null) {
+                          list.sort((a, b) {
+                            int cmp = 0;
+                            switch (sortCol) {
+                              case 0:
+                                cmp = (a['timestamp'] ?? a['recorded_at'] ?? '').toString().compareTo((b['timestamp'] ?? b['recorded_at'] ?? '').toString());
+                                break;
+                              case 1:
+                                cmp = (a['utility_name'] ?? a['utility'] ?? '').toString().compareTo((b['utility_name'] ?? b['utility'] ?? '').toString());
+                                break;
+                              case 2:
+                                cmp = (a['reading_value'] ?? a['reading'] ?? '').toString().compareTo((b['reading_value'] ?? b['reading'] ?? '').toString());
+                                break;
+                              case 3:
+                                cmp = (a['location'] ?? '').toString().compareTo((b['location'] ?? '').toString());
+                                break;
+                              case 4:
+                                cmp = (a['recorded_by'] ?? '').toString().compareTo((b['recorded_by'] ?? '').toString());
+                                break;
+                              case 5:
+                                cmp = (a['status'] ?? '').toString().compareTo((b['status'] ?? '').toString());
+                                break;
+                            }
+                            return sortAsc ? cmp : -cmp;
+                          });
+                        }
+
+                        return list.map((log) {
+                          final status = log['status']?.toString() ?? 'Normal';
+                          final isNormal = status == 'Normal' || status == 'Optimal' || status == 'Adequate' || status == 'Healthy' || status == 'Certified Pure' || status == 'Standby Ready';
+                          final statusColor = isNormal ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
+                          final utilityName = log['utility_name'] ?? log['utility'] ?? 'Utility Item';
+                          final readingVal = log['reading_value'] ?? log['reading'] ?? '';
+                          final loc = log['location'] ?? 'Campus Substation';
+                          final officer = log['recorded_by'] ?? 'Facility Officer';
+                          final ts = log['timestamp'] ?? log['recorded_at'] ?? 'Recent';
+                          final notes = log['notes'] ?? '-';
+
+                          return DataRow(
+                            cells: [
+                              DataCell(Text(ts, style: TextStyle(fontSize: 11.5, color: textSecondary))),
+                              DataCell(Text(utilityName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
+                              DataCell(Text(readingVal, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: primaryColor))),
+                              DataCell(Text(loc, style: const TextStyle(fontSize: 11.5))),
+                              DataCell(Text(officer, style: const TextStyle(fontSize: 11.5))),
+                              DataCell(Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  status,
+                                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: statusColor),
+                                ),
+                              )),
+                              DataCell(Text(notes, style: TextStyle(fontSize: 11.5, color: textSecondary))),
+                            ],
+                          );
+                        }).toList();
+                      })(),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: _openLogReadingModal,
-                  icon: const Icon(Icons.add, size: 16, color: Colors.white),
-                  label: const Text('Log Reading', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.white)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
-                  ),
-                ),
-              ],
+                  if (readingLogs.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      child: CampusPaginationBar(
+                        currentPage: currentPage,
+                        pageSize: pageSize,
+                        totalItems: totalCount > 0 ? totalCount : readingLogs.length,
+                        onPageChanged: (newPage) => utilNotifier.setPage(newPage),
+                        onPageSizeChanged: (newSize) => utilNotifier.setPageSize(newSize),
+                        itemLabel: 'logs',
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-
-          // 3. Category Overview Card
-          _buildCategoryOverviewCard(primaryColor, bgCard, borderColor, textPrimary, textSecondary, isDark),
-          const SizedBox(height: 16),
-
-          // 4. Utility Readings & Operational Audit History
-          Container(
-            decoration: BoxDecoration(
-              color: bgCard,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: borderColor),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(Icons.history_rounded, size: 18, color: primaryColor),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Recent Utility Meter Readings & Telemetry Audits',
-                        style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: textPrimary),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    headingRowHeight: 34,
-                    dataRowMinHeight: 32,
-                    dataRowMaxHeight: 35,
-                    sortColumnIndex: _sortCol,
-                    sortAscending: _sortAsc,
-                    columns: [
-                      DataColumn(
-                        label: const Text('Timestamp', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                        onSort: (col, asc) => setState(() { _sortCol = col; _sortAsc = asc; }),
-                      ),
-                      DataColumn(
-                        label: const Text('Utility Infrastructure', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                        onSort: (col, asc) => setState(() { _sortCol = col; _sortAsc = asc; }),
-                      ),
-                      DataColumn(
-                        label: const Text('Reading / Telemetry', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                        onSort: (col, asc) => setState(() { _sortCol = col; _sortAsc = asc; }),
-                      ),
-                      DataColumn(
-                        label: const Text('Substation / Location', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                        onSort: (col, asc) => setState(() { _sortCol = col; _sortAsc = asc; }),
-                      ),
-                      DataColumn(
-                        label: const Text('Officer', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                        onSort: (col, asc) => setState(() { _sortCol = col; _sortAsc = asc; }),
-                      ),
-                      DataColumn(
-                        label: const Text('Operational Health', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                        onSort: (col, asc) => setState(() { _sortCol = col; _sortAsc = asc; }),
-                      ),
-                      const DataColumn(label: Text('Remarks', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
-                    ],
-                    rows: (() {
-                      final list = List<Map<String, dynamic>>.from(_readingLogs);
-                      if (_sortCol != null) {
-                        list.sort((a, b) {
-                          int cmp = 0;
-                          switch (_sortCol) {
-                            case 0:
-                              cmp = (a['timestamp'] ?? '').toString().compareTo((b['timestamp'] ?? '').toString());
-                              break;
-                            case 1:
-                              cmp = (a['utility'] ?? '').toString().compareTo((b['utility'] ?? '').toString());
-                              break;
-                            case 2:
-                              cmp = (a['reading'] ?? '').toString().compareTo((b['reading'] ?? '').toString());
-                              break;
-                            case 3:
-                              cmp = (a['location'] ?? '').toString().compareTo((b['location'] ?? '').toString());
-                              break;
-                            case 4:
-                              cmp = (a['recorded_by'] ?? '').toString().compareTo((b['recorded_by'] ?? '').toString());
-                              break;
-                            case 5:
-                              cmp = (a['status'] ?? '').toString().compareTo((b['status'] ?? '').toString());
-                              break;
-                          }
-                          return _sortAsc ? cmp : -cmp;
-                        });
-                      }
-                      final start = math.min((_page - 1) * _pageSize, list.length);
-                      final end = math.min(start + _pageSize, list.length);
-                      final paged = (start < list.length) ? list.sublist(start, end) : <Map<String, dynamic>>[];
-
-                      return paged.map((log) {
-                        final isNormal = log['status'] == 'Normal' || log['status'] == 'Optimal' || log['status'] == 'Adequate' || log['status'] == 'Healthy' || log['status'] == 'Certified Pure' || log['status'] == 'Standby Ready';
-                        final statusColor = isNormal ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
-
-                        return DataRow(
-                          cells: [
-                            DataCell(Text(log['timestamp'] ?? '', style: TextStyle(fontSize: 11.5, color: textSecondary))),
-                            DataCell(Text(log['utility'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                            DataCell(Text(log['reading'] ?? '', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: primaryColor))),
-                            DataCell(Text(log['location'] ?? '', style: const TextStyle(fontSize: 11.5))),
-                            DataCell(Text(log['recorded_by'] ?? '', style: const TextStyle(fontSize: 11.5))),
-                            DataCell(Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: statusColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                log['status'] ?? '',
-                                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: statusColor),
-                              ),
-                            )),
-                            DataCell(Text(log['notes'] ?? '', style: TextStyle(fontSize: 11.5, color: textSecondary))),
-                          ],
-                        );
-                      }).toList();
-                    })(),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  child: CampusPaginationBar(
-                    currentPage: _page,
-                    pageSize: _pageSize,
-                    totalItems: _readingLogs.length,
-                    onPageChanged: (newPage) => setState(() => _page = newPage),
-                    onPageSizeChanged: (newSize) => setState(() {
-                      _pageSize = newSize;
-                      _page = 1;
-                    }),
-                    itemLabel: 'logs',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
   }
 
-  Widget _buildSubTabButton(int index, String label, IconData icon, Color primaryColor, bool isDark) {
-    final isSelected = _activeCategory == index;
+  Widget _buildSubTabButton(
+    int index,
+    String label,
+    IconData icon,
+    Color primaryColor,
+    bool isDark,
+    int activeCategory,
+    UtilitiesNotifier notifier,
+  ) {
+    final isSelected = activeCategory == index;
     return InkWell(
-      onTap: () => setState(() => _activeCategory = index),
+      onTap: () => notifier.setActiveCategory(index),
       borderRadius: BorderRadius.circular(6),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -432,9 +408,22 @@ class _UtilitiesServicesTabViewState extends ConsumerState<UtilitiesServicesTabV
     );
   }
 
-  Widget _buildCategoryOverviewCard(Color primaryColor, Color bgCard, Color borderColor, Color textPrimary, Color textSecondary, bool isDark) {
-    if (_activeCategory == 0) {
-      // Electrical & Solar Power
+  Widget _buildCategoryOverviewCard(
+    int activeCategory,
+    UtilitiesState state,
+    Color primaryColor,
+    Color bgCard,
+    Color borderColor,
+    Color textPrimary,
+    Color textSecondary,
+    bool isDark,
+  ) {
+    if (activeCategory == 0) {
+      // Electrical & Solar Power with Tariff Projections
+      const estKwh = 45210.0;
+      final estMonthlyCost = estKwh * state.tariffKwh;
+      final solarOffsetCost = 320.4 * 30 * state.tariffKwh;
+
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -449,57 +438,72 @@ class _UtilitiesServicesTabViewState extends ConsumerState<UtilitiesServicesTabV
               children: [
                 const Icon(Icons.bolt_rounded, size: 20, color: Color(0xFFF59E0B)),
                 const SizedBox(width: 8),
-                Text('Campus Electrical Grid & Solar Generation Subsystem', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textPrimary)),
+                Text('Electrical & Solar Power Infrastructure Summary', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: textPrimary)),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text('Grid Stable • Synchronized', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF10B981))),
+                ),
               ],
             ),
             const SizedBox(height: 12),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 700;
-                return Flex(
-                  direction: isWide ? Axis.horizontal : Axis.vertical,
-                  children: [
-                    Expanded(
-                      flex: isWide ? 1 : 0,
-                      child: _buildSubsystemBox(
-                        'Main 33kV / 415V Substation',
-                        'Sanctioned: 500 kVA • Transformer Health: 98% Normal • Power Factor: 0.98 • Auto-phase sync active.',
-                        Icons.electrical_services_rounded,
-                        const Color(0xFFF59E0B),
-                        isDark,
-                      ),
+            Text(
+              'High-tension 33kV dedicated feeder line with dual 1,250 kVA dry-type transformers, integrated with 84 kWp rooftop photovoltaic solar system and two auto-start 500 kVA backup diesel generator sets.',
+              style: TextStyle(fontSize: 12.5, color: textSecondary, height: 1.4),
+            ),
+            const SizedBox(height: 14),
+            // Tariff & Billing Projection Row
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: borderColor),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Commercial Power Tariff', style: TextStyle(fontSize: 11, color: textSecondary)),
+                        const SizedBox(height: 2),
+                        Text('₹${state.tariffKwh.toStringAsFixed(2)} / kWh', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: textPrimary)),
+                      ],
                     ),
-                    SizedBox(width: isWide ? 12 : 0, height: isWide ? 0 : 10),
-                    Expanded(
-                      flex: isWide ? 1 : 0,
-                      child: _buildSubsystemBox(
-                        'Rooftop Solar PV Array (150 kWp)',
-                        'Current Yield: 84 kW • Total Clean Energy: 48,200 kWh • Avoided Carbon: 38.5 metric tons CO2.',
-                        Icons.wb_sunny_rounded,
-                        const Color(0xFF10B981),
-                        isDark,
-                      ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Projected Monthly Bill', style: TextStyle(fontSize: 11, color: textSecondary)),
+                        const SizedBox(height: 2),
+                        Text('₹${estMonthlyCost.toStringAsFixed(0)}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: primaryColor)),
+                      ],
                     ),
-                    SizedBox(width: isWide ? 12 : 0, height: isWide ? 0 : 10),
-                    Expanded(
-                      flex: isWide ? 1 : 0,
-                      child: _buildSubsystemBox(
-                        'Dual Cummins 250 kVA DG Sets',
-                        'Total Fuel: 1,560 L • Auto-Mains Failure (AMF) panel online • Transfer time < 8 seconds.',
-                        Icons.ev_station_rounded,
-                        const Color(0xFF6366F1),
-                        isDark,
-                      ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Solar Monthly Savings', style: TextStyle(fontSize: 11, color: textSecondary)),
+                        const SizedBox(height: 2),
+                        Text('₹${solarOffsetCost.toStringAsFixed(0)} (Offset)', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF10B981))),
+                      ],
                     ),
-                  ],
-                );
-              },
+                  ),
+                ],
+              ),
             ),
           ],
         ),
       );
-    } else if (_activeCategory == 1) {
-      // Water & RO
+    } else if (activeCategory == 1) {
+      // Water, Sump & RO Plant
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -514,57 +518,28 @@ class _UtilitiesServicesTabViewState extends ConsumerState<UtilitiesServicesTabV
               children: [
                 const Icon(Icons.water_drop_rounded, size: 20, color: Color(0xFF0284C7)),
                 const SizedBox(width: 8),
-                Text('Potable Water Supply, Underground Sump & Central RO Purification', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textPrimary)),
+                Text('Water Supply, Sump & RO Purification Hub', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: textPrimary)),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text('TDS Certified Pure', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF10B981))),
+                ),
               ],
             ),
             const SizedBox(height: 12),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 700;
-                return Flex(
-                  direction: isWide ? Axis.horizontal : Axis.vertical,
-                  children: [
-                    Expanded(
-                      flex: isWide ? 1 : 0,
-                      child: _buildSubsystemBox(
-                        'Underground Reservoir (100,000 L)',
-                        'Current Level: 85,000 L (85%) • Inflow: Municipal line 12,000 L/day • Borewell: 18,000 L/day.',
-                        Icons.water_rounded,
-                        const Color(0xFF0284C7),
-                        isDark,
-                      ),
-                    ),
-                    SizedBox(width: isWide ? 12 : 0, height: isWide ? 0 : 10),
-                    Expanded(
-                      flex: isWide ? 1 : 0,
-                      child: _buildSubsystemBox(
-                        'Central RO Purification Plant',
-                        'Output Capacity: 2,500 LPH • Water Quality: TDS 68 ppm (Safe Standard: <150 ppm) • UV Sterilizer Active.',
-                        Icons.filter_alt_rounded,
-                        const Color(0xFF10B981),
-                        isDark,
-                      ),
-                    ),
-                    SizedBox(width: isWide ? 12 : 0, height: isWide ? 0 : 10),
-                    Expanded(
-                      flex: isWide ? 1 : 0,
-                      child: _buildSubsystemBox(
-                        'Sewage Treatment Plant (STP 50 kLD)',
-                        'Treated effluent recycled 100% for campus landscape gardening and washroom flushing systems.',
-                        Icons.recycling_rounded,
-                        const Color(0xFF059669),
-                        isDark,
-                      ),
-                    ),
-                  ],
-                );
-              },
+            Text(
+              '100,000 Litre central underground sump fed by municipal connection and 2 deep borewells with rainwater harvesting recharge pits. Central RO plant supplies 2,500 LPH drinking water across all water dispensers.',
+              style: TextStyle(fontSize: 12.5, color: textSecondary, height: 1.4),
             ),
           ],
         ),
       );
-    } else if (_activeCategory == 2) {
-      // Internet & Fiber
+    } else if (activeCategory == 2) {
+      // Internet, Fiber & Telecom
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -577,59 +552,30 @@ class _UtilitiesServicesTabViewState extends ConsumerState<UtilitiesServicesTabV
           children: [
             Row(
               children: [
-                Icon(Icons.wifi_rounded, size: 20, color: primaryColor),
+                Icon(Icons.router_rounded, size: 20, color: primaryColor),
                 const SizedBox(width: 8),
-                Text('Campus Optical Fiber Backbone & Leased Line Telecommunications', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textPrimary)),
+                Text('Optical Fiber Leased Line & Wi-Fi Backhaul', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: textPrimary)),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text('99.98% High Uptime', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF10B981))),
+                ),
               ],
             ),
             const SizedBox(height: 12),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 700;
-                return Flex(
-                  direction: isWide ? Axis.horizontal : Axis.vertical,
-                  children: [
-                    Expanded(
-                      flex: isWide ? 1 : 0,
-                      child: _buildSubsystemBox(
-                        'Primary ISP Leased Line',
-                        'Airtel Fiber 1.0 Gbps 1:1 Symmetric • Static IP Block: 8 IPv4 addresses • Latency: 4ms to Tier-1 DC.',
-                        Icons.speed_rounded,
-                        primaryColor,
-                        isDark,
-                      ),
-                    ),
-                    SizedBox(width: isWide ? 12 : 0, height: isWide ? 0 : 10),
-                    Expanded(
-                      flex: isWide ? 1 : 0,
-                      child: _buildSubsystemBox(
-                        'Secondary Backup Link',
-                        'Tata Telecommunications 500 Mbps Failover • BGP multi-homing with zero-loss automatic failover.',
-                        Icons.sync_alt_rounded,
-                        const Color(0xFF6366F1),
-                        isDark,
-                      ),
-                    ),
-                    SizedBox(width: isWide ? 12 : 0, height: isWide ? 0 : 10),
-                    Expanded(
-                      flex: isWide ? 1 : 0,
-                      child: _buildSubsystemBox(
-                        'Wi-Fi 6 Campus Coverage',
-                        '128 Cisco Catalyst Access Points deployed across all academic corridors, hostel commons and libraries.',
-                        Icons.settings_input_antenna_rounded,
-                        const Color(0xFF10B981),
-                        isDark,
-                      ),
-                    ),
-                  ],
-                );
-              },
+            Text(
+              '1:1 uncompressed 1.0 Gbps leased line termination with BGP multi-homing to secondary 200 Mbps wireless backup link. Core 10-Gigabit optical fiber ring interconnects all 6 campus blocks.',
+              style: TextStyle(fontSize: 12.5, color: textSecondary, height: 1.4),
             ),
           ],
         ),
       );
     } else {
-      // Gas & HVAC
+      // Gas Supply & HVAC Central
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -644,40 +590,22 @@ class _UtilitiesServicesTabViewState extends ConsumerState<UtilitiesServicesTabV
               children: [
                 const Icon(Icons.hvac_rounded, size: 20, color: Color(0xFF8B5CF6)),
                 const SizedBox(width: 8),
-                Text('Piped Natural Gas (PNG) Lab Pipeline & Central HVAC Chillers', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textPrimary)),
+                Text('Central HVAC Chillers & Science Lab Piped Gas', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: textPrimary)),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text('Pressure Nominal', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF10B981))),
+                ),
               ],
             ),
             const SizedBox(height: 12),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 700;
-                return Flex(
-                  direction: isWide ? Axis.horizontal : Axis.vertical,
-                  children: [
-                    Expanded(
-                      flex: isWide ? 1 : 0,
-                      child: _buildSubsystemBox(
-                        'Piped Gas (Chemistry & Dining)',
-                        'Gas Pressure: 0.5 Bar • Automatic emergency shutoff solenoid valves installed with leak alarms.',
-                        Icons.local_fire_department_rounded,
-                        const Color(0xFFEF4444),
-                        isDark,
-                      ),
-                    ),
-                    SizedBox(width: isWide ? 12 : 0, height: isWide ? 0 : 10),
-                    Expanded(
-                      flex: isWide ? 1 : 0,
-                      child: _buildSubsystemBox(
-                        'Auditorium Central Chiller (120 TR)',
-                        'Water-cooled centrifugal chiller serving main auditorium and library learning commons.',
-                        Icons.ac_unit_rounded,
-                        const Color(0xFF0284C7),
-                        isDark,
-                      ),
-                    ),
-                  ],
-                );
-              },
+            Text(
+              'Central variable refrigerant volume (VRV) cooling system servicing classrooms and auditorium, paired with manifold piped LPG gas bank supplying chemistry and biology laboratories with automatic gas leak detection and shutoff.',
+              style: TextStyle(fontSize: 12.5, color: textSecondary, height: 1.4),
             ),
           ],
         ),
@@ -685,42 +613,7 @@ class _UtilitiesServicesTabViewState extends ConsumerState<UtilitiesServicesTabV
     }
   }
 
-  Widget _buildSubsystemBox(String title, String desc, IconData icon, Color color, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                const SizedBox(height: 3),
-                Text(desc, style: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B), height: 1.35)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildKpiCard(String title, String value, String subtitle, IconData icon, Color color, bool isDark) {
+  Widget _buildKpiCard(String title, String value, String sub, IconData icon, Color color, bool isDark) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
@@ -746,17 +639,31 @@ class _UtilitiesServicesTabViewState extends ConsumerState<UtilitiesServicesTabV
               children: [
                 Text(
                   title,
-                  style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B), fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    fontWeight: FontWeight.w500,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: 1),
                 Text(
-                  subtitle,
-                  style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600),
+                  sub,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],

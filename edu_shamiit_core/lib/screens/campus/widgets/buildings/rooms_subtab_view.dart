@@ -194,7 +194,9 @@ class _RoomsSubtabViewState extends State<RoomsSubtabView> {
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String?>(
-                    value: widget.filterFloorId,
+                    value: (widget.filterFloorId != null && widget.floors.any((f) => f.id == widget.filterFloorId))
+                        ? widget.filterFloorId
+                        : null,
                     hint: const Text('All Floors', style: TextStyle(fontSize: 11.5)),
                     isDense: true,
                     items: [
@@ -217,7 +219,9 @@ class _RoomsSubtabViewState extends State<RoomsSubtabView> {
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String?>(
-                    value: widget.filterRoomType,
+                    value: (widget.filterRoomType != null && roomTypes.contains(widget.filterRoomType))
+                        ? widget.filterRoomType
+                        : null,
                     hint: const Text('All Types', style: TextStyle(fontSize: 11.5)),
                     isDense: true,
                     items: [
@@ -240,7 +244,9 @@ class _RoomsSubtabViewState extends State<RoomsSubtabView> {
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String?>(
-                    value: widget.filterStatus,
+                    value: (widget.filterStatus != null && roomStatuses.contains(widget.filterStatus))
+                        ? widget.filterStatus
+                        : null,
                     hint: const Text('All Statuses', style: TextStyle(fontSize: 11.5)),
                     isDense: true,
                     items: [
@@ -269,6 +275,13 @@ class _RoomsSubtabViewState extends State<RoomsSubtabView> {
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                     onPressed: () => widget.onViewModeChanged(1),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.view_quilt_rounded, size: 17, color: widget.viewMode == 2 ? primaryColor : const Color(0xFF94A3B8)),
+                    tooltip: '2D Spatial Floorplan Grid',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    onPressed: () => widget.onViewModeChanged(2),
                   ),
                 ],
               ),
@@ -337,8 +350,10 @@ class _RoomsSubtabViewState extends State<RoomsSubtabView> {
           )
         else if (widget.viewMode == 0)
           _buildTableView(context)
+        else if (widget.viewMode == 1)
+          _buildGridView(context)
         else
-          _buildGridView(context),
+          _buildSpatialFloorplanView(context),
 
         // Pagination Bar
         const SizedBox(height: 8),
@@ -637,6 +652,176 @@ class _RoomsSubtabViewState extends State<RoomsSubtabView> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildSpatialFloorplanView(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.colorScheme.primary;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.map_rounded, size: 18, color: primaryColor),
+              const SizedBox(width: 8),
+              const Text(
+                '2D Spatial Floorplan Blueprint',
+                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+              ),
+              const Spacer(),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildLegendItem('Available', const Color(0xFF059669)),
+                  const SizedBox(width: 8),
+                  _buildLegendItem('Occupied', const Color(0xFF2563EB)),
+                  const SizedBox(width: 8),
+                  _buildLegendItem('Maintenance', const Color(0xFFDC2626)),
+                  const SizedBox(width: 8),
+                  _buildLegendItem('Reserved', const Color(0xFFD97706)),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              int cols = 4;
+              if (constraints.maxWidth < 600) {
+                cols = 2;
+              } else if (constraints.maxWidth < 950) {
+                cols = 3;
+              }
+
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: widget.rooms.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: cols,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  mainAxisExtent: 130,
+                ),
+                itemBuilder: (context, index) {
+                  final room = widget.rooms[index];
+                  final statusColor = _getStatusColor(room.operationalStatus);
+
+                  return InkWell(
+                    onTap: () => widget.onInspectRoom(room),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: isDark ? 0.12 : 0.06),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: statusColor.withValues(alpha: 0.6), width: 1.5),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                              ),
+                              const SizedBox(width: 5),
+                              Expanded(
+                                child: Text(
+                                  room.roomNumber,
+                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              Text(
+                                '${room.maxCapacity} Cap',
+                                style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            room.name.isNotEmpty ? room.name : room.roomType,
+                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            room.responsibleDepartment ?? room.roomType,
+                            style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const Spacer(),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withValues(alpha: 0.18),
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                                child: Text(
+                                  room.operationalStatus,
+                                  style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: statusColor),
+                                ),
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.build_circle_outlined, size: 14),
+                                    tooltip: 'Equipment',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                                    onPressed: () => widget.onManageEquipment(room),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.edit_outlined, size: 14),
+                                    tooltip: 'Edit',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                                    onPressed: () => widget.onEditRoom(room),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(String label, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 7, height: 7, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 3),
+        Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+      ],
     );
   }
 

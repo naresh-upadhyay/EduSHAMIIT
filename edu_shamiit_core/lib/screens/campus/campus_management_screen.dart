@@ -43,6 +43,7 @@ import 'widgets/safety_compliance/dialogs/report_incident_dialog.dart';
 import 'widgets/safety_compliance/dialogs/schedule_drill_dialog.dart';
 import 'widgets/device_management/dialogs/add_device_wizard_dialog.dart';
 import 'widgets/utilities/dialogs/log_utility_reading_dialog.dart';
+import 'providers/safety_compliance_provider.dart';
 import '../../utils/tab_url_sync.dart';
 
 class CampusManagementScreen extends ConsumerStatefulWidget {
@@ -404,7 +405,13 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
       );
       if (picked == null || !mounted) return;
 
-      final croppedBytes = await _cropBuildingImage(picked.path);
+      Uint8List? croppedBytes;
+      try {
+        croppedBytes = await _cropBuildingImage(picked.path);
+      } catch (cropErr) {
+        debugPrint('ImageCropper error, falling back to raw image bytes: $cropErr');
+        croppedBytes = await picked.readAsBytes();
+      }
       if (croppedBytes == null || !mounted) return;
 
       String filename = picked.name;
@@ -863,6 +870,48 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
                     },
                   ),
                   const SizedBox(height: 8),
+
+                  // Emergency Life Safety Incident Banner
+                  Builder(
+                    builder: (context) {
+                      final critIncidents = ref.watch(safetyComplianceProvider).kpis.criticalIncidents;
+                      if (critIncidents <= 0) return const SizedBox.shrink();
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDC2626),
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFDC2626).withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'CRITICAL ALERT: $critIncidents Active Critical Safety Incident(s)! Immediate Review & Life Safety Interlock Available.',
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12.5),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                notifier.setActiveCampusTab(4); // Jump to Safety & Compliance tab
+                                updateTabUrl('/admin/campus', 4);
+                              },
+                              child: const Text('View Safety Dashboard', style: TextStyle(color: Colors.white, decoration: TextDecoration.underline, fontWeight: FontWeight.w600)),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
 
                   // Collapsible Institutional KPI Cards Row (Visible across all tabs when Stats is toggled)
                   if (_showKpis) ...[

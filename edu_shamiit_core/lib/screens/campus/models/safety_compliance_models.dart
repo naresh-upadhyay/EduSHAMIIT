@@ -8,6 +8,7 @@ class SafetyComplianceKpis {
   final int expiringCertificates;
   final int totalInspections;
   final double inspectionsPassedPct;
+  final int actionNeededInspections;
   final int openIncidents;
   final int criticalIncidents;
   final int drillsConducted;
@@ -17,14 +18,15 @@ class SafetyComplianceKpis {
   const SafetyComplianceKpis({
     this.overallCompliancePct = 96.4,
     this.complianceChangePct = 2.3,
-    this.activeCertificates = 12,
+    this.activeCertificates = 6,
     this.expiringCertificates = 2,
-    this.totalInspections = 28,
-    this.inspectionsPassedPct = 94.2,
-    this.openIncidents = 3,
+    this.totalInspections = 6,
+    this.inspectionsPassedPct = 83.3,
+    this.actionNeededInspections = 1,
+    this.openIncidents = 0,
     this.criticalIncidents = 0,
-    this.drillsConducted = 6,
-    this.avgEvacuationSeconds = 138.0,
+    this.drillsConducted = 2,
+    this.avgEvacuationSeconds = 146.0,
     this.sosReadinessStatus = '100% Operational',
   });
 
@@ -32,14 +34,15 @@ class SafetyComplianceKpis {
     return SafetyComplianceKpis(
       overallCompliancePct: (json['overall_compliance_pct'] as num?)?.toDouble() ?? 96.4,
       complianceChangePct: (json['compliance_change_pct'] as num?)?.toDouble() ?? 2.3,
-      activeCertificates: (json['active_certificates'] as num?)?.toInt() ?? 12,
+      activeCertificates: (json['active_certificates'] as num?)?.toInt() ?? 6,
       expiringCertificates: (json['expiring_certificates'] as num?)?.toInt() ?? 2,
-      totalInspections: (json['total_inspections'] as num?)?.toInt() ?? 28,
-      inspectionsPassedPct: (json['inspections_passed_pct'] as num?)?.toDouble() ?? 94.2,
-      openIncidents: (json['open_incidents'] as num?)?.toInt() ?? 3,
+      totalInspections: (json['total_inspections'] as num?)?.toInt() ?? 6,
+      inspectionsPassedPct: (json['inspections_passed_pct'] as num?)?.toDouble() ?? 83.3,
+      actionNeededInspections: (json['action_needed_inspections'] as num?)?.toInt() ?? 1,
+      openIncidents: (json['open_incidents'] as num?)?.toInt() ?? 0,
       criticalIncidents: (json['critical_incidents'] as num?)?.toInt() ?? 0,
-      drillsConducted: (json['drills_conducted'] as num?)?.toInt() ?? 6,
-      avgEvacuationSeconds: (json['avg_evacuation_seconds'] as num?)?.toDouble() ?? 138.0,
+      drillsConducted: (json['drills_conducted'] as num?)?.toInt() ?? 2,
+      avgEvacuationSeconds: (json['avg_evacuation_seconds'] as num?)?.toDouble() ?? 146.0,
       sosReadinessStatus: json['sos_readiness_status']?.toString() ?? '100% Operational',
     );
   }

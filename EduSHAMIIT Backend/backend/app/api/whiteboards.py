@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 
 import psycopg2
 from psycopg2.extras import RealDictCursor, register_uuid
-from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import Response, StreamingResponse
 
 from app.config import settings
@@ -29,11 +29,21 @@ register_uuid()
 
 router = APIRouter()
 
-ALLOWED_IMAGE_MIMES = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
+ALLOWED_IMAGE_MIMES = {
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/webp",
+    "image/gif",
+    "image/bmp",
+    "image/svg+xml",
+}
 ALLOWED_DOC_MIMES = {
     "application/pdf",
     "application/vnd.ms-powerpoint",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 }
 MAX_ASSET_BYTES = 25 * 1024 * 1024  # 25 MB
 LOCAL_WB_STORAGE_DIR = os.path.join(tempfile.gettempdir(), "edushamiit_whiteboard_storage")
@@ -184,10 +194,9 @@ async def create_whiteboard(
     school_id=Depends(require_school_id),
 ):
     role = str(user.get("role", "")).lower()
-    if role == "student":
-        raise HTTPException(status_code=403, detail="Only teachers or admins can create class whiteboards")
-
     session_id = payload.get("session_id") or payload.get("live_session_id")
+    if role == "student" and not session_id:
+        raise HTTPException(status_code=403, detail="Only teachers or admins can create standalone whiteboards")
     title = payload.get("title") or "New Class Whiteboard"
     template_type = payload.get("template_type") or "blank"
     collab = payload.get("collaboration_enabled", True)
@@ -698,6 +707,28 @@ async def upload_asset(
         raise HTTPException(status_code=403, detail="Edit permission required to upload assets")
 
     mime = (file.content_type or "").lower()
+    if mime in ("application/octet-stream", "", "binary/octet-stream") and file.filename:
+        import mimetypes
+        guessed, _ = mimetypes.guess_type(file.filename)
+        if guessed:
+            mime = guessed.lower()
+        else:
+            ext_lower = os.path.splitext(file.filename)[1].lower()
+            ext_map = {
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".webp": "image/webp",
+                ".gif": "image/gif",
+                ".bmp": "image/bmp",
+                ".svg": "image/svg+xml",
+                ".pdf": "application/pdf",
+                ".ppt": "application/vnd.ms-powerpoint",
+                ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            }
+            if ext_lower in ext_map:
+                mime = ext_map[ext_lower]
+
     if mime not in ALLOWED_IMAGE_MIMES and mime not in ALLOWED_DOC_MIMES:
         raise HTTPException(status_code=400, detail=f"Unsupported file type: {mime}")
 
@@ -765,20 +796,28 @@ async def list_assets(
 async def get_asset_content(
     whiteboard_id: str,
     asset_id: str,
-    user=Depends(get_current_user),
-    school_id=Depends(require_school_id),
+    request: Request,
 ):
-    await _check_permission(whiteboard_id, school_id, user)
+    # Support canvas rendering, Web img tags, and direct cross-origin fetches
     rows = await exec_sql(
-        "SELECT storage_key, mime_type, file_name FROM public.whiteboard_assets WHERE id = %s::UUID AND whiteboard_id = %s::UUID AND school_id = %s::UUID AND deleted_at IS NULL LIMIT 1;",
-        (asset_id, whiteboard_id, school_id),
+        "SELECT storage_key, mime_type, file_name FROM public.whiteboard_assets WHERE id = %s::UUID AND whiteboard_id = %s::UUID AND deleted_at IS NULL LIMIT 1;",
+        (asset_id, whiteboard_id),
     )
     if not rows:
         raise HTTPException(status_code=404, detail="Asset not found")
     data = _read_bytes_object(rows[0]["storage_key"])
     if data is None:
         raise HTTPException(status_code=404, detail="Asset content unavailable")
-    return Response(content=data, media_type=rows[0]["mime_type"])
+    return Response(
+        content=data,
+        media_type=rows[0]["mime_type"],
+        headers={
+            "Cache-Control": "public, max-age=86400",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        },
+    )
 
 
 @router.delete("/whiteboards/{whiteboard_id}/assets/{asset_id}")

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import '../models/live_class_models.dart';
@@ -25,6 +26,7 @@ class LiveClassroomStage extends ConsumerStatefulWidget {
   final ActiveLiveSession? session;
   final List<LiveParticipant>? participants;
   final VoidCallback? onEndClass;
+  final VoidCallback? onLeaveClass;
   final VoidCallback? onOpenChat;
   final VoidCallback? onOpenParticipants;
   final VoidCallback? onOpenPolls;
@@ -38,6 +40,7 @@ class LiveClassroomStage extends ConsumerStatefulWidget {
     this.session,
     this.participants,
     this.onEndClass,
+    this.onLeaveClass,
     this.onOpenChat,
     this.onOpenParticipants,
     this.onOpenPolls,
@@ -88,6 +91,11 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
   String _virtualBackground = 'Classroom Digital Board';
   bool _aiNoiseCancellation = true;
 
+  // Keyboard Shortcuts & Push-to-Talk
+  final FocusNode _keyboardFocusNode = FocusNode();
+  bool _isPushToTalkActive = false;
+  bool _wasMicMutedBeforePTT = true;
+
   @override
   void initState() {
     super.initState();
@@ -99,6 +107,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autoConnectLiveRoom();
+      _keyboardFocusNode.requestFocus();
     });
   }
 
@@ -163,7 +172,83 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
   void dispose() {
     _recordingTimer?.cancel();
     _equalizerController.dispose();
+    _keyboardFocusNode.dispose();
     super.dispose();
+  }
+
+  bool _isTypingInInput() {
+    final primary = FocusManager.instance.primaryFocus;
+    if (primary == null || primary == _keyboardFocusNode) return false;
+    return primary.context?.widget is EditableText;
+  }
+
+  void _handleKeyEvent(KeyEvent event) {
+    if (_isTypingInInput()) return;
+
+    final roomService = ref.read(liveRoomServiceProvider);
+
+    // 1. Spacebar: Push-to-talk
+    if (event.logicalKey == LogicalKeyboardKey.space) {
+      if (event is KeyDownEvent && !_isPushToTalkActive) {
+        if (_isStudentParticipant && !roomService.allowStudentMic) return;
+        _isPushToTalkActive = true;
+        _wasMicMutedBeforePTT = _isMicMuted;
+        if (_isMicMuted) {
+          roomService.setMicrophoneMuted(false);
+          if (mounted) setState(() => _isMicMuted = false);
+        }
+      } else if (event is KeyUpEvent && _isPushToTalkActive) {
+        _isPushToTalkActive = false;
+        if (_wasMicMutedBeforePTT) {
+          roomService.setMicrophoneMuted(true);
+          if (mounted) setState(() => _isMicMuted = true);
+        }
+      }
+      return;
+    }
+
+    // 2. Ctrl+D / Cmd+D: Toggle Mic
+    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.keyD) {
+      final isCtrlOrCmd = HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed;
+      if (isCtrlOrCmd) {
+        if (_isStudentParticipant && !roomService.allowStudentMic && _isMicMuted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Microphone disabled by host.'), backgroundColor: Color(0xFFEF4444)),
+          );
+          return;
+        }
+        roomService.toggleMic().then((unmuted) {
+          if (mounted) setState(() => _isMicMuted = !unmuted);
+        });
+        return;
+      }
+    }
+
+    // 3. Ctrl+E / Cmd+E: Toggle Camera
+    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.keyE) {
+      final isCtrlOrCmd = HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed;
+      if (isCtrlOrCmd) {
+        if (_isStudentParticipant && !roomService.allowStudentCam && _isVideoOff) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Camera disabled by host.'), backgroundColor: Color(0xFFEF4444)),
+          );
+          return;
+        }
+        roomService.toggleCamera().then((active) {
+          if (mounted) setState(() => _isVideoOff = !active);
+        });
+        return;
+      }
+    }
+
+    // 4. Ctrl+Shift+W: Toggle Whiteboard
+    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.keyW) {
+      final isCtrlOrCmd = HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed;
+      if (isCtrlOrCmd && HardwareKeyboard.instance.isShiftPressed) {
+        widget.onOpenWhiteboard?.call();
+        return;
+      }
+    }
   }
 
   String _formatDuration(Duration d) {
@@ -178,16 +263,20 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
   // ============================================================================
 
   void _showNetworkHealthDialog(BuildContext context) {
+    final roomService = ref.read(liveRoomServiceProvider);
+    final isGood = roomService.currentRttMs < 120 && roomService.currentPacketLoss < 2.0;
+    final statusColor = isGood ? const Color(0xFF10B981) : Colors.amberAccent;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E222D),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.network_check_rounded, color: Color(0xFF10B981), size: 22),
-            SizedBox(width: 8),
-            Text(
+            Icon(Icons.network_check_rounded, color: statusColor, size: 22),
+            const SizedBox(width: 8),
+            const Text(
               'Network & Stream Health',
               style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
             ),
@@ -201,27 +290,27 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  color: statusColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFF10B981), width: 1),
+                  border: Border.all(color: statusColor, width: 1),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 20),
-                    SizedBox(width: 10),
+                    Icon(Icons.check_circle_rounded, color: statusColor, size: 20),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Connection Status: Excellent (Stable 60 FPS)',
-                        style: TextStyle(color: Color(0xFFD1FAE5), fontSize: 13, fontWeight: FontWeight.bold),
+                        'Connection Status: ${roomService.connectionStatusLabel} (${roomService.currentRttMs} ms)',
+                        style: TextStyle(color: statusColor, fontSize: 13, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 14),
+              _buildHealthRow('Round-Trip Latency (RTT)', '${roomService.currentRttMs} ms (WebRTC Edge)'),
+              _buildHealthRow('Packet Loss', '${roomService.currentPacketLoss.toStringAsFixed(2)}%'),
               _buildHealthRow('Bitrate (Upload)', '3,450 kbps (Adaptive H.264)'),
-              _buildHealthRow('Round-Trip Latency (RTT)', '24 ms (Optimized)'),
-              _buildHealthRow('Packet Loss', '0.01% (Zero audible jitter)'),
               _buildHealthRow('Video Resolution', '1920 × 1080 (1080p Full HD)'),
               _buildHealthRow('Audio Codec', 'Opus 48 kHz Stereo (FullBand)'),
               _buildHealthRow('LiveKit Edge Server', 'AP-South-1 (Mumbai Gateway)'),
@@ -1018,6 +1107,74 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
     );
   }
 
+  void _showLeaveClassConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E222D),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.logout_rounded, color: Color(0xFFF59E0B), size: 22),
+            SizedBox(width: 8),
+            Text('Leave Live Class?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
+        content: const SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Are you sure you want to exit the live classroom? The class will continue for other students and the teacher.',
+                style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+              ),
+              SizedBox(height: 12),
+              Text(
+                '• Your session attendance is automatically recorded.\n• You can rejoin at any time from your schedule while the class is live.',
+                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, height: 1.5),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Stay in Class', style: TextStyle(color: Colors.white60)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF59E0B),
+              foregroundColor: Colors.black87,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final roomService = ref.read(liveRoomServiceProvider);
+              await roomService.leaveRoom();
+              if (widget.onLeaveClass != null) {
+                widget.onLeaveClass!.call();
+              } else {
+                widget.onEndClass?.call();
+              }
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Left live class. Rejoin anytime from your schedule.'),
+                    backgroundColor: Color(0xFF334155),
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              }
+            },
+            child: const Text('Leave Class', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSummaryRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
@@ -1039,12 +1196,18 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
   Widget build(BuildContext context) {
     final roomService = ref.watch(liveRoomServiceProvider);
     final conductData = ref.watch(liveClassManagementProvider).conductSessionData;
+    final selectedClass = ref.watch(liveClassManagementProvider).selectedMyClass;
+    final myClassesList = ref.watch(liveClassManagementProvider).myClassesList;
+    final liveClassFromList = myClassesList.where((c) => c.status.toLowerCase() == 'live').firstOrNull;
 
-    final classSection = widget.session != null
-        ? '${widget.session!.className} - ${widget.session!.sectionName} : ${widget.session!.subject}'
-        : (conductData != null
-            ? '${conductData.activeSession.className} - ${conductData.activeSession.sectionName} : ${conductData.activeSession.subject}'
-            : 'Class 10 - A : Mathematics');
+    final resolvedSession = widget.session ?? conductData?.activeSession;
+    final classSection = resolvedSession != null
+        ? '${resolvedSession.className} - ${resolvedSession.sectionName} : ${resolvedSession.subject}'
+        : (selectedClass != null
+            ? '${selectedClass.classSection} : ${selectedClass.subjectName}'
+            : (liveClassFromList != null
+                ? '${liveClassFromList.classSection} : ${liveClassFromList.subjectName}'
+                : 'Class 12 - A : Chemistry'));
     final authState = ref.watch(authProvider);
     final authUser = authState.userData;
     final localUserName = (authUser?['full_name'] as String?)?.trim().isNotEmpty == true
@@ -1068,8 +1231,12 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
     final activeScreenShareTrack = tracks.where((t) => t.isScreenShare && t.videoTrack != null).firstOrNull?.videoTrack;
     final remoteStudentTracks = tracks.where((t) => !t.isLocal && !t.isScreenShare).toList();
 
-    return Container(
-      decoration: BoxDecoration(
+    return KeyboardListener(
+      focusNode: _keyboardFocusNode,
+      autofocus: true,
+      onKeyEvent: _handleKeyEvent,
+      child: Container(
+        decoration: BoxDecoration(
         color: const Color(0xFF1E222D),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
@@ -1278,14 +1445,58 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                 ),
                 const SizedBox(width: 4),
 
-                // Quality Signal Icon
-                IconButton(
-                  tooltip: 'Network & Stream Health (1080p 60fps)',
-                  icon: const Icon(Icons.signal_cellular_alt_rounded, color: Color(0xFF00C853), size: 16),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                  onPressed: () => _showNetworkHealthDialog(context),
+                // Network Quality HUD Pill
+                InkWell(
+                  onTap: () => _showNetworkHealthDialog(context),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: (roomService.currentPacketLoss > 2.0)
+                          ? Colors.redAccent.withValues(alpha: 0.18)
+                          : (roomService.currentRttMs > 120
+                              ? Colors.amber.withValues(alpha: 0.18)
+                              : const Color(0xFF10B981).withValues(alpha: 0.18)),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: (roomService.currentPacketLoss > 2.0)
+                            ? Colors.redAccent
+                            : (roomService.currentRttMs > 120
+                                ? Colors.amberAccent
+                                : const Color(0xFF10B981)),
+                        width: 0.8,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.network_check_rounded,
+                          color: (roomService.currentPacketLoss > 2.0)
+                              ? Colors.redAccent
+                              : (roomService.currentRttMs > 120
+                                  ? Colors.amberAccent
+                                  : const Color(0xFF10B981)),
+                          size: 12,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${roomService.currentRttMs} ms',
+                          style: TextStyle(
+                            color: (roomService.currentPacketLoss > 2.0)
+                                ? Colors.redAccent
+                                : (roomService.currentRttMs > 120
+                                    ? Colors.amberAccent
+                                    : const Color(0xFFD1FAE5)),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
+                const SizedBox(width: 4),
 
                 // Classroom Settings (...)
                 IconButton(
@@ -1453,6 +1664,41 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                                 else
                                   const Icon(Icons.mic_off_rounded, color: Colors.redAccent, size: 14),
                               ],
+                            ),
+                          ),
+                        ),
+
+                      // Floating Push-to-Talk HUD Pill
+                      if (_isPushToTalkActive)
+                        Positioned(
+                          top: 14,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981).withValues(alpha: 0.95),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.45),
+                                    blurRadius: 14,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.mic_rounded, color: Colors.white, size: 16),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Transmitting (Push-to-Talk) • Release Space to Mute',
+                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -1734,25 +1980,45 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
 
                     const SizedBox(width: 8),
 
-                    // End Class Button - PINNED on right edge, never clipped
-                    ElevatedButton.icon(
-                      onPressed: () => _showEndClassConfirmation(context),
-                      icon: const Icon(Icons.call_end_rounded, color: Colors.white, size: 15),
-                      label: Text(
-                        isNarrow ? 'End' : 'End Class',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent.shade400,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(horizontal: isNarrow ? 8 : 12, vertical: 8),
-                        minimumSize: Size(isNarrow ? 56 : 80, 34),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    // End Class / Leave Class Button - PINNED on right edge, never clipped
+                    if (_isStudentParticipant)
+                      ElevatedButton.icon(
+                        onPressed: () => _showLeaveClassConfirmation(context),
+                        icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 15),
+                        label: Text(
+                          isNarrow ? 'Leave' : 'Leave Class',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF59E0B),
+                          foregroundColor: Colors.black87,
+                          padding: EdgeInsets.symmetric(horizontal: isNarrow ? 8 : 12, vertical: 8),
+                          minimumSize: Size(isNarrow ? 56 : 80, 34),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      )
+                    else
+                      ElevatedButton.icon(
+                        onPressed: () => _showEndClassConfirmation(context),
+                        icon: const Icon(Icons.call_end_rounded, color: Colors.white, size: 15),
+                        label: Text(
+                          isNarrow ? 'End' : 'End Class',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent.shade400,
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(horizontal: isNarrow ? 8 : 12, vertical: 8),
+                          minimumSize: Size(isNarrow ? 56 : 80, 34),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 );
               },
@@ -1760,6 +2026,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -1818,80 +2085,104 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
   // MODE A: Teacher Presentation View (Digital Smartboard + Instructor View)
   Widget _buildTeacherPresentationView(String localUserName, lk.VideoTrack? activeCamTrack) {
     final conductData = ref.watch(liveClassManagementProvider).conductSessionData;
+    final selectedClass = ref.watch(liveClassManagementProvider).selectedMyClass;
+    final liveItem = ref.watch(liveClassManagementProvider).myClassesList.where((c) => c.status.toLowerCase() == 'live').firstOrNull;
+
     final activeSession = widget.session ?? conductData?.activeSession;
     final subject = (activeSession?.subject.trim().isNotEmpty == true)
         ? activeSession!.subject.trim()
-        : 'Biology';
+        : (selectedClass?.subjectName.trim().isNotEmpty == true
+            ? selectedClass!.subjectName.trim()
+            : (liveItem?.subjectName.trim().isNotEmpty == true
+                ? liveItem!.subjectName.trim()
+                : 'Chemistry'));
+
     final rawTopic = (activeSession?.title.trim().isNotEmpty == true)
         ? activeSession!.title.trim()
-        : ((activeSession?.description.trim().isNotEmpty == true)
-            ? activeSession!.description.trim()
-            : 'Interactive Digital Lesson');
-    final topic = rawTopic.isNotEmpty ? rawTopic : 'Cell Biology & Living Systems';
+        : ((selectedClass?.topic.trim().isNotEmpty == true)
+            ? selectedClass!.topic.trim()
+            : (liveItem?.topic.trim().isNotEmpty == true
+                ? liveItem!.topic.trim()
+                : 'Organic Compounds – Introduction'));
+    final topic = rawTopic.isNotEmpty ? rawTopic : 'Organic Compounds – Introduction';
 
     final subLower = subject.toLowerCase();
-    final bool isBio = subLower.contains('bio') || subLower.contains('life');
-    final bool isMath = subLower.contains('math') || subLower.contains('algebra') || subLower.contains('calc');
-    final bool isPhys = subLower.contains('phys');
     final bool isChem = subLower.contains('chem');
+    final bool isBio = !isChem && (subLower.contains('bio') || subLower.contains('life'));
+    final bool isMath = !isChem && !isBio && (subLower.contains('math') || subLower.contains('algebra') || subLower.contains('calc'));
+    final bool isPhys = !isChem && !isBio && !isMath && subLower.contains('phys');
+    final bool isOrganic = topic.toLowerCase().contains('organ') ||
+        topic.toLowerCase().contains('compound') ||
+        topic.toLowerCase().contains('carbon') ||
+        topic.toLowerCase().contains('iupac');
 
-    final String chapterTag = isBio
-        ? '${subject.toUpperCase()} • CHAPTER 4: CELL & GENETICS'
-        : (isMath
-            ? '${subject.toUpperCase()} • CHAPTER 4: QUADRATIC EQUATIONS'
-            : (isPhys
-                ? '${subject.toUpperCase()} • CHAPTER 3: LAWS OF MOTION'
-                : (isChem
-                    ? '${subject.toUpperCase()} • CHAPTER 5: CHEMICAL KINETICS'
+    final String chapterTag = isChem
+        ? (isOrganic
+            ? '${subject.toUpperCase()} • CHAPTER 4: ORGANIC COMPOUNDS & NOMENCLATURE'
+            : '${subject.toUpperCase()} • CHAPTER 5: CHEMICAL KINETICS')
+        : (isBio
+            ? '${subject.toUpperCase()} • CHAPTER 4: CELL & GENETICS'
+            : (isMath
+                ? '${subject.toUpperCase()} • CHAPTER 4: QUADRATIC EQUATIONS'
+                : (isPhys
+                    ? '${subject.toUpperCase()} • CHAPTER 3: LAWS OF MOTION'
                     : '${subject.toUpperCase()} • ACTIVE CLASSROOM MODULE')));
 
-    final String displayTopic = isBio
-        ? (topic.contains('Quadratic') ? 'Cell Biology & Genetic Heritage' : topic)
-        : (isMath ? (topic.contains('Cell') ? 'Quadratic Equations & Roots' : topic) : topic);
+    final String displayTopic = topic;
 
-    final String conceptBox1 = isBio
-        ? 'Cell Theory: Structural & functional unit of all living organisms'
-        : (isMath
-            ? 'ax² + bx + c = 0    (where a ≠ 0)'
-            : (isPhys
-                ? 'F = m·a    |    p = m·v    (Conservation of Momentum)'
-                : (isChem
-                    ? 'P·V = n·R·T    |    ΔG° = ΔH° - TΔS°'
+    final String conceptBox1 = isChem
+        ? (isOrganic
+            ? 'Hybridization: sp³ (109.5° tetrahedral) | sp² (120° trigonal) | sp (180° linear)'
+            : 'P·V = n·R·T    |    ΔG° = ΔH° - TΔS°')
+        : (isBio
+            ? 'Cell Theory: Structural & functional unit of all living organisms'
+            : (isMath
+                ? 'ax² + bx + c = 0    (where a ≠ 0)'
+                : (isPhys
+                    ? 'F = m·a    |    p = m·v    (Conservation of Momentum)'
                     : 'Curriculum Standard: Interactive Conceptual Synthesis')));
 
-    final String conceptBox2 = isBio
-        ? '6CO₂ + 6H₂O + Light ➔ C₆H₁₂O₆ + 6O₂ (Photosynthesis)'
-        : (isMath
-            ? 'x = (-b ± √(b² - 4ac)) / 2a'
-            : (isPhys
-                ? 'v = u + at    |    s = ut + ½at²    |    v² = u² + 2as'
-                : (isChem
-                    ? 'pH = -log[H⁺]    |    k = A·e^(-Ea/RT)'
+    final String conceptBox2 = isChem
+        ? (isOrganic
+            ? 'Electrophiles (E⁺) & Nucleophiles (Nu⁻) | Functional Groups & Homologous Series'
+            : 'pH = -log[H⁺]    |    k = A·e^(-Ea/RT)')
+        : (isBio
+            ? '6CO₂ + 6H₂O + Light ➔ C₆H₁₂O₆ + 6O₂ (Photosynthesis)'
+            : (isMath
+                ? 'x = (-b ± √(b² - 4ac)) / 2a'
+                : (isPhys
+                    ? 'v = u + at    |    s = ut + ½at²    |    v² = u² + 2as'
                     : 'Active real-time notes synchronized with student devices')));
 
-    final List<Map<String, dynamic>> pills = isBio
-        ? [
-            {'title': 'DNA Double Helix', 'label': 'A=T, G≡C Base Pairs', 'color': const Color(0xFF10B981)},
-            {'title': 'Mitosis vs Meiosis', 'label': 'Diploid (2n) to Haploid (n)', 'color': const Color(0xFF3B82F6)},
-            {'title': 'Cellular Respiration', 'label': 'Glucose + O₂ ➔ 36 ATP', 'color': const Color(0xFFF59E0B)},
-          ]
-        : (isMath
+    final List<Map<String, dynamic>> pills = isChem
+        ? (isOrganic
             ? [
-                {'title': 'Δ > 0', 'label': 'Two Distinct Real Roots', 'color': const Color(0xFF10B981)},
-                {'title': 'Δ = 0', 'label': 'One Real Repeated Root', 'color': const Color(0xFFF59E0B)},
-                {'title': 'Δ < 0', 'label': 'Complex Conjugate Roots', 'color': const Color(0xFFEC4899)},
+                {'title': 'IUPAC Naming', 'label': 'Root Word + Suffix + Substituents', 'color': const Color(0xFF10B981)},
+                {'title': 'Electrophiles & Nucleophiles', 'label': 'Carbocations & Free Radicals', 'color': const Color(0xFF3B82F6)},
+                {'title': 'Resonance Structures', 'label': 'Delocalized π-Electron Density', 'color': const Color(0xFFEC4899)},
               ]
-            : (isPhys
+            : [
+                {'title': 'Le Chatelier', 'label': 'Dynamic System Equilibrium', 'color': const Color(0xFF10B981)},
+                {'title': 'Exothermic', 'label': 'Heat Release (ΔH < 0)', 'color': const Color(0xFFEC4899)},
+                {'title': 'Activation Energy', 'label': 'Catalyst Transition State', 'color': const Color(0xFF3B82F6)},
+              ])
+        : (isBio
+            ? [
+                {'title': 'DNA Double Helix', 'label': 'A=T, G≡C Base Pairs', 'color': const Color(0xFF10B981)},
+                {'title': 'Mitosis vs Meiosis', 'label': 'Diploid (2n) to Haploid (n)', 'color': const Color(0xFF3B82F6)},
+                {'title': 'Cellular Respiration', 'label': 'Glucose + O₂ ➔ 36 ATP', 'color': const Color(0xFFF59E0B)},
+              ]
+            : (isMath
                 ? [
-                    {'title': 'Newton 1st Law', 'label': 'Inertia & Equilibrium', 'color': const Color(0xFF10B981)},
-                    {'title': 'Newton 2nd Law', 'label': 'Rate of momentum change', 'color': const Color(0xFF3B82F6)},
-                    {'title': 'Newton 3rd Law', 'label': 'Equal & opposite reaction', 'color': const Color(0xFFF59E0B)},
+                    {'title': 'Δ > 0', 'label': 'Two Distinct Real Roots', 'color': const Color(0xFF10B981)},
+                    {'title': 'Δ = 0', 'label': 'One Real Repeated Root', 'color': const Color(0xFFF59E0B)},
+                    {'title': 'Δ < 0', 'label': 'Complex Conjugate Roots', 'color': const Color(0xFFEC4899)},
                   ]
-                : (isChem
+                : (isPhys
                     ? [
-                        {'title': 'Le Chatelier', 'label': 'Dynamic System Equilibrium', 'color': const Color(0xFF10B981)},
-                        {'title': 'Exothermic', 'label': 'Heat Release (ΔH < 0)', 'color': const Color(0xFFEC4899)},
-                        {'title': 'Activation Energy', 'label': 'Catalyst Transition State', 'color': const Color(0xFF3B82F6)},
+                        {'title': 'Newton 1st Law', 'label': 'Inertia & Equilibrium', 'color': const Color(0xFF10B981)},
+                        {'title': 'Newton 2nd Law', 'label': 'Rate of momentum change', 'color': const Color(0xFF3B82F6)},
+                        {'title': 'Newton 3rd Law', 'label': 'Equal & opposite reaction', 'color': const Color(0xFFF59E0B)},
                       ]
                     : [
                         {'title': 'Interactive Board', 'label': 'Smart Canvas Ready', 'color': const Color(0xFF10B981)},
@@ -2548,19 +2839,26 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                     icon: const Icon(Icons.open_in_new_rounded, size: 13),
                     label: const Text('Full Whiteboard Screen', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                     onPressed: () {
-                      final activeSession = widget.session;
-                      final title = activeSession != null
-                          ? 'Whiteboard - ${activeSession.className} - ${activeSession.sectionName} : ${activeSession.subject}'
-                          : 'Interactive Class Whiteboard';
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => WhiteboardScreen(
-                            sessionId: activeSession?.id,
-                            sessionTitle: title,
-                            onEndClass: widget.onEndClass,
+                      if (widget.onOpenWhiteboard != null) {
+                        widget.onOpenWhiteboard!();
+                      } else {
+                        final activeSession = widget.session ?? ref.read(liveClassManagementProvider).conductSessionData?.activeSession;
+                        final sel = ref.read(liveClassManagementProvider).selectedMyClass;
+                        final title = activeSession != null
+                            ? 'Whiteboard - ${activeSession.classSection} : ${activeSession.subject} – ${activeSession.title}'
+                            : (sel != null
+                                ? 'Whiteboard - ${sel.classSection} : ${sel.subjectName} – ${sel.topic}'
+                                : 'Whiteboard - Class 12 - A – Chemistry');
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => WhiteboardScreen(
+                              sessionId: activeSession?.id ?? sel?.id,
+                              sessionTitle: title,
+                              onEndClass: widget.onEndClass,
+                            ),
                           ),
-                        ),
-                      );
+                        );
+                      }
                     },
                   ),
                 ],
@@ -2660,48 +2958,66 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
 
   Widget _buildLessonSmartboardBackground() {
     final conductData = ref.watch(liveClassManagementProvider).conductSessionData;
+    final selectedClass = ref.watch(liveClassManagementProvider).selectedMyClass;
+    final liveItem = ref.watch(liveClassManagementProvider).myClassesList.where((c) => c.status.toLowerCase() == 'live').firstOrNull;
+
     final activeSession = widget.session ?? conductData?.activeSession;
     final subject = (activeSession?.subject.trim().isNotEmpty == true)
         ? activeSession!.subject.trim()
-        : 'Biology';
+        : (selectedClass?.subjectName.trim().isNotEmpty == true
+            ? selectedClass!.subjectName.trim()
+            : (liveItem?.subjectName.trim().isNotEmpty == true
+                ? liveItem!.subjectName.trim()
+                : 'Chemistry'));
+
     final rawTopic = (activeSession?.title.trim().isNotEmpty == true)
         ? activeSession!.title.trim()
-        : ((activeSession?.description.trim().isNotEmpty == true)
-            ? activeSession!.description.trim()
-            : 'Interactive Digital Lesson');
-    final topic = rawTopic.isNotEmpty ? rawTopic : 'Cell Biology & Living Systems';
+        : ((selectedClass?.topic.trim().isNotEmpty == true)
+            ? selectedClass!.topic.trim()
+            : (liveItem?.topic.trim().isNotEmpty == true
+                ? liveItem!.topic.trim()
+                : 'Organic Compounds – Introduction'));
+    final topic = rawTopic.isNotEmpty ? rawTopic : 'Organic Compounds – Introduction';
 
     final subLower = subject.toLowerCase();
-    final bool isBio = subLower.contains('bio') || subLower.contains('life');
-    final bool isPhys = subLower.contains('phys');
     final bool isChem = subLower.contains('chem');
+    final bool isBio = !isChem && (subLower.contains('bio') || subLower.contains('life'));
+    final bool isPhys = !isChem && !isBio && subLower.contains('phys');
+    final bool isOrganic = topic.toLowerCase().contains('organ') ||
+        topic.toLowerCase().contains('compound') ||
+        topic.toLowerCase().contains('carbon') ||
+        topic.toLowerCase().contains('iupac');
 
-    final String chapterTag = isBio
-        ? '${subject.toUpperCase()} • CHAPTER 4: CELL & GENETICS'
-        : (isPhys
-            ? '${subject.toUpperCase()} • CHAPTER 3: LAWS OF MOTION'
-            : (isChem
-                ? '${subject.toUpperCase()} • CHAPTER 5: CHEMICAL KINETICS'
+    final String chapterTag = isChem
+        ? (isOrganic
+            ? '${subject.toUpperCase()} • CHAPTER 4: ORGANIC COMPOUNDS & NOMENCLATURE'
+            : '${subject.toUpperCase()} • CHAPTER 5: CHEMICAL KINETICS')
+        : (isBio
+            ? '${subject.toUpperCase()} • CHAPTER 4: CELL & GENETICS'
+            : (isPhys
+                ? '${subject.toUpperCase()} • CHAPTER 3: LAWS OF MOTION'
                 : '${subject.toUpperCase()} • CHAPTER 4: QUADRATIC EQUATIONS'));
 
-    final String displayTopic = isBio
-        ? (topic.contains('Quadratic') ? 'Cell Biology & Living Systems' : topic)
-        : topic;
+    final String displayTopic = topic;
 
-    final String box1 = isBio
-        ? 'Cell Theory: Structural & functional unit of all living organisms'
-        : (isPhys
-            ? 'F = m·a    |    p = m·v  (Conservation of Momentum)'
-            : (isChem
-                ? 'P·V = n·R·T    |    ΔG° = ΔH° - TΔS°'
+    final String box1 = isChem
+        ? (isOrganic
+            ? 'Hybridization: sp³ (109.5° tetrahedral) | sp² (120° trigonal) | sp (180° linear)'
+            : 'P·V = n·R·T    |    ΔG° = ΔH° - TΔS°')
+        : (isBio
+            ? 'Cell Theory: Structural & functional unit of all living organisms'
+            : (isPhys
+                ? 'F = m·a    |    p = m·v  (Conservation of Momentum)'
                 : 'ax² + bx + c = 0    (where a ≠ 0)'));
 
-    final String box2 = isBio
-        ? 'Photosynthesis: 6CO₂ + 6H₂O + light ➔ C₆H₁₂O₆ + 6O₂'
-        : (isPhys
-            ? 'v = u + at    |    s = ut + ½at²    |    v² = u² + 2as'
-            : (isChem
-                ? 'pH = -log[H⁺]    |    k = A·e^(-Ea/RT)'
+    final String box2 = isChem
+        ? (isOrganic
+            ? 'Electrophiles (E⁺) & Nucleophiles (Nu⁻) | IUPAC Chain Numbering & Functional Groups'
+            : 'pH = -log[H⁺]    |    k = A·e^(-Ea/RT)')
+        : (isBio
+            ? 'Photosynthesis: 6CO₂ + 6H₂O + light ➔ C₆H₁₂O₆ + 6O₂'
+            : (isPhys
+                ? 'v = u + at    |    s = ut + ½at²    |    v² = u² + 2as'
                 : 'x = (-b ± √(b² - 4ac)) / 2a'));
 
     return LayoutBuilder(
@@ -2817,16 +3133,38 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                                   _buildDiscriminantSummary('• Mitosis (2n) :', 'Identical somatic cellular division', const Color(0xFFF59E0B)),
                                   _buildDiscriminantSummary('• Meiosis (n) :', 'Genetic diversity & gamete formation', const Color(0xFFEC4899)),
                                 ]
-                              : [
-                                  const Text(
-                                    'D = b² - 4ac (Discriminant):',
-                                    style: TextStyle(color: Color(0xFFFBBF24), fontSize: 11, fontWeight: FontWeight.bold),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  _buildDiscriminantSummary('• D > 0 :', 'Two Distinct Real Roots', const Color(0xFF10B981)),
-                                  _buildDiscriminantSummary('• D = 0 :', 'One Real Repeated Root', const Color(0xFFF59E0B)),
-                                  _buildDiscriminantSummary('• D < 0 :', 'Complex Conjugate Roots', const Color(0xFFEC4899)),
-                                ],
+                              : (isChem
+                                  ? [
+                                      const Text(
+                                        'Reaction Mechanism & Kinetics:',
+                                        style: TextStyle(color: Color(0xFFFBBF24), fontSize: 11, fontWeight: FontWeight.bold),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      _buildDiscriminantSummary('• Activation Energy (Ea) :', 'Catalyst lowers transition barrier', const Color(0xFF10B981)),
+                                      _buildDiscriminantSummary('• Equilibrium (Kc) :', 'Le Chatelier: Shift opposes disturbance', const Color(0xFFF59E0B)),
+                                      _buildDiscriminantSummary('• Enthalpy (ΔH) :', 'Exothermic (ΔH < 0) vs Endothermic (ΔH > 0)', const Color(0xFFEC4899)),
+                                    ]
+                                  : (isPhys
+                                      ? [
+                                          const Text(
+                                            'Mechanics & Kinematic Principles:',
+                                            style: TextStyle(color: Color(0xFFFBBF24), fontSize: 11, fontWeight: FontWeight.bold),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          _buildDiscriminantSummary('• ΣF = 0 (Static Eq) :', 'Net resultant force is zero', const Color(0xFF10B981)),
+                                          _buildDiscriminantSummary('• F = dp/dt :', 'Rate of change of linear momentum', const Color(0xFFF59E0B)),
+                                          _buildDiscriminantSummary('• Conservation :', 'Total energy & momentum are conserved', const Color(0xFFEC4899)),
+                                        ]
+                                      : [
+                                          const Text(
+                                            'D = b² - 4ac (Discriminant):',
+                                            style: TextStyle(color: Color(0xFFFBBF24), fontSize: 11, fontWeight: FontWeight.bold),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          _buildDiscriminantSummary('• D > 0 :', 'Two Distinct Real Roots', const Color(0xFF10B981)),
+                                          _buildDiscriminantSummary('• D = 0 :', 'One Real Repeated Root', const Color(0xFFF59E0B)),
+                                          _buildDiscriminantSummary('• D < 0 :', 'Complex Conjugate Roots', const Color(0xFFEC4899)),
+                                        ])),
                         ),
                       ),
                     ],
@@ -2850,7 +3188,9 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                       children: [
                         Positioned.fill(
                           child: CustomPaint(
-                            painter: isBio ? _BiologyCellLessonPainter() : _ParabolaLessonPainter(),
+                            painter: isChem
+                                ? _ChemistryMoleculeLessonPainter()
+                                : (isBio ? _BiologyCellLessonPainter() : _ParabolaLessonPainter()),
                           ),
                         ),
                         Positioned(
@@ -2863,7 +3203,9 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              isBio ? 'Cell Anatomy: Membrane, Nucleus & Mitochondria' : 'Parabola: y = ax² + bx + c',
+                              isChem
+                                  ? 'Molecular Structure: Benzene Ring & Functional Bonds'
+                                  : (isBio ? 'Cell Anatomy: Membrane, Nucleus & Mitochondria' : 'Parabola: y = ax² + bx + c'),
                               style: TextStyle(
                                 color: isBio ? const Color(0xFF34D399) : const Color(0xFFF43F5E),
                                 fontSize: 10,
@@ -3461,6 +3803,73 @@ class _MathGridPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
+class _ChemistryMoleculeLessonPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width < 50 || size.height < 50) return;
+
+    final ringPaint = Paint()
+      ..color = const Color(0xFF38BDF8)
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke;
+
+    final ringFill = Paint()
+      ..color = const Color(0xFF0284C7).withValues(alpha: 0.12)
+      ..style = PaintingStyle.fill;
+
+    final bondPaint = Paint()
+      ..color = const Color(0xFFF43F5E)
+      ..strokeWidth = 2.2
+      ..style = PaintingStyle.stroke;
+
+    final atomPaint = Paint()
+      ..color = const Color(0xFFFBBF24)
+      ..style = PaintingStyle.fill;
+
+    final center = Offset(size.width * 0.5, size.height * 0.5);
+    const radius = 38.0;
+
+    // Calculate hexagon vertices (Benzene Ring)
+    final vertices = <Offset>[];
+    for (int i = 0; i < 6; i++) {
+      final angle = (i * 60 - 30) * math.pi / 180.0;
+      vertices.add(Offset(center.dx + radius * math.cos(angle), center.dy + radius * math.sin(angle)));
+    }
+
+    final hexPath = Path()..moveTo(vertices[0].dx, vertices[0].dy);
+    for (int i = 1; i < 6; i++) {
+      hexPath.lineTo(vertices[i].dx, vertices[i].dy);
+    }
+    hexPath.close();
+
+    canvas.drawPath(hexPath, ringFill);
+    canvas.drawPath(hexPath, ringPaint);
+
+    // Inner aromatic delocalized circle (Kekule/delocalized π-electrons)
+    final circlePaint = Paint()
+      ..color = const Color(0xFF38BDF8).withValues(alpha: 0.5)
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+    canvas.drawCircle(center, radius * 0.65, circlePaint);
+
+    // Substituent bond & functional group atom
+    final topVertex = vertices[0];
+    final subEnd = Offset(topVertex.dx, topVertex.dy - 22);
+    canvas.drawLine(topVertex, subEnd, bondPaint);
+    canvas.drawCircle(subEnd, 5.0, atomPaint);
+
+    // Second substituent
+    final bottomVertex = vertices[3];
+    final subEnd2 = Offset(bottomVertex.dx, bottomVertex.dy + 20);
+    canvas.drawLine(bottomVertex, subEnd2, bondPaint);
+    canvas.drawCircle(subEnd2, 4.5, Paint()..color = const Color(0xFF10B981));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+
 class _ParabolaLessonPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -3660,3 +4069,5 @@ class _BiologyCellLessonPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+

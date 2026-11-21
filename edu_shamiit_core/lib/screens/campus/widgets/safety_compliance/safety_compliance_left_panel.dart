@@ -90,7 +90,7 @@ class SafetyComplianceLeftPanel extends ConsumerWidget {
                 ),
                 _buildNavItem(
                   title: 'Action Needed Inspections',
-                  badge: '2',
+                  badge: '${state.kpis.actionNeededInspections}',
                   badgeColor: const Color(0xFFF59E0B),
                   icon: Icons.fact_check_outlined,
                   isSelected: state.activeView == 'overdue_inspections',

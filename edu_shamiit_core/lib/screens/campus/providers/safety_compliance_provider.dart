@@ -98,30 +98,35 @@ class SafetyComplianceNotifier extends StateNotifier<SafetyComplianceState> {
   Future<void> loadAll() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
+      final curSubTab = state.activeSubTab;
       final results = await Future.wait([
         _api.getKpis(),
         _api.getInspections(
-          category: state.selectedCategory,
-          status: state.selectedStatus,
-          buildingId: state.selectedBuildingId,
-          search: state.searchQuery,
-          page: state.currentPage,
-          pageSize: state.pageSize,
+          category: curSubTab == 0 ? state.selectedCategory : 'All',
+          status: curSubTab == 0 ? state.selectedStatus : 'All',
+          buildingId: curSubTab == 0 ? state.selectedBuildingId : null,
+          search: curSubTab == 0 ? state.searchQuery : null,
+          page: curSubTab == 0 ? state.currentPage : 1,
+          pageSize: curSubTab == 0 ? state.pageSize : 10,
         ),
         _api.getIncidents(
-          status: state.selectedStatus,
-          search: state.searchQuery,
-          page: 1,
-          pageSize: 10,
+          status: curSubTab == 1 ? state.selectedStatus : 'All',
+          search: curSubTab == 1 ? state.searchQuery : null,
+          page: curSubTab == 1 ? state.currentPage : 1,
+          pageSize: curSubTab == 1 ? state.pageSize : 10,
         ),
         _api.getCertificates(
-          category: state.selectedCategory,
-          status: state.selectedStatus,
-          search: state.searchQuery,
-          page: 1,
-          pageSize: 10,
+          category: curSubTab == 2 ? state.selectedCategory : 'All',
+          status: curSubTab == 2 ? state.selectedStatus : 'All',
+          search: curSubTab == 2 ? state.searchQuery : null,
+          page: curSubTab == 2 ? state.currentPage : 1,
+          pageSize: curSubTab == 2 ? state.pageSize : 10,
         ),
-        _api.getDrills(page: 1, pageSize: 10),
+        _api.getDrills(
+          status: curSubTab == 3 ? state.selectedStatus : 'All',
+          page: curSubTab == 3 ? state.currentPage : 1,
+          pageSize: curSubTab == 3 ? state.pageSize : 10,
+        ),
       ]);
 
       state = state.copyWith(
@@ -137,8 +142,17 @@ class SafetyComplianceNotifier extends StateNotifier<SafetyComplianceState> {
     }
   }
 
+  static List<String> getStatusOptionsForSubTab(int subTab) {
+    if (subTab == 0) return const ['All', 'Passed', 'Needs Attention', 'Critical Action', 'Scheduled'];
+    if (subTab == 1) return const ['All', 'Reported', 'Under Investigation', 'Action Taken', 'Resolved', 'Closed'];
+    if (subTab == 2) return const ['All', 'Valid', 'Expiring Soon', 'Expired', 'Renewal Pending'];
+    return const ['All', 'Scheduled', 'Completed', 'Cancelled'];
+  }
+
   void setActiveSubTab(int index) {
-    state = state.copyWith(activeSubTab: index, currentPage: 1);
+    final validOptions = getStatusOptionsForSubTab(index);
+    final status = validOptions.contains(state.selectedStatus) ? state.selectedStatus : 'All';
+    state = state.copyWith(activeSubTab: index, selectedStatus: status, currentPage: 1);
     refreshActiveSubTab();
   }
 
@@ -345,6 +359,19 @@ class SafetyComplianceNotifier extends StateNotifier<SafetyComplianceState> {
 
   Future<void> exportData(String type) async {
     await _api.exportCsv(type);
+  }
+
+  Future<Map<String, dynamic>> triggerEmergencyOverride(String incidentId) async {
+    state = state.copyWith(isSubmitting: true);
+    try {
+      final res = await _api.triggerEmergencyOverride(incidentId);
+      await loadAll();
+      return res;
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    } finally {
+      state = state.copyWith(isSubmitting: false);
+    }
   }
 }
 

@@ -122,8 +122,8 @@ void main() {
 
       await tester.pump();
 
-      // Verify the 3 core tabs exist and are rendered cleanly
-      expect(find.text('Participants (0)'), findsOneWidget);
+      // Verify the 3 core tabs exist and are rendered cleanly (including local host participant)
+      expect(find.text('Participants (1)'), findsOneWidget);
       expect(find.text('Chat'), findsOneWidget);
       expect(find.text('Q&A (0)'), findsOneWidget);
     });

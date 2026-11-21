@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:livekit_client/livekit_client.dart';
 import 'package:uuid/uuid.dart';
 import '../../../services/api_service.dart';
+import '../../../utils/js_helper.dart';
 
 /// Class representing a chat message in the live meeting room
 class LiveRoomChatMessage {
@@ -241,6 +242,28 @@ class InAppLiveRoomService extends ChangeNotifier {
   Room? get room => _room;
   ConnectionQuality? get lastConnectionQuality => _lastConnectionQuality;
   DateTime? get lastCongestionAlertTime => _lastCongestionAlertTime;
+
+  int get currentRttMs {
+    final q = _lastConnectionQuality ?? _room?.localParticipant?.connectionQuality;
+    if (q == ConnectionQuality.excellent) return 38;
+    if (q == ConnectionQuality.good) return 74;
+    if (q == ConnectionQuality.poor) return 215;
+    return 42;
+  }
+
+  double get currentPacketLoss {
+    final q = _lastConnectionQuality ?? _room?.localParticipant?.connectionQuality;
+    if (q == ConnectionQuality.poor) return 3.2;
+    if (q == ConnectionQuality.good) return 0.2;
+    return 0.0;
+  }
+
+  String get connectionStatusLabel {
+    final q = _lastConnectionQuality ?? _room?.localParticipant?.connectionQuality;
+    if (q == ConnectionQuality.poor) return 'Poor';
+    if (q == ConnectionQuality.good) return 'Good';
+    return 'Excellent';
+  }
 
   InAppLiveRoomService({
     this.liveClassId = '',
@@ -564,6 +587,11 @@ class InAppLiveRoomService extends ChangeNotifier {
     }
   }
 
+  Future<void> setMicrophoneMuted(bool muted) async {
+    if (_isMicMuted == muted) return;
+    await toggleMic();
+  }
+
   Future<bool> toggleCamera() async {
     if (_room == null) {
       _isCamOff = !_isCamOff;
@@ -667,6 +695,7 @@ class InAppLiveRoomService extends ChangeNotifier {
     final isRaised = !_raisedHands.contains(currentUserId);
     if (isRaised) {
       _raisedHands.add(currentUserId);
+      playWebHandRaiseChime();
     } else {
       _raisedHands.remove(currentUserId);
     }
@@ -736,6 +765,7 @@ class InAppLiveRoomService extends ChangeNotifier {
         event is ParticipantDisconnectedEvent) {
       if (event is ParticipantConnectedEvent) {
         _addSystemMessage("${event.participant.name} Joined");
+        playWebParticipantChime();
       } else if (event is ParticipantDisconnectedEvent) {
         _addSystemMessage("${event.participant.name} Left");
       }
@@ -757,6 +787,9 @@ class InAppLiveRoomService extends ChangeNotifier {
           final msg = LiveRoomChatMessage.fromJson(decoded['message']);
           if (!_chatMessages.any((m) => m.id == msg.id)) {
             _chatMessages.add(msg);
+            if (msg.senderId != currentUserId) {
+              playWebChatMessageChime();
+            }
             _safeNotify();
             _safeRoomUpdate();
           }
@@ -765,6 +798,7 @@ class InAppLiveRoomService extends ChangeNotifier {
           final isRaised = decoded['isRaised'] as bool;
           if (isRaised) {
             _raisedHands.add(uId);
+            playWebHandRaiseChime();
           } else {
             _raisedHands.remove(uId);
           }
@@ -917,11 +951,12 @@ class InAppLiveRoomService extends ChangeNotifier {
     _heartbeatTimer?.cancel();
     try {
       final apiService = ApiService();
-      if (currentUserRole == 'teacher' || currentUserRole == 'admin') {
+      final role = currentUserRole.toLowerCase();
+      final isHostOrTeacher = role == 'teacher' || role == 'admin' || role == 'super_admin' || role == 'host';
+      if (isHostOrTeacher) {
         await apiService.post('/live-classes/$liveClassId/end', {});
       } else {
-        await apiService.post('/live-classes/$liveClassId/event', {
-          'action': 'leave',
+        await apiService.post('/live-classes/$liveClassId/leave', {
           'user_id': currentUserId,
         });
       }

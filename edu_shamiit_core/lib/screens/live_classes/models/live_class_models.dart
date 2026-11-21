@@ -44,10 +44,10 @@ class JoinConductDashboardData {
     final eng = json['engagement'] as Map<String, dynamic>? ?? {};
 
     return JoinConductDashboardData(
-      liveNow: kpis['live_now'] ?? 6,
-      todaysClasses: kpis['todays_classes'] ?? 24,
-      totalParticipantsLive: kpis['total_participants_live'] ?? 248,
-      recordingInProgress: kpis['recording_in_progress'] ?? 3,
+      liveNow: kpis['live_now'] ?? 1,
+      todaysClasses: kpis['todays_classes'] ?? 1,
+      totalParticipantsLive: kpis['total_participants_live'] ?? 43,
+      recordingInProgress: kpis['recording_in_progress'] ?? 1,
       avgClassDurationMin: kpis['avg_class_duration_min'] ?? 45,
       classQuality: kpis['class_quality'] ?? 'Excellent (98%)',
       systemStatus: kpis['system_status'] ?? 'Online',
@@ -189,24 +189,24 @@ class ActiveLiveSession {
   factory ActiveLiveSession.fromJson(Map<String, dynamic> json) {
     return ActiveLiveSession(
       id: json['id'] ?? '',
-      title: json['title'] ?? 'Quadratic Equations',
+      title: json['title'] ?? 'Organic Compounds – Introduction',
       description: json['description'] ?? '',
-      subject: json['subject'] ?? 'Mathematics',
-      subjectIcon: json['subject_icon'] ?? '📐',
-      className: json['class_name'] ?? 'Class 10',
+      subject: json['subject'] ?? 'Chemistry',
+      subjectIcon: json['subject_icon'] ?? '🧪',
+      className: json['class_name'] ?? 'Class 12',
       sectionName: json['section_name'] ?? 'A',
-      classSection: json['class_section'] ?? 'Class 10 - A',
+      classSection: json['class_section'] ?? 'Class 12 - A',
       teacherId: json['teacher_id'],
-      teacherName: json['teacher_name'] ?? 'Instructor',
+      teacherName: json['teacher_name'] ?? 'Aarav Sharma',
       teacherRole: json['teacher_role'] ?? 'teacher',
       durationMinutes: json['duration_minutes'] ?? 45,
       status: json['status'] ?? 'live',
       isLive: json['is_live'] ?? true,
       recordingStatus: json['recording_status'] ?? 'RECORDING',
       recordingEnabled: json['recording_enabled'] ?? true,
-      roomCode: json['room_code'] ?? '10A-MATH',
-      meetingLink: json['meeting_link'] ?? 'https://meet.edushamiit.com/cls/10A-math',
-      viewerCount: json['viewer_count'] ?? 42,
+      roomCode: json['room_code'] ?? '12A-CHEM',
+      meetingLink: json['meeting_link'] ?? 'https://meet.edushamiit.com/c/12A-chem',
+      viewerCount: json['viewer_count'] ?? 43,
       maxParticipants: json['max_participants'] ?? 45,
       allowStudentMic: json['allow_student_mic'] ?? true,
       allowStudentCam: json['allow_student_cam'] ?? true,
@@ -217,6 +217,43 @@ class ActiveLiveSession {
       dateStr: json['date_str'] ?? 'Tue, 21 Jan 2025',
       timeStr: json['time_str'] ?? '08:00 AM - 08:45 AM (45 min)',
       recordingElapsedStr: json['recording_elapsed_str'] ?? '00:18:24',
+    );
+  }
+
+  factory ActiveLiveSession.fromMyClassItem(MyClassItem item, [MyClassDetails? details]) {
+    final parts = item.classSection.split('-');
+    final cls = parts.isNotEmpty ? parts[0].trim() : 'Class 12';
+    final sec = parts.length > 1 ? parts[1].trim() : 'A';
+    return ActiveLiveSession(
+      id: item.id,
+      title: item.topic.isNotEmpty ? item.topic : (details?.topic ?? 'Class Session'),
+      description: item.description.isNotEmpty ? item.description : (details?.description ?? ''),
+      subject: item.subjectName.isNotEmpty ? item.subjectName : (details?.subject ?? 'Chemistry'),
+      subjectIcon: item.subjectIcon.isNotEmpty ? item.subjectIcon : (details?.subjectIcon ?? '🧪'),
+      className: cls,
+      sectionName: sec,
+      classSection: item.classSection.isNotEmpty ? item.classSection : (details?.classSection ?? '$cls - $sec'),
+      teacherId: item.teacherId,
+      teacherName: item.teacherName.isNotEmpty ? item.teacherName : (details?.hostName ?? 'Teacher'),
+      teacherRole: details?.hostRole ?? 'Teacher',
+      durationMinutes: item.durationMinutes > 0 ? item.durationMinutes : 45,
+      status: item.status.isNotEmpty ? item.status : 'live',
+      isLive: true,
+      recordingStatus: item.recordingStatus.isNotEmpty ? item.recordingStatus : 'RECORDING',
+      recordingEnabled: item.recordingEnabled,
+      roomCode: item.roomCode.isNotEmpty ? item.roomCode : (details?.meetingCode ?? '12A-CHEM'),
+      meetingLink: item.meetingLink.isNotEmpty ? item.meetingLink : (details?.meetingLink ?? 'https://meet.edushamiit.com/c/12A-chem'),
+      viewerCount: item.viewerCount > 0 ? item.viewerCount : (details?.viewerCount ?? 43),
+      maxParticipants: item.maxParticipants > 0 ? item.maxParticipants : (details?.maxParticipants ?? 45),
+      allowStudentMic: true,
+      allowStudentCam: true,
+      allowStudentShare: false,
+      allowChat: true,
+      allowReactions: true,
+      waitingRoomEnabled: false,
+      dateStr: item.scheduledDateStr.isNotEmpty ? item.scheduledDateStr : (details?.dateStr ?? 'Today'),
+      timeStr: item.scheduledTimeStr.isNotEmpty ? item.scheduledTimeStr : (details?.timeStr ?? '08:00 AM - 08:45 AM (45 min)'),
+      recordingElapsedStr: '00:00:00',
     );
   }
 }
@@ -663,10 +700,10 @@ class JoinConductKPIs {
 
   factory JoinConductKPIs.fromJson(Map<String, dynamic> json) {
     return JoinConductKPIs(
-      liveNow: json['live_now'] ?? 6,
-      todaysClasses: json['todays_classes'] ?? 24,
-      totalParticipantsLive: json['total_participants_live'] ?? 248,
-      recordingInProgress: json['recording_in_progress'] ?? 3,
+      liveNow: json['live_now'] ?? 1,
+      todaysClasses: json['todays_classes'] ?? 1,
+      totalParticipantsLive: json['total_participants_live'] ?? 43,
+      recordingInProgress: json['recording_in_progress'] ?? 1,
       avgClassDurationMin: json['avg_class_duration_min'] ?? 45,
       classQuality: json['class_quality'] ?? 'Excellent (98%)',
       systemStatus: json['system_status'] ?? 'Online',
@@ -1702,8 +1739,8 @@ class MyClassesDashboardData {
       ongoingLive: kpis['ongoing_live'] ?? 1,
       upcoming: kpis['upcoming'] ?? 2,
       completed: kpis['completed'] ?? 1,
-      totalStudents: kpis['total_students'] ?? 248,
-      teachingDurationToday: kpis['teaching_duration_today'] ?? '2 h 15 min',
+      totalStudents: kpis['total_students'] ?? 170,
+      teachingDurationToday: kpis['teaching_duration_today'] ?? '3 h 0 min',
       todayProgress: TodayClassProgress.fromJson(prog),
       teachingSummary: TeachingSummary.fromJson(sum),
       weeklyTrend: trendList,
@@ -1759,8 +1796,8 @@ class TeachingSummary {
   factory TeachingSummary.fromJson(Map<String, dynamic> json) {
     return TeachingSummary(
       totalClasses: json['total_classes'] ?? 4,
-      totalDuration: json['total_duration'] ?? '2 h 15 min',
-      totalStudents: json['total_students'] ?? 161,
+      totalDuration: json['total_duration'] ?? '3 h 0 min',
+      totalStudents: json['total_students'] ?? 170,
       avgParticipationPct: (json['avg_participation_pct'] as num?)?.toDouble() ?? 92.7,
     );
   }

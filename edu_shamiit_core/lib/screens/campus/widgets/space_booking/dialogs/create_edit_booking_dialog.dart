@@ -10,10 +10,12 @@ import 'space_conflict_warning_dialog.dart';
 
 class CreateEditBookingDialog extends ConsumerStatefulWidget {
   final SpaceBookingRequestItem? initialItem;
+  final String? preselectedRoomId;
 
   const CreateEditBookingDialog({
     super.key,
     this.initialItem,
+    this.preselectedRoomId,
   });
 
   @override
@@ -42,8 +44,8 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
   String _organizerRole = 'Faculty';
   String? _selectedRoomId;
   DateTime _bookingDate = DateTime.now();
-  TimeOfDay _startTime = const TimeOfDay(hour: 14, minute: 0);
-  TimeOfDay _endTime = const TimeOfDay(hour: 16, minute: 0);
+  TimeOfDay _startTime = const TimeOfDay(hour: 8, minute: 0);
+  TimeOfDay _endTime = const TimeOfDay(hour: 9, minute: 0);
   int _setupMinutes = 10;
   int _cleanupMinutes = 10;
 
@@ -141,12 +143,30 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
       if (item.id.isNotEmpty) {
         _loadInitialDetails(item.id);
       }
+    } else {
+      if (widget.preselectedRoomId != null && widget.preselectedRoomId!.isNotEmpty) {
+        _selectedRoomId = widget.preselectedRoomId;
+      }
+      try {
+        final currentCalDate = ref.read(spaceBookingProvider).selectedDate;
+        _bookingDate = currentCalDate;
+      } catch (_) {}
+      _startTime = const TimeOfDay(hour: 8, minute: 0);
+      _endTime = const TimeOfDay(hour: 9, minute: 0);
     }
 
     _fetchRequesters('');
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
+        if (widget.initialItem == null) {
+          final calDate = ref.read(spaceBookingProvider).selectedDate;
+          if (_bookingDate != calDate) {
+            setState(() {
+              _bookingDate = calDate;
+            });
+          }
+        }
         if (_selectedRoomId == null && ref.read(spaceBookingProvider).bookableRooms.isNotEmpty) {
           setState(() {
             _selectedRoomId = ref.read(spaceBookingProvider).bookableRooms.first.id;
@@ -421,6 +441,13 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
     return days.map((d) => map[d] ?? 1).toList()..sort();
   }
 
+  String _formatTimeOfDay(TimeOfDay tod) {
+    final h = tod.hourOfPeriod == 0 ? 12 : tod.hourOfPeriod;
+    final m = tod.minute.toString().padLeft(2, '0');
+    final period = tod.period == DayPeriod.am ? 'AM' : 'PM';
+    return '${h.toString().padLeft(2, '0')}:$m $period';
+  }
+
   String _buildRecurrenceSummary() {
     if (_recurrenceFreq == 'none') {
       return 'Single booking session (Does not repeat)';
@@ -442,12 +469,15 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
       summary = 'Repeats on ${_recurrenceDays.join(", ")} (Custom interval $_recurrenceInterval)';
     }
 
+    final dateStr = DateFormat('dd MMM yyyy').format(_bookingDate);
+    final timeStr = '${_formatTimeOfDay(_startTime)} – ${_formatTimeOfDay(_endTime)}';
+
     if (_recurrenceEndType == 'never') {
-      summary += ' indefinitely';
+      summary += ' starting $dateStr ($timeStr) indefinitely';
     } else if (_recurrenceEndType == 'count') {
-      summary += ' for $_recurrenceCount occurrences';
+      summary += ' starting $dateStr ($timeStr) for $_recurrenceCount occurrences';
     } else if (_recurrenceEndType == 'date') {
-      summary += ' until ${DateFormat('d MMM yyyy').format(_recurrenceUntilDate)}';
+      summary += ' starting $dateStr ($timeStr) until ${DateFormat('dd MMM yyyy').format(_recurrenceUntilDate)}';
     }
     return summary;
   }
@@ -1322,6 +1352,251 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Series Anchor Base Schedule Card
+        Container(
+          padding: const EdgeInsets.all(12),
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.schedule_rounded, size: 15, color: Color(0xFF3B82F6)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Series Base Schedule (Anchor)',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: textPrimary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Start date & slot being repeated',
+                      style: TextStyle(fontSize: 11, color: textSecondary),
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              if (isMobile) ...[
+                InkWell(
+                  onTap: () async {
+                    final d = await showDatePicker(
+                      context: context,
+                      initialDate: _bookingDate,
+                      firstDate: DateTime(2025),
+                      lastDate: DateTime(2030),
+                    );
+                    if (d != null) {
+                      setState(() => _bookingDate = d);
+                      _checkLiveSlotStatus();
+                    }
+                  },
+                  child: Container(
+                    height: 38,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: inputBg,
+                      border: Border.all(color: inputBorder),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_month_outlined, size: 15, color: Color(0xFF3B82F6)),
+                        const SizedBox(width: 8),
+                        Text(
+                          DateFormat('EEE, dd MMM yyyy').format(_bookingDate),
+                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: textPrimary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final t = await showTimePicker(context: context, initialTime: _startTime);
+                          if (t != null) {
+                            setState(() => _startTime = t);
+                            _checkLiveSlotStatus();
+                          }
+                        },
+                        child: Container(
+                          height: 38,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: inputBg,
+                            border: Border.all(color: inputBorder),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF3B82F6)),
+                              const SizedBox(width: 6),
+                              Text(_formatTimeOfDay(_startTime), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text('–', style: TextStyle(color: textSecondary, fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final t = await showTimePicker(context: context, initialTime: _endTime);
+                          if (t != null) {
+                            setState(() => _endTime = t);
+                            _checkLiveSlotStatus();
+                          }
+                        },
+                        child: Container(
+                          height: 38,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: inputBg,
+                            border: Border.all(color: inputBorder),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF3B82F6)),
+                              const SizedBox(width: 6),
+                              Text(_formatTimeOfDay(_endTime), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 4,
+                      child: InkWell(
+                        onTap: () async {
+                          final d = await showDatePicker(
+                            context: context,
+                            initialDate: _bookingDate,
+                            firstDate: DateTime(2025),
+                            lastDate: DateTime(2030),
+                          );
+                          if (d != null) {
+                            setState(() => _bookingDate = d);
+                            _checkLiveSlotStatus();
+                          }
+                        },
+                        child: Container(
+                          height: 38,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: inputBg,
+                            border: Border.all(color: inputBorder),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.calendar_month_outlined, size: 15, color: Color(0xFF3B82F6)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  DateFormat('EEE, dd MMM yyyy').format(_bookingDate),
+                                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: textPrimary),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 3,
+                      child: InkWell(
+                        onTap: () async {
+                          final t = await showTimePicker(context: context, initialTime: _startTime);
+                          if (t != null) {
+                            setState(() => _startTime = t);
+                            _checkLiveSlotStatus();
+                          }
+                        },
+                        child: Container(
+                          height: 38,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: inputBg,
+                            border: Border.all(color: inputBorder),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF3B82F6)),
+                              const SizedBox(width: 6),
+                              Text(_formatTimeOfDay(_startTime), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text('–', style: TextStyle(color: textSecondary, fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      flex: 3,
+                      child: InkWell(
+                        onTap: () async {
+                          final t = await showTimePicker(context: context, initialTime: _endTime);
+                          if (t != null) {
+                            setState(() => _endTime = t);
+                            _checkLiveSlotStatus();
+                          }
+                        },
+                        child: Container(
+                          height: 38,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: inputBg,
+                            border: Border.all(color: inputBorder),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF3B82F6)),
+                              const SizedBox(width: 6),
+                              Text(_formatTimeOfDay(_endTime), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
         _buildFormField(
           label: 'Repeat Frequency',
           color: textSecondary,

@@ -205,4 +205,13 @@ class SafetyComplianceApiService {
     final url = '${AppConfig.apiBaseUrl}/v1/safety-compliance/export?export_type=$type';
     getDownloadHelper().downloadFile(url, 'campus_safety_${type}_${DateTime.now().millisecondsSinceEpoch}.csv');
   }
+
+  /// 15. Trigger Emergency Life Safety Interlock
+  Future<Map<String, dynamic>> triggerEmergencyOverride(String incidentId) async {
+    try {
+      return await _api.post('/v1/safety-compliance/incidents/$incidentId/trigger-emergency-override', {});
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
 }

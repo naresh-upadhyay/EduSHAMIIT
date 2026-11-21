@@ -813,7 +813,7 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: value,
+          value: items.any((i) => i.value == value) ? value : (items.isNotEmpty ? items.first.value : null),
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           icon: Icon(Icons.keyboard_arrow_down, size: 16, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
           style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.w500),

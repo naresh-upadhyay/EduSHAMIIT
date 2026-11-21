@@ -65,6 +65,7 @@ class MaintenanceState {
     String? selectedPriority,
     DateTime? dateRangeStart,
     DateTime? dateRangeEnd,
+    bool clearDateRange = false,
     String? searchQuery,
     int? currentPage,
     int? pageSize,
@@ -86,8 +87,8 @@ class MaintenanceState {
       selectedType: selectedType ?? this.selectedType,
       selectedStatus: selectedStatus ?? this.selectedStatus,
       selectedPriority: selectedPriority ?? this.selectedPriority,
-      dateRangeStart: dateRangeStart ?? this.dateRangeStart,
-      dateRangeEnd: dateRangeEnd ?? this.dateRangeEnd,
+      dateRangeStart: clearDateRange ? null : (dateRangeStart ?? this.dateRangeStart),
+      dateRangeEnd: clearDateRange ? null : (dateRangeEnd ?? this.dateRangeEnd),
       searchQuery: searchQuery ?? this.searchQuery,
       currentPage: currentPage ?? this.currentPage,
       pageSize: pageSize ?? this.pageSize,
@@ -101,9 +102,9 @@ class MaintenanceState {
 class MaintenanceNotifier extends StateNotifier<MaintenanceState> {
   final MaintenanceApiService _api = MaintenanceApiService.instance;
 
-  MaintenanceNotifier() : super(MaintenanceState(
-    dateRangeStart: DateTime(2026, 3, 15),
-    dateRangeEnd: DateTime(2026, 3, 21),
+  MaintenanceNotifier() : super(const MaintenanceState(
+    dateRangeStart: null,
+    dateRangeEnd: null,
   )) {
     loadAll();
   }
@@ -206,6 +207,11 @@ class MaintenanceNotifier extends StateNotifier<MaintenanceState> {
     loadRequests();
   }
 
+  void clearDateRange() {
+    state = state.copyWith(clearDateRange: true, currentPage: 1);
+    loadRequests();
+  }
+
   void setSearchQuery(String query) {
     state = state.copyWith(searchQuery: query, currentPage: 1);
     loadRequests();
@@ -237,6 +243,9 @@ class MaintenanceNotifier extends StateNotifier<MaintenanceState> {
   Future<bool> createRequest(Map<String, dynamic> payload) async {
     final res = await _api.createRequest(payload);
     if (res['success'] == true) {
+      if (state.dateRangeStart != null || state.dateRangeEnd != null) {
+        state = state.copyWith(clearDateRange: true);
+      }
       await loadAll();
       return true;
     }
@@ -274,6 +283,19 @@ class MaintenanceNotifier extends StateNotifier<MaintenanceState> {
       return true;
     }
     return false;
+  }
+
+  Future<Map<String, dynamic>> generateDuePreventivePlans() async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final res = await _api.generateDuePlans();
+      await loadAll();
+      return res;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    } finally {
+      state = state.copyWith(isLoading: false);
+    }
   }
 
   Future<void> exportCsv() async {

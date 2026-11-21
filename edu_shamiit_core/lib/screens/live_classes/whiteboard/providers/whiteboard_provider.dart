@@ -480,23 +480,47 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     );
   }
 
-  Future<void> initializeForSession(String? sessionId, {String defaultTitle = 'Whiteboard - Class 10 – Mathematics'}) async {
+  Future<void> initializeForSession(
+    String? sessionId, {
+    String? defaultTitle,
+    String? defaultTemplate,
+  }) async {
     state = state.copyWith(isLoading: true);
     final templates = await _api.fetchTemplates();
-    var boards = await _api.listWhiteboards(sessionId: sessionId);
-    if (boards.isEmpty && sessionId != null) {
-      boards = await _api.listWhiteboards();
+
+    // Dynamically determine appropriate title and template matching the active live class curriculum
+    final resolvedTitle = defaultTitle ?? 'Whiteboard - Class 12 - A – Chemistry';
+    String resolvedTemplate = defaultTemplate ?? 'chemistry';
+    final titleLower = resolvedTitle.toLowerCase();
+    if (defaultTemplate == null || defaultTemplate.isEmpty || defaultTemplate == 'blank') {
+      if (titleLower.contains('chem')) {
+        resolvedTemplate = 'chemistry';
+      } else if (titleLower.contains('math') || titleLower.contains('algebra') || titleLower.contains('calc')) {
+        resolvedTemplate = 'mathematics';
+      } else if (titleLower.contains('phys')) {
+        resolvedTemplate = 'physics';
+      } else if (titleLower.contains('bio') || titleLower.contains('life')) {
+        resolvedTemplate = 'biology';
+      } else if (titleLower.contains('mind') || titleLower.contains('concept')) {
+        resolvedTemplate = 'concept_mind_map';
+      } else {
+        resolvedTemplate = 'chemistry';
+      }
     }
+
+    // Only query whiteboards strictly for this active session to avoid cross-class data leakage
+    var boards = await _api.listWhiteboards(sessionId: sessionId);
 
     WhiteboardDocument? doc;
     if (boards.isNotEmpty) {
       final firstId = boards.first['id'].toString();
       doc = await _api.fetchWhiteboard(firstId);
     } else {
+      // Create session-specific whiteboard matching the active curriculum subject
       doc = await _api.createWhiteboard(
         sessionId: sessionId,
-        title: defaultTitle,
-        templateType: 'mathematics',
+        title: resolvedTitle,
+        templateType: resolvedTemplate,
         collaborationEnabled: true,
       );
       if (doc != null) {
@@ -520,7 +544,23 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
       );
       await _ws.connect(doc.id);
     } else {
-      state = state.copyWith(isLoading: false, templates: templates, saveState: WhiteboardSaveState.offline);
+      final localDoc = _buildLocalTemplateDocument(
+        title: resolvedTitle,
+        templateType: resolvedTemplate,
+        sessionId: sessionId,
+        collab: true,
+      );
+      state = state.copyWith(
+        document: localDoc,
+        sessionBoards: boards,
+        templates: templates,
+        activePageId: localDoc.pages.isNotEmpty ? localDoc.pages.first.id : null,
+        isLoading: false,
+        saveState: WhiteboardSaveState.offline,
+        undoStack: [],
+        redoStack: [],
+        selectedObjectIds: {},
+      );
     }
   }
 
@@ -849,6 +889,254 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
           type: 'connector',
           zIndex: 7,
           data: {'x1': 700.0, 'y1': 250.0, 'x2': 780.0, 'y2': 250.0, 'color': '#10B981', 'strokeWidth': 2.5, 'label': 'Yes', 'startNodeId': decId, 'endNodeId': endId},
+        ),
+      ]);
+    } else if (norm.contains('chem')) {
+      bgType = WhiteboardBackgroundType.dotted;
+      pageTitle = '1. Organic Chemistry & Molecular Lab';
+      final hubId = 'chem_hub_${DateTime.now().millisecondsSinceEpoch}';
+      final br1Id = 'chem_br1_${DateTime.now().millisecondsSinceEpoch}';
+      final br2Id = 'chem_br2_${DateTime.now().millisecondsSinceEpoch}';
+      objects.addAll([
+        WhiteboardObject(
+          id: 'eq_chem1_${DateTime.now().millisecondsSinceEpoch}',
+          pageId: pageId,
+          type: 'equation',
+          zIndex: 1,
+          data: {
+            'x': 140.0,
+            'y': 100.0,
+            'width': 360.0,
+            'height': 75.0,
+            'latex': r'P \cdot V = n \cdot R \cdot T \quad | \quad \Delta G^\circ = \Delta H^\circ - T\Delta S^\circ',
+            'color': '#1E3A8A',
+            'fontSize': 22.0,
+          },
+        ),
+        WhiteboardObject(
+          id: 'note_chem_${DateTime.now().millisecondsSinceEpoch}',
+          pageId: pageId,
+          type: 'sticky_note',
+          zIndex: 2,
+          data: {
+            'x': 540.0,
+            'y': 90.0,
+            'width': 280.0,
+            'height': 150.0,
+            'text': '🧪 Organic Chemistry Foundations:\n• Hybridization: sp³ (109.5°), sp² (120°), sp (180°)\n• Functional Groups: -OH (Alcohol), -CHO (Aldehyde)\n• Electrophiles (E⁺) vs Nucleophiles (Nu⁻)\n• Benzene Ring: 6 Delocalized π Electrons',
+            'bgColor': '#EFF6FF',
+            'color': '#1E293B',
+          },
+        ),
+        WhiteboardObject(
+          id: hubId,
+          pageId: pageId,
+          type: 'rectangle',
+          zIndex: 3,
+          data: {
+            'x': 360.0,
+            'y': 280.0,
+            'width': 240.0,
+            'height': 80.0,
+            'color': '#1E40AF',
+            'bgColor': '#3B82F6',
+            'textColor': '#FFFFFF',
+            'text': 'Ethanol [CH₃-CH₂-OH]\n(Primary Alcohol)',
+            'fontSize': 14.0,
+            'bold': true,
+            'rounded': true,
+            'strokeWidth': 2.5,
+          },
+        ),
+        WhiteboardObject(
+          id: br1Id,
+          pageId: pageId,
+          type: 'rectangle',
+          zIndex: 4,
+          data: {
+            'x': 100.0,
+            'y': 420.0,
+            'width': 220.0,
+            'height': 75.0,
+            'color': '#065F46',
+            'bgColor': '#10B981',
+            'textColor': '#FFFFFF',
+            'text': 'Ethene [CH₂=CH₂]\n(Dehydration Product)',
+            'fontSize': 13.0,
+            'bold': true,
+            'rounded': true,
+            'strokeWidth': 2.0,
+            'parentNodeId': hubId,
+          },
+        ),
+        WhiteboardObject(
+          id: 'con_chem1_${DateTime.now().millisecondsSinceEpoch}',
+          pageId: pageId,
+          type: 'connector',
+          zIndex: 5,
+          data: {
+            'x1': 380.0,
+            'y1': 360.0,
+            'x2': 280.0,
+            'y2': 420.0,
+            'color': '#10B981',
+            'strokeWidth': 2.5,
+            'label': 'Conc. H₂SO₄ / 170°C',
+            'startNodeId': hubId,
+            'endNodeId': br1Id,
+          },
+        ),
+        WhiteboardObject(
+          id: br2Id,
+          pageId: pageId,
+          type: 'rectangle',
+          zIndex: 6,
+          data: {
+            'x': 640.0,
+            'y': 420.0,
+            'width': 220.0,
+            'height': 75.0,
+            'color': '#9A3412',
+            'bgColor': '#EA580C',
+            'textColor': '#FFFFFF',
+            'text': 'Ethanoic Acid [CH₃COOH]\n(Oxidation Product)',
+            'fontSize': 13.0,
+            'bold': true,
+            'rounded': true,
+            'strokeWidth': 2.0,
+            'parentNodeId': hubId,
+          },
+        ),
+        WhiteboardObject(
+          id: 'con_chem2_${DateTime.now().millisecondsSinceEpoch}',
+          pageId: pageId,
+          type: 'connector',
+          zIndex: 7,
+          data: {
+            'x1': 580.0,
+            'y1': 360.0,
+            'x2': 680.0,
+            'y2': 420.0,
+            'color': '#EA580C',
+            'strokeWidth': 2.5,
+            'label': 'KMnO₄ / [O] oxidation',
+            'startNodeId': hubId,
+            'endNodeId': br2Id,
+          },
+        ),
+      ]);
+    } else if (norm.contains('bio') || norm.contains('life')) {
+      bgType = WhiteboardBackgroundType.plain;
+      pageTitle = '1. Cell Biology & Genetics';
+      objects.addAll([
+        WhiteboardObject(
+          id: 'eq_bio1_${DateTime.now().millisecondsSinceEpoch}',
+          pageId: pageId,
+          type: 'equation',
+          zIndex: 1,
+          data: {
+            'x': 140.0,
+            'y': 100.0,
+            'width': 440.0,
+            'height': 75.0,
+            'latex': r'6\text{CO}_2 + 6\text{H}_2\text{O} + \text{Light} \longrightarrow \text{C}_6\text{H}_{12}\text{O}_6 + 6\text{O}_2',
+            'color': '#065F46',
+            'fontSize': 20.0,
+          },
+        ),
+        WhiteboardObject(
+          id: 'note_bio_${DateTime.now().millisecondsSinceEpoch}',
+          pageId: pageId,
+          type: 'sticky_note',
+          zIndex: 2,
+          data: {
+            'x': 620.0,
+            'y': 90.0,
+            'width': 260.0,
+            'height': 150.0,
+            'text': '🧬 Biological Principles:\n• Cell Theory: Basic unit of life\n• DNA Base Pairing: A = T, G ≡ C\n• Mitosis: 2n somatic division\n• Meiosis: n gamete production\n• Cellular Respiration: 36-38 ATP',
+            'bgColor': '#DCFCE7',
+            'color': '#1E293B',
+          },
+        ),
+      ]);
+    } else if (norm.contains('phys')) {
+      bgType = WhiteboardBackgroundType.lightGrid;
+      pageTitle = '1. Mechanics & Motion';
+      objects.addAll([
+        WhiteboardObject(
+          id: 'eq_phys1_${DateTime.now().millisecondsSinceEpoch}',
+          pageId: pageId,
+          type: 'equation',
+          zIndex: 1,
+          data: {
+            'x': 140.0,
+            'y': 100.0,
+            'width': 400.0,
+            'height': 75.0,
+            'latex': r'F = m \cdot a \quad | \quad v^2 = u^2 + 2as \quad | \quad E = mc^2',
+            'color': '#1E3A8A',
+            'fontSize': 22.0,
+          },
+        ),
+        WhiteboardObject(
+          id: 'note_phys_${DateTime.now().millisecondsSinceEpoch}',
+          pageId: pageId,
+          type: 'sticky_note',
+          zIndex: 2,
+          data: {
+            'x': 580.0,
+            'y': 90.0,
+            'width': 260.0,
+            'height': 150.0,
+            'text': '⚡ Laws of Motion:\n• 1st: Inertia (ΣF = 0)\n• 2nd: F = dp/dt = ma\n• 3rd: Action = -Reaction\n• Momentum Conservation: p₁ + p₂ = const\n• Kinetic Energy: KE = ½mv²',
+            'bgColor': '#FEF3C7',
+            'color': '#1E293B',
+          },
+        ),
+      ]);
+    } else if (norm.contains('blue') || norm.contains('engine')) {
+      bgType = WhiteboardBackgroundType.darkGrid;
+      pageTitle = '1. Engineering Blueprint';
+      objects.addAll([
+        WhiteboardObject(
+          id: 'note_blue_${DateTime.now().millisecondsSinceEpoch}',
+          pageId: pageId,
+          type: 'sticky_note',
+          zIndex: 1,
+          data: {
+            'x': 180.0,
+            'y': 120.0,
+            'width': 260.0,
+            'height': 130.0,
+            'text': '📐 Technical Specifications:\n• Scale: 1:50 Standard Metric\n• Tolerance: ±0.05 mm\n• Material: High-Grade Aluminum Alloy\n• Approved by Academic Engineering Hub',
+            'bgColor': '#1E293B',
+            'textColor': '#38BDF8',
+            'color': '#38BDF8',
+          },
+        ),
+      ]);
+    } else if (norm.contains('graph')) {
+      bgType = WhiteboardBackgroundType.lightGrid;
+      pageTitle = '1. Cartesian Graph Paper';
+    } else if (norm.contains('rule') || norm.contains('note')) {
+      bgType = WhiteboardBackgroundType.plain;
+      pageTitle = '1. Ruled Lecture Notebook';
+      objects.addAll([
+        WhiteboardObject(
+          id: 'note_ruled_${DateTime.now().millisecondsSinceEpoch}',
+          pageId: pageId,
+          type: 'sticky_note',
+          zIndex: 1,
+          data: {
+            'x': 140.0,
+            'y': 100.0,
+            'width': 300.0,
+            'height': 140.0,
+            'text': '📝 Lecture Summary & Key Takeaways:\n• Core definitions & formulas covered\n• Homework exercises & practice problems\n• Next lecture preparation topic',
+            'bgColor': '#FEF9C3',
+            'color': '#1E293B',
+          },
         ),
       ]);
     } else if (norm.contains('math')) {
@@ -1769,7 +2057,7 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     } else if (mime.startsWith('image/')) {
       final w = ((asset['width'] as num?)?.toDouble() ?? 340).clamp(120.0, 560.0);
       final h = ((asset['height'] as num?)?.toDouble() ?? 240).clamp(90.0, 420.0);
-      await addObject(WhiteboardObject(
+      final newImg = WhiteboardObject(
         id: 'img_${_uuid.v4().substring(0, 8)}',
         pageId: page.id,
         type: 'image',
@@ -1783,9 +2071,12 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
           'file_name': filename,
         },
         zIndex: page.objects.length + 1,
-      ));
+      );
+      await addObject(newImg);
+      selectObjects({newImg.id});
+      setTool(WhiteboardTool.select);
     } else {
-      await addObject(WhiteboardObject(
+      final newDoc = WhiteboardObject(
         id: 'doc_${_uuid.v4().substring(0, 8)}',
         pageId: page.id,
         type: 'pdf_page',
@@ -1801,9 +2092,41 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
           'page_count': pageCount,
         },
         zIndex: page.objects.length + 1,
-      ));
+      );
+      await addObject(newDoc);
+      selectObjects({newDoc.id});
+      setTool(WhiteboardTool.select);
     }
     return asset;
+  }
+
+  Future<void> insertImageUrl({
+    required String url,
+    String? title,
+    double? width,
+    double? height,
+  }) async {
+    final doc = state.document;
+    final page = state.activePage;
+    if (doc == null || page == null) return;
+
+    final newImg = WhiteboardObject(
+      id: 'img_${_uuid.v4().substring(0, 8)}',
+      pageId: page.id,
+      type: 'image',
+      data: {
+        'x': 180,
+        'y': 110,
+        'width': width ?? 360,
+        'height': height ?? 240,
+        'content_url': url,
+        'file_name': title ?? 'Inserted Image',
+      },
+      zIndex: page.objects.length + 1,
+    );
+    await addObject(newImg);
+    selectObjects({newImg.id});
+    setTool(WhiteboardTool.select);
   }
 
   Future<Map<String, dynamic>?> exportBoard({

@@ -109,6 +109,107 @@ void stopWebRingtone() {
   }
 }
 
+void playWebHandRaiseChime() {
+  try {
+    js.context.callMethod('eval', [
+      '''
+      (function() {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = window._eduAudioCtx || (window._eduAudioCtx = new AudioCtx());
+        if (ctx.state === 'suspended') ctx.resume();
+        const now = ctx.currentTime;
+        
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(587.33, now);
+        gain1.gain.setValueAtTime(0.18, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.25);
+
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(880, now + 0.08);
+        gain2.gain.setValueAtTime(0.22, now + 0.08);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(now + 0.08);
+        osc2.stop(now + 0.45);
+      })();
+      '''
+    ]);
+  } catch (e) {
+    debugPrint('[JSHelper] Hand raise chime notice: $e');
+  }
+}
+
+void playWebChatMessageChime() {
+  try {
+    js.context.callMethod('eval', [
+      '''
+      (function() {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = window._eduAudioCtx || (window._eduAudioCtx = new AudioCtx());
+        if (ctx.state === 'suspended') ctx.resume();
+        const now = ctx.currentTime;
+        
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(750, now);
+        osc.frequency.exponentialRampToValueAtTime(350, now + 0.09);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.09);
+      })();
+      '''
+    ]);
+  } catch (e) {
+    debugPrint('[JSHelper] Chat chime notice: $e');
+  }
+}
+
+void playWebParticipantChime() {
+  try {
+    js.context.callMethod('eval', [
+      '''
+      (function() {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = window._eduAudioCtx || (window._eduAudioCtx = new AudioCtx());
+        if (ctx.state === 'suspended') ctx.resume();
+        const now = ctx.currentTime;
+        
+        [523.25, 659.25].forEach(freq => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+          gain.gain.setValueAtTime(0.09, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.35);
+        });
+      })();
+      '''
+    ]);
+  } catch (e) {
+    debugPrint('[JSHelper] Participant chime notice: $e');
+  }
+}
+
 void printBookLabelHtml({
   required String title,
   required String isbn,
@@ -892,6 +993,118 @@ void printExecutiveSummaryHtml({
     ]);
   } catch (e) {
     debugPrint('[JSHelper] Error printing executive summary: $e');
+  }
+}
+
+void printCampusInstitutionalDossierHtml({
+  required String reportTitle,
+  required String period,
+  required String facilityScope,
+  required List<String> kpiTitles,
+  required List<String> kpiValues,
+  required List<String> headers,
+  required List<List<String>> rows,
+}) {
+  try {
+    final now = DateTime.now();
+    final dateStr = '${now.day}/${now.month}/${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+    final kpiCardsHtml = StringBuffer();
+    for (int i = 0; i < kpiTitles.length; i++) {
+      final val = i < kpiValues.length ? kpiValues[i] : '-';
+      kpiCardsHtml.write('''
+        <div style="flex: 1; min-width: 150px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin: 6px;">
+          <div style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">\${kpiTitles[i]}</div>
+          <div style="font-size: 20px; font-weight: 700; color: #0f172a; margin-top: 4px;">\$val</div>
+        </div>
+      ''');
+    }
+
+    final tableHeadersHtml = headers.map((h) => '<th style="padding: 10px 12px; background: #0f172a; color: #ffffff; text-align: left; font-size: 12px; font-weight: 600; border: 1px solid #334155;">\$h</th>').join();
+
+    final tableRowsHtml = StringBuffer();
+    for (int r = 0; r < rows.length; r++) {
+      final bg = r % 2 == 0 ? '#ffffff' : '#f8fafc';
+      final cells = rows[r].map((c) => '<td style="padding: 9px 12px; border: 1px solid #e2e8f0; font-size: 11.5px; color: #334155;">\$c</td>').join();
+      tableRowsHtml.write('<tr style="background: \$bg;">\$cells</tr>');
+    }
+
+    final html = '''
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>\$reportTitle - EduSHAMIIT Executive Dossier</title>
+        <meta charset="utf-8">
+        <style>
+          @page { size: A4 landscape; margin: 12mm 15mm; }
+          body { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; margin: 0; color: #0f172a; background: #fff; }
+          .header { border-bottom: 2px solid #2563eb; padding-bottom: 14px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: flex-start; }
+          .title { font-size: 22px; font-weight: 800; color: #1e3a8a; }
+          .subtitle { font-size: 12px; color: #64748b; margin-top: 3px; }
+          .meta { text-align: right; font-size: 11.5px; color: #475569; }
+          .meta strong { color: #0f172a; }
+          .kpi-container { display: flex; flex-wrap: wrap; margin-bottom: 18px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+          .footer { margin-top: 30px; display: flex; justify-content: space-between; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 12px; }
+          .sign-block { width: 180px; text-align: center; border-top: 1px dashed #94a3b8; padding-top: 6px; font-weight: 600; font-size: 11.5px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="title">EduSHAMIIT Institutional Facility & Infrastructure Audit</div>
+            <div class="subtitle">\$reportTitle • Certified Compliance Dossier</div>
+          </div>
+          <div class="meta">
+            <div>Scope: <strong>\$facilityScope</strong></div>
+            <div>Audit Period: <strong>\$period</strong></div>
+            <div>Generated: <strong>\$dateStr</strong></div>
+          </div>
+        </div>
+
+        <div class="kpi-container">
+          \$kpiCardsHtml
+        </div>
+
+        <table>
+          <thead>
+            <tr>\$tableHeadersHtml</tr>
+          </thead>
+          <tbody>
+            \$tableRowsHtml
+          </tbody>
+        </table>
+
+        <div style="margin-top: 40px; display: flex; justify-content: space-around;">
+          <div class="sign-block">Campus Facility Director</div>
+          <div class="sign-block">Statutory Compliance Auditor</div>
+          <div class="sign-block">Principal / Head of Institution</div>
+        </div>
+
+        <div class="footer">
+          <div>EduSHAMIIT ERP • Secure Institutional Infrastructure System</div>
+          <div>Confidential — For Internal & Board Regulatory Use Only</div>
+        </div>
+      </body>
+      </html>
+    ''';
+
+    final encodedHtml = Uri.encodeComponent(html);
+    js.context.callMethod('eval', [
+      '''
+      (function() {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(decodeURIComponent('\$encodedHtml'));
+          printWindow.document.close();
+          printWindow.focus();
+          printWindow.print();
+        }
+      })();
+      '''
+    ]);
+  } catch (e) {
+    debugPrint('[JSHelper] Error printing campus dossier: \$e');
   }
 }
 

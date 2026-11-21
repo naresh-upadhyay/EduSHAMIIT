@@ -53,6 +53,8 @@ class SpaceTimelineBooking {
   final String endTime;
   final DateTime? startDatetime;
   final DateTime? endDatetime;
+  final String bookingDate;
+  final bool isRecurring;
   final int durationMinutes;
   final String organizerName;
   final String organizerRole;
@@ -67,6 +69,8 @@ class SpaceTimelineBooking {
     required this.endTime,
     this.startDatetime,
     this.endDatetime,
+    this.bookingDate = '',
+    this.isRecurring = false,
     this.durationMinutes = 60,
     required this.organizerName,
     required this.organizerRole,
@@ -83,6 +87,10 @@ class SpaceTimelineBooking {
       endTime: json['end_time']?.toString() ?? '',
       startDatetime: json['start_datetime'] != null ? DateTime.tryParse(json['start_datetime']) : null,
       endDatetime: json['end_datetime'] != null ? DateTime.tryParse(json['end_datetime']) : null,
+      bookingDate: json['booking_date']?.toString() ?? '',
+      isRecurring: json['is_recurring'] == true ||
+          (json['recurrence_series_id'] != null && json['recurrence_series_id'].toString().isNotEmpty) ||
+          (json['recurring_series_id'] != null && json['recurring_series_id'].toString().isNotEmpty),
       durationMinutes: json['duration_minutes'] as int? ?? 60,
       organizerName: json['organizer_name']?.toString() ?? '',
       organizerRole: json['organizer_role']?.toString() ?? '',

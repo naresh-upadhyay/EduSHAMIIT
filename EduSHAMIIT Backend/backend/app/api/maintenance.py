@@ -86,11 +86,14 @@ def get_school_id(current_user: Optional[Dict[str, Any]]) -> str:
     return "11111111-1111-1111-1111-111111111111"
 
 
-def get_user_id(current_user: Optional[Dict[str, Any]]) -> Optional[str]:
-    """Extract authenticated user profile ID."""
-    if current_user and current_user.get("id"):
-        return str(current_user["id"])
-    return None
+def get_user_id(current_user: Optional[Dict[str, Any]]) -> str:
+    """Extract authenticated user profile ID with fallback to primary admin user."""
+    if current_user:
+        if current_user.get("id"):
+            return str(current_user["id"])
+        if current_user.get("user_id"):
+            return str(current_user["user_id"])
+    return "00000000-0000-0000-0000-000000000001"
 
 
 def get_user_name(current_user: Optional[Dict[str, Any]]) -> str:
@@ -501,6 +504,18 @@ async def create_maintenance_plan(
 
     rows = await exec_sql(sql_ins, params)
     return _serialize_val(rows[0] if rows else {"success": True, "plan_code": plan_code})
+
+
+@router.post("/plans/generate-due", summary="Auto-Generate Work Orders for Due Preventive Maintenance Plans")
+async def generate_due_preventive_maintenance_tickets(
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    school_id = get_school_id(current_user)
+    sql = "SELECT public.sp_generate_due_preventive_maintenance_tickets(%s::UUID) AS result;"
+    row = await exec_sql(sql, (school_id,), fetch_one=True)
+    if not row or not row.get("result"):
+        return {"success": False, "generated_count": 0, "records": []}
+    return row.get("result")
 
 
 # ============================================================================

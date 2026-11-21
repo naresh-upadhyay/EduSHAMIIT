@@ -1,8 +1,4 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import '../../../../config/app_config.dart';
 import '../../../../services/api_service.dart';
 import '../models/whiteboard_models.dart';
 
@@ -307,18 +303,15 @@ class WhiteboardApiService {
     required Uint8List bytes,
   }) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-      final uri = Uri.parse('${AppConfig.apiBaseUrl}/whiteboards/$whiteboardId/assets');
-      final req = http.MultipartRequest('POST', uri);
-      if (token != null) req.headers['Authorization'] = 'Bearer $token';
-      if (pageId != null) req.fields['page_id'] = pageId;
-      req.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
-      final streamed = await req.send().timeout(const Duration(seconds: 30));
-      final body = await streamed.stream.bytesToString();
-      final decoded = jsonDecode(body);
-      if (streamed.statusCode >= 200 && streamed.statusCode < 300 && decoded['data'] != null) {
-        return Map<String, dynamic>.from(decoded['data']);
+      final res = await _api.multipartPostBytes(
+        '/whiteboards/$whiteboardId/assets',
+        bytes,
+        filename,
+        'file',
+        fields: {if (pageId != null) 'page_id': pageId},
+      );
+      if (res['data'] is Map<String, dynamic>) {
+        return Map<String, dynamic>.from(res['data']);
       }
     } catch (e) {
       debugPrint('[WhiteboardApiService] uploadAsset error: $e');

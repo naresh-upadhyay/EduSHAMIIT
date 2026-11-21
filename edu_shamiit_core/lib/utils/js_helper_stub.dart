@@ -10,6 +10,12 @@ void startWebRingtone() {}
 
 void stopWebRingtone() {}
 
+void playWebHandRaiseChime() {}
+
+void playWebChatMessageChime() {}
+
+void playWebParticipantChime() {}
+
 void printBookLabelHtml({
   required String title,
   required String isbn,
@@ -123,4 +129,16 @@ void printExecutiveSummaryHtml({
   required dynamic report,
 }) {
   debugPrint('[Print Executive Summary Stub]: $report');
+}
+
+void printCampusInstitutionalDossierHtml({
+  required String reportTitle,
+  required String period,
+  required String facilityScope,
+  required List<String> kpiTitles,
+  required List<String> kpiValues,
+  required List<String> headers,
+  required List<List<String>> rows,
+}) {
+  debugPrint('[Print Campus Institutional Dossier Stub]: $reportTitle - $period ($facilityScope)');
 }

@@ -142,10 +142,18 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.initialProfile != null;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.colorScheme.primary;
+
+    final inputBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+    );
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 680, maxHeight: 720),
@@ -154,18 +162,18 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
             // Header
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
               ),
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
+                      color: primaryColor.withValues(alpha: isDark ? 0.2 : 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.tune_rounded, color: Color(0xFF2563EB), size: 22),
+                    child: Icon(Icons.tune_rounded, color: primaryColor, size: 22),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -174,19 +182,19 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
                       children: [
                         Text(
                           isEdit ? 'Edit Control Profile: ${widget.initialProfile!.name}' : 'Add New Control Profile',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                         ),
                         Text(
                           widget.defaultDeviceTypeName != null
                               ? 'Target Device Type: ${widget.defaultDeviceTypeName}'
                               : 'Create custom telemetry mappings, safety limits, and default states.',
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                    icon: Icon(Icons.close_rounded, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -204,12 +212,17 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
                     children: [
                       // Device Type selection
                       if (widget.availableDeviceTypes.isNotEmpty && widget.defaultDeviceTypeId == null) ...[
-                        const Text('Associated Device Type *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                        Text('Associated Device Type *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
                           initialValue: _selectedDeviceTypeId,
+                          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                           decoration: InputDecoration(
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                            filled: true,
+                            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                            border: inputBorder,
+                            enabledBorder: inputBorder,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           ),
                           items: widget.availableDeviceTypes.map((dt) {
@@ -230,13 +243,18 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Profile Name *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                                Text('Profile Name *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))),
                                 const SizedBox(height: 6),
                                 TextFormField(
                                   controller: _nameController,
+                                  style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                                   decoration: InputDecoration(
+                                    filled: true,
+                                    fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                                     hintText: 'e.g. High Security (24x7), PTZ Control Profile',
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                                    hintStyle: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                                    border: inputBorder,
+                                    enabledBorder: inputBorder,
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                   ),
                                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Profile name is required' : null,
@@ -254,13 +272,18 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Profile Code *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                                Text('Profile Code *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))),
                                 const SizedBox(height: 6),
                                 TextFormField(
                                   controller: _codeController,
+                                  style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                                   decoration: InputDecoration(
+                                    filled: true,
+                                    fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                                     hintText: 'e.g. high_sec_cctv, ptz_ctrl',
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                                    hintStyle: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                                    border: inputBorder,
+                                    enabledBorder: inputBorder,
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                   ),
                                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Profile code is required' : null,
@@ -278,12 +301,17 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Profile Type', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                                Text('Profile Type', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))),
                                 const SizedBox(height: 6),
                                 DropdownButtonFormField<String>(
                                   initialValue: _profileType,
+                                  dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                  style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                                   decoration: InputDecoration(
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                                    filled: true,
+                                    fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                    border: inputBorder,
+                                    enabledBorder: inputBorder,
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                   ),
                                   items: const [
@@ -300,13 +328,18 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Version', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                                Text('Version', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))),
                                 const SizedBox(height: 6),
                                 TextFormField(
                                   controller: _versionController,
+                                  style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                                   decoration: InputDecoration(
+                                    filled: true,
+                                    fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                                     hintText: '1.0.0',
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                                    hintStyle: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                                    border: inputBorder,
+                                    enabledBorder: inputBorder,
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                   ),
                                 ),
@@ -317,14 +350,19 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
                       ),
                       const SizedBox(height: 16),
 
-                      const Text('Description', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                      Text('Description', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _descController,
                         maxLines: 2,
+                        style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                         decoration: InputDecoration(
+                          filled: true,
+                          fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                           hintText: 'Purpose and operational parameters of this profile...',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                          hintStyle: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                          border: inputBorder,
+                          enabledBorder: inputBorder,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         ),
                       ),
@@ -336,13 +374,18 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Hardware Manufacturer', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                                Text('Hardware Manufacturer', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))),
                                 const SizedBox(height: 6),
                                 TextFormField(
                                   controller: _mfgController,
+                                  style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                                   decoration: InputDecoration(
+                                    filled: true,
+                                    fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                                     hintText: 'e.g. Hikvision, Dahua',
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                                    hintStyle: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                                    border: inputBorder,
+                                    enabledBorder: inputBorder,
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                   ),
                                 ),
@@ -354,13 +397,18 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Hardware Model', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                                Text('Hardware Model', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))),
                                 const SizedBox(height: 6),
                                 TextFormField(
                                   controller: _modelController,
+                                  style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                                   decoration: InputDecoration(
+                                    filled: true,
+                                    fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                                     hintText: 'e.g. DS-2CD2143G2-I',
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                                    hintStyle: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                                    border: inputBorder,
+                                    enabledBorder: inputBorder,
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                   ),
                                 ),
@@ -374,18 +422,18 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
                       CheckboxListTile(
                         value: _isDefault,
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('Make this the Default Profile for this Device Type', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                        subtitle: const Text('Newly registered devices will automatically adopt this profile.', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                        title: Text('Make this the Default Profile for this Device Type', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                        subtitle: Text('Newly registered devices will automatically adopt this profile.', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                         activeColor: const Color(0xFF2563EB),
                         controlAffinity: ListTileControlAffinity.leading,
                         onChanged: (v) => setState(() => _isDefault = v ?? false),
                       ),
 
                       const SizedBox(height: 16),
-                      const Divider(color: Color(0xFFE2E8F0)),
+                      Divider(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                       const SizedBox(height: 12),
 
-                      const Text('Default Settings & Safety Limits', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                      Text('Default Settings & Safety Limits', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
                       const SizedBox(height: 12),
 
                       Row(
@@ -394,13 +442,13 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF8FAFC),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
                                 children: [
-                                  const Expanded(child: Text('Default Power State', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                                  Expanded(child: Text('Default Power State', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155)))),
                                   Switch(
                                     value: _defaultPower,
                                     activeThumbColor: const Color(0xFF2563EB),
@@ -415,8 +463,8 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF8FAFC),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Column(
@@ -425,7 +473,7 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      const Text('Default Brightness', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                      Text('Default Brightness', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))),
                                       Text('${_defaultBrightness.round()}%', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2563EB))),
                                     ],
                                   ),
@@ -450,19 +498,19 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
                           final tempBox = Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Target Climate Temp', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                Text('Target Climate Temp', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))),
                                 const SizedBox(height: 6),
                                 Row(
                                   children: [
                                     IconButton(
-                                      icon: const Icon(Icons.remove_circle_outline, size: 20, color: Color(0xFF64748B)),
+                                      icon: Icon(Icons.remove_circle_outline, size: 20, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                                       padding: const EdgeInsets.all(4),
                                       constraints: const BoxConstraints(),
                                       splashRadius: 16,
@@ -472,7 +520,7 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
                                     Text('${_defaultTemperature.toStringAsFixed(1)}°C', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2563EB))),
                                     const SizedBox(width: 8),
                                     IconButton(
-                                      icon: const Icon(Icons.add_circle_outline, size: 20, color: Color(0xFF64748B)),
+                                      icon: Icon(Icons.add_circle_outline, size: 20, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                                       padding: const EdgeInsets.all(4),
                                       constraints: const BoxConstraints(),
                                       splashRadius: 16,
@@ -487,14 +535,14 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
                           final wattageBox = Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Max Wattage Threshold', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                Text('Max Wattage Threshold', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))),
                                 const SizedBox(height: 6),
                                 Text('$_maxWattageLimit W', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFFD97706))),
                               ],
@@ -515,16 +563,16 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
             // Footer
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
-                color: Color(0xFFF8FAFC),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
               ),
               child: Row(
                 children: [
                   const Spacer(),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+                    child: Text('Cancel', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton.icon(

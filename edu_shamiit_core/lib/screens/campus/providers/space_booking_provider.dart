@@ -119,13 +119,30 @@ class SpaceBookingNotifier extends StateNotifier<SpaceBookingState> {
     loadAll();
   }
 
+  (DateTime, DateTime) _getTimelineRangeFor(DateTime date, String mode) {
+    if (mode == 'Week') {
+      final startOfWeek = date.subtract(Duration(days: (date.weekday - 1) % 7));
+      final endOfWeek = startOfWeek.add(const Duration(days: 6));
+      return (startOfWeek, endOfWeek);
+    } else if (mode == 'Month') {
+      final startOfMonth = DateTime(date.year, date.month, 1);
+      final endOfMonth = DateTime(date.year, date.month + 1, 0);
+      return (startOfMonth, endOfMonth);
+    } else {
+      return (date, date);
+    }
+  }
+
   Future<void> loadAll() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
+      final range = _getTimelineRangeFor(state.selectedDate, state.timelineViewMode);
       final results = await Future.wait([
         _service.getKpis(date: state.selectedDate),
         _service.getTimeline(
           date: state.selectedDate,
+          startDate: range.$1,
+          endDate: range.$2,
           buildingId: state.selectedBuildingId,
           roomType: state.selectedSpaceType,
         ),
@@ -184,10 +201,13 @@ class SpaceBookingNotifier extends StateNotifier<SpaceBookingState> {
 
   Future<void> changeDate(DateTime newDate) async {
     state = state.copyWith(selectedDate: newDate);
+    final range = _getTimelineRangeFor(newDate, state.timelineViewMode);
     final results = await Future.wait([
       _service.getKpis(date: newDate),
       _service.getTimeline(
         date: newDate,
+        startDate: range.$1,
+        endDate: range.$2,
         buildingId: state.selectedBuildingId,
         roomType: state.selectedSpaceType,
       ),
@@ -206,8 +226,19 @@ class SpaceBookingNotifier extends StateNotifier<SpaceBookingState> {
     );
   }
 
-  void setTimelineViewMode(String mode) {
+  Future<void> setTimelineViewMode(String mode) async {
     state = state.copyWith(timelineViewMode: mode);
+    final range = _getTimelineRangeFor(state.selectedDate, mode);
+    try {
+      final timeline = await _service.getTimeline(
+        date: state.selectedDate,
+        startDate: range.$1,
+        endDate: range.$2,
+        buildingId: state.selectedBuildingId,
+        roomType: state.selectedSpaceType,
+      );
+      state = state.copyWith(roomsTimeline: timeline);
+    } catch (_) {}
   }
 
   void setDisplayMode(String mode) {
@@ -338,9 +369,12 @@ class SpaceBookingNotifier extends StateNotifier<SpaceBookingState> {
       isLoading: true,
     );
 
+    final range = _getTimelineRangeFor(state.selectedDate, state.timelineViewMode);
     final results = await Future.wait([
       _service.getTimeline(
         date: state.selectedDate,
+        startDate: range.$1,
+        endDate: range.$2,
         buildingId: state.selectedBuildingId,
         roomType: state.selectedSpaceType,
       ),
@@ -431,6 +465,13 @@ class SpaceBookingNotifier extends StateNotifier<SpaceBookingState> {
     try {
       final res = await _service.createOrUpdateBooking(payload);
       if (res['success'] == true) {
+        final dateStr = payload['booking_date'] ?? payload['start_date'];
+        if (dateStr != null && dateStr.toString().isNotEmpty) {
+          final dt = DateTime.tryParse(dateStr.toString());
+          if (dt != null) {
+            state = state.copyWith(selectedDate: dt);
+          }
+        }
         await loadAll();
         return res;
       }
@@ -447,6 +488,13 @@ class SpaceBookingNotifier extends StateNotifier<SpaceBookingState> {
     try {
       final res = await _service.createRecurringBooking(payload);
       if (res['success'] == true) {
+        final dateStr = payload['start_date'] ?? payload['booking_date'];
+        if (dateStr != null && dateStr.toString().isNotEmpty) {
+          final dt = DateTime.tryParse(dateStr.toString());
+          if (dt != null) {
+            state = state.copyWith(selectedDate: dt);
+          }
+        }
         await loadAll();
         return res;
       }

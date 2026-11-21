@@ -814,8 +814,8 @@ void main() {
                 purpose: 'Lecture',
                 organizerName: 'Prof. Ramanathan',
                 organizerRole: 'Faculty',
-                startTime: '02:00 PM',
-                endTime: '04:00 PM',
+                startTime: '08:00 AM',
+                endTime: '09:00 AM',
                 status: 'Approved',
               ),
             ],
@@ -823,7 +823,7 @@ void main() {
         ],
       );
 
-      // Default dialog has 02:00 PM to 04:00 PM, which directly overlaps with Math Lecture!
+      // Default dialog has 08:00 AM to 09:00 AM, which directly overlaps with Math Lecture!
       await tester.pumpWidget(
         ProviderScope(
           overrides: [

@@ -2097,10 +2097,43 @@ async def log_utility_reading(
             payload.status or "Normal", payload.notes
         )
         rows = await exec_sql(sql, params)
-        return {"success": True, "data": _serialize_val(rows[0])}
+        reading_data = _serialize_val(rows[0])
+
+        # Automatically execute utility anomaly check and trigger ticket if > 1.5x baseline
+        anomaly_result = None
+        try:
+            anom_row = await exec_sql(
+                "SELECT public.sp_check_utility_anomalies(%s::UUID, %s::UUID) AS result;",
+                (school_id, reading_data["id"]),
+                fetch_one=True
+            )
+            if anom_row and anom_row.get("result"):
+                anomaly_result = anom_row["result"]
+        except Exception as anom_err:
+            logger.warning(f"Could not execute automatic anomaly check: {anom_err}")
+
+        return {
+            "success": True,
+            "data": reading_data,
+            "anomaly_check": anomaly_result
+        }
     except Exception as e:
         logger.error(f"Error logging utility reading: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/utilities/anomalies", summary="Check Utility Consumption Anomalies")
+async def check_utility_anomalies(
+    reading_id: Optional[str] = Query(None),
+    user: dict = Depends(get_current_user),
+):
+    school_id = _get_school_id(user)
+    sql = "SELECT public.sp_check_utility_anomalies(%s::UUID, %s::UUID) AS result;"
+    r_id = reading_id if reading_id else None
+    row = await exec_sql(sql, (school_id, r_id), fetch_one=True)
+    if not row or not row.get("result"):
+        return {"success": False, "message": "Failed to check utility anomalies"}
+    return row.get("result")
 
 
 # ============================================================================

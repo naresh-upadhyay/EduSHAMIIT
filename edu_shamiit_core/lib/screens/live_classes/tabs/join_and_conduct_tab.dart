@@ -561,8 +561,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                               _chatPanelKey.currentState?.addLocalPoll(localPoll);
                               _chatPanelKey.currentState?.selectTab(2);
 
-                              if (success || true) {
-
+                              if (success) {
                                 try {
                                   await roomService.broadcastData({
                                     'type': 'poll_launched',
@@ -978,14 +977,41 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
 
   void _openWhiteboardWorkspace([String? overrideSessionId, String? overrideTitle]) {
     final s = ref.read(liveClassManagementProvider);
-    final activeSess = s.conductSessionData?.activeSession ?? s.joinDashboard?.activeSession;
-    final sid = overrideSessionId ?? activeSess?.id;
+    final activeSess = s.conductSessionData?.activeSession ??
+        s.joinDashboard?.activeSession ??
+        (s.selectedMyClass != null
+            ? ActiveLiveSession.fromMyClassItem(s.selectedMyClass!, s.selectedMyClassDetails)
+            : null);
+    final sel = s.selectedMyClass;
+    final sid = overrideSessionId ?? activeSess?.id ?? sel?.id;
     final title = overrideTitle ??
         (activeSess != null
-            ? 'Whiteboard - ${activeSess.className} – ${activeSess.subject}'
-            : 'Whiteboard - Class 10 – Mathematics');
+            ? 'Whiteboard - ${activeSess.classSection} : ${activeSess.subject} – ${activeSess.title}'
+            : (sel != null
+                ? 'Whiteboard - ${sel.classSection} : ${sel.subjectName} – ${sel.topic}'
+                : 'Whiteboard - Class 12 - A – Chemistry'));
+
+    final subject = activeSess?.subject ?? sel?.subjectName ?? 'Chemistry';
+    String template = 'chemistry';
+    final subLower = subject.toLowerCase();
+    if (subLower.contains('chem')) {
+      template = 'chemistry';
+    } else if (subLower.contains('math') || subLower.contains('algebra') || subLower.contains('calc')) {
+      template = 'mathematics';
+    } else if (subLower.contains('phys')) {
+      template = 'physics';
+    } else if (subLower.contains('bio') || subLower.contains('life')) {
+      template = 'biology';
+    } else {
+      template = 'concept_mind_map';
+    }
+
     setState(() => _selectedSubnav = 'Open Whiteboard');
-    ref.read(whiteboardProvider.notifier).initializeForSession(sid, defaultTitle: title);
+    ref.read(whiteboardProvider.notifier).initializeForSession(
+          sid,
+          defaultTitle: title,
+          defaultTemplate: template,
+        );
   }
 
   Widget _buildHorizontalSubnav() {
@@ -1027,22 +1053,27 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
               builder: (context) {
                 final activeSession = ref.watch(liveClassManagementProvider).conductSessionData?.activeSession ??
                     ref.watch(liveClassManagementProvider).joinDashboard?.activeSession;
-                if (activeSession == null) return const SizedBox.shrink();
                 final isStageActive = _selectedSubnav == 'Conduct Class';
+                if (activeSession != null) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ActionChip(
+                      avatar: const Icon(Icons.fiber_manual_record, color: Color(0xFF10B981), size: 12),
+                      label: Text(
+                        isStageActive ? 'Live Class Active' : 'Return to Live Stage',
+                        style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 11.5),
+                      ),
+                      backgroundColor: isStageActive
+                          ? const Color(0xFF10B981).withValues(alpha: 0.18)
+                          : const Color(0xFF10B981).withValues(alpha: 0.08),
+                      side: const BorderSide(color: Color(0xFF10B981)),
+                      onPressed: () => setState(() => _selectedSubnav = 'Conduct Class'),
+                    ),
+                  );
+                }
                 return Padding(
                   padding: const EdgeInsets.only(right: 6),
-                  child: ActionChip(
-                    avatar: const Icon(Icons.fiber_manual_record, color: Color(0xFF10B981), size: 12),
-                    label: Text(
-                      isStageActive ? 'Live Class Active' : 'Return to Live Stage',
-                      style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 11.5),
-                    ),
-                    backgroundColor: isStageActive
-                        ? const Color(0xFF10B981).withValues(alpha: 0.18)
-                        : const Color(0xFF10B981).withValues(alpha: 0.08),
-                    side: const BorderSide(color: Color(0xFF10B981)),
-                    onPressed: () => setState(() => _selectedSubnav = 'Conduct Class'),
-                  ),
+                  child: _buildSubnavItem(Icons.videocam_outlined, 'Live Classroom'),
                 );
               },
             ),
@@ -1059,10 +1090,14 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(liveClassManagementProvider);
-    final activeSess = state.conductSessionData?.activeSession ?? state.joinDashboard?.activeSession;
+    final activeSess = state.conductSessionData?.activeSession ??
+        state.joinDashboard?.activeSession ??
+        (state.selectedMyClass != null
+            ? ActiveLiveSession.fromMyClassItem(state.selectedMyClass!, state.selectedMyClassDetails)
+            : null);
 
     // Fullscreen Stage View: takes over the entire tab / viewport
-    if (_isStageFullscreen && _selectedSubnav == 'Conduct Class') {
+    if (_isStageFullscreen && _selectedSubnav == 'Conduct Class' && (state.conductSessionData != null || activeSess != null)) {
       return Container(
         color: const Color(0xFF0F172A),
         child: LiveClassroomStage(
@@ -1076,6 +1111,16 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
           onOpenParticipants: () => _chatPanelKey.currentState?.selectTab(0),
           onOpenQA: () => _chatPanelKey.currentState?.selectTab(2),
           onOpenWhiteboard: _openWhiteboardWorkspace,
+          onLeaveClass: () async {
+            setState(() {
+              _isStageFullscreen = false;
+              _selectedSubnav = 'My Classes (Today)';
+            });
+            leaveBrowserFullscreen();
+            if (activeSess != null) {
+              await ref.read(liveClassManagementProvider.notifier).leaveClass(activeSess.id);
+            }
+          },
           onEndClass: () {
             setState(() {
               _isStageFullscreen = false;
@@ -1099,12 +1144,12 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // 1. TOP KPI ROW
-          if (_selectedSubnav == 'Conduct Class')
-            _buildConductClassKpiRow(state.joinDashboard)
+          if (_selectedSubnav == 'Conduct Class' && (state.conductSessionData != null || activeSess != null))
+            _buildConductClassKpiRow(state)
           else if (_selectedSubnav == 'My Classes (Today)')
             _buildMyClassesKpiRow(state.myDashboard),
 
-          if (_selectedSubnav == 'Conduct Class' || _selectedSubnav == 'My Classes (Today)')
+          if ((_selectedSubnav == 'Conduct Class' && (state.conductSessionData != null || activeSess != null)) || _selectedSubnav == 'My Classes (Today)')
             const SizedBox(height: 16),
 
           // Persistent Live Class in progress top banner (when host navigates to other subnav tabs)
@@ -1166,7 +1211,11 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
             builder: (context, constraints) {
               final isMobile = constraints.maxWidth < 950;
               final isNarrow = constraints.maxWidth < 1250;
-              final activeSess = state.conductSessionData?.activeSession ?? state.joinDashboard?.activeSession;
+              final activeSess = state.conductSessionData?.activeSession ??
+                  state.joinDashboard?.activeSession ??
+                  (state.selectedMyClass != null
+                      ? ActiveLiveSession.fromMyClassItem(state.selectedMyClass!, state.selectedMyClassDetails)
+                      : null);
 
               if (isMobile) {
                 return Column(
@@ -1174,46 +1223,64 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                   children: [
                     _buildHorizontalSubnav(),
                     if (_selectedSubnav == 'Conduct Class') ...[
-                      SizedBox(
-                        height: 480,
-                        child: LiveClassroomStage(
-                          session: activeSess,
-                          isFullscreen: _isStageFullscreen,
-                          onToggleFullscreen: () => setState(() => _isStageFullscreen = !_isStageFullscreen),
-                          onOpenChat: () => _chatPanelKey.currentState?.selectTab(1),
-                          onOpenParticipants: () => _chatPanelKey.currentState?.selectTab(0),
-                          onOpenQA: () => _chatPanelKey.currentState?.selectTab(2),
-                          onOpenWhiteboard: _openWhiteboardWorkspace,
-                          onEndClass: () {
-                            if (activeSess != null) {
-                              ref.read(liveClassManagementProvider.notifier).endClass(activeSess.id);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Live class ended successfully. Attendance synced.')),
-                              );
-                            }
-                            setState(() => _selectedSubnav = 'My Classes (Today)');
-                          },
+                      if (state.conductSessionData != null || activeSess != null) ...[
+                        SizedBox(
+                          height: 480,
+                          child: LiveClassroomStage(
+                            session: activeSess,
+                            isFullscreen: _isStageFullscreen,
+                            onToggleFullscreen: () => setState(() => _isStageFullscreen = !_isStageFullscreen),
+                            onOpenChat: () => _chatPanelKey.currentState?.selectTab(1),
+                            onOpenParticipants: () => _chatPanelKey.currentState?.selectTab(0),
+                            onOpenQA: () => _chatPanelKey.currentState?.selectTab(2),
+                            onOpenWhiteboard: _openWhiteboardWorkspace,
+                            onLeaveClass: () async {
+                              if (activeSess != null) {
+                                await ref.read(liveClassManagementProvider.notifier).leaveClass(activeSess.id);
+                              }
+                              setState(() => _selectedSubnav = 'My Classes (Today)');
+                            },
+                            onEndClass: () {
+                              if (activeSess != null) {
+                                ref.read(liveClassManagementProvider.notifier).endClass(activeSess.id);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Live class ended successfully. Attendance synced.')),
+                                );
+                              }
+                              setState(() => _selectedSubnav = 'My Classes (Today)');
+                            },
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 14),
-                      SizedBox(
-                        height: 460,
-                        child: LiveClassChatPanel(
-                          key: _chatPanelKey,
-                          participants: state.conductSessionData?.participants ?? state.joinDashboard?.participants,
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          height: 460,
+                          child: LiveClassChatPanel(
+                            key: _chatPanelKey,
+                            participants: state.conductSessionData?.participants ?? state.joinDashboard?.participants,
+                          ),
                         ),
-                      ),
+                      ] else ...[
+                        _buildNoLiveClassView(),
+                      ],
                     ] else if (_selectedSubnav == 'Open Whiteboard') ...[
                       SizedBox(
                         height: (MediaQuery.of(context).size.height - 180).clamp(620.0, 920.0),
                         child: WhiteboardWorkspace(
-                          sessionId: activeSess?.id,
+                          sessionId: activeSess?.id ?? state.selectedMyClass?.id,
                           sessionTitle: activeSess != null
-                              ? 'Whiteboard - ${activeSess.className} – ${activeSess.subject}'
-                              : 'Whiteboard - Class 10 – Mathematics',
+                              ? 'Whiteboard - ${activeSess.classSection} : ${activeSess.subject} – ${activeSess.title}'
+                              : (state.selectedMyClass != null
+                                  ? 'Whiteboard - ${state.selectedMyClass!.classSection} : ${state.selectedMyClass!.subjectName} – ${state.selectedMyClass!.topic}'
+                                  : 'Whiteboard - Class 12 - A – Chemistry'),
                           onBackToClassroom: () => setState(() => _selectedSubnav = 'Conduct Class'),
                           onOpenPolls: _showLivePollsDialog,
                           onOpenQA: () => setState(() => _selectedSubnav = 'Conduct Class'),
+                          onLeaveClass: () async {
+                            if (activeSess != null) {
+                              await ref.read(liveClassManagementProvider.notifier).leaveClass(activeSess.id);
+                            }
+                            setState(() => _selectedSubnav = 'My Classes (Today)');
+                          },
                           onEndClass: () {
                             if (activeSess != null) {
                               ref.read(liveClassManagementProvider.notifier).endClass(activeSess.id);
@@ -1254,55 +1321,75 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
 
                   // Center + Right Column
                   if (_selectedSubnav == 'Conduct Class') ...[
-                    // Active Conferencing Stage
-                    Expanded(
-                      flex: 7,
-                      child: SizedBox(
-                        height: 530,
-                        child: LiveClassroomStage(
-                          session: activeSess,
-                          isFullscreen: _isStageFullscreen,
-                          onToggleFullscreen: () => setState(() => _isStageFullscreen = !_isStageFullscreen),
-                          onOpenChat: () => _chatPanelKey.currentState?.selectTab(1),
-                          onOpenParticipants: () => _chatPanelKey.currentState?.selectTab(0),
-                          onOpenQA: () => _chatPanelKey.currentState?.selectTab(2),
-                          onOpenWhiteboard: _openWhiteboardWorkspace,
-                          onEndClass: () {
-                            if (activeSess != null) {
-                              ref.read(liveClassManagementProvider.notifier).endClass(activeSess.id);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Live class ended successfully. Attendance synced.')),
-                              );
-                            }
-                            setState(() => _selectedSubnav = 'My Classes (Today)');
-                          },
+                    if (state.conductSessionData != null || activeSess != null) ...[
+                      // Active Conferencing Stage
+                      Expanded(
+                        flex: 7,
+                        child: SizedBox(
+                          height: 530,
+                          child: LiveClassroomStage(
+                            session: activeSess,
+                            isFullscreen: _isStageFullscreen,
+                            onToggleFullscreen: () => setState(() => _isStageFullscreen = !_isStageFullscreen),
+                            onOpenChat: () => _chatPanelKey.currentState?.selectTab(1),
+                            onOpenParticipants: () => _chatPanelKey.currentState?.selectTab(0),
+                            onOpenQA: () => _chatPanelKey.currentState?.selectTab(2),
+                            onOpenWhiteboard: _openWhiteboardWorkspace,
+                            onLeaveClass: () async {
+                              if (activeSess != null) {
+                                await ref.read(liveClassManagementProvider.notifier).leaveClass(activeSess.id);
+                              }
+                              setState(() => _selectedSubnav = 'My Classes (Today)');
+                            },
+                            onEndClass: () {
+                              if (activeSess != null) {
+                                ref.read(liveClassManagementProvider.notifier).endClass(activeSess.id);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Live class ended successfully. Attendance synced.')),
+                                );
+                              }
+                              setState(() => _selectedSubnav = 'My Classes (Today)');
+                            },
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 14),
-                    // Live Chat / Participants Panel
-                    Expanded(
-                      flex: 4,
-                      child: SizedBox(
-                        height: 530,
-                        child: LiveClassChatPanel(
-                          key: _chatPanelKey,
-                          participants: state.conductSessionData?.participants ?? state.joinDashboard?.participants,
+                      const SizedBox(width: 14),
+                      // Live Chat / Participants Panel
+                      Expanded(
+                        flex: 4,
+                        child: SizedBox(
+                          height: 530,
+                          child: LiveClassChatPanel(
+                            key: _chatPanelKey,
+                            participants: state.conductSessionData?.participants ?? state.joinDashboard?.participants,
+                          ),
                         ),
                       ),
-                    ),
+                    ] else ...[
+                      Expanded(
+                        child: _buildNoLiveClassView(),
+                      ),
+                    ],
                   ] else if (_selectedSubnav == 'Open Whiteboard') ...[
                     Expanded(
                       child: SizedBox(
                         height: (MediaQuery.of(context).size.height - 180).clamp(620.0, 920.0),
                         child: WhiteboardWorkspace(
-                          sessionId: activeSess?.id,
+                          sessionId: activeSess?.id ?? state.selectedMyClass?.id,
                           sessionTitle: activeSess != null
-                              ? 'Whiteboard - ${activeSess.className} – ${activeSess.subject}'
-                              : 'Whiteboard - Class 10 – Mathematics',
+                              ? 'Whiteboard - ${activeSess.classSection} : ${activeSess.subject} – ${activeSess.title}'
+                              : (state.selectedMyClass != null
+                                  ? 'Whiteboard - ${state.selectedMyClass!.classSection} : ${state.selectedMyClass!.subjectName} – ${state.selectedMyClass!.topic}'
+                                  : 'Whiteboard - Class 12 - A – Chemistry'),
                           onBackToClassroom: () => setState(() => _selectedSubnav = 'Conduct Class'),
                           onOpenPolls: _showLivePollsDialog,
                           onOpenQA: () => setState(() => _selectedSubnav = 'Conduct Class'),
+                          onLeaveClass: () async {
+                            if (activeSess != null) {
+                              await ref.read(liveClassManagementProvider.notifier).leaveClass(activeSess.id);
+                            }
+                            setState(() => _selectedSubnav = 'My Classes (Today)');
+                          },
                           onEndClass: () {
                             if (activeSess != null) {
                               ref.read(liveClassManagementProvider.notifier).endClass(activeSess.id);
@@ -1425,7 +1512,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
             width: constraints.maxWidth < 1500 ? 190 : null,
             child: LiveClassStatCard(
               title: 'Total Students',
-              value: '${dash?.totalStudents ?? 248}',
+              value: '${(dash?.totalStudents != null && dash!.totalStudents > 0) ? dash.totalStudents : (ref.read(liveClassManagementProvider).myClassesList.isNotEmpty ? ref.read(liveClassManagementProvider).myClassesList.fold<int>(0, (acc, c) => acc + (c.maxParticipants > 0 ? c.maxParticipants : c.viewerCount)) : 43)}',
               icon: Icons.groups_rounded,
               iconColor: const Color(0xFF8B5CF6),
             ),
@@ -1467,49 +1554,85 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
     );
   }
 
-  Widget _buildConductClassKpiRow(JoinConductDashboardData? data) {
+  Widget _buildConductClassKpiRow(LiveClassState state) {
+    final conductStats = state.conductSessionData?.stats;
+    final myDash = state.myDashboard;
+    final selClass = state.selectedMyClass;
+
+    // Prioritize actual user/schedule dashboard KPIs so live conduct KPIs match the grid data perfectly
+    final totalClassesToday = (myDash?.myClassesToday != null && myDash!.myClassesToday > 0)
+        ? myDash.myClassesToday
+        : (state.myClassesTotalCount > 0
+            ? state.myClassesTotalCount
+            : (state.myClassesList.isNotEmpty
+                ? state.myClassesList.length
+                : (conductStats?.todaysClasses ?? 1)));
+
+    final totalLiveStudents = (selClass?.viewerCount != null && selClass!.viewerCount > 0)
+        ? selClass.viewerCount
+        : ((myDash?.totalStudents != null && myDash!.totalStudents > 0)
+            ? myDash.totalStudents
+            : (conductStats?.totalParticipantsLive ?? 43));
+
+    final liveCount = (myDash?.ongoingLive != null && myDash!.ongoingLive > 0)
+        ? myDash.ongoingLive
+        : (state.conductSessionData != null ? 1 : (conductStats?.liveNow ?? 1));
+
+    final recInProgress = selClass != null
+        ? (selClass.recordingEnabled ? 1 : 0)
+        : (conductStats?.recordingInProgress ?? 1);
+
+    final avgDuration = (selClass?.durationMinutes != null && selClass!.durationMinutes > 0)
+        ? '${selClass.durationMinutes} min'
+        : (conductStats?.avgClassDurationMin != null
+            ? '${conductStats!.avgClassDurationMin} min'
+            : (myDash?.teachingDurationToday ?? '45 min'));
+
+    final classQuality = conductStats?.classQuality ?? 'Excellent (98%)';
+    final sysStatus = conductStats?.systemStatus ?? 'Online';
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final cards = [
           LiveClassStatCard(
             title: 'Live Now',
-            value: '${data?.liveNow ?? 6}',
+            value: '$liveCount',
             icon: Icons.play_circle_fill_rounded,
             iconColor: const Color(0xFF10B981),
           ),
           LiveClassStatCard(
             title: "Today's Classes",
-            value: '${data?.todaysClasses ?? 24}',
+            value: '$totalClassesToday',
             icon: Icons.calendar_today_rounded,
             iconColor: const Color(0xFF2563EB),
           ),
           LiveClassStatCard(
             title: 'Total Participants (Live)',
-            value: '${data?.totalParticipantsLive ?? 248}',
+            value: '$totalLiveStudents',
             icon: Icons.groups_rounded,
             iconColor: const Color(0xFF8B5CF6),
           ),
           LiveClassStatCard(
             title: 'Recording in Progress',
-            value: '${data?.recordingInProgress ?? 3}',
+            value: '$recInProgress',
             icon: Icons.videocam_rounded,
             iconColor: const Color(0xFFEF4444),
           ),
           LiveClassStatCard(
             title: 'Avg. Class Duration',
-            value: '${data?.avgClassDurationMin ?? 45} min',
+            value: avgDuration.contains('min') ? avgDuration : '$avgDuration min',
             icon: Icons.schedule_rounded,
             iconColor: const Color(0xFF0284C7),
           ),
           LiveClassStatCard(
             title: 'Class Quality',
-            value: data?.classQuality ?? 'Excellent (98%)',
+            value: classQuality,
             icon: Icons.signal_cellular_alt_rounded,
             iconColor: const Color(0xFF10B981),
           ),
           LiveClassStatCard(
             title: 'System Status',
-            value: data?.systemStatus ?? 'Online',
+            value: sysStatus,
             icon: Icons.verified_user_rounded,
             iconColor: const Color(0xFF10B981),
           ),
@@ -1600,40 +1723,51 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
             builder: (context) {
               final activeSession = ref.watch(liveClassManagementProvider).conductSessionData?.activeSession ??
                   ref.watch(liveClassManagementProvider).joinDashboard?.activeSession;
-              if (activeSession == null) return const SizedBox.shrink();
-
               final isStageActive = _selectedSubnav == 'Conduct Class';
-              return InkWell(
-                onTap: () => setState(() => _selectedSubnav = 'Conduct Class'),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    color: isStageActive
-                        ? const Color(0xFF10B981).withValues(alpha: 0.18)
-                        : const Color(0xFF10B981).withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: const Color(0xFF10B981),
-                      width: isStageActive ? 1.5 : 1,
+
+              if (activeSession != null) {
+                final displayLabel = activeSession.classSection.isNotEmpty
+                    ? activeSession.classSection
+                    : activeSession.className;
+                return InkWell(
+                  onTap: () => setState(() => _selectedSubnav = 'Conduct Class'),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: isStageActive
+                          ? const Color(0xFF10B981).withValues(alpha: 0.18)
+                          : const Color(0xFF10B981).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: const Color(0xFF10B981),
+                        width: isStageActive ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.fiber_manual_record, color: Color(0xFF10B981), size: 12),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            isStageActive ? 'Live Class Active ($displayLabel)' : 'Return to Live Class ($displayLabel)',
+                            style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 11.5),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (!isStageActive)
+                          const Icon(Icons.arrow_forward_rounded, color: Color(0xFF10B981), size: 14),
+                      ],
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.fiber_manual_record, color: Color(0xFF10B981), size: 12),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          isStageActive ? 'Live Class Active' : 'Return to Live Class',
-                          style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 11.5),
-                        ),
-                      ),
-                      if (!isStageActive)
-                        const Icon(Icons.arrow_forward_rounded, color: Color(0xFF10B981), size: 14),
-                    ],
-                  ),
-                ),
+                );
+              }
+
+              // Permanent Live Classroom option when no live class is currently running
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: _buildSubnavItem(Icons.videocam_outlined, 'Live Classroom'),
               );
             },
           ),
@@ -1651,11 +1785,13 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
   }
 
   Widget _buildSubnavItem(IconData icon, String label) {
-    final isSelected = _selectedSubnav == label;
+    final isSelected = _selectedSubnav == label || (label == 'Live Classroom' && _selectedSubnav == 'Conduct Class');
 
     return InkWell(
       onTap: () {
-        if (label == 'Join via Code') {
+        if (label == 'Live Classroom') {
+          setState(() => _selectedSubnav = 'Conduct Class');
+        } else if (label == 'Join via Code') {
           setState(() => _selectedSubnav = 'Join via Code');
           ref.read(liveClassManagementProvider.notifier).loadJoinViaCodeData();
         } else if (label == 'Guest Join') {
@@ -1706,6 +1842,215 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoLiveClassView() {
+    final state = ref.watch(liveClassManagementProvider);
+    final myClasses = state.myClassesList;
+    final nextClass = myClasses.isNotEmpty ? myClasses.first : null;
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 520),
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 42),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Center(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Header Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF64748B).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF64748B).withValues(alpha: 0.25)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.videocam_off_rounded, size: 14, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                    const SizedBox(width: 8),
+                    Text(
+                      'NO LIVE CLASS IN PROGRESS',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.8,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Glowing Icon Avatar
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.25), width: 1.5),
+                ),
+                child: const Icon(Icons.meeting_room_outlined, size: 40, color: Color(0xFF38BDF8)),
+              ),
+              const SizedBox(height: 20),
+
+              // Headline
+              Text(
+                'No Live Class is Currently Running',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: textPrimary,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Subtitle description
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 540),
+                child: Text(
+                  'There is no ongoing live classroom session in progress at this moment. Please check your schedule to join an upcoming class, start an instant live class, or connect with a meeting code.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    color: textSecondary,
+                    height: 1.55,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // Action Buttons Row
+              Wrap(
+                spacing: 12,
+                runSpacing: 10,
+                alignment: WrapAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () => setState(() => _selectedSubnav = 'My Classes (Today)'),
+                    icon: const Icon(Icons.calendar_month_outlined, size: 16),
+                    label: const Text("Check Today's Schedule", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      elevation: 2,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _showStartNewClassWizard,
+                    icon: const Icon(Icons.add_rounded, size: 16),
+                    label: const Text('Start Instant Class', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF10B981),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      elevation: 2,
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      setState(() => _selectedSubnav = 'Join via Code');
+                      ref.read(liveClassManagementProvider.notifier).loadJoinViaCodeData();
+                    },
+                    icon: Icon(Icons.code_rounded, size: 16, color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB)),
+                    label: Text(
+                      'Join via Code',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB)),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                      side: BorderSide(color: isDark ? const Color(0xFF2563EB) : const Color(0xFF93C5FD)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Next Upcoming Class Preview Card
+              if (nextClass != null) ...[
+                const SizedBox(height: 32),
+                Container(
+                  constraints: const BoxConstraints(maxWidth: 580),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: cardBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.schedule_rounded, color: Color(0xFF2563EB), size: 22),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Next Scheduled Class: ${nextClass.classSection} • ${nextClass.subjectName}',
+                              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textPrimary),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              '${nextClass.topic}  |  ${nextClass.scheduledTimeStr.isNotEmpty ? nextClass.scheduledTimeStr : "08:00 AM - 08:45 AM"}',
+                              style: TextStyle(fontSize: 11.5, color: textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          ref.read(liveClassManagementProvider.notifier).selectAndActivateLiveClass(nextClass);
+                          setState(() => _selectedSubnav = 'Conduct Class');
+                        },
+                        icon: const Icon(Icons.play_arrow_rounded, size: 14),
+                        label: const Text('Start Now', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2563EB),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -4767,7 +5112,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
     if (status == 'live') {
       return ElevatedButton.icon(
         onPressed: () async {
-          await ref.read(liveClassManagementProvider.notifier).loadConductSession(item.id);
+          await ref.read(liveClassManagementProvider.notifier).selectAndActivateLiveClass(item);
           try {
             final roomService = ref.read(liveRoomServiceProvider);
             final auth = _getActiveAuthUserInfo();
@@ -4777,7 +5122,9 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
               currentUserName: auth['name']!,
               currentUserRole: auth['role']!,
             );
-            await roomService.initializeRoom();
+            roomService.initializeRoom().timeout(const Duration(seconds: 4)).catchError((e) {
+              debugPrint('Async room connect notice: $e');
+            });
           } catch (_) {}
           setState(() => _selectedSubnav = 'Conduct Class');
         },
@@ -4795,7 +5142,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
     } else if (status == 'upcoming') {
       return OutlinedButton.icon(
         onPressed: () async {
-          await ref.read(liveClassManagementProvider.notifier).loadConductSession(item.id);
+          await ref.read(liveClassManagementProvider.notifier).selectAndActivateLiveClass(item);
           try {
             final roomService = ref.read(liveRoomServiceProvider);
             final auth = _getActiveAuthUserInfo();
@@ -4805,7 +5152,9 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
               currentUserName: auth['name']!,
               currentUserRole: auth['role']!,
             );
-            await roomService.initializeRoom();
+            roomService.initializeRoom().timeout(const Duration(seconds: 4)).catchError((e) {
+              debugPrint('Async room connect notice: $e');
+            });
           } catch (_) {}
           setState(() => _selectedSubnav = 'Conduct Class');
         },
@@ -5082,6 +5431,10 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
               IconButton(
                 icon: Icon(Icons.open_in_new_rounded, size: 16, color: textSecondary),
                 onPressed: () {
+                  final sel = item ?? state.selectedMyClass;
+                  if (sel != null) {
+                    ref.read(liveClassManagementProvider.notifier).selectAndActivateLiveClass(sel, details);
+                  }
                   setState(() => _selectedSubnav = 'Conduct Class');
                 },
                 tooltip: 'Open in classroom view',
@@ -5222,10 +5575,9 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
           // Solid Blue Join Class Button
           ElevatedButton.icon(
             onPressed: () {
-              final sel = state.selectedMyClass;
-              setState(() => _selectedSubnav = 'Conduct Class');
+              final sel = state.selectedMyClass ?? item;
               if (sel != null) {
-                ref.read(liveClassManagementProvider.notifier).loadConductSession(sel.id);
+                ref.read(liveClassManagementProvider.notifier).selectAndActivateLiveClass(sel, details);
                 try {
                   final roomService = ref.read(liveRoomServiceProvider);
                   final auth = _getActiveAuthUserInfo();
@@ -5240,6 +5592,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                   });
                 } catch (_) {}
               }
+              setState(() => _selectedSubnav = 'Conduct Class');
             },
             icon: const Icon(Icons.videocam_rounded, size: 16),
             label: const Text('Join Class', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),

@@ -124,13 +124,19 @@ class SpaceBookingMonthView extends StatelessWidget {
                 cellDate.month == selectedDate.month &&
                 cellDate.day == selectedDate.day;
 
+            final dayStr = cellDate != null ? DateFormat('yyyy-MM-dd').format(cellDate) : '';
             final dayBookings = cellDate != null
                 ? allBookings.where((entry) {
                     final SpaceTimelineBooking b = entry['booking'];
+                    if (b.bookingDate.isNotEmpty) {
+                      if (b.bookingDate == dayStr) return true;
+                      final parsed = DateTime.tryParse(b.bookingDate);
+                      if (parsed != null && DateUtils.isSameDay(parsed, cellDate)) return true;
+                    }
                     if (b.startDatetime != null) {
                       return DateUtils.isSameDay(b.startDatetime!, cellDate);
                     }
-                    return (b.id.hashCode.abs() % daysInMonth + 1) == dayNum;
+                    return false;
                   }).toList()
                 : <Map<String, dynamic>>[];
 
@@ -210,7 +216,9 @@ class SpaceBookingMonthView extends StatelessWidget {
                                           priority: 'Normal',
                                           status: b.status,
                                           isApproved: true,
-                                          bookingDate: DateFormat('d MMM yyyy').format(cellDate!),
+                                          bookingDate: b.bookingDate.isNotEmpty
+                                              ? b.bookingDate
+                                              : DateFormat('d MMM yyyy').format(cellDate!),
                                           startTime: b.startTime,
                                           endTime: b.endTime,
                                           formattedSchedule: '${b.startTime} - ${b.endTime}',
@@ -224,7 +232,7 @@ class SpaceBookingMonthView extends StatelessWidget {
                                           organizerRole: b.organizerRole,
                                           requestedByDisplay: '${b.organizerName} (${b.organizerRole})',
                                           attendeeCount: room.capacity > 0 ? room.capacity : 30,
-                                          isRecurring: false,
+                                          isRecurring: b.isRecurring,
                                         ));
                                       }
                                     },

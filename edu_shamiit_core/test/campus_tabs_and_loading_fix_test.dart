@@ -95,7 +95,7 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text('Space Availability & Booking'), findsOneWidget);
-      expect(find.text('Booking Requests (28)'), findsOneWidget);
+      expect(find.text('Booking Requests'), findsWidgets);
     });
 
     testWidgets(

@@ -285,6 +285,30 @@ class WhiteboardObject {
     if (isLineBased) {
       final a = Offset((data['x1'] as num?)?.toDouble() ?? 0, (data['y1'] as num?)?.toDouble() ?? 0);
       final b = Offset((data['x2'] as num?)?.toDouble() ?? 0, (data['y2'] as num?)?.toDouble() ?? 0);
+
+      // Check badge label rectangle if present (or centered relationship zone)
+      final labelStr = (data['label'] ?? data['text'])?.toString();
+      final mid = (type == 'curved_line' || type == 'connector')
+          ? Offset((a.dx + b.dx) / 2, (math.min(a.dy, b.dy) - 45 + (a.dy + b.dy) / 2) / 2)
+          : Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
+      if (labelStr != null && labelStr.isNotEmpty) {
+        final badgeRect = Rect.fromCenter(center: mid, width: 120, height: 36);
+        if (badgeRect.inflate(tolerance).contains(pos)) return true;
+      }
+
+      // Check points along quadratic bezier curve for curved lines and connectors
+      if (type == 'curved_line' || type == 'connector') {
+        final ctrl = Offset((a.dx + b.dx) / 2, math.min(a.dy, b.dy) - 45);
+        for (double t = 0; t <= 1.0; t += 0.08) {
+          final oneMinusT = 1.0 - t;
+          final curvePoint = Offset(
+            oneMinusT * oneMinusT * a.dx + 2 * oneMinusT * t * ctrl.dx + t * t * b.dx,
+            oneMinusT * oneMinusT * a.dy + 2 * oneMinusT * t * ctrl.dy + t * t * b.dy,
+          );
+          if ((pos - curvePoint).distance <= tolerance + strokeWidth) return true;
+        }
+      }
+
       return _distPointToSegment(pos, a, b) <= tolerance + strokeWidth;
     }
     return getBounds().inflate(tolerance).contains(pos);

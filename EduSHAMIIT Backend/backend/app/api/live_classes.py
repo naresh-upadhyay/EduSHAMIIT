@@ -562,6 +562,36 @@ async def end_live_class(
     return {"success": True, "message": "Class ended and attendance calculated successfully"}
 
 
+@router.post("/live-classes/{live_class_id}/leave")
+async def student_leave_live_class(
+    live_class_id: str,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Cleanly disconnect a student from a live session without ending the class for others."""
+    rows = await exec_sql(
+        "SELECT public.sp_student_leave_live_class(%s::UUID, %s::UUID, %s::UUID) AS data;",
+        (live_class_id, user["id"], school_id)
+    )
+    if not rows or not rows[0].get("data"):
+        return {"success": True, "message": "Left session"}
+    return rows[0]["data"]
+
+
+@router.post("/live-classes/watchdog/clean-stale")
+async def trigger_stale_classes_watchdog(
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Scan and cleanly conclude abandoned live sessions, automatically aggregating institutional attendance."""
+    rows = await exec_sql(
+        "SELECT public.sp_auto_close_stale_live_classes(%s::UUID) AS data;",
+        (school_id,)
+    )
+    data = rows[0]["data"] if rows and rows[0].get("data") else {"closed_count": 0}
+    return data
+
+
 @router.post("/live-classes/{live_class_id}/event")
 @router.post("/live-classes/{live_class_id}/attendance/mark")
 async def record_participant_event(

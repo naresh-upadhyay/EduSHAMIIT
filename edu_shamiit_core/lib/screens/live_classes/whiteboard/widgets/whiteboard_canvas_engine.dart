@@ -18,6 +18,15 @@ class WhiteboardImageCache {
   static final Map<String, ui.Image> _cache = {};
   static final Set<String> _loading = {};
 
+  static void preloadBytes(String contentUrl, Uint8List bytes) {
+    if (contentUrl.isEmpty) return;
+    try {
+      ui.decodeImageFromList(bytes, (img) {
+        _cache[contentUrl] = img;
+      });
+    } catch (_) {}
+  }
+
   static ui.Image? getOrLoad(String contentUrl, VoidCallback onLoaded) {
     if (contentUrl.isEmpty) return null;
     if (_cache.containsKey(contentUrl)) return _cache[contentUrl];
@@ -60,12 +69,14 @@ class WhiteboardImageCache {
 class WhiteboardCanvasEngine extends ConsumerStatefulWidget {
   final void Function(WhiteboardObject? existing, Offset logicalPos)? onEditText;
   final void Function(WhiteboardObject? existing, Offset logicalPos)? onEditEquation;
+  final void Function(WhiteboardObject existing, Offset logicalPos)? onEditEdge;
   final VoidCallback? onRequestImageUpload;
 
   const WhiteboardCanvasEngine({
     super.key,
     this.onEditText,
     this.onEditEquation,
+    this.onEditEdge,
     this.onRequestImageUpload,
   });
 
@@ -414,13 +425,46 @@ class _WhiteboardCanvasEngineState extends ConsumerState<WhiteboardCanvasEngine>
             }
           }
 
-          // 2c. Resize Handle Click (bottom-right)
+          // 2c. Line-Based Edge Edit Handle Click
+          if (selObj.isLineBased) {
+            final a = Offset((selObj.data['x1'] as num?)?.toDouble() ?? 0, (selObj.data['y1'] as num?)?.toDouble() ?? 0);
+            final b = Offset((selObj.data['x2'] as num?)?.toDouble() ?? 0, (selObj.data['y2'] as num?)?.toDouble() ?? 0);
+            final mid = (selObj.type == 'curved_line' || selObj.type == 'connector')
+                ? Offset((a.dx + b.dx) / 2, (math.min(a.dy, b.dy) - 45 + (a.dy + b.dy) / 2) / 2)
+                : Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
+            final editPillRect = Rect.fromCenter(center: mid - Offset(0, 22.0 / s.zoom), width: 84.0 / s.zoom, height: 26.0 / s.zoom);
+            if (editPillRect.contains(logical)) {
+              widget.onEditEdge?.call(selObj, mid);
+              return;
+            }
+          }
+
+          // 2d. Resize Handle Click (bottom-right)
           final handleCenter = b.bottomRight;
           if ((logical - handleCenter).distance <= 14.0 / s.zoom) {
             _isResizingSelection = true;
             _resizingObjectId = selObj.id;
             _resizingRect = b;
             _lastDragLogical = logical;
+            return;
+          }
+        }
+      }
+
+      // Check direct single click on any Edge / Connector badge label (e.g. "connects to")
+      for (final o in page.objects.reversed) {
+        if (hiddenObjectIds.contains(o.id)) continue;
+        if (o.isLineBased) {
+          final a = Offset((o.data['x1'] as num?)?.toDouble() ?? 0, (o.data['y1'] as num?)?.toDouble() ?? 0);
+          final b = Offset((o.data['x2'] as num?)?.toDouble() ?? 0, (o.data['y2'] as num?)?.toDouble() ?? 0);
+          final mid = (o.type == 'curved_line' || o.type == 'connector')
+              ? Offset((a.dx + b.dx) / 2, (math.min(a.dy, b.dy) - 45 + (a.dy + b.dy) / 2) / 2)
+              : Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
+          final badgeRect = Rect.fromCenter(center: mid, width: 120 / s.zoom, height: 36 / s.zoom);
+          if (badgeRect.contains(logical)) {
+            notifier.selectObjects({o.id});
+            widget.onEditEdge?.call(o, mid);
+            setState(() {});
             return;
           }
         }
@@ -454,9 +498,11 @@ class _WhiteboardCanvasEngineState extends ConsumerState<WhiteboardCanvasEngine>
         _lastTapTime = now;
         _lastHitObjectId = hit.id;
 
-        // Double click shortcut or secondary click for text/equation/shapes
+        // Double click shortcut or secondary click for text/equation/shapes/edges
         if (isDoubleTap || ev.buttons == kSecondaryMouseButton) {
-          if (hit.type == 'text' ||
+          if (hit.isLineBased) {
+            widget.onEditEdge?.call(hit, logical);
+          } else if (hit.type == 'text' ||
               hit.type == 'sticky_note' ||
               hit.type == 'rectangle' ||
               hit.type == 'diamond' ||
@@ -1166,6 +1212,36 @@ class _WhiteboardPainter extends CustomPainter {
                 textDirection: TextDirection.ltr,
               )..layout();
               tp.paint(canvas, Offset(pillLeft + (pillW - tp.width) / 2, pillTop + (pillH - tp.height) / 2));
+            } else if (sel.isLineBased) {
+              final a = Offset((sel.data['x1'] as num?)?.toDouble() ?? 0, (sel.data['y1'] as num?)?.toDouble() ?? 0);
+              final b = Offset((sel.data['x2'] as num?)?.toDouble() ?? 0, (sel.data['y2'] as num?)?.toDouble() ?? 0);
+              final mid = (sel.type == 'curved_line' || sel.type == 'connector')
+                  ? Offset((a.dx + b.dx) / 2, (math.min(a.dy, b.dy) - 45 + (a.dy + b.dy) / 2) / 2)
+                  : Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
+
+              // Endpoint anchor dots
+              canvas.drawCircle(a, 5.0 / state.zoom, Paint()..color = Colors.white);
+              canvas.drawCircle(a, 5.0 / state.zoom, Paint()..color = const Color(0xFF2563EB)..style = PaintingStyle.stroke..strokeWidth = 1.8 / state.zoom);
+              canvas.drawCircle(b, 5.0 / state.zoom, Paint()..color = Colors.white);
+              canvas.drawCircle(b, 5.0 / state.zoom, Paint()..color = const Color(0xFF2563EB)..style = PaintingStyle.stroke..strokeWidth = 1.8 / state.zoom);
+
+              // "✎ Edit" action pill over the edge
+              final editW = 68.0 / state.zoom;
+              final editH = 22.0 / state.zoom;
+              final editRRect = RRect.fromRectAndRadius(
+                Rect.fromCenter(center: mid - Offset(0, 22.0 / state.zoom), width: editW, height: editH),
+                Radius.circular(11.0 / state.zoom),
+              );
+              canvas.drawRRect(editRRect.shift(Offset(0, 1.5 / state.zoom)), Paint()..color = Colors.black.withValues(alpha: 0.18));
+              canvas.drawRRect(editRRect, Paint()..color = const Color(0xFF2563EB));
+              final editTp = TextPainter(
+                text: TextSpan(
+                  text: '✎ Edit',
+                  style: TextStyle(color: Colors.white, fontSize: 10.5 / state.zoom, fontWeight: FontWeight.bold),
+                ),
+                textDirection: TextDirection.ltr,
+              )..layout();
+              editTp.paint(canvas, mid - Offset(editTp.width / 2, 22.0 / state.zoom + editTp.height / 2));
             }
           }
         }
@@ -1407,6 +1483,8 @@ class _WhiteboardPainter extends CustomPainter {
     if (obj.isLineBased) {
       final a = Offset((data['x1'] as num?)?.toDouble() ?? 0, (data['y1'] as num?)?.toDouble() ?? 0);
       final b = Offset((data['x2'] as num?)?.toDouble() ?? 0, (data['y2'] as num?)?.toDouble() ?? 0);
+      final isDashed = data['strokeStyle'] == 'dashed';
+
       if (obj.type == 'curved_line' || obj.type == 'connector') {
         final ctrl = Offset((a.dx + b.dx) / 2, math.min(a.dy, b.dy) - 45);
         final p = Path()
@@ -1414,7 +1492,19 @@ class _WhiteboardPainter extends CustomPainter {
           ..quadraticBezierTo(ctrl.dx, ctrl.dy, b.dx, b.dy);
         canvas.drawPath(p, strokePaint);
       } else {
-        canvas.drawLine(a, b, strokePaint);
+        if (isDashed) {
+          final dist = (b - a).distance;
+          final dir = (b - a) / (dist == 0 ? 1 : dist);
+          double d = 0;
+          while (d < dist) {
+            final start = a + dir * d;
+            final end = a + dir * math.min(d + 8.0, dist);
+            canvas.drawLine(start, end, strokePaint);
+            d += 14.0;
+          }
+        } else {
+          canvas.drawLine(a, b, strokePaint);
+        }
       }
       if (obj.type == 'arrow' || obj.type == 'double_arrow' || obj.type == 'connector') {
         _drawArrowHead(canvas, a, b, col, obj.strokeWidth);
@@ -1434,7 +1524,7 @@ class _WhiteboardPainter extends CustomPainter {
         )..layout();
         tp.paint(canvas, mid - Offset(tp.width / 2, 16));
       } else if (data['label'] != null || data['text'] != null) {
-        final labelStr = (data['label'] ?? data['text']).toString();
+        final labelStr = (data['label'] ?? data['text']).toString().trim();
         if (labelStr.isNotEmpty) {
           final mid = (obj.type == 'curved_line' || obj.type == 'connector')
               ? Offset((a.dx + b.dx) / 2, (math.min(a.dy, b.dy) - 45 + (a.dy + b.dy) / 2) / 2)
@@ -1451,11 +1541,21 @@ class _WhiteboardPainter extends CustomPainter {
             textDirection: TextDirection.ltr,
           )..layout();
           final badgeRect = RRect.fromRectAndRadius(
-            Rect.fromCenter(center: mid, width: tp.width + 12, height: tp.height + 6),
-            const Radius.circular(4),
+            Rect.fromCenter(center: mid, width: tp.width + 16, height: tp.height + 8),
+            const Radius.circular(6),
           );
+          // Drop shadow
+          canvas.drawRRect(badgeRect.shift(const Offset(0, 1.8)), Paint()..color = Colors.black.withValues(alpha: 0.12));
+          // White pill
           canvas.drawRRect(badgeRect, Paint()..color = Colors.white);
-          canvas.drawRRect(badgeRect, Paint()..color = col.withValues(alpha: 0.35)..style = PaintingStyle.stroke..strokeWidth = 1.2);
+          // Border
+          canvas.drawRRect(
+            badgeRect,
+            Paint()
+              ..color = col.withValues(alpha: 0.7)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.3,
+          );
           tp.paint(canvas, mid - Offset(tp.width / 2, tp.height / 2));
         }
       }

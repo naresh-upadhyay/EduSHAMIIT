@@ -185,4 +185,14 @@ class MaintenanceApiService {
     final url = '${AppConfig.apiBaseUrl}/v1/maintenance/export';
     getDownloadHelper().downloadFile(url, 'campus_maintenance_requests.csv');
   }
+
+  /// 12. Auto-Generate Work Orders for Due Preventive Maintenance Plans
+  Future<Map<String, dynamic>> generateDuePlans() async {
+    try {
+      final res = await _api.post('/v1/maintenance/plans/generate-due', {});
+      return res;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
 }

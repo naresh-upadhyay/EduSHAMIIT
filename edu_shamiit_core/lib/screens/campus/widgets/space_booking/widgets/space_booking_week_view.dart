@@ -200,15 +200,22 @@ class SpaceBookingWeekView extends StatelessWidget {
 
                           // 7 Days Cells
                           ...weekDays.map((day) {
+                            final dayStr = DateFormat('yyyy-MM-dd').format(day);
                             final slotBookings = allBookings.where((entry) {
                               final SpaceTimelineBooking b = entry['booking'];
                               final bHour = _parseHour(b.startTime);
                               final sameHour = bHour == hour;
-                              if (b.startDatetime != null) {
-                                return DateUtils.isSameDay(b.startDatetime!, day) && sameHour;
+                              if (!sameHour) return false;
+
+                              if (b.bookingDate.isNotEmpty) {
+                                if (b.bookingDate == dayStr) return true;
+                                final parsed = DateTime.tryParse(b.bookingDate);
+                                if (parsed != null && DateUtils.isSameDay(parsed, day)) return true;
                               }
-                              // Fallback distribution across weekdays
-                              return sameHour && (b.id.hashCode.abs() % 7 == (day.weekday - 1));
+                              if (b.startDatetime != null) {
+                                return DateUtils.isSameDay(b.startDatetime!, day);
+                              }
+                              return false;
                             }).toList();
 
                             return Expanded(
@@ -244,7 +251,9 @@ class SpaceBookingWeekView extends StatelessWidget {
                                                       priority: 'Normal',
                                                       status: b.status,
                                                       isApproved: true,
-                                                      bookingDate: DateFormat('d MMM yyyy').format(day),
+                                                      bookingDate: b.bookingDate.isNotEmpty
+                                                          ? b.bookingDate
+                                                          : DateFormat('d MMM yyyy').format(day),
                                                       startTime: b.startTime,
                                                       endTime: b.endTime,
                                                       formattedSchedule: '${b.startTime} - ${b.endTime}',
@@ -258,7 +267,7 @@ class SpaceBookingWeekView extends StatelessWidget {
                                                       organizerRole: b.organizerRole,
                                                       requestedByDisplay: '${b.organizerName} (${b.organizerRole})',
                                                       attendeeCount: room.capacity > 0 ? room.capacity : 30,
-                                                      isRecurring: false,
+                                                      isRecurring: b.isRecurring,
                                                     ));
                                                   }
                                                 },
