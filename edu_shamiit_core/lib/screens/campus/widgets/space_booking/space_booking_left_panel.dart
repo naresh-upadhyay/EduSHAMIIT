@@ -4,13 +4,11 @@ import '../../providers/space_booking_provider.dart';
 
 class SpaceBookingLeftPanel extends ConsumerWidget {
   final VoidCallback onOpenBookModal;
-  final VoidCallback? onOpenRecurringModal;
   final bool isCompact;
 
   const SpaceBookingLeftPanel({
     super.key,
     required this.onOpenBookModal,
-    this.onOpenRecurringModal,
     this.isCompact = false,
   });
 
@@ -22,7 +20,6 @@ class SpaceBookingLeftPanel extends ConsumerWidget {
 
     final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final cardBorder = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
-    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
     final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     return Container(
@@ -106,60 +103,6 @@ class SpaceBookingLeftPanel extends ConsumerWidget {
 
           const SizedBox(height: 16),
           Divider(color: cardBorder, height: 1),
-          const SizedBox(height: 16),
-
-          // Quick Recurring Series Action Shortcut
-          Material(
-            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(10),
-            child: InkWell(
-              onTap: onOpenRecurringModal,
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: cardBorder),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2563EB).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Icon(Icons.repeat_rounded, size: 16, color: Color(0xFF2563EB)),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Recurring Series',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              color: textPrimary,
-                            ),
-                          ),
-                          Text(
-                            'Bulk schedule patterns',
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              color: textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.chevron_right, size: 16, color: textSecondary),
-                  ],
-                ),
-              ),
-            ),
-          ),
           const SizedBox(height: 16),
 
           // Institutional Capacity Footnote

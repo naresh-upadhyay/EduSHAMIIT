@@ -162,7 +162,7 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
 
       final state = ClassState(
-        activeTab: 3,
+        activeTab: 0,
         stats: sampleStats,
       );
 
@@ -170,7 +170,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Classes'), findsOneWidget);
-      expect(find.text('Rooms'), findsOneWidget);
+      expect(find.text('Sections'), findsOneWidget);
+      expect(find.text('Subjects'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -360,14 +361,14 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
 
       final state = ClassState(
-        activeTab: 3,
+        activeTab: 0,
         stats: sampleStats,
       );
 
       await tester.pumpWidget(createTestWidget(state, const ClassHeaderBar()));
       await tester.pumpAndSettle();
 
-      expect(find.text('Rooms & Facilities'), findsOneWidget);
+      expect(find.text('Class Management'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 

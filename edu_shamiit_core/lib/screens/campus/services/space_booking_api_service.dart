@@ -72,7 +72,11 @@ class SpaceBookingApiService {
     DateTime? dateFrom,
     DateTime? dateTo,
     int page = 1,
-    int pageSize = 5,
+    int pageSize = 10,
+    String? purpose,
+    String? priority,
+    String? sortBy,
+    String? sortOrder,
   }) async {
     try {
       final query = <String, dynamic>{
@@ -88,8 +92,20 @@ class SpaceBookingApiService {
       if (roomType != null && roomType.isNotEmpty && roomType != 'All') {
         query['room_type'] = roomType;
       }
+      if (purpose != null && purpose.isNotEmpty && purpose != 'All') {
+        query['purpose'] = purpose;
+      }
+      if (priority != null && priority.isNotEmpty && priority != 'All') {
+        query['priority'] = priority;
+      }
       if (search != null && search.trim().isNotEmpty) {
         query['search'] = search.trim();
+      }
+      if (sortBy != null && sortBy.trim().isNotEmpty) {
+        query['sort_by'] = sortBy.trim();
+      }
+      if (sortOrder != null && sortOrder.trim().isNotEmpty) {
+        query['sort_order'] = sortOrder.trim();
       }
       if (dateFrom != null) {
         query['date_from'] = '${dateFrom.year}-${dateFrom.month.toString().padLeft(2, '0')}-${dateFrom.day.toString().padLeft(2, '0')}';
@@ -103,7 +119,7 @@ class SpaceBookingApiService {
         return SpaceBookingListResponse.fromJson(res['data']);
       }
     } catch (_) {}
-    return const SpaceBookingListResponse(items: [], totalCount: 0, page: 1, pageSize: 5, totalPages: 1);
+    return const SpaceBookingListResponse(items: [], totalCount: 0, page: 1, pageSize: 10, totalPages: 1);
   }
 
   /// 4. Detailed Booking Inspection
@@ -267,9 +283,7 @@ class SpaceBookingApiService {
         query['exclude_booking_id'] = excludeBookingId;
       }
       final res = await _api.get('/v1/space-bookings/check-slot', query: query, useCache: false);
-      if (res is Map<String, dynamic>) {
-        return res;
-      }
+      return res;
     } catch (_) {}
     return {'has_conflict': false, 'status': 'FREE', 'message': 'Slot is free'};
   }

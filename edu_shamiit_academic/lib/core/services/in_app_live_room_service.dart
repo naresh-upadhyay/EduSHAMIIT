@@ -312,8 +312,6 @@ class InAppLiveRoomService extends ChangeNotifier {
           ),
           // ─── Audio Publish: High-quality OPUS ────────────────────────────────
           defaultAudioPublishOptions: const AudioPublishOptions(
-            // AudioPreset.musicHighQuality = 96000 bps — broadcast quality
-            audioBitrate: AudioPreset.musicHighQuality,
             dtx: true, // Discontinuous transmission saves bandwidth on silence
           ),
           // ─── Audio Capture: Noise suppression + echo cancel ──────────────────

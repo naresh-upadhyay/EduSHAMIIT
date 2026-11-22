@@ -87,26 +87,6 @@ class _CsvImportExportDialogState extends ConsumerState<CsvImportExportDialog> {
           "Physics,PHY11,Core,ACTIVE\n"
           "Computer Science,CS10,Elective,ACTIVE\n",
     },
-    {
-      'name': 'rooms',
-      'label': 'Rooms & Facilities',
-      'icon': Icons.meeting_room_outlined,
-      'columns': [
-        'Room Name*',
-        'Room Code*',
-        'Type',
-        'Building',
-        'Floor',
-        'Capacity',
-        'Facilities',
-        'Status'
-      ],
-      'sample': "Room Name,Room Code,Type,Building,Floor,Capacity,Facilities,Status\n"
-          "Classroom 101,CR-101,Classroom,Academic Block,1st Floor,40,\"Projector, AC, Smart Board\",AVAILABLE\n"
-          "Classroom 102,CR-102,Classroom,Academic Block,1st Floor,40,\"Projector, AC\",AVAILABLE\n"
-          "Physics Lab,PHY-LAB-01,Laboratory,Science Block,2nd Floor,35,\"AC, Laboratory Equipment, Projector\",AVAILABLE\n"
-          "Computer Lab 1,COMP-01,Computer Lab,IT Block,Ground Floor,30,\"Computers, AC, Projector\",AVAILABLE\n",
-    },
   ];
 
   @override

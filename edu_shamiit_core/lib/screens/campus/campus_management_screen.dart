@@ -16,13 +16,13 @@ import 'widgets/dialogs/add_edit_building_dialog.dart';
 import 'widgets/dialogs/add_edit_building_document_dialog.dart';
 import 'widgets/dialogs/add_edit_building_maintenance_dialog.dart';
 import 'widgets/dialogs/add_edit_building_occupancy_dialog.dart';
+import 'widgets/dialogs/assign_class_section_dialog.dart';
 import 'widgets/dialogs/add_edit_floor_dialog.dart';
 import 'widgets/dialogs/add_edit_room_dialog.dart';
 import 'widgets/dialogs/bulk_create_rooms_dialog.dart';
 import 'widgets/dialogs/bulk_import_rooms_dialog.dart';
 import 'widgets/dialogs/room_equipment_dialog.dart';
 import 'widgets/dialogs/room_details_drawer.dart';
-import 'widgets/dialogs/room_allocation_dialog.dart';
 import 'widgets/space_booking/space_booking_tab_view.dart';
 import 'widgets/maintenance/maintenance_tab_view.dart';
 import 'widgets/safety_compliance/safety_compliance_tab_view.dart';
@@ -36,7 +36,6 @@ import 'services/safety_compliance_api_service.dart';
 import 'services/device_management_api_service.dart';
 import 'widgets/facilities/dialogs/add_edit_facility_dialog.dart';
 import 'widgets/space_booking/dialogs/create_edit_booking_dialog.dart';
-import 'widgets/space_booking/dialogs/recurring_booking_dialog.dart';
 import 'widgets/maintenance/dialogs/create_edit_maintenance_dialog.dart';
 import 'widgets/maintenance/dialogs/maintenance_plan_dialog.dart';
 import 'widgets/safety_compliance/dialogs/report_incident_dialog.dart';
@@ -260,9 +259,37 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
         building: building,
         floors: floors,
         room: room,
-        onSavedWithFloor: (floorId) {
-          ref.read(campusProvider.notifier).onRoomCreated(building.id, targetFloorId: floorId);
+        onSavedWithFloor: (floorId) async {
+          await ref.read(campusProvider.notifier).onRoomCreated(building.id, targetFloorId: floorId);
+          // Real-time update of inspectedRoom in the right sidebar
+          final freshRooms = ref.read(campusProvider).rooms;
+          final updated = freshRooms.cast<RoomModel?>().firstWhere(
+            (r) => r?.id == room.id,
+            orElse: () => null,
+          );
+          if (updated != null) {
+            ref.read(campusProvider.notifier).inspectRoom(updated);
+          }
           _showSnackbar('Room updated successfully!');
+        },
+      ),
+    );
+  }
+
+  void _openRaiseMaintenanceForRoom(BuildingModel building, RoomModel room) {
+    final location = '${building.name} / ${room.floorName ?? "Floor"} / Room ${room.roomNumber} - ${room.name}';
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => CreateEditMaintenanceDialog(
+        initialBuildingId: building.id,
+        initialFloorId: room.floorId,
+        initialRoomId: room.id,
+        initialLocation: location,
+        initialTitle: 'Room ${room.roomNumber} Maintenance - ${room.name}',
+        onSaved: () {
+          ref.read(campusProvider.notifier).loadBuildingMaintenance(building.id);
+          _showSnackbar('Maintenance request raised successfully for Room ${room.roomNumber}!');
         },
       ),
     );
@@ -342,22 +369,6 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
           if (ref.read(campusProvider).selectedBuilding != null) {
             ref.read(campusProvider.notifier).reloadRooms();
           }
-        },
-      ),
-    );
-  }
-
-  void _openAllocationDialog(RoomModel room) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => RoomAllocationDialog(
-        room: room,
-        onAllocated: () {
-          if (ref.read(campusProvider).selectedBuilding != null) {
-            ref.read(campusProvider.notifier).reloadRooms();
-          }
-          _showSnackbar('Room successfully allocated!');
         },
       ),
     );
@@ -444,12 +455,12 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AddEditBuildingOccupancyDialog(
+      builder: (_) => AssignClassSectionDialog(
         building: building,
         rooms: rooms,
         onSaved: () {
           ref.read(campusProvider.notifier).loadBuildingOccupancy(building.id);
-          _showSnackbar('Space allocated successfully!');
+          _showSnackbar('Class/Section successfully allocated to space via Space Booking!');
         },
       ),
     );
@@ -641,14 +652,6 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
       context: context,
       barrierDismissible: false,
       builder: (_) => const CreateEditBookingDialog(),
-    );
-  }
-
-  void _openRecurringBookingModal() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const RecurringBookingDialog(),
     );
   }
 
@@ -848,7 +851,6 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
                     onExport: () => _handleTabExport(state.activeCampusTab, state.selectedBuilding),
                     onAddFacility: _openAddFacilityModal,
                     onBookSpace: _openBookSpaceModal,
-                    onRecurringBooking: _openRecurringBookingModal,
                     onRaiseMaintenanceRequest: _openRaiseMaintenanceRequestModal,
                     onMaintenancePlan: _openMaintenancePlanModal,
                     onReportSafetyIncident: _openReportSafetyIncidentModal,
@@ -1021,13 +1023,7 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
                                   building: bld,
                                   onUpdateImage: () => _updateBuildingPhoto(bld),
                                   onAddRoom: () => _openAddRoomDialog(bld, state.floors),
-                                  onAllocateRoom: () {
-                                    if (state.rooms.isNotEmpty) {
-                                      _openAllocationDialog(state.rooms.first);
-                                    } else {
-                                      _showSnackbar('Create a room before allocating.', isError: true);
-                                    }
-                                  },
+                                  onRaiseMaintenance: () => _openRaiseMaintenanceRequestModal(),
                                   onRoomSetup: () => notifier.setActiveBuildingSubTab(1),
                                   onImportRooms: () => _openBulkImportDialog(bld),
                                   onExportList: () => CampusApiService.instance.exportData('rooms', buildingId: bld.id),
@@ -1144,16 +1140,15 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
                     onClose: () => notifier.inspectRoom(null),
                     onEdit: () {
                       final r = state.inspectedRoom!;
-                      notifier.inspectRoom(null);
                       _openEditRoomDialog(state.selectedBuilding!, state.floors, r);
                     },
                     onManageEquipment: () {
                       final r = state.inspectedRoom!;
                       _openEquipmentDialog(r);
                     },
-                    onAllocate: () {
+                    onRaiseMaintenance: () {
                       final r = state.inspectedRoom!;
-                      _openAllocationDialog(r);
+                      _openRaiseMaintenanceForRoom(state.selectedBuilding!, r);
                     },
                   ),
                 ),

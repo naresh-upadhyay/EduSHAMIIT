@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:edu_shamiit_academic/features/shared/splash/screens/splash_screen.dart';
-import 'package:edu_shamiit_academic/features/shared/login/screens/login_screen.dart';
 import 'package:edu_shamiit_academic/features/shared/settings/screens/settings_screen.dart';
 import 'package:edu_shamiit_academic/features/student/dashboard/screens/student_dashboard.dart';
 import 'package:edu_shamiit_academic/features/student/results/screens/student_results.dart';
@@ -91,28 +90,39 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isReset = path == '/reset-password';
       final isResetSuccess = path == '/password-reset-success';
       final isCareers = path.startsWith('/careers');
+      final isUnauthorized = path == '/unauthorized';
       final isPublic = isSplash || isLogin || isForgot || isOtp || isReset || isResetSuccess || isCareers;
 
       // If user is NOT authenticated, and trying to access a private route, force to login
-      if (!isAuth && !isPublic && !authState.isLoading) {
+      if (!isAuth && !isPublic && !isUnauthorized && !authState.isLoading) {
         return '/login';
       }
 
-      // If user IS authenticated and trying to access a public route (like login), push to dashboard
-      if (isAuth && isPublic && !isSplash && !isCareers) {
-        final role = authState.role;
-        if (role.value == 'teacher') {
-          return '/teacher/dashboard';
-        } else {
-          return '/student/dashboard';
-        }
-      }
-
-      // If user IS authenticated, let's enforce role constraints and path mismatches
+      // If user IS authenticated:
       if (isAuth) {
         final role = authState.role;
-        final isTeacher = role.value == 'teacher';
-        
+        final isAcademicRole = role == UserRole.teacher || role == UserRole.student || role == UserRole.parent;
+
+        // If wrong role (e.g. Admin, Super Admin, Finance) logged into Academic app
+        if (!isAcademicRole) {
+          if (!isUnauthorized && !isCareers) {
+            return '/unauthorized';
+          }
+          return null; // Stay on /unauthorized
+        }
+
+        // If a valid academic user lands on /unauthorized, route to their dashboard
+        if (isUnauthorized) {
+          return role == UserRole.teacher ? '/teacher/dashboard' : '/student/dashboard';
+        }
+
+        // If user IS authenticated and trying to access a public route (like login), push to dashboard
+        if (isPublic && !isSplash && !isCareers) {
+          return role == UserRole.teacher ? '/teacher/dashboard' : '/student/dashboard';
+        }
+
+        // Enforce role constraints and path mismatches
+        final isTeacher = role == UserRole.teacher;
         if (isTeacher && path.startsWith('/student')) {
           if (path == '/student/settings') return '/teacher/settings';
           return '/teacher/dashboard';
@@ -128,12 +138,46 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
     // ─────────────── SHARED ROUTES (no bottom nav) ───────────────
     GoRoute(
+      path: '/',
+      redirect: (context, state) {
+        final authState = ref.read(authProvider);
+        if (!authState.isAuthenticated) return '/login';
+        final role = authState.role;
+        if (role == UserRole.teacher) return '/teacher/dashboard';
+        if (role == UserRole.student || role == UserRole.parent) return '/student/dashboard';
+        return '/unauthorized';
+      },
+    ),
+    GoRoute(
       path: '/splash',
       builder: (_, __) => const SplashScreen(),
     ),
     GoRoute(
       path: '/login',
-      builder: (_, __) => const LoginScreen(),
+      builder: (_, __) => const SharedLoginScreen(isAdmin: false),
+    ),
+    GoRoute(
+      path: '/unauthorized',
+      builder: (_, __) => const SharedUnauthorizedRoleScreen(
+        appName: 'Academic Portal',
+        allowedRolesDescription: 'Teachers, Students, and Parents',
+      ),
+    ),
+    GoRoute(
+      path: '/dashboard',
+      redirect: (context, state) {
+        final role = ref.read(authProvider).role;
+        if (role == UserRole.teacher) {
+          return '/teacher/dashboard';
+        } else if (role == UserRole.student || role == UserRole.parent) {
+          return '/student/dashboard';
+        }
+        return '/unauthorized';
+      },
+    ),
+    GoRoute(
+      path: '/admin/dashboard',
+      redirect: (context, state) => '/unauthorized',
     ),
     GoRoute(
       path: '/forgot-password',
@@ -678,5 +722,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ],
     ),
   ],
+  errorBuilder: (context, state) => SharedNotFoundScreen(
+    path: state.uri.path,
+    appName: 'Academic Portal',
+    isAcademicApp: true,
+  ),
 );
 });

@@ -7,7 +7,6 @@ import '../services/academic_lookup_helper.dart';
 import 'dialogs/create_edit_class_dialog.dart';
 import 'dialogs/create_edit_section_dialog.dart';
 import 'dialogs/create_edit_subject_dialog.dart';
-import 'dialogs/create_edit_room_dialog.dart';
 import 'dialogs/csv_import_export_dialog.dart';
 
 class ClassHeaderBar extends ConsumerStatefulWidget {
@@ -70,7 +69,7 @@ class _ClassHeaderBarState extends ConsumerState<ClassHeaderBar> {
 
           String titleText = 'Academic Management';
           String subtitleText =
-              'Create and manage classes, sections, subjects and rooms.';
+              'Create and manage classes, sections, and subjects.';
 
           if (isTeacher) {
             titleText = 'My Academic Classes';
@@ -84,15 +83,11 @@ class _ClassHeaderBarState extends ConsumerState<ClassHeaderBar> {
             } else if (state.activeTab == 1) {
               titleText = 'Sections & Batches';
               subtitleText =
-                  'Configure section capacities, room assignments, and student distribution.';
+                  'Configure section capacities, room allocations, and student distribution.';
             } else if (state.activeTab == 2) {
               titleText = 'Subjects Management';
               subtitleText =
                   'Create and manage all subjects used in teaching and learning.';
-            } else if (state.activeTab == 3) {
-              titleText = 'Rooms & Facilities';
-              subtitleText =
-                  'Manage classrooms, laboratories, computer labs, and physical spaces.';
             }
           }
 
@@ -275,31 +270,6 @@ class _ClassHeaderBarState extends ConsumerState<ClassHeaderBar> {
                           ),
                         ),
                       );
-                    } else if (state.activeTab == 3) {
-                      showDialog(
-                        context: context,
-                        builder: (ctx) => CreateEditRoomDialog(
-                          availableBuildings: state.availableBuildings,
-                          availableFloors: state.availableFloors,
-                          onSave: (payload) => notifier.createRoom(
-                            name: payload['name'] as String,
-                            code: payload['code'] as String,
-                            type: payload['type'] as String? ?? 'Classroom',
-                            building: payload['building'] as String? ??
-                                'Academic Block',
-                            floor:
-                                payload['floor'] as String? ?? 'Ground Floor',
-                            capacity: payload['capacity'] as int? ?? 40,
-                            facilities:
-                                (payload['facilities'] as List<dynamic>?)
-                                        ?.map((e) => e.toString())
-                                        .toList() ??
-                                    const [],
-                            status: payload['status'] as String? ?? 'AVAILABLE',
-                            description: payload['description'] as String?,
-                          ),
-                        ),
-                      );
                     }
                   },
                   icon: const Icon(Icons.add, size: 16),
@@ -308,9 +278,7 @@ class _ClassHeaderBarState extends ConsumerState<ClassHeaderBar> {
                         ? 'Add Class'
                         : state.activeTab == 1
                             ? 'Add Section'
-                            : state.activeTab == 2
-                                ? 'Add Subject'
-                                : 'Add Room',
+                            : 'Add Subject',
                     style: const TextStyle(
                         fontSize: 12, fontWeight: FontWeight.w600),
                   ),

@@ -6,7 +6,6 @@ import 'widgets/class_tabs_bar.dart';
 import 'widgets/classes_tab_view.dart';
 import 'widgets/sections_tab_view.dart';
 import 'widgets/subjects_tab_view.dart';
-import 'widgets/rooms_tab_view.dart';
 
 class ClassManagementScreen extends ConsumerWidget {
   final int initialTab;
@@ -45,18 +44,17 @@ class ClassManagementScreen extends ConsumerWidget {
           // 1. Top ERP Header Bar
           const ClassHeaderBar(),
 
-          // 2. Exact 4 Tabs Pill Bar ([ Classes ] [ Sections ] [ Subjects ] [ Rooms ])
+          // 2. Exact 3 Tabs Pill Bar ([ Classes ] [ Sections ] [ Subjects ])
           const ClassTabsBar(),
 
-          // 3. Tab Body with 4 views
+          // 3. Tab Body with 3 academic views
           Expanded(
             child: IndexedStack(
-              index: state.activeTab.clamp(0, 3),
+              index: state.activeTab.clamp(0, 2),
               children: const [
                 ClassesTabView(),
                 SectionsTabView(),
                 SubjectsTabView(),
-                RoomsTabView(),
               ],
             ),
           ),

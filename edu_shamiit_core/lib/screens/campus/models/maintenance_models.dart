@@ -70,7 +70,12 @@ class MaintenanceRequestItem {
   final String locationDisplay;
   final String? specificLocation;
   final String? buildingId;
+  final String? buildingName;
+  final String? floorId;
   final String? roomId;
+  final String? roomNumber;
+  final String? facilityId;
+  final String? facilityName;
   final String? equipmentId;
   final String reportedByName;
   final String reportedByRole;
@@ -82,6 +87,8 @@ class MaintenanceRequestItem {
   final String? assignedToName;
   final String? assignedToUserId;
   final String? assignedVendorName;
+  final String? vendorPhone;
+  final String? vendorEmail;
   final DateTime? scheduledAt;
   final DateTime? startedAt;
   final DateTime? resolvedAt;
@@ -102,7 +109,12 @@ class MaintenanceRequestItem {
     required this.locationDisplay,
     this.specificLocation,
     this.buildingId,
+    this.buildingName,
+    this.floorId,
     this.roomId,
+    this.roomNumber,
+    this.facilityId,
+    this.facilityName,
     this.equipmentId,
     required this.reportedByName,
     this.reportedByRole = 'Student',
@@ -114,6 +126,8 @@ class MaintenanceRequestItem {
     this.assignedToName,
     this.assignedToUserId,
     this.assignedVendorName,
+    this.vendorPhone,
+    this.vendorEmail,
     this.scheduledAt,
     this.startedAt,
     this.resolvedAt,
@@ -136,7 +150,12 @@ class MaintenanceRequestItem {
       locationDisplay: json['location_display'] ?? '',
       specificLocation: json['specific_location'],
       buildingId: json['building_id']?.toString(),
+      buildingName: json['building_name']?.toString(),
+      floorId: json['floor_id']?.toString(),
       roomId: json['room_id']?.toString(),
+      roomNumber: json['room_number']?.toString(),
+      facilityId: json['facility_id']?.toString(),
+      facilityName: json['facility_name']?.toString(),
       equipmentId: json['equipment_id']?.toString(),
       reportedByName: json['reported_by_name'] ?? 'Admin',
       reportedByRole: json['reported_by_role'] ?? 'Student',
@@ -148,6 +167,8 @@ class MaintenanceRequestItem {
       assignedToName: json['assigned_to_name'],
       assignedToUserId: json['assigned_to_user_id']?.toString(),
       assignedVendorName: json['assigned_vendor_name'],
+      vendorPhone: json['vendor_phone'],
+      vendorEmail: json['vendor_email'],
       scheduledAt: json['scheduled_at'] != null ? DateTime.tryParse(json['scheduled_at'].toString()) : null,
       startedAt: json['started_at'] != null ? DateTime.tryParse(json['started_at'].toString()) : null,
       resolvedAt: json['resolved_at'] != null ? DateTime.tryParse(json['resolved_at'].toString()) : null,
@@ -290,11 +311,28 @@ class MaintenancePlanItem {
   final String title;
   final String category;
   final String frequency;
+  final String? buildingId;
+  final String? buildingName;
+  final String? floorId;
+  final String? roomId;
+  final String? roomNumber;
+  final String? facilityId;
+  final String? facilityName;
+  final String? equipmentId;
+  final List<dynamic> targetLocations;
+  final List<dynamic> checklistItems;
   final String assignedTeam;
   final String? assignedTechnicianName;
+  final String? vendorId;
+  final String? vendorName;
+  final String? vendorPhone;
+  final String? vendorEmail;
+  final bool sendVendorEmail;
+  final int recurrenceIntervalMonths;
   final double estimatedDurationHours;
   final double estimatedCost;
   final bool isActive;
+  final DateTime? lastRunDate;
   final DateTime nextDueDate;
 
   const MaintenancePlanItem({
@@ -303,11 +341,28 @@ class MaintenancePlanItem {
     required this.title,
     required this.category,
     required this.frequency,
+    this.buildingId,
+    this.buildingName,
+    this.floorId,
+    this.roomId,
+    this.roomNumber,
+    this.facilityId,
+    this.facilityName,
+    this.equipmentId,
+    this.targetLocations = const [],
+    this.checklistItems = const [],
     this.assignedTeam = 'Maintenance Team',
     this.assignedTechnicianName,
+    this.vendorId,
+    this.vendorName,
+    this.vendorPhone,
+    this.vendorEmail,
+    this.sendVendorEmail = false,
+    this.recurrenceIntervalMonths = 1,
     this.estimatedDurationHours = 2.0,
     this.estimatedCost = 0.0,
     this.isActive = true,
+    this.lastRunDate,
     required this.nextDueDate,
   });
 
@@ -318,11 +373,28 @@ class MaintenancePlanItem {
       title: json['title'] ?? '',
       category: json['category'] ?? 'HVAC',
       frequency: json['frequency'] ?? 'Monthly',
+      buildingId: json['building_id']?.toString(),
+      buildingName: json['building_name']?.toString(),
+      floorId: json['floor_id']?.toString(),
+      roomId: json['room_id']?.toString(),
+      roomNumber: json['room_number']?.toString(),
+      facilityId: json['facility_id']?.toString(),
+      facilityName: json['facility_name']?.toString(),
+      equipmentId: json['equipment_id']?.toString(),
+      targetLocations: json['target_locations'] is List ? json['target_locations'] as List : const [],
+      checklistItems: json['checklist_items'] is List ? json['checklist_items'] as List : const [],
       assignedTeam: json['assigned_team'] ?? 'Maintenance Team',
       assignedTechnicianName: json['assigned_technician_name'],
+      vendorId: json['vendor_id']?.toString(),
+      vendorName: json['vendor_name']?.toString(),
+      vendorPhone: json['vendor_phone']?.toString(),
+      vendorEmail: json['vendor_email']?.toString(),
+      sendVendorEmail: json['send_vendor_email'] == true,
+      recurrenceIntervalMonths: (json['recurrence_interval_months'] as num?)?.toInt() ?? 1,
       estimatedDurationHours: (json['estimated_duration_hours'] as num?)?.toDouble() ?? 2.0,
       estimatedCost: (json['estimated_cost'] as num?)?.toDouble() ?? 0.0,
       isActive: json['is_active'] != false,
+      lastRunDate: json['last_run_date'] != null ? DateTime.tryParse(json['last_run_date'].toString()) : null,
       nextDueDate: DateTime.tryParse(json['next_due_date']?.toString() ?? '') ?? DateTime.now(),
     );
   }
@@ -336,8 +408,17 @@ class MaintenanceVendorItem {
   final String? email;
   final String serviceCategory;
   final String contractType;
+  final String? contractRefNo;
+  final double contractValue;
+  final DateTime? contractStart;
+  final DateTime? contractEnd;
   final double slaResponseHours;
   final double slaResolutionHours;
+  final String? agreementUrl;
+  final String? contractDocumentName;
+  final List<dynamic> attachments;
+  final String? notes;
+  final String? address;
   final bool isActive;
 
   const MaintenanceVendorItem({
@@ -348,8 +429,17 @@ class MaintenanceVendorItem {
     this.email,
     required this.serviceCategory,
     this.contractType = 'AMC',
+    this.contractRefNo,
+    this.contractValue = 0.0,
+    this.contractStart,
+    this.contractEnd,
     this.slaResponseHours = 4.0,
     this.slaResolutionHours = 24.0,
+    this.agreementUrl,
+    this.contractDocumentName,
+    this.attachments = const [],
+    this.notes,
+    this.address,
     this.isActive = true,
   });
 
@@ -362,8 +452,17 @@ class MaintenanceVendorItem {
       email: json['email'],
       serviceCategory: json['service_category'] ?? 'General',
       contractType: json['contract_type'] ?? 'AMC',
+      contractRefNo: json['contract_ref_no'],
+      contractValue: (json['contract_value'] as num?)?.toDouble() ?? 0.0,
+      contractStart: json['contract_start'] != null ? DateTime.tryParse(json['contract_start'].toString()) : null,
+      contractEnd: json['contract_end'] != null ? DateTime.tryParse(json['contract_end'].toString()) : null,
       slaResponseHours: (json['sla_response_hours'] as num?)?.toDouble() ?? 4.0,
       slaResolutionHours: (json['sla_resolution_hours'] as num?)?.toDouble() ?? 24.0,
+      agreementUrl: json['agreement_url'],
+      contractDocumentName: json['contract_document_name'],
+      attachments: json['attachments'] is List ? json['attachments'] as List : const [],
+      notes: json['notes'],
+      address: json['address'],
       isActive: json['is_active'] != false,
     );
   }

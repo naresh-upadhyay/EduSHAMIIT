@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import '../../../config/app_config.dart';
 import '../../../services/api_service.dart';
@@ -389,18 +388,34 @@ class CampusApiService {
     }
   }
 
-  // 15. Building Occupancy CRUD
+  // 15. Building Occupancy CRUD (Space Booking Driven)
   Future<Map<String, dynamic>> getBuildingOccupancy(
     String buildingId, {
+    String? targetDate,
     int page = 1,
-    int pageSize = 50,
+    int pageSize = 200,
     String? sortBy,
     String? sortOrder,
+    String? search,
+    String? statusFilter,
+    String? floorId,
+    String? roomType,
   }) async {
     try {
       final query = <String, dynamic>{'page': page, 'page_size': pageSize};
+      if (targetDate != null && targetDate.isNotEmpty) query['target_date'] = targetDate;
       if (sortBy != null && sortBy.isNotEmpty) query['sort_by'] = sortBy;
       if (sortOrder != null && sortOrder.isNotEmpty) query['sort_order'] = sortOrder;
+      if (search != null && search.isNotEmpty) query['search'] = search;
+      if (statusFilter != null && statusFilter.isNotEmpty && statusFilter != 'ALL') {
+        query['status_filter'] = statusFilter;
+      }
+      if (floorId != null && floorId.isNotEmpty && floorId != 'all') {
+        query['floor_id'] = floorId;
+      }
+      if (roomType != null && roomType.isNotEmpty && roomType != 'all') {
+        query['room_type'] = roomType;
+      }
 
       final res = await _api.get('/v1/campus/buildings/$buildingId/occupancy', query: query, useCache: false);
       final list = (res['data'] as List?)
@@ -410,15 +425,40 @@ class CampusApiService {
       final metrics = (res['metrics'] as Map<String, dynamic>?) ?? {};
       return {
         'metrics': metrics,
+        'target_date': res['target_date'],
+        'is_today': res['is_today'] ?? true,
         'total_count': res['total_count'] ?? list.length,
         'data': list,
       };
     } catch (_) {}
     return {
       'metrics': <String, dynamic>{},
+      'target_date': targetDate,
+      'is_today': true,
       'total_count': 0,
       'data': <BuildingOccupancyModel>[],
     };
+  }
+
+  /// Assign Academic Class & Section to Room via Space Booking
+  Future<Map<String, dynamic>> assignClassSectionToRoom(
+    String buildingId,
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      return await _api.post('/v1/campus/buildings/$buildingId/assign-section', payload);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Load Academic Entities (Classes, Sections, Subjects) for quick space assignment
+  Future<Map<String, dynamic>> getAcademicEntitiesForAllocation() async {
+    try {
+      return await _api.get('/v1/campus/academic-entities-for-allocation', useCache: true);
+    } catch (e) {
+      return {'success': false, 'classes': [], 'subjects': []};
+    }
   }
 
   Future<Map<String, dynamic>> saveBuildingOccupancy(

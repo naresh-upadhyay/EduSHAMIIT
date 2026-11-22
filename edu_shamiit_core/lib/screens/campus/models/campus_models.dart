@@ -511,13 +511,17 @@ class BuildingDocumentModel {
   }
 }
 
-/// Building Occupancy / Allocation Model
+/// Building Occupancy / Allocation Model (Dynamic Space Booking Driven)
 class BuildingOccupancyModel {
   final String id;
   final String roomId;
   final String roomNumber;
   final String? roomName;
+  final String? roomCode;
+  final String? floorId;
   final String? floorName;
+  final int floorNumber;
+  final String roomType;
   final String referenceModule;
   final String? referenceName;
   final String assignmentPurpose;
@@ -527,15 +531,43 @@ class BuildingOccupancyModel {
   final String status;
   final String? notes;
   final int maxCapacity;
+  final int seatingCapacity;
   final int currentOccupancy;
   final String? createdAt;
+
+  // Real-time Space Booking Intelligence
+  final String operationalStatus;
+  final String bookingStatus; // 'OCCUPIED_NOW', 'AVAILABLE_NOW', 'SCHEDULED_LATER', 'MAINTENANCE'
+  final String statusDisplay;
+  final String activeTitle;
+  final String activeTeacher;
+  final String activePurpose;
+  final String activeTimeRange;
+  final int todaySessionsCount;
+  final List<Map<String, dynamic>> todayBookings;
+  final List<String> facilities;
+  final double area;
+  final String areaUnit;
+  final double length;
+  final double width;
+  final double height;
+  final int numDoors;
+  final int numWindows;
+  final bool isDifferentlyAbledAccessible;
+  final String? liftProximity;
+  final String? emergencyExitProximity;
+  final bool isBookable;
 
   const BuildingOccupancyModel({
     required this.id,
     required this.roomId,
     required this.roomNumber,
     this.roomName,
+    this.roomCode,
+    this.floorId,
     this.floorName,
+    this.floorNumber = 0,
+    this.roomType = 'Classroom',
     this.referenceModule = 'General',
     this.referenceName,
     this.assignmentPurpose = 'General Allocation',
@@ -545,28 +577,91 @@ class BuildingOccupancyModel {
     this.status = 'Active',
     this.notes,
     this.maxCapacity = 40,
+    this.seatingCapacity = 40,
     this.currentOccupancy = 0,
     this.createdAt,
+    this.operationalStatus = 'Available',
+    this.bookingStatus = 'AVAILABLE_NOW',
+    this.statusDisplay = 'Available Now',
+    this.activeTitle = '',
+    this.activeTeacher = '',
+    this.activePurpose = '',
+    this.activeTimeRange = '',
+    this.todaySessionsCount = 0,
+    this.todayBookings = const [],
+    this.facilities = const [],
+    this.area = 0.0,
+    this.areaUnit = 'sq ft',
+    this.length = 0.0,
+    this.width = 0.0,
+    this.height = 0.0,
+    this.numDoors = 1,
+    this.numWindows = 2,
+    this.isDifferentlyAbledAccessible = true,
+    this.liftProximity,
+    this.emergencyExitProximity,
+    this.isBookable = true,
   });
 
   factory BuildingOccupancyModel.fromJson(Map<String, dynamic> json) {
+    final rawFac = json['facilities'];
+    List<String> parsedFac = [];
+    if (rawFac is List) {
+      parsedFac = rawFac.map((e) => e.toString()).toList();
+    }
+
+    final rawBookings = json['today_bookings'];
+    List<Map<String, dynamic>> parsedBookings = [];
+    if (rawBookings is List) {
+      parsedBookings = rawBookings
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+
     return BuildingOccupancyModel(
       id: json['id']?.toString() ?? '',
-      roomId: json['room_id']?.toString() ?? '',
+      roomId: json['room_id']?.toString() ?? json['id']?.toString() ?? '',
       roomNumber: json['room_number']?.toString() ?? '',
-      roomName: json['room_name']?.toString(),
+      roomName: json['room_name']?.toString() ?? json['name']?.toString(),
+      roomCode: json['room_code']?.toString(),
+      floorId: json['floor_id']?.toString(),
       floorName: json['floor_name']?.toString(),
+      floorNumber: (json['floor_number'] as num?)?.toInt() ?? 0,
+      roomType: json['room_type']?.toString() ?? json['type']?.toString() ?? 'Classroom',
       referenceModule: json['reference_module']?.toString() ?? 'General',
-      referenceName: json['reference_name']?.toString(),
-      assignmentPurpose: json['assignment_purpose']?.toString() ?? 'General Allocation',
+      referenceName: json['reference_name']?.toString() ?? json['active_title']?.toString(),
+      assignmentPurpose: json['assignment_purpose']?.toString() ?? json['active_purpose']?.toString() ?? 'General Allocation',
       startDate: json['start_date']?.toString(),
       endDate: json['end_date']?.toString(),
-      assignedToName: json['assigned_to_name']?.toString(),
+      assignedToName: json['assigned_to_name']?.toString() ?? json['active_teacher']?.toString(),
       status: json['status']?.toString() ?? 'Active',
       notes: json['notes']?.toString(),
-      maxCapacity: (json['max_capacity'] as num?)?.toInt() ?? 40,
+      maxCapacity: (json['max_capacity'] as num?)?.toInt() ?? (json['capacity'] as num?)?.toInt() ?? 40,
+      seatingCapacity: (json['seating_capacity'] as num?)?.toInt() ?? (json['max_capacity'] as num?)?.toInt() ?? 40,
       currentOccupancy: (json['current_occupancy'] as num?)?.toInt() ?? 0,
       createdAt: json['created_at']?.toString(),
+      operationalStatus: json['operational_status']?.toString() ?? 'Available',
+      bookingStatus: json['booking_status']?.toString() ?? 'AVAILABLE_NOW',
+      statusDisplay: json['status_display']?.toString() ?? 'Available Now',
+      activeTitle: json['active_title']?.toString() ?? json['reference_name']?.toString() ?? '',
+      activeTeacher: json['active_teacher']?.toString() ?? json['assigned_to_name']?.toString() ?? '',
+      activePurpose: json['active_purpose']?.toString() ?? json['assignment_purpose']?.toString() ?? '',
+      activeTimeRange: json['active_time_range']?.toString() ?? '',
+      todaySessionsCount: (json['today_sessions_count'] as num?)?.toInt() ?? parsedBookings.length,
+      todayBookings: parsedBookings,
+      facilities: parsedFac,
+      area: (json['area'] as num?)?.toDouble() ?? 0.0,
+      areaUnit: json['area_unit']?.toString() ?? 'sq ft',
+      length: (json['length'] as num?)?.toDouble() ?? 0.0,
+      width: (json['width'] as num?)?.toDouble() ?? 0.0,
+      height: (json['height'] as num?)?.toDouble() ?? 0.0,
+      numDoors: (json['num_doors'] as num?)?.toInt() ?? 1,
+      numWindows: (json['num_windows'] as num?)?.toInt() ?? 2,
+      isDifferentlyAbledAccessible: json['is_differently_abled_accessible'] == true,
+      liftProximity: json['lift_proximity']?.toString(),
+      emergencyExitProximity: json['emergency_exit_proximity']?.toString(),
+      isBookable: json['is_bookable'] != false,
     );
   }
 }

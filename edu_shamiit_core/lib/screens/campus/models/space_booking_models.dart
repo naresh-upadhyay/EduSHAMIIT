@@ -329,6 +329,8 @@ class BookableRoomItem {
   final String buildingId;
   final String buildingName;
   final String buildingCode;
+  final String? floorId;
+  final String? floorName;
 
   const BookableRoomItem({
     required this.id,
@@ -340,6 +342,8 @@ class BookableRoomItem {
     required this.buildingId,
     required this.buildingName,
     required this.buildingCode,
+    this.floorId,
+    this.floorName,
   });
 
   factory BookableRoomItem.fromJson(Map<String, dynamic> json) {
@@ -353,6 +357,8 @@ class BookableRoomItem {
       buildingId: json['building_id']?.toString() ?? '',
       buildingName: json['building_name']?.toString() ?? '',
       buildingCode: json['building_code']?.toString() ?? '',
+      floorId: json['floor_id']?.toString(),
+      floorName: json['floor_name']?.toString(),
     );
   }
 }

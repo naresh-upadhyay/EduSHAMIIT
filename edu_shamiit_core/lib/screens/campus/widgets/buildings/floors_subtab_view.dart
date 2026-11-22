@@ -169,11 +169,11 @@ class _FloorsSubtabViewState extends State<FloorsSubtabView> {
                           headingRowColor: WidgetStateProperty.all(
                             isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                           ),
-                          headingRowHeight: 34,
-                          dataRowMinHeight: 32,
-                          dataRowMaxHeight: 35,
-                          columnSpacing: 18,
-                          horizontalMargin: 12,
+                          headingRowHeight: 40,
+                          dataRowMinHeight: 44,
+                          dataRowMaxHeight: 52,
+                          columnSpacing: 24,
+                          horizontalMargin: 16,
                           columns: [
                             DataColumn(
                               label: const Text('# Level', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)),
@@ -237,7 +237,7 @@ class _FloorsSubtabViewState extends State<FloorsSubtabView> {
                                 DataCell(Text('${floor.capacity}', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600))),
                                 DataCell(
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFF10B981).withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(4),
@@ -245,7 +245,7 @@ class _FloorsSubtabViewState extends State<FloorsSubtabView> {
                                     child: Text(
                                       '${floor.occupancy} (${occPct.toStringAsFixed(1)}%)',
                                       style: const TextStyle(
-                                        fontSize: 10.5,
+                                        fontSize: 11,
                                         fontWeight: FontWeight.w700,
                                         color: Color(0xFF059669),
                                       ),
@@ -253,34 +253,39 @@ class _FloorsSubtabViewState extends State<FloorsSubtabView> {
                                   ),
                                 ),
                                 DataCell(
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.visibility_outlined, size: 15),
-                                        color: const Color(0xFF2563EB),
-                                        tooltip: 'View Rooms',
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                        onPressed: () => widget.onViewRooms(floor),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.edit_outlined, size: 15),
-                                        color: const Color(0xFF64748B),
-                                        tooltip: 'Edit Floor',
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                        onPressed: () => widget.onEditFloor(floor),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete_outline, size: 15),
-                                        color: const Color(0xFFEF4444),
-                                        tooltip: 'Delete Floor',
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                        onPressed: () => widget.onDeleteFloor(floor),
-                                      ),
-                                    ],
+                                  SizedBox(
+                                    width: 96,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.visibility_outlined, size: 16),
+                                          color: const Color(0xFF2563EB),
+                                          tooltip: 'View Rooms',
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                          onPressed: () => widget.onViewRooms(floor),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        IconButton(
+                                          icon: const Icon(Icons.edit_outlined, size: 16),
+                                          color: const Color(0xFF64748B),
+                                          tooltip: 'Edit Floor',
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                          onPressed: () => widget.onEditFloor(floor),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        IconButton(
+                                          icon: const Icon(Icons.delete_outline, size: 16),
+                                          color: const Color(0xFFEF4444),
+                                          tooltip: 'Delete Floor',
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                          onPressed: () => widget.onDeleteFloor(floor),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ],

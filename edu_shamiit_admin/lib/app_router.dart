@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:edu_shamiit_admin/screens/login_screen.dart';
+import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:edu_shamiit_admin/screens/dashboard_screen.dart';
 import 'package:edu_shamiit_admin/screens/role_dashboards/super_admin_dashboard_screen.dart';
 import 'package:edu_shamiit_admin/screens/role_dashboards/driver_dashboard_screen.dart';
 // MyProfileScreen is now universally imported from edu_shamiit_core
 import 'package:edu_shamiit_admin/screens/modules/schools/schools_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/users/users_screen.dart';
-import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:edu_shamiit_admin/screens/modules/infra/infra_monitor_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/config/system_config_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/roles/admin_roles_screen.dart';
@@ -24,7 +23,6 @@ import 'package:edu_shamiit_admin/screens/modules/quick_access/quick_access_scre
 import 'package:edu_shamiit_admin/screens/modules/quick_access/emergency_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/fleet/driver_management_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/fleet/route_management_screen.dart';
-import 'package:edu_shamiit_admin/providers/system_config_provider.dart';
 import 'package:edu_shamiit_admin/screens/modules/recruit/recruitment_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/recruit/hr_overview_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/recruit/hr_onboarding_screen.dart';
@@ -1016,51 +1014,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
     ],
-    errorBuilder: (context, state) {
-      return Scaffold(
-        backgroundColor: const Color(0xFF0F172A),
-        body: Center(
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 480),
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white10),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.explore_off_rounded, size: 64, color: Color(0xFF6366F1)),
-                const SizedBox(height: 20),
-                const Text(
-                  'Page Not Found',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'The requested route "${state.uri.path}" could not be found or has moved.',
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: () => context.go('/admin/dashboard'),
-                  icon: const Icon(Icons.home_rounded),
-                  label: const Text('Back to Dashboard'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6366F1),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    },
+    errorBuilder: (context, state) => SharedNotFoundScreen(
+      path: state.uri.path,
+      appName: 'Admin Portal',
+      isAcademicApp: false,
+    ),
   );
 });
 

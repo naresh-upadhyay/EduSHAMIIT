@@ -44,10 +44,14 @@ class CampusState {
   final List<BuildingDocumentModel> buildingDocuments;
   final bool isDocumentsLoading;
 
-  // Building Occupancy
+  // Building Occupancy (Dynamic Space Booking Driven)
   final List<BuildingOccupancyModel> buildingOccupancy;
   final Map<String, dynamic> occupancyMetrics;
   final bool isOccupancyLoading;
+  final String? selectedOccupancyDate;
+  final String occupancyFilterStatus; // 'ALL', 'OCCUPIED_NOW', 'AVAILABLE_NOW', 'SCHEDULED_TODAY', 'MAINTENANCE'
+  final String occupancySearchQuery;
+  final BuildingOccupancyModel? selectedOccupancyRoom;
 
   // Building Maintenance
   final List<BuildingMaintenanceModel> buildingMaintenance;
@@ -93,6 +97,10 @@ class CampusState {
     this.buildingOccupancy = const [],
     this.occupancyMetrics = const {},
     this.isOccupancyLoading = false,
+    this.selectedOccupancyDate,
+    this.occupancyFilterStatus = 'ALL',
+    this.occupancySearchQuery = '',
+    this.selectedOccupancyRoom,
     this.buildingMaintenance = const [],
     this.isMaintenanceLoading = false,
     this.inspectedRoom,
@@ -135,6 +143,11 @@ class CampusState {
     List<BuildingOccupancyModel>? buildingOccupancy,
     Map<String, dynamic>? occupancyMetrics,
     bool? isOccupancyLoading,
+    String? selectedOccupancyDate,
+    String? occupancyFilterStatus,
+    String? occupancySearchQuery,
+    BuildingOccupancyModel? selectedOccupancyRoom,
+    bool clearSelectedOccupancyRoom = false,
     List<BuildingMaintenanceModel>? buildingMaintenance,
     bool? isMaintenanceLoading,
     RoomModel? inspectedRoom,
@@ -182,6 +195,10 @@ class CampusState {
       buildingOccupancy: buildingOccupancy ?? this.buildingOccupancy,
       occupancyMetrics: occupancyMetrics ?? this.occupancyMetrics,
       isOccupancyLoading: isOccupancyLoading ?? this.isOccupancyLoading,
+      selectedOccupancyDate: selectedOccupancyDate ?? this.selectedOccupancyDate,
+      occupancyFilterStatus: occupancyFilterStatus ?? this.occupancyFilterStatus,
+      occupancySearchQuery: occupancySearchQuery ?? this.occupancySearchQuery,
+      selectedOccupancyRoom: clearSelectedOccupancyRoom ? null : (selectedOccupancyRoom ?? this.selectedOccupancyRoom),
       buildingMaintenance: buildingMaintenance ?? this.buildingMaintenance,
       isMaintenanceLoading: isMaintenanceLoading ?? this.isMaintenanceLoading,
       inspectedRoom: clearInspectedRoom ? null : (inspectedRoom ?? this.inspectedRoom),
@@ -270,6 +287,17 @@ class CampusNotifier extends StateNotifier<CampusState> {
       final roomsList = (roomsRes['data'] as List<RoomModel>?) ?? [];
       final totalRooms = (roomsRes['total_count'] as int?) ?? roomsList.length;
 
+      RoomModel? freshInspected = state.inspectedRoom;
+      if (freshInspected != null) {
+        final match = roomsList.cast<RoomModel?>().firstWhere(
+          (r) => r?.id == freshInspected!.id,
+          orElse: () => null,
+        );
+        if (match != null) {
+          freshInspected = match;
+        }
+      }
+
       state = state.copyWith(
         isFloorsLoading: false,
         isRoomsLoading: false,
@@ -278,6 +306,7 @@ class CampusNotifier extends StateNotifier<CampusState> {
         totalFloorsCount: floors.length,
         rooms: roomsList,
         totalRoomsCount: totalRooms,
+        inspectedRoom: freshInspected,
       );
     } catch (e) {
       state = state.copyWith(
@@ -446,11 +475,23 @@ class CampusNotifier extends StateNotifier<CampusState> {
     final roomsList = (roomsRes['data'] as List<RoomModel>?) ?? [];
     final totalRooms = (roomsRes['total_count'] as int?) ?? roomsList.length;
 
+    RoomModel? freshInspected = state.inspectedRoom;
+    if (freshInspected != null) {
+      final match = roomsList.cast<RoomModel?>().firstWhere(
+        (r) => r?.id == freshInspected!.id,
+        orElse: () => null,
+      );
+      if (match != null) {
+        freshInspected = match;
+      }
+    }
+
     state = state.copyWith(
       isRoomsLoading: false,
       rooms: roomsList,
       totalRoomsCount: totalRooms,
       roomsPage: targetPage,
+      inspectedRoom: freshInspected,
     );
   }
 
@@ -553,22 +594,91 @@ class CampusNotifier extends StateNotifier<CampusState> {
   }
 
   // =========================================================================
-  // SUBTAB 2: Building Occupancy CRUD
+  // SUBTAB 2: Building Occupancy CRUD (Dynamic Space Booking Driven)
   // =========================================================================
-  Future<void> loadBuildingOccupancy(String buildingId) async {
+  Future<void> loadBuildingOccupancy(
+    String buildingId, {
+    String? targetDate,
+    String? statusFilter,
+    String? floorId,
+    String? roomType,
+    String? search,
+  }) async {
     state = state.copyWith(isOccupancyLoading: true);
     try {
-      final res = await _api.getBuildingOccupancy(buildingId);
+      final dateToUse = targetDate ?? state.selectedOccupancyDate;
+      final statusToUse = statusFilter ?? state.occupancyFilterStatus;
+      final searchToUse = search ?? state.occupancySearchQuery;
+
+      final res = await _api.getBuildingOccupancy(
+        buildingId,
+        targetDate: dateToUse,
+        statusFilter: statusToUse,
+        floorId: floorId,
+        roomType: roomType,
+        search: searchToUse,
+        pageSize: 200,
+      );
       final list = (res['data'] as List<BuildingOccupancyModel>?) ?? [];
       final metrics = (res['metrics'] as Map<String, dynamic>?) ?? {};
+
+      // Preserve or update selected occupancy room for the inspector
+      BuildingOccupancyModel? updatedSelectedRoom;
+      if (state.selectedOccupancyRoom != null) {
+        final match = list.where((r) => r.roomId == state.selectedOccupancyRoom!.roomId);
+        if (match.isNotEmpty) {
+          updatedSelectedRoom = match.first;
+        }
+      }
+
       state = state.copyWith(
         isOccupancyLoading: false,
         buildingOccupancy: list,
         occupancyMetrics: metrics,
+        selectedOccupancyDate: res['target_date']?.toString() ?? dateToUse,
+        selectedOccupancyRoom: updatedSelectedRoom,
       );
     } catch (e) {
       state = state.copyWith(isOccupancyLoading: false, errorMessage: e.toString());
     }
+  }
+
+  void setOccupancyDate(String dateStr) {
+    state = state.copyWith(selectedOccupancyDate: dateStr);
+    if (state.selectedBuilding != null) {
+      loadBuildingOccupancy(state.selectedBuilding!.id, targetDate: dateStr);
+    }
+  }
+
+  void setOccupancyFilterStatus(String status) {
+    state = state.copyWith(occupancyFilterStatus: status);
+    if (state.selectedBuilding != null) {
+      loadBuildingOccupancy(state.selectedBuilding!.id, statusFilter: status);
+    }
+  }
+
+  void setOccupancySearchQuery(String query) {
+    state = state.copyWith(occupancySearchQuery: query);
+    if (state.selectedBuilding != null) {
+      loadBuildingOccupancy(state.selectedBuilding!.id, search: query);
+    }
+  }
+
+  void selectOccupancyRoom(BuildingOccupancyModel? room) {
+    if (room == null) {
+      state = state.copyWith(clearSelectedOccupancyRoom: true);
+    } else {
+      state = state.copyWith(selectedOccupancyRoom: room);
+    }
+  }
+
+  Future<Map<String, dynamic>> assignClassSectionToRoom(String buildingId, Map<String, dynamic> payload) async {
+    final res = await _api.assignClassSectionToRoom(buildingId, payload);
+    if (res['success'] == true) {
+      await loadBuildingOccupancy(buildingId);
+      await loadBuildingDetails(buildingId);
+    }
+    return res;
   }
 
   Future<bool> saveBuildingOccupancy(String buildingId, Map<String, dynamic> payload, {String? assignmentId}) async {

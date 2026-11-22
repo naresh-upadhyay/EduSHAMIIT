@@ -1988,7 +1988,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           _buildSubTile('Classes', '/admin/classes', 0, isClassesRoute && activeTab == 0, isDark, isDrawer, 'classes'),
           _buildSubTile('Sections', '/admin/classes', 1, isClassesRoute && activeTab == 1, isDark, isDrawer, 'classes'),
           _buildSubTile('Subjects', '/admin/classes', 2, isClassesRoute && activeTab == 2, isDark, isDrawer, 'classes'),
-          _buildSubTile('Rooms', '/admin/classes', 3, isClassesRoute && activeTab == 3, isDark, isDrawer, 'classes'),
         ],
       ],
     );

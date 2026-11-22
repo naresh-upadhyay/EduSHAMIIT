@@ -11,6 +11,7 @@ import 'widgets/space_booking_week_view.dart';
 import 'widgets/space_booking_month_view.dart';
 import 'widgets/space_analytics_charts.dart';
 import 'dialogs/space_conflict_warning_dialog.dart';
+import 'dialogs/create_edit_booking_dialog.dart';
 
 class SpaceBookingCenterPanel extends ConsumerStatefulWidget {
   final Function(SpaceBookingRequestItem item)? onInspectRequest;
@@ -41,9 +42,20 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
   String _timelineBuilding = 'all';
   String _timelineSpaceType = 'All';
   String _timelineStatus = 'All';
-  int? _sortCol = 4;
-  bool _sortAsc = false;
   String _analyticsTimeframe = 'today';
+  late TextEditingController _requestSearchCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _requestSearchCtrl = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _requestSearchCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1228,12 +1240,207 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
           ),
           Divider(color: cardBorder, height: 1),
 
+          // Search & Multi-Facet Filters Bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                LayoutBuilder(
+                  builder: (context, fltConstraints) {
+                    final isCompact = fltConstraints.maxWidth < 900;
+                    return Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        // Search Input
+                        SizedBox(
+                          width: isCompact ? fltConstraints.maxWidth : 300,
+                          height: 34,
+                          child: TextField(
+                            controller: _requestSearchCtrl,
+                            style: TextStyle(fontSize: 12.5, color: textPrimary),
+                            decoration: InputDecoration(
+                              hintText: 'Search title, ref, requester, room...',
+                              hintStyle: TextStyle(fontSize: 12, color: textSecondary),
+                              prefixIcon: Icon(Icons.search_rounded, size: 16, color: textSecondary),
+                              suffixIcon: _requestSearchCtrl.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear_rounded, size: 14),
+                                      color: textSecondary,
+                                      onPressed: () {
+                                        _requestSearchCtrl.clear();
+                                        notifier.setSearchQuery('');
+                                      },
+                                    )
+                                  : null,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                              filled: true,
+                              fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: cardBorder),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                              ),
+                            ),
+                            onSubmitted: (val) => notifier.setSearchQuery(val),
+                            onChanged: (val) {
+                              setState(() {});
+                            },
+                          ),
+                        ),
+
+                        // Building Dropdown
+                        _buildSmallDropdown(
+                          label: 'Building: All',
+                          value: state.selectedBuildingId,
+                          isDark: isDark,
+                          items: [
+                            const DropdownMenuItem(value: 'all', child: Text('Building: All')),
+                            ...ref.watch(campusProvider).buildings.map(
+                                  (b) => DropdownMenuItem(
+                                    value: b.id,
+                                    child: Text('Building: ${b.code} - ${b.name}'),
+                                  ),
+                                ),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              notifier.setBuildingFilter(val);
+                            }
+                          },
+                        ),
+
+                        // Space Type Dropdown
+                        _buildSmallDropdown(
+                          label: 'Space Type: All',
+                          value: state.selectedSpaceType,
+                          isDark: isDark,
+                          items: const [
+                            DropdownMenuItem(value: 'All', child: Text('Space Type: All')),
+                            DropdownMenuItem(value: 'Classroom', child: Text('Classroom')),
+                            DropdownMenuItem(value: 'Lab', child: Text('Lab')),
+                            DropdownMenuItem(value: 'Auditorium', child: Text('Auditorium')),
+                            DropdownMenuItem(value: 'Seminar Hall', child: Text('Seminar Hall')),
+                            DropdownMenuItem(value: 'Meeting Room', child: Text('Meeting Room')),
+                            DropdownMenuItem(value: 'Sports Facility', child: Text('Sports Facility')),
+                            DropdownMenuItem(value: 'Library Hall', child: Text('Library Hall')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              notifier.setSpaceTypeFilter(val);
+                            }
+                          },
+                        ),
+
+                        // Purpose Dropdown
+                        _buildSmallDropdown(
+                          label: 'Purpose: All',
+                          value: state.selectedPurpose,
+                          isDark: isDark,
+                          items: const [
+                            DropdownMenuItem(value: 'All', child: Text('Purpose: All')),
+                            DropdownMenuItem(value: 'Academic', child: Text('Academic')),
+                            DropdownMenuItem(value: 'Workshop', child: Text('Workshop')),
+                            DropdownMenuItem(value: 'Exam', child: Text('Exam')),
+                            DropdownMenuItem(value: 'Club Activity', child: Text('Club Activity')),
+                            DropdownMenuItem(value: 'Faculty Meeting', child: Text('Faculty Meeting')),
+                            DropdownMenuItem(value: 'Cultural Event', child: Text('Cultural Event')),
+                            DropdownMenuItem(value: 'Sports Event', child: Text('Sports Event')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              notifier.setPurposeFilter(val);
+                            }
+                          },
+                        ),
+
+                        // Date Range Filter Button
+                        _buildRequestsDateRangeButton(state, notifier, isDark),
+
+                        // Search Apply Button
+                        InkWell(
+                          onTap: () => notifier.setSearchQuery(_requestSearchCtrl.text.trim()),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            height: 34,
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2563EB),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.search, size: 14, color: Colors.white),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Search',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+
+                // Active Filter Badges & Reset
+                if (state.searchQuery.isNotEmpty ||
+                    (state.selectedBuildingId.isNotEmpty && state.selectedBuildingId != 'all') ||
+                    (state.selectedSpaceType.isNotEmpty && state.selectedSpaceType != 'All') ||
+                    (state.selectedPurpose.isNotEmpty && state.selectedPurpose != 'All') ||
+                    state.dateRangeFrom != null) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text('Active Filters:', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: textSecondary)),
+                      ..._buildActiveFilterChips(state, notifier, isDark),
+                      InkWell(
+                        onTap: () {
+                          _requestSearchCtrl.clear();
+                          notifier.clearAllRequestsFilters();
+                        },
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.restart_alt_rounded, size: 13, color: Color(0xFFEF4444)),
+                              SizedBox(width: 4),
+                              Text('Clear All', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFEF4444))),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Divider(color: cardBorder, height: 1),
+
           // Scrollable Table Block (Header + Rows)
           LayoutBuilder(
             builder: (context, tblConstraints) {
-              final tableWidth = (tblConstraints.maxWidth.isFinite && tblConstraints.maxWidth > 780)
+              final tableWidth = (tblConstraints.maxWidth.isFinite && tblConstraints.maxWidth > 850)
                   ? tblConstraints.maxWidth
-                  : 780.0;
+                  : 850.0;
               return SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: SizedBox(
@@ -1241,20 +1448,20 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Table Header
+                      // Server-Side Sortable Table Header
                       Container(
-                        height: 34,
+                        height: 36,
                         color: headerBg,
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         child: Row(
                           children: [
-                            SizedBox(width: 28, child: Text('#', style: _thStyle(textSecondary))),
-                            _buildSortableHeader('Request Title', 1, 3, textSecondary),
-                            _buildSortableHeader('Space', 2, 3, textSecondary),
-                            _buildSortableHeader('Requested By', 3, 3, textSecondary),
-                            _buildSortableHeader('Date & Time', 4, 4, textSecondary),
-                            _buildSortableHeader('Purpose', 5, 2, textSecondary),
-                            _buildSortableHeader('Status', 6, 2, textSecondary),
+                            SizedBox(width: 32, child: Text('#', style: _thStyle(textSecondary))),
+                            _buildSortableHeader('Request Title', 'title', 3, textSecondary, state, notifier),
+                            _buildSortableHeader('Space', 'space', 3, textSecondary, state, notifier),
+                            _buildSortableHeader('Requested By', 'organizer_name', 3, textSecondary, state, notifier),
+                            _buildSortableHeader('Date & Time', 'booking_date', 4, textSecondary, state, notifier),
+                            _buildSortableHeader('Purpose', 'purpose', 2, textSecondary, state, notifier),
+                            _buildSortableHeader('Status', 'status', 2, textSecondary, state, notifier),
                             SizedBox(width: 120, child: Text('Actions', style: _thStyle(textSecondary))),
                           ],
                         ),
@@ -1264,49 +1471,32 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
                       // Table Body Rows
                       if (state.isLoading)
                         const Padding(
-                          padding: EdgeInsets.all(32.0),
+                          padding: EdgeInsets.all(40.0),
                           child: Center(child: CircularProgressIndicator()),
                         )
                       else if (state.bookingRequests.items.isEmpty)
                         Padding(
-                          padding: const EdgeInsets.all(32.0),
-                          child: Center(child: Text('No space booking requests found.', style: TextStyle(color: textSecondary))),
+                          padding: const EdgeInsets.all(40.0),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.inbox_outlined, size: 40, color: textSecondary.withValues(alpha: 0.4)),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'No space booking requests match current filters.',
+                                  style: TextStyle(color: textSecondary, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
                         )
                       else
-                        ...(() {
-                          final sortedList = List<SpaceBookingRequestItem>.from(state.bookingRequests.items);
-                          if (_sortCol != null) {
-                            sortedList.sort((a, b) {
-                              int cmp = 0;
-                              switch (_sortCol) {
-                                case 1:
-                                  cmp = a.title.compareTo(b.title);
-                                  break;
-                                case 2:
-                                  cmp = a.spaceDisplay.compareTo(b.spaceDisplay);
-                                  break;
-                                case 3:
-                                  cmp = a.requestedByDisplay.compareTo(b.requestedByDisplay);
-                                  break;
-                                case 4:
-                                  cmp = a.bookingDate.compareTo(b.bookingDate);
-                                  break;
-                                case 5:
-                                  cmp = a.purpose.compareTo(b.purpose);
-                                  break;
-                                case 6:
-                                  cmp = a.status.compareTo(b.status);
-                                  break;
-                              }
-                              return _sortAsc ? cmp : -cmp;
-                            });
-                          }
-                          return sortedList.asMap().entries.map((entry) {
-                            final idx = (state.currentPage - 1) * state.pageSize + entry.key + 1;
-                            final item = entry.value;
-                            return _buildRequestRow(idx, item, notifier, isDark);
-                          });
-                        })(),
+                        ...state.bookingRequests.items.asMap().entries.map((entry) {
+                          final idx = (state.currentPage - 1) * state.pageSize + entry.key + 1;
+                          final item = entry.value;
+                          return _buildRequestRow(idx, item, notifier, isDark);
+                        }),
                     ],
                   ),
                 ),
@@ -1316,7 +1506,7 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
 
           Divider(color: cardBorder, height: 1),
 
-          // Pagination Bar (SAFE BOUNDS TO PREVENT ARGUMENTERROR)
+          // Pagination Bar
           _buildPaginationBar(state, notifier, isDark),
         ],
       ),
@@ -1329,35 +1519,220 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
     color: color,
   );
 
-  Widget _buildSortableHeader(String title, int colIdx, int flex, Color color) {
-    final isCurrent = _sortCol == colIdx;
+  Widget _buildSortableHeader(String title, String colKey, int flex, Color color, SpaceBookingState state, SpaceBookingNotifier notifier) {
+    final isCurrent = state.sortBy.toLowerCase() == colKey.toLowerCase();
+    final isAsc = state.sortOrder.toUpperCase() == 'ASC';
     return Expanded(
       flex: flex,
       child: InkWell(
-        onTap: () {
-          setState(() {
-            if (_sortCol == colIdx) {
-              _sortAsc = !_sortAsc;
-            } else {
-              _sortCol = colIdx;
-              _sortAsc = true;
-            }
-          });
-        },
+        onTap: () => notifier.setSorting(colKey),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4.0),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  title,
+                  style: _thStyle(isCurrent ? const Color(0xFF3B82F6) : color),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                isCurrent
+                    ? (isAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                    : Icons.unfold_more_rounded,
+                size: 14,
+                color: isCurrent ? const Color(0xFF3B82F6) : color.withValues(alpha: 0.4),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRequestsDateRangeButton(SpaceBookingState state, SpaceBookingNotifier notifier, bool isDark) {
+    String dateLabel = 'Date: All';
+    if (state.dateRangeFrom != null && state.dateRangeTo != null) {
+      if (state.dateRangeFrom == state.dateRangeTo) {
+        dateLabel = DateFormat('dd MMM').format(state.dateRangeFrom!);
+      } else {
+        dateLabel = '${DateFormat('dd MMM').format(state.dateRangeFrom!)} - ${DateFormat('dd MMM').format(state.dateRangeTo!)}';
+      }
+    } else if (state.dateRangeFrom != null) {
+      dateLabel = 'From: ${DateFormat('dd MMM').format(state.dateRangeFrom!)}';
+    }
+
+    final hasDateFilter = state.dateRangeFrom != null;
+
+    return PopupMenuButton<String>(
+      tooltip: 'Filter by Date Range',
+      onSelected: (val) async {
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        if (val == 'all') {
+          notifier.clearDateRangeFilter();
+        } else if (val == 'today') {
+          notifier.setRequestsDateRange(today, today);
+        } else if (val == 'tomorrow') {
+          final tomorrow = today.add(const Duration(days: 1));
+          notifier.setRequestsDateRange(tomorrow, tomorrow);
+        } else if (val == 'week') {
+          notifier.setRequestsDateRange(today, today.add(const Duration(days: 7)));
+        } else if (val == 'month') {
+          final start = DateTime(today.year, today.month, 1);
+          final end = DateTime(today.year, today.month + 1, 0);
+          notifier.setRequestsDateRange(start, end);
+        } else if (val == 'custom') {
+          final range = await showDateRangePicker(
+            context: context,
+            firstDate: DateTime(now.year - 1),
+            lastDate: DateTime(now.year + 2),
+            initialDateRange: (state.dateRangeFrom != null && state.dateRangeTo != null)
+                ? DateTimeRange(start: state.dateRangeFrom!, end: state.dateRangeTo!)
+                : null,
+          );
+          if (range != null) {
+            notifier.setRequestsDateRange(range.start, range.end);
+          }
+        }
+      },
+      itemBuilder: (ctx) => [
+        const PopupMenuItem(value: 'all', child: Text('All Dates')),
+        const PopupMenuItem(value: 'today', child: Text('Today')),
+        const PopupMenuItem(value: 'tomorrow', child: Text('Tomorrow')),
+        const PopupMenuItem(value: 'week', child: Text('Next 7 Days')),
+        const PopupMenuItem(value: 'month', child: Text('This Month')),
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: 'custom',
+          child: Row(
+            children: [
+              Icon(Icons.date_range, size: 16),
+              SizedBox(width: 8),
+              Text('Custom Range...'),
+            ],
+          ),
+        ),
+      ],
+      child: Container(
+        height: 34,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: hasDateFilter
+              ? const Color(0xFF2563EB).withValues(alpha: isDark ? 0.25 : 0.1)
+              : (isDark ? const Color(0xFF0F172A) : Colors.white),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: hasDateFilter ? const Color(0xFF2563EB) : (isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
+          ),
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Flexible(child: Text(title, style: _thStyle(color), overflow: TextOverflow.ellipsis)),
-            const SizedBox(width: 2),
             Icon(
-              isCurrent
-                  ? (_sortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
-                  : Icons.unfold_more_rounded,
-              size: 13,
-              color: isCurrent ? const Color(0xFF2563EB) : color.withValues(alpha: 0.5),
+              Icons.calendar_month_outlined,
+              size: 15,
+              color: hasDateFilter ? const Color(0xFF3B82F6) : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
             ),
+            const SizedBox(width: 6),
+            Text(
+              dateLabel,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: hasDateFilter ? FontWeight.w600 : FontWeight.w500,
+                color: hasDateFilter ? const Color(0xFF3B82F6) : (isDark ? Colors.white : const Color(0xFF1E293B)),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.keyboard_arrow_down, size: 14, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
           ],
         ),
+      ),
+    );
+  }
+
+  List<Widget> _buildActiveFilterChips(SpaceBookingState state, SpaceBookingNotifier notifier, bool isDark) {
+    final chips = <Widget>[];
+
+    if (state.searchQuery.isNotEmpty) {
+      chips.add(_buildFilterChip(
+        label: 'Search: "${state.searchQuery}"',
+        onDeleted: () {
+          _requestSearchCtrl.clear();
+          notifier.setSearchQuery('');
+        },
+        isDark: isDark,
+      ));
+    }
+
+    if (state.selectedBuildingId.isNotEmpty && state.selectedBuildingId != 'all') {
+      final bName = ref.watch(campusProvider).buildings.cast<dynamic>().firstWhere(
+            (b) => b.id == state.selectedBuildingId,
+            orElse: () => null,
+          )?.name ?? state.selectedBuildingId;
+      chips.add(_buildFilterChip(
+        label: 'Building: $bName',
+        onDeleted: () => notifier.setBuildingFilter('all'),
+        isDark: isDark,
+      ));
+    }
+
+    if (state.selectedSpaceType.isNotEmpty && state.selectedSpaceType != 'All') {
+      chips.add(_buildFilterChip(
+        label: 'Type: ${state.selectedSpaceType}',
+        onDeleted: () => notifier.setSpaceTypeFilter('All'),
+        isDark: isDark,
+      ));
+    }
+
+    if (state.selectedPurpose.isNotEmpty && state.selectedPurpose != 'All') {
+      chips.add(_buildFilterChip(
+        label: 'Purpose: ${state.selectedPurpose}',
+        onDeleted: () => notifier.setPurposeFilter('All'),
+        isDark: isDark,
+      ));
+    }
+
+    if (state.dateRangeFrom != null || state.dateRangeTo != null) {
+      final fromStr = state.dateRangeFrom != null ? DateFormat('dd MMM').format(state.dateRangeFrom!) : '';
+      final toStr = state.dateRangeTo != null ? DateFormat('dd MMM').format(state.dateRangeTo!) : '';
+      final label = (state.dateRangeFrom != null && state.dateRangeTo != null)
+          ? 'Date: $fromStr - $toStr'
+          : 'Date: $fromStr';
+      chips.add(_buildFilterChip(
+        label: label,
+        onDeleted: () => notifier.clearDateRangeFilter(),
+        isDark: isDark,
+      ));
+    }
+
+    return chips;
+  }
+
+  Widget _buildFilterChip({required String label, required VoidCallback onDeleted, required bool isDark}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2563EB).withValues(alpha: isDark ? 0.2 : 0.08),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF3B82F6)),
+          ),
+          const SizedBox(width: 4),
+          InkWell(
+            onTap: onDeleted,
+            child: const Icon(Icons.close_rounded, size: 13, color: Color(0xFF3B82F6)),
+          ),
+        ],
       ),
     );
   }
@@ -1535,7 +1910,20 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
                               roomName: item.spaceDisplay,
                               requestedTime: '${item.bookingDate} (${item.startTime} - ${item.endTime})',
                               conflictMessage: res['message']?.toString() ?? 'Cannot approve: Space is already booked during this time slot.',
-                              onChangeTime: () => Navigator.pop(ctx),
+                              onChangeTime: () {
+                                if (widget.onEditRequest != null) {
+                                  widget.onEditRequest!(item);
+                                } else {
+                                  showDialog(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (dCtx) => CreateEditBookingDialog(
+                                      initialItem: item,
+                                      onSaved: () => ref.read(spaceBookingProvider.notifier).loadAll(),
+                                    ),
+                                  );
+                                }
+                              },
                             ),
                           );
                         } else {

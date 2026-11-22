@@ -285,6 +285,77 @@ class MaintenanceNotifier extends StateNotifier<MaintenanceState> {
     return false;
   }
 
+  Future<bool> deleteRequest(String requestId) async {
+    final res = await _api.deleteRequest(requestId);
+    if (res['success'] == true) {
+      await loadAll();
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> createPlan(Map<String, dynamic> payload) async {
+    final res = await _api.createPlan(payload);
+    if (res['success'] == true || res['id'] != null || res['plan_code'] != null) {
+      await loadPlans();
+      await loadKpis();
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> updatePlan(String planId, Map<String, dynamic> payload) async {
+    final res = await _api.updatePlan(planId, payload);
+    if (res['id'] != null || res['success'] == true) {
+      await loadPlans();
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> deletePlan(String planId) async {
+    final res = await _api.deletePlan(planId);
+    if (res['success'] == true) {
+      await loadPlans();
+      await loadKpis();
+      return true;
+    }
+    return false;
+  }
+
+  Future<Map<String, dynamic>> triggerPlan(String planId) async {
+    final res = await _api.triggerPlan(planId);
+    await loadAll();
+    return res;
+  }
+
+  Future<bool> createVendor(Map<String, dynamic> payload) async {
+    final res = await _api.createVendor(payload);
+    if (res['id'] != null || res['success'] == true) {
+      await loadVendors();
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> updateVendor(String vendorId, Map<String, dynamic> payload) async {
+    final res = await _api.updateVendor(vendorId, payload);
+    if (res['id'] != null || res['success'] == true) {
+      await loadVendors();
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> deleteVendor(String vendorId) async {
+    final res = await _api.deleteVendor(vendorId);
+    if (res['success'] == true) {
+      await loadVendors();
+      return true;
+    }
+    return false;
+  }
+
   Future<Map<String, dynamic>> generateDuePreventivePlans() async {
     state = state.copyWith(isLoading: true);
     try {

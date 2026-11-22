@@ -21,6 +21,8 @@ class SpaceBookingState {
   final DateTime? dateRangeFrom;
   final DateTime? dateRangeTo;
   final String searchQuery;
+  final String sortBy;
+  final String sortOrder;
   final int currentPage;
   final int pageSize;
   final bool isLoading;
@@ -46,6 +48,8 @@ class SpaceBookingState {
     this.dateRangeFrom,
     this.dateRangeTo,
     this.searchQuery = '',
+    this.sortBy = 'booking_date',
+    this.sortOrder = 'ASC',
     this.currentPage = 1,
     this.pageSize = 10,
     this.isLoading = false,
@@ -73,6 +77,8 @@ class SpaceBookingState {
     DateTime? dateRangeTo,
     bool clearDateRange = false,
     String? searchQuery,
+    String? sortBy,
+    String? sortOrder,
     int? currentPage,
     int? pageSize,
     bool? isLoading,
@@ -98,6 +104,8 @@ class SpaceBookingState {
       dateRangeFrom: clearDateRange ? null : (dateRangeFrom ?? this.dateRangeFrom),
       dateRangeTo: clearDateRange ? null : (dateRangeTo ?? this.dateRangeTo),
       searchQuery: searchQuery ?? this.searchQuery,
+      sortBy: sortBy ?? this.sortBy,
+      sortOrder: sortOrder ?? this.sortOrder,
       currentPage: currentPage ?? this.currentPage,
       pageSize: pageSize ?? this.pageSize,
       isLoading: isLoading ?? this.isLoading,
@@ -150,9 +158,12 @@ class SpaceBookingNotifier extends StateNotifier<SpaceBookingState> {
           status: state.statusFilter,
           buildingId: state.selectedBuildingId,
           roomType: state.selectedSpaceType,
+          purpose: state.selectedPurpose,
           search: state.searchQuery,
           dateFrom: state.dateRangeFrom,
           dateTo: state.dateRangeTo,
+          sortBy: state.sortBy,
+          sortOrder: state.sortOrder,
           page: state.currentPage,
           pageSize: state.pageSize,
         ),
@@ -245,10 +256,6 @@ class SpaceBookingNotifier extends StateNotifier<SpaceBookingState> {
     state = state.copyWith(displayMode: mode);
   }
 
-  void setPurposeFilter(String purpose) {
-    state = state.copyWith(selectedPurpose: purpose);
-  }
-
   void jumpToToday() {
     changeDate(DateTime.now());
   }
@@ -310,42 +317,79 @@ class SpaceBookingNotifier extends StateNotifier<SpaceBookingState> {
   Future<void> setStatusFilter(String status, {bool updateNav = true}) async {
     final nav = updateNav ? 'Booking Requests' : state.selectedNav;
     state = state.copyWith(statusFilter: status, selectedNav: nav, currentPage: 1, isLoading: true);
-    final res = await _service.getRequests(
-      status: status,
-      buildingId: state.selectedBuildingId,
-      roomType: state.selectedSpaceType,
-      search: state.searchQuery,
-      dateFrom: state.dateRangeFrom,
-      dateTo: state.dateRangeTo,
-      page: 1,
-      pageSize: state.pageSize,
+    await _reloadRequests();
+  }
+
+  Future<void> setSorting(String column) async {
+    String newOrder = 'ASC';
+    if (state.sortBy.toLowerCase() == column.toLowerCase()) {
+      newOrder = (state.sortOrder.toUpperCase() == 'ASC') ? 'DESC' : 'ASC';
+    }
+    state = state.copyWith(sortBy: column, sortOrder: newOrder, currentPage: 1, isLoading: true);
+    await _reloadRequests();
+  }
+
+  Future<void> setSearchQuery(String query) async {
+    state = state.copyWith(searchQuery: query, currentPage: 1, isLoading: true);
+    await _reloadRequests();
+  }
+
+  Future<void> setBuildingFilter(String? buildingId) async {
+    state = state.copyWith(selectedBuildingId: buildingId ?? 'all', currentPage: 1, isLoading: true);
+    await _reloadRequests();
+  }
+
+  Future<void> setSpaceTypeFilter(String? spaceType) async {
+    state = state.copyWith(selectedSpaceType: spaceType ?? 'All', currentPage: 1, isLoading: true);
+    await _reloadRequests();
+  }
+
+  Future<void> setPurposeFilter(String? purpose) async {
+    state = state.copyWith(selectedPurpose: purpose ?? 'All', currentPage: 1, isLoading: true);
+    await _reloadRequests();
+  }
+
+  Future<void> setRequestsDateRange(DateTime? from, DateTime? to) async {
+    state = state.copyWith(
+      dateRangeFrom: from,
+      dateRangeTo: to,
+      clearDateRange: from == null && to == null,
+      currentPage: 1,
+      isLoading: true,
     );
-    state = state.copyWith(bookingRequests: res, isLoading: false);
+    await _reloadRequests();
+  }
+
+  Future<void> clearAllRequestsFilters() async {
+    state = state.copyWith(
+      searchQuery: '',
+      selectedBuildingId: 'all',
+      selectedSpaceType: 'All',
+      selectedPurpose: 'All',
+      clearDateRange: true,
+      sortBy: 'booking_date',
+      sortOrder: 'ASC',
+      currentPage: 1,
+      isLoading: true,
+    );
+    await _reloadRequests();
   }
 
   Future<void> clearDateRangeFilter() async {
     state = state.copyWith(clearDateRange: true, currentPage: 1, isLoading: true);
-    final res = await _service.getRequests(
-      status: state.statusFilter,
-      buildingId: state.selectedBuildingId,
-      roomType: state.selectedSpaceType,
-      search: state.searchQuery,
-      dateFrom: null,
-      dateTo: null,
-      page: 1,
-      pageSize: state.pageSize,
-    );
-    state = state.copyWith(bookingRequests: res, isLoading: false);
+    await _reloadRequests();
   }
 
   Future<void> resetFilters() async {
     state = state.copyWith(
       clearDateRange: true,
-      selectedBuildingId: null,
+      selectedBuildingId: 'all',
       selectedSpaceType: 'All',
       selectedCapacity: 'Any Capacity',
       selectedPurpose: 'All',
       searchQuery: '',
+      sortBy: 'booking_date',
+      sortOrder: 'ASC',
       currentPage: 1,
       isLoading: true,
     );
@@ -382,9 +426,12 @@ class SpaceBookingNotifier extends StateNotifier<SpaceBookingState> {
         status: state.statusFilter,
         buildingId: state.selectedBuildingId,
         roomType: state.selectedSpaceType,
+        purpose: state.selectedPurpose,
         search: state.searchQuery,
         dateFrom: state.dateRangeFrom,
         dateTo: state.dateRangeTo,
+        sortBy: state.sortBy,
+        sortOrder: state.sortOrder,
         page: 1,
         pageSize: state.pageSize,
       ),
@@ -400,32 +447,33 @@ class SpaceBookingNotifier extends StateNotifier<SpaceBookingState> {
   Future<void> setPage(int page) async {
     if (page < 1 || page > state.bookingRequests.totalPages) return;
     state = state.copyWith(currentPage: page, isLoading: true);
-    final res = await _service.getRequests(
-      status: state.statusFilter,
-      buildingId: state.selectedBuildingId,
-      roomType: state.selectedSpaceType,
-      search: state.searchQuery,
-      dateFrom: state.dateRangeFrom,
-      dateTo: state.dateRangeTo,
-      page: page,
-      pageSize: state.pageSize,
-    );
-    state = state.copyWith(bookingRequests: res, isLoading: false);
+    await _reloadRequests();
   }
 
   Future<void> setPageSize(int size) async {
     state = state.copyWith(pageSize: size, currentPage: 1, isLoading: true);
-    final res = await _service.getRequests(
-      status: state.statusFilter,
-      buildingId: state.selectedBuildingId,
-      roomType: state.selectedSpaceType,
-      search: state.searchQuery,
-      dateFrom: state.dateRangeFrom,
-      dateTo: state.dateRangeTo,
-      page: 1,
-      pageSize: size,
-    );
-    state = state.copyWith(bookingRequests: res, isLoading: false);
+    await _reloadRequests();
+  }
+
+  Future<void> _reloadRequests() async {
+    try {
+      final res = await _service.getRequests(
+        status: state.statusFilter,
+        buildingId: state.selectedBuildingId,
+        roomType: state.selectedSpaceType,
+        purpose: state.selectedPurpose,
+        search: state.searchQuery,
+        dateFrom: state.dateRangeFrom,
+        dateTo: state.dateRangeTo,
+        sortBy: state.sortBy,
+        sortOrder: state.sortOrder,
+        page: state.currentPage,
+        pageSize: state.pageSize,
+      );
+      state = state.copyWith(bookingRequests: res, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+    }
   }
 
   Future<Map<String, dynamic>> decideApprovalDetailed(String bookingId, String action, {String? comments}) async {

@@ -15,13 +15,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any, Union
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 import io
 import csv
 import json
 import uuid
 import os
+import random
 import mimetypes
 import logging
 import asyncio
@@ -77,6 +78,26 @@ def _serialize_val(val: Any) -> Any:
     if isinstance(val, dict):
         return {k: _serialize_val(v) for k, v in val.items()}
     return val
+
+
+def _parse_time_str(time_str: Union[str, time]) -> time:
+    """Parse time string like '14:00', '14:00:00', '02:00 PM', '2:00 PM' or return time object directly."""
+    if isinstance(time_str, time):
+        return time_str
+    clean = str(time_str).strip().upper()
+    try:
+        if "AM" in clean or "PM" in clean:
+            return datetime.strptime(clean, "%I:%M %p").time()
+    except Exception:
+        pass
+    try:
+        if len(clean) == 5:
+            return datetime.strptime(clean, "%H:%M").time()
+        elif len(clean) == 8:
+            return datetime.strptime(clean, "%H:%M:%S").time()
+    except Exception:
+        pass
+    return time(8, 0)
 
 
 def _get_school_id(current_user: Any) -> str:
@@ -295,6 +316,23 @@ class BuildingOccupancyPayload(BaseModel):
     end_date: Optional[str] = None
     assigned_to_name: Optional[str] = None
     status: Optional[str] = "Active"
+    notes: Optional[str] = None
+
+
+class AssignSectionPayload(BaseModel):
+    room_id: str
+    class_name: str
+    section_name: str
+    section_id: Optional[str] = None
+    subject: Optional[str] = None
+    teacher_name: Optional[str] = "Academic Faculty"
+    booking_date: Optional[str] = None
+    start_time: str
+    end_time: str
+    attendee_count: Optional[int] = 35
+    is_recurring: Optional[bool] = False
+    recurrence_frequency: Optional[str] = "DAILY" # DAILY, WEEKDAYS, WEEKLY
+    recurrence_count: Optional[int] = 5
     notes: Optional[str] = None
 
 
@@ -1402,91 +1440,677 @@ async def delete_building_document(
 
 
 # ----------------------------------------------------------------------------
-# 13. Building Occupancy & Allocations CRUD
+# 13. Building Occupancy & Allocations CRUD (Dynamic Space Booking Driven)
 # ----------------------------------------------------------------------------
 @router.get("/buildings/{building_id}/occupancy")
 async def get_building_occupancy(
     building_id: str,
+    target_date: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=100),
+    page_size: int = Query(200, ge=1, le=500),
     sort_by: Optional[str] = Query(None),
-    sort_order: Optional[str] = Query("desc"),
+    sort_order: Optional[str] = Query("asc"),
+    search: Optional[str] = Query(None),
+    status_filter: Optional[str] = Query(None),
+    floor_id: Optional[str] = Query(None),
+    room_type: Optional[str] = Query(None),
+    reference_module: Optional[str] = Query(None),
     user: dict = Depends(get_current_user),
 ):
-    """Get building occupancy summary metrics and room allocations with sorting and pagination."""
+    """
+    Real-time Dynamic Space Booking & Building Occupancy Engine.
+    Correlates physical building rooms with space_bookings schedule for target_date.
+    Returns live room availability (Occupied Now, Available Now, Scheduled Later, Maintenance),
+    today's booking timelines, specifications, facilities, and dynamic building-level KPIs.
+    """
     school_id = _get_school_id(user)
     try:
-        stats_sql = """
+        # 1. Parse target date
+        query_date_str = target_date.strip() if isinstance(target_date, str) and target_date.strip() else None
+        if query_date_str:
+            try:
+                query_date = datetime.strptime(query_date_str[:10], "%Y-%m-%d").date()
+            except Exception:
+                query_date = date.today()
+        else:
+            query_date = date.today()
+
+        is_today = (query_date == date.today())
+        now_time = datetime.now().time()
+
+        # 2. Fetch all physical rooms in this building
+        rooms_sql = """
             SELECT 
-                COALESCE(SUM(r.max_capacity), 0)::INT AS total_capacity,
-                COALESCE(SUM(r.current_occupancy), 0)::INT AS current_occupancy,
-                COUNT(r.id)::INT AS total_rooms,
-                COUNT(CASE WHEN r.assignment_status = 'Assigned' THEN 1 END)::INT AS occupied_rooms
+                r.id,
+                r.room_number,
+                r.room_code,
+                r.name AS room_name,
+                r.room_type,
+                COALESCE(NULLIF(r.purpose, ''), r.room_type || ' space') AS purpose,
+                r.floor_id,
+                COALESCE(f.name, 'Ground Floor') AS floor_name,
+                COALESCE(f.floor_level, 0) AS floor_number,
+                r.max_capacity,
+                COALESCE(r.seating_capacity, r.max_capacity) AS seating_capacity,
+                COALESCE(r.recommended_capacity, r.max_capacity) AS recommended_capacity,
+                r.current_occupancy,
+                COALESCE(r.area, 0.0) AS area,
+                COALESCE(r.area_unit, 'sq ft') AS area_unit,
+                COALESCE(r.length, 0.0) AS length,
+                COALESCE(r.width, 0.0) AS width,
+                COALESCE(r.height, 0.0) AS height,
+                COALESCE(r.num_doors, 1) AS num_doors,
+                COALESCE(r.num_windows, 2) AS num_windows,
+                COALESCE(r.operational_status, 'Available') AS operational_status,
+                COALESCE(r.assignment_status, 'Unassigned') AS assignment_status,
+                r.is_differently_abled_accessible,
+                COALESCE(r.lift_proximity, 'Nearby') AS lift_proximity,
+                COALESCE(r.emergency_exit_proximity, 'Direct Access') AS emergency_exit_proximity,
+                r.responsible_person_name,
+                r.metadata,
+                r.is_bookable,
+                r.building_id,
+                r.school_id,
+                r.created_at,
+                r.description
             FROM public.rooms r
+            LEFT JOIN public.building_floors f ON r.floor_id = f.id
             WHERE r.building_id = %s::UUID AND r.school_id = %s::UUID AND r.deleted_at IS NULL
+            ORDER BY f.floor_level ASC, r.room_number ASC;
         """
-        stats_rows = await exec_sql(stats_sql, (building_id, school_id))
-        stats = stats_rows[0] if stats_rows else {"total_capacity": 0, "current_occupancy": 0, "total_rooms": 0, "occupied_rooms": 0}
-        total_cap = stats["total_capacity"]
-        curr_occ = stats["current_occupancy"]
-        available_cap = max(0, total_cap - curr_occ)
-        occ_rate = round((curr_occ / total_cap * 100.0), 1) if total_cap > 0 else 0.0
+        rooms_rows = await exec_sql(rooms_sql, (building_id, school_id))
 
-        count_sql = """
-            SELECT COUNT(*) AS total
+        # 3. Fetch all space bookings for this building on query_date
+        bookings_sql = """
+            SELECT 
+                sb.id,
+                sb.booking_ref,
+                sb.title,
+                sb.purpose,
+                sb.category,
+                sb.room_id,
+                sb.floor_id,
+                sb.booking_date,
+                sb.start_time,
+                sb.end_time,
+                sb.status,
+                sb.attendee_count,
+                sb.organizer_name,
+                sb.organizer_role,
+                sb.special_instructions,
+                sb.is_recurring
+            FROM public.space_bookings sb
+            WHERE sb.building_id = %s::UUID 
+              AND sb.school_id = %s::UUID 
+              AND sb.booking_date = %s::DATE 
+              AND sb.deleted_at IS NULL 
+              AND sb.status NOT IN ('Cancelled', 'Rejected')
+            ORDER BY sb.start_time ASC;
+        """
+        bookings_rows = await exec_sql(bookings_sql, (building_id, school_id, query_date))
+
+        # 4. Fetch active room assignments for fallback/reference
+        assignments_sql = """
+            SELECT 
+                ra.room_id, 
+                ra.reference_module, 
+                ra.reference_name, 
+                ra.assignment_purpose, 
+                ra.assigned_to_name, 
+                ra.status, 
+                ra.start_date, 
+                ra.end_date, 
+                ra.notes
             FROM public.room_assignments ra
             JOIN public.rooms r ON ra.room_id = r.id
-            WHERE r.building_id = %s::UUID AND ra.school_id = %s::UUID AND ra.deleted_at IS NULL
+            WHERE r.building_id = %s::UUID 
+              AND ra.school_id = %s::UUID 
+              AND ra.deleted_at IS NULL 
+              AND ra.status = 'Active';
         """
-        count_rows = await exec_sql(count_sql, (building_id, school_id))
-        total = count_rows[0]["total"] if count_rows else 0
+        assignments_rows = await exec_sql(assignments_sql, (building_id, school_id))
 
-        sort_col = "ra.created_at"
-        if sort_by == "room_number": sort_col = "r.room_number"
-        elif sort_by == "room_name": sort_col = "r.name"
-        elif sort_by == "floor_name": sort_col = "f.name"
-        elif sort_by == "reference_name": sort_col = "ra.reference_name"
-        elif sort_by == "reference_module": sort_col = "ra.reference_module"
-        elif sort_by == "assigned_to_name": sort_col = "ra.assigned_to_name"
-        elif sort_by == "status": sort_col = "ra.status"
-        elif sort_by == "start_date": sort_col = "ra.start_date"
-        elif sort_by == "created_at": sort_col = "ra.created_at"
+        # Group bookings and assignments by room_id
+        bookings_by_room = {}
+        for b in bookings_rows:
+            rid = str(b["room_id"])
+            if rid not in bookings_by_room:
+                bookings_by_room[rid] = []
+            bookings_by_room[rid].append(b)
 
-        order_dir = "ASC" if (sort_order or "").lower() == "asc" else "DESC"
-        offset = max(0, (page - 1) * page_size)
+        assignments_by_room = {str(a["room_id"]): a for a in assignments_rows}
 
-        alloc_sql = f"""
-            SELECT ra.id, ra.room_id, r.room_number, r.name AS room_name, f.name AS floor_name,
-                   ra.reference_module, ra.reference_name, ra.assignment_purpose,
-                   ra.start_date, ra.end_date, ra.assigned_to_name, ra.status, ra.notes,
-                   r.max_capacity, r.current_occupancy, ra.created_at
-            FROM public.room_assignments ra
-            JOIN public.rooms r ON ra.room_id = r.id
-            JOIN public.building_floors f ON r.floor_id = f.id
-            WHERE r.building_id = %s::UUID AND ra.school_id = %s::UUID AND ra.deleted_at IS NULL
-            ORDER BY {sort_col} {order_dir}
-            LIMIT %s OFFSET %s
-        """
-        alloc_rows = await exec_sql(alloc_sql, (building_id, school_id, page_size, offset))
+        # 5. Correlate rooms with space bookings
+        all_rooms_data = []
+        for r in rooms_rows:
+            rid = str(r["id"])
+            b_list = bookings_by_room.get(rid, [])
+            assign = assignments_by_room.get(rid)
+
+            meta = r.get("metadata") or {}
+            facilities = meta.get("facilities") or meta.get("amenities") or []
+            if not facilities:
+                rtype = (r.get("room_type") or "").lower()
+                if "lab" in rtype:
+                    facilities = ["Laboratory Equipment", "Air Conditioning", "High-speed WiFi", "Safety Shower", "Projector"]
+                elif "computer" in rtype:
+                    facilities = ["Computer Workstations", "Air Conditioning", "High-speed WiFi", "Smart Board", "UPS Backup"]
+                elif "conf" in rtype or "meeting" in rtype:
+                    facilities = ["Video Conferencing", "Smart Display", "Air Conditioning", "High-speed WiFi", "Mic System"]
+                else:
+                    facilities = ["Whiteboard", "Smart Board", "Air Conditioning", "High-speed WiFi", "Projector"]
+
+            op_status = (r.get("operational_status") or "").lower()
+            active_booking = None
+            next_booking = None
+            booking_status = "AVAILABLE_NOW"
+            status_display = "Available Now"
+
+            if "maintenance" in op_status or "repair" in op_status or "out of service" in op_status:
+                booking_status = "MAINTENANCE"
+                status_display = "Under Maintenance"
+            elif is_today:
+                # Find active booking running right now
+                for b in b_list:
+                    b_st = _parse_time_str(b["start_time"])
+                    b_et = _parse_time_str(b["end_time"])
+                    if b_st <= now_time <= b_et:
+                        active_booking = b
+                        break
+
+                if active_booking:
+                    booking_status = "OCCUPIED_NOW"
+                    status_display = "Occupied Now"
+                else:
+                    for b in b_list:
+                        b_st = _parse_time_str(b["start_time"])
+                        if b_st > now_time:
+                            next_booking = b
+                            break
+                    if next_booking:
+                        booking_status = "AVAILABLE_NOW"
+                        status_display = f"Next: {next_booking['title']} at {str(next_booking['start_time'])[:5]}"
+                    else:
+                        booking_status = "AVAILABLE_NOW"
+                        status_display = "Available All Day" if not b_list else "Available Now"
+            elif query_date > date.today():
+                if b_list:
+                    booking_status = "SCHEDULED_LATER"
+                    status_display = f"{len(b_list)} Session{'s' if len(b_list) > 1 else ''} Scheduled"
+                    next_booking = b_list[0]
+                else:
+                    booking_status = "AVAILABLE_NOW"
+                    status_display = "Available"
+            else: # Past date
+                if b_list:
+                    booking_status = "OCCUPIED_NOW"
+                    status_display = f"{len(b_list)} Past Session{'s' if len(b_list) > 1 else ''}"
+                    active_booking = b_list[0]
+                else:
+                    booking_status = "AVAILABLE_NOW"
+                    status_display = "Was Available"
+
+            # Determine active / primary reference display
+            active_title = active_booking["title"] if active_booking else (next_booking["title"] if next_booking else (b_list[0]["title"] if b_list else (assign["reference_name"] if assign else r["room_name"])))
+            active_teacher = active_booking["organizer_name"] if active_booking else (next_booking["organizer_name"] if next_booking else (b_list[0]["organizer_name"] if b_list else (assign["assigned_to_name"] if assign else r.get("responsible_person_name") or "Academic Coordinator")))
+            active_purpose = active_booking["purpose"] if active_booking else (next_booking["purpose"] if next_booking else (b_list[0]["purpose"] if b_list else (assign["assignment_purpose"] if assign else r.get("purpose") or "Academic Space")))
+            active_time_range = f"{str(active_booking['start_time'])[:5]} - {str(active_booking['end_time'])[:5]}" if active_booking else (f"{str(next_booking['start_time'])[:5]} - {str(next_booking['end_time'])[:5]}" if next_booking else "")
+            active_attendees = active_booking["attendee_count"] if active_booking else (r.get("current_occupancy") if booking_status == "OCCUPIED_NOW" else 0)
+
+            # Today's bookings serialized
+            formatted_bookings = []
+            for b in b_list:
+                formatted_bookings.append({
+                    "id": str(b["id"]),
+                    "booking_ref": b["booking_ref"],
+                    "title": b["title"],
+                    "purpose": b["purpose"],
+                    "category": b["category"],
+                    "start_time": str(b["start_time"])[:5],
+                    "end_time": str(b["end_time"])[:5],
+                    "status": b["status"],
+                    "attendee_count": b["attendee_count"],
+                    "organizer_name": b["organizer_name"],
+                    "organizer_role": b["organizer_role"],
+                    "special_instructions": b.get("special_instructions") or "",
+                    "is_recurring": b.get("is_recurring", False)
+                })
+
+            item = {
+                "id": rid,
+                "room_id": rid,
+                "room_number": r["room_number"],
+                "room_code": r["room_code"],
+                "room_name": r["room_name"],
+                "name": r["room_name"],
+                "floor_id": str(r["floor_id"]) if r.get("floor_id") else "",
+                "floor_name": r["floor_name"],
+                "floor_number": r["floor_number"],
+                "room_type": r["room_type"],
+                "type": r["room_type"],
+                "max_capacity": r["max_capacity"],
+                "capacity": r["max_capacity"],
+                "seating_capacity": r["seating_capacity"],
+                "recommended_capacity": r["recommended_capacity"],
+                "current_occupancy": active_attendees,
+                "area": float(r["area"]),
+                "area_unit": r["area_unit"],
+                "length": float(r["length"]),
+                "width": float(r["width"]),
+                "height": float(r["height"]),
+                "num_doors": r["num_doors"],
+                "num_windows": r["num_windows"],
+                "facilities": facilities,
+                "operational_status": r["operational_status"],
+                "assignment_status": r["assignment_status"],
+                "booking_status": booking_status,
+                "status_display": status_display,
+                "active_booking": _serialize_val(active_booking) if active_booking else None,
+                "next_booking": _serialize_val(next_booking) if next_booking else None,
+                "active_title": active_title,
+                "active_teacher": active_teacher,
+                "active_purpose": active_purpose,
+                "active_time_range": active_time_range,
+                "today_bookings": formatted_bookings,
+                "today_sessions_count": len(formatted_bookings),
+                "is_bookable": r["is_bookable"],
+                "is_differently_abled_accessible": r["is_differently_abled_accessible"],
+                "lift_proximity": r["lift_proximity"],
+                "emergency_exit_proximity": r["emergency_exit_proximity"],
+                # Compatibility fields with legacy room_assignments
+                "reference_module": "Academics",
+                "reference_name": active_title,
+                "assignment_purpose": active_purpose,
+                "assigned_to_name": active_teacher,
+                "start_date": query_date.isoformat(),
+                "end_date": None,
+                "status": "Active" if booking_status != "MAINTENANCE" else "Maintenance",
+                "notes": r.get("description") or f"Capacity: {r['max_capacity']} seats",
+                "created_at": r["created_at"].isoformat() if r.get("created_at") else None,
+            }
+            all_rooms_data.append(item)
+
+        # 6. Compute dynamic building-level KPIs for query_date
+        total_cap = sum(r["max_capacity"] for r in all_rooms_data)
+        total_rooms_count = len(all_rooms_data)
+        in_use_rooms_now = sum(1 for r in all_rooms_data if r["booking_status"] == "OCCUPIED_NOW")
+        in_use_capacity_now = sum(r["max_capacity"] for r in all_rooms_data if r["booking_status"] == "OCCUPIED_NOW")
+        available_rooms_now = sum(1 for r in all_rooms_data if r["booking_status"] == "AVAILABLE_NOW")
+        scheduled_today_rooms = sum(1 for r in all_rooms_data if r["today_sessions_count"] > 0)
+        today_total_sessions = sum(r["today_sessions_count"] for r in all_rooms_data)
+        maintenance_rooms = sum(1 for r in all_rooms_data if r["booking_status"] == "MAINTENANCE")
+        occ_rate = round((in_use_capacity_now / total_cap * 100.0), 1) if total_cap > 0 else 0.0
+
+        # 7. Apply filtering
+        filtered_items = all_rooms_data
+        search_val = search.strip().lower() if isinstance(search, str) and search.strip() else None
+        if search_val:
+            filtered_items = [
+                r for r in filtered_items
+                if search_val in r["room_name"].lower()
+                or search_val in r["room_number"].lower()
+                or search_val in r["room_code"].lower()
+                or search_val in r["floor_name"].lower()
+                or search_val in r["active_title"].lower()
+                or search_val in r["active_teacher"].lower()
+                or search_val in r["room_type"].lower()
+            ]
+
+        status_filt_val = status_filter.strip().upper() if isinstance(status_filter, str) and status_filter.strip() else None
+        if status_filt_val and status_filt_val != "ALL":
+            if status_filt_val == "OCCUPIED_NOW":
+                filtered_items = [r for r in filtered_items if r["booking_status"] == "OCCUPIED_NOW"]
+            elif status_filt_val == "AVAILABLE_NOW":
+                filtered_items = [r for r in filtered_items if r["booking_status"] == "AVAILABLE_NOW"]
+            elif status_filt_val in ("SCHEDULED_LATER", "SCHEDULED_TODAY"):
+                filtered_items = [r for r in filtered_items if r["today_sessions_count"] > 0]
+            elif status_filt_val == "MAINTENANCE":
+                filtered_items = [r for r in filtered_items if r["booking_status"] == "MAINTENANCE"]
+
+        floor_id_val = floor_id.strip() if isinstance(floor_id, str) and floor_id.strip() and floor_id.strip().lower() != "all" else None
+        if floor_id_val:
+            filtered_items = [r for r in filtered_items if r["floor_id"] == floor_id_val]
+
+        room_type_val = room_type.strip().lower() if isinstance(room_type, str) and room_type.strip() and room_type.strip().lower() != "all" else None
+        if room_type_val:
+            filtered_items = [r for r in filtered_items if r["room_type"].lower() == room_type_val]
+
+        # 8. Sort
+        sort_by_val = sort_by.strip() if isinstance(sort_by, str) and sort_by.strip() else "room_number"
+        sort_order_val = sort_order.strip().lower() if isinstance(sort_order, str) else "asc"
+        reverse = (sort_order_val == "desc")
+
+        if sort_by_val in ("room_number", "room_name", "floor_name", "room_type", "booking_status"):
+            filtered_items.sort(key=lambda x: str(x.get(sort_by_val, "")).lower(), reverse=reverse)
+        elif sort_by_val in ("capacity", "max_capacity", "current_occupancy", "today_sessions_count", "area"):
+            filtered_items.sort(key=lambda x: float(x.get(sort_by_val, 0) or 0), reverse=reverse)
+
+        # 9. Paginate
+        page_val = int(page) if isinstance(page, (int, str)) and str(page).isdigit() else 1
+        page_size_val = int(page_size) if isinstance(page_size, (int, str)) and str(page_size).isdigit() else 200
+        offset = max(0, (page_val - 1) * page_size_val)
+        paged_items = filtered_items[offset : offset + page_size_val]
 
         return {
             "success": True,
+            "target_date": query_date.isoformat(),
+            "is_today": is_today,
             "metrics": {
                 "total_capacity": total_cap,
-                "current_occupancy": curr_occ,
-                "available_capacity": available_cap,
+                "current_occupancy": in_use_capacity_now,
+                "available_capacity": max(0, total_cap - in_use_capacity_now),
                 "occupancy_rate": occ_rate,
-                "total_rooms": stats["total_rooms"],
-                "occupied_rooms": stats["occupied_rooms"],
+                "total_rooms": total_rooms_count,
+                "occupied_rooms": in_use_rooms_now,
+                "available_rooms": available_rooms_now,
+                "scheduled_today_rooms": scheduled_today_rooms,
+                "today_total_sessions": today_total_sessions,
+                "maintenance_rooms": maintenance_rooms,
             },
-            "total_count": total,
-            "page": page,
-            "page_size": page_size,
-            "data": [_serialize_val(r) for r in alloc_rows]
+            "total_count": len(filtered_items),
+            "page": page_val,
+            "page_size": page_size_val,
+            "data": paged_items
         }
     except Exception as e:
-        logger.error(f"Error fetching building occupancy: {e}")
+        logger.error(f"Error fetching dynamic building occupancy: {e}")
         raise HTTPException(status_code=500, detail=f"Database query error: {str(e)}")
+
+
+@router.post("/buildings/{building_id}/assign-section")
+async def assign_class_section_to_room(
+    building_id: str,
+    payload: AssignSectionPayload,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Assign Academic Class & Section to a Room via Space Booking.
+    Ensures capacity validation, checks for room scheduling conflicts,
+    creates confirmed space booking(s), and updates section and room allocations.
+    """
+    school_id = _get_school_id(user)
+    user_id = _get_user_id(user)
+    try:
+        # 1. Verify Room exists in this building
+        room_check_sql = """
+            SELECT r.id, r.room_number, r.name, r.floor_id, r.max_capacity, r.building_id, b.name AS building_name
+            FROM public.rooms r
+            JOIN public.buildings b ON r.building_id = b.id
+            WHERE r.id = %s::UUID AND r.school_id = %s::UUID AND r.deleted_at IS NULL;
+        """
+        room_rows = await exec_sql(room_check_sql, (payload.room_id, school_id))
+        if not room_rows:
+            raise HTTPException(status_code=404, detail="Selected room not found or does not belong to this institution.")
+        room = room_rows[0]
+
+        # 2. Parse and format date & times
+        b_date_str = payload.booking_date.strip() if payload.booking_date and payload.booking_date.strip() else date.today().isoformat()
+        try:
+            b_date = datetime.strptime(b_date_str[:10], "%Y-%m-%d").date()
+        except Exception:
+            b_date = date.today()
+
+        st_clean = payload.start_time.strip()
+        et_clean = payload.end_time.strip()
+        if len(st_clean) == 5: st_clean += ":00"
+        if len(et_clean) == 5: et_clean += ":00"
+        start_t = _parse_time_str(st_clean)
+        end_t = _parse_time_str(et_clean)
+
+        if start_t >= end_t:
+            raise HTTPException(status_code=400, detail="Start time must be strictly before end time.")
+
+        # Determine target dates (for recurring series or single booking)
+        target_dates = [b_date]
+        if payload.is_recurring and payload.recurrence_count and payload.recurrence_count > 1:
+            freq = (payload.recurrence_frequency or "DAILY").upper()
+            curr = b_date
+            count = min(payload.recurrence_count, 30) # clamp to max 30 occurrences
+            while len(target_dates) < count:
+                curr += timedelta(days=1)
+                if freq == "WEEKDAYS" and curr.weekday() >= 5: # Skip Sat & Sun
+                    continue
+                elif freq == "WEEKLY" and (curr - b_date).days % 7 != 0:
+                    continue
+                target_dates.append(curr)
+
+        # 3. Conflict Detection across target dates
+        conflicts = []
+        for d in target_dates:
+            conflict_sql = """
+                SELECT id, title, start_time, end_time, organizer_name
+                FROM public.space_bookings
+                WHERE room_id = %s::UUID 
+                  AND booking_date = %s::DATE 
+                  AND status NOT IN ('Cancelled', 'Rejected') 
+                  AND deleted_at IS NULL
+                  AND start_time < %s::TIME AND end_time > %s::TIME
+                LIMIT 1;
+            """
+            c_rows = await exec_sql(conflict_sql, (payload.room_id, d, et_clean, st_clean))
+            if c_rows:
+                conflicts.append({
+                    "date": d.isoformat(),
+                    "title": c_rows[0]["title"],
+                    "time": f"{str(c_rows[0]['start_time'])[:5]} - {str(c_rows[0]['end_time'])[:5]}",
+                    "organizer": c_rows[0]["organizer_name"]
+                })
+
+        if conflicts:
+            first_c = conflicts[0]
+            raise HTTPException(
+                status_code=409,
+                detail=f"Scheduling Conflict on {first_c['date']}: Room is already booked for '{first_c['title']}' ({first_c['time']}) by {first_c['organizer']}."
+            )
+
+        # 4. Insert Confirmed Space Bookings
+        booking_title = f"{payload.class_name} - {payload.section_name}" + (f" ({payload.subject})" if payload.subject else "")
+        created_booking_ids = []
+        primary_ref = ""
+
+        duration_mins = int((datetime.combine(b_date, end_t) - datetime.combine(b_date, start_t)).total_seconds() / 60)
+
+        for d in target_dates:
+            ref_num = f"SB-{d.strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
+            if not primary_ref:
+                primary_ref = ref_num
+            start_dt = datetime.combine(d, start_t)
+            end_dt = datetime.combine(d, end_t)
+
+            insert_sb_sql = """
+                INSERT INTO public.space_bookings (
+                    school_id, booking_ref, title, description, purpose, category,
+                    booking_type, priority, building_id, floor_id, room_id,
+                    booking_date, start_time, end_time, start_datetime, end_datetime,
+                    buffer_start_datetime, buffer_end_datetime, duration_minutes,
+                    organizer_name, organizer_role, attendee_count, status, is_approved,
+                    approval_level, approved_at, special_instructions, is_recurring,
+                    created_by, updated_by
+                ) VALUES (
+                    %s::UUID, %s, %s, %s, 'Academic', 'Academic - Class / Lecture Instruction',
+                    'Internal', 'Normal', %s::UUID, %s::UUID, %s::UUID,
+                    %s::DATE, %s::TIME, %s::TIME, %s, %s,
+                    %s, %s, %s,
+                    %s, 'Faculty', %s, 'Confirmed', true,
+                    1, NOW(), %s, %s,
+                    (SELECT id FROM public.profiles WHERE id = %s::UUID LIMIT 1),
+                    (SELECT id FROM public.profiles WHERE id = %s::UUID LIMIT 1)
+                ) RETURNING id;
+            """
+            sb_params = (
+                school_id, ref_num, booking_title, payload.notes or f"Class Allocation for {booking_title}",
+                room["building_id"], room["floor_id"], payload.room_id,
+                d, st_clean, et_clean, start_dt, end_dt,
+                start_dt, end_dt, duration_mins,
+                payload.teacher_name or "Academic Faculty", payload.attendee_count or 35,
+                payload.notes or "", payload.is_recurring,
+                user_id, user_id
+            )
+            sb_rows = await exec_sql(insert_sb_sql, sb_params)
+            if sb_rows:
+                created_booking_ids.append(str(sb_rows[0]["id"]))
+
+        # 5. Update academic_sections if section_id is provided
+        if payload.section_id:
+            await exec_sql(
+                """
+                UPDATE public.academic_sections 
+                SET room_id = %s::UUID, room_number = %s, updated_at = NOW()
+                WHERE id = %s::UUID AND school_id = %s::UUID;
+                """,
+                (payload.room_id, room["room_number"], payload.section_id, school_id),
+                fetch=False
+            )
+
+        # 6. Update room occupancy & assignment status
+        attendees = payload.attendee_count or 35
+        await exec_sql(
+            """
+            UPDATE public.rooms
+            SET assignment_status = 'Assigned',
+                current_occupancy = CASE WHEN current_occupancy = 0 THEN %s ELSE current_occupancy END,
+                updated_at = NOW()
+            WHERE id = %s::UUID AND school_id = %s::UUID;
+            """,
+            (attendees, payload.room_id, school_id),
+            fetch=False
+        )
+
+        # 7. Synchronize room_assignments record for cross-module compatibility
+        await exec_sql(
+            """
+            INSERT INTO public.room_assignments (
+                school_id, room_id, reference_module, reference_name,
+                assignment_purpose, start_date, end_date, assigned_to_name,
+                status, notes, created_by
+            ) VALUES (
+                %s::UUID, %s::UUID, 'Academics', %s,
+                %s, %s::DATE, NULL, %s,
+                'Active', %s, (SELECT id FROM public.profiles WHERE id = %s::UUID LIMIT 1)
+            )
+            ON CONFLICT DO NOTHING;
+            """,
+            (
+                school_id, payload.room_id, f"{payload.class_name} - {payload.section_name}",
+                f"Class Session ({payload.subject or 'General'})", b_date,
+                payload.teacher_name or "Academic Faculty",
+                payload.notes or "Allocated via Space Booking", user_id
+            ),
+            fetch=False
+        )
+
+        return {
+            "success": True,
+            "message": f"Successfully allocated {payload.class_name} - {payload.section_name} to Room {room['room_number']}.",
+            "booking_ref": primary_ref,
+            "bookings_count": len(created_booking_ids),
+            "booking_ids": created_booking_ids,
+            "room_id": payload.room_id,
+            "room_number": room["room_number"],
+            "booking_date": b_date.isoformat(),
+            "time_range": f"{st_clean[:5]} - {et_clean[:5]}"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error assigning section to room: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to assign section to room: {str(e)}")
+
+
+@router.get("/academic-entities-for-allocation")
+async def get_academic_entities_for_allocation(
+    user: dict = Depends(get_current_user),
+):
+    """Retrieve all classes, sections, and subjects for quick space allocation dropdowns."""
+    school_id = _get_school_id(user)
+    try:
+        classes_sql = """
+            SELECT c.id, c.name, c.code, c.stage, c.display_order
+            FROM public.academic_classes c
+            WHERE c.school_id = %s::UUID AND c.deleted_at IS NULL
+            ORDER BY c.display_order ASC, c.name ASC;
+        """
+        c_rows = await exec_sql(classes_sql, (school_id,))
+
+        sections_sql = """
+            SELECT s.id, s.class_id, s.name, s.code, s.capacity, s.room_number, s.room_id,
+                   COALESCE((SELECT COUNT(*) FROM public.student_class_assignments sca WHERE sca.section_id = s.id AND sca.status = 'ACTIVE'), 0)::INT AS student_count
+            FROM public.academic_sections s
+            WHERE s.school_id = %s::UUID AND s.deleted_at IS NULL
+            ORDER BY s.display_order ASC, s.name ASC;
+        """
+        s_rows = await exec_sql(sections_sql, (school_id,))
+
+        subjects_sql = """
+            SELECT id, name, code, type
+            FROM public.academic_subjects
+            WHERE school_id = %s::UUID AND deleted_at IS NULL
+            ORDER BY name ASC;
+        """
+        sub_rows = await exec_sql(subjects_sql, (school_id,))
+
+        # Optional class-specific subject mappings
+        class_subjects_map = {}
+        try:
+            class_subjects_rows = await exec_sql(
+                """
+                SELECT csa.class_id,
+                       json_agg(
+                         DISTINCT jsonb_build_object('id', sub.id, 'name', sub.name, 'code', sub.code)
+                       ) as subjects
+                FROM public.class_subject_assignments csa
+                JOIN public.academic_subjects sub ON sub.id = csa.subject_id
+                WHERE csa.school_id = %s::UUID
+                  AND (csa.status = 'ACTIVE' OR csa.status IS NULL)
+                  AND sub.deleted_at IS NULL
+                  AND (sub.status = 'ACTIVE' OR sub.status IS NULL OR sub.status = 'Active')
+                GROUP BY csa.class_id;
+                """,
+                (school_id,)
+            )
+            for r in (class_subjects_rows or []):
+                subs = r.get("subjects") or []
+                if isinstance(subs, list):
+                    subs.sort(key=lambda x: str(x.get("name", "")).lower())
+                class_subjects_map[str(r["class_id"])] = subs
+        except Exception as csa_err:
+            logger.warning(f"Class subject assignments query ignored: {csa_err}")
+
+        sections_by_class = {}
+        for s in s_rows:
+            cid = str(s["class_id"])
+            if cid not in sections_by_class:
+                sections_by_class[cid] = []
+            sections_by_class[cid].append({
+                "id": str(s["id"]),
+                "name": s["name"],
+                "code": s["code"],
+                "capacity": s["capacity"],
+                "student_count": s["student_count"],
+                "room_number": s["room_number"],
+                "room_id": str(s["room_id"]) if s.get("room_id") else None,
+            })
+
+        classes_list = []
+        for c in c_rows:
+            cid = str(c["id"])
+            classes_list.append({
+                "id": cid,
+                "name": c["name"],
+                "code": c["code"],
+                "stage": c["stage"],
+                "sections": sections_by_class.get(cid, [])
+            })
+
+        return {
+            "success": True,
+            "classes": classes_list,
+            "subjects": [{"id": str(sb["id"]), "name": sb["name"], "code": sb["code"]} for sb in sub_rows],
+            "class_subjects": class_subjects_map
+        }
+    except Exception as e:
+        logger.error(f"Error fetching academic entities for allocation: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/buildings/{building_id}/occupancy")
@@ -1507,7 +2131,7 @@ async def create_building_occupancy(
             ) VALUES (
                 %s::UUID, %s::UUID, %s, %s,
                 %s, %s::DATE, %s::DATE, %s,
-                %s, %s, %s::UUID
+                %s, %s, (SELECT id FROM public.profiles WHERE id = %s::UUID LIMIT 1)
             ) RETURNING *;
         """
         params = (
@@ -1560,13 +2184,37 @@ async def update_building_occupancy(
             RETURNING *;
         """
         params = (
-            payload.reference_module or "General", payload.reference_name, payload.assignment_purpose,
+            payload.reference_module or "Academics", payload.reference_name, payload.assignment_purpose,
             payload.start_date, payload.end_date, payload.assigned_to_name, payload.status or "Active",
             payload.notes, assignment_id, school_id
         )
         rows = await exec_sql(sql, params)
         if not rows:
-            raise HTTPException(status_code=404, detail="Occupancy record not found")
+            # Fallback in case assignment_id is a room_id (e.g. from synthesized row)
+            room_check = await exec_sql(
+                "SELECT id FROM public.rooms WHERE id = %s::UUID AND school_id = %s::UUID AND deleted_at IS NULL",
+                (assignment_id, school_id)
+            )
+            if room_check:
+                insert_sql = """
+                    INSERT INTO public.room_assignments (
+                        school_id, room_id, reference_module, reference_name,
+                        assignment_purpose, start_date, end_date, assigned_to_name,
+                        status, notes, created_by
+                    ) VALUES (
+                        %s::UUID, %s::UUID, %s, %s,
+                        %s, %s::DATE, %s::DATE, %s,
+                        %s, %s, (SELECT id FROM public.profiles WHERE id = %s::UUID LIMIT 1)
+                    ) RETURNING *;
+                """
+                insert_params = (
+                    school_id, assignment_id, payload.reference_module or "Academics", payload.reference_name,
+                    payload.assignment_purpose or "General Allocation", payload.start_date, payload.end_date,
+                    payload.assigned_to_name, payload.status or "Active", payload.notes, _get_user_id(user)
+                )
+                rows = await exec_sql(insert_sql, insert_params)
+            else:
+                raise HTTPException(status_code=404, detail="Occupancy record not found")
         return {"success": True, "data": _serialize_val(rows[0])}
     except HTTPException:
         raise
@@ -1592,6 +2240,18 @@ async def delete_building_occupancy(
         """
         rows = await exec_sql(sql, (assignment_id, school_id))
         if not rows:
+            # Fallback in case assignment_id is a room_id (e.g. from synthesized row)
+            room_check = await exec_sql(
+                "SELECT id FROM public.rooms WHERE id = %s::UUID AND school_id = %s::UUID AND deleted_at IS NULL",
+                (assignment_id, school_id)
+            )
+            if room_check:
+                await exec_sql(
+                    "UPDATE public.rooms SET assignment_status = 'Unassigned', current_occupancy = 0 WHERE id = %s::UUID",
+                    (assignment_id,),
+                    fetch=False
+                )
+                return {"success": True, "message": "Allocation released successfully"}
             raise HTTPException(status_code=404, detail="Occupancy record not found")
 
         room_id = rows[0]["room_id"]

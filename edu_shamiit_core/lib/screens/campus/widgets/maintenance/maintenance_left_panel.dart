@@ -127,12 +127,10 @@ class _MaintenanceLeftPanelState extends ConsumerState<MaintenanceLeftPanel> {
                 ),
                 _buildNavItem(
                   title: 'Maintenance Plans',
+                  badge: '${state.plans.length}',
                   icon: Icons.fact_check_outlined,
                   isSelected: state.activeView == 'plans',
-                  onTap: () {
-                    notifier.setActiveView('plans');
-                    if (widget.onOpenPlanModal != null) widget.onOpenPlanModal!();
-                  },
+                  onTap: () => notifier.setActiveView('plans'),
                   isDark: isDark,
                 ),
                 _buildNavItem(
@@ -144,12 +142,10 @@ class _MaintenanceLeftPanelState extends ConsumerState<MaintenanceLeftPanel> {
                 ),
                 _buildNavItem(
                   title: 'Vendors & Contracts',
+                  badge: '${state.vendors.length}',
                   icon: Icons.handshake_outlined,
                   isSelected: state.activeView == 'vendors',
-                  onTap: () {
-                    notifier.setActiveView('vendors');
-                    if (widget.onOpenVendorsModal != null) widget.onOpenVendorsModal!();
-                  },
+                  onTap: () => notifier.setActiveView('vendors'),
                   isDark: isDark,
                 ),
                 const Divider(height: 1, thickness: 1),
@@ -286,9 +282,9 @@ class _MaintenanceLeftPanelState extends ConsumerState<MaintenanceLeftPanel> {
                     if (state.dateRangeStart != null)
                       InkWell(
                         onTap: () => notifier.clearDateRange(),
-                        child: Text(
+                        child: const Text(
                           'Clear',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF2563EB)),
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
                         ),
                       ),
                   ],

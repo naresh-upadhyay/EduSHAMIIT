@@ -7,7 +7,6 @@ import 'space_booking_kpis_bar.dart';
 import 'space_booking_left_panel.dart';
 import 'space_booking_center_panel.dart';
 import 'dialogs/create_edit_booking_dialog.dart';
-import 'dialogs/recurring_booking_dialog.dart';
 import 'dialogs/booking_details_drawer.dart';
 
 class SpaceBookingTabView extends ConsumerStatefulWidget {
@@ -62,14 +61,6 @@ class _SpaceBookingTabViewState extends ConsumerState<SpaceBookingTabView> {
         attendeeCount: 30,
         isRecurring: false,
       ),
-    );
-  }
-
-  void _openRecurringModal() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const RecurringBookingDialog(),
     );
   }
 
@@ -307,7 +298,6 @@ class _SpaceBookingTabViewState extends ConsumerState<SpaceBookingTabView> {
                         SpaceBookingLeftPanel(
                           isCompact: false,
                           onOpenBookModal: () => _openCreateBookingModal(),
-                          onOpenRecurringModal: _openRecurringModal,
                         ),
                         const SizedBox(width: 16),
 
@@ -330,7 +320,6 @@ class _SpaceBookingTabViewState extends ConsumerState<SpaceBookingTabView> {
                         SpaceBookingLeftPanel(
                           isCompact: true,
                           onOpenBookModal: () => _openCreateBookingModal(),
-                          onOpenRecurringModal: _openRecurringModal,
                         ),
                         const SizedBox(height: 16),
                         SpaceBookingCenterPanel(

@@ -39,6 +39,7 @@ export 'providers/cache_provider.dart';
 export 'providers/auth_provider.dart';
 export 'providers/profile_provider.dart' hide DocumentModel;
 export 'providers/teacher_profile_provider.dart';
+export 'providers/system_config_provider.dart';
 
 // Utils
 export 'utils/responsive.dart';
@@ -58,6 +59,9 @@ export 'widgets/public_footer.dart';
 export 'widgets/public_drawer.dart';
 
 // Shared Auth Screens
+export 'screens/auth/login_screen.dart';
+export 'screens/auth/unauthorized_role_screen.dart';
+export 'screens/auth/not_found_screen.dart';
 export 'screens/auth/forgot_password_screen.dart';
 export 'screens/auth/otp_verification_screen.dart';
 export 'screens/auth/reset_password_screen.dart';

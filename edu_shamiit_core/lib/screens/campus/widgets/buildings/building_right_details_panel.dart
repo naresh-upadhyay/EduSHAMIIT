@@ -6,7 +6,7 @@ class BuildingRightDetailsPanel extends StatelessWidget {
   final BuildingModel building;
   final VoidCallback? onUpdateImage;
   final VoidCallback onAddRoom;
-  final VoidCallback onAllocateRoom;
+  final VoidCallback onRaiseMaintenance;
   final VoidCallback onRoomSetup;
   final VoidCallback onImportRooms;
   final VoidCallback onExportList;
@@ -17,7 +17,7 @@ class BuildingRightDetailsPanel extends StatelessWidget {
     required this.building,
     this.onUpdateImage,
     required this.onAddRoom,
-    required this.onAllocateRoom,
+    required this.onRaiseMaintenance,
     required this.onRoomSetup,
     required this.onImportRooms,
     required this.onExportList,
@@ -328,7 +328,7 @@ class BuildingRightDetailsPanel extends StatelessWidget {
                   childAspectRatio: 1.0,
                   children: [
                     _buildActionButton(Icons.meeting_room_outlined, 'Add Room', onAddRoom, isDark),
-                    _buildActionButton(Icons.group_outlined, 'Allocate Room', onAllocateRoom, isDark),
+                    _buildActionButton(Icons.build_circle_outlined, 'Raise Maintenance', onRaiseMaintenance, isDark),
                     _buildActionButton(Icons.tune_outlined, 'Room Setup', onRoomSetup, isDark),
                     _buildActionButton(Icons.file_upload_outlined, 'Import Rooms', onImportRooms, isDark),
                     _buildActionButton(Icons.file_download_outlined, 'Export List', onExportList, isDark),

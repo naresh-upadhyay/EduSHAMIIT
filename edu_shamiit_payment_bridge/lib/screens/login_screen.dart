@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/theme.dart';
 import '../services/api_service.dart';
 import 'forgot_password_screen.dart';
@@ -18,8 +19,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
   bool _obscurePassword = true;
-  bool _rememberMe = true;
+  bool _rememberMe = false;
   bool _isLoading = false;
 
   // 0: Password Login, 1: OTP Login
@@ -33,12 +36,39 @@ class _LoginScreenState extends State<LoginScreen> {
     super.initState();
     _emailController.addListener(_clearWarning);
     _passwordController.addListener(_clearWarning);
+    _loadRememberedCredentials();
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.dark,
       ),
     );
+  }
+
+  Future<void> _loadRememberedCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      bool rememberMe = false;
+      try {
+        rememberMe = prefs.getBool('remember_me_state') ?? false;
+      } catch (_) {
+        final val = prefs.get('remember_me_state');
+        rememberMe = val == true || val == 'true' || val == 1;
+      }
+      final email = prefs.getString('remembered_email') ?? '';
+      final password = prefs.getString('remembered_password') ?? '';
+
+      if (rememberMe || (email.isNotEmpty && password.isNotEmpty)) {
+        if (!mounted) return;
+        setState(() {
+          _rememberMe = true;
+          if (email.isNotEmpty) _emailController.text = email;
+          if (password.isNotEmpty) _passwordController.text = password;
+        });
+      }
+    } catch (e) {
+      debugPrint('[PaymentBridgeLogin] Error loading remembered credentials: $e');
+    }
   }
 
   void _clearWarning() {
@@ -56,13 +86,16 @@ class _LoginScreenState extends State<LoginScreen> {
     _passwordController.removeListener(_clearWarning);
     _emailController.dispose();
     _passwordController.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
   Future<void> _handlePasswordLogin() async {
+    if (_isLoading) return;
     setState(() => _warningMessage = null);
 
-    final isFormValid = _formKey.currentState!.validate();
+    final isFormValid = _formKey.currentState?.validate() ?? false;
     if (!isFormValid) return;
 
     final email = _emailController.text.trim();
@@ -79,6 +112,20 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (res['success'] == true) {
+        final prefs = await SharedPreferences.getInstance();
+        if (_rememberMe) {
+          await prefs.setString('remembered_email', email);
+          await prefs.setString('remembered_password', password);
+          await prefs.setBool('remember_me_state', true);
+        } else {
+          await prefs.remove('remembered_email');
+          await prefs.remove('remembered_password');
+          await prefs.setBool('remember_me_state', false);
+        }
+
+        TextInput.finishAutofillContext();
+
+        if (!mounted) return;
         _showSnackBar('Successfully authenticated!', AppColors.successGreen);
         Navigator.pushReplacement(
           context,
@@ -332,9 +379,23 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 8),
                           _buildTextField(
                             controller: _emailController,
+                            focusNode: _emailFocusNode,
                             hint: 'Enter your email address',
                             icon: Icons.email_outlined,
                             keyboardType: TextInputType.emailAddress,
+                            textInputAction: _activeTab == 0 ? TextInputAction.next : TextInputAction.done,
+                            autofillHints: const [AutofillHints.email, AutofillHints.username],
+                            onFieldSubmitted: (_) {
+                              if (_activeTab == 0) {
+                                if (_passwordController.text.isNotEmpty) {
+                                  _handlePasswordLogin();
+                                } else {
+                                  _passwordFocusNode.requestFocus();
+                                }
+                              } else {
+                                _handleSendOtp();
+                              }
+                            },
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
                                 return 'Email is required';
@@ -356,9 +417,15 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 8),
                             _buildTextField(
                               controller: _passwordController,
+                              focusNode: _passwordFocusNode,
                               hint: 'Enter your password',
                               icon: Icons.lock_outline,
                               obscureText: _obscurePassword,
+                              textInputAction: TextInputAction.done,
+                              autofillHints: const [AutofillHints.password],
+                              onFieldSubmitted: (_) {
+                                _handlePasswordLogin();
+                              },
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _obscurePassword
@@ -380,31 +447,58 @@ class _LoginScreenState extends State<LoginScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: Checkbox(
-                                        value: _rememberMe,
-                                        activeColor: const Color(0xFF6366F1),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(4),
+                                InkWell(
+                                  onTap: () async {
+                                    final newVal = !_rememberMe;
+                                    setState(() => _rememberMe = newVal);
+                                    try {
+                                      final prefs = await SharedPreferences.getInstance();
+                                      await prefs.setBool('remember_me_state', newVal);
+                                      if (!newVal) {
+                                        await prefs.remove('remembered_email');
+                                        await prefs.remove('remembered_password');
+                                      }
+                                    } catch (_) {}
+                                  },
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                                    child: Row(
+                                      children: [
+                                        SizedBox(
+                                          width: 22,
+                                          height: 22,
+                                          child: Checkbox(
+                                            value: _rememberMe,
+                                            activeColor: const Color(0xFF6366F1),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            onChanged: (val) async {
+                                              final newVal = val ?? false;
+                                              setState(() => _rememberMe = newVal);
+                                              try {
+                                                final prefs = await SharedPreferences.getInstance();
+                                                await prefs.setBool('remember_me_state', newVal);
+                                                if (!newVal) {
+                                                  await prefs.remove('remembered_email');
+                                                  await prefs.remove('remembered_password');
+                                                }
+                                              } catch (_) {}
+                                            },
+                                          ),
                                         ),
-                                        onChanged: (val) {
-                                          setState(() => _rememberMe = val ?? false);
-                                        },
-                                      ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Remember me',
+                                          style: GoogleFonts.dmSans(
+                                            fontSize: 12,
+                                            color: const Color(0xFF475569),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Remember me',
-                                      style: GoogleFonts.dmSans(
-                                        fontSize: 12,
-                                        color: const Color(0xFF475569),
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                                 TextButton(
                                   onPressed: () {
@@ -555,12 +649,20 @@ class _LoginScreenState extends State<LoginScreen> {
     bool obscureText = false,
     Widget? suffixIcon,
     TextInputType? keyboardType,
+    TextInputAction? textInputAction,
+    void Function(String)? onFieldSubmitted,
+    FocusNode? focusNode,
+    Iterable<String>? autofillHints,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
+      focusNode: focusNode,
       obscureText: obscureText,
       keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      onFieldSubmitted: onFieldSubmitted,
+      autofillHints: autofillHints,
       validator: validator,
       style: GoogleFonts.dmSans(fontSize: 14, color: const Color(0xFF0F172A)),
       decoration: InputDecoration(

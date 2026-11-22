@@ -5,6 +5,8 @@ import '../../models/maintenance_models.dart';
 import '../../providers/maintenance_provider.dart';
 import '../../providers/campus_provider.dart';
 import '../common/campus_pagination_bar.dart';
+import 'subviews/vendor_contracts_subview.dart';
+import 'subviews/maintenance_plans_subview.dart';
 
 class MaintenanceCenterPanel extends ConsumerStatefulWidget {
   final VoidCallback onOpenNewRequest;
@@ -37,9 +39,48 @@ class _MaintenanceCenterPanelState extends ConsumerState<MaintenanceCenterPanel>
     super.dispose();
   }
 
+  Future<void> _deleteRequest(MaintenanceRequestItem item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Maintenance Request'),
+        content: Text('Are you sure you want to delete "${item.requestCode} - ${item.title}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final success = await ref.read(maintenanceProvider.notifier).deleteRequest(item.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success ? 'Work order deleted successfully!' : 'Failed to delete request.'),
+            backgroundColor: success ? const Color(0xFF059669) : const Color(0xFFEF4444),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(maintenanceProvider);
+
+    // Dedicated Tab Screen Subviews for Vendors & Contracts and Maintenance Plans
+    if (state.activeView == 'vendors') {
+      return const VendorContractsSubview();
+    }
+    if (state.activeView == 'plans') {
+      return const MaintenancePlansSubview();
+    }
+
     final notifier = ref.read(maintenanceProvider.notifier);
     final campusState = ref.watch(campusProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -345,6 +386,14 @@ class _MaintenanceCenterPanelState extends ConsumerState<MaintenanceCenterPanel>
                                           onPressed: () {
                                             if (widget.onEditRequest != null) widget.onEditRequest!(item);
                                           },
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.delete_outline, size: 15),
+                                          color: const Color(0xFFEF4444),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                          tooltip: 'Delete Request',
+                                          onPressed: () => _deleteRequest(item),
                                         ),
                                         IconButton(
                                           icon: Icon(Icons.more_vert, size: 15, color: textMuted),

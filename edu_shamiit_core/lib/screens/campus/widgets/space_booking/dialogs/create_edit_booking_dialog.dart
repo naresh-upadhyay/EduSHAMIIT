@@ -7,15 +7,20 @@ import '../../../providers/space_booking_provider.dart';
 import '../../../services/campus_lookup_helper.dart';
 import '../../../services/space_booking_api_service.dart';
 import 'space_conflict_warning_dialog.dart';
+import '../../../services/campus_api_service.dart';
 
 class CreateEditBookingDialog extends ConsumerStatefulWidget {
   final SpaceBookingRequestItem? initialItem;
   final String? preselectedRoomId;
+  final String? initialPurpose;
+  final VoidCallback? onSaved;
 
   const CreateEditBookingDialog({
     super.key,
     this.initialItem,
     this.preselectedRoomId,
+    this.initialPurpose,
+    this.onSaved,
   });
 
   @override
@@ -42,7 +47,20 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
   String _category = 'Academic';
   String _priority = 'Normal';
   String _organizerRole = 'Faculty';
+  String? _selectedBuildingId;
+  String? _selectedFloorId;
   String? _selectedRoomId;
+  bool _filterByCapacity = false;
+
+  // Academic Class / Section / Subject Allocation State
+  bool _isAcademicBooking = true;
+  bool _isLoadingAcademicEntities = false;
+  List<Map<String, dynamic>> _academicClasses = [];
+  List<Map<String, dynamic>> _academicSubjects = [];
+  Map<String, dynamic> _classSubjectsMap = {};
+  String? _selectedClassId; // 'ALL_CLASSES' or UUID
+  String? _selectedSectionId; // 'ALL_SECTIONS' or UUID
+  String? _selectedSubject;
   DateTime _bookingDate = DateTime.now();
   TimeOfDay _startTime = const TimeOfDay(hour: 8, minute: 0);
   TimeOfDay _endTime = const TimeOfDay(hour: 9, minute: 0);
@@ -93,23 +111,6 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
         'Sports Event',
       ];
     }
-    if (!_bookingPurposes.contains(_purpose)) {
-      _bookingPurposes.insert(0, _purpose);
-    }
-    _organizerRoles = [
-      'Faculty',
-      'Student Club / Representative',
-      'Department HOD',
-      'Administration Office',
-      'IT & Network Team',
-      'Cultural Committee',
-      'Sports & Athletics Staff',
-    ];
-    if (!_organizerRoles.contains(_organizerRole)) {
-      _organizerRoles.insert(0, _organizerRole);
-    }
-    _loadLookups();
-
     final item = widget.initialItem;
     _titleCtrl = TextEditingController(text: item?.title ?? '');
     _descCtrl = TextEditingController(text: item?.description ?? '');
@@ -121,10 +122,10 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
     _requesterSearchCtrl = TextEditingController(text: item != null ? (item.organizerName.isNotEmpty ? item.organizerName : item.requestedByDisplay) : '');
 
     if (item != null) {
-      _purpose = item.purpose;
-      _category = item.category;
-      _priority = item.priority;
-      _organizerRole = item.organizerRole;
+      if (item.purpose.isNotEmpty) _purpose = item.purpose;
+      if (item.category.isNotEmpty) _category = item.category;
+      if (item.priority.isNotEmpty) _priority = item.priority;
+      if (item.organizerRole.isNotEmpty) _organizerRole = item.organizerRole;
       _selectedRoomId = item.roomId.isNotEmpty ? item.roomId : null;
 
       final parsedDate = _parseDate(item.bookingDate);
@@ -155,6 +156,22 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
       _endTime = const TimeOfDay(hour: 9, minute: 0);
     }
 
+    if (widget.initialPurpose != null && widget.initialPurpose!.isNotEmpty) {
+      _purpose = widget.initialPurpose!;
+    }
+    _isAcademicBooking = _purpose.toLowerCase().contains('academic') ||
+        _purpose.toLowerCase().contains('class') ||
+        _purpose.toLowerCase().contains('exam') ||
+        _purpose.toLowerCase().contains('lecture');
+
+    if (!_bookingPurposes.contains(_purpose)) {
+      _bookingPurposes.insert(0, _purpose);
+    }
+    if (!_organizerRoles.contains(_organizerRole)) {
+      _organizerRoles.insert(0, _organizerRole);
+    }
+    _loadLookups();
+    _loadAcademicEntities();
     _fetchRequesters('');
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -167,14 +184,221 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
             });
           }
         }
-        if (_selectedRoomId == null && ref.read(spaceBookingProvider).bookableRooms.isNotEmpty) {
+        final rooms = ref.read(spaceBookingProvider).bookableRooms;
+        if (_selectedRoomId != null) {
+          final matched = rooms.cast<BookableRoomItem?>().firstWhere((r) => r?.id == _selectedRoomId, orElse: () => null);
+          if (matched != null) {
+            setState(() {
+              _selectedBuildingId = matched.buildingId;
+              _selectedFloorId = matched.floorId;
+            });
+          }
+        } else if (rooms.isNotEmpty) {
           setState(() {
-            _selectedRoomId = ref.read(spaceBookingProvider).bookableRooms.first.id;
+            _selectedBuildingId = rooms.first.buildingId;
+            _selectedFloorId = rooms.first.floorId;
+            _selectedRoomId = rooms.first.id;
           });
         }
         _checkLiveSlotStatus();
       }
     });
+  }
+
+  bool _checkIsAcademic(String p) {
+    final lower = p.toLowerCase();
+    return lower.contains('academic') ||
+        lower.contains('class') ||
+        lower.contains('lecture') ||
+        lower.contains('exam') ||
+        lower.contains('study') ||
+        lower.contains('tuition') ||
+        lower.contains('seminar');
+  }
+
+  Future<void> _loadAcademicEntities() async {
+    setState(() => _isLoadingAcademicEntities = true);
+    try {
+      final res = await CampusApiService.instance.getAcademicEntitiesForAllocation();
+      if (mounted && res['success'] == true) {
+        setState(() {
+          _academicClasses = List<Map<String, dynamic>>.from(res['classes'] ?? []);
+          _academicSubjects = List<Map<String, dynamic>>.from(res['subjects'] ?? []);
+          _classSubjectsMap = Map<String, dynamic>.from(res['class_subjects'] ?? {});
+          _isLoadingAcademicEntities = false;
+        });
+      } else {
+        if (mounted) setState(() => _isLoadingAcademicEntities = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingAcademicEntities = false);
+    }
+  }
+
+  List<DropdownMenuItem<String>> _buildSectionDropdownItems() {
+    if (_selectedClassId == null || _selectedClassId == 'ALL_CLASSES') return [];
+    final cls = _academicClasses.firstWhere((c) => c['id'] == _selectedClassId, orElse: () => {});
+    final sections = List<Map<String, dynamic>>.from(cls['sections'] ?? []);
+    final totalClassStudents = sections.fold<int>(
+      0,
+      (s, sec) => s + ((sec['student_count'] as num?)?.toInt() ?? 0),
+    );
+
+    return [
+      DropdownMenuItem(
+        value: 'ALL_SECTIONS',
+        child: Text('All Sections ($totalClassStudents students)', overflow: TextOverflow.ellipsis),
+      ),
+      ...sections.map((s) {
+        final count = (s['student_count'] as num?)?.toInt() ?? (s['capacity'] as num?)?.toInt() ?? 0;
+        return DropdownMenuItem(
+          value: s['id']?.toString(),
+          child: Text('${s['name']} ($count students)', overflow: TextOverflow.ellipsis),
+        );
+      }),
+    ];
+  }
+
+  List<DropdownMenuItem<String>> _buildSubjectDropdownItems() {
+    List<Map<String, dynamic>> targetSubjects = [];
+    if (_selectedClassId != null &&
+        _classSubjectsMap.containsKey(_selectedClassId) &&
+        (_classSubjectsMap[_selectedClassId] as List).isNotEmpty) {
+      targetSubjects = List<Map<String, dynamic>>.from(_classSubjectsMap[_selectedClassId]);
+    } else {
+      targetSubjects = _academicSubjects;
+    }
+
+    return [
+      const DropdownMenuItem<String>(
+        value: null,
+        child: Text('No Subject Specified', overflow: TextOverflow.ellipsis),
+      ),
+      ...targetSubjects.map((sb) {
+        final name = sb['name']?.toString() ?? 'Subject';
+        final code = sb['code']?.toString() ?? '';
+        final display = code.isNotEmpty ? '$name ($code)' : name;
+        return DropdownMenuItem<String>(
+          value: name,
+          child: Text(display, overflow: TextOverflow.ellipsis),
+        );
+      }),
+    ];
+  }
+
+  void _onClassSelected(String? classId) {
+    setState(() {
+      _selectedClassId = classId;
+      _selectedSectionId = null;
+
+      if (classId == 'ALL_CLASSES') {
+        final totalAllStudents = _academicClasses.fold<int>(
+          0,
+          (sum, c) => sum + (c['sections'] as List? ?? []).fold<int>(
+            0,
+            (s, sec) => s + ((sec['student_count'] as num?)?.toInt() ?? 0),
+          ),
+        );
+        _attendeesCtrl.text = '$totalAllStudents';
+        if (_titleCtrl.text.isEmpty || _titleCtrl.text.contains('Academic Session') || _titleCtrl.text.contains('Class')) {
+          _titleCtrl.text = 'All Classes Academic Session';
+        }
+      } else if (classId != null) {
+        final cls = _academicClasses.firstWhere((c) => c['id'] == classId, orElse: () => {});
+        final sections = List<Map<String, dynamic>>.from(cls['sections'] ?? []);
+        final totalClassStudents = sections.fold<int>(
+          0,
+          (s, sec) => s + ((sec['student_count'] as num?)?.toInt() ?? 0),
+        );
+        _attendeesCtrl.text = '$totalClassStudents';
+        if (sections.isNotEmpty) {
+          _selectedSectionId = 'ALL_SECTIONS';
+        }
+        if (_titleCtrl.text.isEmpty || _titleCtrl.text.contains('Academic Session') || _titleCtrl.text.contains('Class')) {
+          _titleCtrl.text = '${cls['name'] ?? 'Class'} Academic Session';
+        }
+      }
+    });
+    _checkLiveSlotStatus();
+  }
+
+  void _onSectionSelected(String? sectionId) {
+    setState(() {
+      _selectedSectionId = sectionId;
+      final cls = _academicClasses.firstWhere((c) => c['id'] == _selectedClassId, orElse: () => {});
+      final sections = List<Map<String, dynamic>>.from(cls['sections'] ?? []);
+
+      if (sectionId == 'ALL_SECTIONS') {
+        final totalClassStudents = sections.fold<int>(
+          0,
+          (s, sec) => s + ((sec['student_count'] as num?)?.toInt() ?? 0),
+        );
+        _attendeesCtrl.text = '$totalClassStudents';
+        if (_titleCtrl.text.isEmpty || _titleCtrl.text.contains('Academic Session') || _titleCtrl.text.contains('Class')) {
+          _titleCtrl.text = '${cls['name'] ?? 'Class'} (All Sections) Academic Session';
+        }
+      } else if (sectionId != null) {
+        final sec = sections.firstWhere((s) => s['id'] == sectionId, orElse: () => {});
+        final secStudents = (sec['student_count'] as num?)?.toInt() ?? (sec['capacity'] as num?)?.toInt() ?? 35;
+        _attendeesCtrl.text = '$secStudents';
+        final sub = _selectedSubject != null ? ' • $_selectedSubject' : '';
+        _titleCtrl.text = '${cls['name'] ?? 'Class'} - ${sec['name'] ?? 'Section'}$sub';
+      }
+    });
+    _checkLiveSlotStatus();
+  }
+
+  void _onSubjectSelected(String? subjectName) {
+    setState(() {
+      _selectedSubject = subjectName;
+      final cls = _academicClasses.firstWhere((c) => c['id'] == _selectedClassId, orElse: () => {});
+      if (cls.isNotEmpty) {
+        final sections = List<Map<String, dynamic>>.from(cls['sections'] ?? []);
+        final sec = sections.firstWhere((s) => s['id'] == _selectedSectionId, orElse: () => {});
+        final secPart = sec.isNotEmpty ? ' - ${sec['name']}' : '';
+        final subPart = subjectName != null ? ' • $subjectName' : '';
+        _titleCtrl.text = '${cls['name'] ?? 'Class'}$secPart$subPart';
+      }
+    });
+  }
+
+  List<Map<String, String>> _getAvailableBuildings(List<BookableRoomItem> rooms) {
+    final map = <String, String>{};
+    for (final r in rooms) {
+      if (r.buildingId.isNotEmpty) {
+        map[r.buildingId] = '${r.buildingCode.isNotEmpty ? "${r.buildingCode} - " : ""}${r.buildingName}';
+      }
+    }
+    return map.entries.map((e) => {'id': e.key, 'label': e.value}).toList()
+      ..sort((a, b) => a['label']!.compareTo(b['label']!));
+  }
+
+  List<Map<String, String>> _getAvailableFloors(List<BookableRoomItem> rooms) {
+    final filteredRooms = _selectedBuildingId == null
+        ? rooms
+        : rooms.where((r) => r.buildingId == _selectedBuildingId).toList();
+    final map = <String, String>{};
+    for (final r in filteredRooms) {
+      if (r.floorId != null && r.floorId!.isNotEmpty) {
+        map[r.floorId!] = r.floorName ?? 'Floor';
+      }
+    }
+    return map.entries.map((e) => {'id': e.key, 'label': e.value}).toList()
+      ..sort((a, b) => a['label']!.compareTo(b['label']!));
+  }
+
+  List<BookableRoomItem> _getFilteredRooms(List<BookableRoomItem> rooms, int audienceCount) {
+    var list = rooms;
+    if (_selectedBuildingId != null && _selectedBuildingId!.isNotEmpty) {
+      list = list.where((r) => r.buildingId == _selectedBuildingId).toList();
+    }
+    if (_selectedFloorId != null && _selectedFloorId!.isNotEmpty) {
+      list = list.where((r) => r.floorId == _selectedFloorId).toList();
+    }
+    if (_filterByCapacity && audienceCount > 0) {
+      list = list.where((r) => r.maxCapacity >= audienceCount).toList();
+    }
+    return list;
   }
 
   int _timeOfDayToMinutes(TimeOfDay tod) => tod.hour * 60 + tod.minute;
@@ -338,10 +562,12 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
             _descCtrl.text = details['description'] as String;
           }
           if (details['setup_minutes'] is int) {
-            _setupMinutes = details['setup_minutes'] as int;
+            final s = details['setup_minutes'] as int;
+            _setupMinutes = const [0, 5, 10, 15, 30].contains(s) ? s : 10;
           }
           if (details['cleanup_minutes'] is int) {
-            _cleanupMinutes = details['cleanup_minutes'] as int;
+            final c = details['cleanup_minutes'] as int;
+            _cleanupMinutes = const [0, 5, 10, 15, 30].contains(c) ? c : 10;
           }
           if (details['requested_by'] != null) {
             _requesterUserId = details['requested_by']?.toString();
@@ -364,15 +590,15 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
     if (mounted) {
       setState(() {
         if (purposes.isNotEmpty) {
-          _bookingPurposes = purposes;
-          if (!_bookingPurposes.contains(_purpose) && _bookingPurposes.isNotEmpty) {
-            _purpose = _bookingPurposes.first;
+          _bookingPurposes = List<String>.from(purposes);
+          if (!_bookingPurposes.contains(_purpose) && _purpose.isNotEmpty) {
+            _bookingPurposes.insert(0, _purpose);
           }
         }
         if (roles.isNotEmpty) {
-          _organizerRoles = roles;
-          if (!_organizerRoles.contains(_organizerRole) && _organizerRoles.isNotEmpty) {
-            _organizerRole = _organizerRoles.first;
+          _organizerRoles = List<String>.from(roles);
+          if (!_organizerRoles.contains(_organizerRole) && _organizerRole.isNotEmpty) {
+            _organizerRoles.insert(0, _organizerRole);
           }
         }
       });
@@ -673,6 +899,52 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                               return;
                             }
 
+                            final audienceCount = int.tryParse(_attendeesCtrl.text.trim()) ?? 0;
+                            final selectedRoom = state.bookableRooms.cast<BookableRoomItem?>().firstWhere(
+                              (r) => r?.id == _selectedRoomId,
+                              orElse: () => null,
+                            );
+
+                            if (selectedRoom != null && audienceCount > 0 && selectedRoom.maxCapacity < audienceCount) {
+                              final proceed = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  title: const Row(
+                                    children: [
+                                      Icon(Icons.people_outline_rounded, color: Color(0xFFF59E0B)),
+                                      SizedBox(width: 8),
+                                      Text('Space Overcapacity Notice', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                  content: Text(
+                                    'The space "${selectedRoom.name}" has a maximum capacity of ${selectedRoom.maxCapacity} seats, but this booking is for $audienceCount attendees (${audienceCount - selectedRoom.maxCapacity} persons over limit).\n\nNotice: All attendees will not be able to sit properly due to insufficient room capacity and overcrowded seating.\n\nDo you still wish to submit this booking anyway?',
+                                    style: TextStyle(fontSize: 13, color: textPrimary),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx, false),
+                                      child: const Text('Change Space'),
+                                    ),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFFF59E0B),
+                                        foregroundColor: Colors.white,
+                                      ),
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      child: const Text('Proceed & Book Anyway'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (proceed != true) {
+                                setState(() => _currentTabIndex = 0);
+                                return;
+                              }
+                            }
+
+                            bool allowConflict = false;
                             if (_hasSlotConflict) {
                               final proceed = await showDialog<bool>(
                                 context: context,
@@ -707,6 +979,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                                 ),
                               );
                               if (proceed != true) return;
+                              allowConflict = true;
                             }
 
                             final startFormatted = '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}';
@@ -719,13 +992,17 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                               'purpose': _purpose,
                               'category': _category,
                               'priority': _priority,
+                              'building_id': _selectedBuildingId ?? selectedRoom?.buildingId,
+                              'floor_id': _selectedFloorId ?? selectedRoom?.floorId,
                               'room_id': _selectedRoomId,
                               'booking_date': DateFormat('yyyy-MM-dd').format(_bookingDate),
                               'start_time': startFormatted,
                               'end_time': endFormatted,
                               'setup_minutes': _setupMinutes,
                               'cleanup_minutes': _cleanupMinutes,
-                              'organizer_name': _organizerNameCtrl.text.trim(),
+                              'organizer_name': _organizerNameCtrl.text.trim().isNotEmpty
+                                  ? _organizerNameCtrl.text.trim()
+                                  : (_selectedRequester?.fullName ?? 'Campus Administrator'),
                               'organizer_role': _organizerRole,
                               'organizer_email': _organizerEmailCtrl.text.trim(),
                               'organizer_phone': _organizerPhoneCtrl.text.trim(),
@@ -738,6 +1015,8 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                                 if (_whiteboard) 'Whiteboard',
                                 if (_videoConferencing) 'Video Conferencing',
                               ],
+                              'status': allowConflict ? 'Pending' : (widget.initialItem?.status ?? 'Pending'),
+                              'allow_conflict': allowConflict,
                             };
 
                             // Recurrence settings payload
@@ -752,6 +1031,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                                 'end_type': _recurrenceEndType,
                                 'count': _recurrenceCount,
                                 'until_date': DateFormat('yyyy-MM-dd').format(_recurrenceUntilDate),
+                                'allow_conflict': allowConflict,
                               };
                             }
 
@@ -762,12 +1042,15 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
 
                             if (res['success'] == true) {
                               nav.pop();
+                              widget.onSaved?.call();
                               scf.showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    _recurrenceFreq != 'none'
-                                        ? 'Recurring space booking series generated successfully!'
-                                        : 'Space booking request saved successfully!',
+                                    allowConflict
+                                        ? 'Booking request submitted with clash as Pending review!'
+                                        : (_recurrenceFreq != 'none'
+                                            ? 'Recurring space booking series generated successfully!'
+                                            : 'Space booking request saved successfully!'),
                                   ),
                                   backgroundColor: const Color(0xFF059669),
                                 ),
@@ -790,7 +1073,11 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                                     roomName: roomItem?.name ?? 'Selected Room',
                                     requestedTime: '$startFormatted - $endFormatted',
                                     conflictMessage: msg,
-                                    onChangeTime: () => Navigator.pop(ctx),
+                                    onChangeTime: () {
+                                      setState(() {
+                                        _currentTabIndex = 0;
+                                      });
+                                    },
                                   ),
                                 );
                               } else {
@@ -916,6 +1203,16 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
     Color primaryColor,
     bool isMobile,
   ) {
+    final audienceCount = int.tryParse(_attendeesCtrl.text.trim()) ?? 0;
+    final availableBuildings = _getAvailableBuildings(state.bookableRooms);
+    final availableFloors = _getAvailableFloors(state.bookableRooms);
+    final filteredRooms = _getFilteredRooms(state.bookableRooms, audienceCount);
+    final selectedRoom = state.bookableRooms.cast<BookableRoomItem?>().firstWhere(
+      (r) => r?.id == _selectedRoomId,
+      orElse: () => null,
+    );
+    final hasCapacityDeficit = selectedRoom != null && audienceCount > 0 && selectedRoom.maxCapacity < audienceCount;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -935,7 +1232,9 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
             label: 'Purpose *',
             color: textSecondary,
             child: DropdownButtonFormField<String>(
-              initialValue: _purpose,
+              value: _bookingPurposes.contains(_purpose)
+                  ? _purpose
+                  : (_bookingPurposes.isNotEmpty ? _bookingPurposes.first : null),
               isExpanded: true,
               dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
               style: TextStyle(fontSize: 13, color: textPrimary),
@@ -943,7 +1242,12 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
               items: _bookingPurposes
                   .map((p) => DropdownMenuItem(value: p, child: Text(p, overflow: TextOverflow.ellipsis)))
                   .toList(),
-              onChanged: (v) => setState(() => _purpose = v ?? 'Academic'),
+              onChanged: (v) {
+                setState(() {
+                  _purpose = v ?? 'Academic';
+                  _isAcademicBooking = _checkIsAcademic(_purpose);
+                });
+              },
             ),
           ),
         ] else ...[
@@ -969,7 +1273,9 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                   label: 'Purpose *',
                   color: textSecondary,
                   child: DropdownButtonFormField<String>(
-                    initialValue: _purpose,
+                    value: _bookingPurposes.contains(_purpose)
+                        ? _purpose
+                        : (_bookingPurposes.isNotEmpty ? _bookingPurposes.first : null),
                     isExpanded: true,
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                     style: TextStyle(fontSize: 13, color: textPrimary),
@@ -977,7 +1283,12 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                     items: _bookingPurposes
                         .map((p) => DropdownMenuItem(value: p, child: Text(p, overflow: TextOverflow.ellipsis)))
                         .toList(),
-                    onChanged: (v) => setState(() => _purpose = v ?? 'Academic'),
+                    onChanged: (v) {
+                      setState(() {
+                        _purpose = v ?? 'Academic';
+                        _isAcademicBooking = _checkIsAcademic(_purpose);
+                      });
+                    },
                   ),
                 ),
               ),
@@ -986,30 +1297,545 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
         ],
         const SizedBox(height: 14),
 
-        // Room Dropdown
-        _buildFormField(
-          label: 'Select Space / Room *',
-          color: textSecondary,
-          child: DropdownButtonFormField<String>(
-            initialValue: state.bookableRooms.any((r) => r.id == _selectedRoomId) ? _selectedRoomId : null,
-            isExpanded: true,
-            dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-            style: TextStyle(fontSize: 13, color: textPrimary),
-            decoration: _inputDecoration('Choose from bookable campus spaces', isDark, inputBg, inputBorder),
-            items: state.bookableRooms.map((r) {
-              return DropdownMenuItem(
-                value: r.id,
-                child: Text(
-                  '${r.name} (${r.roomType}) • ${r.buildingName} • Capacity: ${r.maxCapacity} seats',
-                  overflow: TextOverflow.ellipsis,
+        // Academic Purpose Target Card (Class, Section, Subject)
+        if (_isAcademicBooking) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: primaryColor.withValues(alpha: isDark ? 0.12 : 0.05),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: primaryColor.withValues(alpha: isDark ? 0.35 : 0.2)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.school_outlined, size: 16, color: primaryColor),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Academic Purpose: Class & Section Allocation',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: textPrimary,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (_isLoadingAcademicEntities)
+                      SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 1.5, color: primaryColor),
+                      )
+                    else if (_academicClasses.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '${_academicClasses.length} Classes Available',
+                          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF93C5FD) : primaryColor),
+                        ),
+                      ),
+                  ],
                 ),
-              );
-            }).toList(),
-            onChanged: (v) {
-              setState(() => _selectedRoomId = v);
-              _checkLiveSlotStatus();
-            },
-            validator: (v) => v == null ? 'Room required' : null,
+                const SizedBox(height: 10),
+                if (isMobile) ...[
+                  _buildFormField(
+                    label: 'Target Class',
+                    color: textSecondary,
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedClassId,
+                      isExpanded: true,
+                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      style: TextStyle(fontSize: 13, color: textPrimary),
+                      decoration: _inputDecoration('All Classes or select specific', isDark, inputBg, inputBorder),
+                      items: [
+                        DropdownMenuItem(
+                          value: 'ALL_CLASSES',
+                          child: Text(
+                            'All Classes (${_academicClasses.fold<int>(0, (sum, c) => sum + (c['sections'] as List? ?? []).fold<int>(0, (s, sec) => s + ((sec['student_count'] as num?)?.toInt() ?? 0)))} students)',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        ..._academicClasses.map((c) {
+                          final count = (c['sections'] as List? ?? []).fold<int>(
+                            0,
+                            (s, sec) => s + ((sec['student_count'] as num?)?.toInt() ?? 0),
+                          );
+                          return DropdownMenuItem(
+                            value: c['id']?.toString(),
+                            child: Text('${c['name']} ($count students)', overflow: TextOverflow.ellipsis),
+                          );
+                        }),
+                      ],
+                      onChanged: _onClassSelected,
+                    ),
+                  ),
+                  if (_selectedClassId != null && _selectedClassId != 'ALL_CLASSES') ...[
+                    const SizedBox(height: 10),
+                    _buildFormField(
+                      label: 'Target Section',
+                      color: textSecondary,
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedSectionId,
+                        isExpanded: true,
+                        dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        style: TextStyle(fontSize: 13, color: textPrimary),
+                        decoration: _inputDecoration('All Sections', isDark, inputBg, inputBorder),
+                        items: _buildSectionDropdownItems(),
+                        onChanged: _onSectionSelected,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _buildFormField(
+                      label: 'Subject',
+                      color: textSecondary,
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedSubject,
+                        isExpanded: true,
+                        dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        style: TextStyle(fontSize: 13, color: textPrimary),
+                        decoration: _inputDecoration('Select Subject', isDark, inputBg, inputBorder),
+                        items: _buildSubjectDropdownItems(),
+                        onChanged: _onSubjectSelected,
+                      ),
+                    ),
+                  ],
+                ] else ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 4,
+                        child: _buildFormField(
+                          label: 'Target Class',
+                          color: textSecondary,
+                          child: DropdownButtonFormField<String>(
+                            value: _selectedClassId,
+                            isExpanded: true,
+                            dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                            style: TextStyle(fontSize: 13, color: textPrimary),
+                            decoration: _inputDecoration('All Classes or select specific', isDark, inputBg, inputBorder),
+                            items: [
+                              DropdownMenuItem(
+                                value: 'ALL_CLASSES',
+                                child: Text(
+                                  'All Classes (${_academicClasses.fold<int>(0, (sum, c) => sum + (c['sections'] as List? ?? []).fold<int>(0, (s, sec) => s + ((sec['student_count'] as num?)?.toInt() ?? 0)))} students)',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              ..._academicClasses.map((c) {
+                                final count = (c['sections'] as List? ?? []).fold<int>(
+                                  0,
+                                  (s, sec) => s + ((sec['student_count'] as num?)?.toInt() ?? 0),
+                                );
+                                return DropdownMenuItem(
+                                  value: c['id']?.toString(),
+                                  child: Text('${c['name']} ($count students)', overflow: TextOverflow.ellipsis),
+                                );
+                              }),
+                            ],
+                            onChanged: _onClassSelected,
+                          ),
+                        ),
+                      ),
+                      if (_selectedClassId != null && _selectedClassId != 'ALL_CLASSES') ...[
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 3,
+                          child: _buildFormField(
+                            label: 'Target Section',
+                            color: textSecondary,
+                            child: DropdownButtonFormField<String>(
+                              value: _selectedSectionId,
+                              isExpanded: true,
+                              dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                              style: TextStyle(fontSize: 13, color: textPrimary),
+                              decoration: _inputDecoration('All Sections', isDark, inputBg, inputBorder),
+                              items: _buildSectionDropdownItems(),
+                              onChanged: _onSectionSelected,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 3,
+                          child: _buildFormField(
+                            label: 'Subject',
+                            color: textSecondary,
+                            child: DropdownButtonFormField<String>(
+                              value: _selectedSubject,
+                              isExpanded: true,
+                              dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                              style: TextStyle(fontSize: 13, color: textPrimary),
+                              decoration: _inputDecoration('Select Subject', isDark, inputBg, inputBorder),
+                              items: _buildSubjectDropdownItems(),
+                              onChanged: _onSubjectSelected,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+        ] else ...[
+          Align(
+            alignment: Alignment.centerLeft,
+            child: InkWell(
+              onTap: () => setState(() => _isAcademicBooking = true),
+              borderRadius: BorderRadius.circular(6),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_circle_outline, size: 14, color: Color(0xFF2563EB)),
+                    SizedBox(width: 6),
+                    Text(
+                      'Link this booking to a Class, Section & Subject',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
+
+        // 3. Divided Cascading Space Selection (Building -> Floor -> Room & Capacity)
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.5) : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.domain_rounded, size: 16, color: Color(0xFF3B82F6)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Campus Space Allocation',
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: textPrimary),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${filteredRooms.length} available',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              if (isMobile) ...[
+                _buildFormField(
+                  label: '1. Select Building',
+                  color: textSecondary,
+                  child: DropdownButtonFormField<String?>(
+                    value: availableBuildings.any((b) => b['id'] == _selectedBuildingId) ? _selectedBuildingId : null,
+                    isExpanded: true,
+                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    style: TextStyle(fontSize: 13, color: textPrimary),
+                    decoration: _inputDecoration('All Buildings', isDark, inputBg, inputBorder),
+                    items: [
+                      DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('All Buildings (${availableBuildings.length})', overflow: TextOverflow.ellipsis),
+                      ),
+                      ...availableBuildings.map((b) => DropdownMenuItem<String?>(
+                            value: b['id'],
+                            child: Text(b['label']!, overflow: TextOverflow.ellipsis),
+                          )),
+                    ],
+                    onChanged: (v) {
+                      setState(() {
+                        _selectedBuildingId = v;
+                        _selectedFloorId = null;
+                        final newFiltered = _getFilteredRooms(state.bookableRooms, audienceCount);
+                        if (!newFiltered.any((r) => r.id == _selectedRoomId)) {
+                          _selectedRoomId = newFiltered.isNotEmpty ? newFiltered.first.id : null;
+                        }
+                      });
+                      _checkLiveSlotStatus();
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _buildFormField(
+                  label: '2. Select Floor',
+                  color: textSecondary,
+                  child: DropdownButtonFormField<String?>(
+                    value: availableFloors.any((f) => f['id'] == _selectedFloorId) ? _selectedFloorId : null,
+                    isExpanded: true,
+                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    style: TextStyle(fontSize: 13, color: textPrimary),
+                    decoration: _inputDecoration('All Floors', isDark, inputBg, inputBorder),
+                    items: [
+                      DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('All Floors (${availableFloors.length})', overflow: TextOverflow.ellipsis),
+                      ),
+                      ...availableFloors.map((f) => DropdownMenuItem<String?>(
+                            value: f['id'],
+                            child: Text(f['label']!, overflow: TextOverflow.ellipsis),
+                          )),
+                    ],
+                    onChanged: (v) {
+                      setState(() {
+                        _selectedFloorId = v;
+                        final newFiltered = _getFilteredRooms(state.bookableRooms, audienceCount);
+                        if (!newFiltered.any((r) => r.id == _selectedRoomId)) {
+                          _selectedRoomId = newFiltered.isNotEmpty ? newFiltered.first.id : null;
+                        }
+                      });
+                      _checkLiveSlotStatus();
+                    },
+                  ),
+                ),
+              ] else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: _buildFormField(
+                        label: '1. Select Building',
+                        color: textSecondary,
+                        child: DropdownButtonFormField<String?>(
+                          value: availableBuildings.any((b) => b['id'] == _selectedBuildingId) ? _selectedBuildingId : null,
+                          isExpanded: true,
+                          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          style: TextStyle(fontSize: 13, color: textPrimary),
+                          decoration: _inputDecoration('All Buildings', isDark, inputBg, inputBorder),
+                          items: [
+                            DropdownMenuItem<String?>(
+                              value: null,
+                              child: Text('All Buildings (${availableBuildings.length})', overflow: TextOverflow.ellipsis),
+                            ),
+                            ...availableBuildings.map((b) => DropdownMenuItem<String?>(
+                                  value: b['id'],
+                                  child: Text(b['label']!, overflow: TextOverflow.ellipsis),
+                                )),
+                          ],
+                          onChanged: (v) {
+                            setState(() {
+                              _selectedBuildingId = v;
+                              _selectedFloorId = null;
+                              final newFiltered = _getFilteredRooms(state.bookableRooms, audienceCount);
+                              if (!newFiltered.any((r) => r.id == _selectedRoomId)) {
+                                _selectedRoomId = newFiltered.isNotEmpty ? newFiltered.first.id : null;
+                              }
+                            });
+                            _checkLiveSlotStatus();
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: _buildFormField(
+                        label: '2. Select Floor',
+                        color: textSecondary,
+                        child: DropdownButtonFormField<String?>(
+                          value: availableFloors.any((f) => f['id'] == _selectedFloorId) ? _selectedFloorId : null,
+                          isExpanded: true,
+                          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          style: TextStyle(fontSize: 13, color: textPrimary),
+                          decoration: _inputDecoration('All Floors', isDark, inputBg, inputBorder),
+                          items: [
+                            DropdownMenuItem<String?>(
+                              value: null,
+                              child: Text('All Floors (${availableFloors.length})', overflow: TextOverflow.ellipsis),
+                            ),
+                            ...availableFloors.map((f) => DropdownMenuItem<String?>(
+                                  value: f['id'],
+                                  child: Text(f['label']!, overflow: TextOverflow.ellipsis),
+                                )),
+                          ],
+                          onChanged: (v) {
+                            setState(() {
+                              _selectedFloorId = v;
+                              final newFiltered = _getFilteredRooms(state.bookableRooms, audienceCount);
+                              if (!newFiltered.any((r) => r.id == _selectedRoomId)) {
+                                _selectedRoomId = newFiltered.isNotEmpty ? newFiltered.first.id : null;
+                              }
+                            });
+                            _checkLiveSlotStatus();
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 10),
+
+              // 3. Room / Space Dropdown (with Capacity & Deficit Status)
+              _buildFormField(
+                label: '3. Select Room / Space (Capacity) *',
+                color: textSecondary,
+                child: DropdownButtonFormField<String>(
+                  value: filteredRooms.any((r) => r.id == _selectedRoomId) ? _selectedRoomId : null,
+                  isExpanded: true,
+                  dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  style: TextStyle(fontSize: 13, color: textPrimary),
+                  decoration: _inputDecoration('Choose space from filtered list', isDark, inputBg, inputBorder),
+                  items: filteredRooms.map((r) {
+                    final fits = audienceCount == 0 || r.maxCapacity >= audienceCount;
+                    final badge = audienceCount > 0
+                        ? (fits ? '  [✓ Fits: ${r.maxCapacity} seats]' : '  [⚠️ Capacity Deficit: -${audienceCount - r.maxCapacity}]')
+                        : '  [${r.maxCapacity} seats]';
+                    return DropdownMenuItem(
+                      value: r.id,
+                      child: Text(
+                        '${r.name} (${r.roomType}) • ${r.buildingName}${r.floorName != null ? " • ${r.floorName}" : ""}$badge',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (v) {
+                    setState(() {
+                      _selectedRoomId = v;
+                      if (v != null) {
+                        final r = state.bookableRooms.cast<BookableRoomItem?>().firstWhere((x) => x?.id == v, orElse: () => null);
+                        if (r != null) {
+                          _selectedBuildingId = r.buildingId;
+                          if (r.floorId != null && r.floorId!.isNotEmpty) {
+                            _selectedFloorId = r.floorId;
+                          }
+                        }
+                      }
+                    });
+                    _checkLiveSlotStatus();
+                  },
+                  validator: (v) => v == null ? 'Room required' : null,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Filter toggle & Capacity summary
+              Row(
+                children: [
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        _filterByCapacity = !_filterByCapacity;
+                        final newFiltered = _getFilteredRooms(state.bookableRooms, audienceCount);
+                        if (!newFiltered.any((r) => r.id == _selectedRoomId)) {
+                          _selectedRoomId = newFiltered.isNotEmpty ? newFiltered.first.id : null;
+                        }
+                      });
+                      _checkLiveSlotStatus();
+                    },
+                    borderRadius: BorderRadius.circular(4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: Checkbox(
+                            value: _filterByCapacity,
+                            onChanged: (val) {
+                              setState(() {
+                                _filterByCapacity = val ?? false;
+                                final newFiltered = _getFilteredRooms(state.bookableRooms, audienceCount);
+                                if (!newFiltered.any((r) => r.id == _selectedRoomId)) {
+                                  _selectedRoomId = newFiltered.isNotEmpty ? newFiltered.first.id : null;
+                                }
+                              });
+                              _checkLiveSlotStatus();
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Show only spaces that can accommodate $audienceCount attendees',
+                          style: TextStyle(fontSize: 11.5, color: textSecondary, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              // Prominent Capacity Deficit Warning Banner or Accommodation Badge
+              if (hasCapacityDeficit) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.16 : 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: Color(0xFFF59E0B), size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Space Capacity Deficit (${selectedRoom.maxCapacity} seats for $audienceCount attendees)',
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFFD97706)),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'The selected space "${selectedRoom.name}" has only ${selectedRoom.maxCapacity} seats, but $audienceCount attendees are expected. All persons will not be able to sit properly due to insufficient room capacity.',
+                              style: TextStyle(fontSize: 11.5, color: textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else if (selectedRoom != null && audienceCount > 0) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.12 : 0.06),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF10B981), size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '✓ Space accommodates full audience (${selectedRoom.maxCapacity} seats available for $audienceCount attendees)',
+                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF059669)),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
         const SizedBox(height: 14),
@@ -1134,7 +1960,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                 label: 'Setup Buffer',
                 color: textSecondary,
                 child: DropdownButtonFormField<int>(
-                  initialValue: _setupMinutes,
+                  value: const [0, 5, 10, 15, 30].contains(_setupMinutes) ? _setupMinutes : 10,
                   isExpanded: true,
                   dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                   style: TextStyle(fontSize: 13, color: textPrimary),
@@ -1159,7 +1985,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                 label: 'Cleanup Buffer',
                 color: textSecondary,
                 child: DropdownButtonFormField<int>(
-                  initialValue: _cleanupMinutes,
+                  value: const [0, 5, 10, 15, 30].contains(_cleanupMinutes) ? _cleanupMinutes : 10,
                   isExpanded: true,
                   dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                   style: TextStyle(fontSize: 13, color: textPrimary),
@@ -1601,7 +2427,9 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
           label: 'Repeat Frequency',
           color: textSecondary,
           child: DropdownButtonFormField<String>(
-            initialValue: _recurrenceFreq,
+            value: const ['none', 'daily', 'weekdays', 'weekly', 'monthly', 'yearly', 'custom'].contains(_recurrenceFreq)
+                ? _recurrenceFreq
+                : 'daily',
             isExpanded: true,
             dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
             style: TextStyle(fontSize: 13, color: textPrimary),
@@ -1980,20 +2808,23 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
               separatorBuilder: (_, __) => Divider(height: 1, color: inputBorder),
               itemBuilder: (context, index) {
                 final p = _requesters[index];
-                return ListTile(
-                  dense: true,
-                  leading: CircleAvatar(
-                    radius: 14,
-                    backgroundColor: const Color(0xFF3B82F6).withValues(alpha: 0.2),
-                    child: Text(
-                      p.fullName.isNotEmpty ? p.fullName[0].toUpperCase() : 'U',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF3B82F6)),
+                return Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    dense: true,
+                    leading: CircleAvatar(
+                      radius: 14,
+                      backgroundColor: const Color(0xFF3B82F6).withValues(alpha: 0.2),
+                      child: Text(
+                        p.fullName.isNotEmpty ? p.fullName[0].toUpperCase() : 'U',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF3B82F6)),
+                      ),
                     ),
+                    title: Text(p.fullName, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: textPrimary)),
+                    subtitle: Text('${p.role} • ${p.email}', style: TextStyle(fontSize: 11, color: textSecondary), overflow: TextOverflow.ellipsis),
+                    trailing: const Icon(Icons.add_circle_outline, size: 18, color: Color(0xFF3B82F6)),
+                    onTap: () => _selectRequester(p),
                   ),
-                  title: Text(p.fullName, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: textPrimary)),
-                  subtitle: Text('${p.role} • ${p.email}', style: TextStyle(fontSize: 11, color: textSecondary), overflow: TextOverflow.ellipsis),
-                  trailing: const Icon(Icons.add_circle_outline, size: 18, color: Color(0xFF3B82F6)),
-                  onTap: () => _selectRequester(p),
                 );
               },
             ),
@@ -2024,7 +2855,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                 label: 'Organizer Role',
                 color: textSecondary,
                 child: DropdownButtonFormField<String>(
-                  initialValue: _organizerRoles.contains(_organizerRole)
+                  value: _organizerRoles.contains(_organizerRole)
                       ? _organizerRole
                       : (_organizerRoles.isNotEmpty ? _organizerRoles.first : null),
                   isExpanded: true,

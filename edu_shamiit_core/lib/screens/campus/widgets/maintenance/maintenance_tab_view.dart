@@ -60,50 +60,7 @@ class _MaintenanceTabViewState extends ConsumerState<MaintenanceTabView> {
   }
 
   void _openVendorsModal() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
-    final vendors = ref.read(maintenanceProvider).vendors;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: bg,
-        title: Row(
-          children: [
-            const Icon(Icons.handshake_outlined, color: Color(0xFF2563EB)),
-            const SizedBox(width: 8),
-            Text('Service Vendors & AMC Contracts', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: textPrimary)),
-          ],
-        ),
-        content: SizedBox(
-          width: 500,
-          child: vendors.isEmpty
-              ? const Padding(padding: EdgeInsets.all(20), child: Text('No external vendors configured.'))
-              : ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: vendors.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (_, idx) {
-                    final v = vendors[idx];
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(v.vendorName, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textPrimary)),
-                      subtitle: Text('${v.serviceCategory} • ${v.contractType} (SLA: ${v.slaResponseHours}h)', style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(color: const Color(0xFFDCFCE7), borderRadius: BorderRadius.circular(10)),
-                        child: const Text('Active AMC', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFF16A34A))),
-                      ),
-                    );
-                  },
-                ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close')),
-        ],
-      ),
-    );
+    ref.read(maintenanceProvider.notifier).setActiveView('vendors');
   }
 
   void _inspectRequest(MaintenanceRequestItem item) {

@@ -28,11 +28,6 @@ class ClassTabsBar extends ConsumerWidget {
         'count': state.stats.totalSubjects,
         'icon': Icons.menu_book_rounded
       },
-      {
-        'label': 'Rooms',
-        'count': state.stats.totalRooms,
-        'icon': Icons.meeting_room_outlined
-      },
     ];
 
     return LayoutBuilder(

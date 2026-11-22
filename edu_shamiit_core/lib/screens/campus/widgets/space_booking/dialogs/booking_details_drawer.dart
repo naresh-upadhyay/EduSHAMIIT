@@ -4,6 +4,7 @@ import '../../../models/space_booking_models.dart';
 import '../../../providers/space_booking_provider.dart';
 import '../../../services/space_booking_api_service.dart';
 import 'space_conflict_warning_dialog.dart';
+import 'create_edit_booking_dialog.dart';
 
 class BookingDetailsDrawer extends ConsumerStatefulWidget {
   final SpaceBookingRequestItem item;
@@ -443,7 +444,23 @@ class _BookingDetailsDrawerState extends ConsumerState<BookingDetailsDrawer> {
                             roomName: item.spaceDisplay,
                             requestedTime: '${item.bookingDate} (${item.startTime} - ${item.endTime})',
                             conflictMessage: res['message']?.toString() ?? 'Cannot approve: Space is already booked during this time slot.',
-                            onChangeTime: () => Navigator.pop(ctx),
+                            onChangeTime: () {
+                              if (widget.onEdit != null) {
+                                widget.onEdit!();
+                              } else {
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (dCtx) => CreateEditBookingDialog(
+                                    initialItem: item,
+                                    onSaved: () async {
+                                      await _loadDetails();
+                                      ref.read(spaceBookingProvider.notifier).loadAll();
+                                    },
+                                  ),
+                                );
+                              }
+                            },
                           ),
                         );
                       } else {

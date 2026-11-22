@@ -195,4 +195,74 @@ class MaintenanceApiService {
       return {'success': false, 'error': e.toString()};
     }
   }
+
+  /// 13. Delete Maintenance Request
+  Future<Map<String, dynamic>> deleteRequest(String requestId) async {
+    try {
+      final res = await _api.delete('/v1/maintenance/requests/$requestId');
+      return res;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// 14. Update Preventive Plan
+  Future<Map<String, dynamic>> updatePlan(String planId, Map<String, dynamic> payload) async {
+    try {
+      final res = await _api.put('/v1/maintenance/plans/$planId', payload);
+      return res;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// 15. Delete Preventive Plan
+  Future<Map<String, dynamic>> deletePlan(String planId) async {
+    try {
+      final res = await _api.delete('/v1/maintenance/plans/$planId');
+      return res;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// 16. Trigger Single Preventive Plan Immediately
+  Future<Map<String, dynamic>> triggerPlan(String planId) async {
+    try {
+      final res = await _api.post('/v1/maintenance/plans/$planId/run', {});
+      return res;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// 17. Create Vendor & AMC Contract
+  Future<Map<String, dynamic>> createVendor(Map<String, dynamic> payload) async {
+    try {
+      final res = await _api.post('/v1/maintenance/vendors', payload);
+      return res;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// 18. Update Vendor & AMC Contract
+  Future<Map<String, dynamic>> updateVendor(String vendorId, Map<String, dynamic> payload) async {
+    try {
+      final res = await _api.put('/v1/maintenance/vendors/$vendorId', payload);
+      return res;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// 19. Delete Vendor & AMC Contract
+  Future<Map<String, dynamic>> deleteVendor(String vendorId) async {
+    try {
+      final res = await _api.delete('/v1/maintenance/vendors/$vendorId');
+      return res;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
 }

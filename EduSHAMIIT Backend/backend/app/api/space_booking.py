@@ -165,6 +165,7 @@ class SpaceBookingCreateUpdateSchema(BaseModel):
     status: Optional[str] = "Pending"
     is_recurring: Optional[bool] = False
     recurrence: Optional[Dict[str, Any]] = None
+    allow_conflict: Optional[bool] = False
 
 
 class ApprovalDecisionSchema(BaseModel):
@@ -232,29 +233,51 @@ async def get_availability_timeline(
 
 @router.get("/requests", summary="Paged Space Booking Requests with Tabs and Filters")
 async def get_booking_requests(
-    status: Optional[str] = Query(None, description="All, Pending, Approved, Rejected"),
+    status: Optional[str] = Query(None, description="All, Pending, Approved, Rejected, Conflict"),
     building_id: Optional[str] = Query(None),
     room_type: Optional[str] = Query(None),
+    purpose: Optional[str] = Query(None),
+    priority: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     date_from: Optional[date] = Query(None),
     date_to: Optional[date] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
+    sort_by: Optional[str] = Query("booking_date"),
+    sort_order: Optional[str] = Query("asc"),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
     school_id = get_school_id(current_user)
     st = status if (status and str(status).strip().lower() not in ("all", "none", "")) else None
     b_id = safe_uuid(building_id)
     r_type = room_type if (room_type and str(room_type).strip().lower() not in ("all", "none", "")) else None
+    purp = purpose if (purpose and str(purpose).strip().lower() not in ("all", "none", "")) else None
+    prio = priority if (priority and str(priority).strip().lower() not in ("all", "none", "")) else None
     search_term = search.strip() if (search and isinstance(search, str) and search.strip()) else None
+    s_by = sort_by.strip() if (sort_by and isinstance(sort_by, str) and sort_by.strip()) else "booking_date"
+    s_order = sort_order.strip().lower() if (sort_order and isinstance(sort_order, str)) else "asc"
 
     sql = """
         SELECT public.fn_space_booking_list(
-            %s::UUID, %s::VARCHAR, %s::UUID, %s::VARCHAR, 
-            %s::VARCHAR, %s::DATE, %s::DATE, %s::INT, %s::INT
+            p_school_id => %s::UUID,
+            p_status => %s::VARCHAR,
+            p_building_id => %s::UUID,
+            p_room_type => %s::VARCHAR,
+            p_search => %s::VARCHAR,
+            p_date_from => %s::DATE,
+            p_date_to => %s::DATE,
+            p_page => %s::INT,
+            p_page_size => %s::INT,
+            p_purpose => %s::VARCHAR,
+            p_priority => %s::VARCHAR,
+            p_sort_by => %s::VARCHAR,
+            p_sort_order => %s::VARCHAR
         ) AS result;
     """
-    rows = await exec_sql(sql, (school_id, st, b_id, r_type, search_term, date_from, date_to, page, page_size))
+    rows = await exec_sql(sql, (
+        school_id, st, b_id, r_type, search_term, date_from, date_to,
+        page, page_size, purp, prio, s_by, s_order
+    ))
     result = rows[0]["result"] if rows else {"items": [], "total_count": 0, "page": page, "page_size": page_size}
     return {
         "success": True,
@@ -289,105 +312,117 @@ async def create_or_update_booking(
     data_dict = payload.dict()
     data_dict["school_id"] = school_id
     data_dict["user_id"] = user_id
+    allow_conflict = bool(payload.allow_conflict or data_dict.get("allow_conflict", False))
+    data_dict["allow_conflict"] = allow_conflict
 
-    # If recurrence settings are specified and not 'none', generate recurring series
-    rec = data_dict.get("recurrence")
-    if rec and isinstance(rec, dict) and rec.get("frequency") and rec.get("frequency") != "none":
-        freq = str(rec.get("frequency", "weekly")).lower()
-        days = rec.get("days_of_week") or [1, 2, 3, 4, 5, 6, 7]
-        interval = max(int(rec.get("interval", 1)), 1)
-        end_type = str(rec.get("end_type", "never")).lower()
-        
-        start_d = payload.booking_date
-        end_d = start_d + timedelta(days=60)
-        max_occ = 30
-        if end_type == "date" and rec.get("until_date"):
-            try:
-                end_d = datetime.strptime(str(rec["until_date"])[:10], "%Y-%m-%d").date()
-            except Exception:
-                end_d = start_d + timedelta(days=60)
-        elif end_type == "count" and rec.get("count"):
-            count = max(int(rec["count"]), 1)
-            max_occ = count
-            if freq == "daily":
-                end_d = start_d + timedelta(days=count * interval + 5)
-            elif freq in ("weekly", "weekdays"):
-                end_d = start_d + timedelta(weeks=count * interval + 2)
-            elif freq == "monthly":
-                end_d = start_d + timedelta(days=count * 31 * interval + 10)
-        else:
+    try:
+        # If recurrence settings are specified and not 'none', generate recurring series
+        rec = data_dict.get("recurrence")
+        if rec and isinstance(rec, dict) and rec.get("frequency") and rec.get("frequency") != "none":
+            freq = str(rec.get("frequency", "weekly")).lower()
+            days = rec.get("days_of_week") or [1, 2, 3, 4, 5, 6, 7]
+            interval = max(int(rec.get("interval", 1)), 1)
+            end_type = str(rec.get("end_type", "never")).lower()
+            
+            start_d = payload.booking_date
             end_d = start_d + timedelta(days=60)
+            max_occ = 30
+            if end_type == "date" and rec.get("until_date"):
+                try:
+                    end_d = datetime.strptime(str(rec["until_date"])[:10], "%Y-%m-%d").date()
+                except Exception:
+                    end_d = start_d + timedelta(days=60)
+            elif end_type == "count" and rec.get("count"):
+                count = max(int(rec["count"]), 1)
+                max_occ = count
+                if freq == "daily":
+                    end_d = start_d + timedelta(days=count * interval + 5)
+                elif freq in ("weekly", "weekdays"):
+                    end_d = start_d + timedelta(weeks=count * interval + 2)
+                elif freq == "monthly":
+                    end_d = start_d + timedelta(days=count * 31 * interval + 10)
+            else:
+                end_d = start_d + timedelta(days=60)
 
-        st = data_dict["start_time"]
-        et = data_dict["end_time"]
-        if len(st) == 5:
-            st += ":00"
-        if len(et) == 5:
-            et += ":00"
+            st = data_dict["start_time"]
+            et = data_dict["end_time"]
+            if len(st) == 5:
+                st += ":00"
+            if len(et) == 5:
+                et += ":00"
 
-        rec_payload = {
-            "school_id": school_id,
-            "user_id": user_id,
-            "existing_booking_id": safe_uuid(data_dict.get("id")),
-            "title": payload.title,
-            "description": payload.description,
-            "room_id": payload.room_id,
-            "frequency": freq,
-            "start_date": str(start_d),
-            "end_date": str(end_d),
-            "days_of_week": days,
-            "start_time": st,
-            "end_time": et,
-            "setup_minutes": payload.setup_minutes or 0,
-            "cleanup_minutes": payload.cleanup_minutes or 0,
-            "purpose": payload.purpose,
-            "category": payload.category or "Academic",
-            "priority": payload.priority or "Normal",
-            "organizer_name": payload.organizer_name,
-            "organizer_role": payload.organizer_role,
-            "organizer_email": payload.organizer_email,
-            "organizer_phone": payload.organizer_phone,
-            "attendee_count": payload.attendee_count or 30,
-            "interval": interval,
-            "end_type": end_type,
-            "max_occurrences": max_occ
-        }
-        rec_json = json.dumps(rec_payload, default=str)
-        sql = "SELECT public.fn_space_booking_create_recurring(%s::JSONB) AS result;"
-        rows = await exec_sql(sql, (rec_json,))
-        result = rows[0]["result"] if rows else {"success": False, "message": "Failed to create recurring series"}
+            rec_payload = {
+                "school_id": school_id,
+                "user_id": user_id,
+                "existing_booking_id": safe_uuid(data_dict.get("id")),
+                "title": payload.title,
+                "description": payload.description,
+                "room_id": payload.room_id,
+                "frequency": freq,
+                "start_date": str(start_d),
+                "end_date": str(end_d),
+                "days_of_week": days,
+                "start_time": st,
+                "end_time": et,
+                "setup_minutes": payload.setup_minutes or 0,
+                "cleanup_minutes": payload.cleanup_minutes or 0,
+                "purpose": payload.purpose,
+                "category": payload.category or "Academic",
+                "priority": payload.priority or "Normal",
+                "organizer_name": payload.organizer_name,
+                "organizer_role": payload.organizer_role,
+                "organizer_email": payload.organizer_email,
+                "organizer_phone": payload.organizer_phone,
+                "attendee_count": payload.attendee_count or 30,
+                "interval": interval,
+                "end_type": end_type,
+                "max_occurrences": max_occ,
+                "allow_conflict": allow_conflict
+            }
+            rec_json = json.dumps(rec_payload, default=str)
+            sql = "SELECT public.fn_space_booking_create_recurring(%s::JSONB) AS result;"
+            rows = await exec_sql(sql, (rec_json,))
+            result = rows[0]["result"] if rows else {"success": False, "message": "Failed to create recurring series"}
+            if not result.get("success"):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT if "conflict" in result.get("message", "").lower() else status.HTTP_400_BAD_REQUEST,
+                    detail=result.get("message", "Recurring booking creation failed")
+                )
+            return {
+                "success": True,
+                "data": _serialize_val(result)
+            }
+
+        # Single Booking Flow
+        # Format time strings if provided without seconds
+        if len(data_dict["start_time"]) == 5:
+            data_dict["start_time"] += ":00"
+        if len(data_dict["end_time"]) == 5:
+            data_dict["end_time"] += ":00"
+
+        payload_json = json.dumps(data_dict, default=str)
+        sql = "SELECT public.fn_space_booking_create_or_update(%s::JSONB) AS result;"
+        rows = await exec_sql(sql, (payload_json,))
+        result = rows[0]["result"] if rows else {"success": False, "message": "Failed to process booking"}
+
         if not result.get("success"):
             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT if "conflict" in result.get("message", "").lower() else status.HTTP_400_BAD_REQUEST,
-                detail=result.get("message", "Recurring booking creation failed")
+                status_code=status.HTTP_409_CONFLICT if result.get("error") == "CONFLICT" else status.HTTP_400_BAD_REQUEST,
+                detail=result.get("message", "Booking could not be created or updated.")
             )
+
         return {
             "success": True,
             "data": _serialize_val(result)
         }
-
-    # Single Booking Flow
-    # Format time strings if provided without seconds
-    if len(data_dict["start_time"]) == 5:
-        data_dict["start_time"] += ":00"
-    if len(data_dict["end_time"]) == 5:
-        data_dict["end_time"] += ":00"
-
-    payload_json = json.dumps(data_dict, default=str)
-    sql = "SELECT public.fn_space_booking_create_or_update(%s::JSONB) AS result;"
-    rows = await exec_sql(sql, (payload_json,))
-    result = rows[0]["result"] if rows else {"success": False, "message": "Failed to process booking"}
-
-    if not result.get("success"):
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error creating/updating space booking: {e}")
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT if result.get("error") == "CONFLICT" else status.HTTP_400_BAD_REQUEST,
-            detail=result.get("message", "Booking could not be created or updated.")
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to process space booking: {str(e)}"
         )
-
-    return {
-        "success": True,
-        "data": _serialize_val(result)
-    }
 
 
 @router.put("/book/{booking_id}", summary="Update Existing Space Booking")

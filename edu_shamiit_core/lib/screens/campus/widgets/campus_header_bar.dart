@@ -7,7 +7,6 @@ class CampusHeaderBar extends StatelessWidget {
   final VoidCallback onExport;
   final VoidCallback? onAddFacility;
   final VoidCallback? onBookSpace;
-  final VoidCallback? onRecurringBooking;
   final VoidCallback? onRaiseMaintenanceRequest;
   final VoidCallback? onMaintenancePlan;
   final VoidCallback? onReportSafetyIncident;
@@ -24,7 +23,6 @@ class CampusHeaderBar extends StatelessWidget {
     required this.onExport,
     this.onAddFacility,
     this.onBookSpace,
-    this.onRecurringBooking,
     this.onRaiseMaintenanceRequest,
     this.onMaintenancePlan,
     this.onReportSafetyIncident,
