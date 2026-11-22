@@ -397,7 +397,13 @@ WHERE id IN (
 );
 
 -- 4. Ensure Section NEWSUB2 has at least 3 students for period-wise composite testing
-INSERT INTO public.student_class_assignments (school_id, class_id, section_id, student_id, academic_year, roll_number, status)
-VALUES ('11111111-1111-1111-1111-111111111111', '62527cb5-4e9d-48de-a353-39b5d3d9dc98', '7fd09622-5003-4ce2-8f8b-1aac6a1252b0', '10000000-0000-0000-0000-000000000012', '2026-27', '03', 'ACTIVE')
-ON CONFLICT (school_id, student_id, academic_year) DO NOTHING;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM public.academic_classes WHERE id = '62527cb5-4e9d-48de-a353-39b5d3d9dc98') 
+       AND EXISTS (SELECT 1 FROM public.academic_sections WHERE id = '7fd09622-5003-4ce2-8f8b-1aac6a1252b0') THEN
+        INSERT INTO public.student_class_assignments (school_id, class_id, section_id, student_id, academic_year, roll_number, status)
+        VALUES ('11111111-1111-1111-1111-111111111111', '62527cb5-4e9d-48de-a353-39b5d3d9dc98', '7fd09622-5003-4ce2-8f8b-1aac6a1252b0', '10000000-0000-0000-0000-000000000012', '2026-27', '03', 'ACTIVE')
+        ON CONFLICT (school_id, student_id, academic_year) DO NOTHING;
+    END IF;
+END $$;
 

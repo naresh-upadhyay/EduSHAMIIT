@@ -7,10 +7,15 @@
 -- 1. CONSOLIDATE & CLEAN UP ROLES IN public.app_roles & public.profiles
 -- ----------------------------------------------------------------------------
 
--- Update existing profile using 'security_officer' to canonical 'security'
+-- Update existing profiles using redundant roles to canonical roles
 UPDATE public.profiles 
-SET role = 'security', updated_at = NOW() 
-WHERE role = 'security_officer';
+SET role = CASE 
+    WHEN role IN ('teacher_admin', 'subject_teacher', 'class_teacher') THEN 'teacher'
+    WHEN role IN ('student_admin', 'student_self') THEN 'student'
+    WHEN role = 'security_officer' THEN 'security'
+    ELSE role
+END, updated_at = NOW() 
+WHERE role IN ('subject_teacher', 'class_teacher', 'teacher_admin', 'student_self', 'student_admin', 'security_officer');
 
 -- Remove device permissions referencing redundant roles
 DELETE FROM public.campus_device_role_permissions

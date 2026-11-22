@@ -6,12 +6,9 @@
 BEGIN;
 
 -- 1. Reassign test students to their correct canonical Class 10 & sections
--- Class 10 UUID: f09f1bca-a4f9-456b-bd29-7bbefe536568
--- Section 10-A: 785edf2c-b857-4541-911d-157585b7c232
--- Section 10-B: d6a85fe5-abfc-455c-b573-b0c6d48f4beb
 UPDATE public.student_class_assignments
-SET class_id = 'f09f1bca-a4f9-456b-bd29-7bbefe536568',
-    section_id = '785edf2c-b857-4541-911d-157585b7c232'
+SET class_id = COALESCE((SELECT id FROM public.academic_classes WHERE name = 'Class 10' LIMIT 1), class_id),
+    section_id = COALESCE((SELECT s.id FROM public.academic_sections s JOIN public.academic_classes c ON s.class_id = c.id WHERE c.name = 'Class 10' AND s.name = '10-A' LIMIT 1), section_id)
 WHERE student_id IN (
     '10000000-0000-0000-0000-000000000002', -- Vihaan Verma (Roll 1009)
     '10000000-0000-0000-0000-000000000003', -- Aditi Rao (Roll 1002)
@@ -20,8 +17,8 @@ WHERE student_id IN (
 );
 
 UPDATE public.student_class_assignments
-SET class_id = 'f09f1bca-a4f9-456b-bd29-7bbefe536568',
-    section_id = 'd6a85fe5-abfc-455c-b573-b0c6d48f4beb'
+SET class_id = COALESCE((SELECT id FROM public.academic_classes WHERE name = 'Class 10' LIMIT 1), class_id),
+    section_id = COALESCE((SELECT s.id FROM public.academic_sections s JOIN public.academic_classes c ON s.class_id = c.id WHERE c.name = 'Class 10' AND s.name = '10-B' LIMIT 1), section_id)
 WHERE student_id = '10000000-0000-0000-0000-000000000012'; -- Student XB
 
 -- 2. Normalize profiles.class to standard canonical class names

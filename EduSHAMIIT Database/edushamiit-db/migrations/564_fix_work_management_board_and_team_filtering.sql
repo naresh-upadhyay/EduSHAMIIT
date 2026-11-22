@@ -1473,45 +1473,50 @@ $$;
 -- Examination Team items
 UPDATE public.work_items
 SET team_name = 'Examination Team',
-    team_id = 'cc4504de-feb6-4ed3-96e6-2d076ce2ef3e'::UUID
-WHERE item_number IN ('WM-1035', 'WM-1053', 'WM-1026', 'WM-1036', 'WM-1055')
+    team_id = (SELECT id FROM public.work_teams WHERE name = 'Examination Team' LIMIT 1)
+WHERE (item_number IN ('WM-1035', 'WM-1053', 'WM-1026', 'WM-1036', 'WM-1055')
    OR title ILIKE '%exam%'
    OR title ILIKE '%grade report%'
-   OR title ILIKE '%mock test%';
+   OR title ILIKE '%mock test%')
+   AND (SELECT id FROM public.work_teams WHERE name = 'Examination Team' LIMIT 1) IS NOT NULL;
 
 -- Library Systems Team items
 UPDATE public.work_items
 SET team_name = 'Library Systems Team',
-    team_id = '8cf83048-48b4-4416-84f8-d19a20521b47'::UUID
-WHERE item_number IN ('WM-1048', 'BG-1081', 'WM-1025')
-   OR title ILIKE '%library%';
+    team_id = (SELECT id FROM public.work_teams WHERE name = 'Library Systems Team' LIMIT 1)
+WHERE (item_number IN ('WM-1048', 'BG-1081', 'WM-1025')
+   OR title ILIKE '%library%')
+   AND (SELECT id FROM public.work_teams WHERE name = 'Library Systems Team' LIMIT 1) IS NOT NULL;
 
 -- Infrastructure & Maintenance Team items
 UPDATE public.work_items
 SET team_name = 'Infrastructure & Maintenance Team',
-    team_id = 'b8cf9527-5607-4f7d-b7da-6be1f05db4d1'::UUID
-WHERE item_number IN ('WM-1032', 'WM-1029', 'WM-1040', 'WM-1037', 'TK-3016', 'TK-3007')
+    team_id = (SELECT id FROM public.work_teams WHERE name = 'Infrastructure & Maintenance Team' LIMIT 1)
+WHERE (item_number IN ('WM-1032', 'WM-1029', 'WM-1040', 'WM-1037', 'TK-3016', 'TK-3007')
    OR title ILIKE '%projector%'
    OR title ILIKE '%water filtration%'
    OR title ILIKE '%boiler%'
-   OR title ILIKE '%microscope%';
+   OR title ILIKE '%microscope%')
+   AND (SELECT id FROM public.work_teams WHERE name = 'Infrastructure & Maintenance Team' LIMIT 1) IS NOT NULL;
 
 -- IT Operations Team items
 UPDATE public.work_items
 SET team_name = 'IT Operations Team',
-    team_id = '39b61998-df04-438a-b947-60bb128eac6e'::UUID
-WHERE item_number IN ('WM-1039', 'WM-1044', 'WM-1049', 'WM-1052', 'WM-1028', 'TK-3070')
+    team_id = (SELECT id FROM public.work_teams WHERE name = 'IT Operations Team' LIMIT 1)
+WHERE (item_number IN ('WM-1039', 'WM-1044', 'WM-1049', 'WM-1052', 'WM-1028', 'TK-3070')
    OR title ILIKE '%firewall%'
    OR title ILIKE '%anti-virus%'
    OR title ILIKE '%wi-fi%'
-   OR title ILIKE '%rfid%';
+   OR title ILIKE '%rfid%')
+   AND (SELECT id FROM public.work_teams WHERE name = 'IT Operations Team' LIMIT 1) IS NOT NULL;
 
 -- Academic Systems Team items
 UPDATE public.work_items
 SET team_name = 'Academic Systems Team',
-    team_id = '17d4f605-8e18-4203-aad8-883325d520ee'::UUID
-WHERE item_number IN ('WM-1041', 'WM-1042', 'WM-1045', 'WM-1031')
+    team_id = (SELECT id FROM public.work_teams WHERE name = 'Academic Systems Team' LIMIT 1)
+WHERE (item_number IN ('WM-1041', 'WM-1042', 'WM-1045', 'WM-1031')
    OR title ILIKE '%lecture%'
    OR title ILIKE '%quiz%'
    OR title ILIKE '%data structures%'
-   OR title ILIKE '%curriculum%';
+   OR title ILIKE '%curriculum%')
+   AND (SELECT id FROM public.work_teams WHERE name = 'Academic Systems Team' LIMIT 1) IS NOT NULL;
